@@ -6,19 +6,19 @@ class TypeChecker(object):
     def __init__(self, table):
         self.table = table
         self.stack = [table, {}]
-        
+
     def push_frame(self):
         self.stack.append({})
-    
+
     def pop_frame(self):
         self.stack = self.stack[:-1]
-    
+
     def find(self, kw):
         for frame in self.stack[::-1]:
             if kw in frame:
                 return frame[kw]
         return None
-    
+
     def typelist(self, ns, *args, **kwargs):
         for n in ns:
             self.typecheck(n, *args, **kwargs)
@@ -30,10 +30,10 @@ class TypeChecker(object):
         if type(n) == str:
             print(n, "string invalid")
             return n
-    
+
         if n.nodet == 'decl':
             n.type = n.nodes[2].nodes[1]
-        
+
             self.table[n.nodes[0]] = FType(
                     argtypes = [x.nodes[1] for x in  n.nodes[1]],
                     rtype=n.type)
@@ -79,12 +79,15 @@ class TypeChecker(object):
             self.typelist(n.nodes)
             if n.nodes:
                 n.type = n.nodes[-1].type
+            for c in n.nodes[:-1]:
+                if c.nodet != 'invocation' and c.type != t_v:
+                    raise Exception("Expression should be void or an invocation:", c)
         elif n.nodet == 'literal':
             pass # Implemented on the frontend
         else:
             print("not done", n.nodet)
         return n
-    
+
 
 def typecheck(ast):
     tc = TypeChecker(initial_table)
