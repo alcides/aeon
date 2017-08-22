@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python3 -m src $1 && cp java/src/* bin/ && cd bin/ && java -jar ../tools/google-java-format-1.3-all-deps.jar --replace E.java && rm -rf *.class && javac {J,E}.java && java E && cd ..
