@@ -115,7 +115,7 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
 expr = (symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
 
-typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(x[0], [ k[0] for k in x[1] ]))
+typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(type=x[0], parameters=[ k[0] for k in x[1] ]))
 
 @lexeme
 @generate
@@ -155,8 +155,9 @@ program = ignore >> many(decl)
 
 
 if __name__ == '__main__':
+    args = sys.argv[1:]
     if len(sys.argv) > 1:
-        i = open(sys.argv[1]).read()
+        i = open(sys.argv[-1]).read()
     else:
         i = input()
     p = program.parse(i)

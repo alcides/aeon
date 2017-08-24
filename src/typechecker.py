@@ -34,9 +34,9 @@ class TypeChecker(object):
         if n.nodet == 'decl':
             n.type = n.nodes[2].nodes[1]
 
-            self.table[n.nodes[0]] = FType(
-                    argtypes = [x.nodes[1] for x in  n.nodes[1]],
-                    rtype=n.type)
+            self.table[n.nodes[0]] = Type(
+                    arguments = [x.nodes[1] for x in  n.nodes[1]],
+                    type=n.type)
             self.push_frame()
             for arg in n.nodes[1]:
                 self.stack[-1][arg.nodes[0]] = arg.nodes[1]
@@ -50,19 +50,19 @@ class TypeChecker(object):
                 raise Exception("Unknown function", name)
             args = [ c.type for c in n.nodes[1] ]
             ft = self.table[name]
-            if ft.argtypes == args:
-                n.type = ft.rtype
+            if ft.arguments == args:
+                n.type = ft.type
             else:
-                print(ft.argtypes)
+                print(ft.arguments)
                 print(args)
                 raise Exception("Unknown arguments for ", name, args)
         elif n.nodet == 'lambda':
             self.typelist(n.nodes[0])
             args = [ c.type for c in n.nodes[0] ]
             self.typecheck(n.nodes[1])
-            n.type = FType(
-                args,
-                n.nodes[1].type
+            n.type = Type(
+                arguments = args,
+                type = n.nodes[1].type
             )
         elif n.nodet == 'atom':
             k = self.find(n.nodes[0])

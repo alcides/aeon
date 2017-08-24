@@ -1,37 +1,27 @@
 class Type(object):
-    def __init__(self, t, tpars=None):
-        self.t = t
-        self.tpars = tpars if tpars else []
+    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None):
+        self.type = type
+        self.arguments = arguments
+        self.parameters = parameters and parameters or []
+        self.conditions = conditions and conditions or []
+        self.effects = effects and effects or []
 
     def __str__(self):
-        return "{}{}".format(self.t, "" if not self.tpars else "<" + ", ".join(map(str, self.tpars)) + ">")
-
-    def __repr__(self):
-        return str(self)
-
-    def __eq__(self, o):
-        if not o:
-            return False
-        if type(o) != Type:
-            return False
-        return self.t == o.t and self.tpars == o.tpars
-
-class FType(object):
-    def __init__(self, argtypes, rtype):
-        self.argtypes = argtypes
-        self.rtype = rtype
-
-    def __str__(self):
-        return "{} -> {}".format(", ".join(map(str,self.argtypes)), str(self.rtype))
-
-    def __repr__(self):
-        return str(self)
+        t = self.type
+        if self.parameters:
+            t += "<" + ", ".join(self.parameters) + ">"
+        if self.arguments:
+            t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
+        # TODO DT and effects
+        return t
 
     def __eq__(self, other):
-        if type(other) != FType:
+        if type(other) != Type:
             return False
-        return self.argtypes == other.argtypes and self.rtype == other.rtype
-
+        # TODO DT and effects
+        return self.type == other.type and \
+            self.arguments == other.arguments and \
+            len(self.parameters) == len(other.parameters)
 
 # defaults
 t_v = Type('Void')

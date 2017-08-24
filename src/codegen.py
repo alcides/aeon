@@ -73,7 +73,7 @@ class CodeGenerator(object):
         """ decl -> string """
         name = n.nodes[0]
         ftype = self.table[name]
-        lrtype = type_convert(ftype.rtype)
+        lrtype = type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(type_convert(a[1]), a[0]) for a in n.nodes[1]])
 
         body = self.g_block(n.nodes[3], type=lrtype)
