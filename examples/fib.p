@@ -6,14 +6,14 @@ fib : ( n:Integer ) -> _:Integer {
 
 fibp : ( n:Integer ) -> _:Integer {
    J.iif(n < 2, -> { 1 }, -> {
-      let a = F.future( -> fib(n-1))
-      let b = fib(n-2)
+      a = F.future( -> fib(n-1))
+      b = fib(n-2)
       F.get(a)+b
    })
 }
 
 main : (args:Array<String>) -> _:Void {
-   let n = 12
+   n = 12 + 1
    J.out(0)
    J.out(J.timeit( -> fib(n)))
    J.out(1)

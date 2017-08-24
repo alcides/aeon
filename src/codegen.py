@@ -110,9 +110,9 @@ class CodeGenerator(object):
         for c in n.nodes:
             e = self.g_expr(c)
             if c != n.nodes[-1] and c.type != t_v and not e.is_stmt:
-                b.add("J.noop(" + str(self.g_expr(c)) + ")")
+                b.add("J.noop(" + str(e) + ")")
             else:
-                b.add(str(self.g_expr(c)))
+                b.add(str(e))
         self.blockstack.pop()
         return b
 
@@ -133,7 +133,7 @@ class CodeGenerator(object):
             return self.g_block(n, type_convert(n.type))
         else:
             print("new_type:", n)
-            return Expr("Wow")
+            return Expr("X")
 
     def g_invocation(self, n):
         return Expr("""
@@ -150,7 +150,11 @@ class CodeGenerator(object):
         var_name = n.nodes[0]
         var_type = type_convert(n.type)
         var_value = self.g_expr(n.nodes[1])
-        return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
+        if self.find(var_name) != None:
+            return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True)
+        else:
+            self.stack[-1][var_name] = var_type
+            return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
 
     def g_lambda(self, n):
         # TODO: args

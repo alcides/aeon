@@ -113,7 +113,7 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
 
 expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
-expr = (t("let") >> symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
+expr = (symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
 
 typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(x[0], [ k[0] for k in x[1] ]))
 
