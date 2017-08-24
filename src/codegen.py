@@ -123,7 +123,7 @@ class CodeGenerator(object):
             return self.g_literal(n)
         elif n.nodet == 'let':
             return self.g_let(n)
-        elif n.nodet in ["<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
+        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
             return self.g_atom(n)
@@ -171,11 +171,17 @@ class CodeGenerator(object):
 
 
     def g_op(self, n):
-        return Expr("({1} {0} {2})".format(
-            n.nodet,
-            self.g_expr(n.nodes[0]),
-            self.g_expr(n.nodes[1])
-        ))
+        if len(n.nodes) == 2:
+            return Expr("({1} {0} {2})".format(
+                n.nodet,
+                self.g_expr(n.nodes[0]),
+                self.g_expr(n.nodes[1])
+            ))
+        else:
+            return Expr("({0} {1})".format(
+                n.nodet,
+                self.g_expr(n.nodes[0])
+            ))
 
 
 def generate(ast, table):

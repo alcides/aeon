@@ -74,6 +74,12 @@ class TypeChecker(object):
             self.typecheck(n.nodes[1])
             n.type = n.nodes[1].type
             self.stack[-1][n.nodes[0]] = n.type
+        elif n.nodet in ["&&", "||"]:
+            n.type = t_b
+            self.typelist(n.nodes)
+            for c in n.nodes:
+                if c.type != t_b:
+                    raise Exception("{} expected boolean arguments in {}. Got {}.".format(n.nodet, c, c.type))
         elif n.nodet in ["<", "<=", ">", ">=", "==", "!="]:
             n.type = t_b
             self.typelist(n.nodes)

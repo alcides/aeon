@@ -1,7 +1,7 @@
 # Fibonacci
 
 fib : ( n:Integer ) -> _:Integer {
-   J.iif(n < 2, -> 1, -> fib(n-1) + fib(n-2) )
+   J.iif((n < 2) || ((n < 1) && (n > 0)), -> 1, -> fib(n-1) + fib(n-2) )
 }
 
 fibp : ( n:Integer ) -> _:Integer {
@@ -12,6 +12,10 @@ fibp : ( n:Integer ) -> _:Integer {
    })
 }
 
-main : (n:Array<String>) -> _:Void {
-   J.out(fibp(8))
+main : (args:Array<String>) -> _:Void {
+   let n = 12
+   J.out(0)
+   J.out(J.timeit( -> fib(n)))
+   J.out(1)
+   J.out(J.timeit( -> fibp(n)))
 }

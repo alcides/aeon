@@ -36,8 +36,9 @@ symbol = lexeme(regex(r'[.\d\w_]+'))
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-")
 op_3 = t("<=") ^ t("<") ^ t(">=") ^ t(">") ^ t("==") ^ t("!=")
-op_4 = t("=")
-op_all = op_3 ^ op_2 ^ op_1
+op_4 = t("&&") ^ t("||")
+op_5 = t("=")
+op_all = op_4 ^ op_3 ^ op_2 ^ op_1
 
 
 def number():
@@ -109,9 +110,10 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
 #expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
+#expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
 
-expr_3 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
-expr = (t("let") >> symbol + op_4.result("let") + expr_3).parsecmap(rotate) ^ expr_3
+expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
+expr = (t("let") >> symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
 
 typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(x[0], [ k[0] for k in x[1] ]))
 

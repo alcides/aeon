@@ -17,5 +17,13 @@ class J {
    public static void noop(Object o) {
       // Do nothing
    }
+   
+   public static <T> T timeit(Supplier<T> lambda) {
+	   long init = System.nanoTime();
+	   T a = lambda.get();
+	   long time = System.nanoTime() - init;
+	   System.out.println("Timer: " + (time / 1000000000.0) );
+	   return a;
+   }
 
 }
