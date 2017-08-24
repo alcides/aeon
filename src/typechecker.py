@@ -69,6 +69,11 @@ class TypeChecker(object):
             if k == None:
                 raise Exception("Unknown variable ", k)
             n.type = k
+        elif n.nodet == 'let':
+            # TODO existing variables
+            self.typecheck(n.nodes[1])
+            n.type = n.nodes[1].type
+            self.stack[-1][n.nodes[0]] = n.type
         elif n.nodet in ["<", "<=", ">", ">=", "==", "!="]:
             n.type = t_b
             self.typelist(n.nodes)
@@ -79,9 +84,9 @@ class TypeChecker(object):
             self.typelist(n.nodes)
             if n.nodes:
                 n.type = n.nodes[-1].type
-            for c in n.nodes[:-1]:
-                if c.nodet != 'invocation' and c.type != t_v:
-                    raise Exception("Expression should be void or an invocation:", c)
+            #for c in n.nodes[:-1]:
+            #    if c.nodet != 'invocation' and c.type != t_v:
+            #        raise Exception("Expression should be void or an invocation:", c)
         elif n.nodet == 'literal':
             pass # Implemented on the frontend
         else:

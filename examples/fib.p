@@ -6,8 +6,9 @@ fib : ( n:Integer ) -> _:Integer {
 
 fibp : ( n:Integer ) -> _:Integer {
    J.iif(n < 2, -> { 1 }, -> {
-      J.out(10)
-      2
+      let a = F.future( -> fib(n-1))
+      let b = fib(n-2)
+      F.get(a)+b
    })
 }
 

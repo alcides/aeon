@@ -36,6 +36,8 @@ symbol = lexeme(regex(r'[.\d\w_]+'))
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-")
 op_3 = t("<=") ^ t("<") ^ t(">=") ^ t(">") ^ t("==") ^ t("!=")
+op_4 = t("=")
+op_all = op_3 ^ op_2 ^ op_1
 
 
 def number():
@@ -45,11 +47,11 @@ def number():
             return Node('literal', int(x), type=t_i)
         else:
             return Node('literal', float(x), type=t_f)
-    
+
     return lexeme(
         regex(r'(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')
     ).parsecmap(fa)
-    
+
 def charseq():
     '''Parse string. (normal string and escaped string)'''
     def string_part():
@@ -78,7 +80,7 @@ def invocation():
     args = yield sepBy(expr, comma)
     yield rpars
     return Node('invocation', s, args)
-    
+
 
 
 @lexeme
@@ -86,10 +88,10 @@ def invocation():
 def expr_wrapped():
     o = yield expr
     return o
-    
+
 # helper
 rotate = lambda x: Node(x[0][1], x[0][0], x[1])
-makeblock = lambda xs: Node('block', *xs) 
+makeblock = lambda xs: Node('block', *xs)
 
 symbol_e = symbol.parsecmap(lambda x: Node('atom', x))
 block = (lbrace >> many(expr_wrapped)  << rbrace).parsecmap(makeblock)
@@ -101,12 +103,15 @@ def lambd():
     yield arrow
     e = yield block ^ expr
     return Node('lambda', args, e)
-    
+
 atom = number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd
 expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
-expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
-expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
-expr = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
+#expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
+#expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
+#expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
+
+expr_3 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
+expr = (t("let") >> symbol + op_4.result("let") + expr_3).parsecmap(rotate) ^ expr_3
 
 typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(x[0], [ k[0] for k in x[1] ]))
 
@@ -118,14 +123,14 @@ def quoted():
     body = yield many(charseq())
     yield string('"')
     return ''.join(body)
-    
+
 @generate
 def decl_args():
     arg = yield symbol
     yield colon
     typ = yield typee
     return Node('argument', arg, typ)
-    
+
 @lexeme
 @generate
 def decl():

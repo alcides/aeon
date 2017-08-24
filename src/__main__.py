@@ -11,12 +11,15 @@ if __name__ == '__main__':
     else:
         i = input()
     ast = program.parse_strict(i)
-    print(ast)
     ast, table = typecheck(ast)
-    print(ast)
-    print(table)
+    print("Typed ast:")
+    for decl in ast:
+        print("\t", decl)
+    print("Table:")
+    for top in table:
+        print("\t", top)
     output = generate(ast, table)
-    
+
     try:
         os.mkdir('bin')
     except:

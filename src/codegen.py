@@ -2,8 +2,9 @@ from .typestructure import *
 from .java import type_convert
 
 class Expr(object):
-    def __init__(self, text=""):
+    def __init__(self, text="", is_stmt=False):
         self.text = text
+        self.is_stmt = is_stmt
 
     def __str__(self):
         return self.text
@@ -76,6 +77,9 @@ class CodeGenerator(object):
         largtypes = ", ".join([ "{} {}".format(type_convert(a[1]), a[0]) for a in n.nodes[1]])
 
         body = self.g_block(n.nodes[3], type=lrtype)
+
+        body = self.futurify_body(body, lrtype)
+
         if lrtype != "void":
             body_final = "return {};".format(body.get_escape())
         else:
@@ -89,11 +93,26 @@ class CodeGenerator(object):
             body_final
         )
 
+    def futurify_body(self, body, lrtype):
+        body.stmts.insert(0, "aeminium.runtime.futures.RuntimeManager.init()");
+        if lrtype == 'void':
+            body.stmts.append("aeminium.runtime.futures.RuntimeManager.shutdown()");
+        else:
+            body.stmts.append("{} ret_aeminium_manager = {}".format(lrtype, body.get_escape()));
+            body.stmts.append("aeminium.runtime.futures.RuntimeManager.shutdown()");
+            body.escape = "ret_aeminium_manager"
+        return body
+
+
     def g_block(self, n, type='void'):
         b = Block(type)
         self.blockstack.append(b)
         for c in n.nodes:
-            b.add(str(self.g_expr(c)))
+            e = self.g_expr(c)
+            if c != n.nodes[-1] and c.type != t_v and not e.is_stmt:
+                b.add("J.noop(" + str(self.g_expr(c)) + ")")
+            else:
+                b.add(str(self.g_expr(c)))
         self.blockstack.pop()
         return b
 
@@ -102,6 +121,8 @@ class CodeGenerator(object):
             return self.g_invocation(n)
         elif n.nodet == 'literal':
             return self.g_literal(n)
+        elif n.nodet == 'let':
+            return self.g_let(n)
         elif n.nodet in ["<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
@@ -120,10 +141,16 @@ class CodeGenerator(object):
         """.format(
             n.nodes[0],
             ", ".join([str(self.g_expr(x)) for x in n.nodes[1]])
-        ))
+        ), is_stmt=True)
 
     def g_atom(self, n):
         return Expr(n.nodes[0])
+
+    def g_let(self, n):
+        var_name = n.nodes[0]
+        var_type = type_convert(n.type)
+        var_value = self.g_expr(n.nodes[1])
+        return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
 
     def g_lambda(self, n):
         # TODO: args
