@@ -1,4 +1,5 @@
 import re
+import os
 
 from parsec import *
 
@@ -150,15 +151,25 @@ def decl():
     yield rbrace
     return Node('decl', name, args, ret, body)
 
-program = ignore >> many(decl)
+imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
 
+program = ignore >> many(decl ^ imprt)
 
+def resolve_imports(p, base_path=lambda x: x):
+    n_p = []
+    for n in p:
+        if n.nodet == 'import':
+            fname = n.nodes[0].replace(".", "/")
+            ip = parse(base_path(fname))
+            n_p.extend(ip)
+        else:
+            n_p.append(n)
+    return n_p
 
-if __name__ == '__main__':
-    args = sys.argv[1:]
-    if len(sys.argv) > 1:
-        i = open(sys.argv[-1]).read()
-    else:
-        i = input()
-    p = program.parse(i)
-    print(p)
+def parse(fname):
+    txt = open(fname).read()
+    p = program.parse_strict(txt)
+
+    p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.p".format(x)))
+
+    return p

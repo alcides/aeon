@@ -78,7 +78,8 @@ class CodeGenerator(object):
 
         body = self.g_block(n.nodes[3], type=lrtype)
 
-        body = self.futurify_body(body, lrtype)
+        if name == 'main': # TODO - check signature
+            body = self.futurify_body(body, lrtype)
 
         if lrtype != "void":
             body_final = "return {};".format(body.get_escape())

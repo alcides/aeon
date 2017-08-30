@@ -1,0 +1,7 @@
+fibp : ( n:Integer ) -> _:Integer {
+   J.iif(n < 2, -> { 1 }, -> {
+      a = F.future( -> fib(n-1))
+      b = fib(n-2)
+      F.get(a)+b
+   })
+}

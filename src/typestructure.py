@@ -9,7 +9,7 @@ class Type(object):
     def __str__(self):
         t = self.type
         if self.parameters:
-            t += "<" + ", ".join(self.parameters) + ">"
+            t += "<" + ", ".join(map(str, self.parameters)) + ">"
         if self.arguments:
             t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
         # TODO DT and effects

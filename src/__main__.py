@@ -1,7 +1,7 @@
 import sys
 import os
 
-from .frontend import program
+from .frontend import parse
 from .typechecker import typecheck
 from .codegen import generate
 
@@ -9,9 +9,7 @@ if __name__ == '__main__':
 
     debug = len(sys.argv) > 1 and '-d' == sys.argv[1]
 
-    contents = len(sys.argv) > 1 and open(sys.argv[-1]).read() or input()
-
-    ast = program.parse_strict(contents)
+    ast = parse(sys.argv[-1])
     ast, table = typecheck(ast)
 
     if debug:
