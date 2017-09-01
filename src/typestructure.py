@@ -49,7 +49,6 @@ class Type(object):
             t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
         if self.freevars != None:
             t = "{} => {}".format(",".join(map(str, self.freevars)), t)
-        # TODO DT and effects
         return t
 
 

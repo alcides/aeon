@@ -93,7 +93,7 @@ t_a = set_replace_vars(t_inv_create, { 'create_def_return_n':'array_a_n' })
 
 """ let b = 9 """
 
-t_b = Set("[integer_b] -> { : integer_b=1 }") # TODO 9
+t_b = Set("[integer_b] -> { : integer_b=9 }")
 
 """ print(get(a, b)) """
 

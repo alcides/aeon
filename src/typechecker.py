@@ -147,7 +147,7 @@ class TypeChecker(object):
         n.type = k
 
     def t_let(self, n):
-        # TODO existing variables
+        # TODO Let allows to rewrite variables
         self.typecheck(n.nodes[1])
         n.type = n.nodes[1].type
         self.context.set(n.nodes[0], n.type)

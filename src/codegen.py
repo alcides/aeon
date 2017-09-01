@@ -97,7 +97,7 @@ class CodeGenerator(object):
             return ""
 
         if n.nodet == 'type':
-            return "" # TODO
+            return "" # Codegeneration of type alias
 
         name = n.nodes[0]
         ftype = self.table[name]
@@ -106,7 +106,7 @@ class CodeGenerator(object):
 
         body = self.g_block(n.nodes[3], type=lrtype)
 
-        if name == 'main': # TODO - check signature
+        if name == 'main': # TODO - Check the full signature of the main function
             body = self.futurify_body(body, lrtype)
 
         if lrtype != "void":
@@ -186,7 +186,7 @@ class CodeGenerator(object):
             return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
 
     def g_lambda(self, n):
-        # TODO: args
+        # TODO: Lambdas do not support multiple parameters
         p2 = self.g_expr(n.nodes[1])
         if type(p2) == Block:
             esc = p2.get_escape()
