@@ -10,7 +10,7 @@ if __name__ == '__main__':
     debug = len(sys.argv) > 1 and '-d' == sys.argv[1]
 
     ast = parse(sys.argv[-1])
-    ast, table = typecheck(ast)
+    ast, table, tcontext = typecheck(ast)
 
     if debug:
         print("Typed ast:")
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         for top in table:
             print("\t", top)
 
-    output = generate(ast, table)
+    output = generate(ast, table, tcontext)
 
     try:
         os.mkdir('bin')

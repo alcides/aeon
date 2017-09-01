@@ -1,5 +1,4 @@
 from .typestructure import *
-from .java import type_convert
 
 class Expr(object):
     def __init__(self, text="", is_stmt=False):
@@ -33,8 +32,9 @@ class Block(object):
 
 
 class CodeGenerator(object):
-    def __init__(self, table):
+    def __init__(self, table, typecontext):
         self.table = table
+        self.typecontext = typecontext
         self.stack = [table, {}]
         self.blockstack = []
         self.counter = 0
@@ -55,6 +55,27 @@ class CodeGenerator(object):
         self.counter += 1
         return self.counter
 
+
+    def type_alias_resolver(self, ty):
+        for ta in self.typecontext.type_aliases:
+            if ta == ty:
+                return self.typecontext.type_aliases[ta]
+            mapping = ta.polymorphic_matches(ty, self.typecontext)
+            if mapping:
+                return self.typecontext.type_aliases[ta].polymorphic_fill(mapping)
+        return None
+
+    def type_convert(self, t):
+        r = self.type_alias_resolver(t)
+        if r:
+            return r
+        if t.type == 'Array':
+            return str(t.parameters[0]) + "[]"
+        if t.type == 'Void':
+            return 'void'
+        return str(t)
+
+
     def root(self, ast):
         return """
         public class E {{
@@ -71,10 +92,17 @@ class CodeGenerator(object):
 
     def g_decl(self, n):
         """ decl -> string """
+
+        if n.nodet == 'native':
+            return ""
+
+        if n.nodet == 'type':
+            return "" # TODO
+
         name = n.nodes[0]
         ftype = self.table[name]
-        lrtype = type_convert(ftype.type)
-        largtypes = ", ".join([ "{} {}".format(type_convert(a[1]), a[0]) for a in n.nodes[1]])
+        lrtype = self.type_convert(ftype.type)
+        largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), a[0]) for a in n.nodes[1]])
 
         body = self.g_block(n.nodes[3], type=lrtype)
 
@@ -131,7 +159,7 @@ class CodeGenerator(object):
         elif n.nodet == 'lambda':
             return self.g_lambda(n)
         elif n.nodet == 'block':
-            return self.g_block(n, type_convert(n.type))
+            return self.g_block(n, self.type_convert(n.type))
         else:
             print("new_type:", n)
             return Expr("X")
@@ -149,7 +177,7 @@ class CodeGenerator(object):
 
     def g_let(self, n):
         var_name = n.nodes[0]
-        var_type = type_convert(n.type)
+        var_type = self.type_convert(n.type)
         var_value = self.g_expr(n.nodes[1])
         if self.find(var_name) != None:
             return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True)
@@ -189,5 +217,5 @@ class CodeGenerator(object):
             ))
 
 
-def generate(ast, table):
-    return CodeGenerator(table).root(ast)
+def generate(ast, table, typecontext):
+    return CodeGenerator(table, typecontext).root(ast)

@@ -1,3 +1,5 @@
+import prelude.J
+
 import fibonacci.simple_fib
 import fibonacci.par_fib
 

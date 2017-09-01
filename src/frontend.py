@@ -28,6 +28,7 @@ rangle = t('>')
 colon = t(':')
 comma = t(',')
 arrow = t('->')
+fatarrow = t('=>')
 true = t('true').result(Node('literal', True, type=t_b))
 false = t('false').result(Node('literal', False, type=t_b))
 null = t('null').result(Node('literal', None, type=t_n))
@@ -116,7 +117,37 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
 expr = (symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
 
-typee = (symbol + times(langle >> sepBy(symbol, comma) << rangle, 0, 1)).parsecmap(lambda x: Type(type=x[0], parameters=[ k[0] for k in x[1] ]))
+@lexeme
+@generate
+def basic_type():
+    b = yield symbol
+    ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
+    return Type(type=b, parameters=[k[0] for k in ks])
+
+@lexeme
+@generate
+def polymorphic_type():
+    args = yield sepBy(symbol, comma)
+    yield fatarrow
+    t = yield basic_type
+    t.freevars = args
+    return t
+
+
+
+@lexeme
+@generate
+def lambda_type():
+    yield lpars
+    args = yield sepBy(basic_type, comma)
+    yield rpars
+    yield arrow
+    rt = yield basic_type
+    return Type(type=rt, arguments = args)
+
+typee = lambda_type ^ basic_type
+
+
 
 @lexeme
 @generate
@@ -134,34 +165,95 @@ def decl_args():
     typ = yield typee
     return Node('argument', arg, typ)
 
+
 @lexeme
 @generate
-def decl():
-    '''Parse function declaration.'''
+def decl_header_with_parameters():
+    '''Parse function header.'''
     name = yield symbol
     yield colon
+    tpars = yield sepBy(basic_type, comma)
+    yield fatarrow
     yield lpars
-    args = yield many(decl_args)
+    args = yield sepBy(decl_args, comma)
     yield rpars
     yield arrow
     ret = yield decl_args
     ret.nodet = 'rtype'
+    return name, args, ret, tpars
+
+@lexeme
+@generate
+def decl_header():
+    '''Parse function header.'''
+    name = yield symbol
+    yield colon
+    yield lpars
+    args = yield sepBy(decl_args, comma)
+    yield rpars
+    yield arrow
+    ret = yield decl_args
+    ret.nodet = 'rtype'
+    return name, args, ret, None
+
+@lexeme
+@generate
+def decl():
+    '''Parse function declaration.'''
+    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
     yield lbrace
     body = yield many(expr).parsecmap(makeblock)
     yield rbrace
-    return Node('decl', name, args, ret, body)
+    return Node('decl', name, args, ret, body, free)
+
+@lexeme
+@generate
+def native():
+    '''Parse function declaration.'''
+    yield t("native")
+    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
+    return Node('native', name, args, ret, free)
+
+
+@lexeme
+@generate
+def typedecl_with_alias():
+    '''Parse type declaration.'''
+    yield t("type")
+    k = yield polymorphic_type ^ typee
+    yield t("as")
+    k2 = yield polymorphic_type ^ typee
+    return Node('type', k, k2)
+
+@lexeme
+@generate
+def typedecl():
+    '''Parse type declaration.'''
+    yield t("type")
+    k = yield polymorphic_type ^ typee
+    return Node('type', k)
+
 
 imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
 
-program = ignore >> many(decl ^ imprt)
+program = ignore >> many(typedecl_with_alias ^ typedecl ^ native ^ decl ^ imprt)
 
+
+cached_imports = []
 def resolve_imports(p, base_path=lambda x: x):
     n_p = []
     for n in p:
         if n.nodet == 'import':
-            fname = n.nodes[0].replace(".", "/")
-            ip = parse(base_path(fname))
-            n_p.extend(ip)
+            fname = n.nodes[0]
+            path = ""
+            while fname.startswith(".."):
+                fname = fname[2:]
+                path = path + "../"
+            path = path + fname.replace(".", "/")
+            if path not in cached_imports:
+                cached_imports.append(path)
+                ip = parse(base_path(path))
+                n_p.extend(ip)
         else:
             n_p.append(n)
     return n_p

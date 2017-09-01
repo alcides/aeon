@@ -1,11 +1,32 @@
 from .typestructure import *
-from .java import initial_table
 
 
-class TypeChecker(object):
-    def __init__(self, table):
-        self.table = table
-        self.stack = [table, {}]
+class TypeContext(object):
+    def __init__(self, typedecl=None):
+        self.types = typedecl and typedecl or []
+        self.type_aliases = {}
+        self.subclasses = []
+
+        self.types.append(Type('Integer'))
+        self.types.append(Type('Boolean'))
+        self.types.append(Type('Float'))
+        self.types.append(Type('String'))
+
+    def add_type(self, t):
+        self.types.append(t)
+
+    def add_type_alias(self, t1, t2):
+        self.type_aliases[t1] = t2
+
+
+class Context(object):
+    def __init__(self, tcontext):
+        self.stack = []
+        self.typecontext = tcontext
+        self.push_frame()
+
+    def push_frame(self):
+        self.stack.append({})
 
     def push_frame(self):
         self.stack.append({})
@@ -19,62 +40,120 @@ class TypeChecker(object):
                 return frame[kw]
         return None
 
+    def set(self, k, v):
+        self.stack[-1][k] = v
+
+def is_subtype(a, b, tcontext):
+    return a == b
+
+def check_function_arguments(args, ft, tcontext):
+    if ft.freevars:
+        for v in ft.freevars:
+            for ct in tcontext.types:
+                ft_concrete = ft.copy_replacing_freevar(v, ct)
+                a, ft_concrete_r = check_function_arguments(args, ft_concrete, tcontext)
+                if a:
+                    return (a, ft_concrete_r)
+        return (False, None)
+    else:
+        valid = all([ is_subtype(a, b, tcontext) for a,b in zip(args, ft.arguments) ])
+        return (valid, ft)
+
+class TypeChecker(object):
+    def __init__(self):
+        self.typecontext = TypeContext()
+        self.context = Context(self.typecontext)
+
+
+    def type_error(self, string):
+        raise Exception("Type Error", string)
+
+    def is_subtype(self, a, b):
+        return is_subtype(a, b, self.typecontext)
+
     def typelist(self, ns, *args, **kwargs):
         for n in ns:
             self.typecheck(n, *args, **kwargs)
         return ns
 
-    def typecheck(self, n):
-        if type(n) == list:
-            return self.typelist(n)
-        if type(n) == str:
-            print(n, "string invalid")
-            return n
+    def t_type(self, n):
+        self.typecontext.add_type(n.nodes[0])
+        if len(n.nodes) > 1:
+            self.typecontext.add_type_alias(n.nodes[1], n.nodes[0])
 
-        if n.nodet == 'decl':
-            n.type = n.nodes[2].nodes[1]
+    def t_native(self, n):
+        name = n.nodes[0]
+        n.type = n.nodes[2].nodes[1]
+        ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
+                  type=n.type,
+                  freevars = n.nodes[3])
+        self.context.set(name, ft)
 
-            self.table[n.nodes[0]] = Type(
-                    arguments = [x.nodes[1] for x in  n.nodes[1]],
-                    type=n.type)
-            self.push_frame()
-            for arg in n.nodes[1]:
-                self.stack[-1][arg.nodes[0]] = arg.nodes[1]
-            self.typelist(n.nodes[3]) # Body
-            self.pop_frame()
+    def t_decl(self, n):
+        n.type = n.nodes[2].nodes[1]
+        name = n.nodes[0]
+        ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
+                  type=n.type,
+                  freevars = n.nodes[4])
 
-        elif n.nodet == 'invocation':
-            self.typelist(n.nodes[1])
-            name = n.nodes[0]
-            if name not in self.table:
-                raise Exception("Unknown function", name)
-            args = [ c.type for c in n.nodes[1] ]
-            ft = self.table[name]
-            if ft.arguments == args:
-                n.type = ft.type
-            else:
-                print(ft.arguments)
-                print(args)
-                raise Exception("Unknown arguments for ", name, args)
-        elif n.nodet == 'lambda':
-            self.typelist(n.nodes[0])
-            args = [ c.type for c in n.nodes[0] ]
-            self.typecheck(n.nodes[1])
-            n.type = Type(
-                arguments = args,
-                type = n.nodes[1].type
-            )
-        elif n.nodet == 'atom':
-            k = self.find(n.nodes[0])
-            if k == None:
-                raise Exception("Unknown variable ", k)
-            n.type = k
-        elif n.nodet == 'let':
-            # TODO existing variables
-            self.typecheck(n.nodes[1])
-            n.type = n.nodes[1].type
-            self.stack[-1][n.nodes[0]] = n.type
-        elif n.nodet in ["&&", "||"]:
+        self.context.set(name, ft)
+
+        # Body
+        self.context.push_frame()
+        for arg in n.nodes[1]:
+            self.context.set(arg.nodes[0], arg.nodes[1])
+        real_rt = self.typelist(n.nodes[3])
+        self.context.pop_frame()
+
+        if self.is_subtype(real_rt, n.type):
+            self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_rt))
+
+    def t_invocation(self, n):
+        self.typelist(n.nodes[1])
+        name = n.nodes[0]
+        t_name = self.context.find(name)
+        if not t_name:
+            self.type_error("Unknown function {}".format(name))
+        if t_name.arguments == None:
+            self.type_error("Function {} is not callable".format(name))
+
+        actual_argument_types = [ c.type for c in n.nodes[1] ]
+
+        valid, concrete_type = check_function_arguments(actual_argument_types, t_name, self.typecontext)
+        if valid:
+            n.type = concrete_type.type # Return type
+        else:
+            print(str(t_name))
+            print()
+            self.type_error("Unknown arguments for {}: Got {}, expected {}".format(
+                            name,
+                            str(list(map(str, actual_argument_types))),
+                            str(t_name)
+                ))
+
+    def t_lambda(self, n):
+        self.typelist(n.nodes[0])
+        args = [ c.type for c in n.nodes[0] ]
+        self.typecheck(n.nodes[1])
+        n.type = Type(
+            arguments = args,
+            type = n.nodes[1].type
+        )
+
+    def t_atom(self, n):
+        k = self.context.find(n.nodes[0])
+        if k == None:
+            self.type_error("Unknown variable {}".format(k))
+        n.type = k
+
+    def t_let(self, n):
+        # TODO existing variables
+        self.typecheck(n.nodes[1])
+        n.type = n.nodes[1].type
+        self.context.set(n.nodes[0], n.type)
+
+    def t_op(self, n):
+        if n.nodet in ['&&', '||']:
             n.type = t_b
             self.typelist(n.nodes)
             for c in n.nodes:
@@ -86,20 +165,42 @@ class TypeChecker(object):
         elif n.nodet in ["+", "-", "*", "/", "%"]:
             self.typelist(n.nodes)
             n.type = t_i if all([ k.type == t_i for k in n.nodes]) else t_f
+        else:
+            self.type_error("Unknown operator {}".format(n.nodet))
+
+    def typecheck(self, n):
+        if type(n) == list:
+            return self.typelist(n)
+        if type(n) == str:
+            print(n, "string invalid")
+            return n
+        if n.nodet == 'type':
+            return self.t_type(n)
+        elif n.nodet == 'native':
+            return self.t_native(n)
+        elif n.nodet == 'decl':
+            return self.t_decl(n)
+        elif n.nodet == 'invocation':
+            return self.t_invocation(n)
+        elif n.nodet == 'lambda':
+            return self.t_lambda(n)
+        elif n.nodet == 'atom':
+            return self.t_atom(n)
+        elif n.nodet == 'let':
+            return self.t_let(n)
+        elif not n.nodet.isalnum():
+            return self.t_op(n)
         elif n.nodet == 'block':
             self.typelist(n.nodes)
             if n.nodes:
                 n.type = n.nodes[-1].type
-            #for c in n.nodes[:-1]:
-            #    if c.nodet != 'invocation' and c.type != t_v:
-            #        raise Exception("Expression should be void or an invocation:", c)
         elif n.nodet == 'literal':
             pass # Implemented on the frontend
         else:
-            print("not done", n.nodet)
+            print("No TypeCheck rule for", n.nodet)
         return n
 
 
 def typecheck(ast):
-    tc = TypeChecker(initial_table)
-    return tc.typecheck(ast), tc.table
+    tc = TypeChecker()
+    return tc.typecheck(ast), tc.context.stack[0], tc.typecontext
