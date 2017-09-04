@@ -88,12 +88,13 @@ class TypeChecker(object):
         n.type = n.nodes[2].nodes[1]
         ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
                   type=n.type,
-                  freevars = n.nodes[3])
+                  freevars = n.nodes[4])
         self.context.set(name, ft)
 
     def t_decl(self, n):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
+        print(name, n.nodes[4])
         ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
                   type=n.type,
                   freevars = n.nodes[4])
@@ -125,6 +126,8 @@ class TypeChecker(object):
 
         actual_argument_types = [ c.type for c in n.nodes[1] ]
 
+
+        print(name, "args:", t_name)
         valid, concrete_type = check_function_arguments(actual_argument_types, t_name, self.typecontext)
         if valid:
             n.type = concrete_type.type # Return type

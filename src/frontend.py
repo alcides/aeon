@@ -200,21 +200,39 @@ def decl_header():
 
 @lexeme
 @generate
+def where():
+    yield t("where")
+    yield t("[")
+    ls = yield sepBy(expr, t("and"))
+    yield t("]")
+    return makeblock(ls)
+
+@lexeme
+@generate
+def decl_native_shared():
+    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
+    conditions = yield where ^ t("")
+    if not conditions:
+        conditions = None
+    return name, args, ret, free, conditions
+
+@lexeme
+@generate
 def decl():
     '''Parse function declaration.'''
-    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
+    name, args, ret, free, conditions = yield decl_native_shared
     yield lbrace
     body = yield many(expr).parsecmap(makeblock)
     yield rbrace
-    return Node('decl', name, args, ret, body, free)
+    return Node('decl', name, args, ret, body, free, conditions)
 
 @lexeme
 @generate
 def native():
     '''Parse function declaration.'''
     yield t("native")
-    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
-    return Node('native', name, args, ret, free)
+    name, args, ret, free, conditions = yield decl_native_shared
+    return Node('native', name, args, ret, None, free, conditions)
 
 
 @lexeme
