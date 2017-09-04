@@ -29,9 +29,9 @@ colon = t(':')
 comma = t(',')
 arrow = t('->')
 fatarrow = t('=>')
-true = t('true').result(Node('literal', True, type=t_b))
-false = t('false').result(Node('literal', False, type=t_b))
-null = t('null').result(Node('literal', None, type=t_n))
+true = t('true').result(Node('literal', "true", type=t_b))
+false = t('false').result(Node('literal', "false", type=t_b))
+null = t('null').result(Node('literal', "null", type=t_n))
 symbol = lexeme(regex(r'[.\d\w_]+'))
 
 
@@ -102,12 +102,14 @@ block = (lbrace >> many(expr_wrapped)  << rbrace).parsecmap(makeblock)
 @lexeme
 @generate
 def lambd():
-    args = yield sepBy(symbol, comma)
+    yield lpars
+    args = yield sepBy(symbol + (colon >> basic_type), comma)
+    yield rpars
     yield arrow
     e = yield block ^ expr
     return Node('lambda', args, e)
 
-atom = number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd
+atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd
 expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1

@@ -51,15 +51,22 @@ class Type(object):
             t = "{} => {}".format(",".join(map(str, self.freevars)), t)
         return t
 
+    def __repr__(self):
+        return repr({
+            "freevars": str(repr(self.freevars)),
+            "basic": str(repr(self.type)),
+            "parameters": str(repr(self.parameters)),
+            "arguments": str(repr(self.arguments)),
+        })
 
     def __hash__(self):
         return str(self).__hash__()
 
     def __eq__(self, other):
+        if type(other) == str:
+            return str(self) == str(other)
         if type(other) != Type:
             return False
-        if str(other) == str(self):
-            return True
         return self.type == other.type and \
             self.arguments == other.arguments and \
             len(self.parameters) == len(other.parameters) and \
@@ -96,4 +103,4 @@ t_v = Type('Void')
 t_n = Type('Object')
 t_i = Type('Integer')
 t_b = Type('Boolean')
-t_f = Type('Float')
+t_f = Type('Double')

@@ -10,6 +10,10 @@ if __name__ == '__main__':
     debug = len(sys.argv) > 1 and '-d' == sys.argv[1]
 
     ast = parse(sys.argv[-1])
+    if debug:
+        print("Untyped ast:")
+        for decl in ast:
+            print("\t", decl)
     ast, table, tcontext = typecheck(ast)
 
     if debug:

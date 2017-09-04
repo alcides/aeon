@@ -9,7 +9,7 @@ class TypeContext(object):
 
         self.types.append(Type('Integer'))
         self.types.append(Type('Boolean'))
-        self.types.append(Type('Float'))
+        self.types.append(Type('Double'))
         self.types.append(Type('String'))
 
     def add_type(self, t):
@@ -44,6 +44,8 @@ class Context(object):
         self.stack[-1][k] = v
 
 def is_subtype(a, b, tcontext):
+    if b == 'Void':
+        return True
     return a == b
 
 def check_function_arguments(args, ft, tcontext):
@@ -102,11 +104,15 @@ class TypeChecker(object):
         self.context.push_frame()
         for arg in n.nodes[1]:
             self.context.set(arg.nodes[0], arg.nodes[1])
-        real_rt = self.typelist(n.nodes[3])
-        self.context.pop_frame()
+        self.typecheck(n.nodes[3])
+        if n.nodes[3]:
+            real_type = n.nodes[3].type
+        else:
+            real_type = t_v
 
-        if self.is_subtype(real_rt, n.type):
-            self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_rt))
+        self.context.pop_frame()
+        if not self.is_subtype(real_type, n.type):
+            self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type))
 
     def t_invocation(self, n):
         self.typelist(n.nodes[1])
@@ -132,9 +138,16 @@ class TypeChecker(object):
                 ))
 
     def t_lambda(self, n):
-        self.typelist(n.nodes[0])
-        args = [ c.type for c in n.nodes[0] ]
+        args = [ c[1] for c in n.nodes[0] ]
+        # Body
+        self.context.push_frame()
+        for arg in n.nodes[0]:
+            if self.context.find(arg[0]) != None:
+                self.type_error("Argument {} of lambda {} is already defined as variable".format(arg[0], str(n)))
+            self.context.set(arg[0], arg[1])
         self.typecheck(n.nodes[1])
+        self.context.pop_frame()
+
         n.type = Type(
             arguments = args,
             type = n.nodes[1].type
@@ -143,11 +156,10 @@ class TypeChecker(object):
     def t_atom(self, n):
         k = self.context.find(n.nodes[0])
         if k == None:
-            self.type_error("Unknown variable {}".format(k))
+            self.type_error("Unknown variable {}".format(n.nodes[0]))
         n.type = k
 
     def t_let(self, n):
-        # TODO Let allows to rewrite variables
         self.typecheck(n.nodes[1])
         n.type = n.nodes[1].type
         self.context.set(n.nodes[0], n.type)
@@ -194,6 +206,8 @@ class TypeChecker(object):
             self.typelist(n.nodes)
             if n.nodes:
                 n.type = n.nodes[-1].type
+            else:
+                n.type = t_v
         elif n.nodet == 'literal':
             pass # Implemented on the frontend
         else:

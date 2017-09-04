@@ -68,7 +68,28 @@ class CodeGenerator(object):
     def type_convert(self, t):
         r = self.type_alias_resolver(t)
         if r:
-            return r
+            return self.type_convert(r)
+        if t.arguments != None:
+            #This is a lambda expression
+            if len(t.arguments) == 0:
+                return "java.util.function.Supplier<{}>".format(self.type_convert(t.type))
+            elif len(t.arguments) == 1 and t.arguments[0] == t.type:
+                return "java.util.function.UnaryOperator<{}>".format(self.type_convert(t.type))
+            elif len(t.arguments) == 1 and str(t.type) == 'Boolean':
+                return "java.util.function.Predicate<{}>".format(self.type_convert(t.arguments[0]))
+            elif len(t.arguments) == 1 and str(t.type) == 'Void':
+                return "java.util.function.Consumer<{}>".format(self.type_convert(t.arguments[0]))
+            elif len(t.arguments) == 1:
+                return "java.util.function.Function<{}, {}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.type))
+            elif len(t.arguments) == 2 and str(t.type) == 'Boolean':
+                return "java.util.function.BiPredicate<{}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]))
+            elif len(t.arguments) == 2 and str(t.type) == 'Void':
+                return "java.util.function.BiConsumer<{}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]))
+            elif len(t.arguments) == 2:
+                return "java.util.function.BiFunction<{}, {}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]), self.type_convert(t.type))
+            else:
+                print("Codegen unavaiable for lambdas with type: ", str(t))
+
         if t.type == 'Array':
             return str(t.parameters[0]) + "[]"
         if t.type == 'Void':
@@ -105,8 +126,7 @@ class CodeGenerator(object):
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), a[0]) for a in n.nodes[1]])
 
         body = self.g_block(n.nodes[3], type=lrtype)
-
-        if name == 'main': # TODO - Check the full signature of the main function
+        if name == 'main' and lrtype == 'void' and ftype.arguments and str(ftype.arguments[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
 
         if lrtype != "void":
@@ -186,7 +206,7 @@ class CodeGenerator(object):
             return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
 
     def g_lambda(self, n):
-        # TODO: Lambdas do not support multiple parameters
+        args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
         p2 = self.g_expr(n.nodes[1])
         if type(p2) == Block:
             esc = p2.get_escape()
@@ -196,7 +216,7 @@ class CodeGenerator(object):
                 body = "{{ {} }}".format(p2.get_stmts())
         else:
             body = str(p2)
-        return Expr("() -> {}".format(body))
+        return Expr("({}) -> {}".format(args, body))
 
 
     def g_literal(self, n):
