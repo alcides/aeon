@@ -88,16 +88,15 @@ class TypeChecker(object):
         n.type = n.nodes[2].nodes[1]
         ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
                   type=n.type,
-                  freevars = n.nodes[4])
+                  freevars = n.nodes[3])
         self.context.set(name, ft)
 
     def t_decl(self, n):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
-        print(name, n.nodes[4])
         ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
                   type=n.type,
-                  freevars = n.nodes[4])
+                  freevars = n.nodes[3])
 
         self.context.set(name, ft)
 
@@ -105,9 +104,9 @@ class TypeChecker(object):
         self.context.push_frame()
         for arg in n.nodes[1]:
             self.context.set(arg.nodes[0], arg.nodes[1])
-        self.typecheck(n.nodes[3])
-        if n.nodes[3]:
-            real_type = n.nodes[3].type
+        self.typecheck(n.nodes[6])
+        if n.nodes[6]:
+            real_type = n.nodes[6].type
         else:
             real_type = t_v
 

@@ -125,7 +125,7 @@ class CodeGenerator(object):
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), a[0]) for a in n.nodes[1]])
 
-        body = self.g_block(n.nodes[3], type=lrtype)
+        body = self.g_block(n.nodes[6], type=lrtype)
         if name == 'main' and lrtype == 'void' and ftype.arguments and str(ftype.arguments[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
 

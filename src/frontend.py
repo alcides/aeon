@@ -209,30 +209,42 @@ def where():
 
 @lexeme
 @generate
+def effects():
+    yield t("with")
+    yield t("[")
+    ls = yield sepBy(expr, comma)
+    yield t("]")
+    return makeblock(ls)
+
+@lexeme
+@generate
 def decl_native_shared():
     name, args, ret, free = yield decl_header_with_parameters ^ decl_header
     conditions = yield where ^ t("")
+    effs = yield effects ^ t("")
     if not conditions:
         conditions = None
-    return name, args, ret, free, conditions
+    if not effs:
+        effs = None
+    return name, args, ret, free, conditions, effs
 
 @lexeme
 @generate
 def decl():
     '''Parse function declaration.'''
-    name, args, ret, free, conditions = yield decl_native_shared
+    name, args, ret, free, conditions, effs = yield decl_native_shared
     yield lbrace
     body = yield many(expr).parsecmap(makeblock)
     yield rbrace
-    return Node('decl', name, args, ret, body, free, conditions)
+    return Node('decl', name, args, ret, free, conditions, effs, body)
 
 @lexeme
 @generate
 def native():
     '''Parse function declaration.'''
     yield t("native")
-    name, args, ret, free, conditions = yield decl_native_shared
-    return Node('native', name, args, ret, None, free, conditions)
+    name, args, ret, free, conditions, effs = yield decl_native_shared
+    return Node('native', name, args, ret, free, conditions, effs)
 
 
 @lexeme
