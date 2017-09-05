@@ -9,6 +9,8 @@ create(n:Integer) -> _:Array<type=T,size=n> where { 0 <= n }
 get(arr:Array<type=T, size=n>, i:Integer) -> r:T where { 0 <= i < n }
 plus(int k) -> m:Integer where { m = k + 1 }
 
+
+let b = random_int()
 let a = create(10)
 let b = 10
 print(get(a, b))
@@ -114,11 +116,11 @@ t_c = set_replace_vars(t_inv_plus, {'plus_return_n': 'integer_c'})
 
 """ get(a, c) """
 
-t_inv_get = typecheck_invocation("get", [
-    set_replace_vars(t_a, {'array_a_n': 'get_def_arr_n'}),
-    set_replace_vars(t_c, {'integer_c': 'get_def_i'}),
-])
-assert(t_inv_get.complement().is_empty())
+#t_inv_get = typecheck_invocation("get", [
+#    set_replace_vars(t_a, {'array_a_n': 'get_def_arr_n'}),
+#    set_replace_vars(t_c, {'integer_c': 'get_def_i'}),
+#])
+#assert(t_inv_get.complement().is_empty())
 
 #def typecheck(i):
 #    type_of["a"] = type_of['create_n'].intersect(Set("[n] -> { : n = 10 }"))
@@ -133,4 +135,10 @@ assert(t_inv_get.complement().is_empty())
 s1 = Set("[x] -> { : 10 < x <= 12 }")
 s2 = Set("[x,y] -> { : x+y = 10 }")
 
-print s1.intersect(s2).complement()
+print(s1.intersect(s2).complement())
+
+
+s1 = Set("[x] -> { : }")
+s2 = Set("[x] -> { : x > 3 }")
+
+print s1.

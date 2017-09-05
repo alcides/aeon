@@ -94,8 +94,13 @@ class CodeGenerator(object):
             return str(t.parameters[0]) + "[]"
         if t.type == 'Void':
             return 'void'
-        return str(t)
+        return self.java_str(t)
 
+    def java_str(self, t):
+        bt = str(t.type)
+        if t.parameters:
+            bt += "<" + ", ".join(map(str, t.parameters)) + ">"
+        return bt
 
     def root(self, ast):
         return """

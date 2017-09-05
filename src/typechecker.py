@@ -1,4 +1,5 @@
 from .typestructure import *
+from .zed import zed
 
 
 class TypeContext(object):
@@ -17,6 +18,18 @@ class TypeContext(object):
 
     def add_type_alias(self, t1, t2):
         self.type_aliases[t1] = t2
+
+    def is_subtype(self, t1, t2):
+        if t1 in self.type_aliases:
+            return self.is_subtype(self.type_aliases[t1], t2)
+        if t2 in self.type_aliases:
+            return self.is_subtype(t1, self.type_aliases[t2])
+        return t1 == t2
+
+    def resolve_type(self, t):
+        if t in self.type_aliases:
+            return self.type_aliases[t]
+        return t
 
 
 class Context(object):
@@ -43,35 +56,35 @@ class Context(object):
     def set(self, k, v):
         self.stack[-1][k] = v
 
-def is_subtype(a, b, tcontext):
-    if b == 'Void':
-        return True
-    return a == b
-
-def check_function_arguments(args, ft, tcontext):
-    if ft.freevars:
-        for v in ft.freevars:
-            for ct in tcontext.types:
-                ft_concrete = ft.copy_replacing_freevar(v, ct)
-                a, ft_concrete_r = check_function_arguments(args, ft_concrete, tcontext)
-                if a:
-                    return (a, ft_concrete_r)
-        return (False, None)
-    else:
-        valid = all([ is_subtype(a, b, tcontext) for a,b in zip(args, ft.arguments) ])
-        return (valid, ft)
-
 class TypeChecker(object):
     def __init__(self):
         self.typecontext = TypeContext()
         self.context = Context(self.typecontext)
-
+        self.refined = True
 
     def type_error(self, string):
         raise Exception("Type Error", string)
 
     def is_subtype(self, a, b):
-        return is_subtype(a, b, self.typecontext)
+        if b == 'Void':
+            return True
+        f = self.typecontext.is_subtype(a,b)
+        if self.refined:
+            f = zed.try_subtype(a, b)
+        return f
+
+    def check_function_arguments(self, args, ft, tcontext):
+        if ft.freevars:
+            for v in ft.freevars:
+                for ct in tcontext.types:
+                    ft_concrete = ft.copy_replacing_freevar(v, ct)
+                    a, ft_concrete_r = self.check_function_arguments(args, ft_concrete, tcontext)
+                    if a:
+                        return (a, ft_concrete_r)
+            return (False, None)
+        else:
+            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
+            return (valid, ft)
 
     def typelist(self, ns, *args, **kwargs):
         for n in ns:
@@ -79,29 +92,37 @@ class TypeChecker(object):
         return ns
 
     def t_type(self, n):
+        if len(n.nodes) > 2 and n.nodes[2]:
+            n.nodes[0].set_conditions(n.nodes[2], names=['self'])
+
         self.typecontext.add_type(n.nodes[0])
-        if len(n.nodes) > 1:
+        if len(n.nodes) > 1 and n.nodes[1]:
             self.typecontext.add_type_alias(n.nodes[1], n.nodes[0])
 
     def t_native(self, n):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-        ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
-                  type=n.type,
-                  freevars = n.nodes[3])
+        ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+                  type=self.typecontext.resolve_type(n.type),
+                  freevars = n.nodes[3],
+                  conditions=n.nodes[4],
+                  effects=n.nodes[5])
         self.context.set(name, ft)
 
     def t_decl(self, n):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
-        ft = Type(arguments = [x.nodes[1] for x in  n.nodes[1]],
-                  type=n.type,
-                  freevars = n.nodes[3])
-
+        ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+                  type=self.typecontext.resolve_type(n.type),
+                  freevars = n.nodes[3],
+                  conditions=n.nodes[4],
+                  effects=n.nodes[5])
+        ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]] + [x.nodes[0] for x in n.nodes[1]])
         self.context.set(name, ft)
 
         # Body
         self.context.push_frame()
+
         for arg in n.nodes[1]:
             self.context.set(arg.nodes[0], arg.nodes[1])
         self.typecheck(n.nodes[6])
@@ -123,21 +144,28 @@ class TypeChecker(object):
         if t_name.arguments == None:
             self.type_error("Function {} is not callable".format(name))
 
-        actual_argument_types = [ c.type for c in n.nodes[1] ]
-
-
-        print(name, "args:", t_name)
-        valid, concrete_type = check_function_arguments(actual_argument_types, t_name, self.typecontext)
+        actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
+        valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name, self.typecontext)
         if valid:
             n.type = concrete_type.type # Return type
         else:
-            print(str(t_name))
-            print()
-            self.type_error("Unknown arguments for {}: Got {}, expected {}".format(
+            self.type_error("Wrong argument types for {} : {}: Got {}".format(
+                            name,
+                            str(concrete_type),
+                            str(list(map(str, actual_argument_types))),
+                ))
+
+        if self.refined:
+            if not zed.check_arguments(concrete_type, actual_argument_types):
+                self.type_error("Refinement checking failed for {}: Got {}, expected {}".format(
                             name,
                             str(list(map(str, actual_argument_types))),
-                            str(t_name)
+                            str(concrete_type)
                 ))
+
+        # TODO - Pre and Post conditions
+        #if not ok:
+        #    self.type_error("Invocation of {} failed the precondition {}.".format(name, reason))
 
     def t_lambda(self, n):
         args = [ c[1] for c in n.nodes[0] ]
@@ -159,11 +187,18 @@ class TypeChecker(object):
         k = self.context.find(n.nodes[0])
         if k == None:
             self.type_error("Unknown variable {}".format(n.nodes[0]))
-        n.type = k
+        n.type = self.typecontext.resolve_type(k)
+        if self.refined and not hasattr(n.type, "refined"):
+            n.type.refined = zed.refine_atom(n.type)
 
     def t_let(self, n):
         self.typecheck(n.nodes[1])
-        n.type = n.nodes[1].type
+        if n.nodes[2]:
+            n.type = n.nodes[2]
+            if not self.is_subtype(n.nodes[1].type, n.type):
+                self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type))
+        else:
+            n.type = n.nodes[1].type
         self.context.set(n.nodes[0], n.type)
 
     def t_op(self, n):
@@ -179,8 +214,16 @@ class TypeChecker(object):
         elif n.nodet in ["+", "-", "*", "/", "%"]:
             self.typelist(n.nodes)
             n.type = t_i if all([ k.type == t_i for k in n.nodes]) else t_f
+            if self.refined:
+                n.type.refined = zed.combine(n.type, n.nodet, n.nodes)
         else:
             self.type_error("Unknown operator {}".format(n.nodet))
+
+    def t_literal(self, n):
+        # Base type created on the frontend
+        if self.refined:
+            n.type.refined = zed.make_literal(n.type, n.nodes[0])
+            n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
 
     def typecheck(self, n):
         if type(n) == list:
@@ -204,14 +247,14 @@ class TypeChecker(object):
             return self.t_let(n)
         elif not n.nodet.isalnum():
             return self.t_op(n)
+        elif n.nodet == 'literal':
+            return self.t_literal(n)
         elif n.nodet == 'block':
             self.typelist(n.nodes)
             if n.nodes:
                 n.type = n.nodes[-1].type
             else:
                 n.type = t_v
-        elif n.nodet == 'literal':
-            pass # Implemented on the frontend
         else:
             print("No TypeCheck rule for", n.nodet)
         return n

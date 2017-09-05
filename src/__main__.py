@@ -14,15 +14,20 @@ if __name__ == '__main__':
         print("Untyped ast:")
         for decl in ast:
             print("\t", decl)
+        print()
     ast, table, tcontext = typecheck(ast)
 
     if debug:
+        print()
         print("Typed ast:")
         for decl in ast:
             print("\t", decl)
+        print()
+        print()
         print("Table:")
         for top in table:
-            print("\t", top)
+            print("\t", top, "\t", table[top])
+        print()
 
     output = generate(ast, table, tcontext)
 

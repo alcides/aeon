@@ -1,5 +1,6 @@
 import copy
 from .utils import *
+from .ast import Node
 
 class Type(object):
     def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, freevars=None):
@@ -8,7 +9,40 @@ class Type(object):
         self.parameters = parameters and parameters or []
         self.freevars = freevars
         self.conditions = conditions and conditions or []
+        self.preconditions = []
         self.effects = effects and effects or []
+
+
+    def replace(self, c, names, argnames=None):
+        if not type(c) == Node:
+            return False
+        status = False
+        if c.nodet == 'atom':
+            if argnames:
+                if c.nodes[0] in argnames:
+                    c.nodes = list(c.nodes)
+                    c.nodes[0] = "__argument_{}".format(argnames.index(c.nodes[0]))
+                if c.nodes[0] in names:
+                    c.nodes = list(c.nodes)
+                    c.nodes[0] = "__return_{}".format(names.index(c.nodes[0]))
+                    status = True
+            else:
+                status = True
+        else:
+            for n in c.nodes:
+                status = status or self.replace(n, names, argnames)
+        return status
+
+    def set_conditions(self, conds, names, argnames=[]):
+        self.preconditions = []
+        self.conditions = []
+        if conds:
+            for c in conds:
+                if self.replace(c, names, argnames):
+                    self.conditions.append(c)
+                else:
+                    self.preconditions.append(c)
+
 
     def contains(self, c):
         if type(self.type) == str:
@@ -49,18 +83,31 @@ class Type(object):
             t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
         if self.freevars != None:
             t = "{} => {}".format(",".join(map(str, self.freevars)), t)
+        if self.conditions:
+            t += " where " + " and ".join([ str(e) for e in self.conditions])
+        if self.preconditions:
+            t += " pre-where " + " and ".join([ str(e) for e in self.preconditions])
         return t
 
     def __repr__(self):
-        return repr({
-            "freevars": str(repr(self.freevars)),
-            "basic": str(repr(self.type)),
-            "parameters": str(repr(self.parameters)),
-            "arguments": str(repr(self.arguments)),
-        })
+        d = {}
+        if self.freevars != None:
+            d['freevars'] = self.freevars
+        if self.type != None:
+            d['basic'] = self.type
+        if self.parameters:
+            d['parameters'] = self.parameters
+        if self.arguments != None:
+            d['arguments'] = self.arguments
+        if self.conditions:
+            d['conditions'] = self.conditions
+        if self.effects:
+            d['effects'] = self.effects
+
+        return repr(d)
 
     def __hash__(self):
-        return str(self).__hash__()
+        return str(self.type).__hash__()
 
     def __eq__(self, other):
         if type(other) == str:
@@ -97,6 +144,7 @@ class Type(object):
         for k in mapping:
             t = t.copy_replacing_freevar(k, mapping[k])
         return t
+
 
 # defaults
 t_v = Type('Void')

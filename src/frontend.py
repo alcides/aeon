@@ -1,6 +1,6 @@
 import re
 import os
-
+import copy
 from parsec import *
 
 from .ast import Node
@@ -47,9 +47,9 @@ def number():
     '''Parse number.'''
     def fa(x):
         if "." not in x:
-            return Node('literal', int(x), type=t_i)
+            return Node('literal', int(x), type=copy.deepcopy(t_i))
         else:
-            return Node('literal', float(x), type=t_f)
+            return Node('literal', float(x), type=copy.deepcopy(t_f))
 
     return lexeme(
         regex(r'(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')
@@ -109,6 +109,17 @@ def lambd():
     e = yield block ^ expr
     return Node('lambda', args, e)
 
+
+@lexeme
+@generate
+def let():
+    s = yield symbol
+    typ = yield (colon >> basic_type) ^ t("")
+    yield op_5
+    definition = yield expr_4
+    return Node('let', s, definition, typ)
+
+
 atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd
 expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
@@ -117,7 +128,8 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
 
 expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
-expr = (symbol + op_5.result("let") + expr_4).parsecmap(rotate) ^ expr_4
+expr = let ^ expr_4
+
 
 @lexeme
 @generate
@@ -249,26 +261,17 @@ def native():
 
 @lexeme
 @generate
-def typedecl_with_alias():
-    '''Parse type declaration.'''
-    yield t("type")
-    k = yield polymorphic_type ^ typee
-    yield t("as")
-    k2 = yield polymorphic_type ^ typee
-    return Node('type', k, k2)
-
-@lexeme
-@generate
 def typedecl():
     '''Parse type declaration.'''
     yield t("type")
-    k = yield polymorphic_type ^ typee
-    return Node('type', k)
-
+    imported = yield polymorphic_type ^ typee
+    alias = yield (t("as") >> (polymorphic_type ^ typee)) ^ t("")
+    conditions = yield where ^ t("")
+    return Node('type', imported, alias, conditions)
 
 imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
 
-program = ignore >> many(typedecl_with_alias ^ typedecl ^ native ^ decl ^ imprt)
+program = ignore >> many(typedecl ^ native ^ imprt ^ decl)
 
 
 cached_imports = []
