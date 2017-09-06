@@ -22,15 +22,13 @@ class Type(object):
                 if c.nodes[0] in argnames:
                     c.nodes = list(c.nodes)
                     c.nodes[0] = "__argument_{}".format(argnames.index(c.nodes[0]))
-                if c.nodes[0] in names:
-                    c.nodes = list(c.nodes)
-                    c.nodes[0] = "__return_{}".format(names.index(c.nodes[0]))
-                    status = True
-            else:
+            if c.nodes[0] in names:
+                c.nodes = list(c.nodes)
+                c.nodes[0] = "__return_{}".format(names.index(c.nodes[0]))
                 status = True
         else:
             for n in c.nodes:
-                status = status or self.replace(n, names, argnames)
+                status = self.replace(n, names, argnames) or status
         return status
 
     def set_conditions(self, conds, names, argnames=[]):

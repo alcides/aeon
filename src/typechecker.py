@@ -107,6 +107,7 @@ class TypeChecker(object):
                   freevars = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
+        ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         self.context.set(name, ft)
 
     def t_decl(self, n):
@@ -117,7 +118,7 @@ class TypeChecker(object):
                   freevars = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
-        ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]] + [x.nodes[0] for x in n.nodes[1]])
+        ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         self.context.set(name, ft)
 
         # Body
@@ -156,16 +157,15 @@ class TypeChecker(object):
                 ))
 
         if self.refined:
-            if not zed.check_arguments(concrete_type, actual_argument_types):
+            ok, ref_name = zed.refine_function_invocation(concrete_type, actual_argument_types)
+            if not ok:
                 self.type_error("Refinement checking failed for {}: Got {}, expected {}".format(
                             name,
                             str(list(map(str, actual_argument_types))),
                             str(concrete_type)
                 ))
-
-        # TODO - Pre and Post conditions
-        #if not ok:
-        #    self.type_error("Invocation of {} failed the precondition {}.".format(name, reason))
+            if ref_name:
+                n.type.refined = ref_name
 
     def t_lambda(self, n):
         args = [ c[1] for c in n.nodes[0] ]

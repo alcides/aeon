@@ -40,9 +40,44 @@ class Zed(object):
         else:
             raise Exception("Unknown Type Constructor", t)
 
-    def check_arguments(self, ft, argts):
-        # TODO
-        return True
+    def refine_function_invocation(self, ft, argts):
+        self.convert_once(ft)
+        invocation_name = None
+
+        return_type = ft.type
+        vars = []
+        if self.is_refined(return_type):
+            invocation_name = "return_of_invocation_{}".format(self.get_counter())
+            invocation_var = self.z3_type_constructor(return_type)(invocation_name)
+            self.context[invocation_name] = invocation_var
+
+            vars.append(invocation_var)
+        else:
+            vars.append(None)
+
+        for ar in argts:
+            if self.is_refined(ar):
+                vars.append(self.context[ar.refined])
+            else:
+                vars.append(None)
+
+        zcs = []
+        if ft.preconditions:
+            zcs.extend(ft.zed_pre_conditions)
+        if ft.conditions:
+            zcs.extend(ft.zed_conditions)
+
+        for zc in zcs:
+            statement = zc(vars)
+            self.solver.push()
+            self.solver.add(statement)
+            r = self.solver.check()
+            self.solver.pop()
+            if r == z3.unsat:
+                return False, None
+            elif r == z3.sat:
+                self.solver.add(statement)
+        return True, invocation_name
 
 
     def refine_atom(self, t):
@@ -98,6 +133,12 @@ class Zed(object):
     def convert_once(self, t):
         if hasattr(t, 'zed_conditions'):
             return
+
+        if t.preconditions:
+            t.zed_pre_conditions = translate(t.preconditions)
+        else:
+            t.zed_pre_conditions = []
+
         if t.conditions:
             t.zed_conditions = translate(t.conditions)
         else:

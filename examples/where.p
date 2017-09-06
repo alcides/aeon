@@ -4,7 +4,7 @@ import prelude.A
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]
 
-plus : (n:Integer) -> npo:Integer where [ npo = n + 1 ] {
+plus : (n:Integer) -> npo:Integer where [ npo == (n + 1) ] {
    n + 1
 }
 
@@ -22,5 +22,5 @@ main : (args:Array<String>) -> _:Void {
 
    fun(1,2)
    fun(6,2)
-   fun(6,5)
+   # fun(6,5) -- causes type error
 }
