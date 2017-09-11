@@ -224,7 +224,7 @@ def where():
 def effects():
     yield t("with")
     yield t("[")
-    ls = yield sepBy(expr, comma)
+    ls = yield sepBy(expr, t("and"))
     yield t("]")
     return makeblock(ls)
 
