@@ -3,11 +3,14 @@ import os
 
 from .frontend import parse
 from .typechecker import typecheck
+from .annotate import typeinfer
 from .codegen import generate
 
 if __name__ == '__main__':
 
-    debug = len(sys.argv) > 1 and '-d' == sys.argv[1]
+    debug = len(sys.argv) > 1 and '-d' in sys.argv
+    
+    inferComplexity = len(sys.argv) > 1 and '--infer' in sys.argv
 
     ast = parse(sys.argv[-1])
     if debug:
@@ -15,7 +18,7 @@ if __name__ == '__main__':
         for decl in ast:
             print("\t", decl)
         print()
-    ast, table, tcontext = typecheck(ast)
+    ast, context, tcontext = typecheck(ast)
 
     if debug:
         print()
@@ -24,12 +27,11 @@ if __name__ == '__main__':
             print("\t", decl)
         print()
         print()
-        print("Table:")
-        for top in table:
-            print("\t", top, "\t", table[top])
-        print()
+        
+    if inferComplexity:
+        typeinfer(ast, context, tcontext)
 
-    output = generate(ast, table, tcontext)
+    output = generate(ast, context, tcontext)
 
     try:
         os.mkdir('bin')

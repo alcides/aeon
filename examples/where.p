@@ -4,12 +4,12 @@ import prelude.A
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]
 
-plus : (n:Integer) -> npo:Integer where [ npo == (n + 1) ] {
+plus : (n:Nat) -> npo:Integer where [ npo == (n + 1) ] {
    n + 1
 }
 
 
-fun : (i:Integer, j:Integer) -> _:Integer where [ (i + j) < 10 ] {
+fun : (i:Integer, j:Integer) -> _:Integer where [ (i + j) < 10 && j > 0 ] {
    i + j
 }
 

@@ -8,9 +8,9 @@ class TypeContext(object):
         self.type_aliases = {}
         self.subclasses = []
 
+        self.types.append(Type('Double'))
         self.types.append(Type('Integer'))
         self.types.append(Type('Boolean'))
-        self.types.append(Type('Double'))
         self.types.append(Type('String'))
 
     def add_type(self, t):
@@ -18,18 +18,50 @@ class TypeContext(object):
 
     def add_type_alias(self, t1, t2):
         self.type_aliases[t1] = t2
+        
+    def handle_aliases(self, t):
+        if t in self.type_aliases:
+            return self.type_aliases[t]
 
-    def is_subtype(self, t1, t2):
-        if t1 in self.type_aliases:
-            return self.is_subtype(self.type_aliases[t1], t2)
-        if t2 in self.type_aliases:
-            return self.is_subtype(t1, self.type_aliases[t2])
-        return t1 == t2
+        # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
+        for possible_generic_type in self.type_aliases:
+            if possible_generic_type.freevars:
+                for v in possible_generic_type.freevars:
+                    for ct in self.types:
+                        ft_concrete = possible_generic_type.copy_replacing_freevar(v, ct)
+                        if self.is_subtype(t, ft_concrete, do_aliases=False):
+                            return self.type_aliases[possible_generic_type].copy_replacing_freevar(v, ct)
+            
+        return t
 
+    def is_subtype(self, t1, t2, refined=True, do_aliases=True):
+        if str(t2) in ['Void', 'Object']:
+            return True
+        if do_aliases:
+            t1 = self.handle_aliases(t1)
+            t2 = self.handle_aliases(t2)    
+        r = t1 == t2
+        if r and refined:
+            return zed.try_subtype(t1, t2)
+        return r
+        
     def resolve_type(self, t):
         if t in self.type_aliases:
             return self.type_aliases[t]
         return t
+
+    def check_function_arguments(self, args, ft):
+        if ft.freevars:
+            for v in ft.freevars:
+                for ct in self.types:
+                    ft_concrete = ft.copy_replacing_freevar(v, ct)
+                    a, ft_concrete_r = self.check_function_arguments(args, ft_concrete)
+                    if a:
+                        return (a, ft_concrete_r)
+            return (False, None)
+        else:
+            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
+            return (valid, ft)
 
 
 class Context(object):
@@ -37,6 +69,7 @@ class Context(object):
         self.stack = []
         self.typecontext = tcontext
         self.push_frame()
+        self.funs = {}
 
     def push_frame(self):
         self.stack.append({})
@@ -56,6 +89,21 @@ class Context(object):
     def set(self, k, v):
         self.stack[-1][k] = v
 
+    def define_fun(self, name, type_, n):
+        r = self.set(name, type_)
+        if name not in self.funs:
+            self.funs[name] = [ (name, type_, n) ]
+            new_name = name
+        else:
+            new_name = name + "__multiple__" + str(len(self.funs[name]))
+            self.funs[name].append( (new_name, type_, n) )
+            if len(self.funs[name]) == 2:
+                original_new_name = name + "__multiple__0"
+                self.funs[name][0] = (original_new_name, self.funs[name][0][1], self.funs[name][0][2])
+                self.funs[name][0][2].md_name = original_new_name
+        return new_name
+
+
 class TypeChecker(object):
     def __init__(self):
         self.typecontext = TypeContext()
@@ -66,25 +114,10 @@ class TypeChecker(object):
         raise Exception("Type Error", string)
 
     def is_subtype(self, a, b):
-        if b == 'Void':
-            return True
-        f = self.typecontext.is_subtype(a,b)
-        if self.refined:
-            f = zed.try_subtype(a, b)
-        return f
+        return self.typecontext.is_subtype(a, b, refined=self.refined)
 
-    def check_function_arguments(self, args, ft, tcontext):
-        if ft.freevars:
-            for v in ft.freevars:
-                for ct in tcontext.types:
-                    ft_concrete = ft.copy_replacing_freevar(v, ct)
-                    a, ft_concrete_r = self.check_function_arguments(args, ft_concrete, tcontext)
-                    if a:
-                        return (a, ft_concrete_r)
-            return (False, None)
-        else:
-            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
-            return (valid, ft)
+    def check_function_arguments(self, args, ft):
+        return self.typecontext.check_function_arguments(args, ft)
 
     def typelist(self, ns, *args, **kwargs):
         for n in ns:
@@ -108,7 +141,9 @@ class TypeChecker(object):
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
-        self.context.set(name, ft)
+        ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
+        self.function_type = ft
+        n.md_name = self.context.define_fun(name, ft, n)
 
     def t_decl(self, n):
         n.type = n.nodes[2].nodes[1]
@@ -119,7 +154,9 @@ class TypeChecker(object):
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
-        self.context.set(name, ft)
+        ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
+        n.md_name = self.context.define_fun(name, ft, n)
+        self.function_type = ft
 
         # Body
         self.context.push_frame()
@@ -139,6 +176,7 @@ class TypeChecker(object):
     def t_invocation(self, n):
         self.typelist(n.nodes[1])
         name = n.nodes[0]
+
         t_name = self.context.find(name)
         if not t_name:
             self.type_error("Unknown function {}".format(name))
@@ -146,13 +184,13 @@ class TypeChecker(object):
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
-        valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name, self.typecontext)
+        valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
             n.type = concrete_type.type # Return type
         else:
-            self.type_error("Wrong argument types for {} : {}: Got {}".format(
+            self.type_error("Wrong argument types for {} : {} -- Got {}".format(
                             name,
-                            str(concrete_type),
+                            str(t_name),
                             str(list(map(str, actual_argument_types))),
                 ))
 
@@ -262,4 +300,6 @@ class TypeChecker(object):
 
 def typecheck(ast):
     tc = TypeChecker()
-    return tc.typecheck(ast), tc.context.stack[0], tc.typecontext
+    return tc.typecheck(ast), tc.context, tc.typecontext
+    
+    

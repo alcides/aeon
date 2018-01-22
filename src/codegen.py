@@ -1,3 +1,4 @@
+import sys
 from .typestructure import *
 
 class Expr(object):
@@ -32,10 +33,11 @@ class Block(object):
 
 
 class CodeGenerator(object):
-    def __init__(self, table, typecontext):
-        self.table = table
+    def __init__(self, context, typecontext):
+        self.table = context.stack[0]
+        self.context = context
         self.typecontext = typecontext
-        self.stack = [table, {}]
+        self.stack = [self.table, {}]
         self.blockstack = []
         self.counter = 0
 
@@ -112,9 +114,61 @@ class CodeGenerator(object):
     def genlist(self, ns, *args, **kwargs):
         return "\n".join([ self.generate(n, *args, **kwargs) for n in ns ])
 
+    def java_cost_of(self, tp):
+        "Returns the java expression that predicts the cost of a method"
+        
+        if tp.effects:
+            for eff in tp.effects:
+                if eff.nodet == 'invocation' and eff.nodes[0] == 'time':
+                    c = self.g_expr(eff.nodes[1][0]);
+                    return c
+        return "0";
+
+    def generate_dispatcher(self, name, versions):
+        ftype = self.table[name]
+        lrtype = self.type_convert(ftype.type)
+        largtypes = ", ".join([ "{} {}".format(self.type_convert(a), "__argument_" + str(i)) for i, a in enumerate(ftype.arguments)])
+        
+        invocation_args = "(" + ", ".join([ "{}".format("__argument_" + str(i)) for i, a in enumerate(ftype.arguments)]) + ")"
+        
+        inv = ''
+        
+        # Get costs
+        for v in versions:
+            inv += "double cost__{} = ({}); \n".format(v[0], self.java_cost_of(v[1]))
+            
+        for v in versions[:-1]:
+            cond = " && ".join([ "cost__{} < cost__{}".format(v[0], v2[0]) for v2 in versions if v2[0] != v[0] ])
+            r = ftype.type == 'Void' and '' or 'return '
+            inv += "if ({}) {} {}{};".format(cond, r, v[0], invocation_args)
+        
+            
+            
+        # Final return
+        if not ftype.type == 'Void':
+            inv +='return '
+            
+        inv += versions[-1][0] + invocation_args
+        inv += ";"
+        body = inv
+        return """ public static {} {}({}) {{ {} }}""".format(
+            lrtype,
+            name,
+            largtypes,
+            body
+        )
+
+    def multiple_dispatch_helpers(self):
+        dispatchers = []
+        for name in self.context.funs:
+            versions = self.context.funs[name]
+            if len(versions) > 1:
+                dispatchers.append(self.generate_dispatcher(name, versions))
+        return "\n\n".join(dispatchers)
+
     def g_toplevel(self, n):
         """ [decl] """
-        return "\n\n".join(map(self.g_decl, n))
+        return "\n\n".join(map(self.g_decl, n)) + self.multiple_dispatch_helpers()
 
     def g_decl(self, n):
         """ decl -> string """
@@ -141,7 +195,7 @@ class CodeGenerator(object):
 
         return """ public static {} {}({}) {{ {} \n {} }}""".format(
             lrtype,
-            name,
+            n.md_name,
             largtypes,
             body.get_stmts(),
             body_final
@@ -190,10 +244,14 @@ class CodeGenerator(object):
             return Expr("X")
 
     def g_invocation(self, n):
+        fname = n.nodes[0]
+        if n.version > 0:
+            fversions = self.context.funs[fname]
+            fname = fversions[n.version - 1][0]
         return Expr("""
             {}({})
         """.format(
-            n.nodes[0],
+            fname,
             ", ".join([str(self.g_expr(x)) for x in n.nodes[1]])
         ), is_stmt=True)
 
@@ -220,7 +278,10 @@ class CodeGenerator(object):
             else:
                 body = "{{ {} }}".format(p2.get_stmts())
         else:
-            body = str(p2)
+            if n.nodes[1].type == 'Void':
+                body = "{{ {}; }}".format(p2)
+            else:
+                body = str(p2)
         return Expr("({}) -> {}".format(args, body))
 
 

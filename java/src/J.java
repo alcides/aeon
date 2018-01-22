@@ -9,7 +9,7 @@ class J {
          return b.get();
    }
 
-   public static Integer out(Integer i) {
+   public static Object out(Object i) {
       System.out.println("" + i);
       return i;
    }

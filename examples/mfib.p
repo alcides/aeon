@@ -1,22 +1,25 @@
 import prelude.J
 import prelude.F
 
-fib : ( n:Integer ) -> _:Integer with [ time(10) and memory(20) ] {
-   J.out(1)
+
+# 10.795533183 s
+fib : ( n:Integer ) -> _:Integer with [ time(n * 0.001) and heap(20) ] {
    J.iif(n < 2, () -> 1, () -> fib(n-1) + fib(n-2) )
 }
 
-fib : ( n:Integer ) -> _:Integer with [ time(10) and memory(20) ] {
-   J.out(2)
+# > 1 min
+fib : ( n:Integer ) -> _:Integer with [ time(((n * 0.001) / F.processors ) + 0.004) and heap(40) ] {
    J.iif(n < 2, () -> { 1 }, () -> {
-      a = F.future( () -> fib(n-1))
       b = F.future( () -> fib(n-2))
-      F.get(a)+F.get(b)
+      fib(n-1) + F.get(b)
    })
 }
 
+# multiversioning:
 
 main : (args:Array<String>) -> _:Void {
-   n = 30
+   n = 44
+   J.out(J.timeit( () -> fib.1(n) ))
+   J.out(J.timeit( () -> fib.2(n) ))
    J.out(J.timeit( () -> fib(n) ))
 }

@@ -78,11 +78,15 @@ def charseq():
 @lexeme
 @generate
 def invocation():
-    s = yield symbol
+    name = yield symbol
     yield lpars
     args = yield sepBy(expr, comma)
     yield rpars
-    return Node('invocation', s, args)
+    v = 0
+    if name.split(".")[-1].isdigit():
+        v = int(name.split(".")[-1])
+        name = ".".join(name.split(".")[:-1]) # remove .1
+    return Node('invocation', name, args, version=v)
 
 
 

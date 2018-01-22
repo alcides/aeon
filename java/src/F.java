@@ -8,4 +8,5 @@ class F {
    public static <T> T get(Future<T> f) {
       return f.get();
    }
+   public static int processors = Runtime.getRuntime().availableProcessors();
 }

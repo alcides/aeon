@@ -1,4 +1,5 @@
 import copy
+import sys
 from .utils import *
 from .ast import Node
 
@@ -14,7 +15,9 @@ class Type(object):
 
 
     def replace(self, c, names, argnames=None):
-        if not type(c) == Node:
+        if type(c) == list:
+            return any([ self.replace(n, names, argnames) for n in c ])
+        if type(c) != Node:
             return False
         status = False
         if c.nodet == 'atom':
@@ -27,8 +30,7 @@ class Type(object):
                 c.nodes[0] = "__return_{}".format(names.index(c.nodes[0]))
                 status = True
         else:
-            for n in c.nodes:
-                status = self.replace(n, names, argnames) or status
+            status = any([ self.replace(n, names, argnames) for n in c.nodes ])
         return status
 
     def set_conditions(self, conds, names, argnames=[]):
@@ -40,7 +42,13 @@ class Type(object):
                     self.conditions.append(c)
                 else:
                     self.preconditions.append(c)
-
+                    
+    def set_effects(self, effs, names, argnames=[]):
+        self.effects = [ ]
+        if effs:
+            for eff in effs:
+                self.replace(eff, names, argnames)
+                self.effects.append(eff)
 
     def contains(self, c):
         if type(self.type) == str:
@@ -85,6 +93,8 @@ class Type(object):
             t += " where " + " and ".join([ str(e) for e in self.conditions])
         if self.preconditions:
             t += " pre-where " + " and ".join([ str(e) for e in self.preconditions])
+        if self.effects:
+            t += " with " + " and ".join([ str(e) for e in self.effects])
         return t
 
     def __repr__(self):
@@ -112,6 +122,7 @@ class Type(object):
             return str(self) == str(other)
         if type(other) != Type:
             return False
+        
         return self.type == other.type and \
             self.arguments == other.arguments and \
             len(self.parameters) == len(other.parameters) and \
@@ -147,6 +158,6 @@ class Type(object):
 # defaults
 t_v = Type('Void')
 t_n = Type('Object')
+t_f = Type('Double')
 t_i = Type('Integer')
 t_b = Type('Boolean')
-t_f = Type('Double')
