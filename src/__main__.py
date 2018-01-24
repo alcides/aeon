@@ -8,9 +8,9 @@ from .codegen import generate
 
 if __name__ == '__main__':
 
-    debug = len(sys.argv) > 1 and '-d' in sys.argv
-    
-    inferComplexity = len(sys.argv) > 1 and '--infer' in sys.argv
+    debug = '-d' in sys.argv
+    inferComplexity = '--infer' in sys.argv
+    refined = '--norefine' in sys.argv
 
     ast = parse(sys.argv[-1])
     if debug:

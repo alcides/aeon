@@ -2,15 +2,16 @@ import copy
 import sys
 from .utils import *
 from .ast import Node
+from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, freevars=None):
+    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, freevars=None, preconditions=None):
         self.type = type
         self.arguments = arguments
         self.parameters = parameters and parameters or []
         self.freevars = freevars
         self.conditions = conditions and conditions or []
-        self.preconditions = []
+        self.preconditions = preconditions and preconditions or []
         self.effects = effects and effects or []
 
 
@@ -77,6 +78,7 @@ class Type(object):
             arguments = orNone(self.arguments, lambda x: [ rep(e) for e in x ]),
             parameters =  orNone(self.parameters, lambda x: [ rep(e) for e in x ]),
             conditions = copy.deepcopy(self.conditions),
+            preconditions = copy.deepcopy(self.preconditions),
             effects = copy.deepcopy(self.effects),
             freevars = new_freevars
         )
@@ -90,11 +92,13 @@ class Type(object):
         if self.freevars != None:
             t = "{} => {}".format(",".join(map(str, self.freevars)), t)
         if self.conditions:
-            t += " where " + " and ".join([ str(e) for e in self.conditions])
+            t += " where " + " and ".join([ prettyprint(e) for e in self.conditions])
         if self.preconditions:
-            t += " pre-where " + " and ".join([ str(e) for e in self.preconditions])
+            t += " pre-where " + " and ".join([ prettyprint(e) for e in self.preconditions])
         if self.effects:
-            t += " with " + " and ".join([ str(e) for e in self.effects])
+            t += " with " + " and ".join([ prettyprint(e) for e in self.effects])
+        if hasattr(self, 'refined'):
+            t += "{{ {} }}".format(str(self.refined))
         return t
 
     def __repr__(self):
@@ -122,7 +126,6 @@ class Type(object):
             return str(self) == str(other)
         if type(other) != Type:
             return False
-        
         return self.type == other.type and \
             self.arguments == other.arguments and \
             len(self.parameters) == len(other.parameters) and \

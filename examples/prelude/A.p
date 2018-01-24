@@ -1,10 +1,10 @@
 type T => java.util.ArrayList<T> as T => A.Array<T>
 
-native A.array : T => (size : Integer) -> _:A.Array<T> where [ size >= 0 ]
+native A.array : T => (size : Integer) -> res:A.Array<T> where [ size >= 0 and res.size == size ]
 
-native A.range : (mi : Integer, ma : Integer) -> _:A.Array<Integer> where [ mi <= ma ]
+native A.range : (mi : Integer, ma : Integer) -> res:A.Array<Integer> # where [ mi <= ma and res.size == (ma - mi)]
 
-native A.get : T => (arr: A.Array<T>, index: Integer) -> p:T
+native A.get : T => (arr: A.Array<T>, index: Integer) -> p:T # where [ index >= 0 and index < arr.size ]
 
 native A.set : T => (arr: A.Array<T>, index: Integer, value:T) -> p:T
 

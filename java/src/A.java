@@ -4,8 +4,11 @@ import java.util.function.Function;
 import java.util.function.Consumer;
 
 public class A {
-	public static <T> ArrayList<T> array(int size) {
-		return new ArrayList<>(size);
+	public static <T> ArrayList<T> array(int size, T o) {
+		ArrayList<T> arr = new ArrayList<>(size);
+    for (int i = 0; i<size; i++)
+      arr.add(o);
+    return arr;
 	}
   
 	public static ArrayList<Integer> range(int mi, int ma) {

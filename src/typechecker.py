@@ -3,13 +3,14 @@ from .zed import zed
 
 
 class TypeContext(object):
-    def __init__(self, typedecl=None):
+    def __init__(self, typedecl=None, refined=True):
         self.types = typedecl and typedecl or []
         self.type_aliases = {}
         self.subclasses = []
+        self.refined = refined
 
-        self.types.append(Type('Double'))
         self.types.append(Type('Integer'))
+        self.types.append(Type('Double'))
         self.types.append(Type('Boolean'))
         self.types.append(Type('String'))
 
@@ -34,14 +35,14 @@ class TypeContext(object):
             
         return t
 
-    def is_subtype(self, t1, t2, refined=True, do_aliases=True):
+    def is_subtype(self, t1, t2, do_aliases=True, check_refined=True):
         if str(t2) in ['Void', 'Object']:
             return True
         if do_aliases:
             t1 = self.handle_aliases(t1)
             t2 = self.handle_aliases(t2)    
         r = t1 == t2
-        if r and refined:
+        if r and self.refined and check_refined:
             return zed.try_subtype(t1, t2)
         return r
         
@@ -60,7 +61,7 @@ class TypeContext(object):
                         return (a, ft_concrete_r)
             return (False, None)
         else:
-            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
+            valid = all([ self.is_subtype(a, b, check_refined=False) for a,b in zip(args, ft.arguments) ])
             return (valid, ft)
 
 
@@ -105,16 +106,16 @@ class Context(object):
 
 
 class TypeChecker(object):
-    def __init__(self):
-        self.typecontext = TypeContext()
+    def __init__(self, refined=True):
+        self.typecontext = TypeContext(refined=refined)
         self.context = Context(self.typecontext)
-        self.refined = True
+        self.refined = refined
 
     def type_error(self, string):
         raise Exception("Type Error", string)
 
     def is_subtype(self, a, b):
-        return self.typecontext.is_subtype(a, b, refined=self.refined)
+        return self.typecontext.is_subtype(a, b)
 
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
@@ -184,11 +185,12 @@ class TypeChecker(object):
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
+        
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
             n.type = concrete_type.type # Return type
         else:
-            self.type_error("Wrong argument types for {} : {} -- Got {}".format(
+            self.type_error("Wrong argument types for {} | Expected {} -- Got {}".format(
                             name,
                             str(t_name),
                             str(list(map(str, actual_argument_types))),
@@ -298,8 +300,8 @@ class TypeChecker(object):
         return n
 
 
-def typecheck(ast):
-    tc = TypeChecker()
+def typecheck(ast, refined=True):
+    tc = TypeChecker(refined)
     return tc.typecheck(ast), tc.context, tc.typecontext
     
     
