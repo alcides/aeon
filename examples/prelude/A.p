@@ -1,6 +1,6 @@
 type T => java.util.ArrayList<T> as T => A.Array<T>
 
-native A.array : T => (size : Integer) -> res:A.Array<T> where [ size >= 0 and res.size == size ]
+native A.array : T => (size : Integer, o:T) -> res:A.Array<T> where [ size >= 0 and res.size == size ] 
 
 native A.range : (mi : Integer, ma : Integer) -> res:A.Array<Integer> # where [ mi <= ma and res.size == (ma - mi)]
 

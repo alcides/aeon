@@ -4,23 +4,25 @@ import prelude.A
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]
 
-plus : (n:Nat) -> npo:Integer where [ npo == (n + 1) ] {
+plus : (n:Nat) -> npo:Nat where [ npo == (n + 1) ] {
    n + 1
 }
-
 
 fun : (i:Integer, j:Integer) -> _:Integer where [ (i + j) < 10 and j > 0 ] {
    i + j
 }
 
- main : (args:Array<String>) -> _:Void { 
-   a = A.array(10, 0)
-   b = -10
-   #J.out(A.get(a, b))
-   c = plus(b)
-   #J.out(A.get(a, c))
-
+main : (args:Array<String>) -> _:Void { 
+   a = plus(10)
+   # b = plus(-10)
+   
    fun(1,2)
-   fun(6,2)
-   #fun(6,5) -- causes type error
+   # fun(1, -2)
+   fun(5,4)
+   # fun(5,5)
+  
+   ar = A.array(10, 0)
+   J.out(A.get(ar, 0))
+   J.out(A.get(ar, a))
+
 }

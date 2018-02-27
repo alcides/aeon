@@ -10,9 +10,9 @@ class Node(object):
 
     def __str__(self):
         if hasattr(self, 'type'):
-            return "§{}({}):{}".format(self.nodet, ", ".join([str(a) for a in self.nodes]), self.type)
+            return ".{}({}):{}".format(self.nodet, ", ".join([str(a) for a in self.nodes]), self.type)
         else:
-            return "§{}({})".format(self.nodet, ", ".join([str(a) for a in self.nodes]))
+            return ".{}({})".format(self.nodet, ", ".join([str(a) for a in self.nodes]))
 
     def __repr__(self):
         return str(self)

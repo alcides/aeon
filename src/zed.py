@@ -15,6 +15,9 @@ class Zed(object):
         self.counter = 0
         self.hook = None
         self.context = {}
+        
+    def copy_assertions(self):
+        return self.solver.assertions()
 
     def clean_context(self):
         self.context = {}
@@ -46,6 +49,8 @@ class Zed(object):
 
         return_type = ft.type
         vars = []
+        
+        # TODO: for arrays this needs to be true
         if self.is_refined(return_type):
             invocation_name = "return_of_invocation_{}".format(self.get_counter())
             invocation_var = self.z3_type_constructor(return_type)(invocation_name)
@@ -67,13 +72,16 @@ class Zed(object):
         if ft.conditions:
             zcs.extend(ft.zed_conditions)
 
+  
         for zc in zcs:
             statement = zc(vars)
+            print("s:", statement, vars)
             self.solver.push()
             self.solver.add(statement)
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
+                print("Failed on ", zc)
                 return False, None
             elif r == z3.sat:
                 self.solver.add(statement)
@@ -93,7 +101,7 @@ class Zed(object):
     def make_literal(self, t, v):
         lit_name = "literal_{}_{}".format(t.type, self.get_counter())
         lit_var = self.z3_type_constructor(t)(lit_name)
-        self.context[lit_name] = lit_var
+        self.context[lit_name] = lit_var # TODO: production
         self.solver.add(lit_var == v)
         return lit_name
 
@@ -160,22 +168,31 @@ class Zed(object):
 
     def try_subtype(self, t1, t2):
         if self.is_refined(t1) and self.is_refined(t2):
+            self.solver.push()
             self.convert_once(t1)
             self.convert_once(t2)
+            
+            new_name = z3.Int("v_{}".format(self.get_counter()))
+            
+            
+            def refine(t):
+                if hasattr(t, 'refined'):
+                    return (self.context[t.refined], None)
+                else:
+                    new_expr = reduce(z3.And, [ c([new_name]) for c in t.zed_conditions])
+                    return (new_name, new_expr)
+            
+            (t1_name, t1_assertions) = refine(t1)
+            (t2_name, t2_assertions) = refine(t2)
+            
+            if t1_assertions != None:
+                self.solver.add(t1_assertions)
+            if t2_assertions != None:
+                self.solver.add(t2_assertions)
 
-            t = z3.Int("v_{}".format(self.get_counter()))
-            candidate = reduce(z3.And, [ c([t]) for c in t1.zed_conditions])
-            basis = reduce(z3.And, [ c([t]) for c in t2.zed_conditions])
-
-            self.solver.push()
-            self.solver.add(z3.And(candidate, z3.Not(basis)))
-            r = self.solver.check()
-            self.solver.pop()
-            if r == z3.sat:
-                return False
-
-            self.solver.push()
-            self.solver.add(z3.And(candidate, basis))
+            hypothesis = t1_name == t2_name
+            
+            self.solver.add(hypothesis)
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:

@@ -22,13 +22,16 @@ class Type(object):
             return False
         status = False
         if c.nodet == 'atom':
+            atom = c.nodes[0].split(".")[0]
+            remaining = '.' in c.nodes[0] and ("__index__" + c.nodes[0].split(".")[-1]) or ''
             if argnames:
-                if c.nodes[0] in argnames:
+                if atom in argnames:
                     c.nodes = list(c.nodes)
-                    c.nodes[0] = "__argument_{}".format(argnames.index(c.nodes[0]))
-            if c.nodes[0] in names:
+                    c.nodes[0] = "__argument_{}{}".format(argnames.index(atom), remaining)
+                    status = True
+            if atom in names:
                 c.nodes = list(c.nodes)
-                c.nodes[0] = "__return_{}".format(names.index(c.nodes[0]))
+                c.nodes[0] = "__return_{}{}".format(names.index(atom), remaining)
                 status = True
         else:
             status = any([ self.replace(n, names, argnames) for n in c.nodes ])
@@ -58,6 +61,9 @@ class Type(object):
             return self.type.contains(c) or \
                 any([ a.contains(c) for a in  self.arguments]) or \
                 any([ a.contains(c) for a in  self.parameters])
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def copy_replacing_freevar(self, free, fixed):
 

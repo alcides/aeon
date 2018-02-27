@@ -1,8 +1,6 @@
 def translate_h(n):
     if n.nodet == 'atom':
-        if "." in n.nodes[0]:
-            return False, None
-        elif n.nodes[0].startswith('self'):
+        if n.nodes[0].startswith('self'):
             return True, lambda args: args[0]
         elif n.nodes[0].startswith('__return_'):
             return True, lambda args: args[0]

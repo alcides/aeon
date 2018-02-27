@@ -18,12 +18,12 @@ class TypeContext(object):
         self.types.append(t)
 
     def add_type_alias(self, t1, t2):
-        self.type_aliases[t1] = t2
+        self.type_aliases[t1] = t2.copy()
         
     def handle_aliases(self, t):
         if t in self.type_aliases:
-            return self.type_aliases[t]
-
+            return self.type_aliases[t].copy()
+            
         # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
         for possible_generic_type in self.type_aliases:
             if possible_generic_type.freevars:
@@ -32,7 +32,6 @@ class TypeContext(object):
                         ft_concrete = possible_generic_type.copy_replacing_freevar(v, ct)
                         if self.is_subtype(t, ft_concrete, do_aliases=False):
                             return self.type_aliases[possible_generic_type].copy_replacing_freevar(v, ct)
-            
         return t
 
     def is_subtype(self, t1, t2, do_aliases=True, check_refined=True):
@@ -48,7 +47,7 @@ class TypeContext(object):
         
     def resolve_type(self, t):
         if t in self.type_aliases:
-            return self.type_aliases[t]
+            return self.type_aliases[t].copy()
         return t
 
     def check_function_arguments(self, args, ft):
@@ -61,7 +60,7 @@ class TypeContext(object):
                         return (a, ft_concrete_r)
             return (False, None)
         else:
-            valid = all([ self.is_subtype(a, b, check_refined=False) for a,b in zip(args, ft.arguments) ])
+            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
             return (valid, ft)
 
 
@@ -164,8 +163,10 @@ class TypeChecker(object):
 
         for arg in n.nodes[1]:
             self.context.set(arg.nodes[0], arg.nodes[1])
+    
+        # body
         self.typecheck(n.nodes[6])
-        if n.nodes[6]:
+        if n.nodes[6]: 
             real_type = n.nodes[6].type
         else:
             real_type = t_v
@@ -184,8 +185,8 @@ class TypeChecker(object):
         if t_name.arguments == None:
             self.type_error("Function {} is not callable".format(name))
 
-        actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
-        
+        actual_argument_types = [ c.type for c in n.nodes[1] ]
+    
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
             n.type = concrete_type.type # Return type
@@ -206,6 +207,7 @@ class TypeChecker(object):
                 ))
             if ref_name:
                 n.type.refined = ref_name
+                n.type.context = zed.copy_assertions()
 
     def t_lambda(self, n):
         args = [ c[1] for c in n.nodes[0] ]
@@ -230,6 +232,8 @@ class TypeChecker(object):
         n.type = self.typecontext.resolve_type(k)
         if self.refined and not hasattr(n.type, "refined"):
             n.type.refined = zed.refine_atom(n.type)
+            n.type.context = zed.copy_assertions()
+            n.type.zed_conditions == []
 
     def t_let(self, n):
         self.typecheck(n.nodes[1])
@@ -256,6 +260,7 @@ class TypeChecker(object):
             n.type = t_i if all([ k.type == t_i for k in n.nodes]) else t_f
             if self.refined:
                 n.type.refined = zed.combine(n.type, n.nodet, n.nodes)
+                n.type.context = zed.copy_assertions()
         else:
             self.type_error("Unknown operator {}".format(n.nodet))
 
@@ -263,7 +268,9 @@ class TypeChecker(object):
         # Base type created on the frontend
         if self.refined:
             n.type.refined = zed.make_literal(n.type, n.nodes[0])
+            n.type.context = zed.copy_assertions()
             n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
+            
 
     def typecheck(self, n):
         if type(n) == list:
