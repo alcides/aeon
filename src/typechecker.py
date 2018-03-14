@@ -45,10 +45,9 @@ class TypeContext(object):
             return zed.try_subtype(t1, t2)
         return r
         
+        
     def resolve_type(self, t):
-        if t in self.type_aliases:
-            return self.type_aliases[t].copy()
-        return t
+        return self.handle_aliases(t)
 
     def check_function_arguments(self, args, ft):
         if ft.freevars:

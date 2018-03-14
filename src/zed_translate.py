@@ -31,11 +31,11 @@ def translate_h(n):
         elif n.nodet == '+':
             return True, lambda args: a_l(args) + b_l(args)
         elif n.nodet == '-':
-            return True, lambda args: a_l(args) + b_l(args)
+            return True, lambda args: a_l(args) - b_l(args)
         elif n.nodet == '*':
-            return True, lambda args: a_l(args) + b_l(args)
+            return True, lambda args: a_l(args) * b_l(args)
         elif n.nodet == '/':
-            return True, lambda args: a_l(args) + b_l(args)
+            return True, lambda args: a_l(args) / b_l(args)
     # TODO: other nodes
     print("unknown node in Z3 conversion!!!!", n)
     return False, None

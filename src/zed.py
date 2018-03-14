@@ -47,6 +47,7 @@ class Zed(object):
             raise Exception("Unknown Type Constructor", t)
 
     def refine_function_invocation(self, ft, argts):
+        
         self.convert_once(ft)
         invocation_name = None
 
@@ -61,6 +62,7 @@ class Zed(object):
 
             vars.append(invocation_var)
         else:
+            print("Refinement failed for ", return_type)
             vars.append(None)
 
         for ar in argts:

@@ -22,7 +22,14 @@ main : (args:Array<String>) -> _:Void {
    #fun(5,5)
   
    ar = A.array(10, 0)
-   J.out(A.get(ar, 0))
-   J.out(A.get(ar, a))
+   A.get(ar, 0)
+   #A.get(ar, a)
+   
+   
+   ar2 = A.range(10,20)
+   A.get(ar2, 0)
+   #A.get(ar2, a)
+   A.get(ar2, A.size(ar2)-1)
+   
 
 }
