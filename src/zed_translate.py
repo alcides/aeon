@@ -1,11 +1,12 @@
 def translate_h(n):
+
     if n.nodet == 'atom':
         if n.nodes[0].startswith('self'):
             return True, lambda args: args[0]
         elif n.nodes[0].startswith('__return_'):
             return True, lambda args: args[0]
         elif n.nodes[0].startswith('__argument_'):
-            i = int(n.nodes[0].split("_")[3])
+            i = int(n.nodes[0].split("__")[1].split("_")[-1])
             return True, lambda args: args[1 + i]
         else:
             print("unknown atom in z3 conversion", n.nodes[0])

@@ -25,10 +25,10 @@ class TypeContext(object):
         if recursive and type(t) == Type:
             t.type = self.handle_aliases(t.type)
             if t.arguments:
-                t.arguments = map(self.handle_aliases, t.arguments)
+                t.arguments = list(map(self.handle_aliases, t.arguments))
             if t.parameters:
-                t.parameters = map(self.handle_aliases, t.parameters)
-
+                t.parameters = list(map(self.handle_aliases, t.parameters))
+            return self.handle_aliases(t.copy())
         
         for ta in self.type_aliases:
             replacements = {}
@@ -85,6 +85,7 @@ class TypeContext(object):
                         return (a, ft_concrete_r)
             return (False, None)
         else:
+            
             valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
             return (valid, ft)
 
@@ -205,16 +206,19 @@ class TypeChecker(object):
         name = n.nodes[0]
 
         t = self.context.find(name)
+        if not t:
+            self.type_error("Unknown function {}".format(name))
         t.propagate_freevars()
 
         t_name = self.typecontext.handle_aliases(t, recursive=True)
-        
         if not t_name:
             self.type_error("Unknown function {}".format(name))
         if t_name.arguments == None:
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ c.type for c in n.nodes[1] ]
+        
+        
     
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
