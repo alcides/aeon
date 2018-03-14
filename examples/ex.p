@@ -3,11 +3,16 @@ import prelude.J
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]
 
-plus : (n:Nat) -> npo:Nat where [ npo == (n + 1) ] {
-   n + 1
-}
+
+native Math.sqrt : (x:Double) -> y:Double where [ x >= 0 and y >= 0 ]
+
+
 
 main : (args:Array<String>) -> _:Void {
-   n = plus(plus(0))
-   J.out(n)
+   b = Math.sqrt(3.0)
+   c = Math.sqrt(b)
+   J.out(c)
 }
+
+
+

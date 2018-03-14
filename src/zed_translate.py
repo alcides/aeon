@@ -5,7 +5,7 @@ def translate_h(n):
         elif n.nodes[0].startswith('__return_'):
             return True, lambda args: args[0]
         elif n.nodes[0].startswith('__argument_'):
-            i = int(n.nodes[0].split("_")[-1])
+            i = int(n.nodes[0].split("_")[3])
             return True, lambda args: args[1 + i]
         else:
             print("unknown atom in z3 conversion", n.nodes[0])
@@ -16,6 +16,7 @@ def translate_h(n):
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])
         if (not a_ok) or (not b_ok):
+            print("Children failed", n.nodes[0], n.nodes[1])
             return False, None
         if n.nodet == '<=':
             return True, lambda args: a_l(args) <= b_l(args)

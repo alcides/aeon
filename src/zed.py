@@ -33,7 +33,8 @@ class Zed(object):
         return self.context[n]
 
     def is_refined(self,t):
-        return t == Type('Double') or t == Type('Integer')
+        ir = t == Type('Double') or t == Type('Integer') or (hasattr(t,'conditions') and t.conditions) # TODO: Clean this up
+        return bool(ir)
 
     def z3_type_constructor(self, t):
         if t == Type('Double'):
@@ -41,6 +42,8 @@ class Zed(object):
         elif t == Type('Integer'):
             return z3.Int
         else:
+            return z3.Int
+            # TODO
             raise Exception("Unknown Type Constructor", t)
 
     def refine_function_invocation(self, ft, argts):
@@ -75,7 +78,6 @@ class Zed(object):
   
         for zc in zcs:
             statement = zc(vars)
-            print("s:", statement, vars)
             self.solver.push()
             self.solver.add(statement)
             r = self.solver.check()

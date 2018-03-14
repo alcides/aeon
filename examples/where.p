@@ -19,7 +19,7 @@ main : (args:Array<String>) -> _:Void {
    fun(1,2)
    # fun(1, -2)
    fun(5,4)
-   # fun(5,5)
+   #fun(5,5)
   
    ar = A.array(10, 0)
    J.out(A.get(ar, 0))
