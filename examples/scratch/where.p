@@ -1,5 +1,5 @@
-import prelude.J
-import prelude.A
+import ..prelude.J
+import ..prelude.A
 
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]

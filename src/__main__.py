@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     debug = '-d' in sys.argv
     inferComplexity = '--infer' in sys.argv
-    refined = '--norefine' in sys.argv
+    refined = not ('--norefine' in sys.argv)
 
     ast = parse(sys.argv[-1])
     if debug:
@@ -18,7 +18,7 @@ if __name__ == '__main__':
         for decl in ast:
             print("\t", decl)
         print()
-    ast, context, tcontext = typecheck(ast)
+    ast, context, tcontext = typecheck(ast, refined=refined)
 
     if debug:
         print()

@@ -1,5 +1,7 @@
 def prettyprint(n):
-    if n.nodet == 'invocation':
+    if type(n) == type([]):
+        return "[ {} ]".format(", ".join(map(str, n)))
+    elif n.nodet == 'invocation':
         return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1:]))))
     elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
         return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))

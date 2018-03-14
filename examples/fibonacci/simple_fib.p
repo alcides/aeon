@@ -1,3 +1,5 @@
+import ..prelude.J
+
 # Fibonacci
 
 fib : ( n:Integer ) -> _:Integer with [ time(10) and memory(20) ] {

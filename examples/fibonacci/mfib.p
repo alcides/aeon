@@ -1,5 +1,5 @@
-import prelude.J
-import prelude.F
+import ..prelude.J
+import ..prelude.F
 
 
 # 10.795533183 s

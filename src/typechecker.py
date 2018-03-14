@@ -60,15 +60,16 @@ class TypeContext(object):
 
         return t
 
-    def is_subtype(self, t1, t2, do_aliases=True, check_refined=True):
+    def is_subtype(self, t1, t2, do_aliases=True, check_refined=True, new_context=False):
         if str(t2) in ['Void', 'Object']:
             return True
         if do_aliases:
             t1 = self.handle_aliases(t1)
             t2 = self.handle_aliases(t2)    
+
         r = t1 == t2
         if r and self.refined and check_refined:
-            return zed.try_subtype(t1, t2)
+            return zed.try_subtype(t1, t2, new_context)
         return r
         
         
@@ -84,9 +85,8 @@ class TypeContext(object):
                     if a:
                         return (a, ft_concrete_r)
             return (False, None)
-        else:
-            
-            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.arguments) ])
+        else:            
+            valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.arguments) ])
             return (valid, ft)
 
 
@@ -139,8 +139,8 @@ class TypeChecker(object):
     def type_error(self, string):
         raise Exception("Type Error", string)
 
-    def is_subtype(self, a, b):
-        return self.typecontext.is_subtype(a, b)
+    def is_subtype(self, a, b, *args, **kwargs):
+        return self.typecontext.is_subtype(a, b, *args, **kwargs)
 
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
@@ -217,8 +217,6 @@ class TypeChecker(object):
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ c.type for c in n.nodes[1] ]
-        
-        
     
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
@@ -341,7 +339,7 @@ class TypeChecker(object):
 
 
 def typecheck(ast, refined=True):
-    tc = TypeChecker(refined)
+    tc = TypeChecker(refined=refined)
     return tc.typecheck(ast), tc.context, tc.typecontext
     
     

@@ -41,6 +41,8 @@ class Zed(object):
             return z3.Real
         elif t == Type('Integer'):
             return z3.Int
+        elif t == Type('Boolean'):
+            return z3.Bool
         else:
             return z3.Int
             # TODO
@@ -106,6 +108,7 @@ class Zed(object):
         lit_name = "literal_{}_{}".format(t.type, self.get_counter())
         lit_var = self.z3_type_constructor(t)(lit_name)
         self.context[lit_name] = lit_var # TODO: production
+        
         self.solver.add(lit_var == v)
         return lit_name
 
@@ -174,24 +177,23 @@ class Zed(object):
         if not t.zed_conditions:
             t.zed_conditions = [ self.universe(t) ]
 
-    def try_subtype(self, t1, t2):
+    def try_subtype(self, t1, t2, new_context=False):
         if self.is_refined(t1) and self.is_refined(t2):
             self.solver.push()
             self.convert_once(t1)
             self.convert_once(t2)
             
-            new_name = z3.Int("v_{}".format(self.get_counter()))
+            new_name = z3.Int("v_{}".format(self.get_counter()))  
             
-            
-            def refine(t):
-                if hasattr(t, 'refined'):
+            def refine(t, new_context=False):
+                if hasattr(t, 'refined') and not new_context:
                     return (self.context[t.refined], None)
                 else:
                     new_expr = reduce(z3.And, [ c([new_name]) for c in t.zed_conditions])
                     return (new_name, new_expr)
             
             (t1_name, t1_assertions) = refine(t1)
-            (t2_name, t2_assertions) = refine(t2)
+            (t2_name, t2_assertions) = refine(t2, new_context)
             
             if t1_assertions != None:
                 self.solver.add(t1_assertions)
@@ -201,9 +203,11 @@ class Zed(object):
             hypothesis = t1_name == t2_name
             
             self.solver.add(hypothesis)
+            
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
+                print("hello")
                 return False
         return True
 

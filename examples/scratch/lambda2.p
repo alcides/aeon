@@ -1,4 +1,4 @@
-import prelude.J
+import ..prelude.J
 
 
 main : (args:Array<String>) -> _:Void {

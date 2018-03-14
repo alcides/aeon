@@ -286,7 +286,8 @@ class CodeGenerator(object):
 
 
     def g_literal(self, n):
-        return Expr(str(n.nodes[0]))
+        
+        return Expr(str(n.nodes[0]).lower())
 
 
     def g_op(self, n):
