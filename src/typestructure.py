@@ -13,6 +13,27 @@ class Type(object):
         self.conditions = conditions and conditions or []
         self.preconditions = preconditions and preconditions or []
         self.effects = effects and effects or []
+        
+        self.propagate_freevars()
+
+    def propagate_freevars(self, t=None):
+        if self.freevars:
+            if t == None:
+                self.propagate_freevars(self.type)
+                if self.arguments:
+                    for arg in self.arguments:
+                        self.propagate_freevars(arg)
+                if self.parameters:
+                    for par in self.parameters:
+                        self.propagate_freevars(par)
+            elif type(t) == Type:
+                t.freevars = []
+                for a in (t.arguments or []) + (t.parameters or []):
+                    for fv in self.freevars:
+                        if a == fv and fv not in t.freevars:
+                            t.freevars.append(fv)
+                if not t.freevars:
+                    t.freevars = None
 
 
     def replace(self, c, names, argnames=None):
@@ -132,6 +153,7 @@ class Type(object):
             return str(self) == str(other)
         if type(other) != Type:
             return False
+
         return self.type == other.type and \
             self.arguments == other.arguments and \
             len(self.parameters) == len(other.parameters) and \

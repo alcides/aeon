@@ -52,6 +52,7 @@ class Zed(object):
         invocation_name = None
 
         return_type = ft.type
+            
         vars = []
         
         # TODO: for arrays this needs to be true
@@ -62,7 +63,6 @@ class Zed(object):
 
             vars.append(invocation_var)
         else:
-            print("Refinement failed for ", return_type)
             vars.append(None)
 
         for ar in argts:

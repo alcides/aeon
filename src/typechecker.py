@@ -20,9 +20,34 @@ class TypeContext(object):
     def add_type_alias(self, t1, t2):
         self.type_aliases[t1] = t2.copy()
         
-    def handle_aliases(self, t):
-        if t in self.type_aliases:
-            return self.type_aliases[t].copy()
+    def handle_aliases(self, t, recursive=False):
+
+        if recursive and type(t) == Type:
+            t.type = self.handle_aliases(t.type)
+            if t.arguments:
+                t.arguments = map(self.handle_aliases, t.arguments)
+            if t.parameters:
+                t.parameters = map(self.handle_aliases, t.parameters)
+
+        
+        for ta in self.type_aliases:
+            replacements = {}
+            if t.freevars and ta.freevars:
+                if len(t.freevars) == len(ta.freevars):
+                    right_copy = t.copy()
+                    for rv, fv in zip(t.freevars, ta.freevars):
+                        right_copy = right_copy.copy_replacing_freevar(rv, fv)
+                        replacements[fv] = rv
+                    v = ta == right_copy
+                else:
+                    v = False
+            else:
+                v = t == ta
+            if v:
+                b = self.type_aliases[ta].copy()
+                for k in replacements:
+                    b = b.copy_replacing_freevar(k, replacements[k])
+                return b
             
         # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
         for possible_generic_type in self.type_aliases:
@@ -32,6 +57,7 @@ class TypeContext(object):
                         ft_concrete = possible_generic_type.copy_replacing_freevar(v, ct)
                         if self.is_subtype(t, ft_concrete, do_aliases=False):
                             return self.type_aliases[possible_generic_type].copy_replacing_freevar(v, ct)
+
         return t
 
     def is_subtype(self, t1, t2, do_aliases=True, check_refined=True):
@@ -178,7 +204,11 @@ class TypeChecker(object):
         self.typelist(n.nodes[1])
         name = n.nodes[0]
 
-        t_name = self.context.find(name)
+        t = self.context.find(name)
+        t.propagate_freevars()
+
+        t_name = self.typecontext.handle_aliases(t, recursive=True)
+        
         if not t_name:
             self.type_error("Unknown function {}".format(name))
         if t_name.arguments == None:
