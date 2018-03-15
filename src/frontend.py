@@ -29,6 +29,7 @@ colon = t(':')
 comma = t(',')
 arrow = t('->')
 fatarrow = t('=>')
+hole = t('…').result(Node('hole'))
 true = t('true').result(Node('literal', True, type=t_b))
 false = t('false').result(Node('literal', False, type=t_b))
 null = t('null').result(Node('literal', "null", type=t_n))
@@ -124,7 +125,7 @@ def let():
     return Node('let', s, definition, typ)
 
 
-atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd
+atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole
 expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1

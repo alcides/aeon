@@ -239,6 +239,8 @@ class CodeGenerator(object):
             return self.g_lambda(n)
         elif n.nodet == 'block':
             return self.g_block(n, self.type_convert(n.type))
+        elif n.nodet == 'hole':            
+            return self.g_expr(n.nodes[0])
         else:
             print("new_type:", n)
             return Expr("X")

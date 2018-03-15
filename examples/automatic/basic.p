@@ -1,0 +1,3 @@
+v : (i:Integer) -> j:Integer where [i = j] {
+   …
+}

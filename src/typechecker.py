@@ -1,3 +1,5 @@
+from .automatic import synthesise 
+
 from .typestructure import *
 from .zed import zed
 
@@ -145,9 +147,10 @@ class TypeChecker(object):
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
 
-    def typelist(self, ns, *args, **kwargs):
-        for n in ns:
+    def typelist(self, ns, last_expects=None ,*args, **kwargs):
+        for n in ns[:-1]:
             self.typecheck(n, *args, **kwargs)
+        self.typecheck(ns[-1], expects=last_expects, *args, **kwargs)
         return ns
 
     def t_type(self, n):
@@ -182,6 +185,7 @@ class TypeChecker(object):
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         n.md_name = self.context.define_fun(name, ft, n)
+        self.function_name = n.md_name
         self.function_type = ft
 
         # Body
@@ -191,7 +195,7 @@ class TypeChecker(object):
             self.context.set(arg.nodes[0], arg.nodes[1])
     
         # body
-        self.typecheck(n.nodes[6])
+        self.typecheck(n.nodes[6], expects = ft.type)
         if n.nodes[6]: 
             real_type = n.nodes[6].type
         else:
@@ -303,7 +307,7 @@ class TypeChecker(object):
             n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
             
 
-    def typecheck(self, n):
+    def typecheck(self, n, expects=None):
         if type(n) == list:
             return self.typelist(n)
         if type(n) == str:
@@ -328,11 +332,15 @@ class TypeChecker(object):
         elif n.nodet == 'literal':
             return self.t_literal(n)
         elif n.nodet == 'block':
-            self.typelist(n.nodes)
+            self.typelist(n.nodes, last_expects = expects)
             if n.nodes:
                 n.type = n.nodes[-1].type
             else:
                 n.type = t_v
+        elif n.nodet == 'hole':
+            n.type = 'block'
+            n.nodes = [synthesise(n, expects, function_name=self.function_name, function_type=self.function_type)]
+            n.type = n.nodes[0].type
         else:
             print("No TypeCheck rule for", n.nodet)
         return n
