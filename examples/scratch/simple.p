@@ -8,7 +8,7 @@ f1 : () -> o:Integer where [ o == 1 ] {
 
 f2 : (a:Nat) -> o:Integer where [ o == (a - 1) ] {
    b = 1
-   c:Nat = a - b
+   c = a - b
 }
 
 main : (args:Array<String>) -> _:Void { 

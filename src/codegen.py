@@ -2,9 +2,10 @@ import sys
 from .typestructure import *
 
 class Expr(object):
-    def __init__(self, text="", is_stmt=False):
+    def __init__(self, text="", is_stmt=False, extra=None):
         self.text = text
         self.is_stmt = is_stmt
+        self.extra=extra
 
     def __str__(self):
         return self.text
@@ -25,11 +26,15 @@ class Block(object):
         if self.type == 'void':
             return ""
         if not self.escape and self.stmts:
-            self.escape = self.stmts.pop()
+            last = self.stmts[-1]
+            if type(last) == Expr and last.is_stmt:
+                self.escape = Expr(self.stmts[-1].extra)
+            else:
+                self.escape = self.stmts.pop()
         return self.escape
 
     def get_stmts(self):
-        return "\n".join(map(lambda x: x+";", self.stmts))
+        return "\n".join(map(lambda x: str(x)+";", self.stmts))
 
 
 class CodeGenerator(object):
@@ -221,7 +226,7 @@ class CodeGenerator(object):
             if c != n.nodes[-1] and c.type != t_v and not e.is_stmt:
                 b.add("J.noop(" + str(e) + ")")
             else:
-                b.add(str(e))
+                b.add(e)
         self.blockstack.pop()
         return b
 
@@ -267,10 +272,10 @@ class CodeGenerator(object):
         var_value = self.g_expr(n.nodes[1])
         
         if self.find(var_name) != None:
-            return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True)
+            return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True, extra=var_name)
         else:
             self.stack[-1][var_name] = var_type
-            return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True)
+            return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True, extra=var_name)
 
     def g_lambda(self, n):
         args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
