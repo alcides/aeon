@@ -183,7 +183,7 @@ class CodeGenerator(object):
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), a[0]) for a in n.nodes[1]])
-
+        self.push_frame()
         body = self.g_block(n.nodes[6], type=lrtype)
         if name == 'main' and lrtype == 'void' and ftype.arguments and str(ftype.arguments[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
@@ -192,6 +192,7 @@ class CodeGenerator(object):
             body_final = "return {};".format(body.get_escape())
         else:
             body_final = ""
+        self.pop_frame()
 
         return """ public static {} {}({}) {{ {} \n {} }}""".format(
             lrtype,
@@ -264,6 +265,7 @@ class CodeGenerator(object):
         var_name = n.nodes[0]
         var_type = self.type_convert(n.type)
         var_value = self.g_expr(n.nodes[1])
+        
         if self.find(var_name) != None:
             return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True)
         else:

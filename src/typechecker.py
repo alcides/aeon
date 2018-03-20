@@ -62,7 +62,7 @@ class TypeContext(object):
 
         return t
 
-    def is_subtype(self, t1, t2, do_aliases=True, check_refined=True, new_context=False):
+    def is_subtype(self, t1, t2, under=None, do_aliases=True, check_refined=True, new_context=False):
         if str(t2) in ['Void', 'Object']:
             return True
         if do_aliases:
@@ -71,7 +71,7 @@ class TypeContext(object):
 
         r = t1 == t2
         if r and self.refined and check_refined:
-            return zed.try_subtype(t1, t2, new_context)
+            return zed.try_subtype(t1, t2, new_context, under)
         return r
         
         
@@ -177,7 +177,8 @@ class TypeChecker(object):
     def t_decl(self, n):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
-        ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+        argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]]
+        ft = Type(arguments = argtypes,
                   type=self.typecontext.resolve_type(n.type),
                   freevars = n.nodes[3],
                   conditions=n.nodes[4],
@@ -191,8 +192,8 @@ class TypeChecker(object):
         # Body
         self.context.push_frame()
 
-        for arg in n.nodes[1]:
-            self.context.set(arg.nodes[0], arg.nodes[1])
+        for arg, argt in zip(n.nodes[1], argtypes):
+            self.context.set(arg.nodes[0], argt)
     
         # body
         self.typecheck(n.nodes[6], expects = ft.type)
@@ -201,9 +202,15 @@ class TypeChecker(object):
         else:
             real_type = t_v
 
-        self.context.pop_frame()
         if not self.is_subtype(real_type, n.type):
             self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type))
+        if self.refined:
+            if not self.is_subtype(real_type, n.type, under=(ft, argtypes)):
+                self.type_error("Function {} failed post-condition {} when returning".format(name, ft, real_type))
+            
+
+        self.context.pop_frame()
+
 
     def t_invocation(self, n):
         self.typelist(n.nodes[1])
@@ -264,7 +271,7 @@ class TypeChecker(object):
         k = self.context.find(n.nodes[0])
         if k == None:
             self.type_error("Unknown variable {}".format(n.nodes[0]))
-        n.type = self.typecontext.resolve_type(k)
+        n.type = k
         if self.refined and not hasattr(n.type, "refined"):
             n.type.refined = zed.refine_atom(n.type)
             n.type.context = zed.copy_assertions()
@@ -278,6 +285,7 @@ class TypeChecker(object):
                 self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type))
         else:
             n.type = n.nodes[1].type
+        n.type = self.typecontext.resolve_type(n.type)
         self.context.set(n.nodes[0], n.type)
 
     def t_op(self, n):

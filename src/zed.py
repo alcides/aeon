@@ -163,7 +163,7 @@ class Zed(object):
 
     def convert_once(self, t):
         if hasattr(t, 'zed_conditions'):
-            return
+            return t
 
         if t.preconditions:
             t.zed_pre_conditions = translate(t.preconditions)
@@ -176,39 +176,60 @@ class Zed(object):
             t.zed_conditions = []
         if not t.zed_conditions:
             t.zed_conditions = [ self.universe(t) ]
+        return t
 
-    def try_subtype(self, t1, t2, new_context=False):
+    def try_subtype(self, t1, t2, new_context=False, under=None):
         if self.is_refined(t1) and self.is_refined(t2):
             self.solver.push()
             self.convert_once(t1)
             self.convert_once(t2)
             
-            new_name = z3.Int("v_{}".format(self.get_counter()))  
+            if under:
+                self.convert_once(under[0])
             
-            def refine(t, new_context=False):
+            new_name = z3.Int("v_{}".format(self.get_counter()))
+            def refine(t, new_context=False, extra=None): 
                 if hasattr(t, 'refined') and not new_context:
                     return (self.context[t.refined], None)
                 else:
-                    new_expr = reduce(z3.And, [ c([new_name]) for c in t.zed_conditions])
+                    if not extra:
+                        extra = []
+                    new_expr = reduce(z3.And, [ c([new_name] + extra) for c in t.zed_conditions])
                     return (new_name, new_expr)
             
             (t1_name, t1_assertions) = refine(t1)
             (t2_name, t2_assertions) = refine(t2, new_context)
+            if under:
+                def wrap(i, t):
+                    a,b = refine(self.convert_once(t))
+                    return a
+                
+                argtypes = [wrap(i, x) for i, x in enumerate(under[1])]
+                extra_name, extra_under = refine(under[0], extra=argtypes)
+                t2_assertions = z3.And(t2_assertions, extra_under)
+                
+                if under[0].zed_pre_conditions:
+                    extra_pre = reduce(z3.And, [ c([extra_name]) for c in under[0].zed_pre_conditions])
+                    if t1_assertions == None:
+                        t1_assertions = extra_pre
+                    else:
+                        t1_assertions = z3.And(t1_assertions, extra_pre)
+
             
             if t1_assertions != None:
-                self.solver.add(t1_assertions)
-            if t2_assertions != None:
-                self.solver.add(t2_assertions)
-
-            hypothesis = t1_name == t2_name
+                self.solver.add(t1_assertions)    
             
+            hypothesis = t1_name == t2_name
             self.solver.add(hypothesis)
+                
+            self.solver.add( z3.Not(t2_assertions))
             
             r = self.solver.check()
             self.solver.pop()
-            if r == z3.unsat:
-                print("hello")
+            if r == z3.sat:
+                t1.refined_value = self.solver.model()[t1_name] # Error handling
                 return False
+            
         return True
 
 zed = Zed()

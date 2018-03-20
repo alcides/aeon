@@ -42,14 +42,13 @@ class Type(object):
         if type(c) != Node:
             return False
         status = False
-        if c.nodet == 'atom':
+        if c.nodet in ['let','atom']:
             atom = c.nodes[0].split(".")[0]
             remaining = '.' in c.nodes[0] and ("__index__" + c.nodes[0].split(".")[-1]) or ''
             if argnames:
                 if atom in argnames:
                     c.nodes = list(c.nodes)
                     c.nodes[0] = "__argument_{}{}".format(argnames.index(atom), remaining)
-                    status = True
             if atom in names:
                 c.nodes = list(c.nodes)
                 c.nodes[0] = "__return_{}{}".format(names.index(atom), remaining)
@@ -124,7 +123,9 @@ class Type(object):
             t += " pre-where " + " and ".join([ prettyprint(e) for e in self.preconditions])
         if self.effects:
             t += " with " + " and ".join([ prettyprint(e) for e in self.effects])
-        if hasattr(self, 'refined'):
+        if hasattr(self, 'refined_value'):
+            t += "{{ {} }}".format(str(self.refined_value))
+        elif hasattr(self, 'refined'):
             t += "{{ {} }}".format(str(self.refined))
         return t
 
