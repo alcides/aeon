@@ -1,3 +1,5 @@
+import ..prelude.Math
+
 type Integer as Nat where [ self >= 0 ]
 type Integer as Neg where [ self < 0 ]
 
