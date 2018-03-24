@@ -6,6 +6,8 @@ from parsec import *
 from .ast import Node
 from .typestructure import *
 
+ext = 'ae'
+
 # ignore cases.
 whitespace = regex(r'\s+', re.MULTILINE)
 comment = regex(r'#.*')
@@ -302,6 +304,6 @@ def parse(fname):
     txt = open(fname).read()
     p = program.parse_strict(txt)
 
-    p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.p".format(x)))
+    p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.{}".format(x, ext)))
 
     return p
