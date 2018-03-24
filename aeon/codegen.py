@@ -81,37 +81,37 @@ class CodeGenerator(object):
         r = self.type_alias_resolver(t)
         if r:
             return self.type_convert(r)
-        if t.arguments != None:
+        if t.lambda_parameters != None:
             #This is a lambda expression
-            if len(t.arguments) == 0:
+            if len(t.lambda_parameters) == 0:
                 return "java.util.function.Supplier<{}>".format(self.type_convert(t.type))
-            elif len(t.arguments) == 1 and t.arguments[0] == t.type:
+            elif len(t.lambda_parameters) == 1 and t.lambda_parameters[0] == t.type:
                 return "java.util.function.UnaryOperator<{}>".format(self.type_convert(t.type))
-            elif len(t.arguments) == 1 and str(t.type) == 'Boolean':
-                return "java.util.function.Predicate<{}>".format(self.type_convert(t.arguments[0]))
-            elif len(t.arguments) == 1 and str(t.type) == 'Void':
-                return "java.util.function.Consumer<{}>".format(self.type_convert(t.arguments[0]))
-            elif len(t.arguments) == 1:
-                return "java.util.function.Function<{}, {}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.type))
-            elif len(t.arguments) == 2 and str(t.type) == 'Boolean':
-                return "java.util.function.BiPredicate<{}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]))
-            elif len(t.arguments) == 2 and str(t.type) == 'Void':
-                return "java.util.function.BiConsumer<{}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]))
-            elif len(t.arguments) == 2:
-                return "java.util.function.BiFunction<{}, {}>".format(self.type_convert(t.arguments[0]), self.type_convert(t.arguments[1]), self.type_convert(t.type))
+            elif len(t.lambda_parameters) == 1 and str(t.type) == 'Boolean':
+                return "java.util.function.Predicate<{}>".format(self.type_convert(t.lambda_parameters[0]))
+            elif len(t.lambda_parameters) == 1 and str(t.type) == 'Void':
+                return "java.util.function.Consumer<{}>".format(self.type_convert(t.lambda_parameters[0]))
+            elif len(t.lambda_parameters) == 1:
+                return "java.util.function.Function<{}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.type))
+            elif len(t.lambda_parameters) == 2 and str(t.type) == 'Boolean':
+                return "java.util.function.BiPredicate<{}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]))
+            elif len(t.lambda_parameters) == 2 and str(t.type) == 'Void':
+                return "java.util.function.BiConsumer<{}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]))
+            elif len(t.lambda_parameters) == 2:
+                return "java.util.function.BiFunction<{}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]), self.type_convert(t.type))
             else:
                 print("Codegen unavaiable for lambdas with type: ", str(t))
 
         if t.type == 'Array':
-            return str(t.parameters[0]) + "[]"
+            return str(t.type_arguments[0]) + "[]"
         if t.type == 'Void':
             return 'void'
         return self.java_str(t)
 
     def java_str(self, t):
         bt = str(t.type)
-        if t.parameters:
-            bt += "<" + ", ".join(map(str, t.parameters)) + ">"
+        if t.type_arguments:
+            bt += "<" + ", ".join(map(str, t.type_arguments)) + ">"
         return bt
 
     def root(self, ast):
@@ -137,9 +137,9 @@ class CodeGenerator(object):
     def generate_dispatcher(self, name, versions):
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
-        largtypes = ", ".join([ "{} {}".format(self.type_convert(a), "__argument_" + str(i)) for i, a in enumerate(ftype.arguments)])
+        largtypes = ", ".join([ "{} {}".format(self.type_convert(a), "__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)])
         
-        invocation_args = "(" + ", ".join([ "{}".format("__argument_" + str(i)) for i, a in enumerate(ftype.arguments)]) + ")"
+        invocation_args = "(" + ", ".join([ "{}".format("__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)]) + ")"
         
         inv = ''
         
@@ -195,7 +195,7 @@ class CodeGenerator(object):
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
         self.push_frame()
         body = self.g_block(n.nodes[6], type=lrtype)
-        if name == 'main' and lrtype == 'void' and ftype.arguments and str(ftype.arguments[0]) == 'Array<String>':
+        if name == 'main' and lrtype == 'void' and ftype.lambda_parameters and str(ftype.lambda_parameters[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
 
         if lrtype != "void":

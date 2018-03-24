@@ -9,8 +9,8 @@ from .prettyprinter import prettyprint
 class Type(object):
     def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, binders=None, preconditions=None):
         self.type = type
-        self.arguments = arguments
-        self.parameters = parameters and parameters or []
+        self.lambda_parameters = arguments
+        self.type_arguments = parameters and parameters or []
         self.binders = binders
         self.conditions = conditions and conditions or []
         self.preconditions = preconditions and preconditions or []
@@ -22,15 +22,15 @@ class Type(object):
         if self.binders:
             if t == None:
                 self.propagate_binders(self.type)
-                if self.arguments:
-                    for arg in self.arguments:
+                if self.lambda_parameters:
+                    for arg in self.lambda_parameters:
                         self.propagate_binders(arg)
-                if self.parameters:
-                    for par in self.parameters:
+                if self.type_arguments:
+                    for par in self.type_arguments:
                         self.propagate_binders(par)
             elif type(t) == Type:
                 t.binders = []
-                for a in (t.arguments or []) + (t.parameters or []):
+                for a in (t.lambda_parameters or []) + (t.type_arguments or []):
                     for fv in self.binders:
                         if a == fv and fv not in t.binders:
                             t.binders.append(fv)
@@ -81,8 +81,8 @@ class Type(object):
             return self.type == str(c)
         else:
             return self.type.contains(c) or \
-                any([ a.contains(c) for a in  self.arguments]) or \
-                any([ a.contains(c) for a in  self.parameters])
+                any([ a.contains(c) for a in  self.lambda_parameters]) or \
+                any([ a.contains(c) for a in  self.type_arguments])
 
     def copy(self):
         return copy.deepcopy(self)
@@ -103,8 +103,8 @@ class Type(object):
             new_binders = None
         return Type(
             type = rep(self.type),
-            arguments = orNone(self.arguments, lambda x: [ rep(e) for e in x ]),
-            parameters =  orNone(self.parameters, lambda x: [ rep(e) for e in x ]),
+            arguments = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
+            parameters =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
             conditions = copy.deepcopy(self.conditions),
             preconditions = copy.deepcopy(self.preconditions),
             effects = copy.deepcopy(self.effects),
@@ -113,10 +113,10 @@ class Type(object):
 
     def __str__(self):
         t = str(self.type)
-        if self.parameters:
-            t += "<" + ", ".join(map(str, self.parameters)) + ">"
-        if self.arguments != None:
-            t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
+        if self.type_arguments:
+            t += "<" + ", ".join(map(str, self.type_arguments)) + ">"
+        if self.lambda_parameters != None:
+            t = "({})".format(", ".join(map(str, self.lambda_parameters))) + " -> " + t
         if self.binders != None:
             t = "{} => {}".format(",".join(map(str, self.binders)), t)
         if self.conditions:
@@ -137,10 +137,10 @@ class Type(object):
             d['binders'] = self.binders
         if self.type != None:
             d['basic'] = self.type
-        if self.parameters:
-            d['parameters'] = self.parameters
-        if self.arguments != None:
-            d['arguments'] = self.arguments
+        if self.type_arguments:
+            d['parameters'] = self.type_arguments
+        if self.lambda_parameters != None:
+            d['arguments'] = self.lambda_parameters
         if self.conditions:
             d['conditions'] = self.conditions
         if self.effects:
@@ -158,9 +158,9 @@ class Type(object):
             return False
 
         return self.type == other.type and \
-            self.arguments == other.arguments and \
-            len(self.parameters) == len(other.parameters) and \
-            all([ a == b for (a,b) in zip(self.parameters, other.parameters) ])
+            self.lambda_parameters == other.lambda_parameters and \
+            len(self.type_arguments) == len(other.type_arguments) and \
+            all([ a == b for (a,b) in zip(self.type_arguments, other.type_arguments) ])
 
     def polymorphic_matches(self, other, tcontext, mapping = None):
         """ Returns mapping of binders used to convert from self to other """

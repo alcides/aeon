@@ -43,7 +43,7 @@ class CostExtractor(object):
             
             
         call = " int counter_i=0; while (counter_i < 10) {\n"
-        for i,arg in enumerate(ft.arguments):
+        for i,arg in enumerate(ft.lambda_parameters):
             java_type = self.codegen.type_convert(arg)
             generator_name = "generate__random__" + self.javify(str(java_type))
             body = self.default_random(java_type)

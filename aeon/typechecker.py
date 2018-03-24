@@ -26,10 +26,10 @@ class TypeContext(object):
 
         if recursive and type(t) == Type:
             t.type = self.handle_aliases(t.type)
-            if t.arguments:
-                t.arguments = list(map(self.handle_aliases, t.arguments))
-            if t.parameters:
-                t.parameters = list(map(self.handle_aliases, t.parameters))
+            if t.lambda_parameters:
+                t.lambda_parameters = list(map(self.handle_aliases, t.lambda_parameters))
+            if t.type_arguments:
+                t.type_arguments = list(map(self.handle_aliases, t.type_arguments))
             return self.handle_aliases(t.copy())
         
         for ta in self.type_aliases:
@@ -88,7 +88,7 @@ class TypeContext(object):
                         return (a, ft_concrete_r)
             return (False, None)
         else:            
-            valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.arguments) ])
+            valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 
 
@@ -225,7 +225,7 @@ class TypeChecker(object):
         t_name = self.typecontext.handle_aliases(t, recursive=True)
         if not t_name:
             self.type_error("Unknown function {}".format(name))
-        if t_name.arguments == None:
+        if t_name.lambda_parameters == None:
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ c.type for c in n.nodes[1] ]
