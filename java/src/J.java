@@ -14,6 +14,10 @@ class J {
       return i;
    }
 
+   public static <T> T id(T i) {
+      return i;
+   }
+
    public static void noop(Object o) {
       // Do nothing
    }

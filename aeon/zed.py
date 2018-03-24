@@ -232,8 +232,10 @@ class Zed(object):
             self.solver.add(hypothesis)
                 
             self.solver.add( z3.Not(t2_assertions))
-            
             r = self.solver.check()
+            if r == z3.sat:
+                print(self.solver)
+                print(self.solver.model())
             self.solver.pop()
             if r == z3.sat:
                 t1.refined_value = self.solver.model()[t1_name] # Error handling

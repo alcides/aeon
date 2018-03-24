@@ -1,6 +1,8 @@
 
 native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T
 
+native J.id : T => (_:T) -> _:T
+
 native J.out : T => (_:T) -> _:T # with IO()
 
 native J.noop : (_:Object) -> _:Void
