@@ -38,8 +38,8 @@ class CostExtractor(object):
         args_methods = []
         args_invocations = []
         args_invocation_names = []
-        while ft.freevars:
-            ft = ft.copy_replacing_freevar(ft.freevars[0], Type('Integer'))
+        while ft.binders:
+            ft = ft.copy_replacing_freevar(ft.binders[0], Type('Integer'))
             
             
         call = " int counter_i=0; while (counter_i < 10) {\n"

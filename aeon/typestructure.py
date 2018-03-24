@@ -7,35 +7,35 @@ from .ast import Node
 from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, freevars=None, preconditions=None):
+    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, binders=None, preconditions=None):
         self.type = type
         self.arguments = arguments
         self.parameters = parameters and parameters or []
-        self.freevars = freevars
+        self.binders = binders
         self.conditions = conditions and conditions or []
         self.preconditions = preconditions and preconditions or []
         self.effects = effects and effects or []
         
-        self.propagate_freevars()
+        self.propagate_binders()
 
-    def propagate_freevars(self, t=None):
-        if self.freevars:
+    def propagate_binders(self, t=None):
+        if self.binders:
             if t == None:
-                self.propagate_freevars(self.type)
+                self.propagate_binders(self.type)
                 if self.arguments:
                     for arg in self.arguments:
-                        self.propagate_freevars(arg)
+                        self.propagate_binders(arg)
                 if self.parameters:
                     for par in self.parameters:
-                        self.propagate_freevars(par)
+                        self.propagate_binders(par)
             elif type(t) == Type:
-                t.freevars = []
+                t.binders = []
                 for a in (t.arguments or []) + (t.parameters or []):
-                    for fv in self.freevars:
-                        if a == fv and fv not in t.freevars:
-                            t.freevars.append(fv)
-                if not t.freevars:
-                    t.freevars = None
+                    for fv in self.binders:
+                        if a == fv and fv not in t.binders:
+                            t.binders.append(fv)
+                if not t.binders:
+                    t.binders = None
 
 
     def replace(self, c, names, argnames=None):
@@ -98,9 +98,9 @@ class Type(object):
             else:
                 T = target.copy_replacing_freevar(free, fixed)
             return T
-        new_freevars = orNone(self.freevars, lambda x: [ f for f in x if f != free ])
-        if not new_freevars:
-            new_freevars = None
+        new_binders = orNone(self.binders, lambda x: [ f for f in x if f != free ])
+        if not new_binders:
+            new_binders = None
         return Type(
             type = rep(self.type),
             arguments = orNone(self.arguments, lambda x: [ rep(e) for e in x ]),
@@ -108,7 +108,7 @@ class Type(object):
             conditions = copy.deepcopy(self.conditions),
             preconditions = copy.deepcopy(self.preconditions),
             effects = copy.deepcopy(self.effects),
-            freevars = new_freevars
+            binders = new_binders
         )
 
     def __str__(self):
@@ -117,8 +117,8 @@ class Type(object):
             t += "<" + ", ".join(map(str, self.parameters)) + ">"
         if self.arguments != None:
             t = "({})".format(", ".join(map(str, self.arguments))) + " -> " + t
-        if self.freevars != None:
-            t = "{} => {}".format(",".join(map(str, self.freevars)), t)
+        if self.binders != None:
+            t = "{} => {}".format(",".join(map(str, self.binders)), t)
         if self.conditions:
             t += " where " + " and ".join([ prettyprint(e) for e in self.conditions])
         if self.preconditions:
@@ -133,8 +133,8 @@ class Type(object):
 
     def __repr__(self):
         d = {}
-        if self.freevars != None:
-            d['freevars'] = self.freevars
+        if self.binders != None:
+            d['binders'] = self.binders
         if self.type != None:
             d['basic'] = self.type
         if self.parameters:
@@ -163,15 +163,15 @@ class Type(object):
             all([ a == b for (a,b) in zip(self.parameters, other.parameters) ])
 
     def polymorphic_matches(self, other, tcontext, mapping = None):
-        """ Returns mapping of freevars used to convert from self to other """
+        """ Returns mapping of binders used to convert from self to other """
         if mapping == None:
             mapping = {}
-        if not self.freevars:
+        if not self.binders:
             if self == other:
                 return mapping
             else:
                 return None
-        for fv in self.freevars:
+        for fv in self.binders:
             for c in tcontext.types:
                 mapping[fv] = c
                 tconcrete = self.copy_replacing_freevar(fv, c)
@@ -182,7 +182,7 @@ class Type(object):
 
 
     def polymorphic_fill(self, mapping):
-        """ Returns type with freevars mapped """
+        """ Returns type with binders mapped """
         t = self
         for k in mapping:
             t = t.copy_replacing_freevar(k, mapping[k])

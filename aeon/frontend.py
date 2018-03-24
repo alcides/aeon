@@ -154,7 +154,7 @@ def polymorphic_type():
     args = yield sepBy(symbol, comma)
     yield fatarrow
     t = yield basic_type
-    t.freevars = args
+    t.binders = args
     return t
 
 @lexeme

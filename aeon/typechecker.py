@@ -34,10 +34,10 @@ class TypeContext(object):
         
         for ta in self.type_aliases:
             replacements = {}
-            if t.freevars and ta.freevars:
-                if len(t.freevars) == len(ta.freevars):
+            if t.binders and ta.binders:
+                if len(t.binders) == len(ta.binders):
                     right_copy = t.copy()
-                    for rv, fv in zip(t.freevars, ta.freevars):
+                    for rv, fv in zip(t.binders, ta.binders):
                         right_copy = right_copy.copy_replacing_freevar(rv, fv)
                         replacements[fv] = rv
                     v = ta == right_copy
@@ -53,8 +53,8 @@ class TypeContext(object):
             
         # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
         for possible_generic_type in self.type_aliases:
-            if possible_generic_type.freevars:
-                for v in possible_generic_type.freevars:
+            if possible_generic_type.binders:
+                for v in possible_generic_type.binders:
                     for ct in self.types:
                         ft_concrete = possible_generic_type.copy_replacing_freevar(v, ct)
                         if self.is_subtype(t, ft_concrete, do_aliases=False):
@@ -79,8 +79,8 @@ class TypeContext(object):
         return self.handle_aliases(t)
 
     def check_function_arguments(self, args, ft):
-        if ft.freevars:
-            for v in ft.freevars:
+        if ft.binders:
+            for v in ft.binders:
                 for ct in self.types:
                     ft_concrete = ft.copy_replacing_freevar(v, ct)
                     a, ft_concrete_r = self.check_function_arguments(args, ft_concrete)
@@ -168,7 +168,7 @@ class TypeChecker(object):
         n.type = n.nodes[2].nodes[1]
         ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
                   type=self.typecontext.resolve_type(n.type),
-                  freevars = n.nodes[3],
+                  binders = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
@@ -182,7 +182,7 @@ class TypeChecker(object):
         argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]]
         ft = Type(arguments = argtypes,
                   type=self.typecontext.resolve_type(n.type),
-                  freevars = n.nodes[3],
+                  binders = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
@@ -220,7 +220,7 @@ class TypeChecker(object):
         t = self.context.find(name)
         if not t:
             self.type_error("Unknown function {}".format(name))
-        t.propagate_freevars()
+        t.propagate_binders()
 
         t_name = self.typecontext.handle_aliases(t, recursive=True)
         if not t_name:

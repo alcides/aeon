@@ -1,10 +1,19 @@
 #!/bin/bash
 
+# Prepare StdLib
+
+cp java/src/* bin/
+cd bin && rm -rf *.class && javac -Xdiags:verbose -cp AeminiumRuntime.jar {A,J,F,R}.java && cd ..
+
 for FILE in $(tree -fi examples | grep .ae); 
 do
-   ./ae $FILE
-   if [ -neq $@ 0 ]; then
+   python3 -m aeon $FILE && cd bin && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar E.java && cd ..
+   
+   if [[ $? -ne 0 ]]; then
       echo "FAILED $FILE"
       break
+   else
+      printf "."
    fi
 done
+echo
