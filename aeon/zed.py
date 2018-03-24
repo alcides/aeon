@@ -48,6 +48,14 @@ class Zed(object):
             # TODO
             raise Exception("Unknown Type Constructor", t)
 
+    def assert_if(self, r, a, b):
+        rn = self.get(r.refined)
+        an = self.get(a.type.refined)
+        bn = self.get(b.type.refined)
+        self.solver.add( z3.Or(rn == an, rn==an) )
+        r = self.solver.check()
+        assert(r == z3.sat)
+
     def refine_function_invocation(self, ft, argts):
         
         self.convert_once(ft)
@@ -87,7 +95,8 @@ class Zed(object):
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
-                print("Failed on ", zc)
+                print(self.solver)
+                print("Failed on ", zc(vars))
                 return False, None
             elif r == z3.sat:
                 self.solver.add(statement)
@@ -209,7 +218,7 @@ class Zed(object):
                 t2_assertions = z3.And(t2_assertions, extra_under)
                 
                 if under[0].zed_pre_conditions:
-                    extra_pre = reduce(z3.And, [ c([extra_name]) for c in under[0].zed_pre_conditions])
+                    extra_pre = reduce(z3.And, [ c([extra_name] + argtypes) for c in under[0].zed_pre_conditions])
                     if t1_assertions == None:
                         t1_assertions = extra_pre
                     else:

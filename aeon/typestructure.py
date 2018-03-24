@@ -1,5 +1,7 @@
 import copy
 import sys
+from functools import reduce
+
 from .utils import *
 from .ast import Node
 from .prettyprinter import prettyprint

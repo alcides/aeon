@@ -1,3 +1,5 @@
+import z3
+
 def translate_h(n):
 
     if n.nodet == 'atom':
@@ -13,7 +15,7 @@ def translate_h(n):
             return False, None
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
-    elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '+', '-', '*', '/', '%']:
+    elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '+', '-', '*', '/', '%', '||', '&&']:
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])
         if (not a_ok) or (not b_ok):
@@ -39,6 +41,10 @@ def translate_h(n):
             return True, lambda args: a_l(args) / b_l(args)
         elif n.nodet == '%':
             return True, lambda args: a_l(args) % b_l(args)
+        elif n.nodet == '||':
+            return True, lambda args: z3.Or(a_l(args), b_l(args))
+        elif n.nodet == '&&':
+            return True, lambda args: z3.And(a_l(args), b_l(args))
     # TODO: other nodes
     print("unknown node in Z3 conversion!!!!", n.nodet)
     return False, None

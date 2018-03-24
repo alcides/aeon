@@ -148,6 +148,8 @@ class TypeChecker(object):
         return self.typecontext.check_function_arguments(args, ft)
 
     def typelist(self, ns, last_expects=None ,*args, **kwargs):
+        if not ns:
+            return []
         for n in ns[:-1]:
             self.typecheck(n, *args, **kwargs)
         self.typecheck(ns[-1], expects=last_expects, *args, **kwargs)
@@ -206,7 +208,7 @@ class TypeChecker(object):
             self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type))
         if self.refined:
             if not self.is_subtype(real_type, n.type, under=(ft, argtypes)):
-                self.type_error("Function {} failed post-condition {} when returning".format(name, ft, real_type))
+                self.type_error("Function {} failed post-condition {} when returning {}".format(name, ft, real_type))
             
 
         self.context.pop_frame()
@@ -215,7 +217,6 @@ class TypeChecker(object):
     def t_invocation(self, n):
         self.typelist(n.nodes[1])
         name = n.nodes[0]
-
         t = self.context.find(name)
         if not t:
             self.type_error("Unknown function {}".format(name))
@@ -250,6 +251,9 @@ class TypeChecker(object):
             if ref_name:
                 n.type.refined = ref_name
                 n.type.context = zed.copy_assertions()
+            
+            if name == 'J.iif':
+                zed.assert_if(n.type, actual_argument_types[1], actual_argument_types[2] )
 
     def t_lambda(self, n):
         args = [ c[1] for c in n.nodes[0] ]

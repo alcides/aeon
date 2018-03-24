@@ -1,5 +1,5 @@
 
-native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T # where T <: Object
+native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T
 
 native J.out : T => (_:T) -> _:T # with IO()
 

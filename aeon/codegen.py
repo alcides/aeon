@@ -61,6 +61,11 @@ class CodeGenerator(object):
     def get_counter(self):
         self.counter += 1
         return self.counter
+        
+    def wrap_underscore(self, n):
+        if n == "_":
+            n = "underscore{}".format(self.get_counter())
+        return n
 
 
     def type_alias_resolver(self, ty):
@@ -187,7 +192,7 @@ class CodeGenerator(object):
         name = n.nodes[0]
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
-        largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), a[0]) for a in n.nodes[1]])
+        largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
         self.push_frame()
         body = self.g_block(n.nodes[6], type=lrtype)
         if name == 'main' and lrtype == 'void' and ftype.arguments and str(ftype.arguments[0]) == 'Array<String>':
@@ -261,10 +266,10 @@ class CodeGenerator(object):
         """.format(
             fname,
             ", ".join([str(self.g_expr(x)) for x in n.nodes[1]])
-        ), is_stmt=True)
+        ), is_stmt=n.type == 'Void')
 
     def g_atom(self, n):
-        return Expr(n.nodes[0])
+        return Expr(self.wrap_underscore(n.nodes[0]))
 
     def g_let(self, n):
         var_name = n.nodes[0]

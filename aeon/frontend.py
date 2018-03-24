@@ -1,6 +1,8 @@
 import re
 import os
+import os.path
 import copy
+from functools import reduce
 from parsec import *
 
 from .ast import Node
@@ -28,6 +30,7 @@ rbrack = t(']')
 langle = t('<')
 rangle = t('>')
 colon = t(':')
+pipe = t('|')
 comma = t(',')
 arrow = t('->')
 fatarrow = t('=>')
@@ -153,8 +156,6 @@ def polymorphic_type():
     t = yield basic_type
     t.freevars = args
     return t
-
-
 
 @lexeme
 @generate
@@ -292,9 +293,10 @@ def resolve_imports(p, base_path=lambda x: x):
                 fname = fname[2:]
                 path = path + "../"
             path = path + fname.replace(".", "/")
+            path = os.path.realpath(base_path(path))
             if path not in cached_imports:
                 cached_imports.append(path)
-                ip = parse(base_path(path))
+                ip = parse(path)
                 n_p.extend(ip)
         else:
             n_p.append(n)
@@ -303,7 +305,5 @@ def resolve_imports(p, base_path=lambda x: x):
 def parse(fname):
     txt = open(fname).read()
     p = program.parse_strict(txt)
-
     p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.{}".format(x, ext)))
-
     return p

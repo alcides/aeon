@@ -1,0 +1,11 @@
+native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T
+
+type Integer as S where [ (self == 1) || (self == 2) ]
+
+w : (_:Integer) -> a:Integer where [ (a == 1) || (a == 2) ] {
+   a : S = J.iif(true, () -> 2, () -> 1)
+}
+
+main : (args:Array<String>) -> _:Void { 
+   w(1)
+}
