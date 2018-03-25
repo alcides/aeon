@@ -207,7 +207,7 @@ class Zed(object):
                     return (new_name, new_expr)
             
             (t1_name, t1_assertions) = refine(t1)
-            (t2_name, t2_assertions) = refine(t2, new_context)
+            (t2_name, t2_assertions) = refine(t2, new_context=True)
             if under:
                 def wrap(i, t):
                     a,b = refine(self.convert_once(t))
@@ -231,9 +231,10 @@ class Zed(object):
             hypothesis = t1_name == t2_name
             self.solver.add(hypothesis)
                 
+            
             self.solver.add( z3.Not(t2_assertions))
             r = self.solver.check()
-            if r == z3.sat:
+            if r == z3.sat and False:
                 print(self.solver)
                 print(self.solver.model())
             self.solver.pop()

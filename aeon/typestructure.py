@@ -55,6 +55,8 @@ class Type(object):
                 c.nodes = list(c.nodes)
                 c.nodes[0] = "__return_{}{}".format(names.index(atom), remaining)
                 status = True
+            if atom.startswith("__return_"):
+                status = True
         else:
             status = any([ self.replace(n, names, argnames) for n in c.nodes ])
         return status

@@ -2,6 +2,7 @@ import sys
 import os
 
 from .frontend import parse
+from .automatic import synthesise 
 from .typechecker import typecheck
 from .annotate import typeinfer
 from .codegen import generate
@@ -18,7 +19,8 @@ if __name__ == '__main__':
         for decl in ast:
             print("\t", decl)
         print()
-    ast, context, tcontext = typecheck(ast, refined=refined)
+        
+    ast, context, tcontext = typecheck(ast, refined=refined, synthesiser=synthesise)
 
     if debug:
         print()

@@ -1,5 +1,3 @@
-from .automatic import synthesise 
-
 from .typestructure import *
 from .zed import zed
 
@@ -133,10 +131,12 @@ class Context(object):
 
 
 class TypeChecker(object):
-    def __init__(self, refined=True):
+    def __init__(self, root, refined=True, synthesiser=None):
         self.typecontext = TypeContext(refined=refined)
         self.context = Context(self.typecontext)
         self.refined = refined
+        self.root = root
+        self.synthesiser = synthesiser
 
     def type_error(self, string):
         raise Exception("Type Error", string)
@@ -351,15 +351,19 @@ class TypeChecker(object):
                 n.type = t_v
         elif n.nodet == 'hole':
             n.type = 'block'
-            n.nodes = [synthesise(n, expects, function_name=self.function_name, function_type=self.function_type)]
+            n.nodes = [self.synthesiser(n, expects, 
+                root=self.root, 
+                function_name=self.function_name, 
+                function_type=self.function_type,
+                typechecker=self)]
             n.type = n.nodes[0].type
         else:
             print("No TypeCheck rule for", n.nodet)
         return n
 
 
-def typecheck(ast, refined=True):
-    tc = TypeChecker(refined=refined)
+def typecheck(ast, refined=True, synthesiser=None):
+    tc = TypeChecker(ast, refined=refined, synthesiser=synthesiser)
     return tc.typecheck(ast), tc.context, tc.typecontext
     
     
