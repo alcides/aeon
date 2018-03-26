@@ -79,7 +79,7 @@ class TypeContext(object):
     def check_function_arguments(self, args, ft):
         if ft.binders:
             for v in ft.binders:
-                for ct in self.types:
+                for ct in self.types + [v]:
                     ft_concrete = ft.copy_replacing_freevar(v, ct)
                     a, ft_concrete_r = self.check_function_arguments(args, ft_concrete)
                     if a:
@@ -229,6 +229,9 @@ class TypeChecker(object):
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ c.type for c in n.nodes[1] ]
+        
+        if len(actual_argument_types) != len(t.lambda_parameters):
+            self.type_error("Wrong number of arguments for {}({})".format(name, ",".join(map(str,actual_argument_types))))
     
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
@@ -355,6 +358,7 @@ class TypeChecker(object):
                 root=self.root, 
                 function_name=self.function_name, 
                 function_type=self.function_type,
+                context = self.context,
                 typechecker=self)]
             n.type = n.nodes[0].type
         else:

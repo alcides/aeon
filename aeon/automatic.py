@@ -1,4 +1,5 @@
 import copy
+import random
 from .typechecker import typecheck
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
@@ -31,9 +32,48 @@ def validate_candidate(candidate, f, template):
         return nf
     except:
         return None
+    
 
-def synthesise(hole, goal_type, root, function_name, function_type, typechecker):
-    goal_type = copy.deepcopy(goal_type)
+class Synthesiser(object):
+    def __init__(self, hole, goal_type, root, context, function_name, function_type, typechecker, rand):
+        self.hole = hole
+        self.type = copy.deepcopy(goal_type)
+        self.root = root
+        self.context = context
+        self.function_name = function_name
+        self.function_type = function_type
+        self.typechecker = typechecker
+        self.random = rand or random
+    
+
+    def random_ast(self, type):
+        r = self.random.random()
+        if r < 0.5 and any([ type == t for t in [t_i, t_b, t_f] ]): # Literal
+            if type == t_i:
+                v = random.randint(-2147483648, 2147483647)
+                return Node('literal', nodes=[str(v)], type=t_i)
+            elif type == t_b:
+                v = random.choice(['true', 'false'])
+                return Node('literal', nodes=[v], type=t_b)
+            else:
+                v = random.uniform(-10000000, 10000000)
+                return Node('literal', nodes=[str(v)], type=t_f)                
+        else: # Function:Call
+            pass #TODO
+        
+        possible = any([ t == type for t in self.typechecker.typecontext.types ])
+        if not possible:
+            raise Exception("Could not generate code for type {}", type)
+    
+    def evolve(self):
+        self.random_ast(self.type)
+        return None
+        
+
+def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None):
+    s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand)
+    print(s.evolve())
+    
     
     print("looking for source code that satisfies type", goal_type)
     print("within the context of function", function_name)
@@ -68,5 +108,8 @@ def synthesise(hole, goal_type, root, function_name, function_type, typechecker)
     print("Found {} suitable definitions".format(len(candidate_map)))
     for approved in candidate_map.values():
         print(pp(approved))
+    
+    if not candidate_map:
+        raise Exception("Hole unknown")
     
     return candidate_map[list(candidate_map.keys())[0]]
