@@ -124,7 +124,7 @@ def lambd():
 @generate
 def let():
     s = yield symbol
-    typ = yield (colon >> basic_type) ^ t("")
+    typ = yield (colon >> typee) ^ t("")
     yield op_5
     definition = yield expr_4
     return Node('let', s, definition, typ)
@@ -146,7 +146,7 @@ expr = let ^ expr_4
 def basic_type():
     b = yield symbol
     ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
-    return Type(type=b, parameters=[k[0] for k in ks])
+    return Type(basic=b, parameters=[k[0] for k in ks])
 
 @lexeme
 @generate
@@ -165,9 +165,20 @@ def lambda_type():
     yield rpars
     yield arrow
     rt = yield basic_type
-    return Type(type=rt, arguments = args)
+    return Type(basic=rt, arguments = args)
+    
+@lexeme
+@generate
+def refined_type():
+    yield t("{")
+    basic_t = yield basic_type
+    yield t("where")
+    ls = yield sepBy(expr, t("and"))
+    yield t("}")
+    return Type(basic=basic_t, conditions = makeblock(ls))
+    
 
-typee = lambda_type ^ basic_type
+typee = lambda_type ^ basic_type ^ refined_type
 
 
 

@@ -168,7 +168,7 @@ class Zed(object):
         elif t.type == 'Double':
             return lambda args: z3.Or(args[0] == 0, args[0] != 0)
         else:
-            return lambda args: None
+            return lambda args: True
 
     def convert_once(self, t):
         if hasattr(t, 'zed_conditions'):
@@ -186,6 +186,15 @@ class Zed(object):
         if not t.zed_conditions:
             t.zed_conditions = [ self.universe(t) ]
         return t
+        
+    def refine(self, t, new_name, new_context=False, extra=None):
+        if hasattr(t, 'refined') and not new_context:
+            return (self.context[t.refined], None)
+        else:
+            if not extra:
+                extra = []
+            new_expr = reduce(z3.And, [ c([new_name] + extra) for c in t.zed_conditions])
+            return (new_name, new_expr)
 
     def try_subtype(self, t1, t2, new_context=False, under=None):
         if self.is_refined(t1) and self.is_refined(t2):
@@ -197,24 +206,16 @@ class Zed(object):
                 self.convert_once(under[0])
             
             new_name = z3.Int("v_{}".format(self.get_counter()))
-            def refine(t, new_context=False, extra=None): 
-                if hasattr(t, 'refined') and not new_context:
-                    return (self.context[t.refined], None)
-                else:
-                    if not extra:
-                        extra = []
-                    new_expr = reduce(z3.And, [ c([new_name] + extra) for c in t.zed_conditions])
-                    return (new_name, new_expr)
             
-            (t1_name, t1_assertions) = refine(t1)
-            (t2_name, t2_assertions) = refine(t2, new_context=True)
+            (t1_name, t1_assertions) = self.refine(t1, new_name)
+            (t2_name, t2_assertions) = self.refine(t2, new_name, new_context=True)
             if under:
                 def wrap(i, t):
-                    a,b = refine(self.convert_once(t))
+                    a,b = self.refine(self.convert_once(t), new_name)
                     return a
                 
                 argtypes = [wrap(i, x) for i, x in enumerate(under[1])]
-                extra_name, extra_under = refine(under[0], extra=argtypes)
+                extra_name, extra_under = self.refine(under[0], new_name, extra=argtypes)
                 t2_assertions = z3.And(t2_assertions, extra_under)
                 
                 if under[0].zed_pre_conditions:
@@ -243,5 +244,22 @@ class Zed(object):
                 return False
             
         return True
+    
+    def generate_random_type(self, t):
+        if self.is_refined(t):
+            self.solver.push()
+            self.convert_once(t)
+            
+            
+            new_name = z3.Int("v_{}".format(self.get_counter()))
+            (t_name, t_assertions) = self.refine(t, new_name)
+            self.solver.add(t_assertions)   
+            r = self.solver.check() 
+            if r == z3.sat:
+                v = self.solver.model()[t_name] # Error handling
+            self.solver.pop()
+            return v
+        else:
+            return None
 
 zed = Zed()

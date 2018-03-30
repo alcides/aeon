@@ -147,15 +147,22 @@ class TypeChecker(object):
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
 
-    def typelist(self, ns, last_expects=None ,*args, **kwargs):
+    def typelist(self, ns, *args, **kwargs):
         if not ns:
             return []
+        if 'expects' in kwargs:
+            expects = kwargs['expects']
+            del kwargs['expects']
+        else:
+            expects = None
         for n in ns[:-1]:
             self.typecheck(n, *args, **kwargs)
-        self.typecheck(ns[-1], expects=last_expects, *args, **kwargs)
+        if expects:
+            kwargs['expects'] = expects
+        self.typecheck(ns[-1], *args, **kwargs)
         return ns
 
-    def t_type(self, n):
+    def t_type(self, n, expects=None):
         if len(n.nodes) > 2 and n.nodes[2]:
             n.nodes[0].set_conditions(n.nodes[2], names=['self'])
 
@@ -163,11 +170,11 @@ class TypeChecker(object):
         if len(n.nodes) > 1 and n.nodes[1]:
             self.typecontext.add_type_alias(n.nodes[1], n.nodes[0])
 
-    def t_native(self, n):
+    def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
         ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
-                  type=self.typecontext.resolve_type(n.type),
+                  basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
@@ -176,12 +183,12 @@ class TypeChecker(object):
         self.function_type = ft
         n.md_name = self.context.define_fun(name, ft, n)
 
-    def t_decl(self, n):
+    def t_decl(self, n, expects=None):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
         argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]]
         ft = Type(arguments = argtypes,
-                  type=self.typecontext.resolve_type(n.type),
+                  basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
@@ -214,7 +221,7 @@ class TypeChecker(object):
         self.context.pop_frame()
 
 
-    def t_invocation(self, n):
+    def t_invocation(self, n, expects=None):
         self.typelist(n.nodes[1])
         name = n.nodes[0]
         t = self.context.find(name)
@@ -258,7 +265,7 @@ class TypeChecker(object):
             if name == 'J.iif':
                 zed.assert_if(n.type, actual_argument_types[1], actual_argument_types[2] )
 
-    def t_lambda(self, n):
+    def t_lambda(self, n, expects=None):
         args = [ c[1] for c in n.nodes[0] ]
         # Body
         self.context.push_frame()
@@ -274,7 +281,7 @@ class TypeChecker(object):
             type = n.nodes[1].type
         )
 
-    def t_atom(self, n):
+    def t_atom(self, n, expects=None):
         k = self.context.find(n.nodes[0])
         if k == None:
             self.type_error("Unknown variable {}".format(n.nodes[0]))
@@ -284,18 +291,19 @@ class TypeChecker(object):
             n.type.context = zed.copy_assertions()
             n.type.zed_conditions == []
 
-    def t_let(self, n):
-        self.typecheck(n.nodes[1])
+    def t_let(self, n, expects=None):
         if n.nodes[2]:
             n.type = n.nodes[2]
+            self.typecheck(n.nodes[1], expects=n.type)
             if not self.is_subtype(n.nodes[1].type, n.type):
                 self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type))
         else:
+            self.typecheck(n.nodes[1], expects=expects)
             n.type = n.nodes[1].type
         n.type = self.typecontext.resolve_type(n.type)
         self.context.set(n.nodes[0], n.type)
 
-    def t_op(self, n):
+    def t_op(self, n, expects=None):
         if n.nodet in ['&&', '||']:
             n.type = t_b
             self.typelist(n.nodes)
@@ -314,7 +322,7 @@ class TypeChecker(object):
         else:
             self.type_error("Unknown operator {}".format(n.nodet))
 
-    def t_literal(self, n):
+    def t_literal(self, n, expects=None):
         # Base type created on the frontend
         if self.refined:
             n.type.refined = zed.make_literal(n.type, n.nodes[0])
@@ -322,38 +330,40 @@ class TypeChecker(object):
             n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
             
 
-    def typecheck(self, n, expects=None):
+    def typecheck(self, n, **kwargs):
         if type(n) == list:
-            return self.typelist(n)
+            return self.typelist(n, **kwargs)
         if type(n) == str:
             print(n, "string invalid")
             return n
         if n.nodet == 'type':
-            return self.t_type(n)
+            return self.t_type(n, **kwargs)
         elif n.nodet == 'native':
-            return self.t_native(n)
+            return self.t_native(n, **kwargs)
         elif n.nodet == 'decl':
-            return self.t_decl(n)
+            return self.t_decl(n, **kwargs)
         elif n.nodet == 'invocation':
-            return self.t_invocation(n)
+            return self.t_invocation(n, **kwargs)
         elif n.nodet == 'lambda':
-            return self.t_lambda(n)
+            return self.t_lambda(n, **kwargs)
         elif n.nodet == 'atom':
-            return self.t_atom(n)
+            return self.t_atom(n, **kwargs)
         elif n.nodet == 'let':
-            return self.t_let(n)
+            return self.t_let(n, **kwargs)
         elif not n.nodet.isalnum():
             return self.t_op(n)
         elif n.nodet == 'literal':
-            return self.t_literal(n)
+            return self.t_literal(n, **kwargs)
         elif n.nodet == 'block':
-            self.typelist(n.nodes, last_expects = expects)
+            self.typelist(n.nodes, **kwargs)
             if n.nodes:
                 n.type = n.nodes[-1].type
             else:
                 n.type = t_v
         elif n.nodet == 'hole':
             n.type = 'block'
+            expects = kwargs['expects']
+            print("H EXPECTS", expects)
             n.nodes = [self.synthesiser(n, expects, 
                 root=self.root, 
                 function_name=self.function_name, 

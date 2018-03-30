@@ -1,3 +1,11 @@
+import ..prelude.J
+
 v : (i:Integer) -> j:Integer where [j == 5] {
-   … + 1
+   a:{ Integer where self == 4 } = …
+   a + 1
+}
+
+
+main : (_:Array<String>) -> _:Void {
+   J.out(v(1))
 }

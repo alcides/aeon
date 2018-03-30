@@ -7,8 +7,8 @@ from .ast import Node
 from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, type="Object", arguments=None, parameters=None, conditions=None, effects=None, binders=None, preconditions=None):
-        self.type = type
+    def __init__(self, basic="Object", arguments=None, parameters=None, conditions=None, effects=None, binders=None, preconditions=None):
+        self.type = basic
         self.lambda_parameters = arguments
         self.type_arguments = parameters and parameters or []
         self.binders = binders
@@ -44,7 +44,7 @@ class Type(object):
         if type(c) != Node:
             return False
         status = False
-        if c.nodet in ['let','atom']:
+        if c.nodet in ['atom']:
             atom = c.nodes[0].split(".")[0]
             remaining = '.' in c.nodes[0] and ("__index__" + c.nodes[0].split(".")[-1]) or ''
             if argnames:
@@ -61,15 +61,42 @@ class Type(object):
             status = any([ self.replace(n, names, argnames) for n in c.nodes ])
         return status
 
+
+    def depends_on(self, c, prefix):
+        if type(c) == list:
+            return any([ self.depends_on(n, prefix) for n in c ])
+        if type(c) != Node:
+            return False
+        if c.nodet in ['atom']:
+            if c.nodes[0].startswith(prefix):
+                return True
+            else:
+                return False
+        else:
+            status = any([ self.depends_on(n, prefix) for n in c.nodes ])
+        return status
+        
+    
     def set_conditions(self, conds, names, argnames=[]):
         self.preconditions = []
         self.conditions = []
         if conds:
             for c in conds:
-                if self.replace(c, names, argnames):
-                    self.conditions.append(c)
-                else:
-                    self.preconditions.append(c)
+                self.add_condition(c, names, argnames)
+                
+                    
+    def add_condition(self, c, names=[], argnames=[], skip_rename=False):
+        if not skip_rename:
+            self.replace(c, names, argnames)
+        if not self.depends_on(c, '__argument'):
+            self.conditions.append(c)
+            if self.depends_on(c, '__return_0'):
+                if self.lambda_parameters:
+                    if type(self.type) == str:
+                        self.type = Type(self.type)
+                    self.type.add_condition(c, skip_rename=True)
+        else:
+            self.preconditions.append(c)
                     
     def set_effects(self, effs, names, argnames=[]):
         self.effects = [ ]
@@ -104,7 +131,7 @@ class Type(object):
         if not new_binders:
             new_binders = None
         return Type(
-            type = rep(self.type),
+            basic = rep(self.type),
             arguments = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
             parameters =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
             conditions = copy.deepcopy(self.conditions),
