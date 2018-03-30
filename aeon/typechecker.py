@@ -363,7 +363,6 @@ class TypeChecker(object):
         elif n.nodet == 'hole':
             n.type = 'block'
             expects = kwargs['expects']
-            print("H EXPECTS", expects)
             n.nodes = [self.synthesiser(n, expects, 
                 root=self.root, 
                 function_name=self.function_name, 

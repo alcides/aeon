@@ -1,5 +1,6 @@
 import copy
 import random
+import sys
 from .typechecker import typecheck
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
@@ -93,18 +94,12 @@ class Synthesiser(object):
         raise Exception("Could not generate AST for type {}", str(self.type))
     
     def validate(self, candidate):
-        # def validate_candidate(candidate, f, template):
         f = copy.deepcopy(self.function_template)
         nf = replace_hole(f, candidate)
-        program_wrapper = copy.deepcopy(self.program_evaluator)
-        program_wrapper.append(nf)
         try:
-            print("_--")
-            print(program_wrapper)
-            print("...")
-            typecheck(program_wrapper)
+            typecheck(nf)
             return nf
-        except:
+        except Exception as e:
             return False
         
     
@@ -128,6 +123,8 @@ class Synthesiser(object):
                 candidate_map[f.name] = candidate
                 program_evaluator.append(nf)
             except Exception as e:
+                print(program_wrapper)
+                print("got", e)
                 pass # Should be generating a new one.
                 
         for df in self.program_evaluator:
