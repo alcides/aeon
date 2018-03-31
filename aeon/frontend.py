@@ -2,7 +2,6 @@ import re
 import os
 import os.path
 import copy
-from functools import reduce
 from parsec import *
 
 from .ast import Node
@@ -165,7 +164,7 @@ def lambda_type():
     yield rpars
     yield arrow
     rt = yield basic_type
-    return Type(basic=rt, lambda_arguments = args)
+    return Type(basic=rt, lambda_parameters = args)
     
 @lexeme
 @generate

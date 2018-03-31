@@ -82,6 +82,8 @@ class CodeGenerator(object):
         r = self.type_alias_resolver(t)
         if r:
             return self.type_convert(r)
+        if type(t) == str:
+            t = Type(t)
         if t.lambda_parameters != None:
             #This is a lambda expression
             if len(t.lambda_parameters) == 0:

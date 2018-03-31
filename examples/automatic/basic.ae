@@ -1,11 +1,11 @@
 import ..prelude.J
 
-v : (i:Integer) -> j:Integer where [j == 5] {
+v : (i:Integer, k:Integer) -> j:Integer where [j == 5 and j > 0] {
    a:{ Integer where self == 4 } = …
    a + 1
 }
 
 
 main : (_:Array<String>) -> _:Void {
-   J.out(v(1))
+   J.out(v(1,2))
 }

@@ -2,11 +2,13 @@ import copy
 import random
 import sys
 import subprocess
+from functools import reduce
 from .typechecker import typecheck
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
 from .codegen import generate
 from .zed import Zed
+from .frontend import native, decl
 
 
 POPULATION_SIZE = 10
@@ -14,6 +16,8 @@ MAX_GENERATIONS = 10
 
 
 N_TRIES_REFINEMENT_CHECK = 1000
+
+QUICKCHECK_SIZE = 10
 
 def remove_fun(ast, function_name):
     return copy.deepcopy([n for n in ast if not (n.nodet == 'decl' and n.nodes[0] == function_name)])
@@ -51,6 +55,7 @@ class Synthesiser(object):
         self.function_template = get_fun(root, function_name)
         
         self.fitness_evaluator = self.create_evaluator_program(function_name, function_type)
+        self.compiled_evaluator = False
         
         print(20*"-")
         print("GA")
@@ -61,40 +66,78 @@ class Synthesiser(object):
         print(20*"-")
     
 
+    def compile_condition(self, i, cond, ft):
+        main_b = Node('invocation', 'GA.addFitness', [
+                Node('literal', i, type='Integer'),
+                Node('invocation', 'J.iif', [
+                    cond,
+                    Node('lambda', [], Node('literal', 0.0, type='Double')),
+                    Node('lambda', [], Node('literal', 1.0, type='Double')),
+                ])
+            ])
+        
+        print("cond", main_b)
+        
+        
+        argnodes = [
+            Node('argument', "__argument_{}".format(i), t) for i,t in enumerate(ft.lambda_parameters)
+        ]
+        argnodes.append(Node('argument', "__return_0", ft.type))
+        
+        fn_cond = Node('decl',
+                    'test{}'.format(i), 
+                    argnodes,
+                    Node('argument', '_', Type('Void')),
+                    None,
+                    None,
+                    None, 
+                    Node('block', main_b))
+        return fn_cond
+
+    def prepare_arguments(self, types, tests, counter=0):
+        t = types.pop()
+        
+        if len(t.conditions) > 1:
+            lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), t.conditions)
+        elif t.conditions:
+            lambda_cond_body = t.conditions[0]
+        else:
+            lambda_cond_body = Node('literal', True, type='Boolean')
+            
+        if types:
+            lambda_do_body = self.prepare_arguments(types, tests, counter+1)
+        else:
+            lambda_do_body = Node('block', *tests)
+        
+        return Node('invocation', 'GA.genInteger', [
+            Node('literal', QUICKCHECK_SIZE, type='Integer'), #size
+            Node('literal', self.random.randint(0,1000), type='Integer'), #seed
+            Node('lambda', [ ('__argument_{}'.format(counter), t.type) ], lambda_cond_body),
+            Node('lambda', [ ('__argument_{}'.format(counter), t.type) ], lambda_do_body)
+        ])
+        
+
     def create_evaluator_program(self, fname, ftype):
+        tests = [ self.compile_condition(i, cond, ftype) for i, cond in enumerate(ftype.conditions) ]
+        
+        args = [ Node('atom', '__argument_{}'.format(i)) for i, v in enumerate(ftype.lambda_parameters) ]
+        
+        call = Node('let', '__return_0', Node('invocation', "Candidate.{}".format(fname), args), ftype.type)
+        tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.conditions) ]
+        
         toCopy = [ c for c in self.root if c.nodes[0] == fname ][0]
         fn_target = copy.deepcopy(toCopy)
         fn_target.nodet = 'native'
         fn_target.nodes = list(fn_target.nodes)
         fn_target.nodes[0] = 'Candidate.{}'.format(fname)
-
-        fn_addFitness = Node('native',
-                    'GA.addFitness', 
-                    [Node('argument', '_', Type('Double'))],
-                    Node('r', '_', Type('Double')),
-                    None,
-                    None,
-                    None)
         
-        fn_getFitness = Node('native',
-                    'GA.getFitness', 
-                    [],
-                    Node('r', '_', Type('Double')),
-                    None,
-                    None,
-                    None)
-                    
-        fn_out = Node('native',
-                    'System.out.println', 
-                    [Node('argument', 'd', Type('Double'))],
-                    Node('r', '_', Type('Void')),
-                    None,
-                    None,
-                    None)
+        variableIterator = self.prepare_arguments(ftype.lambda_parameters, [call] + tests_to_do)
         
-        main_b = Node('invocation', 'System.out.println', [
-            Node('invocation', 'GA.getFitness', [])
-        ])
+        main_b = [variableIterator] + [
+            Node('invocation', 'System.out.println', [
+                Node('invocation', 'GA.getFitness', [])
+            ])
+        ]
         fn_main = Node('decl',
                     'main', 
                     [Node('argument', 'args', Type('Array', type_arguments=['String']))],
@@ -102,12 +145,16 @@ class Synthesiser(object):
                     None,
                     None,
                     None, 
-                    Node('block', main_b))
-        print([fn_target, fn_main])
+                    Node('block', *main_b))
         
-        
-        p = [fn_getFitness, fn_addFitness, fn_out, fn_main]
-        self.compile(p, 'FitnessEvaluator', compile_java=True)
+        n = native.parse_strict
+        fn_genInteger = n("native GA.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
+        fn_out = n("native System.out.println : (_:Double) -> _:Void")
+        fn_addFitness = n("native GA.addFitness : (_:Integer, _:Double) -> _:Double")
+        fn_getFitness = n("native GA.getFitness : () -> _:Double")
+        fn_if = n("native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T")
+        p = [fn_if, fn_target, fn_genInteger, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
+        self.compile(p, 'FitnessEvaluator', compile_java=False)
         return p
         
     def random_ast(self, tp):
@@ -181,8 +228,16 @@ class Synthesiser(object):
         try:
             self.compile(program, 'Candidate')
             
+            
             compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. Candidate.java"
             subprocess.call(compilation, cwd="bin", shell=True)
+            
+            if not self.compiled_evaluator:
+                self.compiled_evaluator = True
+                compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. FitnessEvaluator.java"
+                subprocess.call(compilation, cwd="bin", shell=True)
+            
+            
             program = "java -cp AeminiumRuntime.jar:. FitnessEvaluator".split(" ")
             a = subprocess.check_output(program, cwd="bin").strip()
             print(float(a))

@@ -1,15 +1,14 @@
 import copy
 import sys
-from functools import reduce
 
 from .utils import *
 from .ast import Node
 from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, basic="Object", lambda_arguments=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None):
+    def __init__(self, basic="Object", lambda_parameters=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None):
         self.type = basic
-        self.lambda_parameters = lambda_arguments
+        self.lambda_parameters = lambda_parameters
         self.type_arguments = type_arguments and type_arguments or []
         self.binders = binders
         self.conditions = conditions and conditions or []
@@ -132,7 +131,7 @@ class Type(object):
             new_binders = None
         return Type(
             basic = rep(self.type),
-            lambda_arguments = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
+            lambda_parameters = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
             type_arguments =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
             conditions = copy.deepcopy(self.conditions),
             preconditions = copy.deepcopy(self.preconditions),

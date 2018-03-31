@@ -1,5 +1,8 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
+import java.util.function.Predicate;
+import java.util.function.Consumer;
 
 public class GA {
   public static HashMap<Integer,ArrayList<Double>> fitnesses = new HashMap<>();
@@ -25,5 +28,16 @@ public class GA {
     return fitness / values;
   }
   
+  public static void genInteger(Integer size, Integer seed, Predicate<Integer> pred, Consumer<Integer> c) {
+    Random r = new Random(seed);
+    int i = 0;
+    while (i < size) {
+      Integer t = r.nextInt();
+      if (pred.test(t)) {
+        c.accept(t);
+        i++;
+      }
+    }
+  }
   
 }

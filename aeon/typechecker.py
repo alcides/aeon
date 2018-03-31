@@ -173,7 +173,7 @@ class TypeChecker(object):
     def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-        ft = Type(lambda_arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+        ft = Type(lambda_parameters = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
@@ -187,7 +187,7 @@ class TypeChecker(object):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
         argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]]
-        ft = Type(lambda_arguments = argtypes,
+        ft = Type(lambda_parameters = argtypes,
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
@@ -277,8 +277,8 @@ class TypeChecker(object):
         self.context.pop_frame()
 
         n.type = Type(
-            arguments = args,
-            type = n.nodes[1].type
+            lambda_parameters = args,
+            basic = n.nodes[1].type
         )
 
     def t_atom(self, n, expects=None):
