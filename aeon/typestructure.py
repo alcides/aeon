@@ -87,9 +87,9 @@ class Type(object):
     def add_condition(self, c, names=[], argnames=[], skip_rename=False):
         if not skip_rename:
             self.replace(c, names, argnames)
-        if not self.depends_on(c, '__argument'):
-            self.conditions.append(c)
-            if self.depends_on(c, '__return_0'):
+        if self.depends_on(c, '__return_0'):
+            self.conditions.append(c)            
+            if not self.depends_on(c, '__argument'):
                 if self.lambda_parameters:
                     if type(self.type) == str:
                         self.type = Type(self.type)

@@ -1,8 +1,7 @@
 import ..prelude.J
 
-v : (i:Integer, k:Integer) -> j:Integer where [j == 5 and j > 0] {
-   a:{ Integer where self == 4 } = …
-   a + 1
+v : (i:Integer, k:Integer) -> j:Integer where [j == (i * 5) and j > 0] {
+   …
 }
 
 
