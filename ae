@@ -1,3 +1,28 @@
 #!/bin/bash
 
-python3 -m aeon $@ && cp java/src/* bin/ && cp java/lib/* bin/  && cd bin/ && java -jar ../tools/google-java-format-1.3-all-deps.jar --replace E.java && rm -rf *.class && javac -Xdiags:verbose -cp AeminiumRuntime.jar {A,J,F,E,R}.java && java -cp .:AeminiumRuntime.jar E && cd ..
+
+function prepare_java_sources {
+   cp java/src/* bin/ && cp java/lib/* bin/
+   rm -rf bin/*.class
+   cd bin/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar {A,D,F,GA,J,R}.java && cd ..
+}
+
+function clean_code {
+   java -jar tools/google-java-format-1.3-all-deps.jar --replace bin/E.java
+}
+
+function compile_code {
+   cd bin/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar E.java && cd ..
+}
+
+function run_code {
+   cd bin/ && java -cp .:AeminiumRuntime.jar E && cd ..
+}
+
+
+
+prepare_java_sources &&
+python3 -m aeon $@ && 
+clean_code &&
+compile_code &&
+run_code

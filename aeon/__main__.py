@@ -33,10 +33,4 @@ if __name__ == '__main__':
     if inferComplexity:
         typeinfer(ast, context, tcontext)
 
-    output = generate(ast, context, tcontext)
-
-    try:
-        os.mkdir('bin')
-    except:
-        pass
-    open('bin/E.java', 'w').write(output)
+    output = generate(ast, context, tcontext, class_name='E', generate_file=True)

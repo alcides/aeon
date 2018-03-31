@@ -1,9 +1,11 @@
 import copy
 import random
 import sys
+import subprocess
 from .typechecker import typecheck
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
+from .codegen import generate
 from .zed import Zed
 
 
@@ -34,7 +36,7 @@ def replace_hole(context, replacement):
     
 
 class Synthesiser(object):
-    def __init__(self, hole, goal_type, root, context, function_name, function_type, typechecker, rand):
+    def __init__(self, hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined=True):
         self.hole = hole
         self.type = copy.deepcopy(goal_type)
         self.root = root
@@ -43,9 +45,12 @@ class Synthesiser(object):
         self.function_type = function_type
         self.typechecker = typechecker
         self.random = rand or random
+        self.refined = refined
         
-        self.program_evaluator = remove_fun(root, function_name)
+        self.program_evaluator = copy.deepcopy(root)
         self.function_template = get_fun(root, function_name)
+        
+        self.fitness_evaluator = self.create_evaluator_program(function_name, function_type)
         
         print(20*"-")
         print("GA")
@@ -56,48 +61,105 @@ class Synthesiser(object):
         print(20*"-")
     
 
-    def random_ast(self, type):
-        r = self.random.random()
-        if r < 1.5 and any([ type == t for t in [t_i, t_b, t_f] ]): # Literal
-            if type == t_i:
-                #v = random.randint(-2147483648, 2147483647)
-                
-                if type.conditions:
-                    gz = Zed()
-                    v = gz.generate_random_type(type).as_long()
-                else:
-                    v = None
-                
-                if not v:
-                    v = int(random.triangular(-2147483648, 2147483647))
-                
-                return Node('literal', nodes=[str(v)], type=t_i)
-            elif type == t_b:
-                v = random.choice(['true', 'false'])
-                return Node('literal', nodes=[v], type=t_b)
-            else:
-                v = random.uniform(-10000000, 10000000)
-                return Node('literal', nodes=[str(v)], type=t_f)                
-        else: # Function:Call
-            pass #TODO
+    def create_evaluator_program(self, fname, ftype):
+        toCopy = [ c for c in self.root if c.nodes[0] == fname ][0]
+        fn_target = copy.deepcopy(toCopy)
+        fn_target.nodet = 'native'
+        fn_target.nodes = list(fn_target.nodes)
+        fn_target.nodes[0] = 'Candidate.{}'.format(fname)
+
+        fn_addFitness = Node('native',
+                    'GA.addFitness', 
+                    [Node('argument', '_', Type('Double'))],
+                    Node('r', '_', Type('Double')),
+                    None,
+                    None,
+                    None)
         
-        possible = any([ t == type for t in self.typechecker.typecontext.types ])
-        if not possible:
-            raise Exception("Could not generate code for type {}", type)
+        fn_getFitness = Node('native',
+                    'GA.getFitness', 
+                    [],
+                    Node('r', '_', Type('Double')),
+                    None,
+                    None,
+                    None)
+                    
+        fn_out = Node('native',
+                    'System.out.println', 
+                    [Node('argument', 'd', Type('Double'))],
+                    Node('r', '_', Type('Void')),
+                    None,
+                    None,
+                    None)
+        
+        main_b = Node('invocation', 'System.out.println', [
+            Node('invocation', 'GA.getFitness', [])
+        ])
+        fn_main = Node('decl',
+                    'main', 
+                    [Node('argument', 'args', Type('Array', type_arguments=['String']))],
+                    Node('argument', '_', Type('Void')),
+                    None,
+                    None,
+                    None, 
+                    Node('block', main_b))
+        print([fn_target, fn_main])
+        
+        
+        p = [fn_getFitness, fn_addFitness, fn_out, fn_main]
+        self.compile(p, 'FitnessEvaluator', compile_java=True)
+        return p
+        
+    def random_ast(self, tp):
+        
+        def random_int_literal(tp):
+            #v = random.randint(-2147483648, 2147483647)
+            if tp.conditions and self.refined:
+                gz = Zed()
+                v = gz.generate_random_type(tp).as_long()
+            else:
+                v = None
+            if not v:
+                v = int(random.triangular(-2147483648, 2147483647))
+            return Node('literal', nodes=[str(v)], type=t_i)
+            
+        def random_boolean_literal(tp):
+            v = random.choice(['true', 'false'])
+            return Node('literal', nodes=[v], type=t_b)
+            
+        def random_double_literal(tp):
+            v = random.uniform(-10000000, 10000000)
+            return Node('literal', nodes=[str(v)], type=t_f)
+        
+        
+        possible_generators = []
+        if tp == t_i:
+            possible_generators.append(random_int_literal)
+        if tp == t_b:
+            possible_generators.append(random_boolean_literal)
+        if tp == t_f:
+            possible_generators.append(random_double_literal)
+            
+
+        
+        if not possible_generators:
+            raise Exception("Could not generate random code for type {}", tp)
+        
+        return random.choice(possible_generators)(tp)
+        
     
     def random_individual(self):
         for i in range(N_TRIES_REFINEMENT_CHECK):
-            c = self.random_ast(type=self.type)
+            c = self.random_ast(tp=self.type)
             if c and self.validate(c):
                 return c
-        print("T", self.type, c, ".", self.validate(c), i)
         raise Exception("Could not generate AST for type {}", str(self.type))
     
     def validate(self, candidate):
         f = copy.deepcopy(self.function_template)
         nf = replace_hole(f, candidate)
         try:
-            typecheck(nf)
+            typecheck(nf, refined=self.refined)
             return nf
         except Exception as e:
             return False
@@ -107,29 +169,40 @@ class Synthesiser(object):
         return self.random_individual()
         
     
+    def compile(self, program, name, compile_java=False):
+        ast, context, tcontext = typecheck(program, refined=False)
+        output = generate(ast, context, tcontext, class_name=name, generate_file=True)
+        
+        if compile_java:
+            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. {}.java".format(name)
+            subprocess.call(compilation, cwd="bin", shell=True)
+    
+    def run_and_retrieve_fitness(self, program):
+        try:
+            self.compile(program, 'Candidate')
+            
+            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. Candidate.java"
+            subprocess.call(compilation, cwd="bin", shell=True)
+            program = "java -cp AeminiumRuntime.jar:. FitnessEvaluator".split(" ")
+            a = subprocess.check_output(program, cwd="bin").strip()
+            print(float(a))
+            return float(a)
+        except Exception as e:
+            raise e
+            return 1000000.0
+    
     def evaluate(self, population):
         evalutator_names = []
         candidate_map = {}
-        for i, candidate in enumerate(population):
-            f = copy.deepcopy(self.function_template)
-            f.nodes = list(f.nodes)
-            f.name = f.nodes[0] = f.nodes[0] + "_candidate_" + str(i)
-            nf = replace_hole(f, candidate)
         
-            program_wrapper = copy.deepcopy(self.program_evaluator)
-            program_wrapper.append(nf)
-            try:
-                typecheck(program_wrapper)
-                candidate_map[f.name] = candidate
-                program_evaluator.append(nf)
-            except Exception as e:
-                print(program_wrapper)
-                print("got", e)
-                pass # Should be generating a new one.
+        program_evaluator = copy.deepcopy(self.program_evaluator)
+        
+        for i, candidate in enumerate(population):
+            program = replace_hole(program_evaluator, candidate)
+            candidate.fitness = self.run_and_retrieve_fitness(program)
+
                 
-        for df in self.program_evaluator:
-            print("-->", df)
-            
+                        
     def clean(self, p):
         if hasattr(p.type, 'refined'):
             delattr(p.type, 'refined')
@@ -147,8 +220,8 @@ class Synthesiser(object):
         return [ self.clean(p) for p in population]
         
 
-def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None):
-    s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand)
+def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False):
+    s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined)
     
     candidates = s.evolve()
 

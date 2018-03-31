@@ -38,13 +38,14 @@ class Block(object):
 
 
 class CodeGenerator(object):
-    def __init__(self, context, typecontext):
+    def __init__(self, context, typecontext, class_name = 'E'):
         self.table = context.stack[0]
         self.context = context
         self.typecontext = typecontext
         self.stack = [self.table, {}]
         self.blockstack = []
         self.counter = 0
+        self.class_name = class_name
 
     def push_frame(self):
         self.stack.append({})
@@ -116,10 +117,10 @@ class CodeGenerator(object):
 
     def root(self, ast):
         return """
-        public class E {{
+        public class {} {{
             {}
         }}
-        """.format(self.g_toplevel(ast))
+        """.format(self.class_name, self.g_toplevel(ast))
 
     def genlist(self, ns, *args, **kwargs):
         return "\n".join([ self.generate(n, *args, **kwargs) for n in ns ])
@@ -258,7 +259,7 @@ class CodeGenerator(object):
 
     def g_invocation(self, n):
         fname = n.nodes[0]
-        if n.version > 0:
+        if hasattr(n, 'version') and n.version > 0:
             fversions = self.context.funs[fname]
             fname = fversions[n.version - 1][0]
         return Expr("""
@@ -318,5 +319,12 @@ class CodeGenerator(object):
             ))
 
 
-def generate(ast, table, typecontext):
-    return CodeGenerator(table, typecontext).root(ast)
+def generate(ast, table, typecontext, class_name='E', generate_file=False):
+    output = CodeGenerator(table, typecontext, class_name).root(ast)
+    try:
+        os.mkdir('bin')
+    except:
+        pass
+    open('bin/{}.java'.format(class_name), 'w').write(output)
+    return output
+    

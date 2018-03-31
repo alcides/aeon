@@ -173,7 +173,7 @@ class TypeChecker(object):
     def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-        ft = Type(arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+        ft = Type(lambda_arguments = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
@@ -187,7 +187,7 @@ class TypeChecker(object):
         n.type = n.nodes[2].nodes[1]
         name = n.nodes[0]
         argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]]
-        ft = Type(arguments = argtypes,
+        ft = Type(lambda_arguments = argtypes,
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
@@ -328,6 +328,8 @@ class TypeChecker(object):
             n.type.refined = zed.make_literal(n.type, n.nodes[0])
             n.type.context = zed.copy_assertions()
             n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
+        else:
+            pass
             
 
     def typecheck(self, n, **kwargs):
@@ -368,7 +370,8 @@ class TypeChecker(object):
                 function_name=self.function_name, 
                 function_type=self.function_type,
                 context = self.context,
-                typechecker=self)]
+                typechecker=self,
+                refined=self.refined)]
             n.type = n.nodes[0].type
         else:
             print("No TypeCheck rule for", n.nodet)

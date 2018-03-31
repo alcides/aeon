@@ -146,7 +146,7 @@ expr = let ^ expr_4
 def basic_type():
     b = yield symbol
     ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
-    return Type(basic=b, parameters=[k[0] for k in ks])
+    return Type(basic=b, type_arguments=[k[0] for k in ks])
 
 @lexeme
 @generate
@@ -165,7 +165,7 @@ def lambda_type():
     yield rpars
     yield arrow
     rt = yield basic_type
-    return Type(basic=rt, arguments = args)
+    return Type(basic=rt, lambda_arguments = args)
     
 @lexeme
 @generate

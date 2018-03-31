@@ -7,10 +7,10 @@ from .ast import Node
 from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, basic="Object", arguments=None, parameters=None, conditions=None, effects=None, binders=None, preconditions=None):
+    def __init__(self, basic="Object", lambda_arguments=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None):
         self.type = basic
-        self.lambda_parameters = arguments
-        self.type_arguments = parameters and parameters or []
+        self.lambda_parameters = lambda_arguments
+        self.type_arguments = type_arguments and type_arguments or []
         self.binders = binders
         self.conditions = conditions and conditions or []
         self.preconditions = preconditions and preconditions or []
@@ -132,8 +132,8 @@ class Type(object):
             new_binders = None
         return Type(
             basic = rep(self.type),
-            arguments = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
-            parameters =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
+            lambda_arguments = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
+            type_arguments =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
             conditions = copy.deepcopy(self.conditions),
             preconditions = copy.deepcopy(self.preconditions),
             effects = copy.deepcopy(self.effects),
