@@ -19,7 +19,7 @@ def translate_h(n):
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])
         if (not a_ok) or (not b_ok):
-            print("Children failed", n.nodes[0], n.nodes[1])
+            #print("Children failed", n.nodes[0], n.nodes[1])
             return False, None
         if n.nodet == '<=':
             return True, lambda args: a_l(args) <= b_l(args)

@@ -193,6 +193,7 @@ class CodeGenerator(object):
             return "" # Codegeneration of type alias
 
         name = n.nodes[0]
+        
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
@@ -229,12 +230,24 @@ class CodeGenerator(object):
     def g_block(self, n, type='void'):
         b = Block(type)
         self.blockstack.append(b)
-        for c in n.nodes:
-            e = self.g_expr(c)
-            if c != n.nodes[-1] and c.type != t_v and not e.is_stmt:
-                b.add("J.noop(" + str(e) + ")")
-            else:
+        
+        last = None
+        def handle_line(c):
+            if c.nodet == 'block':
+                for l in c.nodes:
+                    handle_line(l)
+            else:    
+                e = self.g_expr(c)
+                last = c
                 b.add(e)
+        
+        for c in n.nodes:
+            handle_line(c)
+        
+        if b.stmts:
+            if last and last.type != t_v and not b.stmts[-1].is_stmt:
+                b.stmts[-1] = "J.noop(" + str(last) + ")"
+                    
         self.blockstack.pop()
         return b
 

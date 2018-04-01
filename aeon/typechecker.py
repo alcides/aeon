@@ -179,7 +179,8 @@ class TypeChecker(object):
     def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-        ft = Type(lambda_parameters = [self.typecontext.resolve_type(x.nodes[1]) for x in  n.nodes[1]],
+        
+        ft = Type(lambda_parameters = [self.typecontext.resolve_type(x.nodes[1]) for x in n.nodes[1]],
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
@@ -299,7 +300,7 @@ class TypeChecker(object):
             n.type.zed_conditions == []
 
     def t_let(self, n, expects=None):
-        if n.nodes[2]:
+        if len(n.nodes) > 2 and n.nodes[2]:
             n.type = n.nodes[2]
             self.typecheck(n.nodes[1], expects=n.type)
             if not self.is_subtype(n.nodes[1].type, n.type):
@@ -308,7 +309,6 @@ class TypeChecker(object):
             self.typecheck(n.nodes[1], expects=expects)
             n.type = n.nodes[1].type
         n.type = self.typecontext.resolve_type(n.type)
-        print("Saving", n.nodes[0], "as", n.type)
         self.context.set(n.nodes[0], n.type)
 
     def t_op(self, n, expects=None):
@@ -377,8 +377,8 @@ class TypeChecker(object):
                 root=self.root, 
                 function_name=self.function_name, 
                 function_type=self.function_type,
-                context = self.context,
-                typechecker=self,
+                context = copy.deepcopy(self.context),
+                typechecker=copy.deepcopy(self),
                 refined=self.refined)]
             n.type = n.nodes[0].type
         else:

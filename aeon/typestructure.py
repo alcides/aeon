@@ -85,17 +85,20 @@ class Type(object):
                 
                     
     def add_condition(self, c, names=[], argnames=[], skip_rename=False):
+        
         if not skip_rename:
             self.replace(c, names, argnames)
         if self.depends_on(c, '__return_0'):
-            self.conditions.append(c)            
-            if not self.depends_on(c, '__argument'):
-                if self.lambda_parameters:
-                    if type(self.type) == str:
-                        self.type = Type(self.type)
-                    self.type.add_condition(c, skip_rename=True)
+            if c not in self.conditions:                
+                self.conditions.append(c)            
+                if not self.depends_on(c, '__argument'):
+                    if self.lambda_parameters:
+                        if type(self.type) == str:
+                            self.type = Type(self.type)
+                        self.type.add_condition(c, skip_rename=True)
         else:
-            self.preconditions.append(c)
+            if c not in self.preconditions:
+                self.preconditions.append(c)
                     
     def set_effects(self, effs, names, argnames=[]):
         self.effects = [ ]
@@ -223,3 +226,4 @@ t_n = Type('Object')
 t_f = Type('Double')
 t_i = Type('Integer')
 t_b = Type('Boolean')
+t_s = Type('String')

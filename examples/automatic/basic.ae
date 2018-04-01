@@ -1,6 +1,13 @@
 import ..prelude.J
 
-v : (i:{Integer where self > 0}, k:Integer) -> j:Integer where [j == (i * 5) and j > 0] {
+
+id : (i:Integer) -> j:Integer {
+   i
+}
+
+native Math.abs : (i:Integer) -> j:Integer where [j >= 0]
+
+v : (i:{Integer where self >= 0}, k:Integer) -> j:Integer where [ id(j) == (i * 5) and j >= 0] {
    …
 }
 

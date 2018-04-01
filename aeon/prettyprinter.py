@@ -1,6 +1,6 @@
 def prettyprint(n):
     if type(n) == type([]):
-        return "[ {} ]".format(", ".join(map(str, n)))
+        return "\n".join([ prettyprint(a) for a in n ])
     elif n.nodet == 'invocation':
         return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1:]))))
     elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
@@ -15,6 +15,10 @@ def prettyprint(n):
         return "({}) -> {}".format(prettyprint(n.nodes[0]), prettyprint(n.nodes[1]))
     elif n.nodet == 'block':
         return "{{ {} }}".format(";\n".join(list(map(prettyprint, n.nodes))))
+    elif n.nodet == 'decl':
+        return "{} : {} {{ {} }}".format(n.nodes[0], n.type, prettyprint(n.nodes[6]))
+    elif n.nodet == 'native':
+        return "native {} : {}".format(n.nodes[0], n.type)
     else:
         print("pretty print new_type:", n)
         return "<UNKNOWN>"
