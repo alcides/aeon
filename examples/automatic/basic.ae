@@ -1,6 +1,6 @@
 import ..prelude.J
 
-v : (i:Integer, k:Integer) -> j:Integer where [j == (i * 5) and j > 0] {
+v : (i:{Integer where self > 0}, k:Integer) -> j:Integer where [j == (i * 5) and j > 0] {
    …
 }
 

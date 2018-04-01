@@ -174,7 +174,9 @@ def refined_type():
     yield t("where")
     ls = yield sepBy(expr, t("and"))
     yield t("}")
-    return Type(basic=basic_t, conditions = makeblock(ls))
+    rt = Type(basic=basic_t, conditions = ls)
+    rt.set_conditions(ls, ['self'], [])
+    return rt
     
 
 typee = lambda_type ^ basic_type ^ refined_type

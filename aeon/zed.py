@@ -245,20 +245,26 @@ class Zed(object):
             
         return True
     
-    def generate_random_type(self, t):
+    def generate_random_type(self, t, max_tries):
         if self.is_refined(t):
+            values = []
             self.solver.push()
             self.convert_once(t)
-            
             
             new_name = z3.Int("v_{}".format(self.get_counter()))
             (t_name, t_assertions) = self.refine(t, new_name)
             self.solver.add(t_assertions)   
             r = self.solver.check() 
-            if r == z3.sat:
+            i = 0
+            while r == z3.sat and i < max_tries:
                 v = self.solver.model()[t_name] # Error handling
+                values.append(v)
+                i += 1
+                
+                self.solver.add(t_name != v)
+                r = self.solver.check() 
             self.solver.pop()
-            return v
+            return values
         else:
             return None
 

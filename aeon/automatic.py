@@ -13,10 +13,10 @@ from .frontend import native, decl
 
 POPULATION_SIZE = 10
 MAX_GENERATIONS = 10
-
+MAX_DEPTH = 10
 
 N_TRIES_REFINEMENT_CHECK = 1000
-
+MAX_TRIES_Z3 = 100
 QUICKCHECK_SIZE = 10
 
 def remove_fun(ast, function_name):
@@ -57,6 +57,8 @@ class Synthesiser(object):
         self.fitness_evaluator = self.create_evaluator_program(function_name, function_type)
         self.compiled_evaluator = False
         
+        self.cached_z3_random = {}
+        
         print(20*"-")
         print("GA")
         print(20*"-")
@@ -75,8 +77,6 @@ class Synthesiser(object):
                     Node('lambda', [], Node('literal', 1.0, type='Double')),
                 ])
             ])
-        
-        print("cond", main_b)
         
         
         argnodes = [
@@ -97,7 +97,7 @@ class Synthesiser(object):
     def prepare_arguments(self, types, tests, counter=0):
         t = types.pop()
         
-        if len(t.conditions) > 1:
+        if t.conditions and len(t.conditions) > 1:
             lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), t.conditions)
         elif t.conditions:
             lambda_cond_body = t.conditions[0]
@@ -112,8 +112,8 @@ class Synthesiser(object):
         return Node('invocation', 'GA.genInteger', [
             Node('literal', QUICKCHECK_SIZE, type='Integer'), #size
             Node('literal', self.random.randint(0,1000), type='Integer'), #seed
-            Node('lambda', [ ('__argument_{}'.format(counter), t.type) ], lambda_cond_body),
-            Node('lambda', [ ('__argument_{}'.format(counter), t.type) ], lambda_do_body)
+            Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
+            Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
         ])
         
 
@@ -157,27 +157,44 @@ class Synthesiser(object):
         self.compile(p, 'FitnessEvaluator', compile_java=False)
         return p
         
-    def random_ast(self, tp):
+    def random_ast(self, tp, depth=0):
         
         def random_int_literal(tp):
             #v = random.randint(-2147483648, 2147483647)
             if tp.conditions and self.refined:
-                gz = Zed()
-                v = gz.generate_random_type(tp).as_long()
+                key = str(tp)
+                if key in self.cached_z3_random:
+                    options = self.cached_z3_random[key]
+                else:
+                    gz = Zed()
+                    options = gz.generate_random_type(tp, MAX_TRIES_Z3)
+                    print("Options", options)
+                    self.cached_z3_random[key] = options
+                v = random.choice(options).as_long()
             else:
                 v = None
             if not v:
                 v = int(random.triangular(-2147483648, 2147483647))
-            return Node('literal', nodes=[str(v)], type=t_i)
+            return Node('literal', v, type=t_i)
             
         def random_boolean_literal(tp):
             v = random.choice(['true', 'false'])
-            return Node('literal', nodes=[v], type=t_b)
+            return Node('literal', v, type=t_b)
             
         def random_double_literal(tp):
             v = random.uniform(-10000000, 10000000)
-            return Node('literal', nodes=[str(v)], type=t_f)
+            return Node('literal', v, type=t_f)
         
+        def random_atom(tp):
+            candidates = []
+            for v in self.context.variables():
+                t = self.context.find(v)
+                if not t.lambda_parameters and self.typechecker.is_subtype(t, tp):
+                    candidates.append(v)
+            if not candidates:
+                return None
+            k = random.choice(candidates)
+            return Node('atom', k)
         
         possible_generators = []
         if tp == t_i:
@@ -186,13 +203,20 @@ class Synthesiser(object):
             possible_generators.append(random_boolean_literal)
         if tp == t_f:
             possible_generators.append(random_double_literal)
-            
+        
+        if depth >= MAX_DEPTH:
+            return random.choice(possible_generators)(tp)
 
+        if self.context.variables():
+            possible_generators.append(random_atom)
         
         if not possible_generators:
             raise Exception("Could not generate random code for type {}", tp)
         
-        return random.choice(possible_generators)(tp)
+        k = None
+        while not k:
+            k = random.choice(possible_generators)(tp) 
+        return k
         
     
     def random_individual(self):
@@ -200,7 +224,7 @@ class Synthesiser(object):
             c = self.random_ast(tp=self.type)
             if c and self.validate(c):
                 return c
-        raise Exception("Could not generate AST for type {}", str(self.type))
+        raise Exception("Could not generate AST for type {}".format(self.type))
     
     def validate(self, candidate):
         f = copy.deepcopy(self.function_template)

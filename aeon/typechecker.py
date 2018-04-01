@@ -114,6 +114,12 @@ class Context(object):
 
     def set(self, k, v):
         self.stack[-1][k] = v
+        
+    def variables(self):
+        vs = []
+        for s in self.stack[::-1]:
+            vs += s.keys()
+        return vs
 
     def define_fun(self, name, type_, n):
         r = self.set(name, type_)
@@ -273,7 +279,7 @@ class TypeChecker(object):
             if self.context.find(arg[0]) != None:
                 self.type_error("Argument {} of lambda {} is already defined as variable".format(arg[0], str(n)))
             self.context.set(arg[0], arg[1])
-        self.typecheck(n.nodes[1])
+        self.typecheck(n.nodes[1], expects=expects)
         self.context.pop_frame()
 
         n.type = Type(
@@ -283,6 +289,7 @@ class TypeChecker(object):
 
     def t_atom(self, n, expects=None):
         k = self.context.find(n.nodes[0])
+        
         if k == None:
             self.type_error("Unknown variable {}".format(n.nodes[0]))
         n.type = k
@@ -301,6 +308,7 @@ class TypeChecker(object):
             self.typecheck(n.nodes[1], expects=expects)
             n.type = n.nodes[1].type
         n.type = self.typecontext.resolve_type(n.type)
+        print("Saving", n.nodes[0], "as", n.type)
         self.context.set(n.nodes[0], n.type)
 
     def t_op(self, n, expects=None):
