@@ -3,7 +3,7 @@ from .typestructure import *
 
 class Expr(object):
     def __init__(self, text="", is_stmt=False, extra=None):
-        self.text = text
+        self.text = str(text)
         self.is_stmt = is_stmt
         self.extra=extra
 
@@ -14,24 +14,12 @@ class Block(object):
     def __init__(self, t):
         self.type = t
         self.stmts = []
-        self.escape = None
 
     def add(self, stmt):
         self.stmts.append(stmt)
 
     def __str__(self):
         return self.get_stmts()
-
-    def get_escape(self):
-        if self.type == 'void':
-            return ""
-        if not self.escape and self.stmts:
-            last = self.stmts[-1]
-            if type(last) == Expr and last.is_stmt:
-                self.escape = Expr(self.stmts[-1].extra)
-            else:
-                self.escape = self.stmts.pop()
-        return self.escape
 
     def get_stmts(self):
         return "\n".join(map(lambda x: str(x)+";", self.stmts))
@@ -198,59 +186,59 @@ class CodeGenerator(object):
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
         self.push_frame()
+        
+        self.block = Block(lrtype)
+        self.blockstack.append(self.block)
+        
+        
         body = self.g_block(n.nodes[6], type=lrtype)
+        noop = True
         if name == 'main' and lrtype == 'void' and ftype.lambda_parameters and str(ftype.lambda_parameters[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
+            noop = False
+
 
         if lrtype != "void":
-            body_final = "return {};".format(body.get_escape())
+            body_final = "return {}".format(body)
         else:
-            body_final = ""
+            if n.nodes[6].type != t_v and noop:
+                body_final = "J.noop(" + str(body) + ")"
+            else:
+                body_final = body
+        
+        self.block.add( Expr(body_final, is_stmt=True) )
+        
+        body = self.block.get_stmts()
+        self.blockstack.pop()
+        self.block = None
         self.pop_frame()
 
-        return """ public static {} {}({}) {{ {} \n {} }}""".format(
+        return """ public static {} {}({}) {{ {} }}""".format(
             lrtype,
             n.md_name,
             largtypes,
-            body.get_stmts(),
-            body_final
+            body
         )
 
     def futurify_body(self, body, lrtype):
-        body.stmts.insert(0, "aeminium.runtime.futures.RuntimeManager.init()");
-        if lrtype == 'void':
-            body.stmts.append("aeminium.runtime.futures.RuntimeManager.shutdown()");
+        
+        self.block.stmts.insert(0, Expr("aeminium.runtime.futures.RuntimeManager.init()", is_stmt=True))
+        if lrtype == "void":
+            self.block.add(body)
+            body = Expr("aeminium.runtime.futures.RuntimeManager.shutdown()", is_stmt=True)
         else:
-            body.stmts.append("{} ret_aeminium_manager = {}".format(lrtype, body.get_escape()));
-            body.stmts.append("aeminium.runtime.futures.RuntimeManager.shutdown()");
-            body.escape = "ret_aeminium_manager"
+            self.block.add(Expr("{} ret_aeminium_manager = {}".format(lrtype, body), is_stmt=True));
+            self.block.add(Expr("aeminium.runtime.futures.RuntimeManager.shutdown()", is_stmt=True));
+            body = Expr("ret_aeminium_manager")
         return body
 
 
     def g_block(self, n, type='void'):
-        b = Block(type)
-        self.blockstack.append(b)
+        for prev in n.nodes[:-1]:
+            self.block.add(self.g_expr(prev))
         
-        last = None
-        def handle_line(c):
-            if c.nodet == 'block':
-                for l in c.nodes:
-                    handle_line(l)
-            else:    
-                e = self.g_expr(c)
-                last = c
-                b.add(e)
-        
-        for c in n.nodes:
-            handle_line(c)
-        
-        if b.stmts:
-            if last and last.type != t_v and not b.stmts[-1].is_stmt:
-                b.stmts[-1] = "J.noop(" + str(last) + ")"
-                    
-        self.blockstack.pop()
-        return b
-
+        return self.g_expr(n.nodes[-1])
+    
     def g_expr(self, n):
         if n.nodet == 'invocation':
             return self.g_invocation(n)
@@ -300,19 +288,22 @@ class CodeGenerator(object):
 
     def g_lambda(self, n):
         args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
+        rtype = n.type.type
+        
+        self.block = Block(rtype)
+        self.blockstack.append(self.block)
+        
+        prefix = ''
+        if rtype != t_v:
+            prefix = "return "
+        
         p2 = self.g_expr(n.nodes[1])
-        if type(p2) == Block:
-            esc = p2.get_escape()
-            if esc:
-                body = "{{ {}; return {}; }}".format(p2.get_stmts(), esc)
-            else:
-                body = "{{ {} }}".format(p2.get_stmts())
-        else:
-            if n.nodes[1].type == 'Void':
-                body = "{{ {}; }}".format(p2)
-            else:
-                body = str(p2)
-        return Expr("({}) -> {}".format(args, body))
+        self.block.add(Expr(prefix + str(p2), is_stmt=True))
+        body = self.block.get_stmts()
+        self.blockstack.pop()
+        self.block = self.blockstack[-1]
+                
+        return Expr("({}) -> {{ {} }}".format(args, body))
 
 
     def g_literal(self, n):

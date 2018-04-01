@@ -12,8 +12,10 @@ from .frontend import native, decl, expr
 
 
 POPULATION_SIZE = 10
-MAX_GENERATIONS = 1
+MAX_GENERATIONS = 3
 MAX_DEPTH = 10
+ELITISM_SIZE = 5
+NOVELTY_SIZE = 5
 
 N_TRIES_REFINEMENT_CHECK = 1000
 MAX_TRIES_Z3 = 1000
@@ -377,6 +379,7 @@ class Synthesiser(object):
             print(float(a))
             return float(a)
         except Exception as e:
+            raise e
             return MAX_DOUBLE
     
     def evaluate(self, population):
@@ -402,10 +405,16 @@ class Synthesiser(object):
         
         for i in range(MAX_GENERATIONS):
             print("Generation", i)
-            population = [ self.mutate(i) for i in population ]
-            
             self.evaluate(population)
-        
+            
+            old_population = sorted(population, key=lambda x: x.fitness)
+            
+            
+            
+            population = old_population[:ELITISM_SIZE] + [ self.random_individual() for i in range(NOVELTY_SIZE) ]
+            
+
+        self.evaluate(population)        
         return [ self.clean(p) for p in population]
         
 
