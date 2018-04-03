@@ -85,7 +85,7 @@ class TypeContext(object):
                     if a:
                         return (a, ft_concrete_r)
             return (False, None)
-        else:            
+        else:
             valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 

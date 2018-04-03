@@ -4,7 +4,7 @@
 function prepare_java_sources {
    cp java/src/* bin/ && cp java/lib/* bin/
    rm -rf bin/*.class
-   cd bin/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar {A,D,F,GA,J,R}.java && cd ..
+   cd bin/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar {A,D,F,GA,J,R,Box}.java && cd ..
 }
 
 function clean_code {

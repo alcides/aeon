@@ -2,11 +2,11 @@ def prettyprint(n):
     if type(n) == type([]):
         return "\n".join([ prettyprint(a) for a in n ])
     elif n.nodet == 'invocation':
-        return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1:]))))
+        return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1]))))
     elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
         return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
     elif n.nodet == 'literal':
-        return n.nodes[0]
+        return str(n.nodes[0])
     elif n.nodet == 'let':
         return "{} = {}".format(n.nodes[0], prettyprint(n.nodes[1]))
     elif n.nodet == 'atom':

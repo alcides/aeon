@@ -21,8 +21,17 @@ class Block(object):
     def __str__(self):
         return self.get_stmts()
 
+    def wrap_noop(self, e):
+        if type(e) == Expr:
+            if not e.is_stmt:
+                return "J.noop(" + str(e) + ")"
+            else:
+                return str(e)
+        else:
+            return e
+
     def get_stmts(self):
-        return "\n".join(map(lambda x: str(x)+";", self.stmts))
+        return "\n".join(map(lambda x: self.wrap_noop(x)+";", self.stmts))
 
 
 class CodeGenerator(object):
@@ -199,7 +208,11 @@ class CodeGenerator(object):
 
 
         if lrtype != "void":
-            body_final = "return {}".format(body)
+            if body.extra:
+                self.block.add(body)
+                body_final = "return {}".format(body.extra)
+            else:
+                body_final = "return {}".format(body)
         else:
             if n.nodes[6].type != t_v and noop:
                 body_final = "J.noop(" + str(body) + ")"
@@ -292,13 +305,23 @@ class CodeGenerator(object):
         
         self.block = Block(rtype)
         self.blockstack.append(self.block)
+
+        body = self.g_expr(n.nodes[1])
         
-        prefix = ''
         if rtype != t_v:
-            prefix = "return "
+            if body.extra:
+                self.block.add(body)
+                body_final = "return {}".format(body.extra)
+            else:
+                body_final = "return {}".format(body)
+        else:
+            if n.nodes[1].type != t_v:
+                body_final = "J.noop(" + str(body) + ")"
+            else:
+                body_final = body
         
-        p2 = self.g_expr(n.nodes[1])
-        self.block.add(Expr(prefix + str(p2), is_stmt=True))
+        self.block.add( Expr(body_final, is_stmt=True) )
+        
         body = self.block.get_stmts()
         self.blockstack.pop()
         self.block = self.blockstack[-1]
@@ -308,7 +331,7 @@ class CodeGenerator(object):
 
     def g_literal(self, n):
         
-        return Expr(str(n.nodes[0]).lower())
+        return Expr("({})".format(str(n.nodes[0]).lower()))
 
 
     def g_op(self, n):

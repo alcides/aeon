@@ -1,13 +1,17 @@
 import ..prelude.J
 
 
+type Integer as Nat where [ self >= 0 ]
+
+times : (i:Nat, j:Nat) -> a:Nat where [a == (i * j)] {
+   (i*j)
+}
+
 id : (i:Integer) -> j:Integer {
    i
 }
 
-native Math.abs : (i:Integer) -> j:Integer where [j >= 0]
-
-v : (i:{Integer where self >= 0}, k:Integer) -> j:Integer where [ id(j) == (i * 5) and j >= 0] {
+v : (i:Nat, k:Nat) -> j:Integer where [ id(j) == ((i * i) * 5) and j >= 0] {
    …
 }
 

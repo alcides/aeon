@@ -16,6 +16,15 @@ class Type(object):
         self.effects = effects and effects or []
         
         self.propagate_binders()
+        
+        
+    def consolidate(self):
+        if type(self.type) == Type and self.lambda_parameters==None:
+            o = self.type
+            self.type = o.type
+            if o.conditions:
+                self.conditions.extend(o.conditions)
+            self.consolidate()
 
     def propagate_binders(self, t=None):
         if self.binders:
@@ -112,8 +121,8 @@ class Type(object):
             return self.type == str(c)
         else:
             return self.type.contains(c) or \
-                any([ a.contains(c) for a in  self.lambda_parameters]) or \
-                any([ a.contains(c) for a in  self.type_arguments])
+                any([ a.contains(c) for a in self.lambda_parameters]) or \
+                any([ a.contains(c) for a in self.type_arguments])
 
     def copy(self):
         return copy.deepcopy(self)
@@ -147,7 +156,7 @@ class Type(object):
         if self.type_arguments:
             t += "<" + ", ".join(map(str, self.type_arguments)) + ">"
         if self.lambda_parameters != None:
-            t = "({})".format(", ".join(map(str, self.lambda_parameters))) + " -> " + t
+            t = "({})".format(", ".join(map(lambda x: "{" + str(x) + "}", self.lambda_parameters))) + " -> {" + t + "}"
         if self.binders != None:
             t = "{} => {}".format(",".join(map(str, self.binders)), t)
         if self.conditions:
@@ -156,10 +165,14 @@ class Type(object):
             t += " pre-where " + " and ".join([ prettyprint(e) for e in self.preconditions])
         if self.effects:
             t += " with " + " and ".join([ prettyprint(e) for e in self.effects])
-        if hasattr(self, 'refined_value'):
-            t += "{{ {} }}".format(str(self.refined_value))
+
         elif hasattr(self, 'refined'):
-            t += "{{ {} }}".format(str(self.refined))
+            if hasattr(self, 'refined_value'):
+                t += "<{}={}>".format(str(self.refined), str(self.refined_value))
+            else:
+                t += "<{}>".format(str(self.refined))
+        
+            
         return t
 
     def __repr__(self):
@@ -188,6 +201,9 @@ class Type(object):
         if type(other) != Type:
             return False
 
+        self.consolidate()
+        other.consolidate()
+        
         return self.type == other.type and \
             self.lambda_parameters == other.lambda_parameters and \
             len(self.type_arguments) == len(other.type_arguments) and \

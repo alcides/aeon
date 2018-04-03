@@ -65,7 +65,6 @@ class Zed(object):
             
         vars = []
         
-        # TODO: for arrays this needs to be true
         if self.is_refined(return_type):
             invocation_name = "return_of_invocation_{}".format(self.get_counter())
             invocation_var = self.z3_type_constructor(return_type)(invocation_name)
@@ -95,8 +94,8 @@ class Zed(object):
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
-                print(self.solver)
-                print("Failed on ", zc(vars))
+                #print(self.solver)
+                #print("Failed on ", zc(vars))
                 return False, None
             elif r == z3.sat:
                 self.solver.add(statement)
@@ -235,9 +234,9 @@ class Zed(object):
             
             self.solver.add( z3.Not(t2_assertions))
             r = self.solver.check()
-            if r == z3.sat and False:
-                print(self.solver)
-                print(self.solver.model())
+            #if r == z3.sat:
+            #    print(self.solver)
+            #    print(self.solver.model())
             self.solver.pop()
             if r == z3.sat:
                 t1.refined_value = self.solver.model()[t1_name] # Error handling
@@ -253,14 +252,14 @@ class Zed(object):
             
             new_name = z3.Int("v_{}".format(self.get_counter()))
             (t_name, t_assertions) = self.refine(t, new_name)
-            self.solver.add(t_assertions)   
+            if t_assertions != None:
+                self.solver.add(t_assertions)   
             r = self.solver.check() 
             i = 0
             while r == z3.sat and i < max_tries:
                 v = self.solver.model()[t_name] # Error handling
                 values.append(v)
                 i += 1
-                
                 self.solver.add(t_name != v)
                 r = self.solver.check() 
             self.solver.pop()

@@ -7,26 +7,40 @@ from .typechecker import typecheck
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
 from .codegen import generate
-from .zed import Zed
+from .zed import Zed, zed
 from .frontend import native, decl, expr
 
 
-POPULATION_SIZE = 10
-MAX_GENERATIONS = 3
+POPULATION_SIZE = 50
+MAX_GENERATIONS = 100
 MAX_DEPTH = 10
 ELITISM_SIZE = 5
-NOVELTY_SIZE = 5
+NOVELTY_SIZE = 10
+TOURNAMENT_SIZE = 10
+
+PROB_XOVER = 1.0
+PROB_MUT = 1.0
 
 N_TRIES_REFINEMENT_CHECK = 1000
-MAX_TRIES_Z3 = 1000
-QUICKCHECK_SIZE = 10
+MAX_TRIES_Z3 = 100
+QUICKCHECK_SIZE = 1000
 TIMEOUT_RUN = 5
 
-MIN_DOUBLE = -1000000000
-MAX_DOUBLE = 1000000000
+MIN_DOUBLE = -100
+MAX_DOUBLE = 100
 
-MIN_INT = -2147483648
-MAX_INT = 2147483647
+MIN_INT = -100
+MAX_INT = 100
+
+
+def t_i_c():
+    return copy.deepcopy(t_i)
+    
+def t_b_c():
+    return copy.deepcopy(t_b)
+    
+def t_f_c():
+    return copy.deepcopy(t_f)
 
 def remove_fun(ast, function_name):
     return copy.deepcopy([n for n in ast if not (n.nodet == 'decl' and n.nodes[0] == function_name)])
@@ -69,6 +83,8 @@ class Synthesiser(object):
         
         self.cached_z3_random = {}
         
+        self.recursion_allowed = False
+        
         print(20*"-")
         print("GA")
         print(20*"-")
@@ -77,8 +93,43 @@ class Synthesiser(object):
         print("with type", function_type)
         print(20*"-")
     
+    def compile(self, program, name, compile_java=False):
+        ast, context, tcontext = typecheck(program, refined=False) #, refined=False
+        output = generate(ast, context, tcontext, class_name=name, generate_file=True)
+        
+        if compile_java:
+            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. {}.java".format(name)
+            subprocess.call(compilation, cwd="bin", shell=True)
+    
+    def run_and_retrieve_fitness(self, program):
+        try:
+            self.compile(program, 'Candidate')
+            
+            
+            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. Candidate.java"
+            ce = subprocess.run(compilation, cwd="bin", shell=True)
+            if ce.returncode != 0:
+                subprocess.run("cp Candidate.java CandidateError.java", cwd="bin", shell=True)
+                print("Failed to compile")
+                print(program)
+                return MAX_DOUBLE
+            
+            if not self.compiled_evaluator:
+                self.compiled_evaluator = True
+                compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. FitnessEvaluator.java"
+                subprocess.call(compilation, cwd="bin", shell=True)
+                
+            
+            program = "java -cp AeminiumRuntime.jar:. FitnessEvaluator".split(" ")
+            a = subprocess.check_output(program, cwd="bin", timeout=TIMEOUT_RUN).strip()
+            return float(a)
+        except Exception as e:
+            return 2147483648
 
     def compile_condition(self, i, cond, ft):
+        
+        if self.depends_on(cond):
+            return None
         
         def replace_invocations(node):
             if type(node) == list:
@@ -101,17 +152,17 @@ class Synthesiser(object):
         
         if cond.nodet == '==':
             fitness_calc = Node('invocation', 'Math.abs', [
-                    Node('*', Node('literal', 1.0, type=t_f), Node('-', cond.nodes[0], cond.nodes[1]))
+                    Node('*', Node('literal', 1.0, type=t_f_c()), Node('-', cond.nodes[0], cond.nodes[1]))
             ])
         else:
             fitness_calc = Node('invocation', 'J.iif', [
                     cond,
-                    Node('lambda', [], Node('literal', 0.0, type=t_f)),
-                    Node('lambda', [], Node('literal', 1.0, type=t_f))
+                    Node('lambda', [], Node('literal', 0.0, type=t_f_c())),
+                    Node('lambda', [], Node('literal', 1.0, type=t_f_c()))
             ])
         
         main_b = Node('invocation', 'GA.addFitness', [
-                Node('literal', i, type=t_i),
+                Node('literal', i, type=t_i_c()),
                 fitness_calc
             ])
         
@@ -131,31 +182,60 @@ class Synthesiser(object):
                     Node('block', main_b))
         return fn_cond
 
+    def depends_on(self, c, middle="__index__"):
+        if type(c) == list:
+            return any([ self.depends_on(n, middle) for n in c ])
+        if type(c) != Node:
+            return False
+        if c.nodet in ['atom']:
+            if middle in c.nodes[0]:
+                return True
+            else:
+                return False
+        else:
+            status = any([ self.depends_on(n, middle) for n in c.nodes ])
+        return status
+
     def prepare_arguments(self, types, tests, counter=0):
         t = types.pop()
         
-        if t.conditions and len(t.conditions) > 1:
-            lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), t.conditions)
-        elif t.conditions:
+        if t.conditions and len(t.conditions) > 1:            
+            cs = [ c for c in t.conditions if not self.depends_on(c) ]
+            lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), cs)
+        elif t.conditions and not self.depends_on(t.conditions[0]):
             lambda_cond_body = t.conditions[0]
         else:
-            lambda_cond_body = Node('literal', True, type=t_b)
+            lambda_cond_body = Node('literal', True, type=t_b_c())
             
         if types:
             lambda_do_body = self.prepare_arguments(types, tests, counter+1)
         else:
             lambda_do_body = Node('block', *tests)
         
-        return Node('invocation', 'GA.genInteger', [
-            Node('literal', QUICKCHECK_SIZE, type=t_i), #size
-            Node('literal', self.random.randint(0,1000), type=t_i), #seed
-            Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
-            Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
-        ])
+        if t == t_i:
+            return Node('invocation', 'GA.genInteger', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
+                Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
+                Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
+            ])
+        else:
+            return Node('invocation', 'GA.genObject', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                self.random_ast(t, constructors_only=True), #object
+                Node('lambda', [ ('__return_0', t) ], lambda_cond_body),
+                Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
+            ])
         
 
     def create_evaluator_program(self, fname, ftype):
+        
+        dependencies = [ nat
+            for nat in self.root if nat.nodet in ['native', 'type']
+        ]
+        
         tests = [ self.compile_condition(i, cond, ftype) for i, cond in enumerate(ftype.conditions) ]
+        tests = [ t for t in tests if t ]
         
         args = [ Node('atom', '__argument_{}'.format(i)) for i, v in enumerate(ftype.lambda_parameters) ]
         
@@ -189,47 +269,68 @@ class Synthesiser(object):
         
         n = native.parse_strict
         fn_genInteger = n("native GA.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
+        fn_genObject = n("native GA.genObject : T => (_:Integer, _:T, _:(T) -> Boolean, _:(T) -> Void) -> _:Void")
         fn_out = n("native System.out.println : (_:Double) -> _:Void")
         fn_addFitness = n("native GA.addFitness : (_:Integer, _:Double) -> _:Double")
         fn_getFitness = n("native GA.getFitness : () -> _:Double")
         fn_if = n("native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T")
         fn_abs = n("native Math.abs : T => (_:Double) -> _:Double")
         helpers = [fn_if, fn_abs]
-        p = helpers + fn_targets + [fn_genInteger, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
+        p = dependencies +  helpers + fn_targets + [fn_genInteger, fn_genObject, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
+        
+        p = self.filter_duplicate_natives(p)
+        
         self.compile(p, 'FitnessEvaluator', compile_java=False)
         return p
+    
+    def filter_duplicate_natives(self, candidates):
+        passed = []
+        for d in candidates:
+            if d.nodet != 'native':
+                passed.append(d)
+            else:
+                add = True
+                for p in passed:
+                    if p.nodet == 'native' and p.nodes[0] == d.nodes[0]:
+                        add = False
+                if add:
+                    passed.append(d)
+        return passed
         
-    def random_ast(self, tp, depth=0):
+    def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False):
         
-        def random_int_literal(tp):
-            #v = random.randint(-2147483648, 2147483647)
-            if depth == 0 and tp.conditions and self.refined:
+        def random_int_literal(tp, **kwargs):
+            def wrap(v):
+                if v > MAX_INT:
+                    return MAX_INT
+                if v < MIN_INT:
+                    return MIN_INT
+                return v
+            v = wrap(int(random.gauss(0,(MAX_INT - MIN_INT)/3.0)))
+            if tp == self.type and tp.conditions and self.refined:
                 key = str(tp)
                 if key in self.cached_z3_random:
                     options = self.cached_z3_random[key]
                 else:
-                    gz = Zed()
+                    gz = copy.deepcopy(zed)
                     options = gz.generate_random_type(tp, MAX_TRIES_Z3)
                     self.cached_z3_random[key] = options
-                v = random.choice(options).as_long()
-            else:
-                v = None
-            if not v:
-                v = int(random.triangular(MIN_INT, MAX_INT))
-            return Node('literal', v, type=t_i)
+                if options:
+                    v = random.choice(options).as_long()
+            return Node('literal', v, type=t_i_c())
             
-        def random_boolean_literal(tp):
+        def random_boolean_literal(tp, **kwargs):
             v = random.choice([True, False])
-            return Node('literal', v, type=t_b)
+            return Node('literal', v, type=t_b_c())
             
-        def random_double_literal(tp):
-            v = random.uniform(MIN_DOUBLE, MAX_DOUBLE)
-            return Node('literal', v, type=t_f)
+        def random_double_literal(tp, **kwargs):
+            v = random.gauss(0,(MAX_DOUBLE - MIN_DOUBLE)/3.0)
+            return Node('literal', v, type=t_f_c())
             
-        def random_string_literal(tp):
-            return Node('literal', "", type=t_s )
+        def random_string_literal(tp, **kwargs):
+            return Node('literal', "\"\"", type=t_s ) #TODO
             
-        def random_let(tp):
+        def random_let(tp, **kwargs):
             var_name = "var_{}".format(random.randint(0,1000000))
             
             random_type = self.random.choice(self.typechecker.typecontext.types)
@@ -237,15 +338,12 @@ class Synthesiser(object):
             df = self.random_ast(random_type, depth+1)
             l = Node('let', var_name, df)
             self.context.push_frame()
-            try:
-                self.typechecker.typecheck(l)
-            except:
-                return None
+            self.context.set(var_name, random_type)
             u = self.random_ast(tp, depth+1)
             self.context.pop_frame()
             return Node('block', l, u)
         
-        def random_atom(tp):
+        def random_atom(tp, **kwargs):
             candidates = []
             for v in self.context.variables():
                 t = self.context.find(v)
@@ -256,27 +354,28 @@ class Synthesiser(object):
             k = random.choice(candidates)
             return Node('atom', k)
             
-        def random_invocation(tp):
+        def random_invocation(tp, no_args=False, **kwargs):
             options = []
             for decl in self.context.stack[0]:
                 decl_t = self.context.stack[0][decl]
                 if decl_t.type == tp: # TODO generic
-                    options.append((decl, decl_t))
+                    if not no_args or decl_t.lambda_parameters == []:
+                        if decl != self.function_name or self.recursion_allowed:
+                            options.append((decl, decl_t))
             if options:
                 f, ft = random.choice(options)
-                args = [
-                    self.random_ast(at, depth+1)
-                    for at in ft.lambda_parameters ]
+                args = [ self.random_ast(at, depth+1) for at in ft.lambda_parameters ]
                 if all(args):
                     return Node('invocation', f, args)
             else:
+                print("Failed to find invocation", tp)
                 return None
             
             
-        def random_operator(tp):
+        def random_operator(tp, **kwargs):
             if any([tp == t for t in [t_i, t_f]]):
                 op = self.random.choice(['+', '-', '*', '/', '%'])
-                t_a = tp == t_i and t_i or self.random.choice([t_i, t_f])
+                t_a = tp == t_i and t_i_c() or self.random.choice([t_i_c(), t_f_c()])
                 a1 = self.random_ast(t_a, depth+1)
                 if op == '/':
                     if t_a == t_i:
@@ -291,8 +390,16 @@ class Synthesiser(object):
                 return Node(self.random.choice(['&&', '||']), a1, a2)
             else:
                 return None
-        
+                
         possible_generators = []
+        
+        if constructors_only:
+            possible_generators.append(random_invocation)
+            k = None
+            while not k:
+                k = random.choice(possible_generators)(tp, no_args=True)
+            return k
+
         if tp == t_i:
             possible_generators.append(random_int_literal)
         if tp == t_b:
@@ -301,33 +408,34 @@ class Synthesiser(object):
             possible_generators.append(random_double_literal)
         if tp == t_s:
             possible_generators.append(random_string_literal)
+        if self.context.variables():
+            possible_generators.append(random_atom)
         
-        if depth >= MAX_DEPTH:
+        possible_generators.append(random_invocation)
+        
+        if depth >= max_depth:
             if possible_generators:
-                return random.choice(possible_generators)(tp)
+                k = random.choice(possible_generators)(tp, no_args=True)
             else:
                 print("Could not finish ", tp)
 
-        if any([tp == t for t in [t_i, t_f, t_b]]):
-            possible_generators.append(random_operator)
+
+        #if any([tp == t for t in [t_i, t_f, t_b]]):
+        #    possible_generators.append(random_operator)
         
-        if self.context.variables():
-            possible_generators.append(random_atom)
-            
-        possible_generators.append(random_invocation)
-        possible_generators.append(random_let)
+        #possible_generators.append(random_let)
         
         if not possible_generators:
             raise Exception("Could not generate random code for type {}", tp)
         k = None
         while not k:
-            k = random.choice(possible_generators)(tp) 
+            k = random.choice(possible_generators)(tp)
         return k
         
     
-    def random_individual(self):
+    def random_individual(self, max_depth=MAX_DEPTH):
         for i in range(N_TRIES_REFINEMENT_CHECK):
-            c = self.random_ast(tp=self.type)
+            c = self.random_ast(tp=self.type, max_depth=max_depth)
             if c and self.validate(c):
                 return c
         raise Exception("Could not generate AST for type {}".format(self.type))
@@ -335,58 +443,95 @@ class Synthesiser(object):
     def validate(self, candidate):
         f = copy.deepcopy(self.function_template)
         nf = replace_hole(f, candidate)
+        
+        program_evaluator = copy.deepcopy(self.program_evaluator)
+        program = replace_hole(program_evaluator, candidate)
         try:
-            typecheck(nf, refined=self.refined)
+            typecheck(program, refined=self.refined)
             return nf
         except Exception as e:
             return False
         
     
-    def mutate(self, i):
-        return self.random_individual()
+    def crossover(self, p1, p2, expected=None):
+        if not expected:
+            expected = self.type
+        return self.mutate(copy.deepcopy(p1), source=p2, expected=expected)
+        
+    def find_nodes(self, tp, node):
+        ls = []
+        if type(node) == Node:
+            if node.type == tp:
+                ls.append(node)
+            for ch in node.nodes:
+                ls.extend(self.find_nodes(tp, ch))
+        return ls
+            
         
     
-    def compile(self, program, name, compile_java=False):
-        ast, context, tcontext = typecheck(program, refined=False) #, refined=False
-        output = generate(ast, context, tcontext, class_name=name, generate_file=True)
+    def mutate(self, c, source=None, expected=None):
+        if not expected:
+            expected = self.type
         
-        if compile_java:
-            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. {}.java".format(name)
-            subprocess.call(compilation, cwd="bin", shell=True)
-    
-    def run_and_retrieve_fitness(self, program):
-        try:
-            self.compile(program, 'Candidate')
-            
-            
-            compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. Candidate.java"
-            ce = subprocess.run(compilation, cwd="bin", shell=True)
-            if ce.returncode != 0:
-                subprocess.run("cp Candidate.java CandidateError.java", cwd="bin", shell=True)
-                print("Failed to compile")
-                print(program)
-                return MAX_DOUBLE
-            
-            if not self.compiled_evaluator:
-                self.compiled_evaluator = True
-                compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. FitnessEvaluator.java"
-                subprocess.call(compilation, cwd="bin", shell=True)
+        can_be_source = lambda n: type(n) == list or (type(n) == Node and hasattr(n, 'type')  and n.nodet not in ['atom', 'literal'])
+        can_be_replaced = lambda n: type(n) == Node and hasattr(n, 'type')
+        repeat = lambda x,i: [x for a in range(i)]
+        
+        def count_children(n):
+            if type(n) == list:
+                return sum([ count_children(x) for x in n ])
+            elif can_be_replaced(n):
+                return 1 + sum([ count_children(x) for x in n.nodes ])
+            else:
+                return 0
                 
+        if type(c) == list:
+            list_source = c
+            def save(i, v):
+                c[i] = v
+        elif can_be_source(c):
+            list_source = c.nodes
+            def save(i, v):
+                c.nodes = list(c.nodes)
+                c.nodes[i] = v
+        else:
+            return self.random_individual()
+                
+        indices_to_replace = [ ('h', i) for i in range(len(list_source)) if can_be_replaced(list_source[i]) ]
+        for entry in [ repeat(('d', i), count_children(list_source[i])) for i in range(len(list_source))  if can_be_source(list_source[i]) ]:
+            indices_to_replace.extend(entry)
+        
+        if not indices_to_replace:
+            return self.random_individual()
+        
+        w, index = random.choice(indices_to_replace)
+        
+        if w == 'd':
+            if type(c) == list:
+                exp = expected[index]
+            elif type(c) == Node and c.nodet == 'invocation':
+                ft = self.context.find(c.nodes[0])
+                exp = ft.lambda_parameters # first argument is parameter list
+            else:
+                print("TODO")
+                exp = list_source[index].type
+            save(index, self.mutate(list_source[index], source=source, expected=exp))
+        else:
+            if type(c) == list:
+                expected = expected[index]
             
-            
-            program = "java -cp AeminiumRuntime.jar:. FitnessEvaluator".split(" ")
-            a = subprocess.check_output(program, cwd="bin", timeout=TIMEOUT_RUN).strip()
-            print(float(a))
-            return float(a)
-        except Exception as e:
-            raise e
-            return MAX_DOUBLE
+            target = list_source[index]
+            if source:
+                options = self.find_nodes(expected, source)
+                if options:
+                   save(index, self.clean(self.random.choice(options)))
+            else:
+                save(index, self.random_ast(expected))
+        return c
     
     def evaluate(self, population):
         evalutator_names = []
         candidate_map = {}
-        
-
         
         for i, candidate in enumerate(population):
             program_evaluator = copy.deepcopy(self.program_evaluator)
@@ -398,20 +543,54 @@ class Synthesiser(object):
     def clean(self, p):
         if hasattr(p.type, 'refined'):
             delattr(p.type, 'refined')
+            
+        if hasattr(p.type, 'refined_value'):
+            delattr(p.type, 'refined_value')
+        
+        for n in p.nodes:
+            if type(n) == Node:
+                self.clean(n)
+            
         return p
             
+    def tournament(self, population):
+        fighters = self.random.sample(population, TOURNAMENT_SIZE)
+        return min(fighters, key=lambda x: x.fitness)
+        
+        
+            
     def evolve(self):
-        population = [ self.random_individual() for i in range(POPULATION_SIZE) ]
+        population = [ self.random_individual(max_depth=2) for i in range(POPULATION_SIZE) ]
         
         for i in range(MAX_GENERATIONS):
             print("Generation", i)
+            
+            self.fitness_evaluator = self.create_evaluator_program(self.function_name, self.function_type)
+            self.compiled_evaluator = False
+            
             self.evaluate(population)
             
             old_population = sorted(population, key=lambda x: x.fitness)
             
+            for p in old_population[::-1]:
+                print(p.fitness, prettyprint(p))
             
+            offspring = copy.deepcopy(old_population[:ELITISM_SIZE]) + [ self.random_individual(max_depth=i) for i in range(NOVELTY_SIZE) ]
             
-            population = old_population[:ELITISM_SIZE] + [ self.random_individual() for i in range(NOVELTY_SIZE) ]
+            while len(offspring) < POPULATION_SIZE - ELITISM_SIZE - NOVELTY_SIZE:
+                parent1 = self.tournament(old_population)
+                if self.random.random() < PROB_XOVER:
+                    parent2 = self.tournament(old_population)
+                    child = self.crossover(parent1, parent2)
+                else:
+                    child = parent1
+                
+                if self.random.random() < PROB_MUT:
+                    child = self.mutate(child)
+                if self.validate(child):
+                    offspring.append(child)
+            
+            population = offspring
             
 
         self.evaluate(population)        
