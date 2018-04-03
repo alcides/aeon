@@ -12,25 +12,25 @@ from .frontend import native, decl, expr
 
 
 POPULATION_SIZE = 50
-MAX_GENERATIONS = 100
-MAX_DEPTH = 10
-ELITISM_SIZE = 5
-NOVELTY_SIZE = 10
-TOURNAMENT_SIZE = 10
+MAX_GENERATIONS = 50
+MAX_DEPTH = 15
+ELITISM_SIZE = 2
+NOVELTY_SIZE = 5
+TOURNAMENT_SIZE = 3
 
-PROB_XOVER = 1.0
-PROB_MUT = 1.0
+PROB_XOVER = 0.75
+PROB_MUT = 0.5
 
-N_TRIES_REFINEMENT_CHECK = 1000
+N_TRIES_REFINEMENT_CHECK = 100
 MAX_TRIES_Z3 = 100
-QUICKCHECK_SIZE = 1000
+QUICKCHECK_SIZE = 100
 TIMEOUT_RUN = 5
 
 MIN_DOUBLE = -100
 MAX_DOUBLE = 100
 
-MIN_INT = -100
-MAX_INT = 100
+MIN_INT = -1000
+MAX_INT = 1000
 
 
 def t_i_c():
@@ -128,7 +128,7 @@ class Synthesiser(object):
 
     def compile_condition(self, i, cond, ft):
         
-        if self.depends_on(cond):
+        if self.depends_on_indices(cond):
             return None
         
         def replace_invocations(node):
@@ -182,9 +182,9 @@ class Synthesiser(object):
                     Node('block', main_b))
         return fn_cond
 
-    def depends_on(self, c, middle="__index__"):
+    def depends_on_indices(self, c, middle="__index__"):
         if type(c) == list:
-            return any([ self.depends_on(n, middle) for n in c ])
+            return any([ self.depends_on_indices(n, middle) for n in c ])
         if type(c) != Node:
             return False
         if c.nodet in ['atom']:
@@ -193,16 +193,22 @@ class Synthesiser(object):
             else:
                 return False
         else:
-            status = any([ self.depends_on(n, middle) for n in c.nodes ])
+            status = any([ self.depends_on_indices(n, middle) for n in c.nodes ])
         return status
 
     def prepare_arguments(self, types, tests, counter=0):
-        t = types.pop()
+        t = types.pop(0)
         
-        if t.conditions and len(t.conditions) > 1:            
-            cs = [ c for c in t.conditions if not self.depends_on(c) ]
+        if t.conditions:
+            conditions_to_consider = [ c for c in t.conditions if not self.depends_on_indices(c) ]
+        else:
+            conditions_to_consider = []
+        
+        if len(conditions_to_consider) > 1:            
+            cs = [ c for c in t.conditions if not self.depends_on_indices(c) ]
+            print(cs)
             lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), cs)
-        elif t.conditions and not self.depends_on(t.conditions[0]):
+        elif len(conditions_to_consider) == 1:            
             lambda_cond_body = t.conditions[0]
         else:
             lambda_cond_body = Node('literal', True, type=t_b_c())
@@ -235,12 +241,12 @@ class Synthesiser(object):
         ]
         
         tests = [ self.compile_condition(i, cond, ftype) for i, cond in enumerate(ftype.conditions) ]
-        tests = [ t for t in tests if t ]
         
         args = [ Node('atom', '__argument_{}'.format(i)) for i, v in enumerate(ftype.lambda_parameters) ]
         
         call = Node('let', '__return_0', Node('invocation', "Candidate.{}".format(fname), args), ftype.type)
-        tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.conditions) ]
+        tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.conditions) if tests[i] ]
+        tests = [ t for t in tests if t ]
         
         
         fn_targets = []
@@ -307,7 +313,7 @@ class Synthesiser(object):
                     return MIN_INT
                 return v
             v = wrap(int(random.gauss(0,(MAX_INT - MIN_INT)/3.0)))
-            if tp == self.type and tp.conditions and self.refined:
+            if tp.conditions and self.refined:
                 key = str(tp)
                 if key in self.cached_z3_random:
                     options = self.cached_z3_random[key]
@@ -358,7 +364,7 @@ class Synthesiser(object):
             options = []
             for decl in self.context.stack[0]:
                 decl_t = self.context.stack[0][decl]
-                if decl_t.type == tp: # TODO generic
+                if self.typechecker.is_subtype(decl_t.type, tp): # TODO generic
                     if not no_args or decl_t.lambda_parameters == []:
                         if decl != self.function_name or self.recursion_allowed:
                             options.append((decl, decl_t))
@@ -368,7 +374,6 @@ class Synthesiser(object):
                 if all(args):
                     return Node('invocation', f, args)
             else:
-                print("Failed to find invocation", tp)
                 return None
             
             
@@ -415,7 +420,7 @@ class Synthesiser(object):
         
         if depth >= max_depth:
             if possible_generators:
-                k = random.choice(possible_generators)(tp, no_args=True)
+                k = random.choice(possible_generators)(tp, no_args=False)
             else:
                 print("Could not finish ", tp)
 
@@ -495,14 +500,14 @@ class Synthesiser(object):
                 c.nodes = list(c.nodes)
                 c.nodes[i] = v
         else:
-            return self.random_individual()
+            return self.random_ast(expected)
                 
         indices_to_replace = [ ('h', i) for i in range(len(list_source)) if can_be_replaced(list_source[i]) ]
         for entry in [ repeat(('d', i), count_children(list_source[i])) for i in range(len(list_source))  if can_be_source(list_source[i]) ]:
             indices_to_replace.extend(entry)
         
         if not indices_to_replace:
-            return self.random_individual()
+            return self.random_ast(expected)
         
         w, index = random.choice(indices_to_replace)
         
@@ -572,8 +577,12 @@ class Synthesiser(object):
             
             old_population = sorted(population, key=lambda x: x.fitness)
             
+            if old_population[0].fitness == 0.0:
+                print("FOUND SOLUTION AT GENERATION", i)
+                return [ self.clean(p) for p in old_population[:1]]
+            
             for p in old_population[::-1]:
-                print(p.fitness, prettyprint(p))
+                print("f:", p.fitness, prettyprint(p))
             
             offspring = copy.deepcopy(old_population[:ELITISM_SIZE]) + [ self.random_individual(max_depth=i) for i in range(NOVELTY_SIZE) ]
             

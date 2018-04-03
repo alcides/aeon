@@ -1,0 +1,48 @@
+type FileH as File where [ self.open >= 0 ]
+
+type FileH as OpenFile where [ self.open == 1 ]
+
+type FileH as ClosedFile where [ self.open == 0 ]
+
+native FileH.mkFileH : () -> fp:ClosedFile where [fp.open == 0]
+
+native FileH.open : (f:ClosedFile) -> fp:OpenFile where [f.open == 0 and fp.open == 1]
+
+native FileH.read : (f:OpenFile) -> v:Integer where [f.open == 1]
+
+native FileH.write : (f:OpenFile, v:Integer) -> fp:OpenFile where [f.open == 1 and fp.open == 1]
+
+native FileH.close : (f:OpenFile) -> fp:ClosedFile where [f.open == 1 and fp.open == 0]
+
+
+encrypt : (i:Integer, k:{Integer where (self >= 0) && (self < 26)}) -> j:Integer where [ (k >= 0) && (k < 26) ] {
+   (i + k)
+}
+
+unencrypt : (i:Integer) -> j:Integer {
+   i - 13
+}
+
+
+# 
+move : (file:ClosedFile, value:Integer) -> cl:ClosedFile where [ file.open == 0 and cl.open == 0 
+and unencrypt(FileH.read(FileH.open(cl))) == value ] {
+ …
+}
+
+# Solution
+# a1 = FileH.open(file)
+# a3 = FileH.write(a1, encrypt(value))
+# a4 = FileH.close(a3)
+
+
+native System.out.println : (_:Object) -> _:Void
+
+main : (_:Array<String>) -> _:Void {
+   f1 = FileH.mkFileH()
+   f2 = move(f1, 123)
+
+   f3 = FileH.open(f2)
+
+   System.out.println(unencrypt(FileH.read(f3)) == 123)
+}

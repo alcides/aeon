@@ -47,7 +47,9 @@ class TypeContext(object):
                 b = self.type_aliases[ta].copy()
                 for k in replacements:
                     b = b.copy_replacing_freevar(k, replacements[k])
-                return b
+                t.type = b
+                t.consolidate()
+                return t
             
         # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
         for possible_generic_type in self.type_aliases:
@@ -56,8 +58,10 @@ class TypeContext(object):
                     for ct in self.types:
                         ft_concrete = possible_generic_type.copy_replacing_freevar(v, ct)
                         if self.is_subtype(t, ft_concrete, do_aliases=False):
-                            return self.type_aliases[possible_generic_type].copy_replacing_freevar(v, ct)
-
+                            b = self.type_aliases[possible_generic_type].copy_replacing_freevar(v, ct)
+                            t.type = b
+                            t.consolidate()
+                            return t
         return t
 
     def is_subtype(self, t1, t2, under=None, do_aliases=True, check_refined=True, new_context=False):
@@ -168,6 +172,7 @@ class TypeChecker(object):
         self.typecheck(ns[-1], *args, **kwargs)
         return ns
 
+
     def t_type(self, n, expects=None):
         if len(n.nodes) > 2 and n.nodes[2]:
             n.nodes[0].set_conditions(n.nodes[2], names=['self'])
@@ -175,6 +180,7 @@ class TypeChecker(object):
         self.typecontext.add_type(n.nodes[0])
         if len(n.nodes) > 1 and n.nodes[1]:
             self.typecontext.add_type_alias(n.nodes[1], n.nodes[0])
+
 
     def t_native(self, n, expects=None):
         name = n.nodes[0]
@@ -189,6 +195,7 @@ class TypeChecker(object):
         ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         self.function_type = ft
         n.md_name = self.context.define_fun(name, ft, n)
+
 
     def t_decl(self, n, expects=None):
         n.type = n.nodes[2].nodes[1]
@@ -217,6 +224,7 @@ class TypeChecker(object):
             real_type = n.nodes[6].type
         else:
             real_type = t_v
+
 
         if not self.is_subtype(real_type, n.type):
             self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type))

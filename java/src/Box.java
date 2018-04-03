@@ -31,6 +31,7 @@ class Box {
   
   public static Box endCode(Box b) {
     if (b.v == 4) return new Box(5);
+    if (b.v > 0) return new Box(6);
     return new Box(10);
   }
   

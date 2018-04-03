@@ -241,7 +241,6 @@ class Zed(object):
             if r == z3.sat:
                 t1.refined_value = self.solver.model()[t1_name] # Error handling
                 return False
-            
         return True
     
     def generate_random_type(self, t, max_tries):
