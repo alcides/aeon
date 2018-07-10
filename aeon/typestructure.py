@@ -6,7 +6,7 @@ from .ast import Node
 from .prettyprinter import prettyprint
 
 class Type(object):
-    def __init__(self, basic="Object", lambda_parameters=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None):
+    def __init__(self, basic="Object", lambda_parameters=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None, properties=None):
         self.type = basic
         self.lambda_parameters = lambda_parameters
         self.type_arguments = type_arguments and type_arguments or []
@@ -14,9 +14,12 @@ class Type(object):
         self.conditions = conditions and conditions or []
         self.preconditions = preconditions and preconditions or []
         self.effects = effects and effects or []
+        self.properties = properties and properties or []
         
         self.propagate_binders()
         
+    def is_function(self):
+        return self.lambda_parameters != None
         
     def consolidate(self):
         if type(self.type) == Type and self.lambda_parameters==None:
@@ -84,6 +87,8 @@ class Type(object):
             status = any([ self.depends_on(n, prefix) for n in c.nodes ])
         return status
         
+    def set_properties(self, ps):
+        self.properties = ps
     
     def set_conditions(self, conds, names, argnames=[]):
         self.preconditions = []
@@ -125,7 +130,7 @@ class Type(object):
                 any([ a.contains(c) for a in self.type_arguments])
 
     def copy(self):
-        return copy.deepcopy(self)
+        return copy.copy(self)
 
     def copy_replacing_freevar(self, free, fixed):
 
@@ -148,7 +153,8 @@ class Type(object):
             conditions = copy.deepcopy(self.conditions),
             preconditions = copy.deepcopy(self.preconditions),
             effects = copy.deepcopy(self.effects),
-            binders = new_binders
+            binders = new_binders,
+            properties = self.properties
         )
 
     def __str__(self):
@@ -159,6 +165,8 @@ class Type(object):
             t = "({})".format(", ".join(map(lambda x: "{" + str(x) + "}", self.lambda_parameters))) + " -> {" + t + "}"
         if self.binders != None:
             t = "{} => {}".format(",".join(map(str, self.binders)), t)
+        if self.properties:
+            t += "{ " + ", ".join([ prettyprint(e) for e in self.properties]) + "} "
         if self.conditions:
             t += " where " + " and ".join([ prettyprint(e) for e in self.conditions])
         if self.preconditions:

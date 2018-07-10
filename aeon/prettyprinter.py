@@ -19,6 +19,11 @@ def prettyprint(n):
         return "{} : {} {{ {} }}".format(n.nodes[0], n.type, prettyprint(n.nodes[6]))
     elif n.nodet == 'native':
         return "native {} : {}".format(n.nodes[0], n.type)
+    elif n.nodet == 'argument':
+        if len(n.nodes) > 2:
+            return "{} : {} tracked by {}".format(n.nodes[0], n.nodes[1], n.nodes[2])
+        else:
+            return "{} : {}".format(n.nodes[0], n.nodes[1])
     else:
         print("pretty print new_type:", n)
         return "<UNKNOWN>"

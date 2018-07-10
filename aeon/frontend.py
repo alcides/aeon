@@ -238,6 +238,22 @@ def where():
     ls = yield sepBy(expr, t("and"))
     yield t("]")
     return makeblock(ls)
+    
+@generate
+def tracked_arg():
+    arg = yield symbol
+    yield colon
+    typ = yield typee
+    trackedBy = yield (t("trackedBy") >> symbol ) ^ t("")
+    return Node('argument', arg, typ, trackedBy)
+    
+@lexeme
+@generate
+def tracked_args():
+    yield t("{")
+    ls = yield sepBy(tracked_arg, t(","))
+    yield t("}")
+    return ls
 
 @lexeme
 @generate
@@ -286,8 +302,9 @@ def typedecl():
     yield t("type")
     imported = yield polymorphic_type ^ typee
     alias = yield (t("as") >> (polymorphic_type ^ typee)) ^ t("")
+    properties = yield tracked_args ^ t("")
     conditions = yield where ^ t("")
-    return Node('type', imported, alias, conditions)
+    return Node('type', imported, alias, conditions, properties)
 
 imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
 

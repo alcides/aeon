@@ -93,7 +93,20 @@ class TypeContext(object):
             valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 
-
+    def get_type_property(self, target_type, property_name):
+        for ty in self.types:
+            if ty.polymorphic_matches(target_type, self):
+                for arg in ty.properties:
+                    if arg.nodes[0] == property_name:
+                        return arg.nodes
+        return None
+        
+    def get_type_properties(self, target_type):
+        for ty in self.types:
+            if ty.polymorphic_matches(target_type, self):
+                return [n.nodes for n in ty.properties]
+        return None
+                   
 class Context(object):
     def __init__(self, tcontext):
         self.stack = []
@@ -176,6 +189,9 @@ class TypeChecker(object):
     def t_type(self, n, expects=None):
         if len(n.nodes) > 2 and n.nodes[2]:
             n.nodes[0].set_conditions(n.nodes[2], names=['self'])
+            
+        if len(n.nodes) > 3 and n.nodes[3]:
+            n.nodes[0].set_properties(n.nodes[3])
 
         self.typecontext.add_type(n.nodes[0])
         if len(n.nodes) > 1 and n.nodes[1]:

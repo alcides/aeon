@@ -15,7 +15,7 @@ class CostExtractor(object):
         if type == 'Boolean':
             return "return new Random().nextBoolean();"
         if type == 'Integer':
-            return "return new Random().nextInt(10000);"
+            return "return new Random().nextInt(20000)-10000;"
         if type == 'Object':
             return "return new Integer(0);";
         if type == 'java.util.ArrayList<Integer>':
@@ -28,6 +28,16 @@ class CostExtractor(object):
         
         if type == "java.util.function.Supplier<Integer>":
             return "return () -> QuickTimeCheck.work(new Random().nextInt());"
+            
+        if type == "java.util.function.Consumer<Integer>":
+            return "return (Integer a) -> { QuickTimeCheck.work(new Random().nextInt()); };"
+            
+        if type == "java.util.function.UnaryOperator<Integer>":
+            return "return (Integer n) -> QuickTimeCheck.work(new Random().nextInt());"
+            
+            
+        if type == "java.util.function.BiFunction<Integer, Integer, Integer>":
+            return "return (Integer a, Integer b) -> QuickTimeCheck.work(new Random().nextInt());"
         
         print("TODO: No random for ", type)
         return None
@@ -43,7 +53,11 @@ class CostExtractor(object):
             
             
         call = " int counter_i=0; while (counter_i < 10) {\n"
-        for i,arg in enumerate(ft.lambda_parameters):
+        for i, arg in enumerate(ft.lambda_parameters):
+            
+            self.codegen.push_frame()
+            self.codegen.stack[-1]["__argument_{}".format(i)] = arg
+            
             java_type = self.codegen.type_convert(arg)
             generator_name = "generate__random__" + self.javify(str(java_type))
             body = self.default_random(java_type)
@@ -55,24 +69,57 @@ class CostExtractor(object):
                 args_invocation_names.append(generator_name)
             args_invocations.append("__argument_{}".format(i))
             call += "{} __argument_{} = {};\n".format(java_type, i, generator_name + "()")
-            if java_type in ['Integer', 'Double', 'Boolean']:
-                call += """System.out.println("__argument_{} = " + __argument_{});\n""".format(i, i)
-    
+        
+
     
         if ft.preconditions:
             ver = "&&".join([str(self.codegen.g_expr(pre)) for pre in ft.preconditions])
             call += "if (!({})) continue;\n".format(ver)  
+        
+        for i, arg in enumerate(ft.lambda_parameters):
+            java_type = self.codegen.type_convert(arg)
+            ps = self.type_context.get_type_properties(arg)
+            
+            if java_type in ['Integer', 'Double', 'Boolean']:
+                call += """System.out.println("__argument_{} = " + __argument_{});\n""".format(i, i)
+            elif ps:
+                for prop in ps:
+                    if len(prop) > 2 and prop[2]:
+                        call += """System.out.println("__argument_{}__index__{} = " + {}(__argument_{}));\n""".format(i, prop[0], prop[2], i)
+            elif arg.is_function():
+                if java_type.startswith("Supplier"):
+                    method_name = "get"
+                    fargs = "";
+                elif java_type.startswith("Consumer"):
+                    method_name = "accept"
+                    fargs = "null";
+                elif java_type.startswith("Function"):
+                    method_name = "apply"
+                    fargs = "null";
+                elif java_type.startswith("BiFunction"):
+                    method_name = "apply"
+                    fargs = "null, null";
+                else:
+                    method_name = "get"
+                    fargs = "";
+
+                call += """System.out.println("time(__argument_{}) = " + QuickTimeCheck.runAndTime(() -> {{ __argument_{}.{}({}); }}));\n""".format(i, i, method_name, fargs)
+            else:
+                print("No data for ", arg)
+                print("arg:", arg, arg.is_function(), arg.lambda_parameters)
+    
         args = ",".join([ str(x) for x in args_invocations ])
         call += template_start_timer
         call += "{}({});".format(name, args)
         call += template_end_timer
         call += "\n counter_i++; }"
         methods = "\n".join(args_methods)
+        self.codegen.pop_frame()
         return template.format(methods, call)    
         
 
     def javify(self, name):
-        return name.replace(".", "__dot__").replace("<", "__of__").replace(">","").replace(" -> ", "__to__")    
+        return name.replace(".", "__dot__").replace("<", "__of__").replace(">","").replace(", ", "__and__").replace(" -> ", "__to__")    
     
     
     def compile_and_run(self, src):
@@ -122,6 +169,13 @@ public class QuickTimeCheck {{
         int i = n;
         while (i > 0) i--;
         return i;
+    }}
+    
+    public static double runAndTime(Runnable s) {{
+ 	   long init = System.nanoTime();
+       s.run();
+ 	   long time = System.nanoTime() - init;
+ 	   return (time / 1000000000.0);
     }}
 
     public static void main(String[] args) {{

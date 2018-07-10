@@ -98,7 +98,7 @@ class CodeGenerator(object):
             elif len(t.lambda_parameters) == 2 and str(t.type) == 'Void':
                 return "java.util.function.BiConsumer<{}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]))
             elif len(t.lambda_parameters) == 2:
-                return "java.util.function.BiFunction<{}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]), self.type_convert(t.type))
+                return "java.util.function.BiFunction<{}, {}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]), self.type_convert(t.type))
             else:
                 print("Codegen unavaiable for lambdas with type: ", str(t))
 
@@ -286,6 +286,13 @@ class CodeGenerator(object):
         ), is_stmt=n.type == 'Void')
 
     def g_atom(self, n):
+        if "__index__" in n.nodes[0]:
+            target_string, prop_name = n.nodes[0].split("__index__")
+            target_type = self.find(target_string)
+            prop = self.typecontext.get_type_property(target_type, prop_name)
+            if prop:
+                return Expr(prop[2] + "(" + target_string + ")")
+        
         return Expr(self.wrap_underscore(n.nodes[0]))
 
     def g_let(self, n):
