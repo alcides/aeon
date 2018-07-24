@@ -15,14 +15,14 @@ class CostExtractor(object):
         if type == 'Boolean':
             return "return new Random().nextBoolean();"
         if type == 'Integer':
-            return "return new Random().nextInt(20000)-10000;"
+            return "return new Random().nextInt(2000000)-1000000;"
         if type == 'Object':
             return "return new Integer(0);";
         if type == 'java.util.ArrayList<Integer>':
             return """
                     java.util.ArrayList<Integer> lst = new java.util.ArrayList<>();
                     Random r = new Random();
-                    for (int i=0;i<r.nextInt(10000);i++) lst.add(r.nextInt());
+                    for (int i=0;i<r.nextInt(1000000);i++) lst.add(r.nextInt());
                     return lst;
                     """
         
@@ -34,7 +34,6 @@ class CostExtractor(object):
             
         if type == "java.util.function.UnaryOperator<Integer>":
             return "return (Integer n) -> QuickTimeCheck.work(new Random().nextInt());"
-            
             
         if type == "java.util.function.BiFunction<Integer, Integer, Integer>":
             return "return (Integer a, Integer b) -> QuickTimeCheck.work(new Random().nextInt());"
@@ -52,7 +51,7 @@ class CostExtractor(object):
             ft = ft.copy_replacing_freevar(ft.binders[0], Type('Integer'))
             
             
-        call = " int counter_i=0; while (counter_i < 10) {\n"
+        call = " int counter_i=0; while (counter_i < 100000) {\n"
         for i, arg in enumerate(ft.lambda_parameters):
             
             self.codegen.push_frame()
@@ -87,22 +86,24 @@ class CostExtractor(object):
                     if len(prop) > 2 and prop[2]:
                         call += """System.out.println("__argument_{}__index__{} = " + {}(__argument_{}));\n""".format(i, prop[0], prop[2], i)
             elif arg.is_function():
-                if java_type.startswith("Supplier"):
+                if java_type.startswith("java.util.function.Supplier"):
                     method_name = "get"
                     fargs = "";
-                elif java_type.startswith("Consumer"):
+                elif java_type.startswith("java.util.function.Consumer"):
                     method_name = "accept"
                     fargs = "null";
-                elif java_type.startswith("Function"):
+                elif java_type.startswith("java.util.function.Function"):
                     method_name = "apply"
                     fargs = "null";
-                elif java_type.startswith("BiFunction"):
+                elif java_type.startswith("java.util.function.BiFunction"):
                     method_name = "apply"
                     fargs = "null, null";
+                elif java_type.startswith("java.util.function.UnaryOperator"):
+                    method_name = "apply"
+                    fargs = "null";
                 else:
                     method_name = "get"
                     fargs = "";
-
                 call += """System.out.println("time(__argument_{}) = " + QuickTimeCheck.runAndTime(() -> {{ __argument_{}.{}({}); }}));\n""".format(i, i, method_name, fargs)
             else:
                 print("No data for ", arg)
