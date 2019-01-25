@@ -6,16 +6,16 @@ import java.util.function.Consumer;
 public class A {
 	public static <T> ArrayList<T> array(int size, T o) {
 		ArrayList<T> arr = new ArrayList<>(size);
-    for (int i = 0; i<size; i++)
-      arr.add(o);
-    return arr;
+		for (int i = 0; i<size; i++)
+			arr.add(o);
+		return arr;
 	}
   
 	public static ArrayList<Integer> range(int mi, int ma) {
 		ArrayList<Integer> ar = new ArrayList<>(ma-mi);
-    for (int i=mi; i<ma; i++)
-      ar.add((Integer)i);
-    return ar;
+		for (int i=mi; i<ma; i++)
+			ar.add((Integer)i);
+		return ar;
 	}
 
 	public static <T> T get(ArrayList<T> a, int i) {
@@ -27,14 +27,30 @@ public class A {
 		return a;
 	}
   
-  public static <T> Integer size(ArrayList<T> a) {
-    return a.size();
-  }
+	public static <T> Integer size(ArrayList<T> a) {
+		return a.size();
+	}
   
-  public static <T> ArrayList<T> forEach(ArrayList<T> a, Consumer<T> c) {
-    a.forEach(c);
-    return a;
-  }
+	public static <T> ArrayList<T> forEach(ArrayList<T> a, Consumer<T> c) {
+		a.forEach(c);
+		return a;
+	}
+  
+	public static <T> ArrayList<T> forEachIndex(ArrayList<T> a, BiFunction<Integer, T, Void> c) {
+		int i = 0;
+		for (T e : a) {
+			c.apply(i++,e);
+		}
+		return a;
+	}
+  
+	public static <T> Boolean forall(ArrayList<T> a, Function<T, Boolean> f) {
+		boolean b = true;
+		for (T v : a) {
+			b = b && f.apply(v);
+		}
+		return b;
+	}
   
 
 	public static <T,I> ArrayList<I> map(ArrayList<T> a, Function<T,I> f) {
@@ -56,4 +72,15 @@ public class A {
 		}
 		return i;
 	}
+	
+	public static <T> ArrayList<T> copy(ArrayList<T> a) {
+		return A.map(a, (i) -> i);
+	}
+	
+	public static <T> ArrayList<T> append(ArrayList<T> a, T e) {
+		ArrayList<T> t = A.copy(a);
+		t.add(e);
+		return t;
+	}
+	
 }

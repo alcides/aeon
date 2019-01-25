@@ -14,6 +14,14 @@ native A.size : T => (arr: A.Array<T>) -> r:Integer where [ r == arr.size ]
 
 native A.forEach : T => (arr: A.Array<T>, f: (T) -> Void) -> _:A.Array<T>
 
+native A.forEachIndex : T => (arr: A.Array<T>, f: (Integer, T) -> Void) -> _:A.Array<T>
+
 native A.map : T,R => (arr: A.Array<T>, f: (T) -> R) -> out:A.Array<R> where [ out.size == arr.size ]
 
+native A.copy : T => (arr: A.Array<T>) -> out:A.Array<T> where [ out.size == arr.size ]
+
 native A.reduce : T => (arr: A.Array<T>, f: (T,T) -> T) -> _:T where [ arr.size > 0 ]
+
+native A.forAll : T => (arr: A.Array<T>, f: (Integer) -> Boolean) -> _:Boolean
+
+native A.append : T => (arr: A.Array<T>, e:T) -> out: A.Array<T> where [out.size == (arr.size + 1)]

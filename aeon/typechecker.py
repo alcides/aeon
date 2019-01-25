@@ -201,16 +201,19 @@ class TypeChecker(object):
     def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-        
-        ft = Type(lambda_parameters = [self.typecontext.resolve_type(x.nodes[1]) for x in n.nodes[1]],
+    
+        argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in n.nodes[1]]    
+        ft = Type(lambda_parameters = argtypes,
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
                   conditions=n.nodes[4],
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
-        self.function_type = ft
+        
         n.md_name = self.context.define_fun(name, ft, n)
+        self.function_name = n.md_name
+        self.function_type = ft
 
 
     def t_decl(self, n, expects=None):
@@ -292,6 +295,7 @@ class TypeChecker(object):
             if ref_name:
                 n.type.refined = ref_name
                 n.type.context = zed.copy_assertions()
+                
             
             if name == 'J.iif':
                 zed.assert_if(n.type, actual_argument_types[1], actual_argument_types[2] )
@@ -334,6 +338,7 @@ class TypeChecker(object):
             n.type = n.nodes[1].type
         n.type = self.typecontext.resolve_type(n.type)
         self.context.set(n.nodes[0], n.type)
+
 
     def t_op(self, n, expects=None):
         if n.nodet in ['&&', '||']:
@@ -401,7 +406,7 @@ class TypeChecker(object):
                 root=self.root, 
                 function_name=self.function_name, 
                 function_type=self.function_type,
-                context = copy.deepcopy(self.context),
+                context = copy.deepcopy(self.context, memo={}),
                 typechecker=copy.deepcopy(self),
                 refined=self.refined)]
             n.type = n.nodes[0].type

@@ -11,15 +11,15 @@ from .zed import Zed, zed
 from .frontend import native, decl, expr
 
 
-POPULATION_SIZE = 50
+POPULATION_SIZE = 100
 MAX_GENERATIONS = 50
 MAX_DEPTH = 15
-ELITISM_SIZE = 2
+ELITISM_SIZE = 1
 NOVELTY_SIZE = 5
-TOURNAMENT_SIZE = 3
+TOURNAMENT_SIZE = 10
 
-PROB_XOVER = 0.75
-PROB_MUT = 0.5
+PROB_XOVER = 0.90
+PROB_MUT = 0.0
 
 N_TRIES_REFINEMENT_CHECK = 100
 MAX_TRIES_Z3 = 100
@@ -29,8 +29,8 @@ TIMEOUT_RUN = 5
 MIN_DOUBLE = -100
 MAX_DOUBLE = 100
 
-MIN_INT = -1000
-MAX_INT = 1000
+MIN_INT = -100
+MAX_INT = 100
 
 
 def t_i_c():
@@ -63,7 +63,7 @@ def replace_hole(context, replacement):
     
 
 class Synthesiser(object):
-    def __init__(self, hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined=True):
+    def __init__(self, hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined=True, outputdir="bin"):
         self.hole = hole
         self.type = copy.deepcopy(goal_type)
         self.root = root
@@ -74,6 +74,7 @@ class Synthesiser(object):
         self.random = rand or random
         self.random.seed(1)
         self.refined = refined
+        self.outputdir = outputdir
         
         self.program_evaluator = copy.deepcopy(root)
         self.function_template = get_fun(root, function_name)
@@ -95,11 +96,11 @@ class Synthesiser(object):
     
     def compile(self, program, name, compile_java=False):
         ast, context, tcontext = typecheck(program, refined=False) #, refined=False
-        output = generate(ast, context, tcontext, class_name=name, generate_file=True)
+        output = generate(ast, context, tcontext, class_name=name, generate_file=True, outputdir=self.outputdir)
         
         if compile_java:
             compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. {}.java".format(name)
-            subprocess.call(compilation, cwd="bin", shell=True)
+            subprocess.call(compilation, cwd=self.outputdir, shell=True)
     
     def run_and_retrieve_fitness(self, program):
         try:
@@ -107,9 +108,9 @@ class Synthesiser(object):
             
             
             compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. Candidate.java"
-            ce = subprocess.run(compilation, cwd="bin", shell=True)
+            ce = subprocess.run(compilation, cwd=self.outputdir, shell=True)
             if ce.returncode != 0:
-                subprocess.run("cp Candidate.java CandidateError.java", cwd="bin", shell=True)
+                subprocess.run("cp Candidate.java CandidateError.java", cwd=self.outputdir, shell=True)
                 print("Failed to compile")
                 print(program)
                 return MAX_DOUBLE
@@ -117,11 +118,11 @@ class Synthesiser(object):
             if not self.compiled_evaluator:
                 self.compiled_evaluator = True
                 compilation = "javac -Xdiags:verbose -cp AeminiumRuntime.jar:. FitnessEvaluator.java"
-                subprocess.call(compilation, cwd="bin", shell=True)
+                subprocess.call(compilation, cwd=self.outputdir, shell=True)
                 
             
             program = "java -cp AeminiumRuntime.jar:. FitnessEvaluator".split(" ")
-            a = subprocess.check_output(program, cwd="bin", timeout=TIMEOUT_RUN).strip()
+            a = subprocess.check_output(program, cwd=self.outputdir, timeout=TIMEOUT_RUN).strip()
             return float(a)
         except Exception as e:
             return 2147483648
@@ -303,7 +304,7 @@ class Synthesiser(object):
                     passed.append(d)
         return passed
         
-    def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False):
+    def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False, full=False):
         
         def random_int_literal(tp, **kwargs):
             def wrap(v):
@@ -360,14 +361,24 @@ class Synthesiser(object):
             k = random.choice(candidates)
             return Node('atom', k)
             
-        def random_invocation(tp, no_args=False, **kwargs):
+        def random_invocation(tp, no_args=False, level=0, **kwargs):
             options = []
             for decl in self.context.stack[0]:
                 decl_t = self.context.stack[0][decl]
                 if self.typechecker.is_subtype(decl_t.type, tp): # TODO generic
-                    if not no_args or decl_t.lambda_parameters == []:
-                        if decl != self.function_name or self.recursion_allowed:
-                            options.append((decl, decl_t))
+                    if no_args:
+                        if decl_t.lambda_parameters != []:
+                            continue
+                    if decl != self.function_name:
+                        options.append((decl, decl_t))
+                        
+            if not options:
+                if level == 0:
+                    return random_invocation(tp, no_args=False, level=1, **kwargs)
+                else:
+                    print("No options for type:", str(tp))
+                    sys.exit(1)
+            
             if options:
                 f, ft = random.choice(options)
                 args = [ self.random_ast(at, depth+1) for at in ft.lambda_parameters ]
@@ -405,6 +416,10 @@ class Synthesiser(object):
                 k = random.choice(possible_generators)(tp, no_args=True)
             return k
 
+        
+        #if tp.
+
+
         if tp == t_i:
             possible_generators.append(random_int_literal)
         if tp == t_b:
@@ -416,8 +431,10 @@ class Synthesiser(object):
         if self.context.variables():
             possible_generators.append(random_atom)
         
-        possible_generators.append(random_invocation)
-        
+        if full:
+            possible_generators.extend([ random_invocation for _ in range(10)])
+        else:
+            possible_generators.append(random_invocation)
         if depth >= max_depth:
             if possible_generators:
                 k = random.choice(possible_generators)(tp, no_args=False)
@@ -589,13 +606,13 @@ class Synthesiser(object):
             while len(offspring) < POPULATION_SIZE - ELITISM_SIZE - NOVELTY_SIZE:
                 parent1 = self.tournament(old_population)
                 if self.random.random() < PROB_XOVER:
-                    parent2 = self.tournament(old_population)
-                    child = self.crossover(parent1, parent2)
+                    parent2 = self.tournament(old_population)                    
+                    child = self.crossover(parent1, parent2)                
+                elif self.random.random() < PROB_MUT:
+                    child = self.mutate(child)
                 else:
                     child = parent1
                 
-                if self.random.random() < PROB_MUT:
-                    child = self.mutate(child)
                 if self.validate(child):
                     offspring.append(child)
             
@@ -605,17 +622,20 @@ class Synthesiser(object):
         self.evaluate(population)        
         return [ self.clean(p) for p in population]
         
+        
+def synthesise_with_outputdir(outputdir):
+    def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False, outputdir="bin"):
+    
+        s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined, outputdir)
+    
+        candidates = s.evolve()
 
-def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False):
-    s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined)
+        print("Found {} suitable definitions".format(len(candidates)))
+        for approved in candidates:
+            print(pp(approved), "[Fitness:", approved.fitness, "]")
     
-    candidates = s.evolve()
-
-    print("Found {} suitable definitions".format(len(candidates)))
-    for approved in candidates:
-        print(pp(approved), "[Fitness:", approved.fitness, "]")
+        if not candidates:
+            raise Exception("Hole unknown")
     
-    if not candidates:
-        raise Exception("Hole unknown")
-    
-    return candidates[0]
+        return candidates[0]
+    return synthesise

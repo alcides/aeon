@@ -133,7 +133,6 @@ class Type(object):
         return copy.copy(self)
 
     def copy_replacing_freevar(self, free, fixed):
-
         def rep(target):
             if type(target) == str:
                 if target == str(free):

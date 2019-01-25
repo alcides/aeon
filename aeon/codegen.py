@@ -337,13 +337,26 @@ class CodeGenerator(object):
 
 
     def g_literal(self, n):
-        
+        java_type = self.type_convert(n.type)
+        if java_type == 'Integer':
+            return Expr("Integer.valueOf({})".format(str(n.nodes[0]).lower()))
+        if java_type == 'Double':
+            return Expr("Double.valueOf({})".format(str(n.nodes[0]).lower()))
         return Expr("({})".format(str(n.nodes[0]).lower()))
 
 
     def g_op(self, n):
+        "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"
+        
+        if n.nodet == '==':
+            format_string = "({1}.equals({2}))"
+        elif n.nodet == '!=':
+            format_string = "({1}.equals({2}) == False)"
+        else:
+            format_string = "({1} {0} {2})"
+        
         if len(n.nodes) == 2:
-            return Expr("({1} {0} {2})".format(
+            return Expr(format_string.format(
                 n.nodet,
                 self.g_expr(n.nodes[0]),
                 self.g_expr(n.nodes[1])
@@ -355,12 +368,12 @@ class CodeGenerator(object):
             ))
 
 
-def generate(ast, table, typecontext, class_name='E', generate_file=False):
+def generate(ast, table, typecontext, class_name='E', generate_file=False, outputdir="bin"):
     output = CodeGenerator(table, typecontext, class_name).root(ast)
     try:
-        os.mkdir('bin')
+        os.mkdir(outputdir)
     except:
         pass
-    open('bin/{}.java'.format(class_name), 'w').write(output)
+    open('{}/{}.java'.format(outputdir, class_name), 'w').write(output)
     return output
     

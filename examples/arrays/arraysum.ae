@@ -1,0 +1,13 @@
+import ..prelude.J
+import ..prelude.A
+import ..prelude.R
+
+
+arraySum : (ar:A.Array<Integer>) -> i:Integer {
+  A.reduce(ar, (i:Integer, j:Integer) -> i + j)
+} 
+
+main : (args:Array<String>) -> _:Void { 
+   exampleList = A.range(0,100000)
+   J.out(arraySum(exampleList))
+}

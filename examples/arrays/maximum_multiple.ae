@@ -1,0 +1,23 @@
+import ..prelude.J
+import ..prelude.A
+import ..prelude.P
+
+
+
+maximum_multiple : (ar:A.Array<Integer>) -> i:P<Integer, Integer> {
+  b:A.Array<P<Integer,Integer>> = A.map(ar, (i:Integer) -> P.pair(i, 1))
+  A.reduce(b, (i:Pair<Integer, Integer>, j:Pair<Integer, Integer>) -> 
+    J.iif(P.fst(i) == P.fst(j), 
+      () -> P.pair(P.fst(i), P.snd(i) + P.snd(j)), 
+      J.iif(P.fst(i) > P.fst(j), () -> i, () -> j)
+    )
+  )
+} 
+
+main : (args:Array<String>) -> _:Void { 
+   a = A.range(0,1000)
+   A.set(a, 0, 999)
+   p = maximum_multiple(a)
+   J.out(P.fst(p))
+   J.out(P.snd(p))
+}

@@ -145,7 +145,7 @@ expr = let ^ expr_4
 def basic_type():
     b = yield symbol
     ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
-    return Type(basic=b, type_arguments=[k[0] for k in ks])
+    return Type(basic=b, type_arguments=ks and ks[0] or None)
 
 @lexeme
 @generate

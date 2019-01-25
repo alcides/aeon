@@ -1,0 +1,7 @@
+type A,B => P<A,B>
+
+native P.pair : K,V => (a:K, b:V) -> p:P<K,V>
+
+native P.fst : K,V => (p:P<K,V>) -> a:K
+
+native P.snd : K,V => (p:P<K,V>) -> b:V

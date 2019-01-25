@@ -1,0 +1,20 @@
+import ..prelude.J
+
+import ..prelude.A
+
+
+
+reverse : (in:A.Array<Integer>) -> out:A.Array<Integer> where [
+		out.size == in.size and
+		A.forall(A.range(0, out.size), (i:Integer) -> A.get(out, i) == A.get(in, (A.size(in)-1)-i))
+] {
+	#A.map( A.range(0, A.size(in)), (i:Integer) -> A.get(in, (A.size(in)-i)-1) )
+	…
+}
+
+main : (_:Array<String>) -> _:Void {
+   a = A.range(0, 32)
+   r = reverse(a)
+   J.out(A.get(r, 0))
+}
+
