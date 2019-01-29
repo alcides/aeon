@@ -3,7 +3,6 @@ import ..prelude.J
 import ..prelude.A
 
 
-
 reverse : (in:A.Array<Integer>) -> out:A.Array<Integer> where [
 		out.size == in.size and
 		A.forall(A.range(0, out.size), (i:Integer) -> A.get(out, i) == A.get(in, (A.size(in)-1)-i))

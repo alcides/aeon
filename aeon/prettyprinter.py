@@ -1,3 +1,6 @@
+def wrap_node_t(n):
+    return hasattr(n, "type") and n.type or "?"
+
 def prettyprint(n):
     if type(n) == type([]):
         return "\n".join([ prettyprint(a) for a in n ])
@@ -19,14 +22,19 @@ def prettyprint(n):
     elif n.nodet == 'block':
         return "{{ {} }}".format(";\n".join(list(map(prettyprint, n.nodes))))
     elif n.nodet == 'decl':
-        return "{} : {} {{ {} }}".format(n.nodes[0], n.type, prettyprint(n.nodes[6]))
+        return "{} : {} {{ {} }}".format(n.nodes[0], wrap_node_t(n), prettyprint(n.nodes[6]))
     elif n.nodet == 'native':
-        return "native {} : {}".format(n.nodes[0], n.type)
+        return "native {} : {}".format(n.nodes[0], wrap_node_t(n))
     elif n.nodet == 'argument':
         if len(n.nodes) > 2:
             return "{} : {} tracked by {}".format(n.nodes[0], n.nodes[1], n.nodes[2])
         else:
             return "{} : {}".format(n.nodes[0], n.nodes[1])
+    elif n.nodet == 'type':
+        if len(n.nodes) > 1:
+            return "type {} as {}".format(n.nodes[0], n.nodes[1])
+        else:
+            return "type {}".format(n.nodes[0])
     else:
         print("pretty print new_type:", n)
         return "<UNKNOWN>"

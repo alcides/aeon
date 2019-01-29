@@ -6,7 +6,7 @@ import shutil
 
 from .frontend import parse
 from .automatic import synthesise_with_outputdir 
-from .typechecker import typecheck
+from .typechecker import typecheck, TypeException
 from .annotate import typeinfer
 from .codegen import generate
 
@@ -33,8 +33,16 @@ if __name__ == '__main__':
             print("\t", decl)
         print()
     
-
-    ast, context, tcontext = typecheck(ast, refined=refined, synthesiser=synthesise_with_outputdir(outputdir))
+    try:
+        ast, context, tcontext = typecheck(ast, refined=refined, synthesiser=synthesise_with_outputdir(outputdir))
+    except TypeException as t:
+        print(t.args[0])
+        print(t.args[1])
+        print("Given:")
+        print(t.given)
+        print("Expected:")
+        print(t.expected)
+        sys.exit(-1)
 
     if debug:
         print()

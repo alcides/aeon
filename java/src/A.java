@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Consumer;
+import java.util.Random;
 
 public class A {
 	public static <T> ArrayList<T> array(int size, T o) {
@@ -81,6 +82,15 @@ public class A {
 		ArrayList<T> t = A.copy(a);
 		t.add(e);
 		return t;
+	}
+	
+	public static ArrayList<Integer> randomIntArray() {
+		Random r = new Random();
+		ArrayList<Integer> arr = new ArrayList<>();
+		for (int i=0; i<r.nextInt(); i++){
+			arr.add(r.nextInt());
+		}
+		return arr;
 	}
 	
 }

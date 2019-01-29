@@ -54,4 +54,12 @@ public class GA {
     }
   }
   
+  public static void genTests(Integer size, Runnable c) {
+    int i = 0;
+    while (i < size) {
+        c.run();
+        i++;
+    }
+  }
+  
 }

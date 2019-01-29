@@ -1,6 +1,13 @@
 from .typestructure import *
 from .zed import zed
+from .prettyprinter import prettyprint as pp
 
+class TypeException(Exception):
+    def __init__(self, name, description="", given=None, expected=None, *args, **kwargs):
+        super(TypeException, self).__init__(name, description, *args, **kwargs)
+        self.expected = expected
+        self.given = given
+        
 
 class TypeContext(object):
     def __init__(self, typedecl=None, refined=True):
@@ -79,6 +86,16 @@ class TypeContext(object):
         
     def resolve_type(self, t):
         return self.handle_aliases(t)
+
+    def unify(self, invocation_type, return_type):
+        """
+            Receives a function type and the expected return type.
+            Returns the invocation type with return type replaced.
+        """
+        for binder in invocation_type.binders:
+            if binder == invocation_type.type:
+                return invocation_type.copy_replacing_freevar(binder, invocation_type.type)
+        return invocation_type
 
     def check_function_arguments(self, args, ft):
         if ft.binders:
@@ -161,14 +178,17 @@ class TypeChecker(object):
         self.root = root
         self.synthesiser = synthesiser
 
-    def type_error(self, string):
-        raise Exception("Type Error", string)
+    def type_error(self, string, expected=None, given=None):
+        raise TypeException("Type Error", string, expected=expected, given=given)
 
     def is_subtype(self, a, b, *args, **kwargs):
         return self.typecontext.is_subtype(a, b, *args, **kwargs)
 
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
+        
+    def unify(self, *args, **kwargs):
+        return self.typecontext.unify(*args, **kwargs)
 
     def typelist(self, ns, *args, **kwargs):
         if not ns:
@@ -246,10 +266,12 @@ class TypeChecker(object):
 
 
         if not self.is_subtype(real_type, n.type):
-            self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type))
+            self.type_error("Function {} expected {} and body returns {}".format(name, n.type, real_type),
+                expected=n.type, given=real_type)
         if self.refined:
             if not self.is_subtype(real_type, n.type, under=(ft, argtypes)):
-                self.type_error("Function {} failed post-condition {} when returning {}".format(name, ft, real_type))
+                self.type_error("Function {} failed post-condition {} when returning {}".format(name, ft, real_type),
+                given=real_type, expected=ft)
             
 
         self.context.pop_frame()
@@ -272,7 +294,12 @@ class TypeChecker(object):
         actual_argument_types = [ c.type for c in n.nodes[1] ]
         
         if len(actual_argument_types) != len(t.lambda_parameters):
-            self.type_error("Wrong number of arguments for {}({})".format(name, ",".join(map(str,actual_argument_types))))
+            self.type_error(
+                "Wrong number of arguments for {}({})".format(name, ",".join(map(str,actual_argument_types))),
+                expected = t.lambda_parameters,
+                given = actual_argument_types
+            
+            )
     
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
@@ -281,17 +308,18 @@ class TypeChecker(object):
             self.type_error("Wrong argument types for {} | Expected {} -- Got {}".format(
                             name,
                             str(t_name),
-                            str(list(map(str, actual_argument_types))),
-                ))
+                            str(list(map(str, actual_argument_types)))
+                ),
+                given = Type(basic=expects or "?", lambda_parameters=actual_argument_types),
+                expected = t_name
+                )
 
         if self.refined:
             ok, ref_name = zed.refine_function_invocation(concrete_type, actual_argument_types)
             if not ok:
-                self.type_error("Refinement checking failed for {}: Got {}, expected {}".format(
-                            name,
-                            str(list(map(str, actual_argument_types))),
-                            str(concrete_type)
-                ))
+                self.type_error("Refinement checking failed for invocation {} in {}".format(name, pp(n)),
+                expected=concrete_type,
+                given=list(map(str, actual_argument_types)))
             if ref_name:
                 n.type.refined = ref_name
                 n.type.context = zed.copy_assertions()
@@ -320,6 +348,7 @@ class TypeChecker(object):
         k = self.context.find(n.nodes[0])
         
         if k == None:
+            print(n)
             self.type_error("Unknown variable {}".format(n.nodes[0]))
         n.type = k
         if self.refined and not hasattr(n.type, "refined"):

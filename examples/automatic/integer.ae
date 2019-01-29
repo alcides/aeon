@@ -1,0 +1,11 @@
+import ..prelude.J
+
+native Math.abs : (in:Integer) -> out:Integer where [ out == J.iif(in>=0, () -> in, () -> -in) ]
+
+three : (i:Integer) -> out:Integer where [ out >= 0 ] {
+	Math.abs(3*i)
+}
+
+main : (_:Array<String>) -> _:Void {
+   J.out(three(3))
+}

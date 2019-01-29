@@ -3,15 +3,15 @@ import random
 import sys
 import subprocess
 from functools import reduce
-from .typechecker import typecheck
+from .typechecker import typecheck, TypeException
 from .typestructure import *
 from .prettyprinter import prettyprint as pp
 from .codegen import generate
 from .zed import Zed, zed
-from .frontend import native, decl, expr
+from .frontend import native, decl, expr, invocation
 
 
-POPULATION_SIZE = 100
+POPULATION_SIZE = 5
 MAX_GENERATIONS = 50
 MAX_DEPTH = 15
 ELITISM_SIZE = 1
@@ -21,6 +21,7 @@ TOURNAMENT_SIZE = 10
 PROB_XOVER = 0.90
 PROB_MUT = 0.0
 
+MAX_TRIES_TO_GEN_CHILD = 100 # random generation
 N_TRIES_REFINEMENT_CHECK = 100
 MAX_TRIES_Z3 = 100
 QUICKCHECK_SIZE = 100
@@ -29,9 +30,11 @@ TIMEOUT_RUN = 5
 MIN_DOUBLE = -100
 MAX_DOUBLE = 100
 
-MIN_INT = -100
-MAX_INT = 100
+MIN_INT = -10
+MAX_INT = 10
 
+class MaxDepthException(Exception):
+    pass
 
 def t_i_c():
     return copy.deepcopy(t_i)
@@ -75,6 +78,7 @@ class Synthesiser(object):
         self.random.seed(1)
         self.refined = refined
         self.outputdir = outputdir
+        self.var_counter = 0
         
         self.program_evaluator = copy.deepcopy(root)
         self.function_template = get_fun(root, function_name)
@@ -89,13 +93,25 @@ class Synthesiser(object):
         print(20*"-")
         print("GA")
         print(20*"-")
-        print("looking for source code that satisfies type", goal_type)
+        print("looking for source code that satisfies type", self.type)
         print("within the context of function", function_name)
         print("with type", function_type)
         print(20*"-")
+        
+    def next_var(self):
+        return "v{}".format(self.var_count)
+        self.var_count += 1
     
     def compile(self, program, name, compile_java=False):
-        ast, context, tcontext = typecheck(program, refined=False) #, refined=False
+        try:
+            ast, context, tcontext = typecheck(program, refined=False)
+        except TypeException as t:
+            print(t)
+            print("Given:")
+            print(t.given)
+            print("Expected:")
+            print(t.expected)
+            sys.exit(-1)
         output = generate(ast, context, tcontext, class_name=name, generate_file=True, outputdir=self.outputdir)
         
         if compile_java:
@@ -198,13 +214,21 @@ class Synthesiser(object):
         return status
 
     def prepare_arguments(self, types, tests, counter=0):
-        t = types.pop(0)
         
+        if not types:        
+            lambda_do_body = Node('block', *tests)
+            return Node('invocation', 'GA.genTests', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                Node('lambda', [], lambda_do_body)
+            ])
+
+        t = types.pop(0)
+        print("Considering ", t)
         if t.conditions:
             conditions_to_consider = [ c for c in t.conditions if not self.depends_on_indices(c) ]
         else:
             conditions_to_consider = []
-        
+    
         if len(conditions_to_consider) > 1:            
             cs = [ c for c in t.conditions if not self.depends_on_indices(c) ]
             print(cs)
@@ -277,13 +301,14 @@ class Synthesiser(object):
         n = native.parse_strict
         fn_genInteger = n("native GA.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
         fn_genObject = n("native GA.genObject : T => (_:Integer, _:T, _:(T) -> Boolean, _:(T) -> Void) -> _:Void")
+        fn_genTests = n("native GA.genTests : (_:Integer, _:() -> Void) -> _:Void")
         fn_out = n("native System.out.println : (_:Double) -> _:Void")
         fn_addFitness = n("native GA.addFitness : (_:Integer, _:Double) -> _:Double")
         fn_getFitness = n("native GA.getFitness : () -> _:Double")
         fn_if = n("native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T")
         fn_abs = n("native Math.abs : T => (_:Double) -> _:Double")
         helpers = [fn_if, fn_abs]
-        p = dependencies +  helpers + fn_targets + [fn_genInteger, fn_genObject, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
+        p = dependencies +  helpers + fn_targets + [fn_genInteger, fn_genObject, fn_genTests, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
         
         p = self.filter_duplicate_natives(p)
         
@@ -304,7 +329,12 @@ class Synthesiser(object):
                     passed.append(d)
         return passed
         
+
     def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False, full=False):
+        if depth >= max_depth:
+            constructors_only = True
+        if depth > max_depth:
+            raise MaxDepthException("Max depth exceeded!")
         
         def random_int_literal(tp, **kwargs):
             def wrap(v):
@@ -366,24 +396,31 @@ class Synthesiser(object):
             for decl in self.context.stack[0]:
                 decl_t = self.context.stack[0][decl]
                 if self.typechecker.is_subtype(decl_t.type, tp): # TODO generic
-                    if no_args:
+                    if no_args or constructors_only:
                         if decl_t.lambda_parameters != []:
                             continue
                     if decl != self.function_name:
+                        
+                        if decl_t.binders:
+                            # Handle generic return type
+                            decl_t = self.typechecker.unify(decl_t, return_type=tp)
+                            # TODO - generate other types
                         options.append((decl, decl_t))
                         
             if not options:
                 if level == 0:
                     return random_invocation(tp, no_args=False, level=1, **kwargs)
                 else:
-                    print("No options for type:", str(tp))
-                    sys.exit(1)
+                    return None
             
             if options:
                 f, ft = random.choice(options)
-                args = [ self.random_ast(at, depth+1) for at in ft.lambda_parameters ]
-                if all(args):
-                    return Node('invocation', f, args)
+                try:
+                    args = [ self.random_ast(at, depth+1) for at in ft.lambda_parameters ]
+                    if all(args):
+                        return Node('invocation', f, args)
+                except MaxDepthException:
+                    return None
             else:
                 return None
             
@@ -406,58 +443,66 @@ class Synthesiser(object):
                 return Node(self.random.choice(['&&', '||']), a1, a2)
             else:
                 return None
+        
+        def random_lambda(tp, **kwargs):
+            return Node('lambda', 
+                [ Node('arg', self.next_var(), t) for t in tp.lambda_parameters ],
+                self.random_ast(tp.type, depth+1))
                 
         possible_generators = []
         
-        if constructors_only:
-            possible_generators.append(random_invocation)
-            k = None
-            while not k:
-                k = random.choice(possible_generators)(tp, no_args=True)
-            return k
-
-        
-        #if tp.
-
-
-        if tp == t_i:
-            possible_generators.append(random_int_literal)
-        if tp == t_b:
-            possible_generators.append(random_boolean_literal)
-        if tp == t_f:
-            possible_generators.append(random_double_literal)
-        if tp == t_s:
-            possible_generators.append(random_string_literal)
-        if self.context.variables():
-            possible_generators.append(random_atom)
-        
-        if full:
-            possible_generators.extend([ random_invocation for _ in range(10)])
+        if tp.lambda_parameters != None:
+            possible_generators.append(random_lambda)
         else:
+        
+            if tp == t_i:
+                possible_generators.append(random_int_literal)
+            if tp == t_b:
+                possible_generators.append(random_boolean_literal)
+            if tp == t_f:
+                possible_generators.append(random_double_literal)
+            if tp == t_s:
+                possible_generators.append(random_string_literal)
+                
+            if self.context.variables():
+                possible_generators.append(random_atom)
+        
+            if constructors_only:
+                possible_generators.append(random_invocation)
+                k = None
+                while not k:
+                    k = random.choice(possible_generators)(tp, no_args=True)
+                return k
+        
             possible_generators.append(random_invocation)
+            possible_generators.append(random_operator)
+                
         if depth >= max_depth:
             if possible_generators:
                 k = random.choice(possible_generators)(tp, no_args=False)
             else:
                 print("Could not finish ", tp)
-
-
-        #if any([tp == t for t in [t_i, t_f, t_b]]):
-        #    possible_generators.append(random_operator)
-        
-        #possible_generators.append(random_let)
         
         if not possible_generators:
-            raise Exception("Could not generate random code for type {}", tp)
+            raise Exception("Could not generate random code for type {}.".format(tp))
         k = None
+        i = 0
         while not k:
-            k = random.choice(possible_generators)(tp)
+            try:
+                k = random.choice(possible_generators)(tp)
+            except MaxDepthException as e:
+                pass
+            i+=1
+            if i > MAX_TRIES_TO_GEN_CHILD:
+                raise Exception("Could not generate random code for type {}".format(tp))
+                
         return k
         
     
     def random_individual(self, max_depth=MAX_DEPTH):
         for i in range(N_TRIES_REFINEMENT_CHECK):
             c = self.random_ast(tp=self.type, max_depth=max_depth)
+            print("testing... ", pp(c))
             if c and self.validate(c):
                 return c
         raise Exception("Could not generate AST for type {}".format(self.type))
@@ -471,7 +516,7 @@ class Synthesiser(object):
         try:
             typecheck(program, refined=self.refined)
             return nf
-        except Exception as e:
+        except Exception as c:
             return False
         
     
@@ -582,7 +627,7 @@ class Synthesiser(object):
         
             
     def evolve(self):
-        population = [ self.random_individual(max_depth=2) for i in range(POPULATION_SIZE) ]
+        population = [ self.random_individual() for i in range(POPULATION_SIZE) ]
         
         for i in range(MAX_GENERATIONS):
             print("Generation", i)
@@ -624,8 +669,7 @@ class Synthesiser(object):
         
         
 def synthesise_with_outputdir(outputdir):
-    def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False, outputdir="bin"):
-    
+    def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False):
         s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined, outputdir)
     
         candidates = s.evolve()

@@ -7,6 +7,31 @@ from .typestructure import *
 from .zed_translate import translate
 
 
+class AstRefKey:
+    def __init__(self, n):
+        self.n = n
+    def __hash__(self):
+        return self.n.hash()
+    def __eq__(self, other):
+        return self.n.eq(other.n)
+    def __repr__(self):
+        return str(self.n)
+
+def askey(n):
+    assert isinstance(n, z3.AstRef)
+    return AstRefKey(n)
+
+def get_z3_vars(st):
+    r = set()
+    def collect(f):
+      if z3.is_const(f): 
+          if f.decl().kind() == z3.Z3_OP_UNINTERPRETED and not askey(f) in r:
+              r.add(askey(f))
+      else:
+          for c in f.children():
+              collect(c)
+    collect(st)
+    return list(r)
 
 class Zed(object):
     def __init__(self):
@@ -69,7 +94,6 @@ class Zed(object):
             invocation_name = "return_of_invocation_{}".format(self.get_counter())
             invocation_var = self.z3_type_constructor(return_type)(invocation_name)
             self.context[invocation_name] = invocation_var
-
             vars.append(invocation_var)
         else:
             vars.append(None)
@@ -94,7 +118,7 @@ class Zed(object):
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
-                #print(self.solver)
+                #´self.solver)
                 #print("Failed on ", zc(vars))
                 return False, None
             elif r == z3.sat:
@@ -201,14 +225,62 @@ class Zed(object):
             self.convert_once(t1)
             self.convert_once(t2)
             
-            if under:
-                self.convert_once(under[0])
             
-            new_name = z3.Int("v_{}".format(self.get_counter()))
+            make_new_name = lambda: z3.Int("value_{}".format(self.get_counter()))
+            new_name = make_new_name()
             
             (t1_name, t1_assertions) = self.refine(t1, new_name)
             (t2_name, t2_assertions) = self.refine(t2, new_name, new_context=True)
+            
             if under:
+                (function_type, argtypes) = under
+                self.convert_once(function_type)
+                
+                z_argtypes = [ self.refine(self.convert_once(v), make_new_name()) for v in argtypes ]
+                z_argtypes_names = [ t[0] for t in z_argtypes ]
+                z_argtypes_expr = [ t[1] for t in z_argtypes ]
+
+                # Post-condition: f_under
+                f_name, f_under = self.refine(function_type, new_name, extra=z_argtypes_names)
+                postconditions = z3.And(f_under,  t2_assertions)
+                
+                # Pre-condition: z_argtypes + f_preconditions
+                if function_type.zed_pre_conditions:
+                    f_preconditions = reduce(z3.And, [ c([f_name] + z_argtypes_names) for c in function_type.zed_pre_conditions], True)
+                else:
+                    f_preconditions = True
+                    
+
+                preconditions = z3.And(reduce(z3.And, [ z for z in z_argtypes_expr if z != None], True), f_preconditions)
+                definition = z3.And(t1_name == new_name, reduce(z3.And, copy.deepcopy(self.solver.assertions()), True))
+                
+                vars = get_z3_vars(preconditions) + get_z3_vars(definition) + get_z3_vars(postconditions)
+                vars = [v.n for v in vars]
+                
+                print("preconditions: ", preconditions)
+                print("definition: ", definition)
+                print("postconditions: ", postconditions)
+                
+
+                s = z3.Solver()
+                s.push()
+                s.add(z3.ForAll(vars, z3.Implies( 
+                        z3.And(preconditions, definition),
+                        postconditions
+                )))
+                
+                ver = s.check()
+                print("Solver")
+                print(s)
+                s.pop()
+                if ver == z3.unsat:
+                    return False
+                elif ver == z3.sat:
+                    return True
+                else:
+                    print("Unknown verification", self.solver)
+                    return True
+                
                 def wrap(i, t):
                     a,b = self.refine(self.convert_once(t), new_name)
                     return a
@@ -223,6 +295,19 @@ class Zed(object):
                         t1_assertions = extra_pre
                     else:
                         t1_assertions = z3.And(t1_assertions, extra_pre)
+                else:
+                    if t1_assertions == None:
+                        t1_assertions = True       
+        
+                definition = t1_assertions
+                conclusion = t2_assertions
+                variables = argtypes
+                
+                final = z3.ForAll(variables, z3.Implies(definition, conclusion))
+                self.solver.push()
+                self.solver.add(final)
+
+                self.solver.pop()
 
             
             if t1_assertions != None:
@@ -233,10 +318,10 @@ class Zed(object):
                 
             
             self.solver.add( z3.Not(t2_assertions))
+            
             r = self.solver.check()
-            #if r == z3.sat:
+            #if r == z3.unsat:
             #    print(self.solver)
-            #    print(self.solver.model())
             self.solver.pop()
             if r == z3.sat:
                 t1.refined_value = self.solver.model()[t1_name] # Error handling

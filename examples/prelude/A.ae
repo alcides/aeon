@@ -1,5 +1,3 @@
-# TODO: type T => java.util.ArrayList<T> as T => A.Array<T> { size:Integer trackedBy A.size } where [ self.size >= 0 ] 
-
 type T => java.util.ArrayList<T> as T => A.Array<T> { size:Integer trackedBy A.size } where [ self.size >= 0 ]
 
 native A.array : T => (size : Integer, o:T) -> res:A.Array<T> where [ size >= 0 and res.size == size ] 
@@ -25,3 +23,7 @@ native A.reduce : T => (arr: A.Array<T>, f: (T,T) -> T) -> _:T where [ arr.size 
 native A.forAll : T => (arr: A.Array<T>, f: (Integer) -> Boolean) -> _:Boolean
 
 native A.append : T => (arr: A.Array<T>, e:T) -> out: A.Array<T> where [out.size == (arr.size + 1)]
+
+native A.randomIntArray : () -> _:A.Array<Integer>
+
+    
