@@ -1,8 +1,6 @@
 import z3
 
-def wrap(n):
-    print("n:", n)
-    return n
+global_vars = None
 
 def translate_h(n):
     if n.nodet == 'atom':
@@ -15,7 +13,7 @@ def translate_h(n):
             return True, lambda args: args[1 + i]
         else:
             print("unknown atom in z3 conversion", n.nodes[0])
-            return False, None
+            return True, lambda args: args[n.nodes[0]] # lousy hack
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
     elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '||', '&&']:
@@ -56,7 +54,7 @@ def translate_h(n):
     print("unknown node in Z3 conversion!!!!", n.nodet)
     return False, None
 
-def translate(predicates):
+def translate(predicates, vars = None):    
     z3_predicates = []
     for p in predicates:
         ok, cond_l = translate_h(p)

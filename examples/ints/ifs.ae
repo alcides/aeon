@@ -1,0 +1,11 @@
+import ..prelude.J
+
+main : (args:Array<String>) -> _:Void { 
+    a = 1
+    b : {Integer where self == 1} = J.iif( a == 1, () -> { a }, () -> { 1 } )
+}
+
+
+f : (a:Integer) -> b:Integer where [ b == 2] {
+    J.iif( a == 2, () -> { a }, () -> { 2 } )
+}

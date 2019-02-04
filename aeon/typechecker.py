@@ -113,7 +113,7 @@ class TypeContext(object):
                         return (a, ft_concrete_r)
             return (False, None)
         else:
-            valid = all([ self.is_subtype(a, b, new_context=True) for a,b in zip(args, ft.lambda_parameters) ])
+            valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 
     def get_type_property(self, target_type, property_name):
@@ -322,8 +322,10 @@ class TypeChecker(object):
                 )
 
         if self.refined:
-            
-            ok, ref_name = zed.refine_function_invocation(name, concrete_type, actual_argument_types)
+            if name == "J.iif":
+                ok, ref_name = zed.refine_function_invocation(name, concrete_type, actual_argument_types, cond=n.nodes[1][0])
+            else:
+                ok, ref_name = zed.refine_function_invocation(name, concrete_type, actual_argument_types)
             if not ok:
                 self.type_error("Refinement checking failed for invocation {} in {}".format(name, pp(n)),
                 expected=concrete_type,
@@ -365,7 +367,6 @@ class TypeChecker(object):
             n.type = self.typecontext.handle_aliases(n.nodes[2])
             if not n.coerced:
                 self.typecheck(n.nodes[1], expects=n.type)
-                print("checking", n.nodes[1].type, n.type)
                 if not self.is_subtype(n.nodes[1].type, n.type):
                     self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type),
                     expected=n.type,
@@ -387,6 +388,9 @@ class TypeChecker(object):
         elif n.nodet in ["<", "<=", ">", ">=", "==", "!="]:
             n.type = t_b
             self.typelist(n.nodes)
+            if self.refined:
+                n.type.refined = zed.combine(n.type, n.nodet, n.nodes)
+                n.type.context = zed.copy_assertions()
         elif n.nodet in ["+", "-", "*", "/", "%"]:
             self.typelist(n.nodes)
             n.type = t_i if all([ k.type == t_i for k in n.nodes]) else t_f

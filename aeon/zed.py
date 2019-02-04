@@ -75,14 +75,12 @@ class Zed(object):
             # TODO
             raise Exception("Unknown Type Constructor", t)
 
-    def refine_function_invocation(self, name, ft, argts):
-        
+    def refine_function_invocation(self, name, ft, argts, cond=None):
         self.convert_once(ft)
         invocation_name = None
-
         return_type = ft.type
-            
         vars = []
+
         
         if self.is_refined(return_type):
             invocation_name = "return_of_invocation_{}".format(self.get_counter())
@@ -96,8 +94,21 @@ class Zed(object):
             if self.is_refined(ar):
                 vars.append(self.context[ar.refined])
             else:
-                print(ar, "1")
                 vars.append(None)
+                
+                
+        if name == 'J.iif' and self.is_refined(ft.type):
+            if hasattr(cond.type, "refined"):
+                c = self.context[cond.type.refined]
+                then_ = self.context[argts[1].type.refined]
+                else_ = self.context[argts[2].type.refined]
+                st = z3.Or(
+                    z3.And(invocation_var == then_, c),
+                    z3.And(invocation_var == else_, z3.Not(c))
+                )
+                self.solver.add(st)
+            
+
 
         zcs = []
         if ft.preconditions:
@@ -168,6 +179,10 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add( combiner_var == a % b )
+            elif nodet == '==':
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add( combiner_var == (a == b) )
             else:
                 print("TODO zed", nodet)
         elif self.is_refined(nodes[0].type):
