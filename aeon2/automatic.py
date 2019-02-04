@@ -5,7 +5,6 @@ import subprocess
 from functools import reduce
 from .typechecker import typecheck, TypeException
 from .typestructure import *
-from .prettyprinter import prettyprint as pp
 from .codegen import generate
 from .zed import Zed, zed
 from .frontend import native, decl, expr, invocation
@@ -224,17 +223,17 @@ class Synthesiser(object):
 
         t = types.pop(0)
         print("Considering ", t)
-        if t.conditions:
-            conditions_to_consider = [ c for c in t.conditions if not self.depends_on_indices(c) ]
+        if t.refinements:
+            refinements_to_consider = [ c for c in t.refinements if not self.depends_on_indices(c) ]
         else:
-            conditions_to_consider = []
+            refinements_to_consider = []
     
-        if len(conditions_to_consider) > 1:            
-            cs = [ c for c in t.conditions if not self.depends_on_indices(c) ]
+        if len(refinements_to_consider) > 1:            
+            cs = [ c for c in t.refinements if not self.depends_on_indices(c) ]
             print(cs)
             lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), cs)
-        elif len(conditions_to_consider) == 1:            
-            lambda_cond_body = t.conditions[0]
+        elif len(refinements_to_consider) == 1:            
+            lambda_cond_body = t.refinements[0]
         else:
             lambda_cond_body = Node('literal', True, type=t_b_c())
             
@@ -265,12 +264,12 @@ class Synthesiser(object):
             for nat in self.root if nat.nodet in ['native', 'type']
         ]
         
-        tests = [ self.compile_condition(i, cond, ftype) for i, cond in enumerate(ftype.conditions) ]
+        tests = [ self.compile_condition(i, cond, ftype) for i, cond in enumerate(ftype.refinements) ]
         
         args = [ Node('atom', '__argument_{}'.format(i)) for i, v in enumerate(ftype.lambda_parameters) ]
         
         call = Node('let', '__return_0', Node('invocation', "Candidate.{}".format(fname), args), ftype.type)
-        tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.conditions) if tests[i] ]
+        tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.refinements) if tests[i] ]
         tests = [ t for t in tests if t ]
         
         
@@ -344,7 +343,7 @@ class Synthesiser(object):
                     return MIN_INT
                 return v
             v = wrap(int(random.gauss(0,(MAX_INT - MIN_INT)/3.0)))
-            if tp.conditions and self.refined:
+            if tp.refinements and self.refined:
                 key = str(tp)
                 if key in self.cached_z3_random:
                     options = self.cached_z3_random[key]

@@ -1,0 +1,14 @@
+import ..prelude.J
+import ..prelude.IntList
+
+
+reverse : (ar:IntList) -> out:IntList {
+    size = IntList.size(ar)
+    indices = IntList.range(0, size)
+    IntList.map(indices, (i:Integer) -> IntList.get(ar, (size - 1) - i) )
+} 
+
+main : (args:Array<String>) -> _:Void { 
+   exampleList : IntList = IntList.range(0, 1000)
+   J.out(IntList.get(reverse(exampleList), 0))
+}

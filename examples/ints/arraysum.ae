@@ -1,0 +1,12 @@
+import ..prelude.J
+import ..prelude.IntList
+
+
+arraySum : (ar:IntList) -> i:Integer {
+  IntList.reduce(ar, (i:Integer, j:Integer) -> i + j)
+} 
+
+main : (args:Array<String>) -> _:Void { 
+   exampleList : IntList = IntList.range(0, 1000)
+   J.out(arraySum(exampleList))
+}

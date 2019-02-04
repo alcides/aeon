@@ -10,7 +10,10 @@ def prettyprint(n):
     elif n.nodet == 'invocation':
         return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1]))))
     elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
-        return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
+        if len(n.nodes) == 2:
+            return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
+        else:
+            return "({} {})".format(n.nodet, prettyprint(n.nodes[0]))
     elif n.nodet == 'literal':
         return str(n.nodes[0])
     elif n.nodet == 'let':

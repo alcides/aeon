@@ -1,8 +1,8 @@
-type FileH as File where [ self.open >= 0 ]
+type FileH { open : Integer } as File  where [ self.open >= 0 ]
 
-type FileH as OpenFile where [ self.open == 1 ]
+type FileH { open : Integer } as OpenFile where [ self.open == 1 ]
 
-type FileH as ClosedFile where [ self.open == 0 ]
+type FileH { open : Integer } as ClosedFile where [ self.open == 0 ]
 
 native FileH.mkFileH : () -> fp:ClosedFile where [fp.open == 0]
 

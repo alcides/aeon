@@ -60,7 +60,7 @@ class Zed(object):
         return self.context[n]
 
     def is_refined(self,t):
-        ir = t == Type('Double') or t == Type('Integer') or (hasattr(t,'conditions') and t.conditions) or (hasattr(t,'properties') and t.properties) # TODO: Clean this up
+        ir = t == Type('Double') or t == Type('Integer') or (hasattr(t,'conditions') and t.conditions) # TODO: Clean this up
         return bool(ir)
 
     def z3_type_constructor(self, t):
@@ -96,7 +96,6 @@ class Zed(object):
             if self.is_refined(ar):
                 vars.append(self.context[ar.refined])
             else:
-                print(ar, "1")
                 vars.append(None)
 
         zcs = []
@@ -104,7 +103,8 @@ class Zed(object):
             zcs.extend(ft.zed_pre_conditions)
         if ft.conditions:
             zcs.extend(ft.zed_conditions)
-            
+
+  
         for zc in zcs:
             statement = zc(vars)
             self.solver.push()
@@ -132,7 +132,7 @@ class Zed(object):
             return atom_name
 
     def make_literal(self, t, v):
-        lit_name = "literal_{}_{}".format(t.type, str(v))
+        lit_name = "literal_{}_{}".format(t.type, self.get_counter())
         lit_var = self.z3_type_constructor(t)(lit_name)
         self.context[lit_name] = lit_var # TODO: production
         
@@ -182,9 +182,9 @@ class Zed(object):
 
     def universe(self, t):
         if t.type == 'Integer':
-            return lambda args: True #z3.Or(args[0] == 0, args[0] != 0)
+            return lambda args: z3.Or(args[0] == 0, args[0] != 0)
         elif t.type == 'Double':
-            return lambda args: True #z3.Or(args[0] == 0, args[0] != 0)
+            return lambda args: z3.Or(args[0] == 0, args[0] != 0)
         else:
             return lambda args: True
 
@@ -266,9 +266,9 @@ class Zed(object):
             vars = get_z3_vars(preconditions) + get_z3_vars(definition) + get_z3_vars(postconditions)
             vars = list(set([v.n for v in vars]))
             
-            s = self.solver
+            s = z3.Solver()
             s.push()
-            s.add(z3.Not(z3.Implies( 
+            s.add(z3.ForAll(vars, z3.Implies( 
                     z3.And(preconditions, definition),
                     postconditions
             )))
@@ -279,12 +279,10 @@ class Zed(object):
             ver = s.check()
             s.pop()
             if ver == z3.unsat:
-                s.add(definition)
-                return True
-            elif ver == z3.sat:
                 return False
+            elif ver == z3.sat:
+                return True
             else:
-                s.add(definition)
                 print("Unknown verification in function return")
                 return True
         return True

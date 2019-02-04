@@ -1,4 +1,4 @@
-type T => java.util.ArrayList<T> as T => A.Array<T> { size:Integer trackedBy A.size } where [ self.size >= 0 ]
+type T => java.util.ArrayList<T>  { size:Integer trackedBy A.size } where [ self.size >= 0 ] as T => A.Array<T>
 
 native A.array : T => (size : Integer, o:T) -> res:A.Array<T> where [ size >= 0 and res.size == size ] 
 

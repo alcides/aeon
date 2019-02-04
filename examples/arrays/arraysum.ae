@@ -8,6 +8,6 @@ arraySum : (ar:A.Array<Integer>) -> i:Integer {
 } 
 
 main : (args:Array<String>) -> _:Void { 
-   exampleList = A.range(0,100000)
+   e : A.Array<Integer> = A.range(0, 1000)
    J.out(arraySum(exampleList))
 }

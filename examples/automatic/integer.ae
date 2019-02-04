@@ -1,9 +1,13 @@
 import ..prelude.J
+    
+safezero : (i:Integer) -> out:Integer where [out != 0] {
+    r !: {Integer where self != 0} = J.iif(i == 0, () -> 1, () -> i)
+    r
+}
 
-native Math.abs : (in:Integer) -> out:Integer where [ out == J.iif(in>=0, () -> in, () -> -in) ]
-
-three : (i:Integer) -> out:Integer where [ out >= 0 ] {
-	Math.abs(3*i)
+three : (i:Integer) -> out:Integer where [ out == (3*i) ] {
+    a : {Integer where self != 0} = i
+    3*i
 }
 
 main : (_:Array<String>) -> _:Void {

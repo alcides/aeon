@@ -28,6 +28,12 @@ class TypeContext(object):
         self.type_aliases[t1] = t2.copy()
         
     def handle_aliases(self, t, recursive=False):
+        
+        for t1 in self.types:
+            if t == t1:
+                if t1.properties != t.properties:
+                    t.properties.extend([p for p in t1.properties])
+                    return self.handle_aliases(t)
 
         if recursive and type(t) == Type:
             t.type = self.handle_aliases(t.type)
@@ -291,7 +297,7 @@ class TypeChecker(object):
         if t_name.lambda_parameters == None:
             self.type_error("Function {} is not callable".format(name))
 
-        actual_argument_types = [ c.type for c in n.nodes[1] ]
+        actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
         
         if len(actual_argument_types) != len(t.lambda_parameters):
             self.type_error(
@@ -303,7 +309,8 @@ class TypeChecker(object):
     
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
-            n.type = concrete_type.type # Return type
+            concrete_type.type = self.typecontext.resolve_type(concrete_type.type) # Return type
+            n.type = concrete_type.type
         else:
             self.type_error("Wrong argument types for {} | Expected {} -- Got {}".format(
                             name,
@@ -315,7 +322,8 @@ class TypeChecker(object):
                 )
 
         if self.refined:
-            ok, ref_name = zed.refine_function_invocation(concrete_type, actual_argument_types)
+            
+            ok, ref_name = zed.refine_function_invocation(name, concrete_type, actual_argument_types)
             if not ok:
                 self.type_error("Refinement checking failed for invocation {} in {}".format(name, pp(n)),
                 expected=concrete_type,
@@ -323,10 +331,6 @@ class TypeChecker(object):
             if ref_name:
                 n.type.refined = ref_name
                 n.type.context = zed.copy_assertions()
-                
-            
-            if name == 'J.iif':
-                zed.assert_if(n.type, actual_argument_types[1], actual_argument_types[2] )
 
     def t_lambda(self, n, expects=None):
         args = [ c[1] for c in n.nodes[0] ]
@@ -358,10 +362,14 @@ class TypeChecker(object):
 
     def t_let(self, n, expects=None):
         if len(n.nodes) > 2 and n.nodes[2]:
-            n.type = n.nodes[2]
-            self.typecheck(n.nodes[1], expects=n.type)
-            if not self.is_subtype(n.nodes[1].type, n.type):
-                self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type))
+            n.type = self.typecontext.handle_aliases(n.nodes[2])
+            if not n.coerced:
+                self.typecheck(n.nodes[1], expects=n.type)
+                print("checking", n.nodes[1].type, n.type)
+                if not self.is_subtype(n.nodes[1].type, n.type):
+                    self.type_error("Variable {} is not of type {}, but rather {}".format(n.nodes[0], n.type, n.nodes[1].type),
+                    expected=n.type,
+                    given = n.nodes[1].type)
         else:
             self.typecheck(n.nodes[1], expects=expects)
             n.type = n.nodes[1].type

@@ -4,7 +4,7 @@ import os.path
 import copy
 from parsec import *
 
-from .ast import Node
+from .ast import *
 from .typestructure import *
 
 ext = 'ae'
@@ -34,10 +34,10 @@ pipe = t('|')
 comma = t(',')
 arrow = t('->')
 fatarrow = t('=>')
-hole = t('…').result(Node('hole'))
-true = t('true').result(Node('literal', True, type=t_b))
-false = t('false').result(Node('literal', False, type=t_b))
-null = t('null').result(Node('literal', "null", type=t_n))
+hole = t('…').result(Hole())
+true = t('true').result(Literal(True, type=t_b))
+false = t('false').result(Literal(False, type=t_b))
+null = t('null').result(Literal(None, type=t_n))
 symbol = lexeme(regex(r'[.\d\w_]+'))
 
 
@@ -53,9 +53,9 @@ def number():
     '''Parse number.'''
     def fa(x):
         if "." not in x:
-            return Node('literal', int(x), type=copy.deepcopy(t_i))
+            return Literal(int(x), type=copy.deepcopy(t_i))
         else:
-            return Node('literal', float(x), type=copy.deepcopy(t_f))
+            return Literal(float(x), type=copy.deepcopy(t_f))
 
     return lexeme(
         regex(r'(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')
@@ -92,7 +92,7 @@ def invocation():
     if name.split(".")[-1].isdigit():
         v = int(name.split(".")[-1])
         name = ".".join(name.split(".")[:-1]) # remove .1
-    return Node('invocation', name, args, version=v)
+    return Invocation(name, args, version=v)
 
 
 
@@ -103,10 +103,10 @@ def expr_wrapped():
     return o
 
 # helper
-rotate = lambda x: Node(x[0][1], x[0][0], x[1])
-makeblock = lambda xs: Node('block', *xs)
+rotate = lambda x: Operator(x[0][1], x[0][0], x[1])
+makeblock = lambda xs: Block(*xs)
 
-symbol_e = symbol.parsecmap(lambda x: Node('atom', x))
+symbol_e = symbol.parsecmap(lambda x: Atom(x))
 block = (lbrace >> many(expr_wrapped)  << rbrace).parsecmap(makeblock)
 
 @lexeme
@@ -117,24 +117,27 @@ def lambd():
     yield rpars
     yield arrow
     e = yield block ^ expr
-    return Node('lambda', args, e)
+    return LambdaExpression(map(lambda p: Argument(name=p[0], type=p[1]), args), e)
 
 
 @lexeme
 @generate
 def let():
-    typ = None
     s = yield symbol
     coerc = yield (colon ^ bangcolon) ^ t("")
     if coerc:
         typ = yield typee
+        coerced = True
+    else:
+        typ = None
+        coerced = False
     yield op_5
     definition = yield expr_4
-    return Node('let', s, definition, typ, coerced=coerc=="!:")
+    return Let(s, definition, type=typ, coerced=coerced)
 
 
 atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole
-expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
+expr_0 = (op_2 + atom).parsecmap(lambda x:Operator(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
 #expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
@@ -149,7 +152,10 @@ expr = let ^ expr_4
 def basic_type():
     b = yield symbol
     ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
-    return Type(basic=b, type_arguments=ks and ks[0] or None)
+    if ks:
+        return ParametricType(basic=b, type_arguments=ks[0])
+    else:
+        return BasicType(basic=b)
 
 @lexeme
 @generate
@@ -157,8 +163,7 @@ def polymorphic_type():
     args = yield sepBy(symbol, comma)
     yield fatarrow
     t = yield basic_type
-    t.binders = args
-    return t
+    return PolyType(binders=args, term=t)
 
 @lexeme
 @generate
@@ -168,7 +173,7 @@ def lambda_type():
     yield rpars
     yield arrow
     rt = yield basic_type
-    return Type(basic=rt, lambda_parameters = args)
+    return FunctionType(return_type=rt, parameter_types=args)
     
 @lexeme
 @generate
@@ -178,8 +183,7 @@ def refined_type():
     yield t("where")
     ls = yield sepBy(expr, t("and"))
     yield t("}")
-    rt = Type(basic=basic_t, conditions = ls)
-    rt.set_conditions(ls, ['self'], [])
+    rt = BasicType(basic=basic_t, refinements = ls)
     return rt
     
 
@@ -201,7 +205,7 @@ def decl_args():
     arg = yield symbol
     yield colon
     typ = yield typee
-    return Node('argument', arg, typ)
+    return Argument(arg, typ)
 
 
 @lexeme
@@ -241,7 +245,7 @@ def where():
     yield t("[")
     ls = yield sepBy(expr, t("and"))
     yield t("]")
-    return makeblock(ls)
+    return ls
     
 @generate
 def tracked_arg():
@@ -249,7 +253,7 @@ def tracked_arg():
     yield colon
     typ = yield typee
     trackedBy = yield (t("trackedBy") >> symbol ) ^ t("")
-    return Node('argument', arg, typ, trackedBy)
+    return Argument( arg, typ, trackedBy)
     
 @lexeme
 @generate
@@ -266,37 +270,37 @@ def effects():
     yield t("[")
     ls = yield sepBy(expr, t("and"))
     yield t("]")
-    return makeblock(ls)
+    return ls
 
 @lexeme
 @generate
 def decl_native_shared():
-    name, args, ret, free = yield decl_header_with_parameters ^ decl_header
-    conditions = yield where ^ t("")
+    name, args, ret, tpars = yield decl_header_with_parameters ^ decl_header
+    refinements = yield where ^ t("")
     effs = yield effects ^ t("")
-    if not conditions:
-        conditions = None
+    if not refinements:
+        refinements = None
     if not effs:
         effs = None
-    return name, args, ret, free, conditions, effs
+    return name, args, ret, tpars, refinements, effs
 
 @lexeme
 @generate
 def decl():
     '''Parse function declaration.'''
-    name, args, ret, free, conditions, effs = yield decl_native_shared
+    name, args, ret, tpars, refinements, effs = yield decl_native_shared
     yield lbrace
     body = yield many(expr).parsecmap(makeblock)
     yield rbrace
-    return Node('decl', name, args, ret, free, conditions, effs, body)
+    return FunctionDecl(name, args, ret, tpars, refinements, effs, body)
 
 @lexeme
 @generate
 def native():
     '''Parse function declaration.'''
     yield t("native")
-    name, args, ret, free, conditions, effs = yield decl_native_shared
-    return Node('native', name, args, ret, free, conditions, effs)
+    name, args, ret, free, refinements, effs = yield decl_native_shared
+    return FunctionDecl(name, args, ret, free, refinements, effs)
 
 
 @lexeme
@@ -306,11 +310,11 @@ def typedecl():
     yield t("type")
     imported = yield polymorphic_type ^ typee
     properties = yield tracked_args ^ t("")
-    conditions = yield where ^ t("")
+    refinements = yield where ^ t("")
     alias = yield (t("as") >> (polymorphic_type ^ typee)) ^ t("")
-    return Node('type', imported, alias, conditions, properties)
+    return TypeDecl(imported, alias, properties, refinements)
 
-imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
+imprt = t('import') >> symbol.parsecmap(lambda x: Import(x))
 
 program = ignore >> many(typedecl ^ native ^ imprt ^ decl)
 
@@ -319,8 +323,8 @@ cached_imports = []
 def resolve_imports(p, base_path=lambda x: x):
     n_p = []
     for n in p:
-        if n.nodet == 'import':
-            fname = n.nodes[0]
+        if type(n) is Import:
+            fname = n.name
             path = ""
             while fname.startswith(".."):
                 fname = fname[2:]
@@ -330,7 +334,7 @@ def resolve_imports(p, base_path=lambda x: x):
             if path not in cached_imports:
                 cached_imports.append(path)
                 ip = parse(path)
-                n_p.extend(ip)
+                n_p.extend(ip.declarations)
         else:
             n_p.append(n)
     return n_p
@@ -339,4 +343,4 @@ def parse(fname):
     txt = open(fname).read()
     p = program.parse_strict(txt)
     p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.{}".format(x, ext)))
-    return p
+    return Program(p)

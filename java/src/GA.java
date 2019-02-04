@@ -25,8 +25,10 @@ public class GA {
         subfitness += d;
         subvalues += 1;
       }
-      subfitness /= subvalues;
-      fitness += subfitness;
+      if (subvalues > 0) {
+          subfitness /= subvalues;
+          fitness += subfitness;
+      }
     }
     return fitness / fitnesses.size();
   }

@@ -1,10 +1,7 @@
 import z3
 
-def wrap(n):
-    print("n:", n)
-    return n
-
 def translate_h(n):
+
     if n.nodet == 'atom':
         if n.nodes[0].startswith('self'):
             return True, lambda args: args[0]

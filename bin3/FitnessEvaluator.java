@@ -36,7 +36,7 @@
 
  public static void main(String[] args) { aeminium.runtime.futures.RuntimeManager.init();
 
-            GA.genInteger(Integer.valueOf(100), Integer.valueOf(680), (Integer __return_0) -> { return (true); }, (Integer __argument_0) -> { Integer __return_0 = 
+            GA.genInteger(Integer.valueOf(100), Integer.valueOf(137), (Integer __return_0) -> { return (true); }, (Integer __argument_0) -> { Integer __return_0 = 
             Candidate.three(__argument_0)
         ;
 
