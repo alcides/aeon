@@ -444,7 +444,7 @@ class Synthesiser(object):
         
         def random_lambda(tp, **kwargs):
             return Node('lambda', 
-                [ Node('arg', self.next_var(), t) for t in tp.lambda_parameters ],
+                [ Node('argument', self.next_var(), t) for t in tp.lambda_parameters ],
                 self.random_ast(tp.type, depth+1))
                 
         possible_generators = []

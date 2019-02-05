@@ -17,7 +17,7 @@ done
 function prepare_java_sources {
    cp java/src/* $OUTPUTDIR/ && cp java/lib/* $OUTPUTDIR/
    rm -rf $OUTPUTDIR/*.class
-   cd $OUTPUTDIR/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar {A,D,F,GA,J,R,P,Box}.java && cd ..
+   cd $OUTPUTDIR/ && javac -Xdiags:verbose -cp .:AeminiumRuntime.jar {A,D,F,GP,J,R,P,Box,IntList}.java && cd ..
 }
 
 function clean_code {

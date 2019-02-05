@@ -4,7 +4,7 @@ import java.util.Random;
 import java.util.function.Predicate;
 import java.util.function.Consumer;
 
-public class GA {
+public class GP {
   public static HashMap<Integer,ArrayList<Double>> fitnesses = new HashMap<>();
   
   public static Double addFitness(Integer i, Double v) {

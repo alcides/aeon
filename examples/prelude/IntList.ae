@@ -1,12 +1,12 @@
-type IntList { size : Integer } where [ self.size >= 0 ]
+type IntList { size : Integer trackedBy IntList.size } where [ self.size >= 0 ]
 
-native IntList.array : (size : Integer, o:Integer) -> res:IntList where [ size >= 0 and res.size == size ] 
+native IntList.array : (size : {Integer where self >= 0}, o:Integer) -> res:IntList where [ res.size == size ] 
 
 native IntList.range : (mi : Integer, ma : Integer) -> res:IntList where [ mi <= ma and res.size == (ma - mi)]
 
-native IntList.get : (arr: IntList, index: Integer) -> p:Integer  where [ index >= 0 and index < arr.size ]
+native IntList.get : (arr: IntList, index: {Integer where self >= 0 and self < arr.size}) -> p:Integer
 
-native IntList.set : (arr: IntList, index: Integer, value:Integer) -> p:Integer  where [ index >= 0 and index < arr.size ]
+native IntList.set : (arr: IntList, index: {Integer where self >= 0 and self < arr.size}, value:Integer) -> p:Integer
 
 native IntList.size : (arr: IntList) -> r:Integer where [ r == arr.size ]
 
@@ -18,7 +18,7 @@ native IntList.map : Integer, Integer => (arr: IntList, f: (Integer) -> Integer)
 
 native IntList.copy : (arr: IntList) -> out:IntList where [ out.size == arr.size ]
 
-native IntList.reduce : (arr: IntList, f: (Integer,Integer) -> Integer) -> _:Integer where [ arr.size > 0 ]
+native IntList.reduce : (arr: {IntList where self.size > 0}, f: (Integer,Integer) -> Integer) -> _:Integer
 
 native IntList.forAll : (arr: IntList, f: (Integer) -> Boolean) -> _:Boolean
 

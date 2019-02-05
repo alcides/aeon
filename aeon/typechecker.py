@@ -31,9 +31,9 @@ class TypeContext(object):
         
         for t1 in self.types:
             if t == t1:
-                if t1.properties != t.properties:
-                    t.properties.extend([p for p in t1.properties])
-                    return self.handle_aliases(t)
+                for prop in t1.properties:
+                    if prop.nodes[0] not in [ p.nodes[0] for p in t.properties]:
+                        t.properties.append(prop)
 
         if recursive and type(t) == Type:
             t.type = self.handle_aliases(t.type)
@@ -56,6 +56,8 @@ class TypeContext(object):
                     v = False
             else:
                 v = t == ta
+                if str(t) == 'CloseFile':
+                    print("hey", t, ta, v)                
             if v:
                 b = self.type_aliases[ta].copy()
                 for k in replacements:
@@ -82,7 +84,7 @@ class TypeContext(object):
             return True
         if do_aliases:
             t1 = self.handle_aliases(t1)
-            t2 = self.handle_aliases(t2)    
+            t2 = self.handle_aliases(t2)
 
         r = t1 == t2
         if r and self.refined and check_refined:
@@ -112,7 +114,7 @@ class TypeContext(object):
                     if a:
                         return (a, ft_concrete_r)
             return (False, None)
-        else:
+        else:            
             valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 
@@ -354,7 +356,6 @@ class TypeChecker(object):
         k = self.context.find(n.nodes[0])
         
         if k == None:
-            print(n)
             self.type_error("Unknown variable {}".format(n.nodes[0]))
         n.type = k
         if self.refined and not hasattr(n.type, "refined"):

@@ -1,0 +1,7 @@
+import ..prelude.J
+import ..prelude.IntList
+
+
+head : (ar:{IntList where IntList.size(self) > 0}) -> i:Integer where [ i == IntList.get(ar, 0) ] {
+    …
+} 

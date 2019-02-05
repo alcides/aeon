@@ -19,7 +19,7 @@ NOVELTY_SIZE = 5
 TOURNAMENT_SIZE = 10
 
 PROB_XOVER = 0.90
-PROB_MUT = 0.0
+PROB_MUT = 0.10
 
 MAX_TRIES_TO_GEN_CHILD = 100 # random generation
 N_TRIES_REFINEMENT_CHECK = 100
@@ -33,7 +33,13 @@ MAX_DOUBLE = 100
 MIN_INT = -10
 MAX_INT = 10
 
-class MaxDepthException(Exception):
+class GenException(Exception):
+    pass
+
+class MaxDepthException(GenException):
+    pass
+    
+class NoPossibleExpressionException(GenException):
     pass
 
 def t_i_c():
@@ -91,7 +97,7 @@ class Synthesiser(object):
         self.recursion_allowed = False
         
         print(20*"-")
-        print("GA")
+        print("GP")
         print(20*"-")
         print("looking for source code that satisfies type", self.type)
         print("within the context of function", function_name)
@@ -99,8 +105,8 @@ class Synthesiser(object):
         print(20*"-")
         
     def next_var(self):
-        return "v{}".format(self.var_count)
-        self.var_count += 1
+        self.var_counter += 1
+        return "v{}".format(self.var_counter)
     
     def compile(self, program, name, compile_java=False):
         try:
@@ -178,7 +184,7 @@ class Synthesiser(object):
                     Node('lambda', [], Node('literal', 1.0, type=t_f_c()))
             ])
         
-        main_b = Node('invocation', 'GA.addFitness', [
+        main_b = Node('invocation', 'GP.addFitness', [
                 Node('literal', i, type=t_i_c()),
                 fitness_calc
             ])
@@ -217,7 +223,7 @@ class Synthesiser(object):
         
         if not types:        
             lambda_do_body = Node('block', *tests)
-            return Node('invocation', 'GA.genTests', [
+            return Node('invocation', 'GP.genTests', [
                 Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
                 Node('lambda', [], lambda_do_body)
             ])
@@ -228,10 +234,11 @@ class Synthesiser(object):
             conditions_to_consider = [ c for c in t.conditions if not self.depends_on_indices(c) ]
         else:
             conditions_to_consider = []
+            
+
     
         if len(conditions_to_consider) > 1:            
             cs = [ c for c in t.conditions if not self.depends_on_indices(c) ]
-            print(cs)
             lambda_cond_body = reduce(lambda x,y: Node('&&', x, y), cs)
         elif len(conditions_to_consider) == 1:            
             lambda_cond_body = t.conditions[0]
@@ -244,16 +251,16 @@ class Synthesiser(object):
             lambda_do_body = Node('block', *tests)
         
         if t == t_i:
-            return Node('invocation', 'GA.genInteger', [
+            return Node('invocation', 'GP.genInteger', [
                 Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
                 Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
                 Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
                 Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
             ])
         else:
-            return Node('invocation', 'GA.genObject', [
+            return Node('invocation', 'GP.genObject', [
                 Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
-                self.random_ast(t, constructors_only=True), #object
+                self.random_ast(t, constructors_only=True, no_vars=True), #object
                 Node('lambda', [ ('__return_0', t) ], lambda_cond_body),
                 Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
             ])
@@ -269,9 +276,10 @@ class Synthesiser(object):
         
         args = [ Node('atom', '__argument_{}'.format(i)) for i, v in enumerate(ftype.lambda_parameters) ]
         
-        call = Node('let', '__return_0', Node('invocation', "Candidate.{}".format(fname), args), ftype.type)
+        call = Node('let', '__return_0', Node('invocation', "Candidate.{}".format(fname), args), ftype.type, coerced=False)
         tests_to_do =  [ Node('invocation', 'test{}'.format(i), [a for a in args]  + [Node('atom', '__return_0')]) for i, cond in enumerate(ftype.conditions) if tests[i] ]
         tests = [ t for t in tests if t ]
+
         
         
         fn_targets = []
@@ -286,9 +294,11 @@ class Synthesiser(object):
         
         main_b = [variableIterator] + [
             Node('invocation', 'System.out.println', [
-                Node('invocation', 'GA.getFitness', [])
+                Node('invocation', 'GP.getFitness', [])
             ])
         ]
+        
+        
         fn_main = Node('decl',
                     'main', 
                     [Node('argument', 'args', Type('Array', type_arguments=['String']))],
@@ -299,12 +309,12 @@ class Synthesiser(object):
                     Node('block', *main_b))
         
         n = native.parse_strict
-        fn_genInteger = n("native GA.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
-        fn_genObject = n("native GA.genObject : T => (_:Integer, _:T, _:(T) -> Boolean, _:(T) -> Void) -> _:Void")
-        fn_genTests = n("native GA.genTests : (_:Integer, _:() -> Void) -> _:Void")
+        fn_genInteger = n("native GP.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
+        fn_genObject = n("native GP.genObject : T => (_:Integer, _:T, _:(T) -> Boolean, _:(T) -> Void) -> _:Void")
+        fn_genTests = n("native GP.genTests : (_:Integer, _:() -> Void) -> _:Void")
         fn_out = n("native System.out.println : (_:Double) -> _:Void")
-        fn_addFitness = n("native GA.addFitness : (_:Integer, _:Double) -> _:Double")
-        fn_getFitness = n("native GA.getFitness : () -> _:Double")
+        fn_addFitness = n("native GP.addFitness : (_:Integer, _:Double) -> _:Double")
+        fn_getFitness = n("native GP.getFitness : () -> _:Double")
         fn_if = n("native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T")
         fn_abs = n("native Math.abs : T => (_:Double) -> _:Double")
         helpers = [fn_if, fn_abs]
@@ -330,11 +340,17 @@ class Synthesiser(object):
         return passed
         
 
-    def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False, full=False):
+    def random_ast(self, tp, depth=0, max_depth=MAX_DEPTH, constructors_only=False, full=False, no_vars=False):
         if depth >= max_depth:
             constructors_only = True
         if depth > max_depth:
             raise MaxDepthException("Max depth exceeded!")
+            
+            
+        is_present = any([ tp == t for t in self.typechecker.typecontext.types])
+        if not is_present and tp.lambda_parameters == None:
+            # This is a generic type, replace with Integer:
+            tp = t_i.copy()
         
         def random_int_literal(tp, **kwargs):
             def wrap(v):
@@ -371,11 +387,11 @@ class Synthesiser(object):
             
             random_type = self.random.choice(self.typechecker.typecontext.types)
             
-            df = self.random_ast(random_type, depth+1)
-            l = Node('let', var_name, df)
+            df = self.random_ast(random_type, depth+1, max_depth=max_depth)
+            l = Node('let', var_name, df, coerced=False)
             self.context.push_frame()
             self.context.set(var_name, random_type)
-            u = self.random_ast(tp, depth+1)
+            u = self.random_ast(tp, depth+1, max_depth=max_depth)
             self.context.pop_frame()
             return Node('block', l, u)
         
@@ -399,7 +415,6 @@ class Synthesiser(object):
                         if decl_t.lambda_parameters != []:
                             continue
                     if decl != self.function_name:
-                        
                         if decl_t.binders:
                             # Handle generic return type
                             decl_t = self.typechecker.unify(decl_t, return_type=tp)
@@ -415,9 +430,14 @@ class Synthesiser(object):
             if options:
                 f, ft = random.choice(options)
                 try:
-                    args = [ self.random_ast(at, depth+1) for at in ft.lambda_parameters ]
+                    args = [ self.random_ast(at, depth+1, max_depth=max_depth) for at in ft.lambda_parameters ]
                     if all(args):
-                        return Node('invocation', f, args)
+                        n = Node('invocation', f, args)
+                        try:
+                            self.typechecker.typecheck(n, expects=tp)
+                            return n
+                        except TypeError:
+                            return None
                 except MaxDepthException:
                     return None
             else:
@@ -428,25 +448,25 @@ class Synthesiser(object):
             if any([tp == t for t in [t_i, t_f]]):
                 op = self.random.choice(['+', '-', '*', '/', '%'])
                 t_a = tp == t_i and t_i_c() or self.random.choice([t_i_c(), t_f_c()])
-                a1 = self.random_ast(t_a, depth+1)
+                a1 = self.random_ast(t_a, depth+1, max_depth=max_depth)
                 if op == '/':
                     if t_a == t_i:
                         t_a.add_condition(expr.parse_strict('__return_0 != 0'))
                     if t_a == t_f:
                         t_a.add_condition(expr.parse_strict('__return_0 != 0.0'))
-                a2 = self.random_ast(t_a, depth+1)
+                a2 = self.random_ast(t_a, depth+1, max_depth=max_depth)
                 return Node(op, a1, a2)
             elif tp == t_b:
-                a1 = self.random_ast(t_b, depth+1)
-                a2 = self.random_ast(t_b, depth+1)
+                a1 = self.random_ast(t_b, depth+1, max_depth=max_depth)
+                a2 = self.random_ast(t_b, depth+1, max_depth=max_depth)
                 return Node(self.random.choice(['&&', '||']), a1, a2)
             else:
                 return None
         
         def random_lambda(tp, **kwargs):
             return Node('lambda', 
-                [ Node('arg', self.next_var(), t) for t in tp.lambda_parameters ],
-                self.random_ast(tp.type, depth+1))
+                [ Node('argument', self.next_var(), t) for t in tp.lambda_parameters ],
+                self.random_ast(tp.type, depth+1, max_depth=max_depth))
                 
         possible_generators = []
         
@@ -463,15 +483,17 @@ class Synthesiser(object):
             if tp == t_s:
                 possible_generators.append(random_string_literal)
                 
-            if self.context.variables():
+            if self.context.variables() and not no_vars:
                 possible_generators.append(random_atom)
         
             if constructors_only:
                 possible_generators.append(random_invocation)
                 k = None
-                while not k:
+                for i in range(N_TRIES_REFINEMENT_CHECK):
                     k = random.choice(possible_generators)(tp, no_args=True)
-                return k
+                    if k:
+                        return k
+                return None
         
             possible_generators.append(random_invocation)
             possible_generators.append(random_operator)
@@ -483,13 +505,15 @@ class Synthesiser(object):
                 print("Could not finish ", tp)
         
         if not possible_generators:
-            raise Exception("Could not generate random code for type {}.".format(tp))
+            raise NoPossibleExpressionException("Could not generate random code for type {}.".format(tp))
         k = None
         i = 0
         while not k:
             try:
                 k = random.choice(possible_generators)(tp)
-            except MaxDepthException as e:
+            except GenException as e:
+                pass
+            except TypeError as e:
                 pass
             i+=1
             if i > MAX_TRIES_TO_GEN_CHILD:
@@ -500,13 +524,16 @@ class Synthesiser(object):
     
     def random_individual(self, max_depth=MAX_DEPTH):
         for i in range(N_TRIES_REFINEMENT_CHECK):
+            print("looking for:", self.type, "with", max_depth)            
             c = self.random_ast(tp=self.type, max_depth=max_depth)
-            print("testing... ", pp(c))
-            if c and self.validate(c):
+            print("got for:", c)   
+            if c and self.validate(c, expects=self.type):
                 return c
-        raise Exception("Could not generate AST for type {}".format(self.type))
+            else:
+                print("Failed to validate", c)
+        raise GenException("Could not generate AST for type {}".format(self.type))
     
-    def validate(self, candidate):
+    def validate(self, candidate, expects=None):
         f = copy.deepcopy(self.function_template)
         nf = replace_hole(f, candidate)
         
@@ -515,7 +542,7 @@ class Synthesiser(object):
         try:
             typecheck(program, refined=self.refined)
             return nf
-        except Exception as c:
+        except GenException as c:
             return False
         
     
@@ -626,7 +653,7 @@ class Synthesiser(object):
         
             
     def evolve(self):
-        population = [ self.random_individual() for i in range(POPULATION_SIZE) ]
+        population = [ self.random_individual(max_depth=i % 15) for i in range(POPULATION_SIZE) ]
         
         for i in range(MAX_GENERATIONS):
             print("Generation", i)
@@ -652,10 +679,8 @@ class Synthesiser(object):
                 if self.random.random() < PROB_XOVER:
                     parent2 = self.tournament(old_population)                    
                     child = self.crossover(parent1, parent2)                
-                elif self.random.random() < PROB_MUT:
-                    child = self.mutate(child)
                 else:
-                    child = parent1
+                    child = self.mutate(child)
                 
                 if self.validate(child):
                     offspring.append(child)

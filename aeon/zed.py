@@ -79,6 +79,7 @@ class Zed(object):
         self.convert_once(ft)
         invocation_name = None
         return_type = ft.type
+        self.convert_once(return_type)
         vars = []
 
         
@@ -87,6 +88,7 @@ class Zed(object):
             invocation_var = self.z3_type_constructor(return_type)(invocation_name)
             self.context[invocation_name] = invocation_var
             vars.append(invocation_var)
+
         else:
             vars.append(None)
 
@@ -107,6 +109,7 @@ class Zed(object):
                     z3.And(invocation_var == else_, z3.Not(c))
                 )
                 self.solver.add(st)
+                return True, invocation_name
             
 
 
@@ -115,9 +118,12 @@ class Zed(object):
             zcs.extend(ft.zed_pre_conditions)
         if ft.conditions:
             zcs.extend(ft.zed_conditions)
+        if return_type.conditions:
+            zcs.extend(return_type.zed_conditions)
             
         for zc in zcs:
             statement = zc(vars)
+            
             self.solver.push()
             self.solver.add(statement)
             r = self.solver.check()
@@ -128,6 +134,8 @@ class Zed(object):
                 return False, None
             elif r == z3.sat:
                 self.solver.add(statement)
+            else:
+                print("BYG")
                 
         return True, invocation_name
 
@@ -270,10 +278,7 @@ class Zed(object):
                 preconditions = z3.And(reduce(z3.And, [ z for z in z_argtypes_expr if z != None], True), f_preconditions)
                 definition = z3.And(t1_name == new_name, reduce(z3.And, copy.deepcopy(self.solver.assertions()), True))
                 
-            else:            
-                if t1_assertions != None:
-                    self.solver.add(t1_assertions)    
-            
+            else:
                 preconditions = t1_assertions == None and True or t1_assertions
                 definition = t1_name == t2_name
                 postconditions = t2_assertions == None and True or t2_assertions
@@ -281,22 +286,25 @@ class Zed(object):
             vars = get_z3_vars(preconditions) + get_z3_vars(definition) + get_z3_vars(postconditions)
             vars = list(set([v.n for v in vars]))
             
+            
             s = self.solver
             s.push()
             s.add(z3.Not(z3.Implies( 
                     z3.And(preconditions, definition),
                     postconditions
             )))
-            print("--")
-            print(s)
-            print("--")
             
             ver = s.check()
+            try:
+                m = s.model()
+            except:
+                m = None
             s.pop()
             if ver == z3.unsat:
-                s.add(definition)
+                s.add(z3.simplify(definition))
                 return True
             elif ver == z3.sat:
+                print("Failed", definition)
                 return False
             else:
                 s.add(definition)

@@ -13,7 +13,7 @@ def translate_h(n):
             return True, lambda args: args[1 + i]
         else:
             print("unknown atom in z3 conversion", n.nodes[0])
-            return True, lambda args: args[n.nodes[0]] # lousy hack
+            return False, None
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
     elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '||', '&&']:

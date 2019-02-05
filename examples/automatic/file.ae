@@ -1,18 +1,18 @@
-type FileH { open : Integer } as File  where [ self.open >= 0 ]
+type FileH { open : Integer } where [ self.open >= 0 ] as File  
 
-type FileH { open : Integer } as OpenFile where [ self.open == 1 ]
+type FileH { open : Integer } where [ self.open == 1 ] as OpenFile
 
-type FileH { open : Integer } as ClosedFile where [ self.open == 0 ]
+type FileH { open : Integer } where [ self.open == 0 ] as ClosedFile
 
-native FileH.mkFileH : () -> fp:ClosedFile where [fp.open == 0]
+native FileH.mkFileH : () -> fp:ClosedFile
 
-native FileH.open : (f:ClosedFile) -> fp:OpenFile where [f.open == 0 and fp.open == 1]
+native FileH.open : (f:ClosedFile) -> fp:OpenFile
 
-native FileH.read : (f:OpenFile) -> v:Integer where [f.open == 1]
+native FileH.read : (f:OpenFile) -> v:Integer
 
-native FileH.write : (f:OpenFile, v:Integer) -> fp:OpenFile where [f.open == 1 and fp.open == 1]
+native FileH.write : (f:OpenFile, v:Integer) -> fp:OpenFile
 
-native FileH.close : (f:OpenFile) -> fp:ClosedFile where [f.open == 1 and fp.open == 0]
+native FileH.close : (f:OpenFile) -> fp:ClosedFile
 
 
 encrypt : (i:Integer, k:{Integer where (self >= 0) && (self < 26)}) -> j:Integer where [ (k >= 0) && (k < 26) ] {
@@ -25,9 +25,8 @@ unencrypt : (i:Integer) -> j:Integer {
 
 
 # 
-move : (file:ClosedFile, value:Integer) -> cl:ClosedFile where [ file.open == 0 and cl.open == 0 
-and unencrypt(FileH.read(FileH.open(cl))) == value ] {
- …
+move : (file:ClosedFile, value:Integer) -> cl:ClosedFile where [ unencrypt(FileH.read(FileH.open(cl))) == value ] {
+    …
 }
 
 # Solution

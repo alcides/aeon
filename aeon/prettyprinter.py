@@ -28,8 +28,8 @@ def prettyprint(n):
         return "{} : {} {{ {} }}".format(n.nodes[0], wrap_node_t(n), prettyprint(n.nodes[6]))
     elif n.nodet == 'native':
         return "native {} : {}".format(n.nodes[0], wrap_node_t(n))
-    elif n.nodet == 'argument':
-        if len(n.nodes) > 2:
+    elif n.nodet =='argument':
+        if len(n.nodes) > 2 and n.nodes[2]:
             return "{} : {} tracked by {}".format(n.nodes[0], n.nodes[1], n.nodes[2])
         else:
             return "{} : {}".format(n.nodes[0], n.nodes[1])
