@@ -304,7 +304,6 @@ class Zed(object):
                 s.add(z3.simplify(definition))
                 return True
             elif ver == z3.sat:
-                print("Failed", definition)
                 return False
             else:
                 s.add(definition)

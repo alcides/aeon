@@ -11,11 +11,13 @@ from .zed import Zed, zed
 from .frontend import native, decl, expr, invocation
 
 
-POPULATION_SIZE = 5
+sys.setrecursionlimit(10000)
+
+POPULATION_SIZE = 100
 MAX_GENERATIONS = 50
-MAX_DEPTH = 15
+MAX_DEPTH = 10
 ELITISM_SIZE = 1
-NOVELTY_SIZE = 5
+NOVELTY_SIZE = 0
 TOURNAMENT_SIZE = 10
 
 PROB_XOVER = 0.90
@@ -229,7 +231,6 @@ class Synthesiser(object):
             ])
 
         t = types.pop(0)
-        print("Considering ", t)
         if t.conditions:
             conditions_to_consider = [ c for c in t.conditions if not self.depends_on_indices(c) ]
         else:
@@ -436,7 +437,7 @@ class Synthesiser(object):
                         try:
                             self.typechecker.typecheck(n, expects=tp)
                             return n
-                        except TypeError:
+                        except TypeException:
                             return None
                 except MaxDepthException:
                     return None
@@ -524,13 +525,15 @@ class Synthesiser(object):
     
     def random_individual(self, max_depth=MAX_DEPTH):
         for i in range(N_TRIES_REFINEMENT_CHECK):
-            print("looking for:", self.type, "with", max_depth)            
-            c = self.random_ast(tp=self.type, max_depth=max_depth)
-            print("got for:", c)   
-            if c and self.validate(c, expects=self.type):
-                return c
-            else:
-                print("Failed to validate", c)
+            try:   
+                c = self.random_ast(tp=self.type, max_depth=max_depth)
+                if c and self.validate(c, expects=self.type):
+                    return c
+                else:
+                    print("Failed to validate", c)
+            except Exception as e:
+                print(e)
+                print("hello")
         raise GenException("Could not generate AST for type {}".format(self.type))
     
     def validate(self, candidate, expects=None):
@@ -653,7 +656,11 @@ class Synthesiser(object):
         
             
     def evolve(self):
-        population = [ self.random_individual(max_depth=i % 15) for i in range(POPULATION_SIZE) ]
+        population = []
+        for i in range(POPULATION_SIZE):
+            p =  self.random_individual(max_depth=i % 15)
+            print(p)
+            population.append(p)
         
         for i in range(MAX_GENERATIONS):
             print("Generation", i)

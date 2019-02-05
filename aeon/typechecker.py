@@ -385,7 +385,8 @@ class TypeChecker(object):
             self.typelist(n.nodes)
             for c in n.nodes:
                 if c.type != t_b:
-                    raise Exception("{} expected boolean arguments in {}. Got {}.".format(n.nodet, c, c.type))
+                    self.type_error("{} expected boolean arguments in {}. Got {}.".format(n.nodet, c, c.type),
+                    expected=t_b, given=c.type)
         elif n.nodet in ["<", "<=", ">", ">=", "==", "!="]:
             n.type = t_b
             self.typelist(n.nodes)
