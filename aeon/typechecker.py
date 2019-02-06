@@ -55,9 +55,7 @@ class TypeContext(object):
                 else:
                     v = False
             else:
-                v = t == ta
-                if str(t) == 'CloseFile':
-                    print("hey", t, ta, v)                
+                v = t == ta          
             if v:
                 b = self.type_aliases[ta].copy()
                 for k in replacements:

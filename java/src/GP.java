@@ -39,9 +39,13 @@ public class GP {
     int i = 0;
     while (i < size) {
       Integer t = r.nextInt(100)-50;
-      if (pred.test(t)) {
-        c.accept(t);
-        i++;
+      try {
+          if (pred.test(t)) {
+            c.accept(t);
+            i++;
+          }
+      } catch (Exception e) {
+          i++;
       }
     }
   }
@@ -49,9 +53,13 @@ public class GP {
   public static <T> void genObject(Integer size, T object, Predicate<T> pred, Consumer<T> c) {
     int i = 0;
     while (i < size) {
-      if (pred.test(object)) {
-        c.accept(object);
-        i++;
+      try {
+          if (pred.test(object)) {
+            c.accept(object);
+            i++;
+          }
+      } catch (Exception e) {
+          i++;
       }
     }
   }

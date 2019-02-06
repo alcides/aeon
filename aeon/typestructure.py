@@ -173,13 +173,12 @@ class Type(object):
         if self.effects:
             t += " with " + " and ".join([ prettyprint(e) for e in self.effects])
 
-        elif hasattr(self, 'refined'):
+        elif hasattr(self, 'refined') and False:
             if hasattr(self, 'refined_value'):
                 t += "<{}={}>".format(str(self.refined), str(self.refined_value))
             else:
                 t += "<{}>".format(str(self.refined))
         
-            
         return t
 
     def __repr__(self):

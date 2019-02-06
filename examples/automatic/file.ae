@@ -27,6 +27,11 @@ unencrypt : (i:Integer) -> j:Integer {
 # 
 move : (file:ClosedFile, value:Integer) -> cl:ClosedFile where [ unencrypt(FileH.read(FileH.open(cl))) == value ] {
     …
+    #    .invocation(FileH.close, [.atom(file):FileH{ open : Integer}  where (__return_0__index__open == 0)]):FileH{ open : Integer}  where (__return_0__index__open == 0)
+    #a1 = FileH.open(file)
+    #a3 = FileH.write(a1, encrypt(value, 13))
+    #a4 = FileH.close(a3)
+    #a4
 }
 
 # Solution

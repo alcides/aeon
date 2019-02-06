@@ -2,6 +2,8 @@ import copy
 import random
 import sys
 import subprocess
+import z3
+import time
 from functools import reduce
 from .typechecker import typecheck, TypeException
 from .typestructure import *
@@ -11,17 +13,18 @@ from .zed import Zed, zed
 from .frontend import native, decl, expr, invocation
 
 
+
 sys.setrecursionlimit(10000)
 
 POPULATION_SIZE = 100
-MAX_GENERATIONS = 50
+MAX_GENERATIONS = 100
 MAX_DEPTH = 10
 ELITISM_SIZE = 1
 NOVELTY_SIZE = 0
-TOURNAMENT_SIZE = 10
+TOURNAMENT_SIZE = 5
 
-PROB_XOVER = 0.90
-PROB_MUT = 0.10
+PROB_XOVER = 0.80
+PROB_MUT = 0.20
 
 MAX_TRIES_TO_GEN_CHILD = 100 # random generation
 N_TRIES_REFINEMENT_CHECK = 100
@@ -29,11 +32,11 @@ MAX_TRIES_Z3 = 100
 QUICKCHECK_SIZE = 100
 TIMEOUT_RUN = 5
 
-MIN_DOUBLE = -100
-MAX_DOUBLE = 100
+MIN_DOUBLE = -1000
+MAX_DOUBLE = 1000
 
-MIN_INT = -10
-MAX_INT = 10
+MIN_INT = -1000
+MAX_INT = 1000
 
 class GenException(Exception):
     pass
@@ -82,17 +85,22 @@ class Synthesiser(object):
         self.function_name = function_name
         self.function_type = function_type
         self.typechecker = typechecker
+        self.typechecker.refined = refined
         self.random = rand or random
         self.random.seed(1)
         self.refined = refined
         self.outputdir = outputdir
         self.var_counter = 0
         
+        if refined:
+            self.old_zed = zed.solver.to_smt2()
+        
         self.program_evaluator = copy.deepcopy(root)
         self.function_template = get_fun(root, function_name)
         
         self.fitness_evaluator = self.create_evaluator_program(function_name, function_type)
         self.compiled_evaluator = False
+        self.candidate_map = {}
         
         self.cached_z3_random = {}
         
@@ -105,6 +113,12 @@ class Synthesiser(object):
         print("within the context of function", function_name)
         print("with type", function_type)
         print(20*"-")
+        
+    def reset_zed(self):
+        if self.refined:
+            new_solver = z3.Solver()
+            new_solver.from_string(self.old_zed)
+            zed.solver = new_solver
         
     def next_var(self):
         self.var_counter += 1
@@ -369,7 +383,10 @@ class Synthesiser(object):
                     options = zed.generate_random_type(tp, MAX_TRIES_Z3)
                     self.cached_z3_random[key] = options
                 if options:
-                    v = random.choice(options).as_long()
+                    v = random.choice(options)
+                    if v == None:
+                        return None
+                    v = v.as_long()
             return Node('literal', v, type=t_i_c())
             
         def random_boolean_literal(tp, **kwargs):
@@ -440,8 +457,10 @@ class Synthesiser(object):
                         except TypeException:
                             return None
                 except MaxDepthException:
+                    print("failed depth")
                     return None
             else:
+                print("no options")
                 return None
             
             
@@ -497,7 +516,7 @@ class Synthesiser(object):
                 return None
         
             possible_generators.append(random_invocation)
-            possible_generators.append(random_operator)
+            #possible_generators.append(random_operator)
                 
         if depth >= max_depth:
             if possible_generators:
@@ -514,7 +533,9 @@ class Synthesiser(object):
                 k = random.choice(possible_generators)(tp)
             except GenException as e:
                 pass
+                print("gen error")
             except TypeError as e:
+                print("type error error")
                 pass
             i+=1
             if i > MAX_TRIES_TO_GEN_CHILD:
@@ -524,6 +545,7 @@ class Synthesiser(object):
         
     
     def random_individual(self, max_depth=MAX_DEPTH):
+        self.reset_zed()
         for i in range(N_TRIES_REFINEMENT_CHECK):
             try:   
                 c = self.random_ast(tp=self.type, max_depth=max_depth)
@@ -545,11 +567,16 @@ class Synthesiser(object):
         try:
             typecheck(program, refined=self.refined)
             return nf
-        except GenException as c:
+        except TypeException as c:
+            # TODO!!!!
+            #print(c)
+            #print(candidate)
+            #print("....")
             return False
         
     
     def crossover(self, p1, p2, expected=None):
+        self.reset_zed()
         if not expected:
             expected = self.type
         return self.mutate(copy.deepcopy(p1), source=p2, expected=expected)
@@ -566,6 +593,7 @@ class Synthesiser(object):
         
     
     def mutate(self, c, source=None, expected=None):
+        self.reset_zed()
         if not expected:
             expected = self.type
         
@@ -609,7 +637,6 @@ class Synthesiser(object):
                 ft = self.context.find(c.nodes[0])
                 exp = ft.lambda_parameters # first argument is parameter list
             else:
-                print("TODO")
                 exp = list_source[index].type
             save(index, self.mutate(list_source[index], source=source, expected=exp))
         else:
@@ -627,13 +654,16 @@ class Synthesiser(object):
     
     def evaluate(self, population):
         evalutator_names = []
-        candidate_map = {}
+
         
         for i, candidate in enumerate(population):
-            program_evaluator = copy.deepcopy(self.program_evaluator)
-            program = replace_hole(program_evaluator, candidate)
-            candidate.fitness = self.run_and_retrieve_fitness(program)
-
+            
+            hash_s = pp(candidate)
+            if hash_s not in self.candidate_map:
+                program_evaluator = copy.deepcopy(self.program_evaluator)
+                program = replace_hole(program_evaluator, candidate)
+                self.candidate_map[hash_s] = self.run_and_retrieve_fitness(program)
+            candidate.fitness = self.candidate_map[hash_s]
                 
                         
     def clean(self, p):
@@ -656,14 +686,15 @@ class Synthesiser(object):
         
             
     def evolve(self):
+        self.start_time = time.time()
         population = []
         for i in range(POPULATION_SIZE):
             p =  self.random_individual(max_depth=i % 15)
-            print(p)
             population.append(p)
         
         for i in range(MAX_GENERATIONS):
-            print("Generation", i)
+            t = (time.time() - self.start_time)
+            print("Generation", i, "time:", t)
             
             self.fitness_evaluator = self.create_evaluator_program(self.function_name, self.function_type)
             self.compiled_evaluator = False
@@ -674,6 +705,8 @@ class Synthesiser(object):
             
             if old_population[0].fitness == 0.0:
                 print("FOUND SOLUTION AT GENERATION", i)
+                t = (time.time() - self.start_time)
+                print("Time:", t)
                 return [ self.clean(p) for p in old_population[:1]]
             
             for p in old_population[::-1]:
@@ -683,26 +716,31 @@ class Synthesiser(object):
             
             while len(offspring) < POPULATION_SIZE - ELITISM_SIZE - NOVELTY_SIZE:
                 parent1 = self.tournament(old_population)
-                if self.random.random() < PROB_XOVER:
-                    parent2 = self.tournament(old_population)                    
-                    child = self.crossover(parent1, parent2)                
-                else:
-                    child = self.mutate(child)
+                try:
+                    if self.random.random() < PROB_XOVER:
+                        parent2 = self.tournament(old_population)                    
+                        child = self.crossover(parent1, parent2)
+                    else:
+                        child = self.mutate(parent1)
                 
-                if self.validate(child):
-                    offspring.append(child)
+                    if self.validate(child):
+                        offspring.append(child)
+                    else:
+                        raise Exception()
+                except Exception as e:
+                    #print("Failed to mutate or crossover", e)
+                    # TODO!!!!!
+                    continue
             
             population = offspring
             
-
-        self.evaluate(population)        
+        self.evaluate(population)
         return [ self.clean(p) for p in population]
         
         
 def synthesise_with_outputdir(outputdir):
     def synthesise(hole, goal_type, root, context, function_name, function_type, typechecker, rand=None, refined=False):
         s = Synthesiser(hole, goal_type, root, context, function_name, function_type, typechecker, rand, refined, outputdir)
-    
         candidates = s.evolve()
 
         print("Found {} suitable definitions".format(len(candidates)))
