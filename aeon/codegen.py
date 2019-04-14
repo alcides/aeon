@@ -259,7 +259,7 @@ class CodeGenerator(object):
             return self.g_literal(n)
         elif n.nodet == 'let':
             return self.g_let(n)
-        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
+        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
             return self.g_atom(n)
@@ -338,6 +338,8 @@ class CodeGenerator(object):
 
     def g_literal(self, n):
         java_type = self.type_convert(n.type)
+        if java_type == 'Boolean':
+            return Expr("Boolean.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == 'Integer':
             return Expr("Integer.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == 'Double':
@@ -346,12 +348,15 @@ class CodeGenerator(object):
 
 
     def g_op(self, n):
-        "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"
+        "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"
+
+        if n.nodet == '!':
+            format_string = "(!{1}"
         
         if n.nodet == '==':
             format_string = "({1}.equals({2}))"
         elif n.nodet == '!=':
-            format_string = "({1}.equals({2}) == False)"
+            format_string = "({1}.equals({2}) == false)"
         else:
             format_string = "({1} {0} {2})"
         

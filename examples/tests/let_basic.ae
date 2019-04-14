@@ -1,0 +1,4 @@
+main : (args:Array<String>) -> _:Void {
+	a = 1
+	a
+}

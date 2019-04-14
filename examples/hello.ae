@@ -1,0 +1,10 @@
+import prelude.J
+	
+f : (i:Integer) -> _:Integer {
+	a:{Boolean where self } = true
+	1
+}
+
+main : (args:Array<String>) -> _:Void {
+	f(1)
+}

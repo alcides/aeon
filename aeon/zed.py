@@ -191,6 +191,10 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add( combiner_var == (a == b) )
+            elif nodet == '!=':
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add( combiner_var == (a != b) )
             else:
                 print("TODO zed", nodet)
         elif self.is_refined(nodes[0].type):
