@@ -1,6 +1,6 @@
 import ..prelude.J
 
-main : (args:Array<String>) -> _:Void { 
+main : (args:Array<String>) -> _:Void {
     a = 1
     b : {Integer where self == 1} = J.iif( a == 1, () -> { a }, () -> { 1 } )
 }

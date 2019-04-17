@@ -1,0 +1,62 @@
+﻿Sintaxe:
+
+Comentarios:
+    # Comentario aqui
+
+Importar:
+    import path/to/file
+    import ..library
+
+Criar o main:
+    main : (args : Array<String>) -> _ : Void {
+        # Expressoes aqui
+    }
+
+Declarar variavel:
+    1)
+        nome = metodo_com_retorno()
+    2)
+        nome = tipo_primitivo ou variavel
+    3)
+        nome : Tipo = metodo_com_retorno() ou variavel
+    4)
+        nome : {Tipo where (condicao) && (condicao)} = valor
+
+Criar um método:
+    Método Normal:
+        nome : (arg1 : Tipo1, arg2 : Tipo2, argN : TipoN) -> nomeRetorno : TipoRetorno {
+            # Expressoes aqui
+        }
+
+    Método com argumentos refinados:
+        nome : (arg1 : {Tipo1 where (condicao) and (condicao)}, arg2 : Tipo2, arN : TipoN) -> nomeRetorno : TipoRetorno {
+            # Expressoes aqui
+        }
+
+        Nas condicoes eh possivel utilizar a keyword self, que representa o valor sobre o qual estamos a refinar
+
+    Método com retorno refinado:
+        nome : (arg1 : Tipo1, arg2 : Tipo2, argN : TipoN) -> nomeRetorno : TipoRetorno where [condicao] {
+            # Expressoes aqui
+        }
+
+    Método com tipos parametrizados:
+        nome : T => (arg1 : Tipo1, arg2 : Tipo2, argN : TipoN) -> nomeRetorno : TipoRetorno {
+            # Expressoes aqui
+        }
+
+Criar um tipo:
+    Criar um tipo normal:
+        type Nome { atributo : Tipo, atributo2 : Tipo2 } as Nome2
+        ou
+        type Nome { atributo : Tipo, atributo2 : Tipo2 } where [condicao] as Nome2
+
+        # Criar os metodos
+        native Nome.metodo1 : (arg1 : Tipo1) -> nomeRetorno : TipoRetorno
+        native Nome.metodo2 : (arg1 : Tipo1) -> nomeRetorno : TipoRetorno
+        native Nome.metodo3 : (arg1 : Tipo1) -> nomeRetorno : TipoRetorno
+
+    Criar um tipo parametrizado:
+        type T => {atributo : Tipo, atributo2 : Tipo2} where [condicao] as T => Nome
+
+        native Nome.metodo1 : T => (arg1 : Tipo1) -> nomeRetorno : TipoRetorno

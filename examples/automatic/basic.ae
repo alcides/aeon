@@ -1,7 +1,6 @@
 import ..prelude.J
 
-
-type Integer as Nat where [ self >= 0 ]
+type Integer where [ self >= 0 ] as Nat
 
 times : (i:Nat, j:Nat) -> a:Nat where [a == (i * j)] {
    (i*j)
@@ -17,5 +16,5 @@ v : (i:Nat, k:Nat) -> j:Integer where [ id(j) == ((i * i) * 5) and j >= 0] {
 
 
 main : (_:Array<String>) -> _:Void {
-   J.out(v(1,2))
+    J.out(v(1,2))
 }

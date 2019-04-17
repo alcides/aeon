@@ -16,4 +16,3 @@ main : (_:Array<String>) -> _:Void {
    r = reverse(a)
    J.out(A.get(r, 0))
 }
-

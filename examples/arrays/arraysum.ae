@@ -5,9 +5,9 @@ import ..prelude.R
 
 arraySum : (ar:A.Array<Integer>) -> i:Integer {
   A.reduce(ar, (i:Integer, j:Integer) -> i + j)
-} 
+}
 
-main : (args:Array<String>) -> _:Void { 
+main : (args:Array<String>) -> _:Void {
    e : A.Array<Integer> = A.range(0, 1000)
-   J.out(arraySum(exampleList))
+   J.out(arraySum(e))
 }

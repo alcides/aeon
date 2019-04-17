@@ -11,7 +11,7 @@ public class A {
 			arr.add(o);
 		return arr;
 	}
-  
+
 	public static ArrayList<Integer> range(int mi, int ma) {
 		ArrayList<Integer> ar = new ArrayList<>(ma-mi);
 		for (int i=mi; i<ma; i++)
@@ -27,16 +27,16 @@ public class A {
 		a.set(i, (T) v);
 		return a;
 	}
-  
+
 	public static <T> Integer size(ArrayList<T> a) {
 		return a.size();
 	}
-  
+
 	public static <T> ArrayList<T> forEach(ArrayList<T> a, Consumer<T> c) {
 		a.forEach(c);
 		return a;
 	}
-  
+
 	public static <T> ArrayList<T> forEachIndex(ArrayList<T> a, BiFunction<Integer, T, Void> c) {
 		int i = 0;
 		for (T e : a) {
@@ -44,7 +44,7 @@ public class A {
 		}
 		return a;
 	}
-  
+
 	public static <T> Boolean forall(ArrayList<T> a, Function<T, Boolean> f) {
 		boolean b = true;
 		for (T v : a) {
@@ -52,7 +52,7 @@ public class A {
 		}
 		return b;
 	}
-  
+
 
 	public static <T,I> ArrayList<I> map(ArrayList<T> a, Function<T,I> f) {
 		ArrayList<I> n = new ArrayList<>();
@@ -73,17 +73,17 @@ public class A {
 		}
 		return i;
 	}
-	
+
 	public static <T> ArrayList<T> copy(ArrayList<T> a) {
 		return A.map(a, (i) -> i);
 	}
-	
+
 	public static <T> ArrayList<T> append(ArrayList<T> a, T e) {
 		ArrayList<T> t = A.copy(a);
 		t.add(e);
 		return t;
 	}
-	
+
 	public static ArrayList<Integer> randomIntArray() {
 		Random r = new Random();
 		ArrayList<Integer> arr = new ArrayList<>();
@@ -92,5 +92,13 @@ public class A {
 		}
 		return arr;
 	}
-	
+
+    public static <T> Integer count(ArrayList<T> array, T elem) {
+        int i = 0;
+        for (T e : array) {
+            if (e.equals(elem))
+                i++;
+        }
+        return i;
+    }
 }

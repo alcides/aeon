@@ -8,3 +8,7 @@ fibp : ( n:Integer ) -> _:Integer {
       fibp(n-1) + F.get(b)
    })
 }
+
+main : (args : Array<String>) -> _ : Void {
+    J.out(fibp(5))
+}

@@ -1,6 +1,6 @@
 type T => java.util.ArrayList<T>  { size:Integer trackedBy A.size } where [ self.size >= 0 ] as T => A.Array<T>
 
-native A.array : T => (size : Integer, o:T) -> res:A.Array<T> where [ size >= 0 and res.size == size ] 
+native A.array : T => (size : Integer, o:T) -> res:A.Array<T> where [ size >= 0 and res.size == size ]
 
 native A.range : (mi : Integer, ma : Integer) -> res:A.Array<Integer> where [ mi <= ma and res.size == (ma - mi)]
 
@@ -24,6 +24,6 @@ native A.forAll : T => (arr: A.Array<T>, f: (Integer) -> Boolean) -> _:Boolean
 
 native A.append : T => (arr: A.Array<T>, e:T) -> out: A.Array<T> where [out.size == (arr.size + 1)]
 
-native A.randomIntArray : () -> _:A.Array<Integer>
+native A.count : T => (arr: A.Array<T>, e:T) -> out:Integer
 
-    
+native A.randomIntArray : () -> _:A.Array<Integer>

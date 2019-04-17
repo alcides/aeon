@@ -1,12 +1,12 @@
 import ..prelude.J
-    
+
 safezero : (i:Integer) -> out:Integer where [out != 0] {
-    r !: {Integer where self != 0} = J.iif(i == 0, () -> 1, () -> i)
+    r : {Integer where self != 0} = J.iif(i == 0, () -> 1, () -> i)
     r
 }
 
-three : (i:Integer) -> out:Integer where [ out == (3*i) ] {
-    a : {Integer where self != 0} = i
+three : (i:Integer) -> out:Integer where [ out == (3 * i) ] {
+    a:{Integer where self != 0} = safezero(i)
     3*i
 }
 

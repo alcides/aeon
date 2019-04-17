@@ -1,6 +1,6 @@
 type IntList { size : Integer trackedBy IntList.size } where [ self.size >= 0 ]
 
-native IntList.array : (size : {Integer where self >= 0}, o:Integer) -> res:IntList where [ res.size == size ] 
+native IntList.array : (size : {Integer where self >= 0}, o:Integer) -> res:IntList where [ res.size == size ]
 
 native IntList.range : (mi : Integer, ma : Integer) -> res:IntList where [ mi <= ma and res.size == (ma - mi)]
 
@@ -18,7 +18,8 @@ native IntList.map : Integer, Integer => (arr: IntList, f: (Integer) -> Integer)
 
 native IntList.copy : (arr: IntList) -> out:IntList where [ out.size == arr.size ]
 
-native IntList.reduce : (arr: {IntList where self.size > 0}, f: (Integer,Integer) -> Integer) -> _:Integer
+# native IntList.reduce : (arr: {IntList where self.size > 0}, f: (Integer,Integer) -> Integer) -> _:Integer
+native IntList.reduce : (arr: IntList, f: (Integer,Integer) -> Integer) -> _:Integer
 
 native IntList.forAll : (arr: IntList, f: (Integer) -> Boolean) -> _:Boolean
 

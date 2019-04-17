@@ -1,4 +1,4 @@
-type Box as Bx where [ self.status >= 0 ]
+type Box {status:Integer} where [ self.status >= 0 ] as Bx
 
 native Box.pickBox : () -> b:{Bx where self.status == 0} where [ b.status == 0 ]
 
@@ -27,7 +27,7 @@ main : (_:Array<String>) -> _:Void {
    b3 = Box.advance(b2)
    b4 = Box.advance(b3)
    b = Box.endCode(b4)
-   
+
    System.out.println(Box.isOpen(b))
    System.out.println(Box.isValid(b))
 }

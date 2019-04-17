@@ -1,0 +1,31 @@
+Working:
+    > arrays/arraySum (fix)
+    > arrays/maximum
+    > arrays/recursive_search
+    > arrays/search
+    > automatic/basic (fix)
+    > automatic/file
+    > automatic/integer (fix)
+    > fibonacci/mfib
+    > fibonacci/par_fib (main)
+    > fibonacci/simple_fib (main)
+    > ints/array_sum (fix - alterado IntList.ae)
+    > ints/ifs
+    > scratch/ex
+    > scratch/lambda2
+    > scratch/scratch (fix: Nao funcionou com atribuicao ????)
+    > scratch/simple
+    > scratch/where
+
+Not working:
+    > arrays/maximum_multiple (Mapping wrong type, check comment above on file)
+    > automatic/box (fixed syntax typo, erro estranho?)
+    > automatic/prime (failed depth?)
+    > automatic/sort
+    > automatic/sortV2
+    > ints/head (unknown atom in z3 conversion ar.size)
+    > ints/reverse (type error)
+
+Doubts:
+    > file.ae : metodo encrypt, porque é que existe a refinação no tipo e no where apos o output?
+    > Existe keyword and, usado só dentro wheres?

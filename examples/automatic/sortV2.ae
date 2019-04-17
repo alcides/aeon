@@ -1,0 +1,17 @@
+import ..prelude.J
+import ..prelude.R
+import ..prelude.A
+
+
+sort : (in:A.Array<Integer>) -> out:A.Array<Integer> where [out.size == in.size and
+        A.forall(A.range(0, in.size), (i:Integer) -> A.count(out, A.get(input, i)) == A.count(in, A.get(in, i))) and
+        A.forall(A.range(0, out.size), (i:Integer) -> A.count(out, A.get(out, i)) == A.count(in, A.get(out, i))) and
+        A.forall(A.range(0, out.size - 1), (i:Integer) -> A.get(out, i) <= A.get(out, i + 1))] {
+    …
+}
+
+main : (_:Array<String>) -> _:Void {
+   a = R.randomInts(10)
+   r = sort(a)
+   #J.out(A.get(r, 0))
+}
