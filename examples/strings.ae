@@ -1,4 +1,5 @@
 import prelude.J
+import prelude.S
 
 main : (args:Array<String>) -> _:Void {
 
@@ -7,8 +8,8 @@ main : (args:Array<String>) -> _:Void {
     a : String = "ola"
     b : String = "adeus"
 
-    c : String = a + b
+    c : String = S.concat(a, b)
 
-    J.out(a + b)
     J.out(c)
+    J.out(S.size(c))
 }

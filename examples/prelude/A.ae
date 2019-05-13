@@ -30,7 +30,7 @@ native A.concat : T => (arr: A.Array<T>, arr2:A.Array<T>) -> out:A.Array<T> wher
                                                                                    # A.forall(A.range(0, A.size(arr2) - 1), (i:Integer) -> A.get(arr2, i) == A.get(out, A.size(arr) + i))
                                                                                    ]
 # TODO
-native A.equals : T => (arr1: A.Array<T>, arr2:A.Array<T>) -> out:Boolean where [out == (A.size(arr1) == A.size(arr2) && (A.forall(A.range(0, A.size(arr1)),(i:Integer) -> A.get(arr,i) == A.get(arr2,i))))]
+native A.equals : T => (arr1: A.Array<T>, arr2:A.Array<T>) -> out:Boolean where [out == ((A.size(arr1) == A.size(arr2)) && (A.forall(A.range(0, A.size(arr1)),(i:Integer) -> A.get(arr,i) == A.get(arr2,i))))]
 
 native A.count : T => (arr: A.Array<T>, e:T) -> out:Integer
 

@@ -158,7 +158,7 @@ class Zed(object):
         self.context[lit_name] = lit_var # TODO: production
         
         if (t.type != 'String'): # TODO: Ver se posso fazer isto
-        self.solver.add(lit_var == v)
+            self.solver.add(lit_var == v)
 
         return lit_name
 
