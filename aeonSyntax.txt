@@ -47,7 +47,7 @@ Criar um método:
 
 Criar um tipo:
     Criar um tipo normal:
-        type Nome { atributo : Tipo, atributo2 : Tipo2 } as Nome2
+        type Nome { atributo : Tipo (trackedBy VariableName)?, atributo2 : Tipo2 } as Nome2
         ou
         type Nome { atributo : Tipo, atributo2 : Tipo2 } where [condicao] as Nome2
 

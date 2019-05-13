@@ -344,6 +344,8 @@ class CodeGenerator(object):
             return Expr("Integer.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == 'Double':
             return Expr("Double.valueOf({})".format(str(n.nodes[0]).lower()))
+        if java_type == "String":
+            return Expr("(\"{}\")".format(str(n.nodes[0]).lower()))
         return Expr("({})".format(str(n.nodes[0]).lower()))
 
 
@@ -381,4 +383,3 @@ def generate(ast, table, typecontext, class_name='E', generate_file=False, outpu
         pass
     open('{}/{}.java'.format(outputdir, class_name), 'w').write(output)
     return output
-    

@@ -11,7 +11,7 @@ sort : (in:A.Array<Integer>) -> out:A.Array<Integer> where [out.size == in.size 
 }
 
 main : (_:Array<String>) -> _:Void {
-   a = R.randomInts(10)
+   a = A.randomIntArray()
    r = sort(a)
    #J.out(A.get(r, 0))
 }

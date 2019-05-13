@@ -466,5 +466,3 @@ class TypeChecker(object):
 def typecheck(ast, refined=True, synthesiser=None):
     tc = TypeChecker(ast, refined=refined, synthesiser=synthesiser)
     return tc.typecheck(ast), tc.context, tc.typecontext
-    
-    

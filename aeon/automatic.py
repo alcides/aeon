@@ -104,7 +104,7 @@ class Synthesiser(object):
         
         self.cached_z3_random = {}
         
-        self.recursion_allowed = False
+        self.recursion_allowed = True
         
         print(20*"-")
         print("GP")

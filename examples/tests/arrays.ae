@@ -1,0 +1,47 @@
+import ..prelude.J
+import ..prelude.A
+
+testAppend: (arr:A.Array<Boolean>) -> _:Void {
+
+    # TODO: NAO DEVIA DE HAVER RE-DECLARACAO DE VARIAVEL
+    # arr = A.append(arr, -1 >= 0)
+
+    A.append(arr, -1 >= 0)
+    J.out(A.get(arr, A.size(arr) - 1))
+}
+
+testForAll: (arr:A.Array<Boolean>) -> _:Void {
+    A.forall(arr, (elem:Boolean) -> J.out(elem))
+}
+
+testForEach: (arr:A.Array<Boolean>) -> _:Void {
+    # result : A.Array<Boolean> = A.forEachIndex(arr, (i:Integer, elem:Boolean) -> J.out(true))
+    J.out(10)
+}
+
+testReduce: (arr:A.Array<Integer>) -> _:Void {
+    result : Integer = A.reduce(arr, (l:Integer, m:Integer) -> l + m)
+    J.out(result)
+}
+
+testConcat: (arr:A.Array<Boolean>, arr2:A.Array<Boolean>) -> _:Void {
+    concatArray = A.concat(arr, arr2)
+
+    J.out(A.size(arr))
+    J.out(A.size(arr2))
+    J.out(A.size(concatArray))
+}
+
+main : (args:Array<String>) -> _:Void {
+
+    arr : A.Array<Boolean> = A.array(10, true)
+    arr2 : A.Array<Boolean> = A.array(5, false)
+    arr3 : A.Array<Integer> = A.array(5, 1)
+    arr3 = A.append(arr3, 5)
+
+    # testForAll(arr)
+    # testForEach(arr)
+    # testAppend(arr)
+    testReduce(arr3)
+    # testConcat(arr, arr2)
+}

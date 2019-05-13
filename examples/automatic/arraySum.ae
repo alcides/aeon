@@ -1,0 +1,23 @@
+import ..prelude.J
+import ..prelude.A
+
+eq : (i:Integer, j:Integer) -> _:Boolean {
+    i == j
+}
+
+get : (arr:A.Array<Integer>, i:Integer) -> out:Integer where [A.count(arr, i) > 0] {
+    A.get(arr, i)
+}
+
+arraySum : (arr:A.Array<Integer>, i:Integer) -> j:Integer where [ j == A.reduce(arr, (l:Integer, m:Integer) -> l + m)] {
+    # …
+    J.iif(eq(i, 0),
+         () -> get(arr, i),
+         () -> arraySum(arr, i - 1)) + get(arr, i)
+}
+
+
+main : (_:Array<String>) -> _:Void {
+    array : A.Array<Integer> = A.randomIntArray()
+    J.out(arraySum(array, A.size(array) - 1))
+}

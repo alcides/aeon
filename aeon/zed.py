@@ -70,6 +70,8 @@ class Zed(object):
             return z3.Int
         elif t == Type('Boolean'):
             return z3.Bool
+        elif t == Type('String'):
+            return z3.String
         else:
             return z3.Int
             # TODO
@@ -155,7 +157,9 @@ class Zed(object):
         lit_var = self.z3_type_constructor(t)(lit_name)
         self.context[lit_name] = lit_var # TODO: production
         
+        if (t.type != 'String'): # TODO: Ver se posso fazer isto
         self.solver.add(lit_var == v)
+
         return lit_name
 
     def combine(self, t, nodet, nodes):
@@ -195,6 +199,14 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add( combiner_var == (a != b) )
+            elif nodet == ">=":
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add(combiner_var == (a >= b))
+            elif nodet == "<=" :
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add(combiner_var == (a <= b))
             else:
                 print("TODO zed", nodet)
         elif self.is_refined(nodes[0].type):

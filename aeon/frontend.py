@@ -133,7 +133,16 @@ def let():
     return Node('let', s, definition, typ, coerced=coerc=="!:")
 
 
-atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole
+@lexeme
+@generate
+def quoted():
+    '''Parse quoted string.'''
+    yield string('"')
+    body = yield many(charseq())
+    yield string('"')
+    return Node('literal', ''.join(body), type=copy.deepcopy(t_s))
+
+atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole ^ quoted
 expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
@@ -187,14 +196,6 @@ typee = lambda_type ^ basic_type ^ refined_type
 
 
 
-@lexeme
-@generate
-def quoted():
-    '''Parse quoted string.'''
-    yield string('"')
-    body = yield many(charseq())
-    yield string('"')
-    return ''.join(body)
 
 @generate
 def decl_args():

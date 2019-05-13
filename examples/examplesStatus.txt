@@ -29,3 +29,4 @@ Not working:
 Doubts:
     > file.ae : metodo encrypt, porque é que existe a refinação no tipo e no where apos o output?
     > Existe keyword and, usado só dentro wheres?
+    > Na definição de um type, o 'as' é opcional?

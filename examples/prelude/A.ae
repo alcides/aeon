@@ -10,6 +10,7 @@ native A.set : T => (arr: A.Array<T>, index: Integer, value:T) -> p:T  where [ i
 
 native A.size : T => (arr: A.Array<T>) -> r:Integer where [ r == arr.size ]
 
+# TODO: Nao funciona
 native A.forEach : T => (arr: A.Array<T>, f: (T) -> Void) -> _:A.Array<T>
 
 native A.forEachIndex : T => (arr: A.Array<T>, f: (Integer, T) -> Void) -> _:A.Array<T>
@@ -20,9 +21,16 @@ native A.copy : T => (arr: A.Array<T>) -> out:A.Array<T> where [ out.size == arr
 
 native A.reduce : T => (arr: A.Array<T>, f: (T,T) -> T) -> _:T where [ arr.size > 0 ]
 
-native A.forAll : T => (arr: A.Array<T>, f: (Integer) -> Boolean) -> _:Boolean
+native A.forall : T => (arr: A.Array<T>, f: (T) -> Boolean) -> _:Boolean    # ERRO aqui talvez
 
 native A.append : T => (arr: A.Array<T>, e:T) -> out: A.Array<T> where [out.size == (arr.size + 1)]
+
+native A.concat : T => (arr: A.Array<T>, arr2:A.Array<T>) -> out:A.Array<T> where [out.size == (arr.size + arr2.size) # and
+                                                                                   # A.forall(A.range(0, A.size(arr) - 1), (i:Integer) -> A.get(arr, i) == A.get(out, i)) and
+                                                                                   # A.forall(A.range(0, A.size(arr2) - 1), (i:Integer) -> A.get(arr2, i) == A.get(out, A.size(arr) + i))
+                                                                                   ]
+# TODO
+native A.equals : T => (arr1: A.Array<T>, arr2:A.Array<T>) -> out:Boolean where [out == (A.size(arr1) == A.size(arr2) && (A.forall(A.range(0, A.size(arr1)),(i:Integer) -> A.get(arr,i) == A.get(arr2,i))))]
 
 native A.count : T => (arr: A.Array<T>, e:T) -> out:Integer
 

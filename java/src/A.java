@@ -101,4 +101,13 @@ public class A {
         }
         return i;
     }
+
+    public static <T> ArrayList<T> concat(ArrayList<T> a1, ArrayList<T> a2) {
+		ArrayList<T> result = copy(a1);
+
+        for (T elem : a2)
+            result.add(elem);
+
+		return result;
+	}
 }
