@@ -250,6 +250,9 @@ class CodeGenerator(object):
         for prev in n.nodes[:-1]:
             self.block.add(self.g_expr(prev))
         
+        if not n.nodes and type == 'void':
+            return ({})
+        
         return self.g_expr(n.nodes[-1])
     
     def g_expr(self, n):
@@ -259,7 +262,7 @@ class CodeGenerator(object):
             return self.g_literal(n)
         elif n.nodet == 'let':
             return self.g_let(n)
-        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
+        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!", "==>"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
             return self.g_atom(n)
@@ -350,12 +353,13 @@ class CodeGenerator(object):
 
 
     def g_op(self, n):
-        "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"
+        "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!", "==>"
 
         if n.nodet == '!':
-            format_string = "(!{1}"
-        
-        if n.nodet == '==':
+            format_string = "(!{1})"
+        elif n.nodet == "==>":
+            format_string = "(!{1} || {2})"
+        elif n.nodet == '==':
             format_string = "({1}.equals({2}))"
         elif n.nodet == '!=':
             format_string = "({1}.equals({2}) == false)"

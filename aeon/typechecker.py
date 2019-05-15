@@ -378,7 +378,7 @@ class TypeChecker(object):
 
 
     def t_op(self, n, expects=None):
-        if n.nodet in ['&&', '||']:
+        if n.nodet in ['&&', '||', '==>']:
             n.type = t_b
             self.typelist(n.nodes)
             for c in n.nodes:
@@ -401,6 +401,8 @@ class TypeChecker(object):
         elif n.nodet in ["+", "-", "*", "/", "%"]:
             self.typelist(n.nodes)
             n.type = t_i if all([ k.type == t_i for k in n.nodes]) else t_f
+            if n.nodet == "%" and n.type != t_i:
+                self.type_error("Operator {} can only be applied to integer, not {} and {}".format(n.nodet, n.nodes[0].type, n.nodes[1].type))
             if self.refined:
                 n.type.refined = zed.combine(n.type, n.nodet, n.nodes)
                 n.type.context = zed.copy_assertions()

@@ -34,6 +34,7 @@ pipe = t('|')
 comma = t(',')
 arrow = t('->')
 fatarrow = t('=>')
+implies = t('==>')
 hole = t('…').result(Node('hole'))
 true = t('true').result(Node('literal', True, type=t_b))
 false = t('false').result(Node('literal', False, type=t_b))
@@ -44,7 +45,7 @@ symbol = lexeme(regex(r'[.\d\w_]+'))
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-") ^ t("!")
 op_3 = t("<=") ^ t("<") ^ t(">=") ^ t(">") ^ t("==") ^ t("!=")
-op_4 = t("&&") ^ t("||")
+op_4 = t("&&") ^ t("||") ^ implies
 op_5 = t("=")
 op_all = op_4 ^ op_3 ^ op_2 ^ op_1
 

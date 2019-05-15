@@ -1,7 +1,7 @@
 import prelude.J
 	
 f : (i:Integer) -> _:Integer {
-	a:{Boolean where self } = true
+	a:{Boolean where self } = …  
 	1
 }
 

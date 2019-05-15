@@ -1,0 +1,6 @@
+import imported
+	
+main : (args:Array<String>) -> _:Void {
+	f()
+}
+	

@@ -39,5 +39,5 @@ def prettyprint(n):
         else:
             return "type {}".format(n.nodes[0])
     else:
-        print("pretty print new_type:", n)
+        print("pretty print 1.0:", n)
         return "<UNKNOWN>"

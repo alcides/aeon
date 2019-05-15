@@ -270,7 +270,7 @@ class CodeGenerator(object):
         elif n.nodet == 'hole':            
             return self.g_expr(n.nodes[0])
         else:
-            print("new_type:", n)
+            print("1.0:", n)
             return Expr("X")
 
     def g_invocation(self, n):

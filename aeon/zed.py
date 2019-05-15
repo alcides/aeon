@@ -157,9 +157,12 @@ class Zed(object):
         lit_var = self.z3_type_constructor(t)(lit_name)
         self.context[lit_name] = lit_var # TODO: production
         
-        if (t.type != 'String'): # TODO: Ver se posso fazer isto
-            self.solver.add(lit_var == v)
-
+        if (t.type == 'String'):
+            literal_value = z3.StringVal(v)
+		else:
+			literal_value = v
+			
+		self.solver.add(lit_var == literal_value)
         return lit_name
 
     def combine(self, t, nodet, nodes):
@@ -187,6 +190,10 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add( combiner_var == a / b )
+            elif nodet == '==>':
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add( combiner_var == z3.implies(a,b) )
             elif nodet == '%':
                 a = self.context[ar]
                 b = self.context[br]
