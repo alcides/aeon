@@ -178,7 +178,7 @@ def lambda_type():
     yield arrow
     rt = yield basic_type
     return Type(basic=rt, lambda_parameters = args)
-    
+
 @lexeme
 @generate
 def refined_type():
@@ -190,7 +190,7 @@ def refined_type():
     rt = Type(basic=basic_t, conditions = ls)
     rt.set_conditions(ls, ['self'], [])
     return rt
-    
+
 
 typee = lambda_type ^ basic_type ^ refined_type
 
@@ -243,7 +243,7 @@ def where():
     ls = yield sepBy(expr, t("and"))
     yield t("]")
     return makeblock(ls)
-    
+
 @generate
 def tracked_arg():
     arg = yield symbol
@@ -251,7 +251,7 @@ def tracked_arg():
     typ = yield typee
     trackedBy = yield (t("trackedBy") >> symbol ) ^ t("")
     return Node('argument', arg, typ, trackedBy)
-    
+
 @lexeme
 @generate
 def tracked_args():
