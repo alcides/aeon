@@ -1,0 +1,22 @@
+import ..prelude.J
+
+# Problema: Doubles nao funcionam ainda
+
+id : (i:Double) -> j:Double {
+   i
+}
+
+sum : (i:Double, j:Double) -> a:Double where [(id(a) - (i + j)) < 0.1] {
+   (i+j)
+}
+
+
+v : (i:Double, k:Double) -> j:Double where [(id(j) - (i + k)) < 0.1] {
+   …
+   # sum(i, k)
+}
+
+
+main : (_:Array<String>) -> _:Void {
+    J.out(v(1.0, 2.0))
+}

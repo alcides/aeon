@@ -1,4 +1,5 @@
 import copy
+import string
 import random
 import sys
 import subprocess
@@ -265,8 +266,31 @@ class Synthesiser(object):
         else:
             lambda_do_body = Node('block', *tests)
         
+        # TODO: Verificar se assim se encontra correto:
+        # TODO: Falta o t_d
         if t == t_i:
             return Node('invocation', 'GP.genInteger', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
+                Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
+                Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
+            ])
+        elif t == t_b:
+            return Node('invocation', 'GP.genBoolean', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
+                Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
+                Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
+            ])
+        elif t == t_s:
+            return Node('invocation', 'GP.genString', [
+                Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
+                Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
+                Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
+                Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
+            ])
+        elif t == t_f:
+            return Node('invocation', 'GP.genFloat', [
                 Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
                 Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
                 Node('lambda', [ ('__return_0', t.type) ], lambda_cond_body),
@@ -325,6 +349,10 @@ class Synthesiser(object):
         
         n = native.parse_strict
         fn_genInteger = n("native GP.genInteger : (_:Integer, _:Integer, _:(Integer) -> Boolean, _:(Integer) -> Void) -> _:Void")
+        fn_genDouble = n("native GP.genDouble : (_:Integer, _:Integer, _:(Double) -> Boolean, _:(Double) -> Void) -> _:Void")
+        fn_genBoolean = n("native GP.genBoolean : (_:Integer, _:Integer, _:(Boolean) -> Boolean, _:(Boolean) -> Void) -> _:Void")
+        fn_genFloat = n("native GP.genFloat : (_:Integer, _:Integer, _:(Float) -> Boolean, _:(Float) -> Void) -> _:Void")
+        fn_genString = n("native GP.genString : (_:Integer, _:Integer, _:(String) -> Boolean, _:(String) -> Void) -> _:Void")
         fn_genObject = n("native GP.genObject : T => (_:Integer, _:T, _:(T) -> Boolean, _:(T) -> Void) -> _:Void")
         fn_genTests = n("native GP.genTests : (_:Integer, _:() -> Void) -> _:Void")
         fn_out = n("native System.out.println : (_:Double) -> _:Void")
@@ -333,7 +361,7 @@ class Synthesiser(object):
         fn_if = n("native J.iif : T => (_:Boolean, _: () -> T, _:() -> T) -> _:T")
         fn_abs = n("native Math.abs : T => (_:Double) -> _:Double")
         helpers = [fn_if, fn_abs]
-        p = dependencies +  helpers + fn_targets + [fn_genInteger, fn_genObject, fn_genTests, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
+        p = dependencies +  helpers + fn_targets + [fn_genInteger, fn_genBoolean, fn_genDouble, fn_genFloat, fn_genString, fn_genObject, fn_genTests, fn_getFitness, fn_addFitness, fn_out] + tests + [fn_main]
         
         p = self.filter_duplicate_natives(p)
         
@@ -398,7 +426,10 @@ class Synthesiser(object):
             return Node('literal', v, type=t_f_c())
             
         def random_string_literal(tp, **kwargs):
-            return Node('literal', "\"\"", type=t_s ) #TODO
+            length = random.randint(1, 20)
+            letters = 'abcdefghijklmnopqrstuvwxyz'
+            string = ''.join(random.choice(letters) for i in range(length))
+            return Node('literal', string, type=t_s ) #TODO
             
         def random_let(tp, **kwargs):
             var_name = "var_{}".format(random.randint(0,1000000))
@@ -559,11 +590,13 @@ class Synthesiser(object):
         raise GenException("Could not generate AST for type {}".format(self.type))
     
     def validate(self, candidate, expects=None):
+
         f = copy.deepcopy(self.function_template)
         nf = replace_hole(f, candidate)
         
         program_evaluator = copy.deepcopy(self.program_evaluator)
         program = replace_hole(program_evaluator, candidate)
+
         try:
             typecheck(program, refined=self.refined)
             return nf

@@ -66,6 +66,8 @@ class Zed(object):
     def z3_type_constructor(self, t):
         if t == Type('Double'):
             return z3.Real
+        elif t == Type('Float'):
+            return z3.Real
         elif t == Type('Integer'):
             return z3.Int
         elif t == Type('Boolean'):
@@ -124,6 +126,7 @@ class Zed(object):
             zcs.extend(return_type.zed_conditions)
             
         for zc in zcs:
+
             statement = zc(vars)
             
             self.solver.push()
@@ -131,8 +134,8 @@ class Zed(object):
             r = self.solver.check()
             self.solver.pop()
             if r == z3.unsat:
-                #´self.solver)
-                #print("Failed on ", zc(vars))
+                #self.solver)
+                print("Failed on ", zc(vars))
                 return False, None
             elif r == z3.sat:
                 self.solver.add(statement)
@@ -199,6 +202,14 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add( combiner_var == (a != b) )
+            elif nodet == "<":
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add(combiner_var == (a < b))
+            elif nodet == ">":
+                a = self.context[ar]
+                b = self.context[br]
+                self.solver.add(combiner_var == (a > b))
             elif nodet == ">=":
                 a = self.context[ar]
                 b = self.context[br]

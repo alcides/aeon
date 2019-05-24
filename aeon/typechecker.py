@@ -197,6 +197,7 @@ class TypeChecker(object):
         return self.typecontext.unify(*args, **kwargs)
 
     def typelist(self, ns, *args, **kwargs):
+
         if not ns:
             return []
         if 'expects' in kwargs:
