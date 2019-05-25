@@ -1,0 +1,13 @@
+import ..prelude.J
+import ..prelude.S
+
+asd : (x:Boolean) -> res:Boolean where [res == !J.id(x)] {
+   x
+}
+
+
+main : (_:Array<String>) -> _:Void {
+
+    x:Boolean = false
+    J.out(asd(x))
+}

@@ -94,7 +94,26 @@ def invocation():
         name = ".".join(name.split(".")[:-1]) # remove .1
     return Node('invocation', name, args, version=v)
 
-
+# TODO: still on work
+'''
+@lexeme
+@generate
+def ifThenElse():
+    # If and then the condition
+    yield 'if'
+    cond = yield expr_4
+    # Body of the then
+    yield 'then'
+    yield lbrace
+    bodyThen = yield many(expr).parsecmap(makeblock)
+    yield rbrace
+    # Body of the else
+    yield "else"
+    yield lbrace
+    bodyElse = yield many(expr).parsecmap(makeblock)
+    yield rbrace
+    return Node('ifThenElse', cond, bodyThen, bodyElse)
+'''
 
 @lexeme
 @generate

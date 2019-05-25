@@ -16,8 +16,11 @@ def translate_h(n):
             return False, None
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
-    elif n.nodet == '!': # TODO: verificar se esta certo
-        return True, lambda args: z3.Not(n.nodes[0])
+    elif n.nodet == '!': # TODO: Bug do zed aqui provavelmente
+        a_ok, a_l = translate_h(n.nodes[0])
+        if (not a_ok):
+            return False, None
+        return True, lambda args: z3.Not(a_l(args))
     elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '||', '&&']:
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])

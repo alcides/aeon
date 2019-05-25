@@ -1,4 +1,6 @@
 #!/bin/bash
+# export PATH="$PATH:/usr/bin/z3-4.8.5.9c9cd5ebf791-x86-ubuntu-14.04/bin/"
+export PYTHONPATH="$PYTHONPATH:/usr/bin/"
 
 OUTPUTDIR="bin"
 for i in "$@"
@@ -34,7 +36,7 @@ function run_code {
 
 mkdir -p $OUTPUTDIR &&
 prepare_java_sources &&
-python3 -m aeon $@ && 
+python3.7 -m aeon $@ &&
 clean_code &&
 compile_code &&
 run_code

@@ -16,7 +16,10 @@ class CostExtractor(object):
             return "return new Random().nextBoolean();"
         if type == 'Integer':
             return "return new Random().nextInt(2000000)-1000000;"
-        # TODO: Provavelmente adicionar random string aqui tambem?
+        if type == "Double":
+            return "return new Random().nextDouble() * (2000000 + 1000000) - 1000000;"
+        if type == 'Float':
+            return "return new Random().nextFloat() * (2000000.0f + 1000000.0f) - 1000000.0f;"
         if type == 'Object':
             return "return new Integer(0);";
         if type == 'java.util.ArrayList<Integer>':

@@ -6,10 +6,10 @@ def prettyprint(n):
         return "\n".join([ prettyprint(a) for a in n ])
     elif type(n) == type((0,0)):
         # TODO: should be arg?
-        return "{} : {}".format(n[0], n[1]) 
+        return "{} : {}".format(n[0], n[1])
     elif n.nodet == 'invocation':
         return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1]))))
-    elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
+    elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
         if len(n.nodes) == 2:
             return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
         else:

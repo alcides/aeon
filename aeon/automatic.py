@@ -290,6 +290,7 @@ class Synthesiser(object):
                 Node('lambda', [ ('__argument_{}'.format(counter), t) ], lambda_do_body)
             ])
         elif t == t_f:
+            # TODO: Verificar isto, confusao entre genFloat e genDouble
             return Node('invocation', 'GP.genFloat', [
                 Node('literal', QUICKCHECK_SIZE, type=t_i_c()), #size
                 Node('literal', self.random.randint(0,1000), type=t_i_c()), #seed
