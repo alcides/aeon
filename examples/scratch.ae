@@ -1,0 +1,10 @@
+import prelude.J
+
+getK : (i:Integer) -> _:Integer {
+	i = 1
+	i
+}
+
+main : (args:Array<String>) -> _:Void {
+	J.out(1)
+}

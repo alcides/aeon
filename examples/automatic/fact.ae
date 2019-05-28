@@ -1,0 +1,25 @@
+import ..prelude.J
+
+###
+if : (cond:Boolean, then:Integer, else:Integer) -> out:Integer {
+    val : Integer = J.iif(cond,
+        () -> then,
+        () -> else
+    )
+    val
+}
+###
+
+# Tail recursive
+fact : (val:Integer, acumulador:Integer) -> out:Integer where [out == fact(val)] {
+    J.iif(val <= 1,
+        () -> acumulador,
+        () -> fact(val - 1, acumulador * val)
+     )
+}
+
+main : (_:Array<String>) -> _:Void {
+    value : Integer = 10
+    acumulador : Integer = 1
+    J.out(fact(value, acumulador))
+}

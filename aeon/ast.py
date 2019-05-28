@@ -6,7 +6,7 @@ class Node(object):
         self.refined = None
 
         for k in kwargs:
-            setattr(self, k, kwargs[k])
+            setattr(self, k, kwargs[k]) 
 
     def __str__(self):
         if hasattr(self, 'type'):

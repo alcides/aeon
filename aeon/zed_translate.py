@@ -8,7 +8,7 @@ def translate_h(n):
             return True, lambda args: args[0]
         elif n.nodes[0].startswith('__return_'):
             return True, lambda args: args[0]
-        elif n.nodes[0].startswith('__argument_'):            
+        elif n.nodes[0].startswith('__argument_'):
             i = int(n.nodes[0].split("__")[1].split("_")[-1])
             return True, lambda args: args[1 + i]
         else:
@@ -16,6 +16,11 @@ def translate_h(n):
             return False, None
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
+    elif n.nodet == '!': # TODO: Bug do zed aqui provavelmente
+        a_ok, a_l = translate_h(n.nodes[0])
+        if (not a_ok):
+            return False, None
+        return True, lambda args: z3.Not(a_l(args))
     elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '||', '&&']:
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])
@@ -54,7 +59,7 @@ def translate_h(n):
     print("unknown node in Z3 conversion!!!!", n.nodet)
     return False, None
 
-def translate(predicates, vars = None):    
+def translate(predicates, vars = None):
     z3_predicates = []
     for p in predicates:
         ok, cond_l = translate_h(p)

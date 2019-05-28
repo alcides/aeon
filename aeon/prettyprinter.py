@@ -9,7 +9,7 @@ def prettyprint(n):
         return "{} : {}".format(n[0], n[1])
     elif n.nodet == 'invocation':
         return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1]))))
-    elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%"]:
+    elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
         if len(n.nodes) == 2:
             return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
         else:
@@ -18,6 +18,8 @@ def prettyprint(n):
         return str(n.nodes[0])
     elif n.nodet == 'let':
         return "{} = {}".format(n.nodes[0], prettyprint(n.nodes[1]))
+    elif n.nodet == 'ifThenElse':
+        return "if ({}) {{ {} }} else {{ {} }}".format(prettyprint(n.nodes[0]), prettyprint(n.nodes[1]), prettyprint(n.nodes[2]))
     elif n.nodet == 'atom':
         return "{}".format(n.nodes[0])
     elif n.nodet == 'lambda':
@@ -39,5 +41,5 @@ def prettyprint(n):
         else:
             return "type {}".format(n.nodes[0])
     else:
-        print("pretty print 1.0:", n)
+        print("pretty print new_type:", n)
         return "<UNKNOWN>"

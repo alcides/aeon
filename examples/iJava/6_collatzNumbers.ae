@@ -1,0 +1,45 @@
+import ..prelude.J
+import ..prelude.A
+
+mul : (i:Integer, j:Integer) -> k:Integer where [k == (i * j)] {
+    i * j
+}
+
+sum : (i:Integer, j:Integer) -> k:Integer where [k == (i + j)] {
+    i + j
+}
+
+div : (i:Integer, j:Integer) -> k:Integer where [k == (i / j)] {
+    i / j
+}
+
+mod : (i:Integer, j:Integer) -> k:Integer where [k == (i % j)] {
+    i % j
+}
+
+append : (arr:A.Array<Integer>, e:Integer) -> out: A.Array<Integer> {
+    A.append(arr, e)
+}
+
+# if : (cond:Boolean, then:Integer, else:Integer) -> out:Integer where [out == J.iif(cond, () -> then, () -> else)] {
+#    J.iif(cond, () -> then, () -> else)
+#}
+
+collatzNumbers : (arr:A.Array<Integer>, x:Integer) -> sequence:A.Array<Integer> {
+    J.iif(x == 1,
+         () -> append(arr, 1),
+         () -> (J.iif ((x % 2) == 0,
+                       () -> (collatzNumbers(A.append(arr, div(x, 2)), div(x, 2))),
+                       () -> (collatzNumbers(A.append(arr, sum(mul(3, x), 1)), sum(mul(3, x), 1)))
+                      )
+              )
+        )
+}
+
+main : (args : Array<String>) -> _ : Void {
+
+    x : Integer = 5
+    array : A.Array<Integer> = A.array(0, 0)
+
+    collatzNumbers(array, x)
+}

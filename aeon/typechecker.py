@@ -7,7 +7,7 @@ class TypeException(Exception):
         super(TypeException, self).__init__(name, description, *args, **kwargs)
         self.expected = expected
         self.given = given
-        
+
 
 class TypeContext(object):
     def __init__(self, typedecl=None, refined=True):
@@ -26,9 +26,9 @@ class TypeContext(object):
 
     def add_type_alias(self, t1, t2):
         self.type_aliases[t1] = t2.copy()
-        
+
     def handle_aliases(self, t, recursive=False):
-        
+
         for t1 in self.types:
             if t == t1:
                 for prop in t1.properties:
@@ -42,7 +42,7 @@ class TypeContext(object):
             if t.type_arguments:
                 t.type_arguments = list(map(self.handle_aliases, t.type_arguments))
             return self.handle_aliases(t.copy())
-        
+
         for ta in self.type_aliases:
             replacements = {}
             if t.binders and ta.binders:
@@ -55,7 +55,7 @@ class TypeContext(object):
                 else:
                     v = False
             else:
-                v = t == ta          
+                v = t == ta
             if v:
                 b = self.type_aliases[ta].copy()
                 for k in replacements:
@@ -63,7 +63,7 @@ class TypeContext(object):
                 t.type = b
                 t.consolidate()
                 return t
-            
+
         # T<Integer> under type T<P> aliasing java.util.T<P> should be java.util.T<Integer>
         for possible_generic_type in self.type_aliases:
             if possible_generic_type.binders:
@@ -88,8 +88,8 @@ class TypeContext(object):
         if r and self.refined and check_refined:
             return zed.try_subtype(t1, t2, new_context, under)
         return r
-        
-        
+
+
     def resolve_type(self, t):
         return self.handle_aliases(t)
 
@@ -112,7 +112,7 @@ class TypeContext(object):
                     if a:
                         return (a, ft_concrete_r)
             return (False, None)
-        else:            
+        else:
             valid = all([ self.is_subtype(a, b) for a,b in zip(args, ft.lambda_parameters) ])
             return (valid, ft)
 
@@ -123,13 +123,13 @@ class TypeContext(object):
                     if arg.nodes[0] == property_name:
                         return arg.nodes
         return None
-        
+
     def get_type_properties(self, target_type):
         for ty in self.types:
             if ty.polymorphic_matches(target_type, self):
                 return [n.nodes for n in ty.properties]
         return None
-                   
+
 class Context(object):
     def __init__(self, tcontext):
         self.stack = []
@@ -154,7 +154,7 @@ class Context(object):
 
     def set(self, k, v):
         self.stack[-1][k] = v
-        
+
     def variables(self):
         vs = []
         for s in self.stack[::-1]:
@@ -192,11 +192,12 @@ class TypeChecker(object):
 
     def check_function_arguments(self, args, ft):
         return self.typecontext.check_function_arguments(args, ft)
-        
+
     def unify(self, *args, **kwargs):
         return self.typecontext.unify(*args, **kwargs)
 
     def typelist(self, ns, *args, **kwargs):
+
         if not ns:
             return []
         if 'expects' in kwargs:
@@ -215,7 +216,7 @@ class TypeChecker(object):
     def t_type(self, n, expects=None):
         if len(n.nodes) > 2 and n.nodes[2]:
             n.nodes[0].set_conditions(n.nodes[2], names=['self'])
-            
+
         if len(n.nodes) > 3 and n.nodes[3]:
             n.nodes[0].set_properties(n.nodes[3])
 
@@ -227,8 +228,8 @@ class TypeChecker(object):
     def t_native(self, n, expects=None):
         name = n.nodes[0]
         n.type = n.nodes[2].nodes[1]
-    
-        argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in n.nodes[1]]    
+
+        argtypes = [self.typecontext.resolve_type(x.nodes[1]) for x in n.nodes[1]]
         ft = Type(lambda_parameters = argtypes,
                   basic=self.typecontext.resolve_type(n.type),
                   binders = n.nodes[3],
@@ -236,7 +237,7 @@ class TypeChecker(object):
                   effects=n.nodes[5])
         ft.set_conditions(n.nodes[4], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
         ft.set_effects(n.nodes[5], [n.nodes[2].nodes[0]], [x.nodes[0] for x in n.nodes[1]])
-        
+
         n.md_name = self.context.define_fun(name, ft, n)
         self.function_name = n.md_name
         self.function_type = ft
@@ -262,10 +263,10 @@ class TypeChecker(object):
 
         for arg, argt in zip(n.nodes[1], argtypes):
             self.context.set(arg.nodes[0], argt)
-    
+
         # body
         self.typecheck(n.nodes[6], expects = ft.type)
-        if n.nodes[6]: 
+        if n.nodes[6]:
             real_type = n.nodes[6].type
         else:
             real_type = t_v
@@ -278,9 +279,14 @@ class TypeChecker(object):
             if not self.is_subtype(real_type, n.type, under=(ft, argtypes)):
                 self.type_error("Function {} failed post-condition {} when returning {}".format(name, ft, real_type),
                 given=real_type, expected=ft)
-            
+
 
         self.context.pop_frame()
+
+
+    def t_ifThenElse(self, n, expects=None):
+
+        print("TODO")
 
 
     def t_invocation(self, n, expects=None):
@@ -298,15 +304,15 @@ class TypeChecker(object):
             self.type_error("Function {} is not callable".format(name))
 
         actual_argument_types = [ self.typecontext.resolve_type(c.type) for c in n.nodes[1] ]
-        
+
         if len(actual_argument_types) != len(t.lambda_parameters):
             self.type_error(
                 "Wrong number of arguments for {}({})".format(name, ",".join(map(str,actual_argument_types))),
                 expected = t.lambda_parameters,
                 given = actual_argument_types
-            
+
             )
-    
+
         valid, concrete_type = self.check_function_arguments(actual_argument_types, t_name)
         if valid:
             concrete_type.type = self.typecontext.resolve_type(concrete_type.type) # Return type
@@ -352,7 +358,7 @@ class TypeChecker(object):
 
     def t_atom(self, n, expects=None):
         k = self.context.find(n.nodes[0])
-        
+
         if k == None:
             self.type_error("Unknown variable {}".format(n.nodes[0]))
         n.type = k
@@ -417,7 +423,7 @@ class TypeChecker(object):
             n.type.conditions = [ Node('==', Node('atom', 'self'), Node('literal', n.nodes[0])) ]
         else:
             pass
-            
+
 
     def typecheck(self, n, **kwargs):
         if type(n) == list:
@@ -439,6 +445,8 @@ class TypeChecker(object):
             return self.t_atom(n, **kwargs)
         elif n.nodet == 'let':
             return self.t_let(n, **kwargs)
+        elif n.nodet == 'ifThenElse':
+            return self.t_ifThenElse(n, **kwargs)
         elif not n.nodet.isalnum():
             return self.t_op(n)
         elif n.nodet == 'literal':
@@ -452,9 +460,9 @@ class TypeChecker(object):
         elif n.nodet == 'hole':
             n.type = 'block'
             expects = kwargs['expects']
-            n.nodes = [self.synthesiser(n, expects, 
-                root=self.root, 
-                function_name=self.function_name, 
+            n.nodes = [self.synthesiser(n, expects,
+                root=self.root,
+                function_name=self.function_name,
                 function_type=self.function_type,
                 context = copy.deepcopy(self.context, memo={}),
                 typechecker=copy.deepcopy(self),

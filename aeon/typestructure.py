@@ -7,7 +7,7 @@ from .prettyprinter import prettyprint
 
 class Type(object):
     def __init__(self, basic="Object", lambda_parameters=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None, properties=None):
-        self.type = basic
+        self.type = basic 
         self.lambda_parameters = lambda_parameters
         self.type_arguments = type_arguments and type_arguments or []
         self.binders = binders
@@ -15,12 +15,12 @@ class Type(object):
         self.preconditions = preconditions and preconditions or []
         self.effects = effects and effects or []
         self.properties = properties and properties or []
-        
+
         self.propagate_binders()
-        
+
     def is_function(self):
         return self.lambda_parameters != None
-        
+
     def consolidate(self):
         if type(self.type) == Type and self.lambda_parameters==None:
             o = self.type
@@ -86,25 +86,25 @@ class Type(object):
         else:
             status = any([ self.depends_on(n, prefix) for n in c.nodes ])
         return status
-        
+
     def set_properties(self, ps):
         self.properties = ps
-    
+
     def set_conditions(self, conds, names, argnames=[]):
         self.preconditions = []
         self.conditions = []
         if conds:
             for c in conds:
                 self.add_condition(c, names, argnames)
-                
-                    
+
+
     def add_condition(self, c, names=[], argnames=[], skip_rename=False):
-        
+
         if not skip_rename:
             self.replace(c, names, argnames)
         if self.depends_on(c, '__return_0'):
-            if c not in self.conditions:                
-                self.conditions.append(c)            
+            if c not in self.conditions:
+                self.conditions.append(c)
                 if not self.depends_on(c, '__argument'):
                     if self.lambda_parameters:
                         if type(self.type) == str:
@@ -113,7 +113,7 @@ class Type(object):
         else:
             if c not in self.preconditions:
                 self.preconditions.append(c)
-                    
+
     def set_effects(self, effs, names, argnames=[]):
         self.effects = [ ]
         if effs:
@@ -178,7 +178,7 @@ class Type(object):
                 t += "<{}={}>".format(str(self.refined), str(self.refined_value))
             else:
                 t += "<{}>".format(str(self.refined))
-        
+
         return t
 
     def __repr__(self):
@@ -209,7 +209,7 @@ class Type(object):
 
         self.consolidate()
         other.consolidate()
-        
+
         return self.type == other.type and \
             self.lambda_parameters == other.lambda_parameters and \
             len(self.type_arguments) == len(other.type_arguments) and \

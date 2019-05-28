@@ -5,13 +5,14 @@ main : (args : Array<String>) -> _:Void {
     x : Integer = 0
     y : Integer = 30
 
-    test1 : Integer = ifExample1(x)
-    test2 : Integer = if (x < y) 1 else 0
+    # test1 : Integer = ifExample1(x)
+    if (x < y) {1} else {0}
 
-    J.out(test1)
-    J.out(test2)
+    # J.out(test1)
+    # J.out(test2)
 }
 
+###
 ifExample1 : (x: {Integer where self >= 0}) -> _:Integer {
     if (x == 0) {
         # Exemplo de statements
@@ -23,3 +24,7 @@ ifExample1 : (x: {Integer where self >= 0}) -> _:Integer {
         ifExample1(x - 1)
 	}
 }
+
+###
+asd
+###

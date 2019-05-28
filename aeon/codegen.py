@@ -59,7 +59,7 @@ class CodeGenerator(object):
     def get_counter(self):
         self.counter += 1
         return self.counter
-        
+
     def wrap_underscore(self, n):
         if n == "_":
             n = "underscore{}".format(self.get_counter())
@@ -126,7 +126,7 @@ class CodeGenerator(object):
 
     def java_cost_of(self, tp):
         "Returns the java expression that predicts the cost of a method"
-        
+
         if tp.effects:
             for eff in tp.effects:
                 if eff.nodet == 'invocation' and eff.nodes[0] == 'time':
@@ -138,26 +138,26 @@ class CodeGenerator(object):
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a), "__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)])
-        
+
         invocation_args = "(" + ", ".join([ "{}".format("__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)]) + ")"
-        
+
         inv = ''
-        
+
         # Get costs
         for v in versions:
             inv += "double cost__{} = ({}); \n".format(v[0], self.java_cost_of(v[1]))
-            
+
         for v in versions[:-1]:
             cond = " && ".join([ "cost__{} < cost__{}".format(v[0], v2[0]) for v2 in versions if v2[0] != v[0] ])
             r = ftype.type == 'Void' and '' or 'return '
             inv += "if ({}) {} {}{};".format(cond, r, v[0], invocation_args)
-        
-            
-            
+
+
+
         # Final return
         if not ftype.type == 'Void':
             inv +='return '
-            
+
         inv += versions[-1][0] + invocation_args
         inv += ";"
         body = inv
@@ -190,16 +190,16 @@ class CodeGenerator(object):
             return "" # Codegeneration of type alias
 
         name = n.nodes[0]
-        
+
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
         largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
         self.push_frame()
-        
+
         self.block = Block(lrtype)
         self.blockstack.append(self.block)
-        
-        
+
+
         body = self.g_block(n.nodes[6], type=lrtype)
         noop = True
         if name == 'main' and lrtype == 'void' and ftype.lambda_parameters and str(ftype.lambda_parameters[0]) == 'Array<String>':
@@ -218,9 +218,9 @@ class CodeGenerator(object):
                 body_final = "J.noop(" + str(body) + ")"
             else:
                 body_final = body
-        
+
         self.block.add( Expr(body_final, is_stmt=True) )
-        
+
         body = self.block.get_stmts()
         self.blockstack.pop()
         self.block = None
@@ -234,7 +234,7 @@ class CodeGenerator(object):
         )
 
     def futurify_body(self, body, lrtype):
-        
+
         self.block.stmts.insert(0, Expr("aeminium.runtime.futures.RuntimeManager.init()", is_stmt=True))
         if lrtype == "void":
             self.block.add(body)
@@ -249,12 +249,12 @@ class CodeGenerator(object):
     def g_block(self, n, type='void'):
         for prev in n.nodes[:-1]:
             self.block.add(self.g_expr(prev))
-        
+
         if not n.nodes and type == 'void':
             return ({})
-        
+
         return self.g_expr(n.nodes[-1])
-    
+
     def g_expr(self, n):
         if n.nodet == 'invocation':
             return self.g_invocation(n)
@@ -262,6 +262,8 @@ class CodeGenerator(object):
             return self.g_literal(n)
         elif n.nodet == 'let':
             return self.g_let(n)
+        elif n.nodet == 'ifThenElse':
+            return self.g_ifThenElse(n)
         elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!", "==>"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
@@ -270,7 +272,7 @@ class CodeGenerator(object):
             return self.g_lambda(n)
         elif n.nodet == 'block':
             return self.g_block(n, self.type_convert(n.type))
-        elif n.nodet == 'hole':            
+        elif n.nodet == 'hole':
             return self.g_expr(n.nodes[0])
         else:
             print("new_type:", n)
@@ -295,29 +297,36 @@ class CodeGenerator(object):
             prop = self.typecontext.get_type_property(target_type, prop_name)
             if prop:
                 return Expr(prop[2] + "(" + target_string + ")")
-        
+
         return Expr(self.wrap_underscore(n.nodes[0]))
 
     def g_let(self, n):
         var_name = n.nodes[0]
         var_type = self.type_convert(n.type)
         var_value = self.g_expr(n.nodes[1])
-        
+
         if self.find(var_name) != None:
             return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True, extra=var_name)
         else:
             self.stack[-1][var_name] = var_type
             return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True, extra=var_name)
 
+    def g_ifThenElse(self, n):
+        condExpr = g_expr(n.nodes[0])
+        thenExpr = g_expr(n.nodes[1])
+        elseExpr = g_expr(n.nodes[2])
+
+        return Expr("if ({}) {} else {}", condExpr, thenExpr, elseExpr)
+
     def g_lambda(self, n):
         args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
         rtype = n.type.type
-        
+
         self.block = Block(rtype)
         self.blockstack.append(self.block)
 
         body = self.g_expr(n.nodes[1])
-        
+
         if rtype != t_v:
             if body.extra:
                 self.block.add(body)
@@ -329,13 +338,13 @@ class CodeGenerator(object):
                 body_final = "J.noop(" + str(body) + ")"
             else:
                 body_final = body
-        
+
         self.block.add( Expr(body_final, is_stmt=True) )
-        
+
         body = self.block.get_stmts()
         self.blockstack.pop()
         self.block = self.blockstack[-1]
-                
+
         return Expr("({}) -> {{ {} }}".format(args, body))
 
 
@@ -347,6 +356,8 @@ class CodeGenerator(object):
             return Expr("Integer.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == 'Double':
             return Expr("Double.valueOf({})".format(str(n.nodes[0]).lower()))
+        if java_type == 'Float':
+            return Expr("Float.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == "String":
             return Expr("(\"{}\")".format(str(n.nodes[0]).lower()))
         return Expr("({})".format(str(n.nodes[0]).lower()))
@@ -365,7 +376,7 @@ class CodeGenerator(object):
             format_string = "({1}.equals({2}) == false)"
         else:
             format_string = "({1} {0} {2})"
-        
+
         if len(n.nodes) == 2:
             return Expr(format_string.format(
                 n.nodet,
