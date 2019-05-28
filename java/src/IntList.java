@@ -5,7 +5,9 @@ import java.util.function.Consumer;
 import java.util.Random;
 
 public class IntList extends ArrayList<Integer> {
-  
+
+	private static final long serialVersionUID = 1L;
+
 	public static IntList range(int mi, int ma) {
 		IntList ar = new IntList();
 		for (int i=mi; i<ma; i++)
@@ -26,7 +28,7 @@ public class IntList extends ArrayList<Integer> {
 		return a.size();
 	}
   
-	public static IntList forEach(IntList a, Consumer c) {
+	public static IntList forEach(IntList a, Consumer<Integer> c) {
 		a.forEach(c);
 		return a;
 	}

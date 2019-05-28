@@ -1,8 +1,3 @@
-import java.util.ArrayList;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Consumer;
-
 public class P<K,V> {
 	public K _0;
 	public V _1;
@@ -12,15 +7,15 @@ public class P<K,V> {
 		this._1 = b;
 	}
 	
-	public static <A,B> P<A,B> pair(A a, B b) {
-		return new P<A,B>(a,b);
+	public static <TA,TB> P<TA,TB> pair(TA a, TB b) {
+		return new P<TA,TB>(a,b);
 	}
 	
-	public static <A,B> A fst(P<A,B> p) {
+	public static <TA,TB> TA fst(P<TA,TB> p) {
 		return p._0;
 	}
 	
-	public static <A,B> B snd(P<A,B> p) {
+	public static <TA,TB> TB snd(P<TA,TB> p) {
 		return p._1;
 	}
 }
