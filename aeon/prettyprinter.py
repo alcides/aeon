@@ -1,17 +1,23 @@
 def wrap_node_t(n):
     return hasattr(n, "type") and n.type or "?"
 
+
 def prettyprint(n):
     if type(n) == type([]):
-        return "\n".join([ prettyprint(a) for a in n ])
-    elif type(n) == type((0,0)):
+        return "\n".join([prettyprint(a) for a in n])
+    elif type(n) == type((0, 0)):
         # TODO: should be arg?
         return "{} : {}".format(n[0], n[1])
     elif n.nodet == 'invocation':
-        return "{}({})".format(n.nodes[0], ", ".join(list(map(prettyprint, n.nodes[1]))))
-    elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
+        return "{}({})".format(n.nodes[0],
+                               ", ".join(list(map(prettyprint, n.nodes[1]))))
+    elif n.nodet in [
+            "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/",
+            "%", "!"
+    ]:
         if len(n.nodes) == 2:
-            return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet, prettyprint(n.nodes[1]))
+            return "({} {} {})".format(prettyprint(n.nodes[0]), n.nodet,
+                                       prettyprint(n.nodes[1]))
         else:
             return "({} {})".format(n.nodet, prettyprint(n.nodes[0]))
     elif n.nodet == 'literal':
@@ -19,20 +25,25 @@ def prettyprint(n):
     elif n.nodet == 'let':
         return "{} = {}".format(n.nodes[0], prettyprint(n.nodes[1]))
     elif n.nodet == 'ifThenElse':
-        return "if ({}) {{ {} }} else {{ {} }}".format(prettyprint(n.nodes[0]), prettyprint(n.nodes[1]), prettyprint(n.nodes[2]))
+        return "if ({}) {{ {} }} else {{ {} }}".format(prettyprint(n.nodes[0]),
+                                                       prettyprint(n.nodes[1]),
+                                                       prettyprint(n.nodes[2]))
     elif n.nodet == 'atom':
         return "{}".format(n.nodes[0])
     elif n.nodet == 'lambda':
-        return "({}) -> {}".format(prettyprint(n.nodes[0]), prettyprint(n.nodes[1]))
+        return "({}) -> {}".format(prettyprint(n.nodes[0]),
+                                   prettyprint(n.nodes[1]))
     elif n.nodet == 'block':
         return "{{ {} }}".format(";\n".join(list(map(prettyprint, n.nodes))))
     elif n.nodet == 'decl':
-        return "{} : {} {{ {} }}".format(n.nodes[0], wrap_node_t(n), prettyprint(n.nodes[6]))
+        return "{} : {} {{ {} }}".format(n.nodes[0], wrap_node_t(n),
+                                         prettyprint(n.nodes[6]))
     elif n.nodet == 'native':
         return "native {} : {}".format(n.nodes[0], wrap_node_t(n))
-    elif n.nodet =='argument':
+    elif n.nodet == 'argument':
         if len(n.nodes) > 2 and n.nodes[2]:
-            return "{} : {} tracked by {}".format(n.nodes[0], n.nodes[1], n.nodes[2])
+            return "{} : {} tracked by {}".format(n.nodes[0], n.nodes[1],
+                                                  n.nodes[2])
         else:
             return "{} : {}".format(n.nodes[0], n.nodes[1])
     elif n.nodet == 'type':

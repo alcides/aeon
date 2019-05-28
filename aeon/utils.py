@@ -8,7 +8,7 @@ def orNone(existing, fnew):
 def merge_nones(a, b):
     if a == None:
         return b
-    elif b == None: 
+    elif b == None:
         return a
     else:
         return a + b

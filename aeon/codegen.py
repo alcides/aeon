@@ -1,14 +1,16 @@
 import sys
 from .typestructure import *
 
+
 class Expr(object):
     def __init__(self, text="", is_stmt=False, extra=None):
         self.text = str(text)
         self.is_stmt = is_stmt
-        self.extra=extra
+        self.extra = extra
 
     def __str__(self):
         return self.text
+
 
 class Block(object):
     def __init__(self, t):
@@ -31,11 +33,11 @@ class Block(object):
             return e
 
     def get_stmts(self):
-        return "\n".join(map(lambda x: self.wrap_noop(x)+";", self.stmts))
+        return "\n".join(map(lambda x: self.wrap_noop(x) + ";", self.stmts))
 
 
 class CodeGenerator(object):
-    def __init__(self, context, typecontext, class_name = 'E'):
+    def __init__(self, context, typecontext, class_name='E'):
         self.table = context.stack[0]
         self.context = context
         self.typecontext = typecontext
@@ -65,14 +67,14 @@ class CodeGenerator(object):
             n = "underscore{}".format(self.get_counter())
         return n
 
-
     def type_alias_resolver(self, ty):
         for ta in self.typecontext.type_aliases:
             if ta == ty:
                 return self.typecontext.type_aliases[ta]
             mapping = ta.polymorphic_matches(ty, self.typecontext)
             if mapping:
-                return self.typecontext.type_aliases[ta].polymorphic_fill(mapping)
+                return self.typecontext.type_aliases[ta].polymorphic_fill(
+                    mapping)
         return None
 
     def type_convert(self, t):
@@ -84,21 +86,35 @@ class CodeGenerator(object):
         if t.lambda_parameters != None:
             #This is a lambda expression
             if len(t.lambda_parameters) == 0:
-                return "java.util.function.Supplier<{}>".format(self.type_convert(t.type))
-            elif len(t.lambda_parameters) == 1 and t.lambda_parameters[0] == t.type:
-                return "java.util.function.UnaryOperator<{}>".format(self.type_convert(t.type))
+                return "java.util.function.Supplier<{}>".format(
+                    self.type_convert(t.type))
+            elif len(t.lambda_parameters
+                     ) == 1 and t.lambda_parameters[0] == t.type:
+                return "java.util.function.UnaryOperator<{}>".format(
+                    self.type_convert(t.type))
             elif len(t.lambda_parameters) == 1 and str(t.type) == 'Boolean':
-                return "java.util.function.Predicate<{}>".format(self.type_convert(t.lambda_parameters[0]))
+                return "java.util.function.Predicate<{}>".format(
+                    self.type_convert(t.lambda_parameters[0]))
             elif len(t.lambda_parameters) == 1 and str(t.type) == 'Void':
-                return "java.util.function.Consumer<{}>".format(self.type_convert(t.lambda_parameters[0]))
+                return "java.util.function.Consumer<{}>".format(
+                    self.type_convert(t.lambda_parameters[0]))
             elif len(t.lambda_parameters) == 1:
-                return "java.util.function.Function<{}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.type))
+                return "java.util.function.Function<{}, {}>".format(
+                    self.type_convert(t.lambda_parameters[0]),
+                    self.type_convert(t.type))
             elif len(t.lambda_parameters) == 2 and str(t.type) == 'Boolean':
-                return "java.util.function.BiPredicate<{}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]))
+                return "java.util.function.BiPredicate<{}>".format(
+                    self.type_convert(t.lambda_parameters[0]),
+                    self.type_convert(t.lambda_parameters[1]))
             elif len(t.lambda_parameters) == 2 and str(t.type) == 'Void':
-                return "java.util.function.BiConsumer<{}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]))
+                return "java.util.function.BiConsumer<{}>".format(
+                    self.type_convert(t.lambda_parameters[0]),
+                    self.type_convert(t.lambda_parameters[1]))
             elif len(t.lambda_parameters) == 2:
-                return "java.util.function.BiFunction<{}, {}, {}>".format(self.type_convert(t.lambda_parameters[0]), self.type_convert(t.lambda_parameters[1]), self.type_convert(t.type))
+                return "java.util.function.BiFunction<{}, {}, {}>".format(
+                    self.type_convert(t.lambda_parameters[0]),
+                    self.type_convert(t.lambda_parameters[1]),
+                    self.type_convert(t.type))
             else:
                 print("Codegen unavaiable for lambdas with type: ", str(t))
 
@@ -122,7 +138,7 @@ class CodeGenerator(object):
         """.format(self.class_name, self.g_toplevel(ast))
 
     def genlist(self, ns, *args, **kwargs):
-        return "\n".join([ self.generate(n, *args, **kwargs) for n in ns ])
+        return "\n".join([self.generate(n, *args, **kwargs) for n in ns])
 
     def java_cost_of(self, tp):
         "Returns the java expression that predicts the cost of a method"
@@ -130,43 +146,47 @@ class CodeGenerator(object):
         if tp.effects:
             for eff in tp.effects:
                 if eff.nodet == 'invocation' and eff.nodes[0] == 'time':
-                    c = self.g_expr(eff.nodes[1][0]);
+                    c = self.g_expr(eff.nodes[1][0])
                     return c
-        return "0";
+        return "0"
 
     def generate_dispatcher(self, name, versions):
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
-        largtypes = ", ".join([ "{} {}".format(self.type_convert(a), "__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)])
+        largtypes = ", ".join([
+            "{} {}".format(self.type_convert(a), "__argument_" + str(i))
+            for i, a in enumerate(ftype.lambda_parameters)
+        ])
 
-        invocation_args = "(" + ", ".join([ "{}".format("__argument_" + str(i)) for i, a in enumerate(ftype.lambda_parameters)]) + ")"
+        invocation_args = "(" + ", ".join([
+            "{}".format("__argument_" + str(i))
+            for i, a in enumerate(ftype.lambda_parameters)
+        ]) + ")"
 
         inv = ''
 
         # Get costs
         for v in versions:
-            inv += "double cost__{} = ({}); \n".format(v[0], self.java_cost_of(v[1]))
+            inv += "double cost__{} = ({}); \n".format(v[0],
+                                                       self.java_cost_of(v[1]))
 
         for v in versions[:-1]:
-            cond = " && ".join([ "cost__{} < cost__{}".format(v[0], v2[0]) for v2 in versions if v2[0] != v[0] ])
+            cond = " && ".join([
+                "cost__{} < cost__{}".format(v[0], v2[0]) for v2 in versions
+                if v2[0] != v[0]
+            ])
             r = ftype.type == 'Void' and '' or 'return '
             inv += "if ({}) {} {}{};".format(cond, r, v[0], invocation_args)
 
-
-
         # Final return
         if not ftype.type == 'Void':
-            inv +='return '
+            inv += 'return '
 
         inv += versions[-1][0] + invocation_args
         inv += ";"
         body = inv
         return """ public static {} {}({}) {{ {} }}""".format(
-            lrtype,
-            name,
-            largtypes,
-            body
-        )
+            lrtype, name, largtypes, body)
 
     def multiple_dispatch_helpers(self):
         dispatchers = []
@@ -178,7 +198,8 @@ class CodeGenerator(object):
 
     def g_toplevel(self, n):
         """ [decl] """
-        return "\n\n".join(map(self.g_decl, n)) + self.multiple_dispatch_helpers()
+        return "\n\n".join(map(self.g_decl,
+                               n)) + self.multiple_dispatch_helpers()
 
     def g_decl(self, n):
         """ decl -> string """
@@ -187,25 +208,27 @@ class CodeGenerator(object):
             return ""
 
         if n.nodet == 'type':
-            return "" # Codegeneration of type alias
+            return ""  # Codegeneration of type alias
 
         name = n.nodes[0]
 
         ftype = self.table[name]
         lrtype = self.type_convert(ftype.type)
-        largtypes = ", ".join([ "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0])) for a in n.nodes[1]])
+        largtypes = ", ".join([
+            "{} {}".format(self.type_convert(a[1]), self.wrap_underscore(a[0]))
+            for a in n.nodes[1]
+        ])
         self.push_frame()
 
         self.block = Block(lrtype)
         self.blockstack.append(self.block)
 
-
         body = self.g_block(n.nodes[6], type=lrtype)
         noop = True
-        if name == 'main' and lrtype == 'void' and ftype.lambda_parameters and str(ftype.lambda_parameters[0]) == 'Array<String>':
+        if name == 'main' and lrtype == 'void' and ftype.lambda_parameters and str(
+                ftype.lambda_parameters[0]) == 'Array<String>':
             body = self.futurify_body(body, lrtype)
             noop = False
-
 
         if lrtype != "void":
             if body.extra:
@@ -219,7 +242,7 @@ class CodeGenerator(object):
             else:
                 body_final = body
 
-        self.block.add( Expr(body_final, is_stmt=True) )
+        self.block.add(Expr(body_final, is_stmt=True))
 
         body = self.block.get_stmts()
         self.blockstack.pop()
@@ -227,24 +250,27 @@ class CodeGenerator(object):
         self.pop_frame()
 
         return """ public static {} {}({}) {{ {} }}""".format(
-            lrtype,
-            n.md_name,
-            largtypes,
-            body
-        )
+            lrtype, n.md_name, largtypes, body)
 
     def futurify_body(self, body, lrtype):
 
-        self.block.stmts.insert(0, Expr("aeminium.runtime.futures.RuntimeManager.init()", is_stmt=True))
+        self.block.stmts.insert(
+            0,
+            Expr("aeminium.runtime.futures.RuntimeManager.init()",
+                 is_stmt=True))
         if lrtype == "void":
             self.block.add(body)
-            body = Expr("aeminium.runtime.futures.RuntimeManager.shutdown()", is_stmt=True)
+            body = Expr("aeminium.runtime.futures.RuntimeManager.shutdown()",
+                        is_stmt=True)
         else:
-            self.block.add(Expr("{} ret_aeminium_manager = {}".format(lrtype, body), is_stmt=True));
-            self.block.add(Expr("aeminium.runtime.futures.RuntimeManager.shutdown()", is_stmt=True));
+            self.block.add(
+                Expr("{} ret_aeminium_manager = {}".format(lrtype, body),
+                     is_stmt=True))
+            self.block.add(
+                Expr("aeminium.runtime.futures.RuntimeManager.shutdown()",
+                     is_stmt=True))
             body = Expr("ret_aeminium_manager")
         return body
-
 
     def g_block(self, n, type='void'):
         for prev in n.nodes[:-1]:
@@ -264,7 +290,10 @@ class CodeGenerator(object):
             return self.g_let(n)
         elif n.nodet == 'ifThenElse':
             return self.g_ifThenElse(n)
-        elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!", "==>"]:
+        elif n.nodet in [
+                "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*",
+                "/", "%", "!", "==>"
+        ]:
             return self.g_op(n)
         elif n.nodet == 'atom':
             return self.g_atom(n)
@@ -285,10 +314,9 @@ class CodeGenerator(object):
             fname = fversions[n.version - 1][0]
         return Expr("""
             {}({})
-        """.format(
-            fname,
-            ", ".join([str(self.g_expr(x)) for x in n.nodes[1]])
-        ), is_stmt=n.type == 'Void')
+        """.format(fname,
+                   ", ".join([str(self.g_expr(x)) for x in n.nodes[1]])),
+                    is_stmt=n.type == 'Void')
 
     def g_atom(self, n):
         if "__index__" in n.nodes[0]:
@@ -306,10 +334,15 @@ class CodeGenerator(object):
         var_value = self.g_expr(n.nodes[1])
 
         if self.find(var_name) != None:
-            return Expr("{} = {}".format(var_name, str(var_value)), is_stmt=True, extra=var_name)
+            return Expr("{} = {}".format(var_name, str(var_value)),
+                        is_stmt=True,
+                        extra=var_name)
         else:
             self.stack[-1][var_name] = var_type
-            return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True, extra=var_name)
+            return Expr("{} {} = {}".format(var_type, var_name,
+                                            str(var_value)),
+                        is_stmt=True,
+                        extra=var_name)
 
     def g_ifThenElse(self, n):
         condExpr = g_expr(n.nodes[0])
@@ -319,7 +352,9 @@ class CodeGenerator(object):
         return Expr("if ({}) {} else {}", condExpr, thenExpr, elseExpr)
 
     def g_lambda(self, n):
-        args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
+        args = ", ".join([
+            "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0]
+        ])
         rtype = n.type.type
 
         self.block = Block(rtype)
@@ -339,14 +374,13 @@ class CodeGenerator(object):
             else:
                 body_final = body
 
-        self.block.add( Expr(body_final, is_stmt=True) )
+        self.block.add(Expr(body_final, is_stmt=True))
 
         body = self.block.get_stmts()
         self.blockstack.pop()
         self.block = self.blockstack[-1]
 
         return Expr("({}) -> {{ {} }}".format(args, body))
-
 
     def g_literal(self, n):
         java_type = self.type_convert(n.type)
@@ -361,7 +395,6 @@ class CodeGenerator(object):
         if java_type == "String":
             return Expr("(\"{}\")".format(str(n.nodes[0]).lower()))
         return Expr("({})".format(str(n.nodes[0]).lower()))
-
 
     def g_op(self, n):
         "&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!", "==>"
@@ -378,19 +411,19 @@ class CodeGenerator(object):
             format_string = "({1} {0} {2})"
 
         if len(n.nodes) == 2:
-            return Expr(format_string.format(
-                n.nodet,
-                self.g_expr(n.nodes[0]),
-                self.g_expr(n.nodes[1])
-            ))
+            return Expr(
+                format_string.format(n.nodet, self.g_expr(n.nodes[0]),
+                                     self.g_expr(n.nodes[1])))
         else:
-            return Expr("({0} {1})".format(
-                n.nodet,
-                self.g_expr(n.nodes[0])
-            ))
+            return Expr("({0} {1})".format(n.nodet, self.g_expr(n.nodes[0])))
 
 
-def generate(ast, table, typecontext, class_name='E', generate_file=False, outputdir="bin"):
+def generate(ast,
+             table,
+             typecontext,
+             class_name='E',
+             generate_file=False,
+             outputdir="bin"):
     output = CodeGenerator(table, typecontext, class_name).root(ast)
     try:
         os.mkdir(outputdir)

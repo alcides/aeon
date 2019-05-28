@@ -5,9 +5,18 @@ from .utils import *
 from .ast import Node
 from .prettyprinter import prettyprint
 
+
 class Type(object):
-    def __init__(self, basic="Object", lambda_parameters=None, type_arguments=None, conditions=None, effects=None, binders=None, preconditions=None, properties=None):
-        self.type = basic 
+    def __init__(self,
+                 basic="Object",
+                 lambda_parameters=None,
+                 type_arguments=None,
+                 conditions=None,
+                 effects=None,
+                 binders=None,
+                 preconditions=None,
+                 properties=None):
+        self.type = basic
         self.lambda_parameters = lambda_parameters
         self.type_arguments = type_arguments and type_arguments or []
         self.binders = binders
@@ -22,7 +31,7 @@ class Type(object):
         return self.lambda_parameters != None
 
     def consolidate(self):
-        if type(self.type) == Type and self.lambda_parameters==None:
+        if type(self.type) == Type and self.lambda_parameters == None:
             o = self.type
             self.type = o.type
             if o.conditions:
@@ -41,41 +50,43 @@ class Type(object):
                         self.propagate_binders(par)
             elif type(t) == Type:
                 t.binders = []
-                for a in (t.lambda_parameters or []) + (t.type_arguments or []):
+                for a in (t.lambda_parameters or []) + (t.type_arguments
+                                                        or []):
                     for fv in self.binders:
                         if a == fv and fv not in t.binders:
                             t.binders.append(fv)
                 if not t.binders:
                     t.binders = None
 
-
     def replace(self, c, names, argnames=None):
         if type(c) == list:
-            return any([ self.replace(n, names, argnames) for n in c ])
+            return any([self.replace(n, names, argnames) for n in c])
         if type(c) != Node:
             return False
         status = False
         if c.nodet in ['atom']:
             atom = c.nodes[0].split(".")[0]
-            remaining = '.' in c.nodes[0] and ("__index__" + c.nodes[0].split(".")[-1]) or ''
+            remaining = '.' in c.nodes[0] and ("__index__" +
+                                               c.nodes[0].split(".")[-1]) or ''
             if argnames:
                 if atom in argnames:
                     c.nodes = list(c.nodes)
-                    c.nodes[0] = "__argument_{}{}".format(argnames.index(atom), remaining)
+                    c.nodes[0] = "__argument_{}{}".format(
+                        argnames.index(atom), remaining)
             if atom in names:
                 c.nodes = list(c.nodes)
-                c.nodes[0] = "__return_{}{}".format(names.index(atom), remaining)
+                c.nodes[0] = "__return_{}{}".format(names.index(atom),
+                                                    remaining)
                 status = True
             if atom.startswith("__return_"):
                 status = True
         else:
-            status = any([ self.replace(n, names, argnames) for n in c.nodes ])
+            status = any([self.replace(n, names, argnames) for n in c.nodes])
         return status
-
 
     def depends_on(self, c, prefix):
         if type(c) == list:
-            return any([ self.depends_on(n, prefix) for n in c ])
+            return any([self.depends_on(n, prefix) for n in c])
         if type(c) != Node:
             return False
         if c.nodet in ['atom']:
@@ -84,7 +95,7 @@ class Type(object):
             else:
                 return False
         else:
-            status = any([ self.depends_on(n, prefix) for n in c.nodes ])
+            status = any([self.depends_on(n, prefix) for n in c.nodes])
         return status
 
     def set_properties(self, ps):
@@ -96,7 +107,6 @@ class Type(object):
         if conds:
             for c in conds:
                 self.add_condition(c, names, argnames)
-
 
     def add_condition(self, c, names=[], argnames=[], skip_rename=False):
 
@@ -115,7 +125,7 @@ class Type(object):
                 self.preconditions.append(c)
 
     def set_effects(self, effs, names, argnames=[]):
-        self.effects = [ ]
+        self.effects = []
         if effs:
             for eff in effs:
                 self.replace(eff, names, argnames)
@@ -142,40 +152,49 @@ class Type(object):
             else:
                 T = target.copy_replacing_freevar(free, fixed)
             return T
-        new_binders = orNone(self.binders, lambda x: [ f for f in x if f != free ])
+
+        new_binders = orNone(
+            self.binders, lambda x: [f for f in x if f != free])
         if not new_binders:
             new_binders = None
-        return Type(
-            basic = rep(self.type),
-            lambda_parameters = orNone(self.lambda_parameters, lambda x: [ rep(e) for e in x ]),
-            type_arguments =  orNone(self.type_arguments, lambda x: [ rep(e) for e in x ]),
-            conditions = copy.deepcopy(self.conditions),
-            preconditions = copy.deepcopy(self.preconditions),
-            effects = copy.deepcopy(self.effects),
-            binders = new_binders,
-            properties = self.properties
-        )
+        return Type(basic=rep(self.type),
+                    lambda_parameters=orNone(
+                        self.lambda_parameters, lambda x: [rep(e) for e in x]),
+                    type_arguments=orNone(
+                        self.type_arguments, lambda x: [rep(e) for e in x]),
+                    conditions=copy.deepcopy(self.conditions),
+                    preconditions=copy.deepcopy(self.preconditions),
+                    effects=copy.deepcopy(self.effects),
+                    binders=new_binders,
+                    properties=self.properties)
 
     def __str__(self):
         t = str(self.type)
         if self.type_arguments:
             t += "<" + ", ".join(map(str, self.type_arguments)) + ">"
         if self.lambda_parameters != None:
-            t = "({})".format(", ".join(map(lambda x: "{" + str(x) + "}", self.lambda_parameters))) + " -> {" + t + "}"
+            t = "({})".format(", ".join(
+                map(lambda x: "{" + str(x) + "}",
+                    self.lambda_parameters))) + " -> {" + t + "}"
         if self.binders != None:
             t = "{} => {}".format(",".join(map(str, self.binders)), t)
         if self.properties:
-            t += "{ " + ", ".join([ prettyprint(e) for e in self.properties]) + "} "
+            t += "{ " + ", ".join([prettyprint(e)
+                                   for e in self.properties]) + "} "
         if self.conditions:
-            t += " where " + " and ".join([ prettyprint(e) for e in self.conditions])
+            t += " where " + " and ".join(
+                [prettyprint(e) for e in self.conditions])
         if self.preconditions:
-            t += " pre-where " + " and ".join([ prettyprint(e) for e in self.preconditions])
+            t += " pre-where " + " and ".join(
+                [prettyprint(e) for e in self.preconditions])
         if self.effects:
-            t += " with " + " and ".join([ prettyprint(e) for e in self.effects])
+            t += " with " + " and ".join(
+                [prettyprint(e) for e in self.effects])
 
         elif hasattr(self, 'refined') and False:
             if hasattr(self, 'refined_value'):
-                t += "<{}={}>".format(str(self.refined), str(self.refined_value))
+                t += "<{}={}>".format(str(self.refined),
+                                      str(self.refined_value))
             else:
                 t += "<{}>".format(str(self.refined))
 
@@ -215,7 +234,7 @@ class Type(object):
             len(self.type_arguments) == len(other.type_arguments) and \
             all([ a == b for (a,b) in zip(self.type_arguments, other.type_arguments) ])
 
-    def polymorphic_matches(self, other, tcontext, mapping = None):
+    def polymorphic_matches(self, other, tcontext, mapping=None):
         """ Returns mapping of binders used to convert from self to other """
         if mapping == None:
             mapping = {}
@@ -232,7 +251,6 @@ class Type(object):
                 if mp != None:
                     return mp
         return None
-
 
     def polymorphic_fill(self, mapping):
         """ Returns type with binders mapped """

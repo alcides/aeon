@@ -10,30 +10,38 @@ from .zed_translate import translate
 class AstRefKey:
     def __init__(self, n):
         self.n = n
+
     def __hash__(self):
         return self.n.hash()
+
     def __eq__(self, other):
         return self.n.eq(other.n)
+
     def __repr__(self):
         return str(self.n)
+
 
 def askey(n):
     assert isinstance(n, z3.AstRef)
     return AstRefKey(n)
 
+
 def get_z3_vars(st):
     if type(st) == type(True):
         return []
     r = set()
+
     def collect(f):
-      if z3.is_const(f):
-          if f.decl().kind() == z3.Z3_OP_UNINTERPRETED and not askey(f) in r:
-              r.add(askey(f))
-      else:
-          for c in f.children():
-              collect(c)
+        if z3.is_const(f):
+            if f.decl().kind() == z3.Z3_OP_UNINTERPRETED and not askey(f) in r:
+                r.add(askey(f))
+        else:
+            for c in f.children():
+                collect(c)
+
     collect(st)
     return list(r)
+
 
 class Zed(object):
     def __init__(self):
@@ -59,8 +67,11 @@ class Zed(object):
     def get(self, n):
         return self.context[n]
 
-    def is_refined(self,t):
-        ir = t == Type('Double') or t == Type('Integer') or (hasattr(t,'conditions') and t.conditions) or (hasattr(t,'properties') and t.properties) # TODO: Clean this up
+    def is_refined(self, t):
+        ir = t == Type('Double') or t == Type('Integer') or (hasattr(
+            t, 'conditions') and t.conditions) or (hasattr(t, 'properties')
+                                                   and t.properties
+                                                   )  # TODO: Clean this up
         return bool(ir)
 
     def z3_type_constructor(self, t):
@@ -86,10 +97,11 @@ class Zed(object):
         self.convert_once(return_type)
         vars = []
 
-
         if self.is_refined(return_type):
-            invocation_name = "return_of_invocation_{}".format(self.get_counter())
-            invocation_var = self.z3_type_constructor(return_type)(invocation_name)
+            invocation_name = "return_of_invocation_{}".format(
+                self.get_counter())
+            invocation_var = self.z3_type_constructor(return_type)(
+                invocation_name)
             self.context[invocation_name] = invocation_var
             vars.append(invocation_var)
 
@@ -102,20 +114,15 @@ class Zed(object):
             else:
                 vars.append(None)
 
-
         if name == 'J.iif' and self.is_refined(ft.type):
             if hasattr(cond.type, "refined"):
                 c = self.context[cond.type.refined]
                 then_ = self.context[argts[1].type.refined]
                 else_ = self.context[argts[2].type.refined]
-                st = z3.Or(
-                    z3.And(invocation_var == then_, c),
-                    z3.And(invocation_var == else_, z3.Not(c))
-                )
+                st = z3.Or(z3.And(invocation_var == then_, c),
+                           z3.And(invocation_var == else_, z3.Not(c)))
                 self.solver.add(st)
                 return True, invocation_name
-
-
 
         zcs = []
         if ft.preconditions:
@@ -144,21 +151,20 @@ class Zed(object):
 
         return True, invocation_name
 
-
     def refine_atom(self, t):
         self.convert_once(t)
         if self.is_refined(t):
             atom_name = "atom_{}_{}".format(t.type, self.get_counter())
             atom_var = self.z3_type_constructor(t)(atom_name)
             self.context[atom_name] = atom_var
-            v = reduce(z3.And, [ c([atom_var]) for c in t.zed_conditions ])
+            v = reduce(z3.And, [c([atom_var]) for c in t.zed_conditions])
             self.solver.add(v)
             return atom_name
 
     def make_literal(self, t, v):
         lit_name = "literal_{}_{}".format(t.type, str(v))
         lit_var = self.z3_type_constructor(t)(lit_name)
-        self.context[lit_name] = lit_var # TODO: production
+        self.context[lit_name] = lit_var  # TODO: production
 
         if t.type == 'String':
             literal_value = z3.StringVal(v)
@@ -173,42 +179,43 @@ class Zed(object):
         combiner_var = self.z3_type_constructor(t)(combiner_name)
         self.context[combiner_name] = combiner_var
 
-        if len(nodes) == 2 and self.is_refined(nodes[0].type) and self.is_refined(nodes[1].type):
+        if len(nodes) == 2 and self.is_refined(
+                nodes[0].type) and self.is_refined(nodes[1].type):
             ar = nodes[0].type.refined
             br = nodes[1].type.refined
 
             if nodet == '+':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == a + b )
+                self.solver.add(combiner_var == a + b)
             elif nodet == '-':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == a - b )
+                self.solver.add(combiner_var == a - b)
             elif nodet == '*':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == a * b )
+                self.solver.add(combiner_var == a * b)
             elif nodet == '/':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == a / b )
+                self.solver.add(combiner_var == a / b)
             elif nodet == '==>':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == z3.implies(a,b) )
+                self.solver.add(combiner_var == z3.implies(a, b))
             elif nodet == '%':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == a % b )
+                self.solver.add(combiner_var == a % b)
             elif nodet == '==':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == (a == b) )
+                self.solver.add(combiner_var == (a == b))
             elif nodet == '!=':
                 a = self.context[ar]
                 b = self.context[br]
-                self.solver.add( combiner_var == (a != b) )
+                self.solver.add(combiner_var == (a != b))
             elif nodet == "<":
                 a = self.context[ar]
                 b = self.context[br]
@@ -221,7 +228,7 @@ class Zed(object):
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add(combiner_var == (a >= b))
-            elif nodet == "<=" :
+            elif nodet == "<=":
                 a = self.context[ar]
                 b = self.context[br]
                 self.solver.add(combiner_var == (a <= b))
@@ -231,17 +238,17 @@ class Zed(object):
             ar = nodes[0].type.refined
             if nodet == '+':
                 a = self.context[ar]
-                self.solver.add( combiner_var == 0 + a )
+                self.solver.add(combiner_var == 0 + a)
             elif nodet == '-':
                 a = self.context[ar]
-                self.solver.add( combiner_var == 0 - a )
+                self.solver.add(combiner_var == 0 - a)
         return combiner_name
 
     def universe(self, t):
         if t.type == 'Integer':
-            return lambda args: True #z3.Or(args[0] == 0, args[0] != 0)
+            return lambda args: True  #z3.Or(args[0] == 0, args[0] != 0)
         elif t.type == 'Double':
-            return lambda args: True #z3.Or(args[0] == 0, args[0] != 0)
+            return lambda args: True  #z3.Or(args[0] == 0, args[0] != 0)
         else:
             return lambda args: True
 
@@ -262,7 +269,7 @@ class Zed(object):
         else:
             t.zed_conditions = []
         if not t.zed_conditions:
-            t.zed_conditions = [ self.universe(t) ]
+            t.zed_conditions = [self.universe(t)]
         return t
 
     def refine(self, t, new_name, new_context=False, extra=None):
@@ -272,7 +279,8 @@ class Zed(object):
             if not extra:
                 extra = []
             if hasattr(t, "zed_conditions"):
-                new_expr = reduce(z3.And, [ c([new_name] + extra) for c in t.zed_conditions])
+                new_expr = reduce(
+                    z3.And, [c([new_name] + extra) for c in t.zed_conditions])
             else:
                 new_expr = True
             return (new_name, new_expr)
@@ -283,50 +291,64 @@ class Zed(object):
             self.convert_once(t1)
             self.convert_once(t2)
 
-
-            make_new_name = lambda: z3.Int("value_{}".format(self.get_counter()))
+            make_new_name = lambda: z3.Int("value_{}".format(self.get_counter(
+            )))
             new_name = make_new_name()
 
             (t1_name, t1_assertions) = self.refine(t1, new_name)
-            (t2_name, t2_assertions) = self.refine(t2, new_name, new_context=True)
+            (t2_name, t2_assertions) = self.refine(t2,
+                                                   new_name,
+                                                   new_context=True)
 
             if under:
                 (function_type, argtypes) = under
                 self.convert_once(function_type)
 
-                z_argtypes = [ self.refine(self.convert_once(v), make_new_name()) for v in argtypes ]
-                z_argtypes_names = [ t[0] for t in z_argtypes ]
-                z_argtypes_expr = [ t[1] for t in z_argtypes ]
+                z_argtypes = [
+                    self.refine(self.convert_once(v), make_new_name())
+                    for v in argtypes
+                ]
+                z_argtypes_names = [t[0] for t in z_argtypes]
+                z_argtypes_expr = [t[1] for t in z_argtypes]
 
                 # Post-condition: f_under
-                f_name, f_under = self.refine(function_type, new_name, extra=z_argtypes_names)
-                postconditions = z3.And(f_under,  t2_assertions)
+                f_name, f_under = self.refine(function_type,
+                                              new_name,
+                                              extra=z_argtypes_names)
+                postconditions = z3.And(f_under, t2_assertions)
 
                 # Pre-condition: z_argtypes + f_preconditions
                 if function_type.zed_pre_conditions:
-                    f_preconditions = reduce(z3.And, [ c([f_name] + z_argtypes_names) for c in function_type.zed_pre_conditions], True)
+                    f_preconditions = reduce(z3.And, [
+                        c([f_name] + z_argtypes_names)
+                        for c in function_type.zed_pre_conditions
+                    ], True)
                 else:
                     f_preconditions = True
 
-
-                preconditions = z3.And(reduce(z3.And, [ z for z in z_argtypes_expr if z != None], True), f_preconditions)
-                definition = z3.And(t1_name == new_name, reduce(z3.And, copy.deepcopy(self.solver.assertions()), True))
+                preconditions = z3.And(
+                    reduce(z3.And, [z for z in z_argtypes_expr if z != None],
+                           True), f_preconditions)
+                definition = z3.And(
+                    t1_name == new_name,
+                    reduce(z3.And, copy.deepcopy(self.solver.assertions()),
+                           True))
 
             else:
                 preconditions = t1_assertions == None and True or t1_assertions
                 definition = t1_name == t2_name
                 postconditions = t2_assertions == None and True or t2_assertions
 
-            vars = get_z3_vars(preconditions) + get_z3_vars(definition) + get_z3_vars(postconditions)
+            vars = get_z3_vars(preconditions) + get_z3_vars(
+                definition) + get_z3_vars(postconditions)
             vars = list(set([v.n for v in vars]))
-
 
             s = self.solver
             s.push()
-            s.add(z3.Not(z3.Implies(
-                    z3.And(preconditions, definition),
-                    postconditions
-            )))
+            s.add(
+                z3.Not(
+                    z3.Implies(z3.And(preconditions, definition),
+                               postconditions)))
 
             ver = s.check()
             try:
@@ -358,7 +380,7 @@ class Zed(object):
             r = self.solver.check()
             i = 0
             while r == z3.sat and i < max_tries:
-                v = self.solver.model()[t_name] # Error handling
+                v = self.solver.model()[t_name]  # Error handling
                 values.append(v)
                 i += 1
                 self.solver.add(t_name != v)
@@ -367,5 +389,6 @@ class Zed(object):
             return values
         else:
             return None
+
 
 zed = Zed()

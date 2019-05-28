@@ -42,7 +42,6 @@ false = t('false').result(Node('literal', False, type=t_b))
 null = t('null').result(Node('literal', "null", type=t_n))
 symbol = lexeme(regex(r'[.\d\w_]+'))
 
-
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-") ^ t("!")
 op_3 = t("<=") ^ t("<") ^ t(">=") ^ t(">") ^ t("==") ^ t("!=")
@@ -53,6 +52,7 @@ op_all = op_4 ^ op_3 ^ op_2 ^ op_1
 
 def number():
     '''Parse number.'''
+
     def fa(x):
         if "." not in x:
             return Node('literal', int(x), type=copy.deepcopy(t_i))
@@ -60,11 +60,12 @@ def number():
             return Node('literal', float(x), type=copy.deepcopy(t_f))
 
     return lexeme(
-        regex(r'(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')
-    ).parsecmap(fa)
+        regex(r'(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')).parsecmap(fa)
+
 
 def charseq():
     '''Parse string. (normal string and escaped string)'''
+
     def string_part():
         '''Parse normal string.'''
         return regex(r'[^"\\]+')
@@ -79,9 +80,11 @@ def charseq():
             | string('n').result('\n')
             | string('r').result('\r')
             | string('t').result('\t')
-            | regex(r'u[0-9a-fA-F]{4}').parsecmap(lambda s: chr(int(s[1:], 16)))
-        )
+            |
+            regex(r'u[0-9a-fA-F]{4}').parsecmap(lambda s: chr(int(s[1:], 16))))
+
     return string_part() | string_esc()
+
 
 @lexeme
 @generate
@@ -93,8 +96,9 @@ def invocation():
     v = 0
     if name.split(".")[-1].isdigit():
         v = int(name.split(".")[-1])
-        name = ".".join(name.split(".")[:-1]) # remove .1
+        name = ".".join(name.split(".")[:-1])  # remove .1
     return Node('invocation', name, args, version=v)
+
 
 @lexeme
 @generate
@@ -102,12 +106,14 @@ def expr_wrapped():
     o = yield expr
     return o
 
+
 # helper
 rotate = lambda x: Node(x[0][1], x[0][0], x[1])
 makeblock = lambda xs: Node('block', *xs)
 
 symbol_e = symbol.parsecmap(lambda x: Node('atom', x))
-block = (lbrace >> many(expr_wrapped)  << rbrace).parsecmap(makeblock)
+block = (lbrace >> many(expr_wrapped) << rbrace).parsecmap(makeblock)
+
 
 @lexeme
 @generate
@@ -130,7 +136,8 @@ def let():
         typ = yield typee
     yield op_5
     definition = yield expr_4
-    return Node('let', s, definition, typ, coerced=coerc=="!:")
+    return Node('let', s, definition, typ, coerced=coerc == "!:")
+
 
 @lexeme
 @generate
@@ -151,6 +158,7 @@ def ifThenElse():
     yield rbrace
     return Node('ifThenElse', cond, bodyThen, bodyElse)
 
+
 @lexeme
 @generate
 def quoted():
@@ -160,14 +168,16 @@ def quoted():
     yield string('"')
     return Node('literal', ''.join(body), type=copy.deepcopy(t_s))
 
-atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole ^ quoted
-expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
+
+atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (
+    lpars >> expr_wrapped << rpars) ^ lambd ^ hole ^ quoted
+expr_0 = (op_2 + atom).parsecmap(lambda x: Node(*x)) ^ atom
 #expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
 #expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
 #expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
 #expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
 
-expr_4 =  ifThenElse ^ (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
+expr_4 = ifThenElse ^ (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
 expr = let ^ expr_4
 
 
@@ -178,6 +188,7 @@ def basic_type():
     ks = yield times(langle >> sepBy(basic_type, comma) << rangle, 0, 1)
     return Type(basic=b, type_arguments=ks and ks[0] or None)
 
+
 @lexeme
 @generate
 def polymorphic_type():
@@ -187,6 +198,7 @@ def polymorphic_type():
     t.binders = args
     return t
 
+
 @lexeme
 @generate
 def lambda_type():
@@ -195,7 +207,8 @@ def lambda_type():
     yield rpars
     yield arrow
     rt = yield basic_type
-    return Type(basic=rt, lambda_parameters = args)
+    return Type(basic=rt, lambda_parameters=args)
+
 
 @lexeme
 @generate
@@ -205,14 +218,12 @@ def refined_type():
     yield t("where")
     ls = yield sepBy(expr, t("and"))
     yield t("}")
-    rt = Type(basic=basic_t, conditions = ls)
+    rt = Type(basic=basic_t, conditions=ls)
     rt.set_conditions(ls, ['self'], [])
     return rt
 
 
 typee = lambda_type ^ basic_type ^ refined_type
-
-
 
 
 @generate
@@ -239,6 +250,7 @@ def decl_header_with_parameters():
     ret.nodet = 'rtype'
     return name, args, ret, tpars
 
+
 @lexeme
 @generate
 def decl_header():
@@ -253,6 +265,7 @@ def decl_header():
     ret.nodet = 'rtype'
     return name, args, ret, None
 
+
 @lexeme
 @generate
 def where():
@@ -262,13 +275,15 @@ def where():
     yield t("]")
     return makeblock(ls)
 
+
 @generate
 def tracked_arg():
     arg = yield symbol
     yield colon
     typ = yield typee
-    trackedBy = yield (t("trackedBy") >> symbol ) ^ t("")
+    trackedBy = yield (t("trackedBy") >> symbol) ^ t("")
     return Node('argument', arg, typ, trackedBy)
+
 
 @lexeme
 @generate
@@ -278,6 +293,7 @@ def tracked_args():
     yield t("}")
     return ls
 
+
 @lexeme
 @generate
 def effects():
@@ -286,6 +302,7 @@ def effects():
     ls = yield sepBy(expr, t("and"))
     yield t("]")
     return makeblock(ls)
+
 
 @lexeme
 @generate
@@ -299,6 +316,7 @@ def decl_native_shared():
         effs = None
     return name, args, ret, free, conditions, effs
 
+
 @lexeme
 @generate
 def decl():
@@ -308,6 +326,7 @@ def decl():
     body = yield many(expr).parsecmap(makeblock)
     yield rbrace
     return Node('decl', name, args, ret, free, conditions, effs, body)
+
 
 @lexeme
 @generate
@@ -329,12 +348,14 @@ def typedecl():
     alias = yield (t("as") >> (polymorphic_type ^ typee)) ^ t("")
     return Node('type', imported, alias, conditions, properties)
 
+
 imprt = t('import') >> symbol.parsecmap(lambda x: Node('import', x))
 
 program = ignore >> many(typedecl ^ native ^ imprt ^ decl)
 
-
 cached_imports = []
+
+
 def resolve_imports(p, base_path=lambda x: x):
     n_p = []
     for n in p:
@@ -354,8 +375,11 @@ def resolve_imports(p, base_path=lambda x: x):
             n_p.append(n)
     return n_p
 
+
 def parse(fname):
     txt = open(fname).read()
     p = program.parse_strict(txt)
-    p = resolve_imports(p, base_path = lambda x : os.path.join(os.path.dirname(fname), "{}.{}".format(x, ext)))
+    p = resolve_imports(p,
+                        base_path=lambda x: os.path.join(
+                            os.path.dirname(fname), "{}.{}".format(x, ext)))
     return p

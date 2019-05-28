@@ -2,6 +2,7 @@ import z3
 
 global_vars = None
 
+
 def translate_h(n):
     if n.nodet == 'atom':
         if n.nodes[0].startswith('self'):
@@ -16,12 +17,15 @@ def translate_h(n):
             return False, None
     elif n.nodet == 'literal':
         return True, lambda args: int(n.nodes[0])
-    elif n.nodet == '!': # TODO: Bug do zed aqui provavelmente
+    elif n.nodet == '!':  # TODO: Bug do zed aqui provavelmente
         a_ok, a_l = translate_h(n.nodes[0])
         if (not a_ok):
             return False, None
         return True, lambda args: z3.Not(a_l(args))
-    elif n.nodet in ['<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '||', '&&']:
+    elif n.nodet in [
+            '<=', '<', '>', '<=', '>=', '==', '!=', '+', '-', '*', '/', '%',
+            '||', '&&'
+    ]:
         a_ok, a_l = translate_h(n.nodes[0])
         b_ok, b_l = translate_h(n.nodes[1])
         if (not a_ok) or (not b_ok):
@@ -59,7 +63,8 @@ def translate_h(n):
     print("unknown node in Z3 conversion!!!!", n.nodet)
     return False, None
 
-def translate(predicates, vars = None):
+
+def translate(predicates, vars=None):
     z3_predicates = []
     for p in predicates:
         ok, cond_l = translate_h(p)
