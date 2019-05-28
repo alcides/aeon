@@ -12,7 +12,8 @@ ext = 'ae'
 # ignore cases.
 whitespace = regex(r'\s+', re.MULTILINE)
 comment = regex(r'#.*')
-ignore = many((whitespace | comment))
+mult_comment = regex(r'###(.*?\s*)*###')
+ignore = many((mult_comment | whitespace | comment))
 
 # lexer for words.
 
@@ -94,27 +95,6 @@ def invocation():
         name = ".".join(name.split(".")[:-1]) # remove .1
     return Node('invocation', name, args, version=v)
 
-# TODO: still on work
-'''
-@lexeme
-@generate
-def ifThenElse():
-    # If and then the condition
-    yield 'if'
-    cond = yield expr_4
-    # Body of the then
-    yield 'then'
-    yield lbrace
-    bodyThen = yield many(expr).parsecmap(makeblock)
-    yield rbrace
-    # Body of the else
-    yield "else"
-    yield lbrace
-    bodyElse = yield many(expr).parsecmap(makeblock)
-    yield rbrace
-    return Node('ifThenElse', cond, bodyThen, bodyElse)
-'''
-
 @lexeme
 @generate
 def expr_wrapped():
@@ -151,6 +131,24 @@ def let():
     definition = yield expr_4
     return Node('let', s, definition, typ, coerced=coerc=="!:")
 
+@lexeme
+@generate
+def ifThenElse():
+    # If and then the condition
+    yield t('if')
+    yield lpars
+    cond = yield expr_4
+    yield rpars
+    # Body of the then
+    yield lbrace
+    bodyThen = yield many(expr).parsecmap(makeblock)
+    yield rbrace
+    # Body of the else
+    yield t("else")
+    yield lbrace
+    bodyElse = yield many(expr).parsecmap(makeblock)
+    yield rbrace
+    return Node('ifThenElse', cond, bodyThen, bodyElse)
 
 @lexeme
 @generate
@@ -168,7 +166,7 @@ expr_0 = (op_2 + atom).parsecmap(lambda x:Node(*x)) ^ atom
 #expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
 #expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
 
-expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
+expr_4 =  ifThenElse ^ (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
 expr = let ^ expr_4
 
 

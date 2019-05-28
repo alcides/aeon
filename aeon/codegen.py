@@ -7,7 +7,7 @@ class Expr(object):
         self.is_stmt = is_stmt
         self.extra=extra
 
-    def __str__(self): 
+    def __str__(self):
         return self.text
 
 class Block(object):
@@ -259,6 +259,8 @@ class CodeGenerator(object):
             return self.g_literal(n)
         elif n.nodet == 'let':
             return self.g_let(n)
+        elif n.nodet == 'ifThenElse':
+            return self.g_ifThenElse(n)
         elif n.nodet in ["&&", "||", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%", "!"]:
             return self.g_op(n)
         elif n.nodet == 'atom':
@@ -306,6 +308,13 @@ class CodeGenerator(object):
             self.stack[-1][var_name] = var_type
             return Expr("{} {} = {}".format(var_type, var_name, str(var_value)), is_stmt=True, extra=var_name)
 
+    def g_ifThenElse(self, n):
+        condExpr = g_expr(n.nodes[0])
+        thenExpr = g_expr(n.nodes[1])
+        elseExpr = g_expr(n.nodes[2])
+
+        return Expr("if ({}) {} else {}", condExpr, thenExpr, elseExpr)
+
     def g_lambda(self, n):
         args = ", ".join([ "{} {}".format(self.type_convert(i[1]), i[0]) for i in n.nodes[0] ])
         rtype = n.type.type
@@ -344,6 +353,8 @@ class CodeGenerator(object):
             return Expr("Integer.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == 'Double':
             return Expr("Double.valueOf({})".format(str(n.nodes[0]).lower()))
+        if java_type == 'Float':
+            return Expr("Float.valueOf({})".format(str(n.nodes[0]).lower()))
         if java_type == "String":
             return Expr("(\"{}\")".format(str(n.nodes[0]).lower()))
         return Expr("({})".format(str(n.nodes[0]).lower()))

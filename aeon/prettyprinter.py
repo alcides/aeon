@@ -18,6 +18,8 @@ def prettyprint(n):
         return str(n.nodes[0])
     elif n.nodet == 'let':
         return "{} = {}".format(n.nodes[0], prettyprint(n.nodes[1]))
+    elif n.nodet == 'ifThenElse':
+        return "if ({}) {{ {} }} else {{ {} }}".format(prettyprint(n.nodes[0]), prettyprint(n.nodes[1]), prettyprint(n.nodes[2]))
     elif n.nodet == 'atom':
         return "{}".format(n.nodes[0])
     elif n.nodet == 'lambda':

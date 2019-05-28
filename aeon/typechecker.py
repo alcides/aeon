@@ -284,6 +284,11 @@ class TypeChecker(object):
         self.context.pop_frame()
 
 
+    def t_ifThenElse(self, n, expects=None):
+
+        print("TODO")
+
+
     def t_invocation(self, n, expects=None):
         self.typelist(n.nodes[1])
         name = n.nodes[0]
@@ -438,6 +443,8 @@ class TypeChecker(object):
             return self.t_atom(n, **kwargs)
         elif n.nodet == 'let':
             return self.t_let(n, **kwargs)
+        elif n.nodet == 'ifThenElse':
+            return self.t_ifThenElse(n, **kwargs)
         elif not n.nodet.isalnum():
             return self.t_op(n)
         elif n.nodet == 'literal':
