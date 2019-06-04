@@ -349,7 +349,7 @@ class CodeGenerator(object):
         thenExpr = g_expr(n.nodes[1])
         elseExpr = g_expr(n.nodes[2])
 
-        return Expr("if ({}) {} else {}", condExpr, thenExpr, elseExpr)
+        return Expr("J.iif({}, {}, {})", condExpr, thenExpr, elseExpr)
 
     def g_lambda(self, n):
         args = ", ".join([

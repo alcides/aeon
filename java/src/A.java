@@ -121,14 +121,12 @@ public class A {
         return result;
     }
 
-    public static <T> Void equals(ArrayList<T> arr) {
+    public static <T> void equals(ArrayList<T> arr) {
 
         StringBuilder sb = new StringBuilder();
         sb.append("[");
         for (T elem : arr)
             sb.append(elem.toString() + ", ");
         sb.append("]");
-
-        return null;
     }
 }

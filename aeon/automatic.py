@@ -438,7 +438,7 @@ class Synthesiser(object):
         p = dependencies + helpers + fn_targets + [
             fn_genInteger, fn_genBoolean, fn_genDouble, fn_genFloat,
             fn_genString, fn_genObject, fn_genTests, fn_getFitness,
-            fn_addFitness, fn_out
+            fn_addFitness, fn_out, fn_if
         ] + tests + [fn_main]
 
         p = self.filter_duplicate_natives(p)
