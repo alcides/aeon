@@ -1,0 +1,26 @@
+import ..prelude.J
+import ..prelude.A
+import ..prelude.S
+
+# Adaptacao. Necessitamos de rever condicoes
+# TODO:
+
+
+doubleLettersAux : (i:Integer, s1:String, acc:String) ->  out : String { # MISSING CONDITION
+    # …
+    J.iif(
+        i >= S.size(s1),
+        () -> acc,
+        () -> doubleLettersAux(i + 1, s1, S.concat(acc, S.concat(S.get(s1, i), S.get(s1, i))))
+    )
+}
+
+doubleLetters : (s1 : String) -> out : String where [A.forEach(A.range(0, S.size(s1)), (i:Integer) -> S.count(s1, S.get(s1, i)) == 2 * S.count(out, S.get(out, i)))] {
+    acc : String = ""
+    doubleLettersAux(0, s1, acc)
+}
+
+main : (_:Array<String>) -> _:Void {
+   s1 : String = "ola, este eh um teste!"
+   J.out(doubleLetters(s1))
+}

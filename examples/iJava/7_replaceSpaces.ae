@@ -1,0 +1,26 @@
+import ..prelude.J
+import ..prelude.A
+import ..prelude.S
+
+# TODO: Tipo dependente nao esta a funcionar?????
+# Se eu puser S.count(out, " ") == 1 ele nao se queixa que o S.count na verdade da 0
+
+replaceSpaces : (i : Integer, s1 : String, acc : String) -> out : String where [(S.count(out, " ") == 0)] { # and
+                                                                      # A.forEach(A.range(0, i), (i2:Integer) -> S.count(out, S.get(out, i)) == S.count(s1, S.get(out, i)))] {
+    # …
+    J.iif(
+        i == S.size(s1),
+        () -> acc,
+        () -> J.iif(
+                    S.equals(S.get(s1, i), " "),
+                    () -> replaceSpaces(i + 1, s1, S.concat(acc, "\\r\\n")),
+                    () -> replaceSpaces(i + 1, s1, S.concat(acc, S.get(s1, i)))
+              )
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   s1 : String = "ola, este eh um teste!"
+   acc : String = ""
+   J.out(replaceSpaces(0, s1, acc))
+}

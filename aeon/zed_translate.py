@@ -16,7 +16,10 @@ def translate_h(n):
             print("unknown atom in z3 conversion", n.nodes[0])
             return False, None
     elif n.nodet == 'literal':
-        return True, lambda args: int(n.nodes[0])
+        if isinstance(n.nodes[0], int):
+            return True, lambda args: int(n.nodes[0])
+        else:
+            return True, lambda args: n.nodes[0]
     elif n.nodet == '!':  # TODO: Bug do zed aqui provavelmente
         a_ok, a_l = translate_h(n.nodes[0])
         if (not a_ok):

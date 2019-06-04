@@ -1,0 +1,20 @@
+import ..prelude.J
+import ..prelude.A
+
+# O if esta a lancar erro porque ....??
+
+vectorSummed : (index : Integer, arr1 : A.Array<Integer>, arr2 : A.Array<Integer>, acc: A.Array<Integer>) -> out : A.Array<Integer> where [A.forall(A.range(0, index + 1), (i:Integer) -> A.get(out, i) == (A.get(arr1, i) + A.get(arr2, i)))] {
+    # …
+    J.iif((index == A.size(arr1)),
+        () -> acc,
+        () -> vectorSummed(index + 1, arr1, arr2, A.append(acc, A.get(arr1, index) + A.get(arr2, index)))
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   index : Integer = 0
+   arr1 : A.Array<Integer> = A.range(0, 10)
+   arr2 : A.Array<Integer> = A.range(10, 20)
+   acc : A.Array<Integer> = A.array(0, 0)
+   A.print(vectorSummed(index, arr1, arr2, acc))
+}

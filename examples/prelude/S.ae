@@ -1,3 +1,11 @@
-# native S.concat : (s1 : String, s2 : String) -> out:String where [ (S.size(out) == (S.size(s1) + S.size(s2))) ]
+native S.concat : (s1 : String, s2 : String) -> out:String where [ (S.size(out) == (S.size(s1) + S.size(s2))) ]
 
 native S.size : (s1 : String) -> out:Integer
+
+native S.count : (s1 : String, s2 : String) -> _:Integer
+
+native S.get : (s1 : String, i:Integer) -> _:String
+
+native S.substring : (s1 : String, min:Integer, max:Integer) -> _:String
+
+native S.equals : (s1 : String, s2 : String) -> _:Boolean

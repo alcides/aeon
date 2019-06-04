@@ -1,0 +1,31 @@
+import ..prelude.J
+import ..prelude.A
+
+# O if esta a lancar erro porque ....??
+
+negativeToZero : (index : Integer, arr : A.Array<Integer>) -> out : A.Array<Integer> where [A.forall(A.range(0, index), (i:Integer) -> J.iif(A.get(arr, i) < 0,
+                                                                                                                                             A.get(out, i) == 0,
+                                                                                                                                             A.get(out, i) == A.get(arr, i)))] {
+    # …
+    J.iif(
+        (index == A.size(arr)),
+        () -> arr,
+        () -> J.iif(A.get(arr, index) < 0,
+                    () -> negativeToZero(index + 1, A.set(arr, index, 0)),
+                    () -> negativeToZero(index + 1, arr)
+              )
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   arr : A.Array<Integer> = A.array(5, -2)
+   A.append(arr, 3)
+   A.append(arr, 5)
+   A.append(arr, 5)
+   A.append(arr, -3)
+   A.append(arr, -20)
+   A.append(arr, 4)
+   A.append(arr, -2)
+   A.append(arr, 33)
+   negativeToZero(1, arr)
+}

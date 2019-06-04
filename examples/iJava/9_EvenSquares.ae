@@ -1,0 +1,19 @@
+import ..prelude.J
+import ..prelude.A
+import ..prelude.S
+
+# Apenas garante que todos os elementos do array estao corretos e nao que estao todos la
+evenSquares : (index : Integer, n : Integer) -> out : A.Array<Integer> where [A.forall(out, (i:Integer) -> (i * i) < n)] {
+    # …
+    J.iif(
+        (index * index) >= n,
+        () -> A.array(0, 0),
+        () -> A.concat(A.array(1, index * index), evenSquares(index + 1, n))
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   n : Integer = 30
+   result = evenSquares(0, n)
+   J.out(A.get(result, 0))
+}

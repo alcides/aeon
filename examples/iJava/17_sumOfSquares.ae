@@ -1,0 +1,16 @@
+import ..prelude.J
+import ..prelude.A
+
+sumOfSquares : (index : Integer, acc : Integer, n : Integer) -> out : Integer where [A.reduce(A.range(1, n + 1), (i:Integer, j:Integer) -> i + (j * j))] {
+    # …
+    J.iif(
+        index == n,
+        () -> acc + (index * index),
+        () -> sumOfSquares(index + 1, acc + (index * index), n)
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   n : Integer = 10
+   J.out(sumOfSquares(1, 0, n))
+}

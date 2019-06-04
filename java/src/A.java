@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Consumer;
+import java.util.Arrays;
 import java.util.Random;
 
 public class A {
@@ -110,4 +111,24 @@ public class A {
 
 		return result;
 	}
+
+    public static <T> Boolean equals(ArrayList<T> a1, ArrayList<T> a2) {
+        boolean result = true;
+
+        for (int i = 0; i < Math.min(a1.size(), a2.size()) && result; i++)
+            result = result && a1.get(i).equals(a2.get(i));
+
+        return result;
+    }
+
+    public static <T> Void equals(ArrayList<T> arr) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (T elem : arr)
+            sb.append(elem.toString() + ", ");
+        sb.append("]");
+
+        return null;
+    }
 }

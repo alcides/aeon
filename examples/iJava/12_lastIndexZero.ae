@@ -1,0 +1,18 @@
+import ..prelude.J
+import ..prelude.A
+
+# TODO: faltam os ifs e operacoes
+
+lastIndexZero : (index : Integer, arr : A.Array<Integer>) -> out : Integer where [A.forall(A.range(out + 1, A.size(arr)), (i:Integer) -> A.count(arr, 0) == 0 )] {
+    # …
+    J.iif(
+        (A.get(arr, 0) == 0) || (index == 0),
+        () -> index,
+        () -> lastIndexZero(index - 1, arr)
+    )
+}
+
+main : (_:Array<String>) -> _:Void {
+   arr : A.Array<Integer> = A.array(10, 0)
+   J.out(lastIndexZero(A.size(arr) - 1, arr))
+}
