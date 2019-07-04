@@ -15,3 +15,5 @@ b : (x:Integer) -> Integer = \x:Integer -> 1
 c : Integer = a(1)
 d : Integer = a(1,2)
 e : Integer = (\x:Integer -> 1)(1)
+f : Integer = fix(f)
+k : Integer = (T:* => 1)

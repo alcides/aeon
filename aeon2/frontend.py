@@ -86,7 +86,7 @@ def quoted():
 @generate
 def abstraction():
     yield t("\\")
-    args = yield sepBy(symbol + (t(":") >> basic_type), t(","))
+    args = yield sepBy(symbol + (t(":") >> typee), t(","))
     yield arrow
     e = yield expr
     return Abstraction(map(lambda p: Argument(name=p[0], type=p[1]), args), e)
@@ -104,6 +104,27 @@ def application():
 
 @lexeme
 @generate
+def tabstraction():
+    tvar = yield symbol
+    yield t(":")
+    k = yield kind
+    yield fatarrow
+    e = yield expr_wrapped
+    return TAbstraction(tvar, k, e)
+
+
+@lexeme
+@generate
+def tapplication():
+    target = yield expr_wrapped
+    yield t("[")
+    ty = yield typee
+    yield t("]")
+    return TApplication(target, ty)
+
+
+@lexeme
+@generate
 def ite():
     yield t("if")
     c = yield expr_wrapped
@@ -114,10 +135,20 @@ def ite():
     return If(c, then, otherwise)
 
 
+@lexeme
+@generate
+def expr_rec():
+    o = yield expr
+    return o
+
+
+fix = t("fix").parsecmap(lambda x: Fix())
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
-expr = ite ^ literal ^ abstraction ^ application ^ var
-expr_wrapped = literal ^ var ^ t("(") >> expr << t(")")
+expr_basic = fix ^ literal ^ var
+expr = ite ^ abstraction ^ application ^ tabstraction ^ tapplication ^ expr_basic ^ t(
+    "(") >> expr_rec << t(")")
+expr_wrapped = expr_basic ^ t("(") >> expr << t(")")
 
 #atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole
 #expr_0 = (op_2 + atom).parsecmap(lambda x:Operator(*x)) ^ atom

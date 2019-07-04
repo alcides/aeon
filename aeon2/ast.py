@@ -94,7 +94,7 @@ class TAbstraction(TypedNode):
         self.body = body
 
     def __str__(self):
-        return "/\{}:{}.({})".format(self.typevar, self.kind, self.body)
+        return "{}:{} => ({})".format(self.typevar, self.kind, self.body)
 
 
 class TApplication(TypedNode):
