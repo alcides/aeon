@@ -1,148 +1,142 @@
 class Node(object):
     pass
-    
+
+
 class Program(Node):
     def __init__(self, declarations):
         self.declarations = declarations
-        
+
     def __str__(self):
         return "".join(map(lambda x: "{}\n".format(x), self.declarations))
-    
+
+
 class TypedNode(Node):
     def __init__(self):
         self.type = None
 
+
 class Hole(TypedNode):
+    """ \hole """
+
     def __init__(self):
         pass
+
     def __str__(self):
         return "…"
-        
+
+
 class Literal(TypedNode):
+    """ true | false | x """
+
     def __init__(self, value, type):
         self.value = value
         self.type = type
-    
+
     def __str__(self):
         return "{}".format(self.value)
 
 
-class Invocation(TypedNode):
-    def __init__(self, name, arguments, version=""):
-        self.name = name
-        self.arguments = arguments
-        self.version = version # Version is for multiversioning
-    
-    def __str__(self):
-        return "{}({})".format(self.name, ", ".join([ str(x) for x in self.arguments ]))
-        
+class Var(Node):
+    """ x """
 
-class Operator(TypedNode):
-    def __init__(self, name, *arguments):
-        self.name = name
-        self.arguments = arguments
-        self.is_unary = len(arguments) == 1
-    
-       
-    def __str__(self):
-        if self.is_unary:
-            return "{}{}".format(self.name, self.arguments)
-        return "({} {} {})".format(self.arguments[0], self.name, self.arguments[1])
-        
-
-class Block(TypedNode):
-    def __init__(self, *expressions):
-        self.expressions = expressions
-        
-    def __str__(self):
-        return "{{ {} }}".format("\n\t\t".join([ str(x) for x in self.expressions ]))
-        
-        
-class Atom(Node):
     def __init__(self, name):
         self.name = name
-        
+
     def __str__(self):
         return "{}".format(self.name)
-        
-class LambdaExpression(TypedNode):
+
+
+class If(TypedNode):
+    """ x """
+
+    def __init__(self, cond, then, otherwise):
+        self.cond = cond
+        self.then = then
+        self.otherwise = otherwise
+
+    def __str__(self):
+        return "if {} then {} else {}".format(self.cond, self.then,
+                                              self.otherwise)
+
+
+class Application(TypedNode):
+    def __init__(self, target, arguments):
+        self.target = target
+        self.arguments = arguments
+
+    def __str__(self):
+        return "{}({})".format(self.target,
+                               ", ".join([str(x) for x in self.arguments]))
+
+
+class Abstraction(TypedNode):
     def __init__(self, parameters, body):
         self.parameters = parameters
         self.body = body
-        
+
     def __str__(self):
-        return "({}) -> {}".format(", ".join([ str(x) for x in self.parameters ]),self.body)
-        
-        
-class Let(TypedNode):
-    def __init__(self, name, body, type=None, coerced=False):
-        self.name = name
+        return "\{} -> {}".format(", ".join([str(x) for x in self.parameters]),
+                                  self.body)
+
+
+class Fix(TypedNode):
+    def __init(self):
+        pass
+
+    def __str__(self):
+        return "fix"
+
+
+class TAbstraction(TypedNode):
+    def __init__(self, typevar, kind, body):
+        self.typevar = typevar
+        self.kind = kind
         self.body = body
-        self.type = type
-        self.coerced = coerced
-        
+
     def __str__(self):
-        symb = self.coerced and ":!" or ":"
-        return "{} {} {} = {}".format(self.name, symb, self.type, self.body)
-        
- 
+        return "/\{}:{}.({})".format(self.typevar, self.kind, self.body)
+
+
+class TApplication(TypedNode):
+    def __init__(self, expression, type):
+        self.expression = expression
+        self.type = type
+
+    def __str__(self):
+        return "{}[{}]".format(self.expression, self.type)
+
+
+# Other Structure
+
+
 class Argument(TypedNode):
-    def __init__(self, name, type, trackedBy=None):
+    def __init__(self, name, type):
         self.name = name
         self.type = type
-        self.trackedBy = trackedBy
-        
+
     def __str__(self):
-        tb = self.trackedBy and " trackedBy " + str(self.trackedBy) or ""
-        return "{}:{}{}".format(self.name, self.type, tb)
+        return "{}:{}".format(self.name, self.type)
 
 
-class FunctionDecl(TypedNode):
-    def __init__(self,
-        name,
-        parameters,
-        return_value,
-        type_parameters = None,
-        refinements = None,
-        effects = None,
-        body = None
-        ):
+class Definition(Node):
+    def __init__(self, name, type, body):
         self.name = name
-        self.parameters = parameters or []
-        self.return_value = return_value
-        self.type_parameters = type_parameters or []
-        self.refinements = refinements or []
-        self.effects = effects or []
+        self.type = type
         self.body = body
-        self.is_native = body == None
 
     def __str__(self):
-        native = self.is_native and "native " or ""
-        type_parameters = ", ".join(map(str, self.type_parameters))
-        tpars = type_parameters and type_parameters + " => " or ""
-        pars = ", ".join(map(str, self.parameters))
-        conds = self.refinements and " where [" + " and ".join(map(str, self.refinements)) + "]" or ""
-        effects = self.effects and " with [" + " and ".join(map(str, self.effects)) + "]" or ""
-        body = self.body and "{\n\t\t" + str(self.body) + "}" or ""
-        return "{}{} : {} ({}) -> {}{}{}{}".format(native, self.name, tpars, pars, str(self.return_value), conds, effects, body)
+        return "{} : {} = {}".format(self.name, self.type, self.body)
 
 
-class TypeDecl(TypedNode):
-    def __init__(self, name_imported, alias, properties=None, refinements=None):
-        self.type = name_imported
+class TypeAlias(TypedNode):
+    def __init__(self, alias, type):
         self.alias = alias
-        self.properties = properties or []
-        self.refinements = refinements or []
-        
-    def __str__(self):
-        al = self.alias and " as " + str(self.alias) or ""
-        conds = self.refinements and " where [" + " and ".join(map(str, self.refinements)) + "]" or ""
-        props = self.properties and " { " + "\n".join(map(str, self.properties)) + " }" or ""
-        return "type {}{}{}{}".format(str(self.type), props, conds, al)
+        self.type = type
+
 
 class Import(Node):
     def __init__(self, name):
         self.name = name
-        
+
     def __str__(self):
         return "import {}".format(self.name)

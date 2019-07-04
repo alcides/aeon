@@ -1,4 +1,10 @@
 main : (args:Array<String>) -> _:Void {
-	b1:{ Boolean where self == true } = true
-	b2:{ Boolean where self == b1 } = false
+	x:{ b1:Boolean where true } = true
+	#y:{ b2:Boolean where b2 == b1 } = false
+
+	#x = if a then b  else { c }
+	#if a then { b c d } else { e f g }
+
+
+	1
 }
