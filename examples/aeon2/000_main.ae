@@ -1,14 +1,15 @@
+type List : (* => *)
+
 f1 : Void = null
 f2 : Integer = 1
 f3 : Boolean = true
 f4 : Boolean = false
 f5 : (x:Boolean) -> Integer = null
 
-f6 : (x:Integer) -> {x:Boolean where true} = 1
+f6 : (x:Integer) -> {x:Boolean where true} = f1
 f7 : (T:*) => Integer = null
 f8 : (List Integer) = null
 f9 : (T:*) => (List T) = null
-
 
 a : Integer = if true then 1 else 0
 b : (x:Integer) -> Integer = \x:Integer -> 1

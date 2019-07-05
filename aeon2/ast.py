@@ -128,10 +128,19 @@ class Definition(Node):
         return "{} : {} = {}".format(self.name, self.type, self.body)
 
 
-class TypeAlias(TypedNode):
+class TypeAlias(Node):
     def __init__(self, alias, type):
         self.alias = alias
         self.type = type
+
+
+class TypeDeclaration(Node):
+    def __init__(self, name, kind):
+        self.name = name
+        self.kind = kind
+
+    def __str__(self):
+        return "type {} : {}".format(self.name, self.kind)
 
 
 class Import(Node):

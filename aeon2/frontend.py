@@ -25,7 +25,7 @@ fatarrow = t('=>')
 hole = t('…').result(Hole())
 true = t('true').result(Literal(True, type=t_b))
 false = t('false').result(Literal(False, type=t_b))
-null = t('null').result(Literal(None, type=t_n))
+null = t('null').result(Literal(None, type=t_o))
 symbol = lexeme(regex(r'[.\d\w_]+'))
 
 op_1 = t("*") ^ t("/") ^ t("%")
@@ -89,7 +89,8 @@ def abstraction():
     args = yield sepBy(symbol + (t(":") >> typee), t(","))
     yield arrow
     e = yield expr
-    return Abstraction(map(lambda p: Argument(name=p[0], type=p[1]), args), e)
+    return Abstraction(
+        list(map(lambda p: Argument(name=p[0], type=p[1]), args)), e)
 
 
 @lexeme
@@ -246,7 +247,7 @@ def topleveldef():
 
 @lexeme
 @generate
-def typealias():
+def type_alias():
     '''Parse type alias.'''
     yield t("type")
     imported = yield symbol
@@ -254,9 +255,20 @@ def typealias():
     return TypeAlias(imported, alias)
 
 
+@lexeme
+@generate
+def type_declaration():
+    '''Parse type alias.'''
+    yield t("type")
+    name = yield symbol
+    yield t(":")
+    k = yield kind
+    return TypeDeclaration(name, k)
+
+
 imprt = t('import') >> symbol.parsecmap(lambda x: Import(x))
 
-program = ignore >> many(typealias ^ topleveldef ^ imprt)
+program = ignore >> many(type_alias ^ type_declaration ^ topleveldef ^ imprt)
 
 cached_imports = []
 
