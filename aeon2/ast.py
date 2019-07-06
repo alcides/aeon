@@ -14,6 +14,10 @@ class TypedNode(Node):
     def __init__(self):
         self.type = None
 
+    def with_type(self, t):
+        self.type = t
+        return self
+
 
 class Hole(TypedNode):
     """ \hole """
@@ -36,7 +40,7 @@ class Literal(TypedNode):
         return "{}".format(self.value)
 
 
-class Var(Node):
+class Var(TypedNode):
     """ x """
 
     def __init__(self, name):
@@ -60,23 +64,22 @@ class If(TypedNode):
 
 
 class Application(TypedNode):
-    def __init__(self, target, arguments):
+    def __init__(self, target, argument):
         self.target = target
-        self.arguments = arguments
+        self.argument = argument
 
     def __str__(self):
-        return "{}({})".format(self.target,
-                               ", ".join([str(x) for x in self.arguments]))
+        return "{}({})".format(self.target, self.argument)
 
 
 class Abstraction(TypedNode):
-    def __init__(self, parameters, body):
-        self.parameters = parameters
+    def __init__(self, arg_name, arg_type, body):
+        self.arg_name = arg_name
+        self.arg_type = arg_type
         self.body = body
 
     def __str__(self):
-        return "\{} -> {}".format(", ".join([str(x) for x in self.parameters]),
-                                  self.body)
+        return "\{}:{} -> {}".format(self.arg_name, self.arg_type, self.body)
 
 
 class Fix(TypedNode):
@@ -98,12 +101,12 @@ class TAbstraction(TypedNode):
 
 
 class TApplication(TypedNode):
-    def __init__(self, expression, type):
-        self.expression = expression
-        self.type = type
+    def __init__(self, target, argument):
+        self.target = target
+        self.argument = argument
 
     def __str__(self):
-        return "{}[{}]".format(self.expression, self.type)
+        return "{}[{}]".format(self.target, self.argument)
 
 
 # Other Structure

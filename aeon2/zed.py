@@ -1,113 +1,118 @@
-import sys
 from functools import reduce
 
-from .typestructure import *
 import z3
 
+from .types import *
+from .ast import *
+from .substitutions import *
+from .zed_utils import *
 
-class Zed(object):
-    def __init__(self):
-        self.vars = {}
-        self.solver = z3.Solver()
-        self.current_context = None
-        self.current_typecontext = None
 
-    def copy_assertions(self):
-        return self.solver.assertions()
+class NotDecidableException(Exception):
+    pass
 
-    def enter_context(self):
-        self.solver.push()
 
-    def exit_context(self):
-        self.solver.pop()
-
-    def translate_type(self, t):
-        acc = True
-        print("Type:", t)
-        if t.refinements:
-            for ref in t.refinements:
-                return z3.And(acc, self.translate_expr(ref))
-        return acc
-
-    def translate_expr(self, n):
-        if type(n) is Operator:
-            if n.name == "==":
-                return self.translate_expr(
-                    n.arguments[0]) == self.translate_expr(n.arguments[1])
-        elif type(n) is Atom:
-            t = self.current_context.find(n.name)
-            if t:
-                return self.translate_type(t)
-            else:
-                raise Exception("Unknown variable {} ({})".format(n, type(n)))
-        elif type(n) is Argument:
-            self.typecheck_argument(n)
-        elif type(n) is Literal:
-            return self.make_literal(n.value)
-            self.typecheck_literal(n)
-        elif type(n) is Invocation:
-            self.typecheck_invocation(n, expects)
+def flatten_refined_types(t):
+    if type(t) is RefinedType:
+        if type(t.type) is RefinedType:
+            inner = t.type
+            new_cond = App(
+                App("&&", t.cond),
+                substitution_in_expr(inner.cond, t.name, inner.name))
+            merged = RefinedType(t.name, inner.type, new_cond)
+            return flatten_refined_types(merged)
         else:
-            raise Exception("Unknown expr node {} ({})".format(n, type(n)))
-
-    def is_subtype(self, t1, t2, context, typecontext):
-
-        self.current_context = context
-        self.current_typecontext = typecontext
-        subtype = self.translate_type(t1)
-        supertype = self.translate_type(t2)
-        self.current_context = None
-        self.current_typecontext = None
-
-        self.solver.add(z3.Not(z3.Implies(subtype, supertype)))
-
-        ver = self.solver.check()
-        if ver == z3.unsat:
-            return True
-        elif ver == z3.sat:
-            return False
-        else:
-            print("Unknown verification in function return")
-            return True
-
-    def make_literal(self, t, v):
-        """ Creates a literal value for a given variable
-
-        Ex: (x:Integer where x == 1)
-
-        1 will be a literal here.
-        """
-        if t.basic == 'String':
-            literal_value = z3.StringVal(v)
-        else:
-            literal_value = v
-        return literal_value
-
-    def z3_type_constructor(self, t):
-        """ Returns the constructor of Z3 for a given type
-
-        For instance, for type Double
-
-        1.0 : Double
-
-        This function will return z3.Real, such as
-
-        z3.Real(1.0) will be a valid z3 literal.
-
-        """
-        if t == BasicType('Double'):
-            return z3.Real
-        elif t == BasicType('Float'):
-            return z3.Real
-        elif t == BasicType('Integer'):
-            return z3.Int
-        elif t == BasicType('Boolean'):
-            return z3.Bool
-        elif t == BasicType('String'):
-            return z3.String
-        else:
-            return z3.Int
-            raise Exception("Unknown Type Constructor", t)
+            return RefinedType(t.name, flatten_refined_types(t.type), t.cond)
+    elif type(t) is BasicType:
+        return t
+    raise Exception("No Refine Flattening for {}".format(t))
 
 
-zed = Zed()
+def zed_mk_variable(name, ty):
+    if type(ty) is BasicType:
+        if ty.name == "Integer":
+            return z3.Int(name)
+        if ty.name == "Boolean":
+            return z3.Bool(name)
+    raise NotDecidableException("No constructor for {}:{}_{}".format(
+        name, ty, type(ty)))
+
+
+def zed_translate_literal(ztx, literal: Literal):
+    return literal.value
+
+
+def zed_translate_var(ztx, v: Var):
+    if not v.name in ztx:
+        ztx[v.name] = zed_mk_variable(v.name, flatten_refined_types(v.type))
+    return ztx[v.name]
+
+
+def zed_translate_app(ztx, app: Application):
+    target = zed_translate(ztx, app.target)
+    argument = zed_translate(ztx, app.argument)
+    return target(argument)
+
+
+def zed_translate_tapp(ztx, app: Application):
+    target = zed_translate(ztx, app.target)
+    return target
+
+
+def zed_translate_context(ztx, ctx):
+    restrictions = []
+    for name in ctx.variables.keys():
+        t = ctx.variables[name]
+        if type(t) is RefinedType:
+            tprime = flatten_refined_types(t)
+            new_cond = substitution_in_expr(tprime.cond, name, t.name)
+            restrictions.append(new_cond)
+    return reduce(z3.And, [zed_translate(ztx, e) for e in restrictions], True)
+
+
+def zed_translate(ztx, cond):
+    if type(cond) is Application:
+        return zed_translate_app(ztx, cond)
+    elif type(cond) is Var:
+        return zed_translate_var(ztx, cond)
+    elif type(cond) is Literal:
+        return zed_translate_literal(ztx, cond)
+    elif type(cond) is TApplication:
+        return zed_translate_tapp(ztx, cond)
+    else:
+        raise NotDecidableException("{} could not be translated".format(cond))
+
+
+def zed_initial_context():
+    return {
+        "&&": lambda x: lambda y: z3.And(x, y),
+        "||": lambda x: lambda y: z3.Or(x, y),
+        "==": lambda x: lambda y: x == y,
+        "!=": lambda x: lambda y: x != y,
+        "<": lambda x: lambda y: x < y,
+        ">": lambda x: lambda y: x > y,
+        "<=": lambda x: lambda y: x <= y,
+        ">=": lambda x: lambda y: x >= y,
+        "+": lambda x: lambda y: x + y,
+        "-": lambda x: lambda y: x - y,
+    }
+
+
+def zed_verify_satisfiability(ctx, cond):
+    print(ctx.variables.keys())
+    print("=>", cond)
+    ztx = zed_initial_context()
+    z3_context = zed_translate_context(ztx, ctx)
+    z3_cond = zed_translate(ztx, cond)
+
+    relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
+    s = z3.Solver()
+    s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
+    print(s)
+    r = s.check()
+    if r == z3.sat:
+        return True
+    if r == z3.unsat:
+        return False
+    raise NotDecidableException("{} could not be evaluated for satisfiability",
+                                cond)

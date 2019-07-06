@@ -43,6 +43,7 @@ if __name__ == '__main__':
         print(t.given)
         print("Expected:")
         print(t.expected)
+        #raise t
         sys.exit(-1)
 
     if debug:

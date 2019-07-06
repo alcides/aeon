@@ -1,7 +1,6 @@
 import copy
 import sys
 
-from .utils import *
 from .ast import Node
 
 
@@ -14,6 +13,20 @@ class TypingContext(object):
 
     def setup(self):
         self.variables = {
+            '==': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
+            '!=': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
+            '&&': ArrowType("_", t_b, ArrowType("_", t_b, t_b)),
+            '||': ArrowType("_", t_b, ArrowType("_", t_b, t_b)),
+            '<': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            '>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            '<=': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            '=>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+
+            '+': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
+            '-': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
+        }
+
+        self.type_variables = {
             t_v: star,
             t_i: star,
             t_f: star,
@@ -22,7 +35,7 @@ class TypingContext(object):
             t_s: star,
         }
         # As of Python3, dict_keys is not copyable, so a list is required
-        self.basic_types = list(self.variables.keys())
+        self.basic_types = list(self.type_variables.keys())
 
     def add_var(self, n, t):
         self.variables[n] = t
@@ -75,6 +88,9 @@ class Type(object):
     def copy(self):
         return copy.deepcopy(self)
 
+    def __repr__(self):
+        return str(self)
+
 
 class BasicType(Type):
     """ Integer | Boolean | B """
@@ -89,13 +105,13 @@ class BasicType(Type):
 class ArrowType(Type):
     """ x:T -> U """
 
-    def __init__(self, x, t1, t2):
-        self.name = x
-        self.type = t1
-        self.argument = t2
+    def __init__(self, arg_name, arg_type, return_type):
+        self.arg_name = arg_name
+        self.arg_type = arg_type
+        self.return_type = return_type
 
     def __str__(self):
-        return "{}:{} -> {}".format(self.name, self.type, self.argument)
+        return "{}:{} -> {}".format(self.arg_name, self.arg_type, self.return_type)
 
 
 class RefinedType(Type):

@@ -1,20 +1,33 @@
 type List : (* => *)
 
-f1 : Void = null
-f2 : Integer = 1
-f3 : Boolean = true
-f4 : Boolean = false
-f5 : (x:Boolean) -> Integer = null
+l1 : Void = null
+l2 : Integer = 1
+l3 : Boolean = true
+l4 : Boolean = false
 
-f6 : (x:Integer) -> {x:Boolean where true} = f1
-f7 : (T:*) => Integer = null
-f8 : (List Integer) = null
-f9 : (T:*) => (List T) = null
+v1 : Integer = l2
 
-a : Integer = if true then 1 else 0
-b : (x:Integer) -> Integer = \x:Integer -> 1
-c : Integer = a(1)
-d : Integer = a(1,2)
-e : Integer = (\x:Integer -> 1)(1)
-f : Integer = fix(f)
-k : Integer = (T:* => 1)
+i1 : Integer = if true then 1 else 0
+
+
+w1 : {x:Integer where x > 0 } = 1
+w2 : {x:Integer where x < 4} = 8-2
+
+f1 : (x:Integer) -> {y:Integer where y > x} = \z:Integer -> z+1
+
+
+
+
+#f5 : (x:Boolean) -> Integer = null
+#f6 : (x:Integer) -> {x:Boolean where true} = f1
+#f7 : (T:*) => Integer = null
+#f8 : (List Integer) = null
+#f9 : (T:*) => (List T) = null
+
+#a : Integer = if true then 1 else 0
+#b : (x:Integer) -> Integer = \x:Integer -> 1
+#c : Integer = a(1)
+#d : Integer = a(1,2)
+#e : Integer = (\x:Integer -> 1)(1)
+#f : Integer = fix(f)
+#k : Integer = (T:* => 1)

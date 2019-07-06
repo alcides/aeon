@@ -5,7 +5,7 @@ import copy
 from parsec import *
 
 from .ast import *
-from .typestructure import *
+from .types import *
 
 ext = 'ae'
 
@@ -20,11 +20,19 @@ lexeme = lambda p: p << ignore  # skip all ignored characters.
 
 t = lambda k: lexeme(string(k))
 
+
+def refined_value(v, t, label="_v"):
+    tapp = TApplication(Var("=="), t)
+    app1 = Application(tapp, Var(label))
+    app2 = Application(app1, Literal(v, type=t))
+    return RefinedType(label, t, app2)
+
+
 arrow = t('->')
 fatarrow = t('=>')
 hole = t('…').result(Hole())
-true = t('true').result(Literal(True, type=t_b))
-false = t('false').result(Literal(False, type=t_b))
+true = t('true').result(Literal(True, type=refined_value(True, t_b, "_v")))
+false = t('false').result(Literal(False, type=refined_value(False, t_b, "_v")))
 null = t('null').result(Literal(None, type=t_o))
 symbol = lexeme(regex(r'[.\d\w_]+'))
 
@@ -41,7 +49,7 @@ def number():
 
     def fa(x):
         if "." not in x:
-            return Literal(int(x), type=copy.deepcopy(t_i))
+            return Literal(int(x), type=refined_value(int(x), t_i, "_v"))
         else:
             return Literal(float(x), type=copy.deepcopy(t_f))
 
@@ -86,21 +94,22 @@ def quoted():
 @generate
 def abstraction():
     yield t("\\")
-    args = yield sepBy(symbol + (t(":") >> typee), t(","))
+    name = yield symbol
+    yield t(":")
+    ty = yield typee
     yield arrow
     e = yield expr
-    return Abstraction(
-        list(map(lambda p: Argument(name=p[0], type=p[1]), args)), e)
+    return Abstraction(arg_name=name, arg_type=ty, body=e)
 
 
 @lexeme
 @generate
 def application():
-    target = yield expr_wrapped
     yield t("(")
-    arguments = yield sepBy(expr, t(","))
+    target = yield expr_wrapped
+    e = yield expr_wrapped
     yield t(")")
-    return Application(target, arguments)
+    return Application(target, e)
 
 
 @lexeme
@@ -138,6 +147,15 @@ def ite():
 
 @lexeme
 @generate
+def expr_ops():
+    a1 = yield expr_wrapped
+    op = yield op_all
+    a2 = yield expr_wrapped
+    return Application(Application(Var(op), a1), a2)
+
+
+@lexeme
+@generate
 def expr_rec():
     o = yield expr
     return o
@@ -147,19 +165,9 @@ fix = t("fix").parsecmap(lambda x: Fix())
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = fix ^ literal ^ var
-expr = ite ^ abstraction ^ application ^ tabstraction ^ tapplication ^ expr_basic ^ t(
+expr = expr_ops ^ ite ^ abstraction ^ application ^ tabstraction ^ tapplication ^ expr_basic ^ t(
     "(") >> expr_rec << t(")")
 expr_wrapped = expr_basic ^ t("(") >> expr << t(")")
-
-#atom = true ^ false ^ null ^ number() ^ invocation ^ symbol_e ^ (lpars >> expr_wrapped << rpars) ^ lambd ^ hole
-#expr_0 = (op_2 + atom).parsecmap(lambda x:Operator(*x)) ^ atom
-#expr_1 = (expr_0 + op_1 + expr_0).parsecmap(rotate) ^ expr_0
-#expr_2 = (expr_1 + op_2 + expr_1).parsecmap(rotate) ^ expr_1
-#expr_3 = (expr_2 + op_3 + expr_2).parsecmap(rotate) ^ expr_2
-#expr_4 = (expr_3 + op_4 + expr_3).parsecmap(rotate) ^ expr_3
-
-#expr_4 = (expr_0 + op_all + expr_0).parsecmap(rotate) ^ expr_0
-#expr = let ^ expr_4
 
 
 @lexeme
@@ -230,7 +238,7 @@ def kind_rec():
 
 
 kind = kind_rec ^ t("*").result(Kind())
-typee = type_abstraction ^ arrow_type ^ type_application ^ refined_type ^ basic_type
+typee = type_abstraction ^ refined_type ^ arrow_type ^ type_application ^ basic_type
 
 
 @lexeme

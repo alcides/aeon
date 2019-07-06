@@ -1,4 +1,7 @@
-from .typestructure import *
+from .ast import *
+from .types import *
+from .substitutions import *
+from .zed import *
 
 
 class TypeException(Exception):
@@ -9,7 +12,7 @@ class TypeException(Exception):
                  expected=None,
                  *args,
                  **kwargs):
-        super(TypeException, self).__init__(name, description, *args, **kwargs)
+        super(TypeException, self).__init__(name, description)
         self.expected = expected
         self.given = given
 
@@ -19,19 +22,72 @@ def sub_base(ctx, sub: BasicType, sup: BasicType):
     return sub.name == sup.name
 
 
+def sub_whereL(ctx, sub: RefinedType, sup: Type):
+    """ Sub-WhereL """
+    nctx = ctx.with_var(sub.name, sub.type)
+    return is_subtype(ctx, sub.type, sup) and \
+        is_satisfiable(nctx, sub.cond)
+
+
+def sub_whereR(ctx, sub: Type, sup: RefinedType):
+    """ Sub-WhereR """
+    nctx = ctx.with_var(sup.name, sub)
+    return is_subtype(ctx, sub, sup.type) and \
+        is_satisfiable(nctx, sup.cond)
+
+
+def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
+    """ Sub-Arrow """
+    nctx = ctx.with_var(sup.arg_name, sup.arg_type)
+    sub_return_type = substitution_var_in_type(sub.return_type, sup.arg_name,
+                                               sub.arg_name)
+    return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
+        is_subtype(nctx, sub_return_type, sup.return_type)
+
+
+def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
+    """ Sub-Abs """
+    if sub.kind != sup.kind:
+        return False
+    nctx = ctx.with_type_var(sup.name, sup.kind)
+    return is_subtype(nctx,
+                      substitution_type_in_type(sub.type, sup.name, sub.name),
+                      sup.type)
+
+
+def is_same_type(ctx, a, b):
+    return is_subtype(ctx, a, b) and is_subtype(ctx, b, a)
+
+
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
+    print(sub, " <: ", sup)
     if type(sup) is BasicType:
         if sup.name in ['Void', 'Object']:
             return True  # Top
     if type(sub) is BasicType and type(sup) is BasicType:
         return sub_base(ctx, sub, sup)
+    if type(sub) is RefinedType:
+        return sub_whereL(ctx, sub, sup)
+    if type(sup) is RefinedType:
+        return sub_whereR(ctx, sub, sup)
+    if type(sub) is ArrowType and type(sup) is ArrowType:
+        return sub_arrow(ctx, sub, sup)
+    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
+        return sub_abs(ctx, sub, sup)
 
-    if type(sup) is BasicType:
-        if sup.name in ['Void', 'Object']:  # Top
-            return True
-    print("Sup:", sup)
-    return False  # TODO
+    raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
+
+
+def extract_clauses(t):
+    if type(t) is RefinedType:
+        return [t.cond] + extract_clauses(t.type)
+    return []
+
+
+def expr_eval(ctx, t: RefinedType):
+    conditions = extract_clauses(t)
+    return is_satisfiable(conditions)
 
 
 def is_satisfiable(ctx, cond):
@@ -39,10 +95,9 @@ def is_satisfiable(ctx, cond):
     if not is_subtype(ctx, cond_type, t_b):
         raise TypeException(
             'Clause not boolean',
-            "Condition {} is not a boolean expression".format(t))
+            "Condition {} is not a boolean expression".format(cond))
     else:
-        print("TODO: Z3")
-        return True
+        return zed_verify_satisfiability(ctx, cond)
 
 
 def wellformed(ctx, t):
@@ -56,15 +111,21 @@ def wellformed(ctx, t):
             raise TypeException('Unknown type',
                                 "Type {} is not a known basic type".format(t))
     elif type(t) is ArrowType:
-        k1 = wellformed(ctx, t.type)
-        k2 = wellformed(ctx.with_var(t.argument, t.type), t.argument)
+
+        k1 = wellformed(ctx, t.arg_type)
+        k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
         return k2
     elif type(t) is RefinedType:
-        t1 = wellformed(ctx, t.type)
+        k = wellformed(ctx, t.type)
+        if t.name in ctx.variables.keys():
+            raise TypeException('Variable {} already in use.'.format(t.name),
+                                "A new variable name should be defined")
         nctx = ctx.with_var(t.name, t.type)
         if not is_satisfiable(nctx, t.cond):
-            raise TypeException('Type is not satisfiable',
-                                "Type {} should be satisfiable.".format(t))
+            raise TypeException(
+                'Type is not satisfiable',
+                "Type {} should be satisfiable in {}.".format(
+                    t, ctx.variables))
         return star
     elif type(t) is TypeAbstraction:
         nctx = ctx.with_type_var(t.name, t.kind)
@@ -81,8 +142,7 @@ def wellformed(ctx, t):
             raise TypeException('Kind does not match',
                                 "Kind {} is not the same as {}".format(ka, k1))
         return k.k2
-    print("No wellformed rule for ", t, type(t))
-    return False
+    raise Exception('No wellformed rule for {}'.format(t))
 
 
 ## HELPERS:
@@ -114,7 +174,7 @@ def e_literal(ctx, n, expects=None):
 def e_var(ctx, n, expects=None):
     """ E-Var """
     if n.name not in ctx.variables:
-        raise TypeException(
+        raise Exception(
             'Unknown variable',
             "Unknown variable {}.\n {}".format(n.name, ctx.variables))
     n.type = ctx.variables[n.name]
@@ -130,6 +190,60 @@ def e_if(ctx, n, expects=None):
     return n
 
 
+def e_abs(ctx, n, expects=None):
+    """ E-Abs """
+    if expects and type(expects) is ArrowType:
+        body_expects = substitution_var_in_type(expects.return_type,
+                                                n.arg_name, expects.arg_name)
+    else:
+        body_expects = None
+    nctx = ctx.with_var(n.arg_name, n.arg_type)
+    n.body = tc(nctx, n.body, expects=body_expects)
+    n.type = ArrowType(arg_name=n.arg_name,
+                       arg_type=n.arg_type,
+                       return_type=n.body.type)
+    return n
+
+
+def e_app(ctx, n, expects=None):
+    """ E-App """
+    n.target = tc(ctx, n.target, expects=None)
+    if not type(n.target.type) is ArrowType:
+        raise TypeException('Not a function',
+                            "{} does not have the right type".format(n),
+                            expects=expects,
+                            given=n.target.type)
+
+    ftype = n.target.type
+    wellformed(ctx, ftype)
+    n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
+    n.type = ftype.return_type
+    return n
+
+
+def e_tapp(ctx, n, expects=None):
+    """ E-TApp """
+    n.target = tc(ctx, n.target, expects=None)
+    if not type(n.target.type) is TypeAbstraction:
+        raise TypeException('Not a type function',
+                            "{} does not have the right type".format(n),
+                            expects=expects,
+                            given=n.target.type)
+
+    tabs = n.target.type
+
+    k1 = wellformed(ctx, tabs)
+    k2 = wellformed(ctx, n.argument)
+    if k1 != k2:
+        raise TypeException('Type abstraction has wrong kind',
+                            "In Type Application".format(n),
+                            expects=k2,
+                            given=k1)
+
+    n.type = substitution_type_in_type(tabs.type, n.argument, tabs.name)
+    return n
+
+
 def tc(ctx, n, expects=None):
     """ TypeChecking AST nodes. Expects make it bidirectional """
     if type(n) is list:
@@ -140,6 +254,12 @@ def tc(ctx, n, expects=None):
         n = e_var(ctx, n, expects)
     elif type(n) is If:
         n = e_if(ctx, n, expects)
+    elif type(n) is Application:
+        n = e_app(ctx, n, expects)
+    elif type(n) is Abstraction:
+        n = e_abs(ctx, n, expects)
+    elif type(n) is TApplication:
+        n = e_tapp(ctx, n, expects)
     elif type(n) is Program:
         n = tc(ctx, n.declarations)
     elif type(n) is TypeDeclaration:
