@@ -22,8 +22,7 @@ t = lambda k: lexeme(string(k))
 
 
 def refined_value(v, t, label="_v"):
-    tapp = TApplication(Var(t == t_b and "===" or "=="), t)
-    app1 = Application(tapp, Var(label))
+    app1 = Application(Var(t == t_b and "===" or "=="), Var(label))
     app2 = Application(app1, Literal(v, type=t))
     return RefinedType(label, t, app2)
 
@@ -32,7 +31,7 @@ def refined_value(v, t, label="_v"):
 @generate
 def operators_definition():
     yield t("(")
-    op = yield lexeme(regex(r'[+=><!-&|]{1,3}'))
+    op = yield lexeme(regex(r'[\+=\>\<!\-&\|]{1,3}'))
     yield t(")")
     return op
 

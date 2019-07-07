@@ -57,7 +57,7 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
-            raise NoZ3TranslationException()
+            raise NoZ3TranslationException("Var not in scope: {}".format(v))
     return ztx[v.name]
 
 
@@ -105,11 +105,13 @@ def zed_translate(ztx, cond):
 def zed_initial_context():
     return {
         "==": lambda x: lambda y: x == y,
+        "!=": lambda x: lambda y: x != y,
+        "===": lambda x: lambda y: x == y,
+        "!==": lambda x: lambda y: x != y,
         "<": lambda x: lambda y: x < y,
         ">": lambda x: lambda y: x > y,
         "&&": lambda x: lambda y: z3.And(x, y),
         "||": lambda x: lambda y: z3.Or(x, y),
-        "!=": lambda x: lambda y: x != y,
         "<=": lambda x: lambda y: x <= y,
         ">=": lambda x: lambda y: x >= y,
         "+": lambda x: lambda y: x + y,

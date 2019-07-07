@@ -26,8 +26,8 @@ def sub_whereR(ctx, sub: Type, sup: RefinedType):
 def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
     """ Sub-Arrow """
     nctx = ctx.with_var(sup.arg_name, sup.arg_type)
-    sub_return_type = substitution_var_in_type(sub.return_type, sup.arg_name,
-                                               sub.arg_name)
+    sub_return_type = substitution_var_in_type(sub.return_type,
+                                               Var(sup.arg_name), sub.arg_name)
     return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
         is_subtype(nctx, sub_return_type, sup.return_type)
 
@@ -89,8 +89,8 @@ def entails(ctx, cond):
 
 
 def is_satisfiable(ctx, cond):
-    cond_type = tc(ctx, cond).type
-    if not is_subtype(ctx, cond_type, t_b):
+    #cond_type = tc(ctx, cond).type
+    if False:  #not is_subtype(ctx, cond_type, t_b):
         raise TypeException(
             'Clause not boolean',
             "Condition {} is not a boolean expression".format(cond))
@@ -235,7 +235,6 @@ def e_abs(ctx, n, expects=None):
 
 def e_app(ctx, n, expects=None):
     """ E-App """
-    print(n.target)
     n.target = tc(ctx, n.target, expects=None)
     if type(n.target.type) is ArrowType:
         ftype = n.target.type
