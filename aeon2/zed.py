@@ -25,16 +25,20 @@ def flatten_refined_types(t):
             return RefinedType(t.name, flatten_refined_types(t.type), t.cond)
     elif type(t) is BasicType:
         return t
-    raise Exception("No Refine Flattening for {}".format(t))
+    elif type(t) is ArrowType:
+        return t
+    raise Exception("No Refine Flattening for {} ({})".format(t, type(t)))
 
 
 def zed_mk_variable(name, ty):
+    if type(ty) is ArrowType:
+        print("Arrow:", ty, name)
     if type(ty) is BasicType:
         if ty.name == "Integer":
             return z3.Int(name)
-        if ty.name == "Boolean":
+        elif ty.name == "Boolean":
             return z3.Bool(name)
-    raise NotDecidableException("No constructor for {}:{}_{}".format(
+    raise NotDecidableException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
 
 
@@ -44,7 +48,11 @@ def zed_translate_literal(ztx, literal: Literal):
 
 def zed_translate_var(ztx, v: Var):
     if not v.name in ztx:
-        ztx[v.name] = zed_mk_variable(v.name, flatten_refined_types(v.type))
+        if type(v.type) is BasicType:
+            ztx[v.name] = zed_mk_variable(v.name,
+                                          flatten_refined_types(v.type))
+        elif type(v.type) is RefinedType:
+            print("REF")
     return ztx[v.name]
 
 
@@ -65,7 +73,7 @@ def zed_translate_context(ztx, ctx):
         t = ctx.variables[name]
         if type(t) is RefinedType:
             tprime = flatten_refined_types(t)
-            new_cond = substitution_in_expr(tprime.cond, name, t.name)
+            new_cond = substitution_in_expr(tprime.cond, Var(name), t.name)
             restrictions.append(new_cond)
     return reduce(z3.And, [zed_translate(ztx, e) for e in restrictions], True)
 
@@ -85,12 +93,12 @@ def zed_translate(ztx, cond):
 
 def zed_initial_context():
     return {
+        "z3_equals": lambda x: lambda y: x == y,
+        "z3_lt": lambda x: lambda y: x < y,
+        "z3_gt": lambda x: lambda y: x > y,
         "&&": lambda x: lambda y: z3.And(x, y),
         "||": lambda x: lambda y: z3.Or(x, y),
-        "==": lambda x: lambda y: x == y,
         "!=": lambda x: lambda y: x != y,
-        "<": lambda x: lambda y: x < y,
-        ">": lambda x: lambda y: x > y,
         "<=": lambda x: lambda y: x <= y,
         ">=": lambda x: lambda y: x >= y,
         "+": lambda x: lambda y: x + y,
@@ -98,17 +106,30 @@ def zed_initial_context():
     }
 
 
-def zed_verify_satisfiability(ctx, cond):
-    print(ctx.variables.keys())
-    print("=>", cond)
+def zed_verify_entailment(ctx, cond):
     ztx = zed_initial_context()
     z3_context = zed_translate_context(ztx, ctx)
     z3_cond = zed_translate(ztx, cond)
-
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
-    print(s)
+    print("SMT Check2:", s)
+    r = s.check()
+    if r == z3.sat:
+        return True
+    if r == z3.unsat:
+        return False
+    raise NotDecidableException("{} could not be evaluated for entailment",
+                                cond)
+
+
+def zed_verify_satisfiability(ctx, cond):
+    ztx = zed_initial_context()
+    z3_context = zed_translate_context(ztx, ctx)
+    z3_cond = zed_translate(ztx, cond)
+    s = z3.Solver()
+    s.add(z3.And(z3_context, z3_cond))
+    print("SMT Check:", s)
     r = s.check()
     if r == z3.sat:
         return True

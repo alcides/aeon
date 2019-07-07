@@ -25,15 +25,15 @@ def sub_base(ctx, sub: BasicType, sup: BasicType):
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
     """ Sub-WhereL """
     nctx = ctx.with_var(sub.name, sub.type)
-    return is_subtype(ctx, sub.type, sup) and \
-        is_satisfiable(nctx, sub.cond)
+    return is_satisfiable(nctx, sub.cond) and \
+        is_subtype(ctx, sub.type, sup)
 
 
 def sub_whereR(ctx, sub: Type, sup: RefinedType):
     """ Sub-WhereR """
     nctx = ctx.with_var(sup.name, sub)
     return is_subtype(ctx, sub, sup.type) and \
-        is_satisfiable(nctx, sup.cond)
+        entails(nctx, sup.cond)
 
 
 def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
@@ -61,16 +61,18 @@ def is_same_type(ctx, a, b):
 
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
-    print(sub, " <: ", sup)
+    if type(sub) is BasicType:
+        if sub.name == 'Bottom':
+            return True  # Bottom
     if type(sup) is BasicType:
         if sup.name in ['Void', 'Object']:
             return True  # Top
     if type(sub) is BasicType and type(sup) is BasicType:
         return sub_base(ctx, sub, sup)
-    if type(sub) is RefinedType:
-        return sub_whereL(ctx, sub, sup)
     if type(sup) is RefinedType:
         return sub_whereR(ctx, sub, sup)
+    if type(sub) is RefinedType:
+        return sub_whereL(ctx, sub, sup)
     if type(sub) is ArrowType and type(sup) is ArrowType:
         return sub_arrow(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
@@ -90,6 +92,16 @@ def expr_eval(ctx, t: RefinedType):
     return is_satisfiable(conditions)
 
 
+def entails(ctx, cond):
+    cond_type = tc(ctx, cond).type
+    if not is_subtype(ctx, cond_type, t_b):
+        raise TypeException(
+            'Clause not boolean',
+            "Condition {} is not a boolean expression".format(cond))
+    else:
+        return zed_verify_entailment(ctx, cond)
+
+
 def is_satisfiable(ctx, cond):
     cond_type = tc(ctx, cond).type
     if not is_subtype(ctx, cond_type, t_b):
@@ -97,7 +109,10 @@ def is_satisfiable(ctx, cond):
             'Clause not boolean',
             "Condition {} is not a boolean expression".format(cond))
     else:
-        return zed_verify_satisfiability(ctx, cond)
+        try:
+            return zed_verify_satisfiability(ctx, cond)
+        except NotDecidableException:
+            return True
 
 
 def wellformed(ctx, t):
@@ -111,15 +126,15 @@ def wellformed(ctx, t):
             raise TypeException('Unknown type',
                                 "Type {} is not a known basic type".format(t))
     elif type(t) is ArrowType:
-
         k1 = wellformed(ctx, t.arg_type)
         k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
         return k2
     elif type(t) is RefinedType:
         k = wellformed(ctx, t.type)
         if t.name in ctx.variables.keys():
-            raise TypeException('Variable {} already in use.'.format(t.name),
-                                "A new variable name should be defined")
+            raise Exception(
+                'Variable {} already in use.'.format(t.name),
+                "A new variable name should be defined. In {}".format(t))
         nctx = ctx.with_var(t.name, t.type)
         if not is_satisfiable(nctx, t.cond):
             raise TypeException(
@@ -173,10 +188,10 @@ def e_literal(ctx, n, expects=None):
 
 def e_var(ctx, n, expects=None):
     """ E-Var """
-    if n.name not in ctx.variables:
+    if n.name not in list(ctx.variables):
         raise Exception(
             'Unknown variable',
-            "Unknown variable {}.\n {}".format(n.name, ctx.variables))
+            "Unknown variable {}.\n {}".format(n.name, list(ctx.variables)))
     n.type = ctx.variables[n.name]
     return n
 
@@ -213,11 +228,12 @@ def e_app(ctx, n, expects=None):
                             "{} does not have the right type".format(n),
                             expects=expects,
                             given=n.target.type)
-
     ftype = n.target.type
-    wellformed(ctx, ftype)
+    nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
+    wellformed(nctx, ftype)
     n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
-    n.type = ftype.return_type
+    n.type = substitution_var_in_type(ftype.return_type, n.argument,
+                                      n.target.type.arg_name)
     return n
 
 

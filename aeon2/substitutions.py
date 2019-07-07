@@ -5,23 +5,25 @@ from .ast import *
 def substitution_in_expr(n, replacement, replaced):
     """ e[t'/t] """
     r = lambda x: substitution_in_expr(x, replacement, replaced)
+
+    nty = substitution_var_in_type(n.type, replacement, replaced)
     if type(n) is Literal:
         return n
     elif type(n) is Var:
         if n.name == replaced:
-            return Var(replacement).with_type(n.type)
+            return replacement.with_type(nty)
         else:
             return n
     elif type(n) is If:
-        return If(r(n.cond), r(n.then), r(n.otherwise)).with_type(n.type)
+        return If(r(n.cond), r(n.then), r(n.otherwise)).with_type(nty)
     elif type(n) is Application:
-        return Application(r(n.target), r(n.argument)).with_type(n.type)
+        return Application(r(n.target), r(n.argument)).with_type(nty)
     elif type(n) is TApplication:
-        return TApplication(r(n.target), r(n.argument)).with_type(n.type)
+        return TApplication(r(n.target), n.argument).with_type(nty)
     elif type(n) is TAbstraction:
-        n = TAbstraction(t.arg_name, t.arg_type, r(t.body)).with_type(n.type)
+        n = TAbstraction(t.arg_name, t.arg_type, r(t.body)).with_type(nty)
     else:
-        raise Exception('No substitution rule for {}'.format(t))
+        raise Exception('No substitution rule for {}'.format(n))
 
 
 def substitution_var_in_type(n: Type, replacement, replaced):

@@ -12,18 +12,35 @@ class TypingContext(object):
         self.basic_types = []
 
     def setup(self):
+        f2 = lambda a, b, c: ArrowType("_", a, ArrowType("_", b, c))
         self.variables = {
-            '==': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
-            '!=': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
-            '&&': ArrowType("_", t_b, ArrowType("_", t_b, t_b)),
-            '||': ArrowType("_", t_b, ArrowType("_", t_b, t_b)),
-            '<': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            '>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            '<=': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            '=>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            'native':
+            bottom,
+            'z3_equals':
+            TypeAbstraction("alpha", star,
+                            f2(BasicType("alpha"), BasicType("alpha"), t_b)),
+            'z3_gt':
+            f2(t_i, t_i, t_b),
+            'z3_gte':
+            f2(t_i, t_i, t_b),
+            'z3_lt':
+            f2(t_i, t_i, t_b),
+            'z3_lte':
+            f2(t_i, t_i, t_b),
 
-            '+': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
-            '-': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
+            #            '==': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
+            #           '!=': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
+            '&&':
+            ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
+            '||':
+            ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
+            #            '<': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            #            '>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            #            '<=': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+            #            '=>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
+
+            #           '+': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
+            #           '-': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
         }
 
         self.type_variables = {
@@ -33,6 +50,7 @@ class TypingContext(object):
             t_o: star,
             t_b: star,
             t_s: star,
+            bottom: star,
         }
         # As of Python3, dict_keys is not copyable, so a list is required
         self.basic_types = list(self.type_variables.keys())
@@ -111,7 +129,8 @@ class ArrowType(Type):
         self.return_type = return_type
 
     def __str__(self):
-        return "{}:{} -> {}".format(self.arg_name, self.arg_type, self.return_type)
+        return "{}:{} -> ({}):".format(self.arg_name, self.arg_type,
+                                       self.return_type)
 
 
 class RefinedType(Type):
@@ -129,9 +148,9 @@ class RefinedType(Type):
 class TypeAbstraction(Type):
     """T:k => U"""
 
-    def __init__(self, x, k, type):
-        self.name = x
-        self.kind = k
+    def __init__(self, name, kind, type):
+        self.name = name
+        self.kind = kind
         self.type = type
 
     def __str__(self):
@@ -156,3 +175,4 @@ t_f = BasicType('Double')
 t_i = BasicType('Integer')
 t_b = BasicType('Boolean')
 t_s = BasicType('String')
+bottom = BasicType('Bottom')

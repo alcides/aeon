@@ -22,10 +22,19 @@ t = lambda k: lexeme(string(k))
 
 
 def refined_value(v, t, label="_v"):
-    tapp = TApplication(Var("=="), t)
+    tapp = TApplication(Var("z3_equals"), t)
     app1 = Application(tapp, Var(label))
     app2 = Application(app1, Literal(v, type=t))
     return RefinedType(label, t, app2)
+
+
+@lexeme
+@generate
+def operators_definition():
+    yield t("(")
+    op = yield lexeme(regex(r'[+=><!-&|]{1,3}'))
+    yield t(")")
+    return op
 
 
 arrow = t('->')
@@ -34,7 +43,7 @@ hole = t('…').result(Hole())
 true = t('true').result(Literal(True, type=refined_value(True, t_b, "_v")))
 false = t('false').result(Literal(False, type=refined_value(False, t_b, "_v")))
 null = t('null').result(Literal(None, type=t_o))
-symbol = lexeme(regex(r'[.\d\w_]+'))
+symbol = lexeme(regex(r'[.\d\w_]+')) ^ operators_definition
 
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-")
@@ -105,9 +114,9 @@ def abstraction():
 @lexeme
 @generate
 def application():
+    target = yield expr_f
     yield t("(")
-    target = yield expr_wrapped
-    e = yield expr_wrapped
+    e = yield expr
     yield t(")")
     return Application(target, e)
 
@@ -119,14 +128,14 @@ def tabstraction():
     yield t(":")
     k = yield kind
     yield fatarrow
-    e = yield expr_wrapped
+    e = yield expr
     return TAbstraction(tvar, k, e)
 
 
 @lexeme
 @generate
 def tapplication():
-    target = yield expr_wrapped
+    target = yield expr_f
     yield t("[")
     ty = yield typee
     yield t("]")
@@ -137,9 +146,9 @@ def tapplication():
 @generate
 def ite():
     yield t("if")
-    c = yield expr_wrapped
+    c = yield expr
     yield t("then")
-    then = yield expr_wrapped
+    then = yield expr
     yield t("else")
     otherwise = yield expr
     return If(c, then, otherwise)
@@ -148,15 +157,17 @@ def ite():
 @lexeme
 @generate
 def expr_ops():
-    a1 = yield expr_wrapped
+    yield t("(")
+    a1 = yield expr
     op = yield op_all
-    a2 = yield expr_wrapped
+    a2 = yield expr
+    yield t(")")
     return Application(Application(Var(op), a1), a2)
 
 
 @lexeme
 @generate
-def expr_rec():
+def expr_wrapped():
     o = yield expr
     return o
 
@@ -165,9 +176,17 @@ fix = t("fix").parsecmap(lambda x: Fix())
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = fix ^ literal ^ var
-expr = expr_ops ^ ite ^ abstraction ^ application ^ tabstraction ^ tapplication ^ expr_basic ^ t(
-    "(") >> expr_rec << t(")")
-expr_wrapped = expr_basic ^ t("(") >> expr << t(")")
+expr = \
+    tapplication \
+    ^ application \
+    ^ t("(") >> expr_wrapped << t(")") \
+    ^ ite \
+    ^ abstraction \
+    ^ tabstraction \
+    ^ expr_basic \
+    ^ expr_ops
+
+expr_f = expr_basic ^ (t("(") >> expr << t(")"))
 
 
 @lexeme
@@ -238,7 +257,7 @@ def kind_rec():
 
 
 kind = kind_rec ^ t("*").result(Kind())
-typee = type_abstraction ^ refined_type ^ arrow_type ^ type_application ^ basic_type
+typee = type_abstraction ^ arrow_type ^ refined_type ^ type_application ^ basic_type
 
 
 @lexeme
@@ -250,6 +269,7 @@ def topleveldef():
     type_ = yield typee
     yield t("=")
     body = yield expr
+    yield t(";")
     return Definition(name, type_, body)
 
 
