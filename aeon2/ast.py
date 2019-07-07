@@ -23,7 +23,7 @@ class Hole(TypedNode):
     """ \hole """
 
     def __init__(self):
-        pass
+        super(Hole, self).__init__()
 
     def __str__(self):
         return "…"
@@ -33,6 +33,7 @@ class Literal(TypedNode):
     """ true | false | x """
 
     def __init__(self, value, type):
+        super(Literal, self).__init__()
         self.value = value
         self.type = type
 
@@ -44,6 +45,7 @@ class Var(TypedNode):
     """ x """
 
     def __init__(self, name):
+        super(Var, self).__init__()
         self.name = name
 
     def __str__(self):
@@ -51,9 +53,10 @@ class Var(TypedNode):
 
 
 class If(TypedNode):
-    """ x """
+    """ if cond then e else e """
 
     def __init__(self, cond, then, otherwise):
+        super(If, self).__init__()
         self.cond = cond
         self.then = then
         self.otherwise = otherwise
@@ -65,6 +68,7 @@ class If(TypedNode):
 
 class Application(TypedNode):
     def __init__(self, target, argument):
+        super(Application, self).__init__()
         self.target = target
         self.argument = argument
 
@@ -74,6 +78,7 @@ class Application(TypedNode):
 
 class Abstraction(TypedNode):
     def __init__(self, arg_name, arg_type, body):
+        super(Abstraction, self).__init__()
         self.arg_name = arg_name
         self.arg_type = arg_type
         self.body = body
@@ -84,7 +89,7 @@ class Abstraction(TypedNode):
 
 class Fix(TypedNode):
     def __init(self):
-        pass
+        super(Fix, self).__init__()
 
     def __str__(self):
         return "fix"
@@ -92,6 +97,7 @@ class Fix(TypedNode):
 
 class TAbstraction(TypedNode):
     def __init__(self, typevar, kind, body):
+        super(TAbstraction, self).__init__()
         self.typevar = typevar
         self.kind = kind
         self.body = body
@@ -102,6 +108,7 @@ class TAbstraction(TypedNode):
 
 class TApplication(TypedNode):
     def __init__(self, target, argument):
+        super(TApplication, self).__init__()
         self.target = target
         self.argument = argument
 

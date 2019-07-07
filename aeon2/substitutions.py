@@ -5,8 +5,8 @@ from .ast import *
 def substitution_in_expr(n, replacement, replaced):
     """ e[t'/t] """
     r = lambda x: substitution_in_expr(x, replacement, replaced)
-
-    nty = substitution_var_in_type(n.type, replacement, replaced)
+    nty = n.type == None and None or substitution_var_in_type(
+        n.type, replacement, replaced)
     if type(n) is Literal:
         return n
     elif type(n) is Var:
@@ -28,6 +28,8 @@ def substitution_in_expr(n, replacement, replaced):
 
 def substitution_var_in_type(n: Type, replacement, replaced):
     """ T[t'/t] """
+    if n == None:
+        return n
     r = lambda x: substitution_var_in_type(x, replacement, replaced)
     if type(n) is BasicType:
         return n
@@ -44,11 +46,13 @@ def substitution_var_in_type(n: Type, replacement, replaced):
     elif type(n) is TypeAbstraction:
         return TypeAbstraction(name=n.name, kind=n.kind, type=r(n.type))
     else:
-        raise TypeException("Substitution unknown:", n, type(n))
+        raise TypeException("Substitution in type unknown:", n, type(n))
 
 
 def substitution_type_in_type(n, replacement: Type, replaced):
     """ T[replacement/replaced] """
+    if n == None:
+        return n
     r = lambda x: substitution_type_in_type(x, replacement, replaced)
     if type(n) is BasicType:
         if n.name == replaced:
@@ -66,4 +70,4 @@ def substitution_type_in_type(n, replacement: Type, replaced):
     elif type(n) is TypeAbstraction:
         return TypeAbstraction(name=n.name, kind=n.kind, type=r(n.type))
     else:
-        raise TypeException("Substitution unknown:", n, type(n))
+        raise TypeException("Substitution type/type unknown:", n, type(n))

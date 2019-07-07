@@ -4,19 +4,6 @@ from .substitutions import *
 from .zed import *
 
 
-class TypeException(Exception):
-    def __init__(self,
-                 name,
-                 description="",
-                 given=None,
-                 expected=None,
-                 *args,
-                 **kwargs):
-        super(TypeException, self).__init__(name, description)
-        self.expected = expected
-        self.given = given
-
-
 def sub_base(ctx, sub: BasicType, sup: BasicType):
     """ Sub-Int, Sub-Bool, Sub-Var """
     return sub.name == sup.name
@@ -77,7 +64,6 @@ def is_subtype(ctx, sub, sup):
         return sub_arrow(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_abs(ctx, sub, sup)
-
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
 
@@ -115,48 +101,72 @@ def is_satisfiable(ctx, cond):
             return True
 
 
-def wellformed(ctx, t):
-    """ kind of type = wellformed(\Gamma, t) """
-    if type(t) is BasicType:
-        if ctx.is_basic_type(t):
-            return star
-        elif t.name in ctx.type_variables:
-            return ctx.type_variables[t.name]
-        else:
-            raise TypeException('Unknown type',
-                                "Type {} is not a known basic type".format(t))
-    elif type(t) is ArrowType:
-        k1 = wellformed(ctx, t.arg_type)
-        k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
-        return k2
-    elif type(t) is RefinedType:
-        k = wellformed(ctx, t.type)
-        if t.name in ctx.variables.keys():
-            raise Exception(
-                'Variable {} already in use.'.format(t.name),
-                "A new variable name should be defined. In {}".format(t))
-        nctx = ctx.with_var(t.name, t.type)
-        if not is_satisfiable(nctx, t.cond):
-            raise TypeException(
-                'Type is not satisfiable',
-                "Type {} should be satisfiable in {}.".format(
-                    t, ctx.variables))
+def t_base(ctx, t):
+    """ T-Int, T-Bool, T-Cont """
+    if ctx.is_basic_type(t):
         return star
+    elif t.name in ctx.type_variables:
+        return ctx.type_variables[t.name]
+    else:
+        raise TypeException('Unknown type',
+                            "Type {} is not a known basic type".format(t))
+
+
+def t_arrow(ctx, t):
+    """ T-Arrow """
+    k1 = wellformed(ctx, t.arg_type)
+    k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
+    return k2
+
+
+def t_abs(ctx, t):
+    """ T-Abs """
+    nctx = ctx.with_type_var(t.name, t.kind)
+    k = wellformed(nctx, t.type)
+    return Kind(t.kind, k)
+
+
+def t_app(ctx, t):
+    """ T-App """
+    k = wellformed(ctx, t.target)
+    if k.is_star():
+        raise TypeException(
+            'Type application required a type abstraction',
+            "Application {} requires an abstraction as function".format(t))
+    ka = wellformed(ctx, t.argument)
+    if ka != k.k1:
+        raise TypeException('Kind does not match',
+                            "Kind {} is not the same as {}".format(ka, k1))
+    return k.k2
+
+
+def t_where(ctx, t):
+    """ T-Where """
+    k = wellformed(ctx, t.type)
+
+    if t.name in list(ctx.variables):
+        return star
+    nctx = ctx.with_var(t.name, t.type)
+    t.cond = tc(nctx, t.cond, expects=t_b)
+    if not is_satisfiable(nctx, t.cond):
+        raise TypeException(
+            'Type is not satisfiable',
+            "Type {} should be satisfiable in {}.".format(t, ctx.variables))
+    return star
+
+
+def wellformed(ctx, t):
+    """ k = wellformed(\Gamma, T) """
+    if type(t) is BasicType:
+        return t_base(ctx, t)
+    elif type(t) is ArrowType:
+        return t_arrow(ctx, t)
+    elif type(t) is RefinedType:
+        return t_where(ctx, t)
     elif type(t) is TypeAbstraction:
-        nctx = ctx.with_type_var(t.name, t.kind)
-        k = wellformed(nctx, t.type)
-        return Kind(t.kind, k)
+        return t_abs(ctx, t)
     elif type(t) is TypeApplication:
-        k = wellformed(ctx, t.target)
-        if k.is_star():
-            raise TypeException(
-                'Type application required a type abstraction',
-                "Application {} requires an abstraction as function".format(t))
-        ka = wellformed(ctx, t.argument)
-        if ka != k.k1:
-            raise TypeException('Kind does not match',
-                                "Kind {} is not the same as {}".format(ka, k1))
-        return k.k2
+        return t_app(ctx, t)
     raise Exception('No wellformed rule for {}'.format(t))
 
 
@@ -176,6 +186,8 @@ def check_expects(ctx, n, expects):
 
 def expr_has_type(ctx, e, t):
     """ E-Subtype """
+    if not hasattr(e, "type"):
+        tc(ctx, e, expects=t)
     return e.type == t or (wellformed(ctx, e.type)
                            and is_subtype(ctx, e.type, t))
 
@@ -209,7 +221,8 @@ def e_abs(ctx, n, expects=None):
     """ E-Abs """
     if expects and type(expects) is ArrowType:
         body_expects = substitution_var_in_type(expects.return_type,
-                                                n.arg_name, expects.arg_name)
+                                                Var(n.arg_name),
+                                                expects.arg_name)
     else:
         body_expects = None
     nctx = ctx.with_var(n.arg_name, n.arg_type)
@@ -222,19 +235,21 @@ def e_abs(ctx, n, expects=None):
 
 def e_app(ctx, n, expects=None):
     """ E-App """
+    print(n.target)
     n.target = tc(ctx, n.target, expects=None)
-    if not type(n.target.type) is ArrowType:
+    if type(n.target.type) is ArrowType:
+        ftype = n.target.type
+        nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
+        wellformed(nctx, ftype)
+        n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
+        n.type = substitution_var_in_type(ftype.return_type, n.argument,
+                                          n.target.type.arg_name)
+        return n
+    else:
         raise TypeException('Not a function',
                             "{} does not have the right type".format(n),
                             expects=expects,
                             given=n.target.type)
-    ftype = n.target.type
-    nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
-    wellformed(nctx, ftype)
-    n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
-    n.type = substitution_var_in_type(ftype.return_type, n.argument,
-                                      n.target.type.arg_name)
-    return n
 
 
 def e_tapp(ctx, n, expects=None):

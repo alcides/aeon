@@ -12,6 +12,10 @@ class NotDecidableException(Exception):
     pass
 
 
+class NoZ3TranslationException(Exception):
+    pass
+
+
 def flatten_refined_types(t):
     if type(t) is RefinedType:
         if type(t.type) is RefinedType:
@@ -30,15 +34,13 @@ def flatten_refined_types(t):
     raise Exception("No Refine Flattening for {} ({})".format(t, type(t)))
 
 
-def zed_mk_variable(name, ty):
-    if type(ty) is ArrowType:
-        print("Arrow:", ty, name)
+def zed_mk_variable(name, ty: Type):
     if type(ty) is BasicType:
         if ty.name == "Integer":
             return z3.Int(name)
         elif ty.name == "Boolean":
             return z3.Bool(name)
-    raise NotDecidableException("No constructor for {}:{} \n {}".format(
+    raise NoZ3TranslationException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
 
 
@@ -52,7 +54,10 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         elif type(v.type) is RefinedType:
-            print("REF")
+            ztx[v.name] = zed_mk_variable(v.name,
+                                          flatten_refined_types(v.type))
+        else:
+            raise NoZ3TranslationException()
     return ztx[v.name]
 
 
@@ -75,7 +80,13 @@ def zed_translate_context(ztx, ctx):
             tprime = flatten_refined_types(t)
             new_cond = substitution_in_expr(tprime.cond, Var(name), t.name)
             restrictions.append(new_cond)
-    return reduce(z3.And, [zed_translate(ztx, e) for e in restrictions], True)
+    acc = []
+    for e in restrictions:
+        try:
+            acc.append(zed_translate(ztx, e))
+        except NoZ3TranslationException:
+            pass
+    return reduce(z3.And, acc, True)
 
 
 def zed_translate(ztx, cond):
@@ -93,9 +104,9 @@ def zed_translate(ztx, cond):
 
 def zed_initial_context():
     return {
-        "z3_equals": lambda x: lambda y: x == y,
-        "z3_lt": lambda x: lambda y: x < y,
-        "z3_gt": lambda x: lambda y: x > y,
+        "==": lambda x: lambda y: x == y,
+        "<": lambda x: lambda y: x < y,
+        ">": lambda x: lambda y: x > y,
         "&&": lambda x: lambda y: z3.And(x, y),
         "||": lambda x: lambda y: z3.Or(x, y),
         "!=": lambda x: lambda y: x != y,

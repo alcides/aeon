@@ -1,9 +1,7 @@
 type List : (* => *)
 
+minus : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = \a:Integer -> \b:Integer -> (a-b);
 
-(==) : (alpha:*) => (x:alpha) -> (y:alpha) -> {z:Boolean where (((z3_equals[Boolean]) (z)) (((z3_equals[alpha]) (x)) (y))) } = native;
-(>) : (x:Integer) -> (y:Integer) -> {z:Boolean where (((z3_equals[Boolean]) (z)) ((z3_gt (x)) (y))) } = native;
-(<) : (x:Integer) -> (y:Integer) -> {z:Boolean where (((z3_equals[Boolean]) (z)) ((z3_lt (x)) (y))) } = native;
 
 l1 : Void = null;
 l2 : Integer = 1;
@@ -14,7 +12,11 @@ i1 : Integer = if true then 1 else 0;
 
 
 w1 : {x:Integer where (x > 0) } = 1;
-w2 : {x:Integer where (x < 4) } = (8-2);
+w2 : {x:Integer where (x < 4) } = (minus (8)) (2);
+
+
+
+
 
 #f1 : (x:Integer) -> {y:Integer where y > x} = \z:Integer -> z+1
 

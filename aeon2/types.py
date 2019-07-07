@@ -1,7 +1,20 @@
 import copy
 import sys
 
-from .ast import Node
+from .ast import *
+
+
+class TypeException(Exception):
+    def __init__(self,
+                 name,
+                 description="",
+                 given=None,
+                 expected=None,
+                 *args,
+                 **kwargs):
+        super(TypeException, self).__init__(name, description)
+        self.expected = expected
+        self.given = given
 
 
 class TypingContext(object):
@@ -12,35 +25,21 @@ class TypingContext(object):
         self.basic_types = []
 
     def setup(self):
-        f2 = lambda a, b, c: ArrowType("_", a, ArrowType("_", b, c))
+        f2 = lambda a, b, c: ArrowType("_1", a, ArrowType("_2", b, c))
         self.variables = {
-            'native':
-            bottom,
-            'z3_equals':
-            TypeAbstraction("alpha", star,
-                            f2(BasicType("alpha"), BasicType("alpha"), t_b)),
-            'z3_gt':
-            f2(t_i, t_i, t_b),
-            'z3_gte':
-            f2(t_i, t_i, t_b),
-            'z3_lt':
-            f2(t_i, t_i, t_b),
-            'z3_lte':
-            f2(t_i, t_i, t_b),
-
-            #            '==': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
-            #           '!=': TypeAbstraction("alpha", star, ArrowType("_", BasicType("alpha"), ArrowType("_", BasicType("alpha"), t_b))),
-            '&&':
-            ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
-            '||':
-            ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
-            #            '<': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            #            '>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            #            '<=': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-            #            '=>': ArrowType("_", t_i, ArrowType("_", t_i, t_b)),
-
-            #           '+': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
-            #           '-': ArrowType("_", t_i, ArrowType("_", t_i, t_i)),
+            'native': bottom,
+            '===': f2(t_b, t_b, t_b),
+            '!==': f2(t_b, t_b, t_b),
+            '==': f2(t_i, t_i, t_b),
+            '!=': f2(t_i, t_i, t_b),
+            '>': f2(t_i, t_i, t_b),
+            '>=': f2(t_i, t_i, t_b),
+            '<': f2(t_i, t_i, t_b),
+            '<=': f2(t_i, t_i, t_b),
+            '&&': ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
+            '||': ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
+            '+': f2(t_i, t_i, t_i),
+            '-': f2(t_i, t_i, t_i),
         }
 
         self.type_variables = {

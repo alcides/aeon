@@ -22,7 +22,7 @@ t = lambda k: lexeme(string(k))
 
 
 def refined_value(v, t, label="_v"):
-    tapp = TApplication(Var("z3_equals"), t)
+    tapp = TApplication(Var(t == t_b and "===" or "=="), t)
     app1 = Application(tapp, Var(label))
     app2 = Application(app1, Literal(v, type=t))
     return RefinedType(label, t, app2)
