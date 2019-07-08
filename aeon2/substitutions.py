@@ -3,7 +3,7 @@ from .ast import *
 
 
 def substitution_in_expr(n, replacement, replaced):
-    """ e[t'/t] """
+    """ e[e/t] """
     r = lambda x: substitution_in_expr(x, replacement, replaced)
     nty = n.type == None and None or substitution_var_in_type(
         n.type, replacement, replaced)
@@ -27,7 +27,7 @@ def substitution_in_expr(n, replacement, replaced):
 
 
 def substitution_var_in_type(n: Type, replacement, replaced):
-    """ T[t'/t] """
+    """ T[e/t] """
     if n == None:
         return n
     r = lambda x: substitution_var_in_type(x, replacement, replaced)
@@ -50,7 +50,7 @@ def substitution_var_in_type(n: Type, replacement, replaced):
 
 
 def substitution_type_in_type(n, replacement: Type, replaced):
-    """ T[replacement/replaced] """
+    """ T[U/V] """
     if n == None:
         return n
     r = lambda x: substitution_type_in_type(x, replacement, replaced)

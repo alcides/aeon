@@ -6,8 +6,7 @@ import shutil
 from .frontend import parse
 from .automatic import synthesise_with_outputdir
 from .typechecker import typecheck, TypeException
-from .annotate import typeinfer
-from .codegen import generate
+from .interpreter import run
 
 if __name__ == '__main__':
 
@@ -50,14 +49,4 @@ if __name__ == '__main__':
         print("----------- Typed --------")
         print(ast)
         print("--------------------------")
-    exit()
-
-    if inferComplexity:
-        typeinfer(ast, context, tcontext)
-
-    output = generate(ast,
-                      context,
-                      tcontext,
-                      class_name='E',
-                      generate_file=True,
-                      outputdir=outputdir)
+    run(ast)

@@ -116,6 +116,7 @@ def zed_initial_context():
         ">=": lambda x: lambda y: x >= y,
         "+": lambda x: lambda y: x + y,
         "-": lambda x: lambda y: x - y,
+        "*": lambda x: lambda y: x * y,
     }
 
 

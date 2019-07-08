@@ -40,6 +40,7 @@ class TypingContext(object):
             '||': ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
             '+': f2(t_i, t_i, t_i),
             '-': f2(t_i, t_i, t_i),
+            '*': f2(t_i, t_i, t_i),
         }
 
         self.type_variables = {

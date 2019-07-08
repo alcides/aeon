@@ -30,7 +30,7 @@ class Hole(TypedNode):
 
 
 class Literal(TypedNode):
-    """ true | false | x """
+    """ true | false | i """
 
     def __init__(self, value, type):
         super(Literal, self).__init__()
@@ -55,6 +55,9 @@ class Var(TypedNode):
 class If(TypedNode):
     """ if cond then e else e """
 
+    # int a = (a > b) ? 1 : 0;
+    #inteiro = True and "ola" or "adeus"
+
     def __init__(self, cond, then, otherwise):
         super(If, self).__init__()
         self.cond = cond
@@ -67,6 +70,8 @@ class If(TypedNode):
 
 
 class Application(TypedNode):
+    """  e(e) """
+
     def __init__(self, target, argument):
         super(Application, self).__init__()
         self.target = target
@@ -77,6 +82,8 @@ class Application(TypedNode):
 
 
 class Abstraction(TypedNode):
+    """ \\x:T -> e """
+
     def __init__(self, arg_name, arg_type, body):
         super(Abstraction, self).__init__()
         self.arg_name = arg_name
@@ -87,15 +94,9 @@ class Abstraction(TypedNode):
         return "\{}:{} -> {}".format(self.arg_name, self.arg_type, self.body)
 
 
-class Fix(TypedNode):
-    def __init(self):
-        super(Fix, self).__init__()
-
-    def __str__(self):
-        return "fix"
-
-
 class TAbstraction(TypedNode):
+    """ T:k => e """
+
     def __init__(self, typevar, kind, body):
         super(TAbstraction, self).__init__()
         self.typevar = typevar
@@ -107,6 +108,8 @@ class TAbstraction(TypedNode):
 
 
 class TApplication(TypedNode):
+    """ e[T] """
+
     def __init__(self, target, argument):
         super(TApplication, self).__init__()
         self.target = target
@@ -117,15 +120,6 @@ class TApplication(TypedNode):
 
 
 # Other Structure
-
-
-class Argument(TypedNode):
-    def __init__(self, name, type):
-        self.name = name
-        self.type = type
-
-    def __str__(self):
-        return "{}:{}".format(self.name, self.type)
 
 
 class Definition(Node):
@@ -139,8 +133,8 @@ class Definition(Node):
 
 
 class TypeAlias(Node):
-    def __init__(self, alias, type):
-        self.alias = alias
+    def __init__(self, name, type):
+        self.name = name
         self.type = type
 
 

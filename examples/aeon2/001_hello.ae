@@ -1,5 +1,3 @@
-import ..prelude.J
+print : (x:Integer) -> Void = native;
 
-main : (args:Array<String>) -> _:Void {
-	J.out(1)
-}
+main : Void = print(1);

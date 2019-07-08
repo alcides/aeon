@@ -37,9 +37,9 @@ def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
     if sub.kind != sup.kind:
         return False
     nctx = ctx.with_type_var(sup.name, sup.kind)
-    return is_subtype(nctx,
-                      substitution_type_in_type(sub.type, sup.name, sub.name),
-                      sup.type)
+    return is_subtype(
+        nctx, substitution_type_in_type(sub.type, BasicType(sup.name),
+                                        sub.name), sup.type)
 
 
 def sub_appT(ctx, sub: TypeApplication, sup: TypeApplication):
@@ -74,9 +74,13 @@ def is_subtype(ctx, sub, sup):
     if type(sub) is BasicType:
         if sub.name == 'Bottom':
             return True  # Bottom
+        if sub.name in ctx.type_aliases:
+            return is_subtype(ctx, ctx.type_aliases[sub.name], sup)
     if type(sup) is BasicType:
         if sup.name in ['Void', 'Object']:
             return True  # Top
+        if sup.name in ctx.type_aliases:
+            return is_subtype(ctx, sub, ctx.type_aliases[sup.name])
     if type(sub) is BasicType and type(sup) is BasicType:
         return sub_base(ctx, sub, sup)
     if type(sup) is RefinedType:
@@ -136,6 +140,8 @@ def t_base(ctx, t):
         return star
     elif t.name in ctx.type_variables:
         return ctx.type_variables[t.name]
+    elif t.name in ctx.type_aliases:
+        return wellformed(ctx, ctx.type_aliases[t.name])
     else:
         raise TypeException('Unknown type',
                             "Type {} is not a known basic type".format(t))
@@ -143,7 +149,7 @@ def t_base(ctx, t):
 
 def t_arrow(ctx, t):
     """ T-Arrow """
-    k1 = wellformed(ctx, t.arg_type)
+    k1 = wellformed(ctx, t.arg_type)  # TODO
     k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
     return k2
 
@@ -336,6 +342,8 @@ def tc(ctx, n, expects=None):
         n = tc(ctx, n.declarations)
     elif type(n) is TypeDeclaration:
         ctx.add_type_var(n.name, n.kind)
+    elif type(n) is TypeAlias:
+        ctx.type_aliases[n.name] = n.type
     elif type(n) is Definition:
         k = wellformed(ctx, n.type)
         name = n.name

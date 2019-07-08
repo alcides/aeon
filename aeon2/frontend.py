@@ -9,6 +9,8 @@ from .types import *
 
 ext = 'ae'
 
+type_aliases = {}
+
 # ignore cases.
 whitespace = regex(r'\s+', re.MULTILINE)
 comment = regex(r'#.*')
@@ -31,7 +33,7 @@ def refined_value(v, t, label="_v"):
 @generate
 def operators_definition():
     yield t("(")
-    op = yield lexeme(regex(r'[\+=\>\<!\-&\|]{1,3}'))
+    op = yield lexeme(regex(r'[\+=\>\<!\*\-&\|]{1,3}'))
     yield t(")")
     return op
 
@@ -171,10 +173,9 @@ def expr_wrapped():
     return o
 
 
-fix = t("fix").parsecmap(lambda x: Fix())
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
-expr_basic = fix ^ literal ^ var
+expr_basic = literal ^ var
 expr = \
     tapplication \
     ^ application \
@@ -255,8 +256,17 @@ def kind_rec():
     return Kind(a, b)
 
 
+@lexeme
+@generate
+def typee_wrapped():
+    o = yield typee
+    return o
+
+
 kind = kind_rec ^ t("*").result(Kind())
-typee = type_abstraction ^ arrow_type ^ refined_type ^ type_application ^ basic_type
+typee = type_abstraction ^ arrow_type ^ (
+    t("(") >> typee_wrapped <<
+    t(")")) ^ refined_type ^ type_application ^ basic_type
 
 
 @lexeme
