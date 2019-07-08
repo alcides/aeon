@@ -159,9 +159,9 @@ class TypeAbstraction(Type):
 class TypeApplication(Type):
     """ T U """
 
-    def __init__(self, type1, type2):
-        self.target = type1
-        self.argument = type2
+    def __init__(self, target, argument):
+        self.target = target
+        self.argument = argument
 
     def __str__(self):
         return "({} {})".format(self.target, self.argument)

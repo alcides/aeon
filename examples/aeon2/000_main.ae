@@ -1,5 +1,8 @@
 type List : (* => *)
 
+empty_list : (a:*) => (List a) = native;
+
+
 (+) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a+b) == c)} = native;
 (-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
 
@@ -20,10 +23,12 @@ w2 : {x:Integer where (x > 4) } = (minus (8)) (2);
 f1 : (x:Integer) -> {y:Integer where (y == 1)} = \x:Integer -> 1;
 
 
-#f5 : (x:Boolean) -> Integer = null
-#f6 : (x:Integer) -> {x:Boolean where true} = f1
-#f7 : (T:*) => Integer = null
-#f8 : (List Integer) = null
+f2 : (x:Boolean) -> Integer = \x:Boolean -> 2;
+f3 : (y:Integer) -> {z:Integer where (z == 1)} = f1;
+f4 : (T:*) => Integer = (T:* => 1);
+f5 : (List Integer) = empty_list[Integer];
+
+
 #f9 : (T:*) => (List T) = null
 
 #a : Integer = if true then 1 else 0

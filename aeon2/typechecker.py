@@ -42,6 +42,29 @@ def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
                       sup.type)
 
 
+def sub_appT(ctx, sub: TypeApplication, sup: TypeApplication):
+    """ Sub-AppT . Final case """
+    if type(sub.target) is BasicType and type(sup.target) is BasicType:
+        return sub.target.name == sup.target.name and is_subtype(
+            ctx, sub.argument, sup.argument)
+    print("Weird bug in sub_appT", sub, sup)
+    return False
+
+
+def sub_appL(ctx, sub: TypeApplication, sup: TypeApplication):
+    """ Sub-AppL . Beta-reduction on the left """
+    abst = sub.target
+    nsub = substitution_type_in_type(abst.type, abst.name, sub.argument)
+    return is_subtype(ctx, nsub, sup)
+
+
+def sub_appR(ctx, sub: TypeApplication, sup: TypeApplication):
+    """ Sub-AppR . Beta-reduction on the right"""
+    abst = sup.target
+    nsup = substitution_type_in_type(abst.type, abst.name, sup.argument)
+    return is_subtype(ctx, sub, nsup)
+
+
 def is_same_type(ctx, a, b):
     return is_subtype(ctx, a, b) and is_subtype(ctx, b, a)
 
@@ -64,6 +87,12 @@ def is_subtype(ctx, sub, sup):
         return sub_arrow(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_abs(ctx, sub, sup)
+    if type(sub) is TypeApplication and type(sup) is TypeApplication:
+        if type(sub.target) is TypeAbstraction:
+            return sub_appL(ctx, sub, sup)
+        if type(sup.target) is TypeAbstraction:
+            return sub_appR(ctx, sub, sup)
+        return sub_appT(ctx, sub, sup)
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
 
@@ -274,6 +303,17 @@ def e_tapp(ctx, n, expects=None):
     return n
 
 
+def e_tabs(ctx, n, expects=None):
+    """ E-TAbs """
+    a_expects = None
+    if expects and type(expects) is TypeAbstraction:
+        a_expects = expects.type
+    nctx = ctx.with_type_var(n.typevar, n.kind)
+    n.body = tc(nctx, n.body, a_expects)
+    n.type = TypeAbstraction(name=n.typevar, kind=n.kind, type=n.body.type)
+    return n
+
+
 def tc(ctx, n, expects=None):
     """ TypeChecking AST nodes. Expects make it bidirectional """
     if type(n) is list:
@@ -290,6 +330,8 @@ def tc(ctx, n, expects=None):
         n = e_abs(ctx, n, expects)
     elif type(n) is TApplication:
         n = e_tapp(ctx, n, expects)
+    elif type(n) is TAbstraction:
+        n = e_tabs(ctx, n, expects)
     elif type(n) is Program:
         n = tc(ctx, n.declarations)
     elif type(n) is TypeDeclaration:
