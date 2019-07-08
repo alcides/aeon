@@ -59,10 +59,7 @@ f : Integer = e[Boolean];
 #factorial : (x:(a:Integer) -> Integer = (fix[Integer])(\f:((a:(b:Integer) -> Integer) -> ((c:Integer) -> Integer)) -> (\b:Integer -> 1));
 
 
-type MetaIntToInt = (a:IntToInt) -> IntToInt
-
-f : (f:IntToInt) -> IntToInt  =
-  \f:((x:Integer) -> Integer) -> (\x:Integer -> 1);
+factorial : IntToInt  = (fix[IntToInt])(\f:IntToInt -> (\x:Integer -> 1));
 
 
 #k : Integer = ((fix[Integer])(f))(3);
