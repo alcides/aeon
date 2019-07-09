@@ -4,16 +4,7 @@ from .ast import *
 
 def run(a: Program):
 
-    ctx = {}
-
-    # Inserir native - talvez fazer modulo para isto
-    ctx['+'] = lambda x: lambda y: x + y
-    ctx['-'] = lambda x: lambda y: x - y
-    ctx['*'] = lambda x: lambda y: x * y
-    ctx['/'] = lambda x: lambda y: x / y
-    ctx['%'] = lambda x: lambda y: x % y
-    ctx['emptyList'] = []
-
+    ctx = nativeFunctions()
     evaluate(ctx, a)
     print("Interpreter: ", ctx)
 
@@ -24,12 +15,7 @@ def evaluate(ctx, node):
 
     # Literal
     if nodeType is Literal:
-        if type(node.type) is BasicType:
-            return convert(node.type.name, node.value)
-        elif type(node.type) is RefinedType:
-            return convert(node.type.type.name, node.value)
-        else:
-            print("Literal com tipo invalido.")
+        return node.value
     # Var - return the ctx value
     elif nodeType is Var:
         return ctx.get(node.name) # CUIDADO: retorna None para native functions e non-existing functions
@@ -60,28 +46,28 @@ def evaluate(ctx, node):
         # carregar para contexto o que esta no ficheiro  importar
         pass
     elif nodeType is Application:
-        # target ~> application, argument ~> Literal or Var
+        # target ~> application or var, argument ~> Literal or Var
+        target = evaluate(ctx, node.target)
+        argument = evaluate(ctx, node.argument)
 
-        target = node.target
-        argument = node.argument
+        # TODO: necessario fazer os TAbs e Tapp antes
+        if target is None:
+            return '>> Fix me <<'
 
-        print("target: ", type(target), target)
-        print("argument: ", type(argument), argument)
-        # TODO: On hold
-        #targetEval = evaluate(ctx, target)
-        #argumentEval = evaluate(ctx, argument) and not None or argument.name
+        # Returns none if in abstraction context and var doesnt exist
+        if argument is None:
+            return "({})({})".format(target, node.argument.name)
 
-        return "affz" #targetEval(argumentEval)
+        if isinstance(target, str):
+            target = eval(target)
 
-        print("Application: ", node)
+        return target(argument)
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:
-        # criar contexto proprio para abstracoes????
         # node.arg_type ~> basictype, node.arg_name ~>, node.body ~> abstraction
-        # print(">>>>>", type(node.body), node.body)
+        # criar contexto proprio para abstracoes, a experimentar
+        ctx = nativeFunctions()
         bodyEval = evaluate(ctx, node.body)
-        if bodyEval is None:
-            bodyEval = node.body.name
         return "lambda {} : {}".format(node.arg_name, bodyEval)
 
     elif nodeType is TAbstraction:
@@ -97,22 +83,21 @@ def evaluate(ctx, node):
         print("ERROR: ", type(node), node)
         return None
 
-# ------------------------------------------------------------------------------
-# Converts the aeon basic value to a python value
-def convert(name, value):
-    if name == 'Object' or name == 'Void':
-        return None  # TODO: confirmar
-    if name == 'Boolean':
-        return value == "true" and True or False
-    elif name == 'Integer':
-        return int(value)
-    elif name == 'Double':
-        return float(value)
-    elif name == 'String':
-        return node.value
-    elif name == 'Bottom':
-        return value  # TODO: confirmar
-    else:
-        print("ERROR: must define the default type: ", node.type)
-        return None
+#-------------------------------------------------------------------------------
+# Builds the context with the native functions
+def nativeFunctions():
+
+    ctx = {}
+
+    # Inserir native - talvez fazer modulo para isto
+    ctx['+'] = 'lambda x: lambda y: x + y'
+    ctx['-'] = 'lambda x: lambda y: x - y'
+    ctx['*'] = 'lambda x: lambda y: x * y'
+    ctx['/'] = 'lambda x: lambda y: x / y'
+    ctx['%'] = 'lambda x: lambda y: x % y'
+    ctx['fix'] = 'lambda x : lambda a : a' # TODO: confirmar
+    ctx['emptyList'] = []
+
+    return ctx
+
 # ------------------------------------------------------------------------------
