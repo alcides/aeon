@@ -58,7 +58,6 @@ def evaluate(ctx, node):
         return target(argument)
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:
-        # node.arg_type ~> basictype, node.arg_name ~>, node.body ~> abstraction
         # criar contexto proprio para abstracoes, a experimentar
         ctx = nativeFunctions()
         bodyEval = evaluate(ctx, node.body)
@@ -92,6 +91,7 @@ def nativeFunctions():
     ctx['/'] = 'lambda x: lambda y: x / y'
     ctx['%'] = 'lambda x: lambda y: x % y'
     ctx['fix'] = 'lambda x : lambda a : a' # TODO: confirmar
+    ctx['print'] = print
     ctx['emptyList'] = []
 
     return ctx
