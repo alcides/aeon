@@ -75,17 +75,21 @@ def is_subtype(ctx, sub, sup):
     if type(sub) is BasicType:
         if sub.name == 'Bottom':
             return True  # Bottom
-        if sub.name in ['Void', 'Object']:
-            return False  # Top
         if sub.name in ctx.type_aliases:
             return is_subtype(ctx, ctx.type_aliases[sub.name], sup)
     if type(sup) is BasicType:
         if sup.name in ['Void', 'Object']:
             return True  # Top
-        if sup.name == 'Bottom':
-            return False  # Bottom
         if sup.name in ctx.type_aliases:
             return is_subtype(ctx, sub, ctx.type_aliases[sup.name])
+
+    if type(sub) is BasicType:
+        if sub.name in ['Void', 'Object']:
+            return False  # Top
+    if type(sup) is BasicType:
+        if sup.name == 'Bottom':
+            return False  # Bottom
+
     if type(sub) is BasicType and type(sup) is BasicType:
         return sub_base(ctx, sub, sup)
     if type(sup) is RefinedType:
@@ -354,7 +358,7 @@ def tc(ctx, n, expects=None):
     elif type(n) is TAbstraction:
         n = e_tabs(ctx, n, expects)
     elif type(n) is Program:
-        n = tc(ctx, n.declarations)
+        n.declarations = tc(ctx, n.declarations)
     elif type(n) is TypeDeclaration:
         ctx.add_type_var(n.name, n.kind)
     elif type(n) is TypeAlias:
@@ -363,7 +367,7 @@ def tc(ctx, n, expects=None):
         k = wellformed(ctx, n.type)
         name = n.name
         body = n.body
-        tc(ctx, body, expects=n.type)
+        n.body = tc(ctx, body, expects=n.type)
         ctx.add_var(name, n.type)
         return n
     else:

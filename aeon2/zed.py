@@ -82,10 +82,8 @@ def zed_translate_context(ztx, ctx):
             restrictions.append(new_cond)
     acc = []
     for e in restrictions:
-        try:
-            acc.append(zed_translate(ztx, e))
-        except NoZ3TranslationException:
-            pass
+        c = zed_translate_wrapped(ztx, e)
+        acc.append(c)
     return reduce(z3.And, acc, True)
 
 
@@ -99,7 +97,15 @@ def zed_translate(ztx, cond):
     elif type(cond) is TApplication:
         return zed_translate_tapp(ztx, cond)
     else:
-        raise NotDecidableException("{} could not be translated".format(cond))
+        raise NoZ3TranslationException(
+            "{} could not be translated".format(cond))
+
+
+def zed_translate_wrapped(ztx, cond):
+    try:
+        return zed_translate(ztx, cond)
+    except NoZ3TranslationException:
+        return True
 
 
 def zed_initial_context():
@@ -123,7 +129,7 @@ def zed_initial_context():
 def zed_verify_entailment(ctx, cond):
     ztx = zed_initial_context()
     z3_context = zed_translate_context(ztx, ctx)
-    z3_cond = zed_translate(ztx, cond)
+    z3_cond = zed_translate_wrapped(ztx, cond)
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     if relevant_vars:

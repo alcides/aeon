@@ -1,20 +1,15 @@
 from .types import *
 from .ast import *
 
+
 def run(a: Program):
 
-    # Distincao entre variaveis e funcoes - acho que jah nao eh preciso
-    # {name:(type, value)...}
     ctx = {}
-    functions = {}
-
-    for node in a:
-        print(30*"=")
-        eval(node, ctx)
+    eval(ctx, a)
 
     print("Interpreter: ", ctx)
 
-def eval(node, ctx):
+def eval(ctx, node):
 
     print(type(node), " :::::::::: ", node)
     nodeType = type(node)
@@ -33,16 +28,20 @@ def eval(node, ctx):
         if node.name == "native":
             return "native"
         return ctx[node.name]
+    # Program
+    elif nodeType is Program:
+        for d in node.declarations:
+            eval(ctx, d)
     # Definition
     elif nodeType is Definition:
-        ctx[node.name] = eval(node.body, ctx)
-    # Hole - TODO: Presumo que chamar o automatic
+        ctx[node.name] = eval(ctx, node.body)
+    # Hole - nao acontece
     elif nodeType is Hole:
         pass
     # If - Executa a operacao resultado do then
     elif nodeType is If:
         cond = eval(node.cond, ctx)
-        return cond and eval(node.then, ctx) or eval(node.otherwise, ctx)
+        return cond and eval(ctx, node.then) or eval(ctx, node.otherwise)
     # Import the statements
     elif nodeType is Import:
         # TODO: o prof tinha dito para passar a frente, mas presumo que tenha de
@@ -66,7 +65,7 @@ def eval(node, ctx):
         print(type(arg_name), arg_name)
         print(type(arg_body), arg_body)
         print("#")
-        eval(arg_body, ctx)
+        eval(ctx, arg_body)
 
         print("Abstraction: ", node)
     elif nodeType is TAbstraction:
@@ -80,12 +79,14 @@ def eval(node, ctx):
 
     else:
         print("ERROR: ", node)
+        return None
+
 
 # ----------------------------------------------------------------------
 # Converts the aeon basic value to a python value
 def convert(name, value):
     if name == 'Object' or name == 'Void':
-        return None # TODO: confirmar
+        return None  # TODO: confirmar
     if name == 'Boolean':
         return value == "true" and True or False
     elif name == 'Integer':
@@ -95,8 +96,10 @@ def convert(name, value):
     elif name == 'String':
         return node.value
     elif name == 'Bottom':
-        return value # TODO: confirmar
+        return value  # TODO: confirmar
     else:
         print("ERROR: must define the default type: ", node.type)
         return None
+
+
 # ----------------------------------------------------------------------
