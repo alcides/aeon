@@ -137,6 +137,9 @@ class TypeAlias(Node):
         self.name = name
         self.type = type
 
+    def __str__(self):
+        return "type {} = {}".format(self.name, self.type)
+
 
 class TypeDeclaration(Node):
     def __init__(self, name, kind):
