@@ -367,7 +367,7 @@ def tc(ctx, n, expects=None):
         k = wellformed(ctx, n.type)
         name = n.name
         body = n.body
-        tc(ctx, body, expects=n.type)
+        n.body = tc(ctx, body, expects=n.type)
         ctx.add_var(name, n.type)
         return n
     else:
