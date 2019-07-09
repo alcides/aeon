@@ -9,12 +9,14 @@ def run(a: Program):
     functions = {}
 
     for node in a:
+        print(30*"=")
         eval(node, ctx)
 
     print("Interpreter: ", ctx)
 
 def eval(node, ctx):
 
+    print(type(node), " :::::::::: ", node)
     nodeType = type(node)
 
     # Literal
@@ -47,8 +49,25 @@ def eval(node, ctx):
         # carregar para contexto o que esta no ficheiro  importar
         pass
     elif nodeType is Application:
+
+        target = node.target
+        argument = node.argument
+
+        print(type(target), target)
+        print(type(argument), argument)
+
         print("Application: ", node)
     elif nodeType is Abstraction:
+        arg_type = node.arg_type #basictype
+        arg_name = node.arg_name #string
+        arg_body = node.body #abstraction
+
+        print(type(arg_type), arg_type)
+        print(type(arg_name), arg_name)
+        print(type(arg_body), arg_body)
+        print("#")
+        eval(arg_body, ctx)
+
         print("Abstraction: ", node)
     elif nodeType is TAbstraction:
         print("TAbstraction: ", node)
