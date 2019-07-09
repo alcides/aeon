@@ -22,11 +22,12 @@ class TypedNode(Node):
 class Hole(TypedNode):
     """ \hole """
 
-    def __init__(self):
+    def __init__(self, type):
         super(Hole, self).__init__()
+        self.type = type
 
     def __str__(self):
-        return "…"
+        return "[[{}]]".format(self.type)
 
 
 class Literal(TypedNode):
@@ -136,6 +137,9 @@ class TypeAlias(Node):
     def __init__(self, name, type):
         self.name = name
         self.type = type
+
+    def __str__(self):
+        return "type {} = {}".format(self.name, self.type)
 
 
 class TypeDeclaration(Node):

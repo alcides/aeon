@@ -38,9 +38,17 @@ def operators_definition():
     return op
 
 
+@lexeme
+@generate
+def hole():
+    yield t("[[")
+    ty = yield typee
+    yield t("]]")
+    return Hole(type=ty)
+
+
 arrow = t('->')
 fatarrow = t('=>')
-hole = t('…').result(Hole())
 true = t('true').result(Literal(True, type=refined_value(True, t_b, "_v")))
 false = t('false').result(Literal(False, type=refined_value(False, t_b, "_v")))
 null = t('null').result(Literal(None, type=t_o))
@@ -180,6 +188,7 @@ expr = \
     tapplication \
     ^ application \
     ^ t("(") >> expr_wrapped << t(")") \
+    ^ hole \
     ^ ite \
     ^ abstraction \
     ^ tabstraction \

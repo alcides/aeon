@@ -1,6 +1,7 @@
 from .ast import *
 from .types import *
 from .substitutions import *
+from .synthesis import *
 from .zed import *
 
 
@@ -74,11 +75,15 @@ def is_subtype(ctx, sub, sup):
     if type(sub) is BasicType:
         if sub.name == 'Bottom':
             return True  # Bottom
+        if sub.name in ['Void', 'Object']:
+            return False  # Top
         if sub.name in ctx.type_aliases:
             return is_subtype(ctx, ctx.type_aliases[sub.name], sup)
     if type(sup) is BasicType:
         if sup.name in ['Void', 'Object']:
             return True  # Top
+        if sup.name == 'Bottom':
+            return False  # Bottom
         if sup.name in ctx.type_aliases:
             return is_subtype(ctx, sub, ctx.type_aliases[sup.name])
     if type(sub) is BasicType and type(sup) is BasicType:
@@ -97,6 +102,7 @@ def is_subtype(ctx, sub, sup):
         if type(sup.target) is TypeAbstraction:
             return sub_appR(ctx, sub, sup)
         return sub_appT(ctx, sub, sup)
+    return False
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
 
@@ -223,8 +229,15 @@ def expr_has_type(ctx, e, t):
     """ E-Subtype """
     if not hasattr(e, "type"):
         tc(ctx, e, expects=t)
-    return e.type == t or (wellformed(ctx, e.type)
-                           and is_subtype(ctx, e.type, t))
+    if e.type == t:
+        return True
+
+    if type(t) is RefinedType:
+        """ T-Where """
+        ne = substitution_in_expr(t.cond, e, t.name)
+        return expr_has_type(ctx, e, t.type) and entails(ctx, ne)
+
+    return wellformed(ctx, e.type) and is_subtype(ctx, e.type, t)
 
 
 def e_literal(ctx, n, expects=None):
@@ -324,6 +337,8 @@ def tc(ctx, n, expects=None):
     """ TypeChecking AST nodes. Expects make it bidirectional """
     if type(n) is list:
         return [tc(ctx, e) for e in n]
+    elif type(n) is Hole:
+        n = synthesize(ctx, n.type)
     elif type(n) is Literal:
         n = e_literal(ctx, n, expects)
     elif type(n) is Var:
@@ -361,3 +376,12 @@ def typecheck(ast, refined=True, synthesiser=None):
     ctx = TypingContext()
     ctx.setup()
     return tc(ctx, ast), ctx, None
+
+
+def synthesize(ctx, t):
+    d = 3
+    print(", ".join(list(ctx.variables.keys())), "|-", t, " ~> _", 3)
+    n = se(ctx, t, 3)
+    n = tc(ctx, n, t)
+    print(n, ":", n.type)
+    return n

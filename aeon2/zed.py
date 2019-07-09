@@ -126,8 +126,10 @@ def zed_verify_entailment(ctx, cond):
     z3_cond = zed_translate(ztx, cond)
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
-    s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
-    print("SMT Check2:", s)
+    if relevant_vars:
+        s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
+    else:
+        s.add(z3.Implies(z3_context, z3_cond))
     r = s.check()
     if r == z3.sat:
         return True
@@ -143,7 +145,6 @@ def zed_verify_satisfiability(ctx, cond):
     z3_cond = zed_translate(ztx, cond)
     s = z3.Solver()
     s.add(z3.And(z3_context, z3_cond))
-    print("SMT Check:", s)
     r = s.check()
     if r == z3.sat:
         return True
