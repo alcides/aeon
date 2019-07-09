@@ -30,7 +30,7 @@ def evaluate(ctx, node):
             ctx[node.name] = evaluate(ctx, node.body) # eval(evaluate(ctx, node.body)) # descomentar depois
         else:
             bodyEval = evaluate(ctx, node.body)
-            # If it was a native function, it returns None, so we def non-native functions
+            # If it was ... = native, it returns None, so we def non-native functions
             if bodyEval is not None:
                 ctx[node.name] = bodyEval
     # Hole - nao acontece
@@ -40,19 +40,13 @@ def evaluate(ctx, node):
     elif nodeType is If:
         cond = evaluate(ctx, node.cond)
         return cond and evaluate(ctx, node.then) or evaluate(ctx, node.otherwise)
-    # Import the statements
+    # Import - do later
     elif nodeType is Import:
-        # TODO: o prof tinha dito para passar a frente, mas presumo que tenha de
-        # carregar para contexto o que esta no ficheiro  importar
         pass
     elif nodeType is Application:
         # target ~> application or var, argument ~> Literal or Var
         target = evaluate(ctx, node.target)
         argument = evaluate(ctx, node.argument)
-
-        # TODO: necessario fazer os TAbs e Tapp antes
-        if target is None:
-            return '>> Fix me <<'
 
         # Returns none if in abstraction context and var doesnt exist
         if argument is None:
@@ -69,16 +63,18 @@ def evaluate(ctx, node):
         ctx = nativeFunctions()
         bodyEval = evaluate(ctx, node.body)
         return "lambda {} : {}".format(node.arg_name, bodyEval)
-
+    # TAbstraction - avaliar o corpo
     elif nodeType is TAbstraction:
-        print("TAbstraction: ", node)
+        return evaluate(ctx, node.body)
+    # TApplication -
     elif nodeType is TApplication:
-        print("TApplication: ", node)
+        return evaluate(ctx, node.target)
+    # TypeAlias - do later
     elif nodeType is TypeAlias:
-        print("TypeAlias: ", node)
+        pass
+    # TypeDeclaration - do later
     elif nodeType is TypeDeclaration:
-        print("TypeDeclaration: ", node)
-
+        pass
     else:
         print("ERROR: ", type(node), node)
         return None
