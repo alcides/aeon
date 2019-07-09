@@ -59,8 +59,10 @@ def evaluate(ctx, node):
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:
         # criar contexto proprio para abstracoes, a experimentar
-        ctx = nativeFunctions()
-        bodyEval = evaluate(ctx, node.body)
+        newCtx = ctx.copy()
+        # variaveis da abstracao escondem as definidas anteriormente
+        newCtx.pop(node.arg_name, None)
+        bodyEval = evaluate(newCtx, node.body)
         return "lambda {} : {}".format(node.arg_name, bodyEval)
     # TAbstraction - avaliar o corpo
     elif nodeType is TAbstraction:
