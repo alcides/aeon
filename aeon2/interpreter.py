@@ -1,18 +1,21 @@
 from .types import *
 from .ast import *
 
+
 def run(a: Program):
 
     # Distincao entre variaveis e funcoes - acho que jah nao eh preciso
     # {name:(type, value)...}
+    # A: Já não é preciso!
     ctx = {}
     functions = {}
 
-    for node in a:
-        eval(node, ctx)
+    eval(a, ctx)
 
     print("Interpreter: ", ctx)
 
+
+# TODO: para estar consistente com o resto do código, o ctx devia ser o primeiro argumento.
 def eval(node, ctx):
 
     nodeType = type(node)
@@ -31,6 +34,13 @@ def eval(node, ctx):
         if node.name == "native":
             return "native"
         return ctx[node.name]
+    # Program
+    elif nodeType is Program:
+        for d in node.declarations:
+            eval(d, ctx)
+    # Hole - TODO: Presumo que chamar o automatic
+    # A: Os holes são preenchidos no type checker.
+
     # Definition
     elif nodeType is Definition:
         ctx[node.name] = eval(node.body, ctx)
@@ -62,11 +72,12 @@ def eval(node, ctx):
     else:
         print("ERROR: ", node)
 
+
 # ----------------------------------------------------------------------
 # Converts the aeon basic value to a python value
 def convert(name, value):
     if name == 'Object' or name == 'Void':
-        return None # TODO: confirmar
+        return None  # TODO: confirmar
     if name == 'Boolean':
         return value == "true" and True or False
     elif name == 'Integer':
@@ -76,8 +87,10 @@ def convert(name, value):
     elif name == 'String':
         return node.value
     elif name == 'Bottom':
-        return value # TODO: confirmar
+        return value  # TODO: confirmar
     else:
         print("ERROR: must define the default type: ", node.type)
         return None
+
+
 # ----------------------------------------------------------------------
