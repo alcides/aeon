@@ -47,23 +47,12 @@ def evaluate(ctx, node):
         # target ~> application or var, argument ~> Literal or Var
         target = evaluate(ctx, node.target)
         argument = evaluate(ctx, node.argument)
-
-        # Returns none if in abstraction context and var doesnt exist
-        if argument is None:
-            return "({})({})".format(target, node.argument.name)
-
-        if isinstance(target, str):
-            target = eval(target)
-
         return target(argument)
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:
         # criar contexto proprio para abstracoes, a experimentar
         newCtx = ctx.copy()
-        # variaveis da abstracao escondem as definidas anteriormente
-        newCtx.pop(node.arg_name, None)
-        bodyEval = evaluate(newCtx, node.body)
-        return "lambda {} : {}".format(node.arg_name, bodyEval)
+        return lambda x : evaluate(ctxPut(ctx, node.arg_name, x), node.body)
     # TAbstraction - avaliar o corpo
     elif nodeType is TAbstraction:
         return evaluate(ctx, node.body)
@@ -80,6 +69,12 @@ def evaluate(ctx, node):
         print("ERROR: ", type(node), node)
         return None
 
+## HELPER
+
+def ctxPut(ctx, varName, var):
+    ctx[varName] = var
+    return ctx
+
 #-------------------------------------------------------------------------------
 # Builds the context with the native functions
 def nativeFunctions():
@@ -87,12 +82,12 @@ def nativeFunctions():
     ctx = {}
 
     # Inserir native - talvez fazer modulo para isto
-    ctx['+'] = 'lambda x: lambda y: x + y'
-    ctx['-'] = 'lambda x: lambda y: x - y'
-    ctx['*'] = 'lambda x: lambda y: x * y'
-    ctx['/'] = 'lambda x: lambda y: x / y'
-    ctx['%'] = 'lambda x: lambda y: x % y'
-    ctx['fix'] = 'lambda x : lambda a : a' # TODO: confirmar
+    ctx['+'] = lambda x: lambda y: x + y
+    ctx['-'] = lambda x: lambda y: x - y
+    ctx['*'] = lambda x: lambda y: x * y
+    ctx['/'] = lambda x: lambda y: x / y
+    ctx['%'] = lambda x: lambda y: x % y
+    ctx['fix'] = lambda x : lambda a : a # TODO: confirmar
     ctx['print'] = print
     ctx['emptyList'] = []
 

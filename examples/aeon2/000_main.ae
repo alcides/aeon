@@ -23,6 +23,8 @@ fix : (a:*) => (f:(x:a) -> a) -> a = native;
 
 minus : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = \a:Integer -> \b:Integer -> (a-b);
 
+# TODO: Doesnt give error but never ends
+# complexOperation : (a:Integer) -> (b:Integer) -> (d:Integer) -> {c:Integer where ((((2 * (a+b)) - b) - d) == c)} = \a:Integer -> \b:Integer -> \d:Integer -> (((2 * (a+b)) - b) - d);
 
 l1 : Void = null;
 l2 : Integer = 1;
@@ -34,11 +36,14 @@ i1 : Integer = if true then 1 else 0;
 
 w1 : {x:Integer where (x > 0) } = 1;
 w2 : {x:Integer where (x > 4) } = (minus (8)) (2);
+# w3 : Integer = ((complexOperation (8)) (3)) (4);
 
 f1 : (x:Integer) -> {y:Integer where (y == 1)} = \x:Integer -> 1;
 f2 : (x:Boolean) -> Integer = \x:Boolean -> 2;
 f3 : (y:Integer) -> {z:Integer where (z == 1)} = f1;
 
+# TODO: Zed translation error
+# w4 : Integer = (2 * (f1 (2)));
 
 
 f4 : (T:*) => Integer = (T:* => 1);
