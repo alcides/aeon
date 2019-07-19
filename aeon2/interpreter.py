@@ -6,12 +6,9 @@ def run(a: Program):
 
     ctx = nativeFunctions()
     evaluate(ctx, a)
-    print("Interpreter: ", ctx)
 
 
 def evaluate(ctx, node):
-
-    print(type(node), " :::::::::: ", node)
     nodeType = type(node)
 
     # Literal
@@ -25,7 +22,6 @@ def evaluate(ctx, node):
     # Program
     elif nodeType is Program:
         for d in node.declarations:
-            print(30 * '=')
             evaluate(ctx, d)
     # Definition
     elif nodeType is Definition:
@@ -87,7 +83,14 @@ def ctxPut(ctx, varName, var):
 #-------------------------------------------------------------------------------
 
 # Fix = Y
-Y = lambda f: lambda a: f(Y(f))(a)
+Y = lambda F: F(lambda x: Y(F)(x))
+"""
+    Haskell fixpoint:
+    fix :: (a -> a) -> a
+    fix f = let {x = f x} in x
+
+    y=\lambda f.\operatorname {let} x=f\ x\operatorname {in} x
+"""
 
 
 # Builds the context with the native functions
@@ -101,7 +104,21 @@ def nativeFunctions():
     ctx['*'] = lambda x: lambda y: x * y
     ctx['/'] = lambda x: lambda y: x / y
     ctx['%'] = lambda x: lambda y: x % y
-    ctx['fix'] = lambda f: lambda x: f(f, x)
+
+    ctx['=='] = lambda x: lambda y: x == y
+    ctx['==='] = lambda x: lambda y: x == y
+    ctx['!='] = lambda x: lambda y: x != y
+    ctx['!=='] = lambda x: lambda y: x != y
+
+    ctx['&&'] = lambda x: lambda y: x and y
+    ctx['||'] = lambda x: lambda y: x or y
+
+    ctx['<'] = lambda x: lambda y: x < y
+    ctx['>'] = lambda x: lambda y: x > y
+    ctx['<='] = lambda x: lambda y: x <= y
+    ctx['>='] = lambda x: lambda y: x >= y
+
+    ctx['fix'] = Y
     ctx['print'] = print
     ctx['emptyList'] = []
 

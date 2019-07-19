@@ -4,8 +4,11 @@ print : (a:Integer) -> Void = native;
 fix : (a:*) => (f:(x:a) -> a) -> a = native;
 (-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
 (*) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a*b) == c)} = native;
+(==) : (a:Integer) -> (b:Integer) -> {c:Boolean where ((a==b) === c)} = native;
 
-factorial : IntToInt  = (fix[IntToInt])(\f:IntToInt -> (\x:Integer -> 1));
+
+
+factorial : IntToInt =  fix[IntToInt] (\f:IntToInt -> \n:Integer -> if (n == 0) then 1 else (n * f (n - 1) ) );
 
 main : Void = print( factorial(5) );
 

@@ -265,7 +265,10 @@ def e_if(ctx, n, expects=None):
     n.cond = tc(ctx, n.cond, expects=t_b)
     n.then = tc(ctx, n.then, expects=expects)  # TODO: Missing context clauses
     n.otherwise = tc(ctx, n.otherwise, expects=expects)  # TODO: same
-    n.type = expects
+    if expects:
+        n.type = expects
+    else:
+        n.type = n.cond.type
     return n
 
 

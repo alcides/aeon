@@ -2,6 +2,7 @@ import re
 import os
 import os.path
 import copy
+from functools import reduce
 from parsec import *
 
 from .ast import *
@@ -16,7 +17,14 @@ whitespace = regex(r'\s+', re.MULTILINE)
 comment = regex(r'#.*')
 ignore = many((whitespace | comment))
 
+reserved_keywords = ['if', 'then', 'else']
+
 # lexer for words.
+
+
+def lexeme(p):
+    p
+
 
 lexeme = lambda p: p << ignore  # skip all ignored characters.
 
@@ -47,12 +55,25 @@ def hole():
     return Hole(type=ty)
 
 
+def avoid_reserved_keywords(ks):
+    def p(parsed):
+        def f(text, index):
+            if parsed in ks:
+                return Value.failure(index, parsed + " word is reserved")
+            return Value.success(index, parsed)
+
+        return f
+
+    return p
+
+
 arrow = t('->')
 fatarrow = t('=>')
 true = t('true').result(Literal(True, type=refined_value(True, t_b, "_v")))
 false = t('false').result(Literal(False, type=refined_value(False, t_b, "_v")))
 null = t('null').result(Literal(None, type=t_o))
-symbol = lexeme(regex(r'[.\d\w_]+')) ^ operators_definition
+symbol = lexeme(regex(r'[.\d\w_]+')).bind(
+    avoid_reserved_keywords(reserved_keywords)) ^ operators_definition
 
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-")
@@ -123,16 +144,6 @@ def abstraction():
 
 @lexeme
 @generate
-def application():
-    target = yield expr_f
-    yield t("(")
-    e = yield expr
-    yield t(")")
-    return Application(target, e)
-
-
-@lexeme
-@generate
 def tabstraction():
     tvar = yield symbol
     yield t(":")
@@ -145,7 +156,7 @@ def tabstraction():
 @lexeme
 @generate
 def tapplication():
-    target = yield expr_f
+    target = yield term
     yield t("[")
     ty = yield typee
     yield t("]")
@@ -167,11 +178,9 @@ def ite():
 @lexeme
 @generate
 def expr_ops():
-    yield t("(")
     a1 = yield expr
     op = yield op_all
     a2 = yield expr
-    yield t(")")
     return Application(Application(Var(op), a1), a2)
 
 
@@ -182,27 +191,40 @@ def expr_wrapped():
     return o
 
 
+@Parser
+@Parser
+def var(text, index):
+    res = self(text, index)
+    if not res.status:
+        return res
+    end = other(text, res.index)
+    if end.status:
+        return Value.success(end.index, res.value)
+    else:
+        return Value.failure(end.index, 'ends with {}'.format(end.expected))
+
+
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = literal ^ var
-expr = \
-    tapplication \
-    ^ application \
-    ^ t("(") >> expr_wrapped << t(")") \
-    ^ hole \
-    ^ ite \
-    ^ abstraction \
-    ^ tabstraction \
-    ^ expr_basic \
-    ^ expr_ops
 
-expr_f = expr_basic ^ (t("(") >> expr << t(")"))
+term = hole | abstraction ^ tabstraction ^ expr_basic ^ (
+    t("(") >> expr_wrapped << t(")")) ^ (t("(") >> expr_ops << t(")"))
+
+expr_tapp = tapplication ^ term
+
+expr_app = many1(
+    expr_tapp).parsecmap(lambda xs: reduce(lambda x, y: Application(x, y), xs))
+
+expr = ite | expr_app
 
 
 @lexeme
 @generate
 def basic_type():
     b = yield symbol
+    if b in type_aliases:
+        return type_aliases[b]
     return BasicType(b)
 
 
@@ -297,9 +319,10 @@ def topleveldef():
 def type_alias():
     '''Parse type alias.'''
     yield t("type")
-    imported = yield symbol
-    alias = yield (t("=") >> typee)
-    return TypeAlias(imported, alias)
+    name = yield symbol
+    aliased_type = yield (t("=") >> typee)
+    type_aliases[name] = aliased_type
+    return TypeAlias(name, aliased_type)
 
 
 @lexeme
