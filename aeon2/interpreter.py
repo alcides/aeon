@@ -8,6 +8,7 @@ def run(a: Program):
     evaluate(ctx, a)
     print("Interpreter: ", ctx)
 
+
 def evaluate(ctx, node):
 
     print(type(node), " :::::::::: ", node)
@@ -18,16 +19,20 @@ def evaluate(ctx, node):
         return node.value
     # Var - return the ctx value
     elif nodeType is Var:
-        return ctx.get(node.name) # CUIDADO: retorna None para native functions e non-existing functions
+        return ctx.get(
+            node.name
+        )  # CUIDADO: retorna None para native functions e non-existing functions
     # Program
     elif nodeType is Program:
         for d in node.declarations:
-            print(30*'=')
+            print(30 * '=')
             evaluate(ctx, d)
     # Definition
     elif nodeType is Definition:
         if type(node.body) is Abstraction:
-            ctx[node.name] = evaluate(ctx, node.body) # eval(evaluate(ctx, node.body)) # descomentar depois
+            ctx[node.name] = evaluate(
+                ctx, node.body
+            )  # eval(evaluate(ctx, node.body)) # descomentar depois
         else:
             bodyEval = evaluate(ctx, node.body)
             # If it was ... = native, it returns None, so we def non-native functions
@@ -39,7 +44,8 @@ def evaluate(ctx, node):
     # If - Executa a operacao resultado do then
     elif nodeType is If:
         cond = evaluate(ctx, node.cond)
-        return cond and evaluate(ctx, node.then) or evaluate(ctx, node.otherwise)
+        return cond and evaluate(ctx, node.then) or evaluate(
+            ctx, node.otherwise)
     # Import - do later
     elif nodeType is Import:
         pass
@@ -52,7 +58,7 @@ def evaluate(ctx, node):
     elif nodeType is Abstraction:
         # criar contexto proprio para abstracoes, a experimentar
         newCtx = ctx.copy()
-        return lambda x : evaluate(ctxPut(ctx, node.arg_name, x), node.body)
+        return lambda x: evaluate(ctxPut(ctx, node.arg_name, x), node.body)
     # TAbstraction - avaliar o corpo
     elif nodeType is TAbstraction:
         return evaluate(ctx, node.body)
@@ -69,13 +75,21 @@ def evaluate(ctx, node):
         print("ERROR: ", type(node), node)
         return None
 
+
 ## HELPER
+
 
 def ctxPut(ctx, varName, var):
     ctx[varName] = var
     return ctx
 
+
 #-------------------------------------------------------------------------------
+
+# Fix = Y
+Y = lambda f: lambda a: f(Y(f))(a)
+
+
 # Builds the context with the native functions
 def nativeFunctions():
 
@@ -87,10 +101,11 @@ def nativeFunctions():
     ctx['*'] = lambda x: lambda y: x * y
     ctx['/'] = lambda x: lambda y: x / y
     ctx['%'] = lambda x: lambda y: x % y
-    ctx['fix'] = lambda x : lambda a : a # TODO: confirmar
+    ctx['fix'] = lambda f: lambda x: f(f, x)
     ctx['print'] = print
     ctx['emptyList'] = []
 
     return ctx
+
 
 # ------------------------------------------------------------------------------

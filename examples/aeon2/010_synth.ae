@@ -1,5 +1,9 @@
 one : Integer = 1;
 
+
+(&&) : (a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a && b))} = native;
+
+
 a : Integer = [[Integer]];
 b : Boolean = [[Boolean]];
 c : (x:Integer) -> Integer = [[(x:Integer) -> Integer]];
@@ -7,3 +11,5 @@ d : (x:Boolean) -> Integer = [[(x:Boolean) -> Integer]];
 e : (x:Integer) -> Boolean = [[(x:Integer) -> Boolean]];
 f : {x:Integer where (x > 3)} = [[{z:Integer where (z > 3)}]];
 g : (T:*) => Boolean = [[(T:*) => Boolean]];
+
+h : Integer = [[{h1:Integer where ((h1 > 7) && (h1 < 10) )}]];

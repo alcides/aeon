@@ -56,6 +56,9 @@ class TypingContext(object):
         self.basic_types = list(self.type_variables.keys())
 
     def add_var(self, n, t):
+        if type(t) is BasicType:
+            if t.name in self.type_aliases:
+                t = self.type_aliases[t.name]
         self.variables[n] = t
 
     def add_type_var(self, n, k):

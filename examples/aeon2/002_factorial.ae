@@ -1,5 +1,6 @@
 type IntToInt = (a:Integer) -> Integer
 
+print : (a:Integer) -> Void = native;
 fix : (a:*) => (f:(x:a) -> a) -> a = native;
 (-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
 (*) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a*b) == c)} = native;

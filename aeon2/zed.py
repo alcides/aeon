@@ -40,6 +40,9 @@ def zed_mk_variable(name, ty: Type):
             return z3.Int(name)
         elif ty.name == "Boolean":
             return z3.Bool(name)
+    if type(ty) is RefinedType:
+        return zed_mk_variable(name, ty.type)
+
     raise NoZ3TranslationException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
 
@@ -53,10 +56,14 @@ def zed_translate_var(ztx, v: Var):
         if type(v.type) is BasicType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
+        elif type(v.type) is ArrowType:
+            ztx[v.name] = lambda x: zed_mk_variable(v.name, v.type.return_type
+                                                    )  # TODO
         elif type(v.type) is RefinedType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
+            print(ztx, v.name, v.type, type(v.type))
             raise NoZ3TranslationException("Var not in scope: {}".format(v))
     return ztx[v.name]
 

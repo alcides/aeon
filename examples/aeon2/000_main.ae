@@ -17,6 +17,7 @@ emptyList : (a:*) => (List a) = native;
 fix : (a:*) => (f:(x:a) -> a) -> a = native;
 
 
+
 (+) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a+b) == c)} = native;
 (-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
 (*) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a*b) == c)} = native;
@@ -24,7 +25,7 @@ fix : (a:*) => (f:(x:a) -> a) -> a = native;
 minus : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = \a:Integer -> \b:Integer -> (a-b);
 
 # TODO: Doesnt give error but never ends
-# complexOperation : (a:Integer) -> (b:Integer) -> (d:Integer) -> {c:Integer where ((((2 * (a+b)) - b) - d) == c)} = \a:Integer -> \b:Integer -> \d:Integer -> (((2 * (a+b)) - b) - d);
+#complexOperation : (a:Integer) -> (b:Integer) -> (d:Integer) -> {c:Integer where ((((2 * (a+b)) - b) - d) == c)} = \a:Integer -> \b:Integer -> \d:Integer -> (((2 * (a+b)) - b) - d);
 
 l1 : Void = null;
 l2 : Integer = 1;
@@ -43,7 +44,7 @@ f2 : (x:Boolean) -> Integer = \x:Boolean -> 2;
 f3 : (y:Integer) -> {z:Integer where (z == 1)} = f1;
 
 # TODO: Zed translation error
-# w4 : Integer = (2 * (f1 (2)));
+w4 : Integer = (2 * (f1 (2)));
 
 
 f4 : (T:*) => Integer = (T:* => 1);
