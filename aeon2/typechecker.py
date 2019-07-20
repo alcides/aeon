@@ -386,9 +386,10 @@ def typecheck(ast, refined=True, synthesiser=None):
 
 
 def synthesize(ctx, t):
-    d = 3
+    d = 1
     print(", ".join(list(ctx.variables.keys())), "|-", t, " ~> _", 3)
     n = se(ctx, t, 3)
+    print(20 * "-")
     n = tc(ctx, n, t)
     print(n, ":", n.type)
     return n

@@ -8,6 +8,8 @@ from .automatic import synthesise_with_outputdir
 from .typechecker import typecheck, TypeException
 from .interpreter import run
 
+sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+
 if __name__ == '__main__':
     debug = '-d' in sys.argv
     inferComplexity = '--infer' in sys.argv

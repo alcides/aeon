@@ -50,7 +50,7 @@ class TypingContext(object):
             t_o: star,
             t_b: star,
             t_s: star,
-            bottom: star,
+            bottom: star
         }
         # As of Python3, dict_keys is not copyable, so a list is required
         self.basic_types = list(self.type_variables.keys())
@@ -94,7 +94,7 @@ class Kind(object):
             return False
         if self.is_star() and o.is_star():
             return True
-        return self.k1 == self.k2
+        return self.k1 == o.k1 and self.k2 == o.k2
 
     def __str__(self):
         if self.is_star():
@@ -122,6 +122,13 @@ class BasicType(Type):
     def __str__(self):
         return self.name
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name
+
+    def __hash__(self):
+        return hash(self.name)
+
 
 class ArrowType(Type):
     """ x:T -> U """
@@ -135,6 +142,12 @@ class ArrowType(Type):
         return "{}:{} -> ({}):".format(self.arg_name, self.arg_type,
                                        self.return_type)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.arg_name == o.arg_name \
+            and self.arg_type == o.arg_type \
+            and self.return_type == o.return_type
+
 
 class RefinedType(Type):
     """ x:T -> U """
@@ -143,6 +156,12 @@ class RefinedType(Type):
         self.name = x
         self.type = t
         self.cond = cond
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.type == o.type \
+            and self.cond == o.cond
 
     def __str__(self):
         return "{{ {}:{} where {} }}".format(self.name, self.type, self.cond)
@@ -159,6 +178,12 @@ class TypeAbstraction(Type):
     def __str__(self):
         return "{}:{} => {}".format(self.name, self.kind, self.type)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.kind == o.kind \
+            and self.type == o.type
+
 
 class TypeApplication(Type):
     """ T U """
@@ -169,6 +194,11 @@ class TypeApplication(Type):
 
     def __str__(self):
         return "({} {})".format(self.target, self.argument)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.target == o.target \
+            and self.argument == o.argument
 
 
 # defaults

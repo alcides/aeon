@@ -126,6 +126,7 @@ def se_abs(ctx, T: ArrowType, d):
 def se_where(ctx, T: RefinedType, d):
     """ SE-Where """
     e2 = se(ctx, T.type, d - 1)
+    print("Where:", T.cond, T.cond.type, e2)
     ncond = substitution_in_expr(T.cond, e2, T.name)
     if tc.entails(ctx, ncond):
         return e2
@@ -168,7 +169,7 @@ def se(ctx, T, d):
             yield (100, lambda: se_where(ctx, T, d))
         if type(T) is TypeAbstraction:
             yield (100, lambda: se_tabs(ctx, T, d))
-        yield (1, lambda: se_app(ctx, T, d))
+        #yield (1, lambda: se_app(ctx, T, d))
         """ TODO: SE-TApp """
 
 

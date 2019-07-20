@@ -29,6 +29,10 @@ class Hole(TypedNode):
     def __str__(self):
         return "[[{}]]".format(self.type)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.type == o.type
+
 
 class Literal(TypedNode):
     """ true | false | i """
@@ -41,6 +45,10 @@ class Literal(TypedNode):
     def __str__(self):
         return "{}".format(self.value)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.value == o.value
+
 
 class Var(TypedNode):
     """ x """
@@ -51,6 +59,10 @@ class Var(TypedNode):
 
     def __str__(self):
         return "{}".format(self.name)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name
 
 
 class If(TypedNode):
@@ -69,6 +81,12 @@ class If(TypedNode):
         return "if {} then {} else {}".format(self.cond, self.then,
                                               self.otherwise)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.cond == o.cond \
+            and self.then == o.then \
+            and self.otherwise == o.otherwise
+
 
 class Application(TypedNode):
     """  e(e) """
@@ -80,6 +98,11 @@ class Application(TypedNode):
 
     def __str__(self):
         return "{}({})".format(self.target, self.argument)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.target == o.target \
+            and self.argument == o.argument
 
 
 class Abstraction(TypedNode):
@@ -94,6 +117,12 @@ class Abstraction(TypedNode):
     def __str__(self):
         return "\{}:{} -> {}".format(self.arg_name, self.arg_type, self.body)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.arg_name == o.arg_name \
+            and self.arg_type == o.arg_type \
+            and self.body == o.body
+
 
 class TAbstraction(TypedNode):
     """ T:k => e """
@@ -107,6 +136,12 @@ class TAbstraction(TypedNode):
     def __str__(self):
         return "{}:{} => ({})".format(self.typevar, self.kind, self.body)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.typevar == o.typevar \
+            and self.kind == o.kind \
+            and self.body == o.body
+
 
 class TApplication(TypedNode):
     """ e[T] """
@@ -118,6 +153,11 @@ class TApplication(TypedNode):
 
     def __str__(self):
         return "{}[{}]".format(self.target, self.argument)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.target == o.target \
+            and self.argument == o.argument
 
 
 # Other Structure
