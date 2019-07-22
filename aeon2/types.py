@@ -41,6 +41,7 @@ class TypingContext(object):
             '+': f2(t_i, t_i, t_i),
             '-': f2(t_i, t_i, t_i),
             '*': f2(t_i, t_i, t_i),
+            '%': f2(t_i, t_i, t_i),
         }
 
         self.type_variables = {

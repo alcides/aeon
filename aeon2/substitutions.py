@@ -2,11 +2,15 @@ from .types import *
 from .ast import *
 
 
-def substitution_in_expr(n, replacement, replaced):
+def substitution_expr_in_expr(n, replacement: Node, replaced):
     """ e[e/t] """
+
+    if not issubclass(replacement.__class__, Node):
+        print("ooops1", type(replacement))
+
     #print(""" e[e/t] """, n, replacement, replaced)
-    r = lambda x: substitution_in_expr(x, replacement, replaced)
-    nty = n.type == None and None or substitution_var_in_type(
+    r = lambda x: substitution_expr_in_expr(x, replacement, replaced)
+    nty = n.type == None and None or substitution_expr_in_type(
         n.type, replacement, replaced)
     if type(n) is Literal:
         return n
@@ -22,7 +26,8 @@ def substitution_in_expr(n, replacement, replaced):
     elif type(n) is Abstraction:
         return Abstraction(n.arg_name, n.arg_type, r(n.body)).with_type(nty)
     elif type(n) is TApplication:
-        return TApplication(r(n.target), n.argument).with_type(nty)
+        arg = substitution_expr_in_type(n.argument, replacement, replaced)
+        return TApplication(r(n.target), arg).with_type(nty)
     elif type(n) is TAbstraction:
         return TAbstraction(n.typevar, n.kind, r(n.body)).with_type(nty)
     elif type(n) is Hole:
@@ -31,13 +36,48 @@ def substitution_in_expr(n, replacement, replaced):
         raise Exception('No substitution rule for {}'.format(n))
 
 
-def substitution_var_in_type(n: Type, replacement, replaced):
+def substitution_type_in_expr(n: Node, replacement: Type, replaced):
+    """ e[e/T] """
+
+    if not issubclass(replacement.__class__, Type):
+        print("ooops2", type(replacement))
+
+    #print(""" e[e/T] """, n, replacement, replaced)
+    r = lambda x: substitution_type_in_expr(x, replacement, replaced)
+    nty = n.type == None and None or substitution_type_in_type(
+        n.type, replacement, replaced)
+    if type(n) is Literal:
+        return n
+    elif type(n) is Var:
+        return n
+    elif type(n) is If:
+        return If(r(n.cond), r(n.then), r(n.otherwise)).with_type(nty)
+    elif type(n) is Application:
+        return Application(r(n.target), r(n.argument)).with_type(nty)
+    elif type(n) is Abstraction:
+        return Abstraction(n.arg_name, n.arg_type, r(n.body)).with_type(nty)
+    elif type(n) is TApplication:
+        targ = substitution_type_in_type(n.argument, replacement, replaced)
+        return TApplication(r(n.target), targ).with_type(nty)
+    elif type(n) is TAbstraction:
+        return TAbstraction(n.typevar, n.kind, r(n.body)).with_type(nty)
+    elif type(n) is Hole:
+        return n
+    else:
+        raise Exception('No substitution rule for {}'.format(n))
+
+
+def substitution_expr_in_type(n: Type, replacement: Node, replaced):
     """ T[e/t] """
     #print(""" T[e/t] """, n, replacement, replaced)
+
+    if not issubclass(replacement.__class__, Node):
+        print("ooops3", type(replacement))
+
     if n == None:
         return n
-    r = lambda x: substitution_var_in_type(x, replacement, replaced)
-    re = lambda x: substitution_in_expr(x, replacement, replaced)
+    r = lambda x: substitution_expr_in_type(x, replacement, replaced)
+    re = lambda x: substitution_expr_in_expr(x, replacement, replaced)
     if type(n) is BasicType:
         return n
     elif type(n) is RefinedType:
@@ -58,6 +98,10 @@ def substitution_var_in_type(n: Type, replacement, replaced):
 def substitution_type_in_type(n, replacement: Type, replaced):
     """ T[U/V] """
     #print(""" T[U/V] """, n, replacement, replaced)
+
+    if not issubclass(replacement.__class__, Type):
+        print("ooops4", type(replacement))
+
     if n == None:
         return n
     r = lambda x: substitution_type_in_type(x, replacement, replaced)
@@ -67,7 +111,8 @@ def substitution_type_in_type(n, replacement: Type, replaced):
         else:
             return n
     elif type(n) is RefinedType:
-        return RefinedType(n.name, r(n.type), n.cond)  # todo - replace in cond
+        new_cond = substitution_type_in_expr(n.cond, replacement, replaced)
+        return RefinedType(n.name, r(n.type), new_cond)
     elif type(n) is ArrowType:
         return ArrowType(arg_name=n.arg_name,
                          arg_type=r(n.arg_type),
@@ -87,8 +132,8 @@ if __name__ == '__main__':
     ty = typee.parse_strict
 
     t_t = lambda t1, t2, name: substitution_type_in_type(ty(t1), ty(t2), name)
-    t_v = lambda t1, t2, name: substitution_var_in_type(ty(t1), ex(t2), name)
-    t_e = lambda t1, t2, name: substitution_in_expr(ex(t1), ex(t2), name)
+    t_v = lambda t1, t2, name: substitution_expr_in_type(ty(t1), ex(t2), name)
+    t_e = lambda t1, t2, name: substitution_expr_in_expr(ex(t1), ex(t2), name)
 
     def assert_stt(original, new, old, expects):
         repl = t_t(original, new, old)

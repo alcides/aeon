@@ -27,8 +27,9 @@ def sub_whereR(ctx, sub: Type, sup: RefinedType):
 def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
     """ Sub-Arrow """
     nctx = ctx.with_var(sup.arg_name, sup.arg_type)
-    sub_return_type = substitution_var_in_type(sub.return_type,
-                                               Var(sup.arg_name), sub.arg_name)
+    sub_return_type = substitution_expr_in_type(sub.return_type,
+                                                Var(sup.arg_name),
+                                                sub.arg_name)
     return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
         is_subtype(nctx, sub_return_type, sup.return_type)
 
@@ -139,6 +140,7 @@ def is_satisfiable(ctx, cond):
             "Condition {} is not a boolean expression".format(cond))
     else:
         try:
+            cond = tc(ctx, cond)
             return zed_verify_satisfiability(ctx, cond)
         except NotDecidableException:
             return True
@@ -220,10 +222,12 @@ def wellformed(ctx, t):
 
 def check_expects(ctx, n, expects):
     if expects and not expr_has_type(ctx, n, expects):
-        raise TypeException('{} has wrong type'.format(type(n)),
-                            "{} has wrong type:".format(n),
-                            expected=expects,
-                            given=n.type)
+        raise TypeException(
+            '{} has wrong type'.format(type(n)),
+            "{} has wrong type (given: {}, expected: {})".format(
+                n, n.type, expects),
+            expected=expects,
+            given=n.type)
 
 
 # Expression TypeChecking
@@ -231,14 +235,14 @@ def check_expects(ctx, n, expects):
 
 def expr_has_type(ctx, e, t):
     """ E-Subtype """
-    if not hasattr(e, "type"):
+    if not hasattr(e, "type") or e.type == None:
         tc(ctx, e, expects=t)
     if e.type == t:
         return True
 
     if type(t) is RefinedType:
         """ T-Where """
-        ne = substitution_in_expr(t.cond, e, t.name)
+        ne = substitution_expr_in_expr(t.cond, e, t.name)
         return expr_has_type(ctx, e, t.type) and entails(ctx, ne)
 
     return wellformed(ctx, e.type) and is_subtype(ctx, e.type, t)
@@ -247,6 +251,12 @@ def expr_has_type(ctx, e, t):
 def e_literal(ctx, n, expects=None):
     """ E-Bool, E-Int, E-Basic """
     # Literals have their type filled
+    if not n.type:
+        if type(n.value) == bool:
+            n.type = t_b
+        else:
+            n.type = t_i
+
     return n
 
 
@@ -275,9 +285,9 @@ def e_if(ctx, n, expects=None):
 def e_abs(ctx, n, expects=None):
     """ E-Abs """
     if expects and type(expects) is ArrowType:
-        body_expects = substitution_var_in_type(expects.return_type,
-                                                Var(n.arg_name),
-                                                expects.arg_name)
+        body_expects = substitution_expr_in_type(expects.return_type,
+                                                 Var(n.arg_name),
+                                                 expects.arg_name)
     else:
         body_expects = None
     nctx = ctx.with_var(n.arg_name, n.arg_type)
@@ -296,8 +306,9 @@ def e_app(ctx, n, expects=None):
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
         wellformed(nctx, ftype)
         n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
-        n.type = substitution_var_in_type(ftype.return_type, n.argument,
-                                          n.target.type.arg_name)
+        n.type = substitution_expr_in_type(ftype.return_type, n.argument,
+                                           n.target.type.arg_name)
+
         return n
     else:
         raise TypeException('Not a function',
@@ -393,3 +404,18 @@ def synthesize(ctx, t):
     n = tc(ctx, n, t)
     print(n, ":", n.type)
     return n
+
+
+if __name__ == '__main__':
+    from .frontend import expr, typee
+    ex = expr.parse_strict
+    ty = typeee.parse_strict
+
+    def assert_tc(ctx, e, expected_type):
+        n = tc(ctx, expr(e))
+        assert (n.type == ty(expected_type))
+
+    ctx = TypingContext()
+    ctx.setup()
+
+    assert_tc(ctx, "1+1", expected="Integer")
