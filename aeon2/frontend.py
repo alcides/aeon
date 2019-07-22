@@ -191,19 +191,6 @@ def expr_wrapped():
     return o
 
 
-@Parser
-@Parser
-def var(text, index):
-    res = self(text, index)
-    if not res.status:
-        return res
-    end = other(text, res.index)
-    if end.status:
-        return Value.success(end.index, res.value)
-    else:
-        return Value.failure(end.index, 'ends with {}'.format(end.expected))
-
-
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = literal ^ var

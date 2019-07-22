@@ -255,7 +255,12 @@ def e_literal(ctx, n, expects=None):
         if type(n.value) == bool:
             n.type = t_b
         else:
-            n.type = t_i
+            name = "Literal_{}".format(n.value)
+            n.type = RefinedType(name=name,
+                                 type=t_i,
+                                 cond=Application(
+                                     Application(Var("=="), Var(name)),
+                                     Literal(value=n.value, type=t_i)))
 
     return n
 
@@ -404,18 +409,3 @@ def synthesize(ctx, t):
     n = tc(ctx, n, t)
     print(n, ":", n.type)
     return n
-
-
-if __name__ == '__main__':
-    from .frontend import expr, typee
-    ex = expr.parse_strict
-    ty = typeee.parse_strict
-
-    def assert_tc(ctx, e, expected_type):
-        n = tc(ctx, expr(e))
-        assert (n.type == ty(expected_type))
-
-    ctx = TypingContext()
-    ctx.setup()
-
-    assert_tc(ctx, "1+1", expected="Integer")

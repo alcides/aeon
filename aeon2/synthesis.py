@@ -93,7 +93,13 @@ def se_bool(ctx, T, d):
 def se_int(ctx, T, d):
     """ SE-Int """
     v = random.randint(-100, 100)
-    return Literal(v, type=T)
+    name = "lit_{}".format(v)
+    return Literal(v,
+                   type=RefinedType(name=name,
+                                    type=t_i,
+                                    cond=Application(
+                                        Application(Var("=="), Var(name)),
+                                        Literal(value=v, type=T))))
 
 
 def se_if(ctx, T, d):
@@ -194,46 +200,3 @@ def stax(nctx, e, x, T, d):
     """ TODO: STAx-App """
     """ TODO: STAx-Abs """
     """ TODO: STAx-Where """
-
-
-if __name__ == '__main__':
-
-    from .frontend import expr, typee
-    ex = expr.parse_strict
-    ty = typee.parse_strict
-
-    d = 3
-
-    def assert_synth(ctx, t, times=3):
-        for i in range(times):
-            e = se(ctx, t, d)
-            tc.tc(ctx, e, t)
-            print("Synth'ed:", e, ":", t)
-            if e.type != t:
-                print("Given type:", e.type)
-                print("Expected type", t)
-            assert (e.type == t)
-
-    ctx = TypingContext()
-    ctx.setup()
-    assert_synth(ctx, ty("Boolean"))
-    assert_synth(ctx, ty("{x:Boolean where x}"))
-    assert_synth(ctx, ty("{x:Boolean where (x === false)}"))
-    assert_synth(ctx, ty("Integer"))
-    assert_synth(ctx, ty("{x:Integer where (x > 0)}"))
-    assert_synth(ctx, ty("{x:Integer where ((x % 4) == 0)}"))
-
-    assert_synth(ctx, ty("(x:Boolean) -> Integer"))
-    assert_synth(ctx.with_var("z", ty("(x:Boolean) -> Boolean")),
-                 ty("(x:Boolean) -> Boolean"))
-
-    assert_synth(
-        ctx.with_var(
-            "*",
-            tc.
-            tc(ctx,
-               n=ty(
-                   "(x:Integer) -> (y:Integer) -> {z:Integer where (z == (x*y))}"
-               ))), ty("(x:Integer) -> {y:Integer where (y == (x*2)) }"))
-
-    print("Passed all tests")
