@@ -8,8 +8,8 @@ funcao : (x:{Integer where x > 0}, y:Integer) -> z:{Integer where z>0 and z <= 0
 }
 ###
 
-funcao2 : (x:Integer, y:argument) -> d:{Integer where z>0 and z<=0} {
+funcao2 : (x:Integer, y:{Double where y > 0 and z <0}) -> d:Integer where [x > 0]{
     1 + 1
     (2 * f(1,2))
-    asd : Integer = 1
+    asd : Integer = x
 }
