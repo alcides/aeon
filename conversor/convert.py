@@ -10,55 +10,44 @@ def convert(ast):
 
     for node in ast:
         print("=" * 30)
-        converted.append(convert_node(ctx, node))
+        converted.append(convert_node(ctx, node)[1])
 
-    result = converted
-    print("Resultado: ", result)
-    return result
+    return converted
 
 
 def convert_node(ctx, node):
 
-    print(node, type(node))
-
     nodet = node.nodet
 
-    # Literal ou variavel
-    if nodet in ['literal', 'atom']:
-        return node.nodes[0]
+    print(node)
+
+    # Literal
+    if nodet == 'literal':
+        return node.type, node.nodes[0]
+
+    # Variavel
+    elif nodet == 'atom':
+        return ctx[node.nodes[0]], node.nodes[0]
 
     # Invocacao de uma funcao
     elif nodet == 'invocation':
         result = "{}".format(node.nodes[0])
         for argument in node.nodes[1]:
-            result = "({}({}))".format(result, convert_node(ctx, argument))
-        return result
-    # Operacoes nativas
-    elif nodet in ['+', '-', '*', '/', '%', '>', '<', '<=', '>=',
-                   '==', '!=', '===', '&&', '||' '!==']:
-        arguments = node.nodes
-        arg1 = convert_node(ctx, arguments[0])
-        arg2 = convert_node(ctx, arguments[1])
-        result ="({} {} {})".format(arg1, nodet, arg2)
-        return result
-    # Declaracao de uma variavel
-    elif nodet == 'let':
-        # Never happens
-        print("Convert: Should never reach here")
-        return None
-    # Declaracao de funcoes
-    # ------------------ Function declaration and its elements -----------------
-    elif nodet == "decl":
+            _, converted = convert_node(ctx, argument)
+            result = "({}({}))".format(result, converted)
+        return ctx[node.nodes[0]], result
+
+    # Funcao nativa
+    elif nodet == 'native':
         # Node attributes
         name = node.nodes[0]
         args = node.nodes[1]
         rType = node.nodes[2]
-        kind = node.nodes[3] # unkn1 => ...
+        kind = node.nodes[3] # T => ...
         dependentType = node.nodes[4] # where [x > 0]
         unkn3 = node.nodes[5] # TODO: unknown??
-        block = node.nodes[6]
 
-        ctx[name] = convert_node(ctx, rType)
+        ctx[name], _ = convert_node(ctx, rType)
 
         result = "{} : ".format(name)
 
@@ -66,59 +55,111 @@ def convert_node(ctx, node):
         # kind = .............
 
         for argument in args:
-            result = "{}{}".format(result, convert_node(ctx, argument))
+            result = "{}{}".format(result, convert_node(ctx, argument)[1])
 
-        result = "{}{}".format(result, convert_node(ctx, rType))
+        result = "{}{} = native;".format(result, convert_node(ctx, rType)[1])
+
+        # TODO: Falta o tipo dependente
+        # dependentType = ..........
+        
+        return rType, result
+
+    # Operacoes nativas
+    elif nodet in ['+', '-', '*', '/', '%', '>', '<', '<=', '>=',
+                   '==', '!=', '===', '&&', '||' '!==']:
+        arguments = node.nodes
+        _, arg1 = convert_node(ctx, arguments[0])
+        _, arg2 = convert_node(ctx, arguments[1])
+        result ="({} {} {})".format(arg1, nodet, arg2)
+        return nodet, result
+
+    # Declaracao de uma variavel
+    elif nodet == 'let':
+        name = node.nodes[0]
+        _, expression = convert_node(ctx, node.nodes[1])
+        typee = convert_type(ctx, node.nodes[2])
+
+        ctx[name] = typee
+
+        return typee, expression
+
+    # Declaracao de funcoes
+    # ------------------ Function declaration and its elements -----------------
+    elif nodet == "decl":
+        # Node attributes
+        name = node.nodes[0]
+        args = node.nodes[1]
+        rType = node.nodes[2]
+        kind = node.nodes[3] # T => ...
+        dependentType = node.nodes[4] # where [x > 0]
+        unkn3 = node.nodes[5] # TODO: unknown??
+        block = node.nodes[6]
+
+        ctx[name], _ = convert_node(ctx, rType)
+
+        result = "{} : ".format(name)
+
+        # TODO: falta tratar os que tem kinds
+        # kind = .............
+
+        for argument in args:
+            result = "{}{}".format(result, convert_node(ctx, argument)[1])
+
+        result = "{}{}".format(result, convert_node(ctx, rType)[1])
 
         # TODO: Falta o tipo dependente
         # dependentType = ..........
 
-        result = "{} = {}".format(result, convert_node(ctx, block))
+        block.type = ctx[name] # small hack
 
-        return result
+        result = "{} = {}".format(result, convert_node(ctx, block)[1])
+
+        return ctx[name], result
+
     # Tipo de retorno da funcao
     elif nodet == "rtype":
         name = node.nodes[0]
-        typee = node.nodes[1]
-        result = "{}:{}".format(name, convert_type(ctx, typee))
-        return (typee.preconditions and '{{{}}}' or '({})').format(result)
+        typee = convert_type(ctx, node.nodes[1])
+        result = "{}:{}".format(name, typee)
+        return typee, (node.nodes[1].preconditions and '{{{}}}' or '({})').format(result)
+
     # Argumentos da funcao
     elif nodet == "argument":
         name = node.nodes[0]
-        typee = node.nodes[1]
-        result = "{}:{}".format(name, convert_type(ctx, typee))
-        result = (typee.preconditions and '{{{}}}' or '({})').format(result)
-        ctx[name] = result
-        return result + " -> "
+        ctx[name] = None
+        typee = convert_type(ctx, node.nodes[1])
+        result = "{}:{}".format(name, typee)
+        result = (node.nodes[1].preconditions and '{{{}}}' or '({})').format(result)
+        ctx[name] = typee
+        return typee, result + " -> "
+
+    # Bloco de instrucoes do metodo
     elif nodet == "block":
 
-        result = "{}"
+        result = '{}'
+
+        i = 0
 
         for instruction in node.nodes[:-1]:
-            if instruction.nodet == "let":
-                name = instruction.nodes[0]
-                assign = convert_node(ctx, instruction.nodes[1])
-                typee = convert_type(ctx, instruction.nodes[2])
-                strInstr = "(\\{}:{} -> {{}} ({}))".format(name, typee, assign)
-            else:
-                # TODO: Deal with edge case of literal and atom values
-                converted = convert_node(ctx, instruction)
-                strInstr = "(\\_:{} -> {{}} ({}))".format(ctx[instruction.nodet], converted)
+            typee, representation = convert_node(ctx, instruction)
+            var = instruction.nodet == 'let' and instruction.nodes[0] or '_'
+
+            # TODO: Nao gosto muito disto, alterar mais tarde
+            if i == 0:
+                typee = node.type
+                i += 1
+
+            strInstr = "(\\{}:{} -> {{}} ({}));".format(var, typee, representation)
             result = result.format(strInstr)
 
         lastInstruction = node.nodes[-1]
 
-        if lastInstruction.nodet == "let":
-            name = lastInstruction.nodes[0]
-            assign = convert_node(ctx, lastInstruction.nodes[1])
-            typee = convert_type(ctx, lastInstruction.nodes[2])
-            strInstr = "(\\{}:{} -> {})".format(name, typee, assign)
-        else:
-            converted = convert_node(ctx, lastInstruction)
-            strInstr = "(\\_:{} -> {})".format(ctx[lastInstruction.nodet], converted)
+        typee, representation = convert_node(ctx, lastInstruction)
+        var = lastInstruction.nodet == 'let' and lastInstruction.nodes[0] or '_'
+        strInstr = "(\\{}:{} -> {});".format(var, typee, representation)
         result = result.format(strInstr)
 
-        return result
+        return typee, result
     else:
         print("TODO:", nodet, node)
 
@@ -154,4 +195,5 @@ def defaultTypes():
     ctx['!=='] = "Boolean"
     ctx['&&'] = "Boolean"
     ctx['||'] = "Boolean"
+    ctx['out'] = "Object" # TODO: temp
     return ctx

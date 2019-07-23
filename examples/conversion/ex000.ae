@@ -1,5 +1,7 @@
 # import ..prelude.J
 
+native J.noop : (_:Object) -> _:Void
+
 ###
 funcao : (x:{Integer where x > 0}, y:Integer) -> z:{Integer where z>0 and z <= 0} {
     x * 1
@@ -8,8 +10,13 @@ funcao : (x:{Integer where x > 0}, y:Integer) -> z:{Integer where z>0 and z <= 0
 }
 ###
 
-funcao2 : (x:Integer, y:{Double where y > 0 and z <0}) -> d:Integer where [x > 0]{
+funcao2 : (x:Integer, y:{Double where y > 0 and x <0}) -> d:Integer where [x > 0]{
     1 + 1
-    (2 * f(1,2))
+    (2 * funcao2(1,2))
     asd : Integer = x
+}
+
+a : (x:Integer) -> u:Integer {
+    out(1)
+    out(2)
 }

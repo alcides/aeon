@@ -1,0 +1,6 @@
+J.noop : (_:Object) -> (_:Void) = native;
+
+funcao2 : (x:Integer) -> {y:Double where ('>', '(y > 0)') and ('<', '(x < 0)')} -> (d:Integer) = (\_:Integer -> (\_:* -> (\asd:Integer -> x); ((2 * ((funcao2(1))(2))))); ((1 + 1)));
+
+a : (x:Integer) -> (u:Integer) = (\_:Integer -> (\_:Object -> (out(2))); ((out(1))));
+
