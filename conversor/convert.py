@@ -4,77 +4,93 @@ import aeon.typestructure
 import aeon2.types
 
 def convert(ast):
+
+    ctx = {}
     converted = []
 
     for node in ast:
         print("=" * 30)
-        print(node)
-        converted.append(convert_node(node))
+        converted.append(convert_node(ctx, node))
 
-    result = Program(converted)
+    result = converted
     print("Resultado: ", result)
     return result
 
 
-def convert_node(node):
+def convert_node(ctx, node):
 
     print(node, type(node))
 
     nodet = node.nodet
-    # literal ~> Literal()
-    if nodet == "literal":
-        # Literal()
-        nLiteral = node.nodes[0]
-        nType = None
-        return Literal(nLiteral, nType)
-    # atom ~> Var()
-    elif nodet == "atom":
-        # Var()
-        return Var(node.nodes[0])
+
+    # Literal ou variavel
+    if nodet in ['literal', 'atom']:
+        return node.nodes[0]
+
+    # Invocacao de uma funcao
+    elif nodet == 'invocation':
+        result = "{}".format(node.nodes[0])
+        for argument in node.nodes[1]:
+            result = "({}({}))".format(result, convert_node(ctx, argument))
+        return result
+    # Operacoes nativas
+    elif nodet in ['+', '-', '*', '/', '%', '>', '<', '<=', '>=',
+                   '==', '!=', '===', '&&', '||' '!==']:
+        arguments = node.nodes
+        arg1 = convert_node(ctx, arguments[0])
+        arg2 = convert_node(ctx, arguments[1])
+        result ="({} {} {})".format(arg1, nodet, arg2)
+        return result
+    # Declaracao de uma variavel
+    elif nodet == 'let':
+        print("TODO: LET")
+        return None
+    # Declaracao de funcoes
+    # ------------------ Function declaration and its elements -----------------
+    elif nodet == "decl":
+        # TODO:
+        nName = node.nodes[0] # str
+        arguments = []
+        for arg in node.nodes[1]:
+            arguments.append(convert_node(ctx, arg))
+        nType = convert_node(ctx, node.nodes[2])
+        nBody = convert_node(ctx, node.nodes[-1])
+
+        ctx[nName] = nType
+        return Definition(nName, nType, nBody)
+    # Tipo de retorno da funcao
     elif nodet == "rtype":
+        name = node.nodes[0]
+        typee = node.nodes[1]
+        result = convert_type(ctx, name, typee)
+        return (typee.preconditions and '{{{}}}' or '({})').format(result)
+    elif nodet == "argument":
+        # TODO:
+        print("\n>>>>>>>> ARGUMENT: ", node, "\n\n")
+        return None
+    elif nodet == "block":
 
-        varName = node.nodes[0]
-        varType = node.nodes[1]
+        result = ""
 
-        typee = aeon2.types.BasicType(str(varType.type))
-
-        result = typee
-
-        # TODO: I predict a bug somewhere here
-        if varType.preconditions:
-            cond = convert_node(varType.preconditions[0])
-            result = aeon2.types.RefinedType(varName, typee, cond)
+        for instruction in node.nodes:
+            convert_node(ctx, instruction)
+            result = "\\x{} -> ".format("ola")
 
         return result
-    elif nodet == 'invocation':
-        function_name = node.nodes[0]
-        # TODO: What happens to functions which can have multiple arguments?
-    # native operation ~> Application()
-    elif nodet in ['+', '-', '*', '/', '%', '>', '<', '<=', '>=', '==', '!=', '===', '&&', '||' '!==']:
-        arguments = node.nodes
-        if len(arguments) > 1:
-            argument = convert_node(node.nodes[-1])
-            node.nodes = node.nodes[0:-1]
-            target = convert_node(node)
-        else:
-            argument = convert_node(arguments[0])
-            target = Var(nodet)
-        return Application(target, argument)
-    # declaration ~> definition
-    elif nodet == "decl":
-        nName = node.nodes[0]  # String
-        nType = convert_node(node.nodes[2])
-        nBody = convert_node(node.nodes[-1])  #
-        return Definition(nName, nType, nBody)
-    elif nodet == "block":
-        program = []
-        for son in node.nodes:
-            print("="*20, "\n","Doing", son)
-            program.append(convert_node(son))
-
-        print("RES:")
-        for asd in program:
-            print(asd, type(asd))
-        return program
     else:
-        print("TODO:", node.nodet, node)
+        print("TODO:", nodet, node)
+
+# ------------------------------------------------------------------------------
+# ----------------------------------- HELPERS ----------------------------------
+
+def convert_type(ctx, name, typee):
+    result = ""
+    # TODO: Check if the others attributes are needed too
+    if typee.preconditions:
+        result = "{}".format(convert_node(ctx, typee.preconditions[0]))
+        for cond in typee.preconditions[1:]:
+            result = "{} and {}".format(result, convert_node(ctx, cond))
+        result = "{}:{} where {}".format(name, typee.type, result)
+    else:
+        result = "{}:{}".format(name, typee.type)
+    return result

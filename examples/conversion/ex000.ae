@@ -1,11 +1,15 @@
 # import ..prelude.J
 
+###
 funcao : (x:{Integer where x > 0}, y:Integer) -> z:{Integer where z>0 and z <= 0} {
     x * 1
     x + y
     print(1)
 }
+###
 
-funcao2 : () -> d:Integer where [a > 0]{
+funcao2 : (x:Integer, y:argument) -> d:{Integer where z>0 and z<=0} {
     1 + 1
+    (2 * f(1,2))
+    asd : Integer = 1
 }
