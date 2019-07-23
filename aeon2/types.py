@@ -41,6 +41,7 @@ class TypingContext(object):
             '+': f2(t_i, t_i, t_i),
             '-': f2(t_i, t_i, t_i),
             '*': f2(t_i, t_i, t_i),
+            '%': f2(t_i, t_i, t_i),
         }
 
         self.type_variables = {
@@ -152,9 +153,9 @@ class ArrowType(Type):
 class RefinedType(Type):
     """ x:T -> U """
 
-    def __init__(self, x, t, cond):
-        self.name = x
-        self.type = t
+    def __init__(self, name, type, cond):
+        self.name = name
+        self.type = type
         self.cond = cond
 
     def __eq__(self, o):

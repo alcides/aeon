@@ -36,7 +36,7 @@ if __name__ == '__main__':
             ast,
             refined=refined,
             synthesiser=synthesise_with_outputdir(outputdir))
-        #sys.exit()
+
     except TypeException as t:
         print(t.args[0])
         print(t.args[1])
@@ -53,4 +53,3 @@ if __name__ == '__main__':
         print("--------------------------")
 
     run(ast)
-    sys.exit()

@@ -93,7 +93,13 @@ def se_bool(ctx, T, d):
 def se_int(ctx, T, d):
     """ SE-Int """
     v = random.randint(-100, 100)
-    return Literal(v, type=T)
+    name = "lit_{}".format(v)
+    return Literal(v,
+                   type=RefinedType(name=name,
+                                    type=t_i,
+                                    cond=Application(
+                                        Application(Var("=="), Var(name)),
+                                        Literal(value=v, type=T))))
 
 
 def se_if(ctx, T, d):
@@ -101,7 +107,7 @@ def se_if(ctx, T, d):
     cond = se(ctx, t_b, d - 1)
     then = se(ctx, T, d - 1)  # missing refinement in type
     otherwise = se(ctx, T, d - 1)  # missing refinement in type
-    return If(cond, then, otherwise)
+    return If(cond, then, otherwise).with_type(T)
 
 
 def se_var(ctx, T, d):
@@ -110,9 +116,10 @@ def se_var(ctx, T, d):
         v for v in ctx.variables
         if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
     ]
+    print("SE-Var", T, options)
     if options:
         n = random.choice(options)
-        return Var(n)
+        return Var(n).with_type(T)
     return None
 
 
@@ -120,23 +127,22 @@ def se_abs(ctx, T: ArrowType, d):
     """ SE-Abs """
     nctx = ctx.with_var(T.arg_name, T.arg_type)
     body = se(nctx, T.return_type, d - 1)
-    return Abstraction(T.arg_name, T.arg_type, body)
+    return Abstraction(T.arg_name, T.arg_type, body).with_type(T)
 
 
 def se_where(ctx, T: RefinedType, d):
     """ SE-Where """
     e2 = se(ctx, T.type, d - 1)
-    print("Where:", T.cond, T.cond.type, e2)
-    ncond = substitution_in_expr(T.cond, e2, T.name)
+    ncond = substitution_expr_in_expr(T.cond, e2, T.name)
     if tc.entails(ctx, ncond):
-        return e2
+        return e2.with_type(T)
 
 
 def se_tabs(ctx, T: TypeAbstraction, d):
     """ SE-TAbs """
     nctx = ctx.with_type_var(T.name, T.kind)
     e = se(nctx, T.type, d - 1)
-    return TAbstraction(T.name, T.kind, e)
+    return TAbstraction(T.name, T.kind, e).with_type(T)
 
 
 def se_app(ctx, T, d):
@@ -145,10 +151,15 @@ def se_app(ctx, T, d):
     U = st(ctx, k, d - 1)
     x = scfv(T)
     e2 = se(ctx, U, d - 1)
+    print("target of type U:", e2, ":", U)
     nctx = ctx.with_type_var(x, U)
     V = stax(nctx, e2, x, T, d - 1)
-    e1 = se(ctx, ArrowType(arg_name=x, arg_type=U, return_type=V), d - 1)
-    return Application(e1, e2)
+    FT = ArrowType(arg_name=x, arg_type=U, return_type=V)
+
+    e1 = se(ctx, FT, d - 1)
+    print("fun of type:", e1, ":", FT, "should return", T)
+
+    return Application(e1, e2).with_type(T)
 
 
 @random_chooser
@@ -159,7 +170,7 @@ def se(ctx, T, d):
     if type(T) is BasicType and T.name == "Boolean":
         yield (1, lambda: se_bool(ctx, T, d))
     if [v for v in ctx.variables if tc.is_same_type(ctx, ctx.variables[v], T)]:
-        yield (1, lambda: se_var(ctx, T, d))
+        yield (100, lambda: se_var(ctx, T, d))
     if d + 100 > 0:
         # TODO
         # yield (1, lambda: se_if(ctx, T, d))

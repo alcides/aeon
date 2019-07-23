@@ -20,9 +20,9 @@ def flatten_refined_types(t):
     if type(t) is RefinedType:
         if type(t.type) is RefinedType:
             inner = t.type
-            new_cond = App(
-                App("&&", t.cond),
-                substitution_in_expr(inner.cond, t.name, inner.name))
+            new_cond = Application(
+                Application(Var("&&"), t.cond),
+                substitution_expr_in_expr(inner.cond, Var(t.name), inner.name))
             merged = RefinedType(t.name, inner.type, new_cond)
             return flatten_refined_types(merged)
         else:
@@ -63,7 +63,6 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
-            print(ztx, v.name, v.type, type(v.type))
             raise NoZ3TranslationException("Var not in scope: {}".format(v))
     return ztx[v.name]
 
@@ -85,7 +84,8 @@ def zed_translate_context(ztx, ctx):
         t = ctx.variables[name]
         if type(t) is RefinedType:
             tprime = flatten_refined_types(t)
-            new_cond = substitution_in_expr(tprime.cond, Var(name), t.name)
+            new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
+                                                 t.name)
             restrictions.append(new_cond)
     acc = []
     for e in restrictions:
@@ -130,6 +130,7 @@ def zed_initial_context():
         "+": lambda x: lambda y: x + y,
         "-": lambda x: lambda y: x - y,
         "*": lambda x: lambda y: x * y,
+        "%": lambda x: lambda y: x % y,
     }
 
 
