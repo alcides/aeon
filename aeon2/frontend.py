@@ -220,7 +220,7 @@ def arrow_type():
     yield t(")")
     yield arrow
     t2 = yield typee
-    return ArrowType(x, t1, t2)
+    return AbstractionType(x, t1, t2)
 
 
 @lexeme

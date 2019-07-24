@@ -116,7 +116,7 @@ class BasicType(Type):
         return hash(self.name)
 
 
-class ArrowType(Type):
+class AbstractionType(Type):
     """ x:T -> U """
 
     def __init__(self, arg_name, arg_type, return_type):

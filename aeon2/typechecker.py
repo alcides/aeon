@@ -24,7 +24,7 @@ def sub_whereR(ctx, sub: Type, sup: RefinedType):
         entails(nctx, sup.cond)
 
 
-def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
+def sub_arrow(ctx, sub: AbstractionType, sup: AbstractionType):
     """ Sub-Arrow """
     nctx = ctx.with_var(sup.arg_name, sup.arg_type)
     sub_return_type = substitution_expr_in_type(sub.return_type,
@@ -97,7 +97,7 @@ def is_subtype(ctx, sub, sup):
         return sub_whereR(ctx, sub, sup)
     if type(sub) is RefinedType:
         return sub_whereL(ctx, sub, sup)
-    if type(sub) is ArrowType and type(sup) is ArrowType:
+    if type(sub) is AbstractionType and type(sup) is AbstractionType:
         return sub_arrow(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_abs(ctx, sub, sup)
@@ -146,8 +146,8 @@ def is_satisfiable(ctx, cond):
             return True
 
 
-def t_base(ctx, t):
-    """ T-Int, T-Bool, T-Cont """
+def k_base(ctx, t):
+    """ K-Int, K-Bool, K-Var """
     if ctx.is_basic_type(t):
         return star
     elif t.name in ctx.type_variables:
@@ -159,25 +159,22 @@ def t_base(ctx, t):
                             "Type {} is not a known basic type".format(t))
 
 
-def t_arrow(ctx, t):
-    """ New name: T-Abs """
-    """ T-Arrow """
+def k_abs(ctx, t):
+    """ K-Abs """
     k1 = wellformed(ctx, t.arg_type)  # TODO
     k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
     return k2
 
 
-def t_abs(ctx, t):
-    """ New name: T-TAbs """
-    """ T-Abs """
+def k_tabs(ctx, t):
+    """ K-TAbs """
     nctx = ctx.with_type_var(t.name, t.kind)
     k = wellformed(nctx, t.type)
     return Kind(t.kind, k)
 
 
-def t_app(ctx, t):
-    """ New name: T-TApp """
-    """ T-App """
+def k_tapp(ctx, t):
+    """ K-TApp """
     k = wellformed(ctx, t.target)
     if k.is_star():
         raise TypeException(
@@ -190,8 +187,8 @@ def t_app(ctx, t):
     return k.k2
 
 
-def t_where(ctx, t):
-    """ T-Where """
+def k_where(ctx, t):
+    """ K-Where """
     k = wellformed(ctx, t.type)
 
     if t.name in list(ctx.variables):
@@ -206,17 +203,17 @@ def t_where(ctx, t):
 
 
 def wellformed(ctx, t):
-    """ k = wellformed(\Gamma, T) """
+    """ Gamma |- T : k """
     if type(t) is BasicType:
-        return t_base(ctx, t)
-    elif type(t) is ArrowType:
-        return t_arrow(ctx, t)
+        return k_base(ctx, t)
+    elif type(t) is AbstractionType:
+        return k_abs(ctx, t)
     elif type(t) is RefinedType:
-        return t_where(ctx, t)
+        return k_where(ctx, t)
     elif type(t) is TypeAbstraction:
-        return t_abs(ctx, t)
+        return k_tabs(ctx, t)
     elif type(t) is TypeApplication:
-        return t_app(ctx, t)
+        return k_tapp(ctx, t)
     raise Exception('No wellformed rule for {}'.format(t))
 
 
@@ -295,7 +292,7 @@ def e_if(ctx, n, expects=None):
 
 def e_abs(ctx, n, expects=None):
     """ E-Abs """
-    if expects and type(expects) is ArrowType:
+    if expects and type(expects) is AbstractionType:
         body_expects = substitution_expr_in_type(expects.return_type,
                                                  Var(n.arg_name),
                                                  expects.arg_name)
@@ -303,9 +300,9 @@ def e_abs(ctx, n, expects=None):
         body_expects = None
     nctx = ctx.with_var(n.arg_name, n.arg_type)
     n.body = tc(nctx, n.body, expects=body_expects)
-    n.type = ArrowType(arg_name=n.arg_name,
-                       arg_type=n.arg_type,
-                       return_type=n.body.type)
+    n.type = AbstractionType(arg_name=n.arg_name,
+                             arg_type=n.arg_type,
+                             return_type=n.body.type)
     return n
 
 
@@ -317,7 +314,7 @@ def e_app(ctx, n, expects=None):
         print("Target:", n.target, n.target.type)
         print("Argument", n.target, n.target.type)
 
-    if type(n.target.type) is ArrowType:
+    if type(n.target.type) is AbstractionType:
         ftype = n.target.type
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
         wellformed(nctx, ftype)

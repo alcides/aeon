@@ -30,7 +30,7 @@ def flatten_refined_types(t):
             return RefinedType(t.name, flatten_refined_types(t.type), t.cond)
     elif type(t) is BasicType:
         return t
-    elif type(t) is ArrowType:
+    elif type(t) is AbstractionType:
         return t
     raise Exception("No Refine Flattening for {} ({})".format(t, type(t)))
 
@@ -57,7 +57,7 @@ def zed_translate_var(ztx, v: Var):
         if type(v.type) is BasicType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
-        elif type(v.type) is ArrowType:
+        elif type(v.type) is AbstractionType:
             ztx[v.name] = lambda x: zed_mk_variable(v.name, v.type.return_type
                                                     )  # TODO
         elif type(v.type) is RefinedType:
