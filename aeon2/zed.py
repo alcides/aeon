@@ -4,6 +4,7 @@ import z3
 
 from .types import *
 from .ast import *
+from .stdlib import *
 from .substitutions import *
 from .zed_utils import *
 
@@ -116,22 +117,10 @@ def zed_translate_wrapped(ztx, cond):
 
 
 def zed_initial_context():
-    return {
-        "==": lambda x: lambda y: x == y,
-        "!=": lambda x: lambda y: x != y,
-        "===": lambda x: lambda y: x == y,
-        "!==": lambda x: lambda y: x != y,
-        "<": lambda x: lambda y: x < y,
-        ">": lambda x: lambda y: x > y,
-        "&&": lambda x: lambda y: z3.And(x, y),
-        "||": lambda x: lambda y: z3.Or(x, y),
-        "<=": lambda x: lambda y: x <= y,
-        ">=": lambda x: lambda y: x >= y,
-        "+": lambda x: lambda y: x + y,
-        "-": lambda x: lambda y: x - y,
-        "*": lambda x: lambda y: x * y,
-        "%": lambda x: lambda y: x % y,
-    }
+    c = {}
+    for name in get_all_builtins():
+        c[name] = get_builtin_z3_function(name)
+    return c
 
 
 def zed_verify_entailment(ctx, cond):

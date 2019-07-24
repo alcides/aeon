@@ -21,11 +21,6 @@ reserved_keywords = ['if', 'then', 'else']
 
 # lexer for words.
 
-
-def lexeme(p):
-    p
-
-
 lexeme = lambda p: p << ignore  # skip all ignored characters.
 
 t = lambda k: lexeme(string(k))
@@ -78,7 +73,7 @@ symbol = lexeme(regex(r'[.\d\w_]+')).bind(
 op_1 = t("*") ^ t("/") ^ t("%")
 op_2 = t("+") ^ t("-")
 op_3 = t("<=") ^ t("<") ^ t(">=") ^ t(">") ^ t("===") ^ t("!==") ^ t("==") ^ t(
-    "!=")
+    "!=") ^ t("-->")
 op_4 = t("&&") ^ t("||")
 op_5 = t("=")
 op_all = op_4 ^ op_3 ^ op_2 ^ op_1

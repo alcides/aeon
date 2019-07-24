@@ -1,5 +1,6 @@
 from .types import *
 from .ast import *
+from .stdlib import *
 
 
 def run(a: Program):
@@ -80,49 +81,9 @@ def ctxPut(ctx, varName, var):
     return ctx
 
 
-#-------------------------------------------------------------------------------
-
-# Fix = Y
-Y = lambda F: F(lambda x: Y(F)(x))
-"""
-    Haskell fixpoint:
-    fix :: (a -> a) -> a
-    fix f = let {x = f x} in x
-
-    y=\lambda f.\operatorname {let} x=f\ x\operatorname {in} x
-"""
-
-
-# Builds the context with the native functions
 def nativeFunctions():
-
+    " Builds the context with the native functions "
     ctx = {}
-
-    # Inserir native - talvez fazer modulo para isto
-    ctx['+'] = lambda x: lambda y: x + y
-    ctx['-'] = lambda x: lambda y: x - y
-    ctx['*'] = lambda x: lambda y: x * y
-    ctx['/'] = lambda x: lambda y: x / y
-    ctx['%'] = lambda x: lambda y: x % y
-
-    ctx['=='] = lambda x: lambda y: x == y
-    ctx['==='] = lambda x: lambda y: x == y
-    ctx['!='] = lambda x: lambda y: x != y
-    ctx['!=='] = lambda x: lambda y: x != y
-
-    ctx['&&'] = lambda x: lambda y: x and y
-    ctx['||'] = lambda x: lambda y: x or y
-
-    ctx['<'] = lambda x: lambda y: x < y
-    ctx['>'] = lambda x: lambda y: x > y
-    ctx['<='] = lambda x: lambda y: x <= y
-    ctx['>='] = lambda x: lambda y: x >= y
-
-    ctx['fix'] = Y
-    ctx['print'] = print
-    ctx['emptyList'] = []
-
+    for name in get_all_builtins():
+        ctx[name] = get_builtin_value(name)
     return ctx
-
-
-# ------------------------------------------------------------------------------

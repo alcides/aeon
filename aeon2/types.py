@@ -25,24 +25,9 @@ class TypingContext(object):
         self.basic_types = []
 
     def setup(self):
-        f2 = lambda a, b, c: ArrowType("_1", a, ArrowType("_2", b, c))
-        self.variables = {
-            'native': bottom,
-            '===': f2(t_b, t_b, t_b),
-            '!==': f2(t_b, t_b, t_b),
-            '==': f2(t_i, t_i, t_b),
-            '!=': f2(t_i, t_i, t_b),
-            '>': f2(t_i, t_i, t_b),
-            '>=': f2(t_i, t_i, t_b),
-            '<': f2(t_i, t_i, t_b),
-            '<=': f2(t_i, t_i, t_b),
-            '&&': ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
-            '||': ArrowType("_1", t_b, ArrowType("_2", t_b, t_b)),
-            '+': f2(t_i, t_i, t_i),
-            '-': f2(t_i, t_i, t_i),
-            '*': f2(t_i, t_i, t_i),
-            '%': f2(t_i, t_i, t_i),
-        }
+        from .stdlib import get_all_builtins, get_builtin_type
+        for name in get_all_builtins():
+            self.variables[name] = get_builtin_type(name)
 
         self.type_variables = {
             t_v: star,

@@ -160,6 +160,7 @@ def t_base(ctx, t):
 
 
 def t_arrow(ctx, t):
+    """ New name: T-Abs """
     """ T-Arrow """
     k1 = wellformed(ctx, t.arg_type)  # TODO
     k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
@@ -167,6 +168,7 @@ def t_arrow(ctx, t):
 
 
 def t_abs(ctx, t):
+    """ New name: T-TAbs """
     """ T-Abs """
     nctx = ctx.with_type_var(t.name, t.kind)
     k = wellformed(nctx, t.type)
@@ -174,6 +176,7 @@ def t_abs(ctx, t):
 
 
 def t_app(ctx, t):
+    """ New name: T-TApp """
     """ T-App """
     k = wellformed(ctx, t.target)
     if k.is_star():
@@ -252,15 +255,18 @@ def e_literal(ctx, n, expects=None):
     """ E-Bool, E-Int, E-Basic """
     # Literals have their type filled
     if not n.type:
+        name = "Literal_{}".format(n.value)
         if type(n.value) == bool:
-            n.type = t_b
+            btype = t_b
+            op = "==="
         else:
-            name = "Literal_{}".format(n.value)
-            n.type = RefinedType(name=name,
-                                 type=t_i,
-                                 cond=Application(
-                                     Application(Var("=="), Var(name)),
-                                     Literal(value=n.value, type=t_i)))
+            btype = t_i
+            op = "=="
+        n.type = RefinedType(name=name,
+                             type=btype,
+                             cond=Application(
+                                 Application(Var(op), Var(name)),
+                                 Literal(value=n.value, type=btype)))
 
     return n
 
@@ -283,7 +289,7 @@ def e_if(ctx, n, expects=None):
     if expects:
         n.type = expects
     else:
-        n.type = n.cond.type
+        n.type = n.then.type  # TODO - missing least common supertype else
     return n
 
 
@@ -306,6 +312,11 @@ def e_abs(ctx, n, expects=None):
 def e_app(ctx, n, expects=None):
     """ E-App """
     n.target = tc(ctx, n.target, expects=None)
+
+    if "+" in str(n):
+        print("Target:", n.target, n.target.type)
+        print("Argument", n.target, n.target.type)
+
     if type(n.target.type) is ArrowType:
         ftype = n.target.type
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
@@ -316,10 +327,12 @@ def e_app(ctx, n, expects=None):
 
         return n
     else:
-        raise TypeException('Not a function',
-                            "{} does not have the right type".format(n),
-                            expects=expects,
-                            given=n.target.type)
+        raise TypeException(
+            'Not a function',
+            "{} does not have the right type (had {}, expected {})".format(
+                n, n.target.type, expects),
+            expects=expects,
+            given=n.target.type)
 
 
 def e_tapp(ctx, n, expects=None):
