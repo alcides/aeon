@@ -6,26 +6,26 @@ from .zed import *
 
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
-    """ Sub-Int, Sub-Bool, Sub-Var """
+    """ S-Int, S-Bool, S-Var """
     return sub.name == sup.name
 
 
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
-    """ Sub-WhereL """
+    """ S-WhereL """
     nctx = ctx.with_var(sub.name, sub.type)
     return is_satisfiable(nctx, sub.cond) and \
         is_subtype(ctx, sub.type, sup)
 
 
 def sub_whereR(ctx, sub: Type, sup: RefinedType):
-    """ Sub-WhereR """
+    """ S-WhereR """
     nctx = ctx.with_var(sup.name, sub)
     return is_subtype(ctx, sub, sup.type) and \
         entails(nctx, sup.cond)
 
 
-def sub_arrow(ctx, sub: AbstractionType, sup: AbstractionType):
-    """ Sub-Arrow """
+def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType):
+    """ S-Abs """
     nctx = ctx.with_var(sup.arg_name, sup.arg_type)
     sub_return_type = substitution_expr_in_type(sub.return_type,
                                                 Var(sup.arg_name),
@@ -34,8 +34,8 @@ def sub_arrow(ctx, sub: AbstractionType, sup: AbstractionType):
         is_subtype(nctx, sub_return_type, sup.return_type)
 
 
-def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
-    """ Sub-Abs """
+def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
+    """ S-TAbs """
     if sub.kind != sup.kind:
         return False
     nctx = ctx.with_type_var(sup.name, sup.kind)
@@ -44,24 +44,24 @@ def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
                                         sub.name), sup.type)
 
 
-def sub_appT(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppT . Final case """
+def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication):
+    """ S-TApp . Final case """
     if type(sub.target) is BasicType and type(sup.target) is BasicType:
         return sub.target.name == sup.target.name and is_subtype(
             ctx, sub.argument, sup.argument)
-    print("Weird bug in sub_appT", sub, sup)
+    print("Weird bug in sub_tapp", sub, sup)
     return False
 
 
 def sub_appL(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppL . Beta-reduction on the left """
+    """ S-AppL . Beta-reduction on the left """
     abst = sub.target
     nsub = substitution_type_in_type(abst.type, abst.name, sub.argument)
     return is_subtype(ctx, nsub, sup)
 
 
 def sub_appR(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppR . Beta-reduction on the right"""
+    """ S-AppR . Beta-reduction on the right"""
     abst = sup.target
     nsup = substitution_type_in_type(abst.type, abst.name, sup.argument)
     return is_subtype(ctx, sub, nsup)
@@ -98,15 +98,15 @@ def is_subtype(ctx, sub, sup):
     if type(sub) is RefinedType:
         return sub_whereL(ctx, sub, sup)
     if type(sub) is AbstractionType and type(sup) is AbstractionType:
-        return sub_arrow(ctx, sub, sup)
-    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_abs(ctx, sub, sup)
+    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
+        return sub_tabs(ctx, sub, sup)
     if type(sub) is TypeApplication and type(sup) is TypeApplication:
         if type(sub.target) is TypeAbstraction:
             return sub_appL(ctx, sub, sup)
         if type(sup.target) is TypeAbstraction:
             return sub_appR(ctx, sub, sup)
-        return sub_appT(ctx, sub, sup)
+        return sub_tapp(ctx, sub, sup)
     return False
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
