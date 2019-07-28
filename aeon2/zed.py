@@ -4,6 +4,7 @@ import z3
 
 from .types import *
 from .ast import *
+from .stdlib import *
 from .substitutions import *
 from .zed_utils import *
 
@@ -29,7 +30,7 @@ def flatten_refined_types(t):
             return RefinedType(t.name, flatten_refined_types(t.type), t.cond)
     elif type(t) is BasicType:
         return t
-    elif type(t) is ArrowType:
+    elif type(t) is AbstractionType:
         return t
     raise Exception("No Refine Flattening for {} ({})".format(t, type(t)))
 
@@ -56,7 +57,7 @@ def zed_translate_var(ztx, v: Var):
         if type(v.type) is BasicType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
-        elif type(v.type) is ArrowType:
+        elif type(v.type) is AbstractionType:
             ztx[v.name] = lambda x: zed_mk_variable(v.name, v.type.return_type
                                                     )  # TODO
         elif type(v.type) is RefinedType:
@@ -116,22 +117,10 @@ def zed_translate_wrapped(ztx, cond):
 
 
 def zed_initial_context():
-    return {
-        "==": lambda x: lambda y: x == y,
-        "!=": lambda x: lambda y: x != y,
-        "===": lambda x: lambda y: x == y,
-        "!==": lambda x: lambda y: x != y,
-        "<": lambda x: lambda y: x < y,
-        ">": lambda x: lambda y: x > y,
-        "&&": lambda x: lambda y: z3.And(x, y),
-        "||": lambda x: lambda y: z3.Or(x, y),
-        "<=": lambda x: lambda y: x <= y,
-        ">=": lambda x: lambda y: x >= y,
-        "+": lambda x: lambda y: x + y,
-        "-": lambda x: lambda y: x - y,
-        "*": lambda x: lambda y: x * y,
-        "%": lambda x: lambda y: x % y,
-    }
+    c = {}
+    for name in get_all_builtins():
+        c[name] = get_builtin_z3_function(name)
+    return c
 
 
 def zed_verify_entailment(ctx, cond):

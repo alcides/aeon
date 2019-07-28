@@ -82,11 +82,11 @@ def substitution_expr_in_type(n: Type, replacement: Node, replaced):
         return n
     elif type(n) is RefinedType:
         return RefinedType(n.name, r(n.type), re(n.cond))
-    elif type(n) is ArrowType:
+    elif type(n) is AbstractionType:
         # TODO: verificar se é possível trocar o arg_name
-        return ArrowType(arg_name=n.arg_name,
-                         arg_type=r(n.arg_type),
-                         return_type=r(n.return_type))
+        return AbstractionType(arg_name=n.arg_name,
+                               arg_type=r(n.arg_type),
+                               return_type=r(n.return_type))
     elif type(n) is TypeApplication:
         return TypeApplication(target=re(n.target), argument=r(n.argument))
     elif type(n) is TypeAbstraction:
@@ -113,10 +113,10 @@ def substitution_type_in_type(n, replacement: Type, replaced):
     elif type(n) is RefinedType:
         new_cond = substitution_type_in_expr(n.cond, replacement, replaced)
         return RefinedType(n.name, r(n.type), new_cond)
-    elif type(n) is ArrowType:
-        return ArrowType(arg_name=n.arg_name,
-                         arg_type=r(n.arg_type),
-                         return_type=r(n.return_type))
+    elif type(n) is AbstractionType:
+        return AbstractionType(arg_name=n.arg_name,
+                               arg_type=r(n.arg_type),
+                               return_type=r(n.return_type))
     elif type(n) is TypeApplication:
         return TypeApplication(target=r(n.target), argument=r(n.argument))
     elif type(n) is TypeAbstraction:

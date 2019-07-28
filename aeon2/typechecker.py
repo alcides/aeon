@@ -6,26 +6,26 @@ from .zed import *
 
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
-    """ Sub-Int, Sub-Bool, Sub-Var """
+    """ S-Int, S-Bool, S-Var """
     return sub.name == sup.name
 
 
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
-    """ Sub-WhereL """
+    """ S-WhereL """
     nctx = ctx.with_var(sub.name, sub.type)
     return is_satisfiable(nctx, sub.cond) and \
         is_subtype(ctx, sub.type, sup)
 
 
 def sub_whereR(ctx, sub: Type, sup: RefinedType):
-    """ Sub-WhereR """
+    """ S-WhereR """
     nctx = ctx.with_var(sup.name, sub)
     return is_subtype(ctx, sub, sup.type) and \
         entails(nctx, sup.cond)
 
 
-def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
-    """ Sub-Arrow """
+def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType):
+    """ S-Abs """
     nctx = ctx.with_var(sup.arg_name, sup.arg_type)
     sub_return_type = substitution_expr_in_type(sub.return_type,
                                                 Var(sup.arg_name),
@@ -34,8 +34,8 @@ def sub_arrow(ctx, sub: ArrowType, sup: ArrowType):
         is_subtype(nctx, sub_return_type, sup.return_type)
 
 
-def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
-    """ Sub-Abs """
+def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
+    """ S-TAbs """
     if sub.kind != sup.kind:
         return False
     nctx = ctx.with_type_var(sup.name, sup.kind)
@@ -44,24 +44,24 @@ def sub_abs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
                                         sub.name), sup.type)
 
 
-def sub_appT(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppT . Final case """
+def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication):
+    """ S-TApp . Final case """
     if type(sub.target) is BasicType and type(sup.target) is BasicType:
         return sub.target.name == sup.target.name and is_subtype(
             ctx, sub.argument, sup.argument)
-    print("Weird bug in sub_appT", sub, sup)
+    print("Weird bug in sub_tapp", sub, sup)
     return False
 
 
 def sub_appL(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppL . Beta-reduction on the left """
+    """ S-AppL . Beta-reduction on the left """
     abst = sub.target
     nsub = substitution_type_in_type(abst.type, abst.name, sub.argument)
     return is_subtype(ctx, nsub, sup)
 
 
 def sub_appR(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ Sub-AppR . Beta-reduction on the right"""
+    """ S-AppR . Beta-reduction on the right"""
     abst = sup.target
     nsup = substitution_type_in_type(abst.type, abst.name, sup.argument)
     return is_subtype(ctx, sub, nsup)
@@ -97,16 +97,16 @@ def is_subtype(ctx, sub, sup):
         return sub_whereR(ctx, sub, sup)
     if type(sub) is RefinedType:
         return sub_whereL(ctx, sub, sup)
-    if type(sub) is ArrowType and type(sup) is ArrowType:
-        return sub_arrow(ctx, sub, sup)
-    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
+    if type(sub) is AbstractionType and type(sup) is AbstractionType:
         return sub_abs(ctx, sub, sup)
+    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
+        return sub_tabs(ctx, sub, sup)
     if type(sub) is TypeApplication and type(sup) is TypeApplication:
         if type(sub.target) is TypeAbstraction:
             return sub_appL(ctx, sub, sup)
         if type(sup.target) is TypeAbstraction:
             return sub_appR(ctx, sub, sup)
-        return sub_appT(ctx, sub, sup)
+        return sub_tapp(ctx, sub, sup)
     return False
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
@@ -146,8 +146,8 @@ def is_satisfiable(ctx, cond):
             return True
 
 
-def t_base(ctx, t):
-    """ T-Int, T-Bool, T-Cont """
+def k_base(ctx, t):
+    """ K-Int, K-Bool, K-Var """
     if ctx.is_basic_type(t):
         return star
     elif t.name in ctx.type_variables:
@@ -159,22 +159,22 @@ def t_base(ctx, t):
                             "Type {} is not a known basic type".format(t))
 
 
-def t_arrow(ctx, t):
-    """ T-Arrow """
+def k_abs(ctx, t):
+    """ K-Abs """
     k1 = wellformed(ctx, t.arg_type)  # TODO
     k2 = wellformed(ctx.with_var(t.arg_name, t.arg_type), t.return_type)
     return k2
 
 
-def t_abs(ctx, t):
-    """ T-Abs """
+def k_tabs(ctx, t):
+    """ K-TAbs """
     nctx = ctx.with_type_var(t.name, t.kind)
     k = wellformed(nctx, t.type)
     return Kind(t.kind, k)
 
 
-def t_app(ctx, t):
-    """ T-App """
+def k_tapp(ctx, t):
+    """ K-TApp """
     k = wellformed(ctx, t.target)
     if k.is_star():
         raise TypeException(
@@ -187,8 +187,8 @@ def t_app(ctx, t):
     return k.k2
 
 
-def t_where(ctx, t):
-    """ T-Where """
+def k_where(ctx, t):
+    """ K-Where """
     k = wellformed(ctx, t.type)
 
     if t.name in list(ctx.variables):
@@ -203,17 +203,17 @@ def t_where(ctx, t):
 
 
 def wellformed(ctx, t):
-    """ k = wellformed(\Gamma, T) """
+    """ Gamma |- T : k """
     if type(t) is BasicType:
-        return t_base(ctx, t)
-    elif type(t) is ArrowType:
-        return t_arrow(ctx, t)
+        return k_base(ctx, t)
+    elif type(t) is AbstractionType:
+        return k_abs(ctx, t)
     elif type(t) is RefinedType:
-        return t_where(ctx, t)
+        return k_where(ctx, t)
     elif type(t) is TypeAbstraction:
-        return t_abs(ctx, t)
+        return k_tabs(ctx, t)
     elif type(t) is TypeApplication:
-        return t_app(ctx, t)
+        return k_tapp(ctx, t)
     raise Exception('No wellformed rule for {}'.format(t))
 
 
@@ -252,15 +252,18 @@ def e_literal(ctx, n, expects=None):
     """ E-Bool, E-Int, E-Basic """
     # Literals have their type filled
     if not n.type:
+        name = "Literal_{}".format(n.value)
         if type(n.value) == bool:
-            n.type = t_b
+            btype = t_b
+            op = "==="
         else:
-            name = "Literal_{}".format(n.value)
-            n.type = RefinedType(name=name,
-                                 type=t_i,
-                                 cond=Application(
-                                     Application(Var("=="), Var(name)),
-                                     Literal(value=n.value, type=t_i)))
+            btype = t_i
+            op = "=="
+        n.type = RefinedType(name=name,
+                             type=btype,
+                             cond=Application(
+                                 Application(Var(op), Var(name)),
+                                 Literal(value=n.value, type=btype)))
 
     return n
 
@@ -283,13 +286,13 @@ def e_if(ctx, n, expects=None):
     if expects:
         n.type = expects
     else:
-        n.type = n.cond.type
+        n.type = n.then.type  # TODO - missing least common supertype else
     return n
 
 
 def e_abs(ctx, n, expects=None):
     """ E-Abs """
-    if expects and type(expects) is ArrowType:
+    if expects and type(expects) is AbstractionType:
         body_expects = substitution_expr_in_type(expects.return_type,
                                                  Var(n.arg_name),
                                                  expects.arg_name)
@@ -297,16 +300,21 @@ def e_abs(ctx, n, expects=None):
         body_expects = None
     nctx = ctx.with_var(n.arg_name, n.arg_type)
     n.body = tc(nctx, n.body, expects=body_expects)
-    n.type = ArrowType(arg_name=n.arg_name,
-                       arg_type=n.arg_type,
-                       return_type=n.body.type)
+    n.type = AbstractionType(arg_name=n.arg_name,
+                             arg_type=n.arg_type,
+                             return_type=n.body.type)
     return n
 
 
 def e_app(ctx, n, expects=None):
     """ E-App """
     n.target = tc(ctx, n.target, expects=None)
-    if type(n.target.type) is ArrowType:
+
+    if "+" in str(n):
+        print("Target:", n.target, n.target.type)
+        print("Argument", n.target, n.target.type)
+
+    if type(n.target.type) is AbstractionType:
         ftype = n.target.type
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
         wellformed(nctx, ftype)
@@ -316,10 +324,12 @@ def e_app(ctx, n, expects=None):
 
         return n
     else:
-        raise TypeException('Not a function',
-                            "{} does not have the right type".format(n),
-                            expects=expects,
-                            given=n.target.type)
+        raise TypeException(
+            'Not a function',
+            "{} does not have the right type (had {}, expected {})".format(
+                n, n.target.type, expects),
+            expects=expects,
+            given=n.target.type)
 
 
 def e_tapp(ctx, n, expects=None):

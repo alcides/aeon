@@ -64,7 +64,7 @@ def st(ctx, k, d):
 def fv(T):
     if type(T) is RefinedType:
         return [T.name] + fv(T.type)
-    if type(T) is ArrowType:
+    if type(T) is AbstractionType:
         return [T.arg_name] + fv(T.arg_type) + fv(T.return_type)
     return []
 
@@ -123,7 +123,7 @@ def se_var(ctx, T, d):
     return None
 
 
-def se_abs(ctx, T: ArrowType, d):
+def se_abs(ctx, T: AbstractionType, d):
     """ SE-Abs """
     nctx = ctx.with_var(T.arg_name, T.arg_type)
     body = se(nctx, T.return_type, d - 1)
@@ -154,7 +154,7 @@ def se_app(ctx, T, d):
     print("target of type U:", e2, ":", U)
     nctx = ctx.with_type_var(x, U)
     V = stax(nctx, e2, x, T, d - 1)
-    FT = ArrowType(arg_name=x, arg_type=U, return_type=V)
+    FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
 
     e1 = se(ctx, FT, d - 1)
     print("fun of type:", e1, ":", FT, "should return", T)
@@ -174,7 +174,7 @@ def se(ctx, T, d):
     if d + 100 > 0:
         # TODO
         # yield (1, lambda: se_if(ctx, T, d))
-        if type(T) is ArrowType:
+        if type(T) is AbstractionType:
             yield (100, lambda: se_abs(ctx, T, d))
         if type(T) is RefinedType:
             yield (100, lambda: se_where(ctx, T, d))
