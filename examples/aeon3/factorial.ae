@@ -1,29 +1,29 @@
 import Array
-import native IO.print
+import print from IO
 
-<:
+'''
     Block Comment
-:>
+'''
 
 -- Line Comment
 
-factorial(input:Integer) -> output:(Integer where (self >= 0) and
+factorial(input:Integer) -> output:(Integer where (self >= 0)) where
                                    (self == Arrays.reduce(Arrays.range(1, input),
                                        \x:Integer -> \y:Integer -> x * y))) {
-    -- If example
-    if input == 0:
-        1
-    elif input == 1:
-        1
-    else:
-        input * factorial(input - 1)
-    endif
+    -- Single line if
+    if input == 0 {
+        input = 1 + 1;
+        input;
+    }
+    else {
+        input * factorial(input - 1);
+    }
 }
 
-main(args:Array[String]) -> _:Void {
+main() -> _:Void {
     value1 : Integer = factorial(5);
     value2 : (Integer == 120) = factorial(5);
 
-    print(value1)
-    print(value2)
+    print(value1);
+    print(value2);
 }
