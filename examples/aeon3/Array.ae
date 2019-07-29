@@ -1,9 +1,8 @@
-type Array<T> as Array {
+type Array<T> {
 
     size : (Integer where self >= 0);
 
-
     range(min:Integer, max:Integer) -> array:Array<Integer> where ((min <= max) and res.size == (max - min)) = native;
 
-    reduce(array:Array<T>, f:(T -> (T -> T)) -> T) -> _:T where (array.size > 0)
+    reduce(array:Array<T>, f:(T -> (T -> T)) -> T) -> _:T where (array.size > 0) = native;
 }

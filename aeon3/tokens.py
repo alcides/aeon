@@ -26,6 +26,9 @@ tokens = (
     'IDENTIFIER',
     'ASSIGNMENT',
 
+    # Kind
+    'KIND',
+
     # Hole
     'HOLE',
 
@@ -63,6 +66,9 @@ tokens = (
     'GTE',
 
     # Others
+    'WHERE',
+    'TYPE',
+    'AS',
     'UNDERSCORE',
     'ABSTRACTION',
 
@@ -71,6 +77,12 @@ tokens = (
     'FLOAT',
     'BOOLEAN',
     'STRING',
+
+    # Type Name
+    'TINTEGER',
+    'TFLOAT',
+    'TBOOLEAN',
+    'TSTRING',
 )
 
 # Statements for tokens
@@ -91,6 +103,7 @@ t_ARROW         = r'->'
 t_FATARROW      = r'=>'
 
 t_ASSIGNMENT    = r'='
+t_KIND          = r'\*'     # TODO: ambiguous *
 t_HOLE          = r'_?_'    # temp hole, not a pretty hole
 
 t_PLUS          = r'\+'
@@ -115,6 +128,7 @@ t_GTE           = r'>='
 
 t_UNDERSCORE    = r'_'
 t_ABSTRACTION   = r'\\'
+ # TODO: t_IMPLIES      = r'-->'
 
 reserved_keywords = {
     'import': 'IMPORT',
@@ -125,6 +139,19 @@ reserved_keywords = {
     'else': 'ELSE',
 
     'and': 'AND_STAT',
+    'true': 'BOOLEAN',
+    'false': 'BOOLEAN',
+
+    'where': 'WHERE',
+    'type': 'TYPE',
+    'as': 'AS',
+
+    'integer': 'TINTEGER',
+    'float': 'TFLOAT',
+    'boolean': 'TBOOLEAN',
+    'string':  'TSTRING',
+
+    # TODO: null?
 }
 
 def t_IDENTIFIER(t):
@@ -153,11 +180,6 @@ def t_FLOAT(t):
         t.value = float(t.value)
     except ValueError:
         raise ValueError("Float value is too large %f", t.value)
-    return t
-
-def t_BOOLEAN(t): # pode dar problemas, confirmar
-    r'[true|false]'
-    t.value = t.value == 'true'
     return t
 
 def t_STRING(t):
