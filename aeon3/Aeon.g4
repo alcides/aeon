@@ -10,7 +10,7 @@ aeon
 // Import
 imprt
     : IMPORT path=importName SEMICOLON                              # RegularImport
-    | IMPORT path=importName FROM functionName=IDENTIFIER SEMICOLON # SpecialImport
+    | IMPORT functionName=IDENTIFIER FROM path=importName SEMICOLON # SpecialImport
     ;
 
 importName
@@ -28,21 +28,21 @@ attribute
     : varName=IDENTIFIER COLON varType=typee SEMICOLON;
 
 function
-    : name=IDENTIFIER LPARENS params=parameters? RPARENS RARROW returnType=parameters (WHERE expression (AND expression)*)? ASSIGN (NATIVE | LBRACE body RBRACE) SEMICOLON;
+    : name=IDENTIFIER LPARENS params=parameters? RPARENS RARROW returnName=IDENTIFIER COLON returnType=typee (WHERE expression (AND expression)*)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
 
 parameters
-    | (paramName=IDENTIFIER COLON)? typee                                          # SingleParameter
-    | (paramName=IDENTIFIER COLON typee COMMA)? parameters                         # MultipleParameters
+    : paramName=IDENTIFIER COLON typee                                          # SingleParameter
+    | paramName=IDENTIFIER COLON typee COMMA parameters                         # MultipleParameters
     ;
 
 // paramName=IDENTIFIER COLON (typee | fAbstraction)
 // todo:
 typee
-    : LPARENS typee RPARENS
-    | LBRACE typee WHERE cond=expression RBRACE
-    // | type_application
-    // | fAbstraction
-    | IDENTIFIER
+    : LPARENS typee RPARENS                                                     # TypeeParenthesis
+    | LBRACE typee WHERE cond=expression RBRACE                                 # TypeeCondition
+    // | type_application                                                       # TypeeApplication
+    // | fAbstraction                                                           # TypeeAbstraction
+    | basicType=IDENTIFIER                                                      # TypeeBasicType
     ;
 
 
@@ -51,11 +51,10 @@ fAbstraction : IDENTIFIER;
 
 // Body of the expressions
 body
-    : varName=IDENTIFIER COLON varType=typee ASSIGN exp=expression body?              # BodyVarDefinition
-    | varName=IDENTIFIER ASSIGN exp=expression body?                                  # BodyAssignment
-    | expression body?                                                                # BodyExpression
-    | IF cond=expression THEN then=expression ELSE elseBody=expression body?                        # IfThenElse
-    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=expression RBRACE body?       # IfThenElse
+    : varName=IDENTIFIER COLON varType=typee ASSIGN exp=expression SEMICOLON body?              # BodyVarDefinition
+    | varName=IDENTIFIER ASSIGN exp=expression SEMICOLON body?                                  # BodyAssignment
+    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=expression RBRACE body?   # IfThenElse
+    | expression SEMICOLON body?                                                                # BodyExpression
     ;
 
 
@@ -71,7 +70,8 @@ expression
     | left=expression op=CONJUNCTION right=expression                           # BinaryOperationCall
     | left=expression op=DISJUNCTION right=expression                           # BinaryOperationCall
     | ABSTRACTION varName=IDENTIFIER COLON varType=typee RARROW exp=expression  # Abstraction
-    | IDENTIFIER                                                                # Variable
+    | IF cond=expression THEN then=expression ELSE elseBody=expression SEMICOLON# IfThenElseExpr
+    | varName=IDENTIFIER                                                        # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                         # Literal
     ;
 
@@ -145,8 +145,8 @@ BDIFF: '!=='		;
 
 // Literal values
 BOOLEAN: 'true' | 'false';
-INTEGER: ('0' | '-'? [1-9][0-9]*);
-FLOAT: '-'?[0-9]*'.'?[0-9]+;
+INTEGER: ('0' | [1-9][0-9]*);
+FLOAT: [0-9]*'.'?[0-9]+;
 STRING: '"' ((~["\\\r\n] | '\\' [btnfr"'\\])+)? '"';
 
 // Variables

@@ -199,5 +199,5 @@ class Import(Node):
     def __str__(self):
         result = 'import {}'.format(self.name)
         if self.function is not None:
-            result = '{}.{}'.format(self.function)
+            result = '{}.{}'.format(result, self.function)
         return result

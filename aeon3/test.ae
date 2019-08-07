@@ -1,0 +1,52 @@
+// --- Teste de import 1
+// import prelude.String;
+
+// --- Teste de import 2
+import String from prelude;
+
+// --- Teste de aliasing 1
+// type String as String2;
+
+// --- Teste de funcao 1
+// funcao (x:Integer) -> y:Boolean = native;
+
+// --- Teste de funcao 2
+// funcao () -> y:Boolean = native;
+
+// --- Teste de funcao 3
+// funcao (x:Integer, y:Integer) -> z:Boolean = native;
+
+// --- Teste de funcao 4
+// funcao (x:Integer) -> z:{Integer where (z > 1)} = native;
+
+// --- Teste de funcao 5
+// funcao (x:Integer) -> z:Integer where (x > y) = native;
+
+// --- Teste de funcao 6
+funcao () -> z:Integer {
+    1;
+    2 + 1;
+    3;
+}
+
+// --- Teste de funcao 7
+funcao () -> z:Integer {
+    -1-1;
+}
+
+// --- Teste de funcao 8
+funcao () -> z:Integer {
+    \x:Integer -> x + 1;
+}
+
+// --- Teste de funcao 9
+funcao () -> z:Integer {
+    x : Integer = 10;
+    x;
+}
+
+// --- Teste de funcao 9
+funcao () -> z:Integer {
+    x : Integer = if 10 > 0 then 1 else 0;
+    x;
+}

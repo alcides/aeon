@@ -18,7 +18,7 @@ fix : (a:*) => (f:(x:a) -> a) -> a = native;
 
 
 
-(+) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a+b) == c)} = native;
+(+) : (a:Integer) -> (b:Integer) -> (c:Integer) = native;
 (-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
 (*) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a*b) == c)} = native;
 

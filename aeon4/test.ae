@@ -1,6 +1,0 @@
-import prelude.String;
-
-type String as String2;
-
-// Test de funcao 1
-funcao(x:Integer) -> y:Boolean = native;

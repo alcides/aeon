@@ -136,7 +136,7 @@ class AbstractionType(Type):
 
 
 class RefinedType(Type):
-    """ x:T -> U """
+    """ x:T where U """
 
     def __init__(self, name, type, cond):
         self.name = name

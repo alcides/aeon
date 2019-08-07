@@ -59,8 +59,18 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#typee.
-    def visitTypee(self, ctx:AeonParser.TypeeContext):
+    # Visit a parse tree produced by AeonParser#TypeeParenthesis.
+    def visitTypeeParenthesis(self, ctx:AeonParser.TypeeParenthesisContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#TypeeCondition.
+    def visitTypeeCondition(self, ctx:AeonParser.TypeeConditionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#TypeeBasicType.
+    def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
         return self.visitChildren(ctx)
 
 
@@ -79,13 +89,13 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#BodyExpression.
-    def visitBodyExpression(self, ctx:AeonParser.BodyExpressionContext):
+    # Visit a parse tree produced by AeonParser#IfThenElse.
+    def visitIfThenElse(self, ctx:AeonParser.IfThenElseContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#IfThenElse.
-    def visitIfThenElse(self, ctx:AeonParser.IfThenElseContext):
+    # Visit a parse tree produced by AeonParser#BodyExpression.
+    def visitBodyExpression(self, ctx:AeonParser.BodyExpressionContext):
         return self.visitChildren(ctx)
 
 
@@ -121,6 +131,11 @@ class AeonVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by AeonParser#Abstraction.
     def visitAbstraction(self, ctx:AeonParser.AbstractionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#IfThenElseExpr.
+    def visitIfThenElseExpr(self, ctx:AeonParser.IfThenElseExprContext):
         return self.visitChildren(ctx)
 
 

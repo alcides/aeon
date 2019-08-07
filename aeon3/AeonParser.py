@@ -9,106 +9,109 @@ import sys
 def serializedATN():
     with StringIO() as buf:
         buf.write("\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\66")
-        buf.write("\u00ec\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
+        buf.write("\u00f4\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
         buf.write("\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4\r\t\r\3\2")
         buf.write("\7\2\34\n\2\f\2\16\2\37\13\2\3\2\3\2\3\2\7\2$\n\2\f\2")
         buf.write("\16\2\'\13\2\3\2\3\2\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3")
         buf.write("\3\3\3\5\3\65\n\3\3\4\3\4\3\4\5\4:\n\4\3\5\3\5\3\5\3\5")
         buf.write("\3\5\3\5\3\6\3\6\3\6\5\6E\n\6\3\6\3\6\3\6\3\6\3\6\7\6")
         buf.write("L\n\6\f\6\16\6O\13\6\3\6\3\6\3\7\3\7\3\7\3\7\3\7\3\b\3")
-        buf.write("\b\3\b\5\b[\n\b\3\b\3\b\3\b\3\b\3\b\3\b\3\b\7\bd\n\b\f")
-        buf.write("\b\16\bg\13\b\5\bi\n\b\3\b\3\b\3\b\3\b\3\b\3\b\5\bq\n")
-        buf.write("\b\3\b\3\b\3\t\3\t\3\t\3\t\5\ty\n\t\3\t\3\t\3\t\3\t\5")
-        buf.write("\t\177\n\t\3\t\3\t\3\t\5\t\u0084\n\t\3\n\3\n\3\13\3\13")
-        buf.write("\3\f\3\f\3\f\3\f\3\f\3\f\5\f\u0090\n\f\3\f\3\f\3\f\3\f")
-        buf.write("\5\f\u0096\n\f\3\f\3\f\5\f\u009a\n\f\3\f\3\f\3\f\3\f\3")
-        buf.write("\f\3\f\3\f\5\f\u00a3\n\f\3\f\3\f\3\f\3\f\3\f\3\f\3\f\3")
-        buf.write("\f\3\f\3\f\5\f\u00af\n\f\5\f\u00b1\n\f\3\r\3\r\3\r\3\r")
-        buf.write("\3\r\3\r\3\r\3\r\3\r\3\r\7\r\u00bd\n\r\f\r\16\r\u00c0")
-        buf.write("\13\r\5\r\u00c2\n\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3")
-        buf.write("\r\3\r\3\r\3\r\5\r\u00d0\n\r\3\r\3\r\3\r\3\r\3\r\3\r\3")
+        buf.write("\b\3\b\5\b[\n\b\3\b\3\b\3\b\3\b\3\b\3\b\3\b\3\b\3\b\7")
+        buf.write("\bf\n\b\f\b\16\bi\13\b\5\bk\n\b\3\b\3\b\3\b\3\b\3\b\3")
+        buf.write("\b\3\b\5\bt\n\b\3\t\3\t\3\t\3\t\3\t\3\t\3\t\3\t\3\t\5")
+        buf.write("\t\177\n\t\3\n\3\n\3\n\3\n\3\n\3\n\3\n\3\n\3\n\3\n\3\n")
+        buf.write("\5\n\u008c\n\n\3\13\3\13\3\f\3\f\3\f\3\f\3\f\3\f\3\f\5")
+        buf.write("\f\u0097\n\f\3\f\3\f\3\f\3\f\3\f\5\f\u009e\n\f\3\f\3\f")
+        buf.write("\3\f\3\f\3\f\3\f\3\f\3\f\3\f\3\f\5\f\u00aa\n\f\3\f\3\f")
+        buf.write("\3\f\5\f\u00af\n\f\5\f\u00b1\n\f\3\r\3\r\3\r\3\r\3\r\3")
+        buf.write("\r\3\r\3\r\3\r\3\r\7\r\u00bd\n\r\f\r\16\r\u00c0\13\r\5")
+        buf.write("\r\u00c2\n\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3")
+        buf.write("\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\5\r\u00d8\n\r\3")
         buf.write("\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r\3\r")
-        buf.write("\3\r\7\r\u00e7\n\r\f\r\16\r\u00ea\13\r\3\r\2\3\30\16\2")
-        buf.write("\4\6\b\n\f\16\20\22\24\26\30\2\n\4\2\16\16\62\62\3\2\62")
-        buf.write("\63\4\2\36\36%%\4\2\34\34.\61\4\2\37 \"\"\3\2\35\36\3")
-        buf.write("\2&)\3\2*-\2\u0106\2\35\3\2\2\2\4\64\3\2\2\2\6\66\3\2")
-        buf.write("\2\2\b;\3\2\2\2\nA\3\2\2\2\fR\3\2\2\2\16W\3\2\2\2\20\u0083")
-        buf.write("\3\2\2\2\22\u0085\3\2\2\2\24\u0087\3\2\2\2\26\u00b0\3")
-        buf.write("\2\2\2\30\u00cf\3\2\2\2\32\34\5\4\3\2\33\32\3\2\2\2\34")
-        buf.write("\37\3\2\2\2\35\33\3\2\2\2\35\36\3\2\2\2\36%\3\2\2\2\37")
-        buf.write("\35\3\2\2\2 $\5\b\5\2!$\5\n\6\2\"$\5\16\b\2# \3\2\2\2")
-        buf.write("#!\3\2\2\2#\"\3\2\2\2$\'\3\2\2\2%#\3\2\2\2%&\3\2\2\2&")
-        buf.write("(\3\2\2\2\'%\3\2\2\2()\7\2\2\3)\3\3\2\2\2*+\7\3\2\2+,")
-        buf.write("\5\6\4\2,-\7\21\2\2-\65\3\2\2\2./\7\3\2\2/\60\5\6\4\2")
-        buf.write("\60\61\7\4\2\2\61\62\7\62\2\2\62\63\7\21\2\2\63\65\3\2")
-        buf.write("\2\2\64*\3\2\2\2\64.\3\2\2\2\65\5\3\2\2\2\669\t\2\2\2")
-        buf.write("\678\7\16\2\28:\5\6\4\29\67\3\2\2\29:\3\2\2\2:\7\3\2\2")
-        buf.write("\2;<\7\5\2\2<=\t\3\2\2=>\7\6\2\2>?\5\22\n\2?@\7\21\2\2")
-        buf.write("@\t\3\2\2\2AD\7\5\2\2BC\7\62\2\2CE\7\24\2\2DB\3\2\2\2")
-        buf.write("DE\3\2\2\2EF\3\2\2\2FG\7\62\2\2GH\5\22\n\2HM\7\26\2\2")
-        buf.write("IL\5\f\7\2JL\5\16\b\2KI\3\2\2\2KJ\3\2\2\2LO\3\2\2\2MK")
-        buf.write("\3\2\2\2MN\3\2\2\2NP\3\2\2\2OM\3\2\2\2PQ\7\27\2\2Q\13")
-        buf.write("\3\2\2\2RS\7\62\2\2ST\7\17\2\2TU\5\22\n\2UV\7\21\2\2V")
-        buf.write("\r\3\2\2\2WX\7\62\2\2XZ\7\30\2\2Y[\5\20\t\2ZY\3\2\2\2")
-        buf.write("Z[\3\2\2\2[\\\3\2\2\2\\]\7\31\2\2]^\7\23\2\2^h\5\20\t")
-        buf.write("\2_`\7\13\2\2`e\5\30\r\2ab\7\n\2\2bd\5\30\r\2ca\3\2\2")
-        buf.write("\2dg\3\2\2\2ec\3\2\2\2ef\3\2\2\2fi\3\2\2\2ge\3\2\2\2h")
-        buf.write("_\3\2\2\2hi\3\2\2\2ij\3\2\2\2jp\7\22\2\2kq\7\f\2\2lm\7")
-        buf.write("\26\2\2mn\5\26\f\2no\7\27\2\2oq\3\2\2\2pk\3\2\2\2pl\3")
-        buf.write("\2\2\2qr\3\2\2\2rs\7\21\2\2s\17\3\2\2\2tu\7\62\2\2ux\7")
-        buf.write("\17\2\2vy\5\22\n\2wy\5\24\13\2xv\3\2\2\2xw\3\2\2\2y\u0084")
-        buf.write("\3\2\2\2z{\7\62\2\2{~\7\17\2\2|\177\5\22\n\2}\177\5\24")
-        buf.write("\13\2~|\3\2\2\2~}\3\2\2\2\177\u0080\3\2\2\2\u0080\u0081")
-        buf.write("\7\20\2\2\u0081\u0082\5\20\t\2\u0082\u0084\3\2\2\2\u0083")
-        buf.write("t\3\2\2\2\u0083z\3\2\2\2\u0084\21\3\2\2\2\u0085\u0086")
-        buf.write("\7\62\2\2\u0086\23\3\2\2\2\u0087\u0088\7\62\2\2\u0088")
-        buf.write("\25\3\2\2\2\u0089\u008a\7\62\2\2\u008a\u008b\7\17\2\2")
-        buf.write("\u008b\u008c\5\22\n\2\u008c\u008d\7\22\2\2\u008d\u008f")
-        buf.write("\5\30\r\2\u008e\u0090\5\26\f\2\u008f\u008e\3\2\2\2\u008f")
-        buf.write("\u0090\3\2\2\2\u0090\u00b1\3\2\2\2\u0091\u0092\7\62\2")
-        buf.write("\2\u0092\u0093\7\22\2\2\u0093\u0095\5\30\r\2\u0094\u0096")
-        buf.write("\5\26\f\2\u0095\u0094\3\2\2\2\u0095\u0096\3\2\2\2\u0096")
-        buf.write("\u00b1\3\2\2\2\u0097\u0099\5\30\r\2\u0098\u009a\5\26\f")
-        buf.write("\2\u0099\u0098\3\2\2\2\u0099\u009a\3\2\2\2\u009a\u00b1")
-        buf.write("\3\2\2\2\u009b\u009c\7\7\2\2\u009c\u009d\5\30\r\2\u009d")
-        buf.write("\u009e\7\b\2\2\u009e\u009f\5\30\r\2\u009f\u00a0\7\t\2")
-        buf.write("\2\u00a0\u00a2\5\30\r\2\u00a1\u00a3\5\26\f\2\u00a2\u00a1")
-        buf.write("\3\2\2\2\u00a2\u00a3\3\2\2\2\u00a3\u00b1\3\2\2\2\u00a4")
-        buf.write("\u00a5\7\7\2\2\u00a5\u00a6\5\30\r\2\u00a6\u00a7\7\26\2")
-        buf.write("\2\u00a7\u00a8\5\26\f\2\u00a8\u00a9\7\27\2\2\u00a9\u00aa")
-        buf.write("\7\t\2\2\u00aa\u00ab\7\26\2\2\u00ab\u00ac\5\30\r\2\u00ac")
-        buf.write("\u00ae\7\27\2\2\u00ad\u00af\5\26\f\2\u00ae\u00ad\3\2\2")
-        buf.write("\2\u00ae\u00af\3\2\2\2\u00af\u00b1\3\2\2\2\u00b0\u0089")
-        buf.write("\3\2\2\2\u00b0\u0091\3\2\2\2\u00b0\u0097\3\2\2\2\u00b0")
-        buf.write("\u009b\3\2\2\2\u00b0\u00a4\3\2\2\2\u00b1\27\3\2\2\2\u00b2")
-        buf.write("\u00b3\b\r\1\2\u00b3\u00b4\7\30\2\2\u00b4\u00b5\5\30\r")
-        buf.write("\2\u00b5\u00b6\7\31\2\2\u00b6\u00d0\3\2\2\2\u00b7\u00b8")
-        buf.write("\7\62\2\2\u00b8\u00c1\7\30\2\2\u00b9\u00be\5\30\r\2\u00ba")
-        buf.write("\u00bb\7\20\2\2\u00bb\u00bd\5\30\r\2\u00bc\u00ba\3\2\2")
-        buf.write("\2\u00bd\u00c0\3\2\2\2\u00be\u00bc\3\2\2\2\u00be\u00bf")
-        buf.write("\3\2\2\2\u00bf\u00c2\3\2\2\2\u00c0\u00be\3\2\2\2\u00c1")
-        buf.write("\u00b9\3\2\2\2\u00c1\u00c2\3\2\2\2\u00c2\u00c3\3\2\2\2")
-        buf.write("\u00c3\u00d0\7\31\2\2\u00c4\u00c5\t\4\2\2\u00c5\u00d0")
-        buf.write("\5\30\r\f\u00c6\u00c7\7\r\2\2\u00c7\u00c8\7\62\2\2\u00c8")
-        buf.write("\u00c9\7\17\2\2\u00c9\u00ca\5\22\n\2\u00ca\u00cb\7\23")
-        buf.write("\2\2\u00cb\u00cc\5\30\r\5\u00cc\u00d0\3\2\2\2\u00cd\u00d0")
-        buf.write("\7\62\2\2\u00ce\u00d0\t\5\2\2\u00cf\u00b2\3\2\2\2\u00cf")
-        buf.write("\u00b7\3\2\2\2\u00cf\u00c4\3\2\2\2\u00cf\u00c6\3\2\2\2")
-        buf.write("\u00cf\u00cd\3\2\2\2\u00cf\u00ce\3\2\2\2\u00d0\u00e8\3")
-        buf.write("\2\2\2\u00d1\u00d2\f\r\2\2\u00d2\u00d3\7\"\2\2\u00d3\u00e7")
-        buf.write("\5\30\r\16\u00d4\u00d5\f\13\2\2\u00d5\u00d6\t\6\2\2\u00d6")
-        buf.write("\u00e7\5\30\r\f\u00d7\u00d8\f\n\2\2\u00d8\u00d9\t\7\2")
-        buf.write("\2\u00d9\u00e7\5\30\r\13\u00da\u00db\f\t\2\2\u00db\u00dc")
-        buf.write("\t\b\2\2\u00dc\u00e7\5\30\r\n\u00dd\u00de\f\b\2\2\u00de")
-        buf.write("\u00df\t\t\2\2\u00df\u00e7\5\30\r\t\u00e0\u00e1\f\7\2")
-        buf.write("\2\u00e1\u00e2\7#\2\2\u00e2\u00e7\5\30\r\b\u00e3\u00e4")
-        buf.write("\f\6\2\2\u00e4\u00e5\7$\2\2\u00e5\u00e7\5\30\r\7\u00e6")
-        buf.write("\u00d1\3\2\2\2\u00e6\u00d4\3\2\2\2\u00e6\u00d7\3\2\2\2")
-        buf.write("\u00e6\u00da\3\2\2\2\u00e6\u00dd\3\2\2\2\u00e6\u00e0\3")
-        buf.write("\2\2\2\u00e6\u00e3\3\2\2\2\u00e7\u00ea\3\2\2\2\u00e8\u00e6")
-        buf.write("\3\2\2\2\u00e8\u00e9\3\2\2\2\u00e9\31\3\2\2\2\u00ea\u00e8")
-        buf.write("\3\2\2\2\34\35#%\649DKMZehpx~\u0083\u008f\u0095\u0099")
-        buf.write("\u00a2\u00ae\u00b0\u00be\u00c1\u00cf\u00e6\u00e8")
+        buf.write("\3\r\3\r\3\r\3\r\3\r\3\r\3\r\7\r\u00ef\n\r\f\r\16\r\u00f2")
+        buf.write("\13\r\3\r\2\3\30\16\2\4\6\b\n\f\16\20\22\24\26\30\2\n")
+        buf.write("\4\2\16\16\62\62\3\2\62\63\4\2\36\36%%\4\2\34\34.\61\4")
+        buf.write("\2\37 \"\"\3\2\35\36\3\2&)\3\2*-\2\u010d\2\35\3\2\2\2")
+        buf.write("\4\64\3\2\2\2\6\66\3\2\2\2\b;\3\2\2\2\nA\3\2\2\2\fR\3")
+        buf.write("\2\2\2\16W\3\2\2\2\20~\3\2\2\2\22\u008b\3\2\2\2\24\u008d")
+        buf.write("\3\2\2\2\26\u00b0\3\2\2\2\30\u00d7\3\2\2\2\32\34\5\4\3")
+        buf.write("\2\33\32\3\2\2\2\34\37\3\2\2\2\35\33\3\2\2\2\35\36\3\2")
+        buf.write("\2\2\36%\3\2\2\2\37\35\3\2\2\2 $\5\b\5\2!$\5\n\6\2\"$")
+        buf.write("\5\16\b\2# \3\2\2\2#!\3\2\2\2#\"\3\2\2\2$\'\3\2\2\2%#")
+        buf.write("\3\2\2\2%&\3\2\2\2&(\3\2\2\2\'%\3\2\2\2()\7\2\2\3)\3\3")
+        buf.write("\2\2\2*+\7\3\2\2+,\5\6\4\2,-\7\21\2\2-\65\3\2\2\2./\7")
+        buf.write("\3\2\2/\60\7\62\2\2\60\61\7\4\2\2\61\62\5\6\4\2\62\63")
+        buf.write("\7\21\2\2\63\65\3\2\2\2\64*\3\2\2\2\64.\3\2\2\2\65\5\3")
+        buf.write("\2\2\2\669\t\2\2\2\678\7\16\2\28:\5\6\4\29\67\3\2\2\2")
+        buf.write("9:\3\2\2\2:\7\3\2\2\2;<\7\5\2\2<=\t\3\2\2=>\7\6\2\2>?")
+        buf.write("\5\22\n\2?@\7\21\2\2@\t\3\2\2\2AD\7\5\2\2BC\7\62\2\2C")
+        buf.write("E\7\24\2\2DB\3\2\2\2DE\3\2\2\2EF\3\2\2\2FG\7\62\2\2GH")
+        buf.write("\5\22\n\2HM\7\26\2\2IL\5\f\7\2JL\5\16\b\2KI\3\2\2\2KJ")
+        buf.write("\3\2\2\2LO\3\2\2\2MK\3\2\2\2MN\3\2\2\2NP\3\2\2\2OM\3\2")
+        buf.write("\2\2PQ\7\27\2\2Q\13\3\2\2\2RS\7\62\2\2ST\7\17\2\2TU\5")
+        buf.write("\22\n\2UV\7\21\2\2V\r\3\2\2\2WX\7\62\2\2XZ\7\30\2\2Y[")
+        buf.write("\5\20\t\2ZY\3\2\2\2Z[\3\2\2\2[\\\3\2\2\2\\]\7\31\2\2]")
+        buf.write("^\7\23\2\2^_\7\62\2\2_`\7\17\2\2`j\5\22\n\2ab\7\13\2\2")
+        buf.write("bg\5\30\r\2cd\7\n\2\2df\5\30\r\2ec\3\2\2\2fi\3\2\2\2g")
+        buf.write("e\3\2\2\2gh\3\2\2\2hk\3\2\2\2ig\3\2\2\2ja\3\2\2\2jk\3")
+        buf.write("\2\2\2ks\3\2\2\2lm\7\22\2\2mn\7\f\2\2nt\7\21\2\2op\7\26")
+        buf.write("\2\2pq\5\26\f\2qr\7\27\2\2rt\3\2\2\2sl\3\2\2\2so\3\2\2")
+        buf.write("\2t\17\3\2\2\2uv\7\62\2\2vw\7\17\2\2w\177\5\22\n\2xy\7")
+        buf.write("\62\2\2yz\7\17\2\2z{\5\22\n\2{|\7\20\2\2|}\5\20\t\2}\177")
+        buf.write("\3\2\2\2~u\3\2\2\2~x\3\2\2\2\177\21\3\2\2\2\u0080\u0081")
+        buf.write("\7\30\2\2\u0081\u0082\5\22\n\2\u0082\u0083\7\31\2\2\u0083")
+        buf.write("\u008c\3\2\2\2\u0084\u0085\7\26\2\2\u0085\u0086\5\22\n")
+        buf.write("\2\u0086\u0087\7\13\2\2\u0087\u0088\5\30\r\2\u0088\u0089")
+        buf.write("\7\27\2\2\u0089\u008c\3\2\2\2\u008a\u008c\7\62\2\2\u008b")
+        buf.write("\u0080\3\2\2\2\u008b\u0084\3\2\2\2\u008b\u008a\3\2\2\2")
+        buf.write("\u008c\23\3\2\2\2\u008d\u008e\7\62\2\2\u008e\25\3\2\2")
+        buf.write("\2\u008f\u0090\7\62\2\2\u0090\u0091\7\17\2\2\u0091\u0092")
+        buf.write("\5\22\n\2\u0092\u0093\7\22\2\2\u0093\u0094\5\30\r\2\u0094")
+        buf.write("\u0096\7\21\2\2\u0095\u0097\5\26\f\2\u0096\u0095\3\2\2")
+        buf.write("\2\u0096\u0097\3\2\2\2\u0097\u00b1\3\2\2\2\u0098\u0099")
+        buf.write("\7\62\2\2\u0099\u009a\7\22\2\2\u009a\u009b\5\30\r\2\u009b")
+        buf.write("\u009d\7\21\2\2\u009c\u009e\5\26\f\2\u009d\u009c\3\2\2")
+        buf.write("\2\u009d\u009e\3\2\2\2\u009e\u00b1\3\2\2\2\u009f\u00a0")
+        buf.write("\7\7\2\2\u00a0\u00a1\5\30\r\2\u00a1\u00a2\7\26\2\2\u00a2")
+        buf.write("\u00a3\5\26\f\2\u00a3\u00a4\7\27\2\2\u00a4\u00a5\7\t\2")
+        buf.write("\2\u00a5\u00a6\7\26\2\2\u00a6\u00a7\5\30\r\2\u00a7\u00a9")
+        buf.write("\7\27\2\2\u00a8\u00aa\5\26\f\2\u00a9\u00a8\3\2\2\2\u00a9")
+        buf.write("\u00aa\3\2\2\2\u00aa\u00b1\3\2\2\2\u00ab\u00ac\5\30\r")
+        buf.write("\2\u00ac\u00ae\7\21\2\2\u00ad\u00af\5\26\f\2\u00ae\u00ad")
+        buf.write("\3\2\2\2\u00ae\u00af\3\2\2\2\u00af\u00b1\3\2\2\2\u00b0")
+        buf.write("\u008f\3\2\2\2\u00b0\u0098\3\2\2\2\u00b0\u009f\3\2\2\2")
+        buf.write("\u00b0\u00ab\3\2\2\2\u00b1\27\3\2\2\2\u00b2\u00b3\b\r")
+        buf.write("\1\2\u00b3\u00b4\7\30\2\2\u00b4\u00b5\5\30\r\2\u00b5\u00b6")
+        buf.write("\7\31\2\2\u00b6\u00d8\3\2\2\2\u00b7\u00b8\7\62\2\2\u00b8")
+        buf.write("\u00c1\7\30\2\2\u00b9\u00be\5\30\r\2\u00ba\u00bb\7\20")
+        buf.write("\2\2\u00bb\u00bd\5\30\r\2\u00bc\u00ba\3\2\2\2\u00bd\u00c0")
+        buf.write("\3\2\2\2\u00be\u00bc\3\2\2\2\u00be\u00bf\3\2\2\2\u00bf")
+        buf.write("\u00c2\3\2\2\2\u00c0\u00be\3\2\2\2\u00c1\u00b9\3\2\2\2")
+        buf.write("\u00c1\u00c2\3\2\2\2\u00c2\u00c3\3\2\2\2\u00c3\u00d8\7")
+        buf.write("\31\2\2\u00c4\u00c5\t\4\2\2\u00c5\u00d8\5\30\r\r\u00c6")
+        buf.write("\u00c7\7\r\2\2\u00c7\u00c8\7\62\2\2\u00c8\u00c9\7\17\2")
+        buf.write("\2\u00c9\u00ca\5\22\n\2\u00ca\u00cb\7\23\2\2\u00cb\u00cc")
+        buf.write("\5\30\r\6\u00cc\u00d8\3\2\2\2\u00cd\u00ce\7\7\2\2\u00ce")
+        buf.write("\u00cf\5\30\r\2\u00cf\u00d0\7\b\2\2\u00d0\u00d1\5\30\r")
+        buf.write("\2\u00d1\u00d2\7\t\2\2\u00d2\u00d3\5\30\r\2\u00d3\u00d4")
+        buf.write("\7\21\2\2\u00d4\u00d8\3\2\2\2\u00d5\u00d8\7\62\2\2\u00d6")
+        buf.write("\u00d8\t\5\2\2\u00d7\u00b2\3\2\2\2\u00d7\u00b7\3\2\2\2")
+        buf.write("\u00d7\u00c4\3\2\2\2\u00d7\u00c6\3\2\2\2\u00d7\u00cd\3")
+        buf.write("\2\2\2\u00d7\u00d5\3\2\2\2\u00d7\u00d6\3\2\2\2\u00d8\u00f0")
+        buf.write("\3\2\2\2\u00d9\u00da\f\16\2\2\u00da\u00db\7\"\2\2\u00db")
+        buf.write("\u00ef\5\30\r\17\u00dc\u00dd\f\f\2\2\u00dd\u00de\t\6\2")
+        buf.write("\2\u00de\u00ef\5\30\r\r\u00df\u00e0\f\13\2\2\u00e0\u00e1")
+        buf.write("\t\7\2\2\u00e1\u00ef\5\30\r\f\u00e2\u00e3\f\n\2\2\u00e3")
+        buf.write("\u00e4\t\b\2\2\u00e4\u00ef\5\30\r\13\u00e5\u00e6\f\t\2")
+        buf.write("\2\u00e6\u00e7\t\t\2\2\u00e7\u00ef\5\30\r\n\u00e8\u00e9")
+        buf.write("\f\b\2\2\u00e9\u00ea\7#\2\2\u00ea\u00ef\5\30\r\t\u00eb")
+        buf.write("\u00ec\f\7\2\2\u00ec\u00ed\7$\2\2\u00ed\u00ef\5\30\r\b")
+        buf.write("\u00ee\u00d9\3\2\2\2\u00ee\u00dc\3\2\2\2\u00ee\u00df\3")
+        buf.write("\2\2\2\u00ee\u00e2\3\2\2\2\u00ee\u00e5\3\2\2\2\u00ee\u00e8")
+        buf.write("\3\2\2\2\u00ee\u00eb\3\2\2\2\u00ef\u00f2\3\2\2\2\u00f0")
+        buf.write("\u00ee\3\2\2\2\u00f0\u00f1\3\2\2\2\u00f1\31\3\2\2\2\u00f2")
+        buf.write("\u00f0\3\2\2\2\32\35#%\649DKMZgjs~\u008b\u0096\u009d\u00a9")
+        buf.write("\u00ae\u00b0\u00be\u00c1\u00d7\u00ee\u00f0")
         return buf.getvalue()
 
 
@@ -367,8 +370,8 @@ class AeonParser ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ImprtContext
             super().__init__(parser)
-            self.path = None # ImportNameContext
             self.functionName = None # Token
+            self.path = None # ImportNameContext
             self.copyFrom(ctx)
 
         def IMPORT(self):
@@ -377,11 +380,11 @@ class AeonParser ( Parser ):
             return self.getToken(AeonParser.FROM, 0)
         def SEMICOLON(self):
             return self.getToken(AeonParser.SEMICOLON, 0)
+        def IDENTIFIER(self):
+            return self.getToken(AeonParser.IDENTIFIER, 0)
         def importName(self):
             return self.getTypedRuleContext(AeonParser.ImportNameContext,0)
 
-        def IDENTIFIER(self):
-            return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitSpecialImport" ):
@@ -416,11 +419,11 @@ class AeonParser ( Parser ):
                 self.state = 44
                 self.match(AeonParser.IMPORT)
                 self.state = 45
-                localctx.path = self.importName()
+                localctx.functionName = self.match(AeonParser.IDENTIFIER)
                 self.state = 46
                 self.match(AeonParser.FROM)
                 self.state = 47
-                localctx.functionName = self.match(AeonParser.IDENTIFIER)
+                localctx.path = self.importName()
                 self.state = 48
                 self.match(AeonParser.SEMICOLON)
                 pass
@@ -747,7 +750,9 @@ class AeonParser ( Parser ):
             self.parser = parser
             self.name = None # Token
             self.params = None # ParametersContext
-            self.returnType = None # ParametersContext
+            self.returnName = None # Token
+            self.returnType = None # TypeeContext
+            self.native = None # Token
 
         def LPARENS(self):
             return self.getToken(AeonParser.LPARENS, 0)
@@ -758,24 +763,24 @@ class AeonParser ( Parser ):
         def RARROW(self):
             return self.getToken(AeonParser.RARROW, 0)
 
+        def COLON(self):
+            return self.getToken(AeonParser.COLON, 0)
+
+        def IDENTIFIER(self, i:int=None):
+            if i is None:
+                return self.getTokens(AeonParser.IDENTIFIER)
+            else:
+                return self.getToken(AeonParser.IDENTIFIER, i)
+
+        def typee(self):
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
+
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
 
         def SEMICOLON(self):
             return self.getToken(AeonParser.SEMICOLON, 0)
-
-        def IDENTIFIER(self):
-            return self.getToken(AeonParser.IDENTIFIER, 0)
-
-        def parameters(self, i:int=None):
-            if i is None:
-                return self.getTypedRuleContexts(AeonParser.ParametersContext)
-            else:
-                return self.getTypedRuleContext(AeonParser.ParametersContext,i)
-
-
-        def NATIVE(self):
-            return self.getToken(AeonParser.NATIVE, 0)
 
         def LBRACE(self):
             return self.getToken(AeonParser.LBRACE, 0)
@@ -795,6 +800,13 @@ class AeonParser ( Parser ):
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
                 return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
+
+
+        def NATIVE(self):
+            return self.getToken(AeonParser.NATIVE, 0)
+
+        def parameters(self):
+            return self.getTypedRuleContext(AeonParser.ParametersContext,0)
 
 
         def AND(self, i:int=None):
@@ -839,51 +851,55 @@ class AeonParser ( Parser ):
             self.state = 91
             self.match(AeonParser.RARROW)
             self.state = 92
-            localctx.returnType = self.parameters()
-            self.state = 102
+            localctx.returnName = self.match(AeonParser.IDENTIFIER)
+            self.state = 93
+            self.match(AeonParser.COLON)
+            self.state = 94
+            localctx.returnType = self.typee()
+            self.state = 104
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==AeonParser.WHERE:
-                self.state = 93
+                self.state = 95
                 self.match(AeonParser.WHERE)
-                self.state = 94
+                self.state = 96
                 self.expression(0)
-                self.state = 99
+                self.state = 101
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while _la==AeonParser.AND:
-                    self.state = 95
+                    self.state = 97
                     self.match(AeonParser.AND)
-                    self.state = 96
+                    self.state = 98
                     self.expression(0)
-                    self.state = 101
+                    self.state = 103
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
 
 
 
-            self.state = 104
-            self.match(AeonParser.ASSIGN)
-            self.state = 110
+            self.state = 113
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [AeonParser.NATIVE]:
-                self.state = 105
-                self.match(AeonParser.NATIVE)
+            if token in [AeonParser.ASSIGN]:
+                self.state = 106
+                self.match(AeonParser.ASSIGN)
+                self.state = 107
+                localctx.native = self.match(AeonParser.NATIVE)
+                self.state = 108
+                self.match(AeonParser.SEMICOLON)
                 pass
             elif token in [AeonParser.LBRACE]:
-                self.state = 106
+                self.state = 109
                 self.match(AeonParser.LBRACE)
-                self.state = 107
+                self.state = 110
                 self.body()
-                self.state = 108
+                self.state = 111
                 self.match(AeonParser.RBRACE)
                 pass
             else:
                 raise NoViableAltException(self)
 
-            self.state = 112
-            self.match(AeonParser.SEMICOLON)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -918,6 +934,9 @@ class AeonParser ( Parser ):
 
         def COLON(self):
             return self.getToken(AeonParser.COLON, 0)
+        def typee(self):
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
         def COMMA(self):
             return self.getToken(AeonParser.COMMA, 0)
         def parameters(self):
@@ -925,12 +944,6 @@ class AeonParser ( Parser ):
 
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
-        def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
-
-        def fAbstraction(self):
-            return self.getTypedRuleContext(AeonParser.FAbstractionContext,0)
-
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitMultipleParameters" ):
@@ -948,14 +961,11 @@ class AeonParser ( Parser ):
 
         def COLON(self):
             return self.getToken(AeonParser.COLON, 0)
-        def IDENTIFIER(self):
-            return self.getToken(AeonParser.IDENTIFIER, 0)
         def typee(self):
             return self.getTypedRuleContext(AeonParser.TypeeContext,0)
 
-        def fAbstraction(self):
-            return self.getTypedRuleContext(AeonParser.FAbstractionContext,0)
-
+        def IDENTIFIER(self):
+            return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitSingleParameter" ):
@@ -970,56 +980,32 @@ class AeonParser ( Parser ):
         localctx = AeonParser.ParametersContext(self, self._ctx, self.state)
         self.enterRule(localctx, 14, self.RULE_parameters)
         try:
-            self.state = 129
+            self.state = 124
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,14,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,12,self._ctx)
             if la_ == 1:
                 localctx = AeonParser.SingleParameterContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
-                self.state = 114
-                localctx.paramName = self.match(AeonParser.IDENTIFIER)
                 self.state = 115
+                localctx.paramName = self.match(AeonParser.IDENTIFIER)
+                self.state = 116
                 self.match(AeonParser.COLON)
-                self.state = 118
-                self._errHandler.sync(self)
-                la_ = self._interp.adaptivePredict(self._input,12,self._ctx)
-                if la_ == 1:
-                    self.state = 116
-                    self.typee()
-                    pass
-
-                elif la_ == 2:
-                    self.state = 117
-                    self.fAbstraction()
-                    pass
-
-
+                self.state = 117
+                self.typee()
                 pass
 
             elif la_ == 2:
                 localctx = AeonParser.MultipleParametersContext(self, localctx)
                 self.enterOuterAlt(localctx, 2)
-                self.state = 120
+                self.state = 118
                 localctx.paramName = self.match(AeonParser.IDENTIFIER)
-                self.state = 121
+                self.state = 119
                 self.match(AeonParser.COLON)
-                self.state = 124
-                self._errHandler.sync(self)
-                la_ = self._interp.adaptivePredict(self._input,13,self._ctx)
-                if la_ == 1:
-                    self.state = 122
-                    self.typee()
-                    pass
-
-                elif la_ == 2:
-                    self.state = 123
-                    self.fAbstraction()
-                    pass
-
-
-                self.state = 126
+                self.state = 120
+                self.typee()
+                self.state = 121
                 self.match(AeonParser.COMMA)
-                self.state = 127
+                self.state = 122
                 self.parameters()
                 pass
 
@@ -1039,18 +1025,79 @@ class AeonParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def IDENTIFIER(self):
-            return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee
 
+     
+        def copyFrom(self, ctx:ParserRuleContext):
+            super().copyFrom(ctx)
+
+
+
+    class TypeeBasicTypeContext(TypeeContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.TypeeContext
+            super().__init__(parser)
+            self.basicType = None # Token
+            self.copyFrom(ctx)
+
+        def IDENTIFIER(self):
+            return self.getToken(AeonParser.IDENTIFIER, 0)
+
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitTypee" ):
-                return visitor.visitTypee(self)
+            if hasattr( visitor, "visitTypeeBasicType" ):
+                return visitor.visitTypeeBasicType(self)
             else:
                 return visitor.visitChildren(self)
 
+
+    class TypeeConditionContext(TypeeContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.TypeeContext
+            super().__init__(parser)
+            self.cond = None # ExpressionContext
+            self.copyFrom(ctx)
+
+        def LBRACE(self):
+            return self.getToken(AeonParser.LBRACE, 0)
+        def typee(self):
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
+        def WHERE(self):
+            return self.getToken(AeonParser.WHERE, 0)
+        def RBRACE(self):
+            return self.getToken(AeonParser.RBRACE, 0)
+        def expression(self):
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
+
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypeeCondition" ):
+                return visitor.visitTypeeCondition(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class TypeeParenthesisContext(TypeeContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.TypeeContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def LPARENS(self):
+            return self.getToken(AeonParser.LPARENS, 0)
+        def typee(self):
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
+        def RPARENS(self):
+            return self.getToken(AeonParser.RPARENS, 0)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypeeParenthesis" ):
+                return visitor.visitTypeeParenthesis(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1059,9 +1106,42 @@ class AeonParser ( Parser ):
         localctx = AeonParser.TypeeContext(self, self._ctx, self.state)
         self.enterRule(localctx, 16, self.RULE_typee)
         try:
-            self.enterOuterAlt(localctx, 1)
-            self.state = 131
-            self.match(AeonParser.IDENTIFIER)
+            self.state = 137
+            self._errHandler.sync(self)
+            token = self._input.LA(1)
+            if token in [AeonParser.LPARENS]:
+                localctx = AeonParser.TypeeParenthesisContext(self, localctx)
+                self.enterOuterAlt(localctx, 1)
+                self.state = 126
+                self.match(AeonParser.LPARENS)
+                self.state = 127
+                self.typee()
+                self.state = 128
+                self.match(AeonParser.RPARENS)
+                pass
+            elif token in [AeonParser.LBRACE]:
+                localctx = AeonParser.TypeeConditionContext(self, localctx)
+                self.enterOuterAlt(localctx, 2)
+                self.state = 130
+                self.match(AeonParser.LBRACE)
+                self.state = 131
+                self.typee()
+                self.state = 132
+                self.match(AeonParser.WHERE)
+                self.state = 133
+                localctx.cond = self.expression(0)
+                self.state = 134
+                self.match(AeonParser.RBRACE)
+                pass
+            elif token in [AeonParser.IDENTIFIER]:
+                localctx = AeonParser.TypeeBasicTypeContext(self, localctx)
+                self.enterOuterAlt(localctx, 3)
+                self.state = 136
+                localctx.basicType = self.match(AeonParser.IDENTIFIER)
+                pass
+            else:
+                raise NoViableAltException(self)
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1098,7 +1178,7 @@ class AeonParser ( Parser ):
         self.enterRule(localctx, 18, self.RULE_fAbstraction)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 133
+            self.state = 139
             self.match(AeonParser.IDENTIFIER)
         except RecognitionException as re:
             localctx.exception = re
@@ -1138,6 +1218,8 @@ class AeonParser ( Parser ):
             return self.getToken(AeonParser.COLON, 0)
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
+        def SEMICOLON(self):
+            return self.getToken(AeonParser.SEMICOLON, 0)
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
         def typee(self):
@@ -1166,6 +1248,8 @@ class AeonParser ( Parser ):
         def expression(self):
             return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
+        def SEMICOLON(self):
+            return self.getToken(AeonParser.SEMICOLON, 0)
         def body(self):
             return self.getTypedRuleContext(AeonParser.BodyContext,0)
 
@@ -1187,6 +1271,8 @@ class AeonParser ( Parser ):
 
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
+        def SEMICOLON(self):
+            return self.getToken(AeonParser.SEMICOLON, 0)
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
         def expression(self):
@@ -1208,14 +1294,22 @@ class AeonParser ( Parser ):
         def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.BodyContext
             super().__init__(parser)
             self.cond = None # ExpressionContext
-            self.then = None # ExpressionContext
+            self.then = None # BodyContext
             self.elseBody = None # ExpressionContext
             self.copyFrom(ctx)
 
         def IF(self):
             return self.getToken(AeonParser.IF, 0)
-        def THEN(self):
-            return self.getToken(AeonParser.THEN, 0)
+        def LBRACE(self, i:int=None):
+            if i is None:
+                return self.getTokens(AeonParser.LBRACE)
+            else:
+                return self.getToken(AeonParser.LBRACE, i)
+        def RBRACE(self, i:int=None):
+            if i is None:
+                return self.getTokens(AeonParser.RBRACE)
+            else:
+                return self.getToken(AeonParser.RBRACE, i)
         def ELSE(self):
             return self.getToken(AeonParser.ELSE, 0)
         def expression(self, i:int=None):
@@ -1230,16 +1324,6 @@ class AeonParser ( Parser ):
             else:
                 return self.getTypedRuleContext(AeonParser.BodyContext,i)
 
-        def LBRACE(self, i:int=None):
-            if i is None:
-                return self.getTokens(AeonParser.LBRACE)
-            else:
-                return self.getToken(AeonParser.LBRACE, i)
-        def RBRACE(self, i:int=None):
-            if i is None:
-                return self.getTokens(AeonParser.RBRACE)
-            else:
-                return self.getToken(AeonParser.RBRACE, i)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitIfThenElse" ):
@@ -1257,25 +1341,27 @@ class AeonParser ( Parser ):
         try:
             self.state = 174
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,20,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,18,self._ctx)
             if la_ == 1:
                 localctx = AeonParser.BodyVarDefinitionContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
-                self.state = 135
-                localctx.varName = self.match(AeonParser.IDENTIFIER)
-                self.state = 136
-                self.match(AeonParser.COLON)
-                self.state = 137
-                localctx.varType = self.typee()
-                self.state = 138
-                self.match(AeonParser.ASSIGN)
-                self.state = 139
-                localctx.exp = self.expression(0)
                 self.state = 141
+                localctx.varName = self.match(AeonParser.IDENTIFIER)
+                self.state = 142
+                self.match(AeonParser.COLON)
+                self.state = 143
+                localctx.varType = self.typee()
+                self.state = 144
+                self.match(AeonParser.ASSIGN)
+                self.state = 145
+                localctx.exp = self.expression(0)
+                self.state = 146
+                self.match(AeonParser.SEMICOLON)
+                self.state = 148
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
-                    self.state = 140
+                    self.state = 147
                     self.body()
 
 
@@ -1284,83 +1370,62 @@ class AeonParser ( Parser ):
             elif la_ == 2:
                 localctx = AeonParser.BodyAssignmentContext(self, localctx)
                 self.enterOuterAlt(localctx, 2)
-                self.state = 143
+                self.state = 150
                 localctx.varName = self.match(AeonParser.IDENTIFIER)
-                self.state = 144
+                self.state = 151
                 self.match(AeonParser.ASSIGN)
-                self.state = 145
+                self.state = 152
                 localctx.exp = self.expression(0)
-                self.state = 147
+                self.state = 153
+                self.match(AeonParser.SEMICOLON)
+                self.state = 155
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
-                    self.state = 146
+                    self.state = 154
                     self.body()
 
 
                 pass
 
             elif la_ == 3:
-                localctx = AeonParser.BodyExpressionContext(self, localctx)
+                localctx = AeonParser.IfThenElseContext(self, localctx)
                 self.enterOuterAlt(localctx, 3)
-                self.state = 149
-                self.expression(0)
-                self.state = 151
+                self.state = 157
+                self.match(AeonParser.IF)
+                self.state = 158
+                localctx.cond = self.expression(0)
+                self.state = 159
+                self.match(AeonParser.LBRACE)
+                self.state = 160
+                localctx.then = self.body()
+                self.state = 161
+                self.match(AeonParser.RBRACE)
+                self.state = 162
+                self.match(AeonParser.ELSE)
+                self.state = 163
+                self.match(AeonParser.LBRACE)
+                self.state = 164
+                localctx.elseBody = self.expression(0)
+                self.state = 165
+                self.match(AeonParser.RBRACE)
+                self.state = 167
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
-                    self.state = 150
+                    self.state = 166
                     self.body()
 
 
                 pass
 
             elif la_ == 4:
-                localctx = AeonParser.IfThenElseContext(self, localctx)
+                localctx = AeonParser.BodyExpressionContext(self, localctx)
                 self.enterOuterAlt(localctx, 4)
-                self.state = 153
-                self.match(AeonParser.IF)
-                self.state = 154
-                localctx.cond = self.expression(0)
-                self.state = 155
-                self.match(AeonParser.THEN)
-                self.state = 156
-                localctx.then = self.expression(0)
-                self.state = 157
-                self.match(AeonParser.ELSE)
-                self.state = 158
-                localctx.elseBody = self.expression(0)
-                self.state = 160
-                self._errHandler.sync(self)
-                _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
-                    self.state = 159
-                    self.body()
-
-
-                pass
-
-            elif la_ == 5:
-                localctx = AeonParser.IfThenElseContext(self, localctx)
-                self.enterOuterAlt(localctx, 5)
-                self.state = 162
-                self.match(AeonParser.IF)
-                self.state = 163
-                localctx.cond = self.expression(0)
-                self.state = 164
-                self.match(AeonParser.LBRACE)
-                self.state = 165
-                localctx.then = self.body()
-                self.state = 166
-                self.match(AeonParser.RBRACE)
-                self.state = 167
-                self.match(AeonParser.ELSE)
-                self.state = 168
-                self.match(AeonParser.LBRACE)
                 self.state = 169
-                localctx.elseBody = self.expression(0)
+                self.expression(0)
                 self.state = 170
-                self.match(AeonParser.RBRACE)
+                self.match(AeonParser.SEMICOLON)
                 self.state = 172
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
@@ -1421,6 +1486,7 @@ class AeonParser ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
+            self.varName = None # Token
             self.copyFrom(ctx)
 
         def IDENTIFIER(self):
@@ -1597,6 +1663,37 @@ class AeonParser ( Parser ):
                 return visitor.visitChildren(self)
 
 
+    class IfThenElseExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
+            super().__init__(parser)
+            self.cond = None # ExpressionContext
+            self.then = None # ExpressionContext
+            self.elseBody = None # ExpressionContext
+            self.copyFrom(ctx)
+
+        def IF(self):
+            return self.getToken(AeonParser.IF, 0)
+        def THEN(self):
+            return self.getToken(AeonParser.THEN, 0)
+        def ELSE(self):
+            return self.getToken(AeonParser.ELSE, 0)
+        def SEMICOLON(self):
+            return self.getToken(AeonParser.SEMICOLON, 0)
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(AeonParser.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
+
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitIfThenElseExpr" ):
+                return visitor.visitIfThenElseExpr(self)
+            else:
+                return visitor.visitChildren(self)
+
+
 
     def expression(self, _p:int=0):
         _parentctx = self._ctx
@@ -1608,9 +1705,9 @@ class AeonParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 205
+            self.state = 213
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,23,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,21,self._ctx)
             if la_ == 1:
                 localctx = AeonParser.ParenthesisContext(self, localctx)
                 self._ctx = localctx
@@ -1635,7 +1732,7 @@ class AeonParser ( Parser ):
                 self.state = 191
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.LPARENS) | (1 << AeonParser.HOLE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
                     self.state = 183
                     self.expression(0)
                     self.state = 188
@@ -1669,7 +1766,7 @@ class AeonParser ( Parser ):
                     self._errHandler.reportMatch(self)
                     self.consume()
                 self.state = 195
-                localctx.right = self.expression(10)
+                localctx.right = self.expression(11)
                 pass
 
             elif la_ == 4:
@@ -1687,22 +1784,42 @@ class AeonParser ( Parser ):
                 self.state = 200
                 self.match(AeonParser.RARROW)
                 self.state = 201
-                localctx.exp = self.expression(3)
+                localctx.exp = self.expression(4)
                 pass
 
             elif la_ == 5:
-                localctx = AeonParser.VariableContext(self, localctx)
+                localctx = AeonParser.IfThenElseExprContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 203
-                self.match(AeonParser.IDENTIFIER)
+                self.match(AeonParser.IF)
+                self.state = 204
+                localctx.cond = self.expression(0)
+                self.state = 205
+                self.match(AeonParser.THEN)
+                self.state = 206
+                localctx.then = self.expression(0)
+                self.state = 207
+                self.match(AeonParser.ELSE)
+                self.state = 208
+                localctx.elseBody = self.expression(0)
+                self.state = 209
+                self.match(AeonParser.SEMICOLON)
                 pass
 
             elif la_ == 6:
+                localctx = AeonParser.VariableContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
+                self.state = 211
+                localctx.varName = self.match(AeonParser.IDENTIFIER)
+                pass
+
+            elif la_ == 7:
                 localctx = AeonParser.LiteralContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
-                self.state = 204
+                self.state = 212
                 localctx.value = self._input.LT(1)
                 _la = self._input.LA(1)
                 if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.HOLE) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING))) != 0)):
@@ -1714,40 +1831,40 @@ class AeonParser ( Parser ):
 
 
             self._ctx.stop = self._input.LT(-1)
-            self.state = 230
+            self.state = 238
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,25,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,23,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
-                    self.state = 228
+                    self.state = 236
                     self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input,24,self._ctx)
+                    la_ = self._interp.adaptivePredict(self._input,22,self._ctx)
                     if la_ == 1:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 207
-                        if not self.precpred(self._ctx, 11):
+                        self.state = 215
+                        if not self.precpred(self._ctx, 12):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 11)")
-                        self.state = 208
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 12)")
+                        self.state = 216
                         localctx.op = self.match(AeonParser.POWER)
-                        self.state = 209
-                        localctx.right = self.expression(12)
+                        self.state = 217
+                        localctx.right = self.expression(13)
                         pass
 
                     elif la_ == 2:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 210
-                        if not self.precpred(self._ctx, 9):
+                        self.state = 218
+                        if not self.precpred(self._ctx, 10):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 9)")
-                        self.state = 211
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 10)")
+                        self.state = 219
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.MULT) | (1 << AeonParser.QUOTIENT) | (1 << AeonParser.POWER))) != 0)):
@@ -1755,19 +1872,19 @@ class AeonParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 212
-                        localctx.right = self.expression(10)
+                        self.state = 220
+                        localctx.right = self.expression(11)
                         pass
 
                     elif la_ == 3:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 213
-                        if not self.precpred(self._ctx, 8):
+                        self.state = 221
+                        if not self.precpred(self._ctx, 9):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 8)")
-                        self.state = 214
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 9)")
+                        self.state = 222
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==AeonParser.PLUS or _la==AeonParser.MINUS):
@@ -1775,19 +1892,19 @@ class AeonParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 215
-                        localctx.right = self.expression(9)
+                        self.state = 223
+                        localctx.right = self.expression(10)
                         pass
 
                     elif la_ == 4:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 216
-                        if not self.precpred(self._ctx, 7):
+                        self.state = 224
+                        if not self.precpred(self._ctx, 8):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
-                        self.state = 217
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 8)")
+                        self.state = 225
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.LT) | (1 << AeonParser.LE) | (1 << AeonParser.GT) | (1 << AeonParser.GE))) != 0)):
@@ -1795,19 +1912,19 @@ class AeonParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 218
-                        localctx.right = self.expression(8)
+                        self.state = 226
+                        localctx.right = self.expression(9)
                         pass
 
                     elif la_ == 5:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 219
-                        if not self.precpred(self._ctx, 6):
+                        self.state = 227
+                        if not self.precpred(self._ctx, 7):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
-                        self.state = 220
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
+                        self.state = 228
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.EQUAL) | (1 << AeonParser.DIFF) | (1 << AeonParser.BEQUAL) | (1 << AeonParser.BDIFF))) != 0)):
@@ -1815,42 +1932,42 @@ class AeonParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 221
-                        localctx.right = self.expression(7)
+                        self.state = 229
+                        localctx.right = self.expression(8)
                         pass
 
                     elif la_ == 6:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 222
-                        if not self.precpred(self._ctx, 5):
+                        self.state = 230
+                        if not self.precpred(self._ctx, 6):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 5)")
-                        self.state = 223
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
+                        self.state = 231
                         localctx.op = self.match(AeonParser.CONJUNCTION)
-                        self.state = 224
-                        localctx.right = self.expression(6)
+                        self.state = 232
+                        localctx.right = self.expression(7)
                         pass
 
                     elif la_ == 7:
                         localctx = AeonParser.BinaryOperationCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                        self.state = 225
-                        if not self.precpred(self._ctx, 4):
+                        self.state = 233
+                        if not self.precpred(self._ctx, 5):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
-                        self.state = 226
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 5)")
+                        self.state = 234
                         localctx.op = self.match(AeonParser.DISJUNCTION)
-                        self.state = 227
-                        localctx.right = self.expression(5)
+                        self.state = 235
+                        localctx.right = self.expression(6)
                         pass
 
              
-                self.state = 232
+                self.state = 240
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,25,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,23,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -1874,31 +1991,31 @@ class AeonParser ( Parser ):
 
     def expression_sempred(self, localctx:ExpressionContext, predIndex:int):
             if predIndex == 0:
-                return self.precpred(self._ctx, 11)
+                return self.precpred(self._ctx, 12)
          
 
             if predIndex == 1:
-                return self.precpred(self._ctx, 9)
+                return self.precpred(self._ctx, 10)
          
 
             if predIndex == 2:
-                return self.precpred(self._ctx, 8)
+                return self.precpred(self._ctx, 9)
          
 
             if predIndex == 3:
-                return self.precpred(self._ctx, 7)
+                return self.precpred(self._ctx, 8)
          
 
             if predIndex == 4:
-                return self.precpred(self._ctx, 6)
+                return self.precpred(self._ctx, 7)
          
 
             if predIndex == 5:
-                return self.precpred(self._ctx, 5)
+                return self.precpred(self._ctx, 6)
          
 
             if predIndex == 6:
-                return self.precpred(self._ctx, 4)
+                return self.precpred(self._ctx, 5)
          
 
 
