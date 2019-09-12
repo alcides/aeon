@@ -84,8 +84,8 @@ def printAST(node):
     else:
         print("Type of node not found: ", type(node), node)
 
-text = open("test.ae", 'r')
-input_stream = FileStream("test.ae")
+text = open(sys.argv[1], 'r')
+input_stream = FileStream(sys.argv[1])
 lexer = AeonLexer(input_stream)
 tokens = CommonTokenStream(lexer)
 parser = AeonParser(tokens)

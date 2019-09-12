@@ -10,7 +10,7 @@ aeon
 // Import
 imprt
     : IMPORT path=importName SEMICOLON                              # RegularImport
-    | IMPORT functionName=IDENTIFIER FROM path=importName SEMICOLON # SpecialImport
+    | IMPORT functionName=dottedName FROM path=importName SEMICOLON # SpecialImport
     ;
 
 importName
@@ -22,61 +22,56 @@ typeeAlias
 
 // Type declaration
 typeeDeclaration
-    : TYPEE (t_abs=IDENTIFIER FATARROW)? IDENTIFIER typee LBRACE (attribute | function)* RBRACE;
+    : TYPEE (t_abs=IDENTIFIER FATARROW)? typee (LBRACE attribute+ RBRACE)?;
 
 attribute
     : varName=IDENTIFIER COLON varType=typee SEMICOLON;
 
 function
-    : name=IDENTIFIER LPARENS params=parameters? RPARENS RARROW returnName=IDENTIFIER COLON returnType=typee (WHERE expression (AND expression)*)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
+    : name=dottedName LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE expression (AND expression)*)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
 
 parameters
-    : paramName=IDENTIFIER COLON typee                                          # SingleParameter
-    | paramName=IDENTIFIER COLON typee COMMA parameters                         # MultipleParameters
+    : typee                                          # SingleParameter
+    | typee COMMA parameters                         # MultipleParameters
     ;
 
 // paramName=IDENTIFIER COLON (typee | fAbstraction)
-// todo:
+// todo: review AND
 typee
-    : LPARENS typee RPARENS                                                     # TypeeParenthesis
-    | LBRACE typee WHERE cond=expression RBRACE                                 # TypeeCondition
-    // | type_application                                                       # TypeeApplication
-    // | fAbstraction                                                           # TypeeAbstraction
-    | basicType=IDENTIFIER                                                      # TypeeBasicType
+    : LPARENS typee RPARENS                                                                         # TypeeParenthesis
+    | LBRACE typee WHERE cond=expression (AND expression)* RBRACE         # TypeeCondition
+    // | ?????                                                                                      # TypeeApplication
+    | type1=typee RARROW type2=typee                                                                # TypeeAbstraction
+    | typeName=IDENTIFIER COLON basicType=IDENTIFIER                                               # TypeeBasicType
     ;
-
-
-
-fAbstraction : IDENTIFIER;
 
 // Body of the expressions
 body
-    : varName=IDENTIFIER COLON varType=typee ASSIGN exp=expression SEMICOLON body?              # BodyVarDefinition
-    | varName=IDENTIFIER ASSIGN exp=expression SEMICOLON body?                                  # BodyAssignment
-    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=expression RBRACE body?   # IfThenElse
-    | expression SEMICOLON body?                                                                # BodyExpression
+    : varName=IDENTIFIER COLON varType=typee ASSIGN exp=expression SEMICOLON nextExpr=body?              # BodyVarDefinition
+    | varName=IDENTIFIER ASSIGN exp=expression SEMICOLON nextExpr=body?                                  # BodyAssignment
+    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=body RBRACE nextExpr=body?         # IfThenElse
+    | expr=expression SEMICOLON nextExpr=body?                                                                # BodyExpression
     ;
-
 
 expression
     : LPARENS expression RPARENS                                                # Parenthesis
-    | functionName=IDENTIFIER LPARENS (expression (COMMA expression)*)? RPARENS # FunctionCall
+    | functionName=IDENTIFIER LPARENS (param=expression (COMMA params=expression)*)? RPARENS # FunctionCall
     | left=expression op=POWER right=expression                                 # BinaryOperationCall
     | op=(NOT | MINUS) right=expression                                         # UnaryOperationCall
     | left=expression op=(MULT | QUOTIENT | POWER) right=expression             # BinaryOperationCall
     | left=expression op=(PLUS | MINUS) right=expression                        # BinaryOperationCall
     | left=expression op=(LT | LE | GT | GE) right=expression                   # BinaryOperationCall
     | left=expression op=(EQUAL | DIFF | BEQUAL | BDIFF) right=expression       # BinaryOperationCall
-    | left=expression op=CONJUNCTION right=expression                           # BinaryOperationCall
+    | left=expression op=CONJUNCTION right=expression                         # BinaryOperationCall
     | left=expression op=DISJUNCTION right=expression                           # BinaryOperationCall
     | ABSTRACTION varName=IDENTIFIER COLON varType=typee RARROW exp=expression  # Abstraction
-    | IF cond=expression THEN then=expression ELSE elseBody=expression SEMICOLON# IfThenElseExpr
+    | IF cond=expression THEN then=expression ELSE elseBody=expression          # IfThenElseExpr
     | varName=IDENTIFIER                                                        # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                         # Literal
     ;
 
-// todo: typee, fAbstraction
-
+// ---------- Helper parser rules
+dottedName : name=IDENTIFIER (dot=DOT dotted=IDENTIFIER)? ;
 
 // ---------------------------------- Lexer -----------------------------------
 // Import rules

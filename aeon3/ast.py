@@ -20,7 +20,7 @@ class TypedNode(Node):
 
 
 class Hole(TypedNode):
-    """ \hole """
+    """ hole """
 
     def __init__(self, type):
         super(Hole, self).__init__()
@@ -199,5 +199,5 @@ class Import(Node):
     def __str__(self):
         result = 'import {}'.format(self.name)
         if self.function is not None:
-            result = '{}.{}'.format(result, self.function)
+            result = 'import {} from {}'.format(self.function, self.name)
         return result

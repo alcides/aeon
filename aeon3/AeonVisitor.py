@@ -59,8 +59,13 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#TypeeParenthesis.
-    def visitTypeeParenthesis(self, ctx:AeonParser.TypeeParenthesisContext):
+    # Visit a parse tree produced by AeonParser#TypeeBasicType.
+    def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#TypeeAbstraction.
+    def visitTypeeAbstraction(self, ctx:AeonParser.TypeeAbstractionContext):
         return self.visitChildren(ctx)
 
 
@@ -69,13 +74,8 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#TypeeBasicType.
-    def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by AeonParser#fAbstraction.
-    def visitFAbstraction(self, ctx:AeonParser.FAbstractionContext):
+    # Visit a parse tree produced by AeonParser#TypeeParenthesis.
+    def visitTypeeParenthesis(self, ctx:AeonParser.TypeeParenthesisContext):
         return self.visitChildren(ctx)
 
 
@@ -136,6 +136,11 @@ class AeonVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by AeonParser#IfThenElseExpr.
     def visitIfThenElseExpr(self, ctx:AeonParser.IfThenElseExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#dottedName.
+    def visitDottedName(self, ctx:AeonParser.DottedNameContext):
         return self.visitChildren(ctx)
 
 

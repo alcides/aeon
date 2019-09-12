@@ -1,0 +1,37 @@
+funcao () -> z:Integer {
+    0+0;
+    1 + 1;
+    2;
+}
+
+funcao () -> z:Integer {
+    -1-1;
+}
+
+funcao () -> z:Integer {
+    x : Integer = 10;
+    x;
+}
+
+funcao () -> z:Integer {
+    x : Integer = if 10 > 0 then 1 else 0;
+    x;
+    x = 10;
+    x;
+}
+
+w0 () -> z:Integer {
+    f();
+    f(1);
+    f(2, 3);
+    f(2, 3, 4, 5);
+}
+
+funcao () -> z:Integer {
+    if (x > 0) {
+        0;
+    } else {
+        1;
+    }
+    1 + 1;
+}

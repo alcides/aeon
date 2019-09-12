@@ -102,7 +102,8 @@ class Type(object):
 class BasicType(Type):
     """ Integer | Boolean | B """
 
-    def __init__(self, name):
+    def __init__(self, varName='_', name='T'):
+        self.varName = varName
         self.name = name
 
     def __str__(self):

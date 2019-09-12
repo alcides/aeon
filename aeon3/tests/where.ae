@@ -1,0 +1,7 @@
+// f () -> {z:Integer where z > 0} = native;
+
+// f () -> z:Integer where z > 0 = native;
+
+// f (x:Integer, y:Boolean) -> z:Integer where x < 0 and x < z = native;
+
+f (x:Integer, y:Boolean) -> z:Integer where f(f(x)) and f(y) and f(3) and 3 > 1 and 3 + -f(3) = native;

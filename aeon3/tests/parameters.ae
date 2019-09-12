@@ -1,0 +1,9 @@
+funcao1 () -> y:Boolean = native;
+
+funcao2 (x:Integer) -> y:Boolean = native;
+
+funcao3 (x:Integer, y:Integer) -> z:Boolean = native;
+
+funcao4 (x:Integer, y:Integer, z:Integer) -> w:Integer {
+    1;
+}

@@ -1,0 +1,2 @@
+// --- Teste de aliasing 1
+type String as String2;

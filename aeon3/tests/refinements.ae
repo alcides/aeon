@@ -1,0 +1,6 @@
+funcao (x:Integer) -> z:{Integer where (z > 1)} = native;
+
+funcao (x:Integer) -> z:Integer where (x > y) = native;
+
+funcao (x:{Integer where x > 0 && y < 0}) -> z:Integer where (x > y) { 1; }
+
