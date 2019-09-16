@@ -1,9 +1,9 @@
-funcao1 () -> y:Boolean = native;
+define funcao1 : () -> y:Boolean = native;
 
-funcao2 (x:Integer) -> y:Boolean = native;
+define funcao2 : (x:Integer) -> y:Boolean = native;
 
-funcao3 (x:Integer, y:Integer) -> z:Boolean = native;
+define funcao3 : (x:Integer, y:Integer) -> z:Boolean = native;
 
-funcao4 (x:Integer, y:Integer, z:Integer) -> w:Integer {
+define funcao4 : (x:Integer, y:Integer, z:Integer) -> w:Integer {
     1;
 }

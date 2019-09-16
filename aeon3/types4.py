@@ -102,36 +102,36 @@ class Type(object):
 class BasicType(Type):
     """ Integer | Boolean | B """
 
-    def __init__(self, varName='_', name='T'):
-        self.varName = varName
+    def __init__(self, name='_', typeName='T'):
         self.name = name
+        self.typeName = typeName
 
     def __str__(self):
-        return self.name
+        return self.typeName
 
     def __eq__(self, o):
         return type(self) == type(o) \
-            and self.name == o.name
+            and self.typeName == o.typeName
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.typeName)
 
 
 class AbstractionType(Type):
     """ x:T -> U """
 
-    def __init__(self, arg_name, arg_type, return_type):
-        self.arg_name = arg_name
+    def __init__(self, name, arg_type, return_type):
+        self.name = name
         self.arg_type = arg_type
         self.return_type = return_type
 
     def __str__(self):
-        return "{}:{} -> ({}):".format(self.arg_name, self.arg_type,
+        return "{}:{} -> ({}):".format(self.name, self.arg_type,
                                        self.return_type)
 
     def __eq__(self, o):
         return type(self) == type(o) \
-            and self.arg_name == o.arg_name \
+            and self.name == o.name \
             and self.arg_type == o.arg_type \
             and self.return_type == o.return_type
 
@@ -139,9 +139,9 @@ class AbstractionType(Type):
 class RefinedType(Type):
     """ x:T where U """
 
-    def __init__(self, name, type, cond):
+    def __init__(self, name, typee, cond):
         self.name = name
-        self.type = type
+        self.type = typee
         self.cond = cond
 
     def __eq__(self, o):

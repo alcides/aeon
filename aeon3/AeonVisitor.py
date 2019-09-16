@@ -49,13 +49,8 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by AeonParser#SingleParameter.
-    def visitSingleParameter(self, ctx:AeonParser.SingleParameterContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by AeonParser#MultipleParameters.
-    def visitMultipleParameters(self, ctx:AeonParser.MultipleParametersContext):
+    # Visit a parse tree produced by AeonParser#parameters.
+    def visitParameters(self, ctx:AeonParser.ParametersContext):
         return self.visitChildren(ctx)
 
 
@@ -71,6 +66,11 @@ class AeonVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by AeonParser#TypeeCondition.
     def visitTypeeCondition(self, ctx:AeonParser.TypeeConditionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#TypeeUnnamedType.
+    def visitTypeeUnnamedType(self, ctx:AeonParser.TypeeUnnamedTypeContext):
         return self.visitChildren(ctx)
 
 
@@ -139,8 +139,18 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by AeonParser#typedName.
+    def visitTypedName(self, ctx:AeonParser.TypedNameContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by AeonParser#dottedName.
     def visitDottedName(self, ctx:AeonParser.DottedNameContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by AeonParser#abstrParams.
+    def visitAbstrParams(self, ctx:AeonParser.AbstrParamsContext):
         return self.visitChildren(ctx)
 
 

@@ -34,8 +34,8 @@ class AeonASTVisitor(AeonVisitor):
     # ---------------------------------------------------------------- Def Types
     # type T as T
     def visitTypeeAlias(self, ctx:AeonParser.TypeeAliasContext):
-        name = ctx.name.text
-        typee = self.visit(ctx.typee())
+        name = self.visit(ctx.name)
+        typee = self.visit(ctx.alias)
         self.type_aliases[name] = typee
         return TypeAlias(name, typee)
 
@@ -90,19 +90,14 @@ class AeonASTVisitor(AeonVisitor):
         return Definition(self.visit(ctx.name), typee, body)
 
     # ---------- Function Parameters ----------
-    # (x:T)
-    def visitSingleParameter(self, ctx:AeonParser.SingleParameterContext):
-        typee = self.visit(ctx.typee())
-        name = type(typee) is BasicType and typee.varName or typee.name
-        result = AbstractionType(name, typee, None)
-        return result, result
-
     # (x:T, y:U, z:V)
-    def visitMultipleParameters(self, ctx:AeonParser.MultipleParametersContext):
-        params, last_param = self.visit(ctx.parameters())
-        typee = self.visit(ctx.typee())
-        name = type(typee) is BasicType and typee.varName or typee.name
-        return AbstractionType(name, typee, params), last_param
+    def visitParameters(self, ctx:AeonParser.ParametersContext):
+        typee = self.visit(ctx.param)
+        if ctx.restParams:
+            restParams, lastParam = self.visit(ctx.restParams)
+            return AbstractionType(typee.name, typee, restParams), lastParam
+        result = AbstractionType(typee.name, typee, None)
+        return result, result
 
     # ------------------------------------------------------------------- Typee
     # ( T )
@@ -112,29 +107,47 @@ class AeonASTVisitor(AeonVisitor):
     # ( T where cond )
     def visitTypeeCondition(self, ctx:AeonParser.TypeeConditionContext):
         typee = self.visit(ctx.typee())
-        name = type(typee) is BasicType and typee.varName or typee.name
         cond = self.visit(ctx.cond)
-        return RefinedType(name, typee, cond)
+        return RefinedType(typee.name, typee, cond)
 
     # T
     def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
-        if ctx.basicType.text in self.type_aliases:
-            return self.type_aliases[ctx.basicType.text]
-        return BasicType(ctx.typeName.text, ctx.basicType.text)
-    
+        typeeName = self.visit(ctx.basicType) 
+        if typeeName in self.type_aliases:
+            return self.type_aliases[typeeName]
+        if isinstance(typeeName, str):
+            return BasicType(ctx.typeName.text, typeeName)
+        return typeeName
     # T -> T
     def visitTypeeAbstraction(self, ctx:AeonParser.TypeeAbstractionContext):
         # TODO: review: deve de estar errado
         return AbstractionType('_', self.visit(ctx.type1), self.visit(ctx.type2))
     
+    # Visit a parse tree produced by AeonParser#TypeeUnnamedType.
+    def visitTypeeUnnamedType(self, ctx:AeonParser.TypeeUnnamedTypeContext):
+        typeeName = self.visit(ctx.basicType)
+        if typeeName in self.type_aliases:
+            return self.type_aliases[typeeName]
+        return BasicType('_', typeeName)
+    
+    # Visit a parse tree produced by AeonParser#typedName.
+    # TODO: Has to return a typee
+    def visitTypedName(self, ctx:AeonParser.TypedNameContext):
+        result = ctx.name.text
+        if ctx.tabst:
+            result = '{}<{}>'.format(result, self.visit(ctx.tabst))
+        return result
+
     # ------------------------------------------------------------ Function Body
     # x : T = expression
     def visitBodyVarDefinition(self, ctx:AeonParser.BodyVarDefinitionContext):
-        var = Var(ctx.varName.text)
+
         var_type = self.visit(ctx.varType)
         expression = self.visit(ctx.exp)
+        var = Var(var_type.name)
 
-        self.generalContext[ctx.varName.text] = var_type
+        if var_type.name is not '_':
+            self.generalContext[var_type.name] = var_type
 
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
@@ -241,18 +254,18 @@ class AeonASTVisitor(AeonVisitor):
 
     # f(...)
     def visitFunctionCall(self, ctx:AeonParser.FunctionCallContext):
-
-        params = [Application(Var(ctx.functionName.text), self.visit(parameter)) \
+        functionName = self.visit(ctx.functionName)
+        params = [Application(Var(functionName), self.visit(parameter)) \
                   for parameter in ctx.expression()]
 
-        # Nest de applications
+        # Nest the applications
         for i in range(len(params) - 1, 0, -1):
             params[i].target = params[i - 1]
 
         if not params:
             # TODO: calling a function with no arguments. Application or Var?
             # result = Var(ctx.functionName.text)
-            result = Application(Var(ctx.functionName.text), None)
+            result = Application(Var(functionName), None)
         else:
             result = params[len(params) - 1]
 
@@ -260,14 +273,26 @@ class AeonASTVisitor(AeonVisitor):
     
     # \x:T -> expr
     def visitAbstraction(self, ctx:AeonParser.AbstractionContext):
-        var = Var(ctx.varName.text)
         typee = self.visit(ctx.varType)
         exp = self.visit(ctx.exp)
-        return Abstraction(var, typee, exp)
+        return Abstraction(Var(typee.name), typee, exp)
 
-    # Class.name
+    # Class.function
     def visitDottedName(self, ctx:AeonParser.DottedNameContext):
-        return ctx.name.text + (ctx.dotted and (ctx.dot.text + ctx.dotted.text) or '')
+        result = self.visit(ctx.name)
+        if ctx.dotted:
+            result = '{}.{}'.format(result, ctx.dotted.text)
+        return result
+
+    # Visit a parse tree produced by AeonParser#abstrParams.
+    def visitAbstrParams(self, ctx:AeonParser.AbstrParamsContext):
+
+        result = ctx.param.text
+
+        if ctx.restParams:
+            result = '{},{}'.format(result, self.visit(ctx.restParams))
+
+        return result
 
 # -------------------------------- HELPERS -------------------------------------
 def refined_value(v, t, label="_v"):
@@ -295,17 +320,12 @@ def calculate_where_distribution(conditions):
 def apply_distribution(typee, cond, variables):
     
     # Try to remove the variable name of the current type
-    if type(typee) is BasicType:
-        variables.discard(typee.varName)
-    elif type(typee) is AbstractionType:
-        variables.discard(typee.arg_name)
-    else:
-        variables.discard(typee.name)
+    variables.discard(typee.name)
 
     if len(variables) == 0:
         # BasicType is transformed in RefinedType: T => {T where cond}
         if type(typee) is BasicType:
-            return RefinedType(typee.varName, typee, cond)
+            return RefinedType(typee.name, typee, cond)
         # Refinement is improved: {T where T.cond} => {T where (T.cond && cond)}
         elif type(typee) is RefinedType:
             typee.cond = Application(Application(Var('And'), typee.cond), cond)

@@ -18,60 +18,61 @@ importName
 
 // Type Alias
 typeeAlias
-    : TYPEE name=(IDENTIFIER | CLASS_NAME) AS typee SEMICOLON;
+    : TYPEE name=typee AS alias=typee SEMICOLON;
 
 // Type declaration
 typeeDeclaration
-    : TYPEE (t_abs=IDENTIFIER FATARROW)? typee (LBRACE attribute+ RBRACE)?;
+    : TYPEE typee (LBRACE attribute+ RBRACE)?;
 
 attribute
     : varName=IDENTIFIER COLON varType=typee SEMICOLON;
 
 function
-    : name=dottedName LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE expression (AND expression)*)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
+    : DEFINE name=dottedName COLON LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE LBRACE expression (AND expression)* RBRACE)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
 
-parameters
-    : typee                                          # SingleParameter
-    | typee COMMA parameters                         # MultipleParameters
-    ;
+parameters : param=typee (COMMA restParams=parameters)? ;
 
-// paramName=IDENTIFIER COLON (typee | fAbstraction)
-// todo: review AND
+// Types
 typee
     : LPARENS typee RPARENS                                                                         # TypeeParenthesis
-    | LBRACE typee WHERE cond=expression (AND expression)* RBRACE         # TypeeCondition
+    | LBRACE typee PIPE cond=expression RBRACE                                                      # TypeeCondition
     // | ?????                                                                                      # TypeeApplication
     | type1=typee RARROW type2=typee                                                                # TypeeAbstraction
-    | typeName=IDENTIFIER COLON basicType=IDENTIFIER                                               # TypeeBasicType
+    | typeName=IDENTIFIER COLON basicType=typedName                                                 # TypeeBasicType
+    | basicType=typedName                                                                           # TypeeUnnamedType
     ;
 
 // Body of the expressions
 body
-    : varName=IDENTIFIER COLON varType=typee ASSIGN exp=expression SEMICOLON nextExpr=body?              # BodyVarDefinition
-    | varName=IDENTIFIER ASSIGN exp=expression SEMICOLON nextExpr=body?                                  # BodyAssignment
-    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=body RBRACE nextExpr=body?         # IfThenElse
-    | expr=expression SEMICOLON nextExpr=body?                                                                # BodyExpression
+    : varType=typee ASSIGN exp=expression SEMICOLON nextExpr=body?                                  # BodyVarDefinition
+    | varName=IDENTIFIER ASSIGN exp=expression SEMICOLON nextExpr=body?                             # BodyAssignment
+    | IF cond=expression LBRACE then=body RBRACE ELSE LBRACE elseBody=body RBRACE nextExpr=body?    # IfThenElse
+    | expr=expression SEMICOLON nextExpr=body?                                                      # BodyExpression
     ;
 
 expression
-    : LPARENS expression RPARENS                                                # Parenthesis
-    | functionName=IDENTIFIER LPARENS (param=expression (COMMA params=expression)*)? RPARENS # FunctionCall
-    | left=expression op=POWER right=expression                                 # BinaryOperationCall
-    | op=(NOT | MINUS) right=expression                                         # UnaryOperationCall
-    | left=expression op=(MULT | QUOTIENT | POWER) right=expression             # BinaryOperationCall
-    | left=expression op=(PLUS | MINUS) right=expression                        # BinaryOperationCall
-    | left=expression op=(LT | LE | GT | GE) right=expression                   # BinaryOperationCall
-    | left=expression op=(EQUAL | DIFF | BEQUAL | BDIFF) right=expression       # BinaryOperationCall
-    | left=expression op=CONJUNCTION right=expression                         # BinaryOperationCall
-    | left=expression op=DISJUNCTION right=expression                           # BinaryOperationCall
-    | ABSTRACTION varName=IDENTIFIER COLON varType=typee RARROW exp=expression  # Abstraction
-    | IF cond=expression THEN then=expression ELSE elseBody=expression          # IfThenElseExpr
-    | varName=IDENTIFIER                                                        # Variable
-    | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                         # Literal
+    : LPARENS expression RPARENS                                                                    # Parenthesis
+    | functionName=dottedName LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
+    | left=expression op=POWER right=expression                                                     # BinaryOperationCall
+    | op=(NOT | MINUS) right=expression                                                             # UnaryOperationCall
+    | left=expression op=(MULT | QUOTIENT | POWER) right=expression                                 # BinaryOperationCall
+    | left=expression op=(PLUS | MINUS) right=expression                                            # BinaryOperationCall
+    | left=expression op=(LT | LE | GT | GE) right=expression                                       # BinaryOperationCall
+    | left=expression op=(EQUAL | DIFF | BEQUAL | BDIFF) right=expression                           # BinaryOperationCall
+    | left=expression op=CONJUNCTION right=expression                                               # BinaryOperationCall
+    | left=expression op=DISJUNCTION right=expression                                               # BinaryOperationCall
+    | ABSTRACTION varType=typee RARROW exp=expression                                               # Abstraction
+    | IF cond=expression THEN then=expression ELSE elseBody=expression                              # IfThenElseExpr
+    | varName=IDENTIFIER                                                                            # Variable
+    | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                                             # Literal
     ;
 
 // ---------- Helper parser rules
-dottedName : name=IDENTIFIER (dot=DOT dotted=IDENTIFIER)? ;
+typedName : name=IDENTIFIER (LT tabst=abstrParams GT)? ;
+
+dottedName : name=typedName (DOT dotted=IDENTIFIER)? ;
+
+abstrParams : param=IDENTIFIER (COMMA restParams=abstrParams)? ;
 
 // ---------------------------------- Lexer -----------------------------------
 // Import rules
@@ -91,6 +92,7 @@ ELSE: 'else';
 AND: 'and';
 WHERE: 'where';
 NATIVE: 'native';
+DEFINE: 'define';
 ABSTRACTION: '\\';
 
 // Special Characters
@@ -114,7 +116,7 @@ RBRACKET: ']';
 // LGUILLEMETS: '<';
 // RGUILLEMETS: '>';
 
-HOLE: '_?_';
+HOLE: '[]';
 
 PLUS: '+' 		;
 MINUS: '-' 		;
@@ -126,6 +128,7 @@ POWER: '^'      ;
 CONJUNCTION: '&&' ;
 DISJUNCTION: '||'  ;
 NOT: '!'  ;
+PIPE: '|' ;
 
 // Logical Operators
 LT: '<' 			;

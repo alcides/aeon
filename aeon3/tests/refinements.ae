@@ -1,6 +1,6 @@
-funcao (x:Integer) -> z:{Integer where (z > 1)} = native;
+define funcao : (x:Integer) -> {z:Integer | (z > 1)} = native;
 
-funcao (x:Integer) -> z:Integer where (x > y) = native;
+define funcao : (x:Integer) -> {z:Integer | (x > y)} = native;
 
-funcao (x:{Integer where x > 0 && y < 0}) -> z:Integer where (x > y) { 1; }
+define funcao : ({x:Integer | x > 0 && y < 0}) -> {z:Integer | (x > z)} = native;
 

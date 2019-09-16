@@ -69,7 +69,7 @@ def printAST(node):
         print(node.name)
 
     elif type(node) == AbstractionType:
-        print(node.arg_name)
+        print(node.name)
         printAST(node.arg_type)
         printAST(node.return_type)
 
