@@ -84,7 +84,7 @@ def substitution_expr_in_type(n: Type, replacement: Node, replaced):
         return RefinedType(n.name, r(n.type), re(n.cond))
     elif type(n) is AbstractionType:
         # TODO: verificar se é possível trocar o arg_name
-        return AbstractionType(arg_name=n.arg_name,
+        return AbstractionType(name=n.name,
                                arg_type=r(n.arg_type),
                                return_type=r(n.return_type))
     elif type(n) is TypeApplication:
@@ -106,7 +106,7 @@ def substitution_type_in_type(n, replacement: Type, replaced):
         return n
     r = lambda x: substitution_type_in_type(x, replacement, replaced)
     if type(n) is BasicType:
-        if n.name == replaced:
+        if n.typeName == replaced:
             return replacement
         else:
             return n
@@ -114,7 +114,7 @@ def substitution_type_in_type(n, replacement: Type, replaced):
         new_cond = substitution_type_in_expr(n.cond, replacement, replaced)
         return RefinedType(n.name, r(n.type), new_cond)
     elif type(n) is AbstractionType:
-        return AbstractionType(arg_name=n.arg_name,
+        return AbstractionType(name=n.name,
                                arg_type=r(n.arg_type),
                                return_type=r(n.return_type))
     elif type(n) is TypeApplication:

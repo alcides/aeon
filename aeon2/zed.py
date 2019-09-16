@@ -37,9 +37,9 @@ def flatten_refined_types(t):
 
 def zed_mk_variable(name, ty: Type):
     if type(ty) is BasicType:
-        if ty.name == "Integer":
+        if ty.typeName == "Integer":
             return z3.Int(name)
-        elif ty.name == "Boolean":
+        elif ty.typeName == "Boolean":
             return z3.Bool(name)
     if type(ty) is RefinedType:
         return zed_mk_variable(name, ty.type)

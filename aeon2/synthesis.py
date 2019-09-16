@@ -65,7 +65,7 @@ def fv(T):
     if type(T) is RefinedType:
         return [T.name] + fv(T.type)
     if type(T) is AbstractionType:
-        return [T.arg_name] + fv(T.arg_type) + fv(T.return_type)
+        return [T.name] + fv(T.arg_type) + fv(T.return_type)
     return []
 
 
@@ -125,9 +125,9 @@ def se_var(ctx, T, d):
 
 def se_abs(ctx, T: AbstractionType, d):
     """ SE-Abs """
-    nctx = ctx.with_var(T.arg_name, T.arg_type)
+    nctx = ctx.with_var(T.name, T.arg_type)
     body = se(nctx, T.return_type, d - 1)
-    return Abstraction(T.arg_name, T.arg_type, body).with_type(T)
+    return Abstraction(T.name, T.arg_type, body).with_type(T)
 
 
 def se_where(ctx, T: RefinedType, d):
@@ -154,7 +154,7 @@ def se_app(ctx, T, d):
     print("target of type U:", e2, ":", U)
     nctx = ctx.with_type_var(x, U)
     V = stax(nctx, e2, x, T, d - 1)
-    FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
+    FT = AbstractionType(name=x, arg_type=U, return_type=V)
 
     e1 = se(ctx, FT, d - 1)
     print("fun of type:", e1, ":", FT, "should return", T)
@@ -165,9 +165,9 @@ def se_app(ctx, T, d):
 @random_chooser
 def se(ctx, T, d):
     """ Γ ⸠ T~>_{d} e """
-    if type(T) is BasicType and T.name == "Integer":
+    if type(T) is BasicType and T.typeName == "Integer":
         yield (1, lambda: se_int(ctx, T, d))
-    if type(T) is BasicType and T.name == "Boolean":
+    if type(T) is BasicType and T.typeName == "Boolean":
         yield (1, lambda: se_bool(ctx, T, d))
     if [v for v in ctx.variables if tc.is_same_type(ctx, ctx.variables[v], T)]:
         yield (100, lambda: se_var(ctx, T, d))
