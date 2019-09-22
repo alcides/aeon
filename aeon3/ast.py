@@ -88,10 +88,13 @@ class If(TypedNode):
             and self.otherwise == o.otherwise
 
 
+empty_argument = None
+
 class Application(TypedNode):
     """  e(e) """
 
     def __init__(self, target, argument):
+        # Trying to Application(target, None) is the same as a call with no arguments
         super(Application, self).__init__()
         self.target = target
         self.argument = argument
@@ -183,12 +186,13 @@ class TypeAlias(Node):
 
 
 class TypeDeclaration(Node):
-    def __init__(self, name, kind):
+    def __init__(self, name, kind, parameters):
         self.name = name
         self.kind = kind
+        self.parameters = parameters
 
     def __str__(self):
-        return "type {} : {}".format(self.name, self.kind)
+        return "type {} {} : {}".format(self.name, self.parameters, self.kind)
 
 
 class Import(Node):

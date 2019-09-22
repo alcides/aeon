@@ -4,6 +4,7 @@ define funcao : () -> z:Integer {
     2;
 }
 
+
 define funcao : () -> z:Integer {
     -1-1;
 }

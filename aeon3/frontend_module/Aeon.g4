@@ -1,11 +1,11 @@
 /**
  * Grammar for the Aeon language
- * To compile the grammar: java -jar antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener Aeon.g4
+ * To compile the grammar: java -jar antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4
  */
 grammar Aeon;
 
 aeon
-    : imprt* (typeeAlias | typeeDeclaration | function)* EOF ;
+    : imprt* (typeeDeclaration | typeeAlias | function)* EOF ;
 
 // Import
 imprt
@@ -22,24 +22,20 @@ typeeAlias
 
 // Type declaration
 typeeDeclaration
-    : TYPEE typee (LBRACE attribute+ RBRACE)?;
-
-attribute
-    : varName=IDENTIFIER COLON varType=typee SEMICOLON;
+    : TYPEE name=typee (LBRACE (attr=typee SEMICOLON)+ RBRACE | SEMICOLON);
 
 function
     : DEFINE name=dottedName COLON LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE LBRACE expression (AND expression)* RBRACE)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
 
-parameters : param=typee (COMMA restParams=parameters)? ;
+parameters 
+    : param=typee (COMMA restParams=parameters)?;
 
 // Types
 typee
-    : LPARENS typee RPARENS                                                                         # TypeeParenthesis
-    | LBRACE typee PIPE cond=expression RBRACE                                                      # TypeeCondition
-    // | ?????                                                                                      # TypeeApplication
-    | type1=typee RARROW type2=typee                                                                # TypeeAbstraction
-    | typeName=IDENTIFIER COLON basicType=typedName                                                 # TypeeBasicType
-    | basicType=typedName                                                                           # TypeeUnnamedType
+    : LBRACE typee PIPE cond=expression RBRACE      # TypeeCondition
+    | type1=typee RARROW type2=typee                # TypeeAbstraction
+    | varName=IDENTIFIER COLON typed=typee          # TypeeBasicType
+    | name=IDENTIFIER (LT tabst=abstrParams GT)?    # TypeeAbstractionApplication
     ;
 
 // Body of the expressions
@@ -54,6 +50,7 @@ expression
     : LPARENS expression RPARENS                                                                    # Parenthesis
     | functionName=dottedName LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
     | left=expression op=POWER right=expression                                                     # BinaryOperationCall
+    | left=expression op=IMPLIE right= expression                                                   # BinaryOperationCall
     | op=(NOT | MINUS) right=expression                                                             # UnaryOperationCall
     | left=expression op=(MULT | QUOTIENT | POWER) right=expression                                 # BinaryOperationCall
     | left=expression op=(PLUS | MINUS) right=expression                                            # BinaryOperationCall
@@ -68,11 +65,9 @@ expression
     ;
 
 // ---------- Helper parser rules
-typedName : name=IDENTIFIER (LT tabst=abstrParams GT)? ;
+dottedName : name=IDENTIFIER (LT tabst=abstrParams GT)? (DOT dotted=IDENTIFIER)? ;
 
-dottedName : name=typedName (DOT dotted=IDENTIFIER)? ;
-
-abstrParams : param=IDENTIFIER (COMMA restParams=abstrParams)? ;
+abstrParams : param=typee (COMMA restParams=abstrParams)? ;
 
 // ---------------------------------- Lexer -----------------------------------
 // Import rules
@@ -105,7 +100,7 @@ ASSIGN: '=';
 
 RARROW: '->';
 FATARROW: '=>';
-IMPLIE: '--->';
+IMPLIE: '-->';
 
 LBRACE: '{';
 RBRACE: '}';
@@ -125,10 +120,10 @@ QUOTIENT: '/' 	;
 MODULE: '%' 	;
 POWER: '^'      ;
 
-CONJUNCTION: '&&' ;
-DISJUNCTION: '||'  ;
-NOT: '!'  ;
-PIPE: '|' ;
+CONJUNCTION: '&&'   ;
+DISJUNCTION: '||'   ;
+NOT: '!'            ;
+PIPE: '|'           ;
 
 // Logical Operators
 LT: '<' 			;
@@ -149,7 +144,6 @@ STRING: '"' ((~["\\\r\n] | '\\' [btnfr"'\\])+)? '"';
 
 // Variables
 IDENTIFIER: [a-zA-Z][_a-zA-Z0-9]* ;
-CLASS_NAME: [a-zA-Z][_a-zA-Z0-9]* '<' [a-zA-Z] '>' ;
 
 // Comments
 LINE_COMMENT: '//' ~[\r\n]* -> skip ;

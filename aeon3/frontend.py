@@ -1,95 +1,41 @@
-from AeonParser import AeonParser
-from AeonLexer import AeonLexer
-from AeonASTVisitor import AeonASTVisitor
-from ast import *
+from frontend_module.AeonASTVisitor import AeonASTVisitor
+
+from frontend_module.generated.AeonParser import AeonParser
+from frontend_module.generated.AeonLexer import AeonLexer
+
+import os
+import os.path
 from antlr4 import *
-from types4 import *
+from ast import Import
 
-def printAST(node):
+# Given a file, parses the file and imports the program
+def parse(file):
+    input_stream = FileStream(file)
+    lexer = AeonLexer(input_stream)
+    tokens = CommonTokenStream(lexer)
+    parser = AeonParser(tokens)
+    tree = parser.aeon()
+    visitor = AeonASTVisitor()
+    program = visitor.visit(tree)
+    program = resolve_imports(program)
+    return program
 
-    print(type(node), node)
 
-    if type(node) == Program:
-        for decl in node.declarations:
-            print(30 * '=')
-            printAST(decl)
+# Given an expression of a program, parse it and imports it
+def parse_strict(text):
+    lexer = AeonLexer(InputStream(text))
+    tokens = CommonTokenStream(lexer)
+    parser = AeonParser(tokens)
+    tree = parser.aeon()
+    visitor = AeonASTVisitor()
+    return visitor.visit(tree).declarations[0]
 
-    elif type(node) == Hole:
-        printAST(node.type)
+# Resolves the imports
+def resolve_imports(program):
+    result = []
 
-    elif type(node) == Literal:
-        print(node.value, type(node.value))
-        printAST(node.type)
+    for declaration in program.declarations:
+        # TODO:
+        pass
 
-    elif type(node) == Var:
-        print(node.name, node.type)
-
-    elif type(node) == If:
-        printAST(node.cond)
-        printAST(node.then)
-        printAST(node.otherwise)
-
-    elif type(node) == Application:
-        printAST(node.target)
-        printAST(node.argument)
-
-    elif type(node) == Abstraction:
-        printAST(node.arg_name)
-        printAST(node.arg_type)
-        printAST(node.body)
-
-    elif type(node) == TAbstraction:
-        printAST(node.typevar)
-        printAST(node.kind)
-        printAST(node.body)
-
-    elif type(node) == TApplication:
-        printAST(node.target)
-        printAST(node.argument)
-
-    elif type(node) == Definition:
-        printAST(node.name)
-        printAST(node.type)
-        printAST(node.body)
-
-    elif type(node) == TypeAlias:
-        printAST(node.name)
-        printAST(node.type)
-
-    elif type(node) == TypeDeclaration:
-        printAST(node.name)
-        printAST(node.kind)
-
-    elif type(node) == Import:
-        printAST(node.name)
-        if node.function is not None:
-            printAST(node.function)
-
-    elif type(node) == BasicType:
-        print(node.name)
-
-    elif type(node) == AbstractionType:
-        print(node.name)
-        printAST(node.arg_type)
-        printAST(node.return_type)
-
-    elif type(node) == RefinedType:
-        print(node.name, type(node.name))
-        printAST(node.type)
-        printAST(node.cond)
-
-    elif type(node) == str:
-        print(node)
-
-    else:
-        print("Type of node not found: ", type(node), node)
-
-text = open(sys.argv[1], 'r')
-input_stream = FileStream(sys.argv[1])
-lexer = AeonLexer(input_stream)
-tokens = CommonTokenStream(lexer)
-parser = AeonParser(tokens)
-tree = parser.aeon()
-visitor = AeonASTVisitor()
-res = visitor.visit(tree)
-printAST(res)
+    return program

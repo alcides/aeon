@@ -1,0 +1,70 @@
+HOLD:
+	ignorar expressoes sem variaveis 3 > 1 -> z3 verification
+    
+	examples running
+    
+    testes unitarios
+    
+DOING:
+	resolve imports -> Magic box
+    resolve type do type abstraction -> Magic box
+    
+DONE:
+    parse_strict
+    parameters no TypeDeclaration
+	por contador para '_'
+	remover o typename dos basictype
+    Organizacao das pastas geradas
+	falta implicacao na gramatica
+    usar isbuiltin que esta no stdlib
+    variavel representativa de None
+	x:HM<string, Int>
+	typeaap - 1 typeapp      type app - 1 hm
+        	  2 string                - 2 int
+	typeabstraction: verificar 
+    
+
+modificar os ficheiros originais quando fizer a integração
+
+
+
+
+QUESTIONS:
+    Como definir funcoes com TypeAbstraction? f<T>. E como são as Invocações? Application(nome, argumento)
+    Qual o nome da funcao: Array<T>.f()? Array.f aplicado a T?
+    Qual a diferença entre TAbstraction e TypeAbstraction, e TApplication e TypeApplication?
+    
+    Name do TypeDeclaration é BasicType ou String?
+    
+    Verificar se 
+    Map<String, X>:
+        TypeApplication(
+            TypeAbstraction(
+                BasicType(X),
+                Kind(star, star),
+                BasicType(Map)
+            ),
+            BasicType(String)
+        )
+    
+    Map<X, Y>:
+        TypeAbstraction(
+            BasicType(X),
+            star,
+            TypeAbstraction(
+                BasicType(Y),
+                Kind(star, star),
+                BasicType(Map)
+            )
+        )
+    
+    Map<X, List<Integer>>:
+        TypeAbstraction(
+            TypeApplication(
+                BasicType(List),
+                BasicType(Integer)
+            ),
+            Kind(star, star),
+            BasicType(Map)
+            )
+        )

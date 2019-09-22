@@ -81,7 +81,8 @@ class Kind(object):
         if self.is_star() and o.is_star():
             return True
         return self.k1 == o.k1 and self.k2 == o.k2
-
+    def __repr__(self):
+        return str(self)
     def __str__(self):
         if self.is_star():
             return "*"
@@ -102,19 +103,18 @@ class Type(object):
 class BasicType(Type):
     """ Integer | Boolean | B """
 
-    def __init__(self, name='_', typeName='T'):
+    def __init__(self, name):
         self.name = name
-        self.typeName = typeName
 
     def __str__(self):
-        return self.typeName
+        return self.name
 
     def __eq__(self, o):
         return type(self) == type(o) \
-            and self.typeName == o.typeName
+            and self.name == o.name
 
     def __hash__(self):
-        return hash(self.typeName)
+        return hash(self.name)
 
 
 class AbstractionType(Type):
@@ -157,10 +157,10 @@ class RefinedType(Type):
 class TypeAbstraction(Type):
     """T:k => U"""
 
-    def __init__(self, name, kind, type):
+    def __init__(self, name, kind, typee):
         self.name = name
         self.kind = kind
-        self.type = type
+        self.type = typee
 
     def __str__(self):
         return "{}:{} => {}".format(self.name, self.kind, self.type)

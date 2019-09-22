@@ -1,0 +1,17 @@
+type IntList;
+
+
+type List<T>;
+
+
+type Map<K, V>;
+
+type Dictionary<K, List<V>>;
+
+type Map<Integer, V>;
+
+type Test {
+    x:Integer;
+    y:String;
+    z:Boolean;
+}

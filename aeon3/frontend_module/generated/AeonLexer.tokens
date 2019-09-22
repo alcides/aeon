@@ -48,10 +48,9 @@ INTEGER=47
 FLOAT=48
 STRING=49
 IDENTIFIER=50
-CLASS_NAME=51
-LINE_COMMENT=52
-BLOCK_COMMENT=53
-WS=54
+LINE_COMMENT=51
+BLOCK_COMMENT=52
+WS=53
 'import'=1
 'from'=2
 'type'=3
@@ -71,7 +70,7 @@ WS=54
 '='=17
 '->'=18
 '=>'=19
-'--->'=20
+'-->'=20
 '{'=21
 '}'=22
 '('=23
