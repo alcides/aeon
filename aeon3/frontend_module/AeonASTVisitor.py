@@ -1,12 +1,8 @@
-import sys
+from .generated.AeonParser import AeonParser
+from .generated.AeonVisitor import AeonVisitor
 
-from frontend_module.generated.AeonParser import AeonParser
-from frontend_module.generated.AeonVisitor import AeonVisitor
-
-sys.path.append('..')
-from ast import *
-from types4 import *
-sys.path.remove('..')
+from ..ast import *
+from ..types import *
 
 #TODO: uncomment from stdlib import is_builtin
 
@@ -57,6 +53,7 @@ class AeonASTVisitor(AeonVisitor):
     # ----------------------------------------------------------------- Function
     def visitFunction(self, ctx:AeonParser.FunctionContext):
 
+        function_name = self.visit(ctx.name)
         return_type = self.visit(ctx.returnType)
         return_name = self.basicTypeeStack.pop() if type(return_type) is BasicType else return_type.name
 
@@ -68,7 +65,7 @@ class AeonASTVisitor(AeonVisitor):
             typee = params
         else:
             # f() converted into f(_:Void)
-            typee = AbstractionType(self.nextVoidName(), BasicType('Void'), return_type)
+            typee = AbstractionType(Var(self.nextVoidName()), BasicType('Void'), return_type)
 
         # Compute the where function expression
         conditions = [self.visit(cond) for cond in ctx.expression()]
@@ -93,17 +90,28 @@ class AeonASTVisitor(AeonVisitor):
 
         self.counter = 0
 
-        return Definition(self.visit(ctx.name), typee, body)
+        # Englobe the body with the function parameters Abstraction
+        if function_name != 'main':
+            body = Abstraction(typee.arg_name, typee.arg_type, body)
+            tempBody = body
+            tempTypee = typee.return_type
+            while type(tempTypee) is AbstractionType:
+                body.body = Abstraction(tempTypee.arg_name, tempTypee.arg_type, body.body)
+                body = body.body
+                tempTypee = tempTypee.return_type
+            body = tempBody
+        
+        return Definition(function_name, typee, body)
 
     # ---------- Function Parameters ----------
     # (x:T, y:U, z:V)
     def visitParameters(self, ctx:AeonParser.ParametersContext):
         typee = self.visit(ctx.param)
+        name = Var(self.basicTypeeStack.pop() if type(typee) is BasicType else typee.name)
         if ctx.restParams:
             restParams, lastParam = self.visit(ctx.restParams)
-            name = self.basicTypeeStack.pop() if type(typee) is BasicType else typee.name
             return AbstractionType(name, typee, restParams), lastParam
-        result = AbstractionType(typee.name, typee, None)
+        result = AbstractionType(name, typee, None)
         return result, result
 
     # ------------------------------------------------------------------- Typee
@@ -126,7 +134,7 @@ class AeonASTVisitor(AeonVisitor):
 
     # T -> T
     def visitTypeeAbstraction(self, ctx:AeonParser.TypeeAbstractionContext):
-        return AbstractionType(self.nextVoidName(), self.visit(ctx.type1), self.visit(ctx.type2))
+        return AbstractionType(Var(self.nextVoidName()), self.visit(ctx.type1), self.visit(ctx.type2))
     
     # T<String, Integer> = TypeApplication()
     # T<X, Y> =
@@ -153,15 +161,15 @@ class AeonASTVisitor(AeonVisitor):
 
         var_type = self.visit(ctx.varType)
         expression = self.visit(ctx.exp)
-        var = Var(var_type.name)
+        var = Var(self.basicTypeeStack.pop())
 
-        if var_type.name is not '_':
+        if not var_type.name.startswith('_'):
             self.generalContext[var_type.name] = var_type
 
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
         else:
-            return Abstraction(var, var_type, expression)
+            return expression
 
     # x = expression
     def visitBodyAssignment(self, ctx:AeonParser.BodyAssignmentContext):
@@ -172,7 +180,7 @@ class AeonASTVisitor(AeonVisitor):
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
         else:
-            return Abstraction(var, var_type, expression)
+            return expression
 
     # (\_:Object -> ...) (expression)
     def visitBodyExpression(self, ctx:AeonParser.BodyExpressionContext):
@@ -187,7 +195,7 @@ class AeonASTVisitor(AeonVisitor):
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
         else:
-            return Abstraction(var, var_type, expression)
+            return expression
 
     # if cond {...} else {...}
     def visitIfThenElse(self, ctx:AeonParser.IfThenElseContext):
@@ -202,7 +210,7 @@ class AeonASTVisitor(AeonVisitor):
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), node)
         else:
-            return Abstraction(var, var_type, node)
+            return node
 
     # if cond then expr else expr
     def visitIfThenElseExpr(self, ctx:AeonParser.IfThenElseExprContext):

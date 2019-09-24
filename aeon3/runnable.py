@@ -3,11 +3,11 @@ from frontend_module.AeonASTVisitor import AeonASTVisitor
 from frontend_module.generated.AeonParser import AeonParser
 from frontend_module.generated.AeonLexer import AeonLexer
 
-from ast import *
+from .ast import *
 from antlr4 import *
-from types4 import *
+from .types import *
 
-from frontend import *
+from .frontend import *
 
 def printAST(node):
 

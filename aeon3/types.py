@@ -1,7 +1,7 @@
 import copy
 import sys
 
-from ast import *
+from .ast import *
 
 
 class TypeException(Exception):
@@ -81,8 +81,10 @@ class Kind(object):
         if self.is_star() and o.is_star():
             return True
         return self.k1 == o.k1 and self.k2 == o.k2
+    
     def __repr__(self):
-        return str(self)
+        return str(self) 
+    
     def __str__(self):
         if self.is_star():
             return "*"
@@ -120,18 +122,18 @@ class BasicType(Type):
 class AbstractionType(Type):
     """ x:T -> U """
 
-    def __init__(self, name, arg_type, return_type):
-        self.name = name
+    def __init__(self, arg_name, arg_type, return_type):
+        self.arg_name = arg_name
         self.arg_type = arg_type
         self.return_type = return_type
 
     def __str__(self):
-        return "{}:{} -> ({}):".format(self.name, self.arg_type,
+        return "{}:{} -> ({}):".format(self.arg_name, self.arg_type,
                                        self.return_type)
 
     def __eq__(self, o):
         return type(self) == type(o) \
-            and self.name == o.name \
+            and self.arg_name == o.arg_name \
             and self.arg_type == o.arg_type \
             and self.return_type == o.return_type
 
@@ -139,9 +141,9 @@ class AbstractionType(Type):
 class RefinedType(Type):
     """ x:T where U """
 
-    def __init__(self, name, typee, cond):
+    def __init__(self, name, type, cond):
         self.name = name
-        self.type = typee
+        self.type = type
         self.cond = cond
 
     def __eq__(self, o):
@@ -157,10 +159,10 @@ class RefinedType(Type):
 class TypeAbstraction(Type):
     """T:k => U"""
 
-    def __init__(self, name, kind, typee):
+    def __init__(self, name, kind, type):
         self.name = name
         self.kind = kind
-        self.type = typee
+        self.type = type
 
     def __str__(self):
         return "{}:{} => {}".format(self.name, self.kind, self.type)

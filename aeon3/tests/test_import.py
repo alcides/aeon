@@ -5,7 +5,7 @@ import sys
 sys.path.append('..')
 
 from ast import *
-from types4 import * 
+from types import * 
 
 from AeonParser import AeonParser
 from AeonLexer import AeonLexer

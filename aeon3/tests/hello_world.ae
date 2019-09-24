@@ -1,0 +1,26 @@
+define printString : (a:String, b:String) -> x:String {
+    print(a);
+    print(b);
+}
+
+define operationIntegers : (a:Integer, b:Integer) -> x:Integer {
+    a * b;
+}
+
+define print3 : () -> x:String {
+    printString("Ola", "Joao");
+}
+
+define main : () -> x:String {
+
+    print3();
+    print(operationIntegers(32, 3));
+    printString(2, 3);
+
+
+    x : Integer = 10;
+    print(x);
+
+    y : String = "Ola Paulo";
+    print(y);
+}

@@ -1,7 +1,7 @@
-from frontend_module.AeonASTVisitor import AeonASTVisitor
+from .frontend_module.AeonASTVisitor import AeonASTVisitor
 
-from frontend_module.generated.AeonParser import AeonParser
-from frontend_module.generated.AeonLexer import AeonLexer
+from .frontend_module.generated.AeonParser import AeonParser
+from .frontend_module.generated.AeonLexer import AeonLexer
 
 import os
 import os.path

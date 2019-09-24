@@ -24,30 +24,38 @@ DONE:
 	typeabstraction: verificar 
     
 
-modificar os ficheiros originais quando fizer a integração
+
+
+QUESTIONS:	
+	TypeAbstraction, TAbstraction
 
 
 
-
-QUESTIONS:
-    Como definir funcoes com TypeAbstraction? f<T>. E como são as Invocações? Application(nome, argumento)
+	
+    Como definir funcoes com TypeAbstraction? f<T>. E como são as Invocações? Application(nome, argumento) ---------> so o nome
     Qual o nome da funcao: Array<T>.f()? Array.f aplicado a T?
     Qual a diferença entre TAbstraction e TypeAbstraction, e TApplication e TypeApplication?
     
     Name do TypeDeclaration é BasicType ou String?
     
     Verificar se 
-    Map<String, X>:
-        TypeApplication(
-            TypeAbstraction(
-                BasicType(X),
-                Kind(star, star),
-                BasicType(Map)
-            ),
-            BasicType(String)
-        )
-    
-    Map<X, Y>:
+	
+	
+    type Map<String, X> = X:* => (Map.String).X
+	
+	TypeAbstraction(
+		BasicType(X),
+		star,
+		TypeApplication (
+			TypeApplication(
+				BasicType(Map),
+				BasicType(String)
+			),
+			BasicType(X)
+		)
+	)
+	
+    Map<X, Y>
         TypeAbstraction(
             BasicType(X),
             star,

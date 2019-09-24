@@ -1,6 +1,6 @@
 /**
  * Grammar for the Aeon language
- * To compile the grammar: java -jar antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4
+ * To compile the grammar: java -jar ../../tools/antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4
  */
 grammar Aeon;
 
@@ -52,7 +52,7 @@ expression
     | left=expression op=POWER right=expression                                                     # BinaryOperationCall
     | left=expression op=IMPLIE right= expression                                                   # BinaryOperationCall
     | op=(NOT | MINUS) right=expression                                                             # UnaryOperationCall
-    | left=expression op=(MULT | QUOTIENT | POWER) right=expression                                 # BinaryOperationCall
+    | left=expression op=(MULT | QUOTIENT | MODULE | POWER) right=expression                        # BinaryOperationCall
     | left=expression op=(PLUS | MINUS) right=expression                                            # BinaryOperationCall
     | left=expression op=(LT | LE | GT | GE) right=expression                                       # BinaryOperationCall
     | left=expression op=(EQUAL | DIFF | BEQUAL | BDIFF) right=expression                           # BinaryOperationCall
