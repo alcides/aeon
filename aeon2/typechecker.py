@@ -7,7 +7,7 @@ from .zed import *
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
     """ S-Int, S-Bool, S-Var """
-    return sub.typeName == sup.typeName
+    return sub.name == sup.name
 
 
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
@@ -26,10 +26,10 @@ def sub_whereR(ctx, sub: Type, sup: RefinedType):
 
 def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType):
     """ S-Abs """
-    nctx = ctx.with_var(sup.name, sup.arg_type)
+    nctx = ctx.with_var(sup.arg_name, sup.arg_type)
     sub_return_type = substitution_expr_in_type(sub.return_type,
-                                                Var(sup.name),
-                                                sub.name)
+                                                Var(sup.arg_name),
+                                                sub.arg_name)
     return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
         is_subtype(nctx, sub_return_type, sup.return_type)
 
@@ -40,14 +40,14 @@ def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
         return False
     nctx = ctx.with_type_var(sup.name, sup.kind)
     return is_subtype(
-        nctx, substitution_type_in_type(sub.type, BasicType(sup.typeName),
-                                        sub.typeName), sup.type)
+        nctx, substitution_type_in_type(sub.type, BasicType(sup.name),
+                                        sub.name), sup.type)
 
 
 def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication):
     """ S-TApp . Final case """
     if type(sub.target) is BasicType and type(sup.target) is BasicType:
-        return sub.target.typeName == sup.target.typeName and is_subtype(
+        return sub.target.name == sup.target.name and is_subtype(
             ctx, sub.argument, sup.argument)
     print("Weird bug in sub_tapp", sub, sup)
     return False
@@ -74,21 +74,21 @@ def is_same_type(ctx, a, b):
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
     if type(sub) is BasicType:
-        if sub.typeName == 'Bottom':
+        if sub.name == 'Bottom':
             return True  # Bottom
-        if sub.typeName in ctx.type_aliases:
+        if sub.name in ctx.type_aliases:
             return is_subtype(ctx, ctx.type_aliases[sub.typeName], sup)
     if type(sup) is BasicType:
-        if sup.typeName in ['Void', 'Object']:
+        if sup.name in ['Void', 'Object']:
             return True  # Top
-        if sup.typeName in ctx.type_aliases:
+        if sup.name in ctx.type_aliases:
             return is_subtype(ctx, sub, ctx.type_aliases[sup.typeName])
 
     if type(sub) is BasicType:
-        if sub.typeName in ['Void', 'Object']:
+        if sub.name in ['Void', 'Object']:
             return False  # Top
     if type(sup) is BasicType:
-        if sup.typeName == 'Bottom':
+        if sup.name == 'Bottom':
             return False  # Bottom
 
     if type(sub) is BasicType and type(sup) is BasicType:
@@ -294,13 +294,13 @@ def e_abs(ctx, n, expects=None):
     """ E-Abs """
     if expects and type(expects) is AbstractionType:
         body_expects = substitution_expr_in_type(expects.return_type,
-                                                 Var(n.name),
-                                                 expects.name)
+                                                 Var(n.arg_name),
+                                                 expects.arg_name)
     else:
         body_expects = None
-    nctx = ctx.with_var(n.name, n.arg_type)
+    nctx = ctx.with_var(n.arg_name, n.arg_type)
     n.body = tc(nctx, n.body, expects=body_expects)
-    n.type = AbstractionType(name=n.name,
+    n.type = AbstractionType(arg_name=n.arg_name,
                              arg_type=n.arg_type,
                              return_type=n.body.type)
     return n
@@ -316,11 +316,11 @@ def e_app(ctx, n, expects=None):
 
     if type(n.target.type) is AbstractionType:
         ftype = n.target.type
-        nctx = ctx.with_var(n.target.type.name, n.target.type.arg_type)
+        nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
         wellformed(nctx, ftype)
         n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
         n.type = substitution_expr_in_type(ftype.return_type, n.argument,
-                                           n.target.type.name)
+                                           n.target.type.arg_name)
 
         return n
     else:
