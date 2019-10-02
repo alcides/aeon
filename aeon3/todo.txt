@@ -1,46 +1,43 @@
-HOLD:
-	ignorar expressoes sem variaveis 3 > 1 -> z3 verification
-    
-	examples running
-    
-    testes unitarios
-    
+TO DO:
+		+ Circular Imports
+		+ Ignore basic True/False expressions with z3
+	| tapps e tabs
+	| Examples & Tests running
+
 DOING:
-	resolve imports -> Magic box
-    resolve type do type abstraction -> Magic box
-    
+	| Resolve the types of each statement
+	| Fix the types declarations
+	
 DONE:
-    parse_strict
-    parameters no TypeDeclaration
-	por contador para '_'
-	remover o typename dos basictype
-    Organizacao das pastas geradas
-	falta implicacao na gramatica
-    usar isbuiltin que esta no stdlib
-    variavel representativa de None
-	x:HM<string, Int>
-	typeaap - 1 typeapp      type app - 1 hm
-        	  2 string                - 2 int
-	typeabstraction: verificar 
-    
+	| Make verifiers for errors before parsing
+		+ Vars, functions and Types existance 
+	| Resolve imports
+	| Change the function Array.name to name only
+	| Override the ErrorBaseListener from antlr4 and launch exception after lexer failure
 
-
+TODO: 
+	Fix a estrutura do projeto (Nao esquecer o normal)
+	Corrigir o tabs e tapps
+	Corrigir o TypeAbstraction e TypeApplication
+	Bidirectional typechecking
+	Fixpoint para funcoes recursivas
+	Pensar para os types com argumentos. Tenho de fazer conversões
 
 QUESTIONS:	
-	TypeAbstraction, TAbstraction
+	todos os nos da arvore têm de ter os tipos?
+	Problem: circular imports in python
+	
+-----------------------------------------	
+	type QUalQuerCoisa {
+		x:Integer,
+		y:String
+	}
+
+	qualquercoisa_x(o:QualquerCoisa) -> Inteiro = uninterpreted
+-----------------------------------------
 
 
-
-	
-    Como definir funcoes com TypeAbstraction? f<T>. E como são as Invocações? Application(nome, argumento) ---------> so o nome
-    Qual o nome da funcao: Array<T>.f()? Array.f aplicado a T?
-    Qual a diferença entre TAbstraction e TypeAbstraction, e TApplication e TypeApplication?
-    
-    Name do TypeDeclaration é BasicType ou String?
-    
-    Verificar se 
-	
-	
+	old:
     type Map<String, X> = X:* => (Map.String).X
 	
 	TypeAbstraction(
@@ -54,25 +51,3 @@ QUESTIONS:
 			BasicType(X)
 		)
 	)
-	
-    Map<X, Y>
-        TypeAbstraction(
-            BasicType(X),
-            star,
-            TypeAbstraction(
-                BasicType(Y),
-                Kind(star, star),
-                BasicType(Map)
-            )
-        )
-    
-    Map<X, List<Integer>>:
-        TypeAbstraction(
-            TypeApplication(
-                BasicType(List),
-                BasicType(Integer)
-            ),
-            Kind(star, star),
-            BasicType(Map)
-            )
-        )

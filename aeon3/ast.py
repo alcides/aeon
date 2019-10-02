@@ -68,9 +68,6 @@ class Var(TypedNode):
 class If(TypedNode):
     """ if cond then e else e """
 
-    # int a = (a > b) ? 1 : 0;
-    #inteiro = True and "ola" or "adeus"
-
     def __init__(self, cond, then, otherwise):
         super(If, self).__init__()
         self.cond = cond

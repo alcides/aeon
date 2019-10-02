@@ -10,11 +10,11 @@ aeon
 // Import
 imprt
     : IMPORT path=importName SEMICOLON                              # RegularImport
-    | IMPORT functionName=dottedName FROM path=importName SEMICOLON # SpecialImport
+    | IMPORT functionName=IDENTIFIER FROM path=importName SEMICOLON # SpecialImport
     ;
 
 importName
-    : name=(DOT | IDENTIFIER) (DOT importName)?;
+    : name=IDENTIFIER | ((DOT DOT | folder=IDENTIFIER) QUOTIENT importName) ;
 
 // Type Alias
 typeeAlias
@@ -25,16 +25,17 @@ typeeDeclaration
     : TYPEE name=typee (LBRACE (attr=typee SEMICOLON)+ RBRACE | SEMICOLON);
 
 function
-    : DEFINE name=dottedName COLON LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE LBRACE expression (AND expression)* RBRACE)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
+    : DEFINE name=IDENTIFIER COLON LPARENS params=parameters? RPARENS RARROW returnType=typee (WHERE LBRACE expression (AND expression)* RBRACE)? (ASSIGN native=NATIVE SEMICOLON | LBRACE body RBRACE);
 
 parameters 
     : param=typee (COMMA restParams=parameters)?;
 
 // Types
 typee
-    : LBRACE typee PIPE cond=expression RBRACE      # TypeeCondition
-    | type1=typee RARROW type2=typee                # TypeeAbstraction
+    : LPARENS typee RPARENS                         # TypeeParens
+    | LBRACE typee PIPE cond=expression RBRACE      # TypeeCondition
     | varName=IDENTIFIER COLON typed=typee          # TypeeBasicType
+    | type1=typee RARROW type2=typee                # TypeeAbstraction
     | name=IDENTIFIER (LT tabst=abstrParams GT)?    # TypeeAbstractionApplication
     ;
 
@@ -48,7 +49,7 @@ body
 
 expression
     : LPARENS expression RPARENS                                                                    # Parenthesis
-    | functionName=dottedName LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
+    | functionName=IDENTIFIER LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
     | left=expression op=POWER right=expression                                                     # BinaryOperationCall
     | left=expression op=IMPLIE right= expression                                                   # BinaryOperationCall
     | op=(NOT | MINUS) right=expression                                                             # UnaryOperationCall
@@ -59,14 +60,12 @@ expression
     | left=expression op=CONJUNCTION right=expression                                               # BinaryOperationCall
     | left=expression op=DISJUNCTION right=expression                                               # BinaryOperationCall
     | ABSTRACTION varType=typee RARROW exp=expression                                               # Abstraction
-    | IF cond=expression THEN then=expression ELSE elseBody=expression                              # IfThenElseExpr
+    | cond=expression QUESTION then=expression COLON elseBody=expression                              # IfThenElseExpr
     | varName=IDENTIFIER                                                                            # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                                             # Literal
     ;
 
 // ---------- Helper parser rules
-dottedName : name=IDENTIFIER (LT tabst=abstrParams GT)? (DOT dotted=IDENTIFIER)? ;
-
 abstrParams : param=typee (COMMA restParams=abstrParams)? ;
 
 // ---------------------------------- Lexer -----------------------------------
@@ -74,14 +73,13 @@ abstrParams : param=typee (COMMA restParams=abstrParams)? ;
 IMPORT: 'import';
 FROM: 'from';
 
+// IF and ELSE
+IF: 'if';
+ELSE: 'else';
+
 // Type alias rules
 TYPEE: 'type';
 AS: 'as';
-
-// If then else
-IF: 'if';
-THEN: 'then';
-ELSE: 'else';
 
 // Dependent and Refined type rules
 AND: 'and';
@@ -111,7 +109,8 @@ RBRACKET: ']';
 // LGUILLEMETS: '<';
 // RGUILLEMETS: '>';
 
-HOLE: '[]';
+HOLE: '[]'      ;
+QUESTION: '?'   ;
 
 PLUS: '+' 		;
 MINUS: '-' 		;

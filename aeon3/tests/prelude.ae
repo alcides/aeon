@@ -1,9 +1,9 @@
 import prelude;
 
-import prelude.String;
+import ../../prelude/String;
 
-import ..prelude.String;
+import ../prelude/String;
 
 import String from prelude;
 
-import Arrays.String from prelude;
+import String from prelude;

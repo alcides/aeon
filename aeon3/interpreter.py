@@ -10,7 +10,6 @@ def run(a: Program):
 
 def evaluate(ctx, node):
     
-    # print(node)
     nodeType = type(node)
 
     # Literal
@@ -27,6 +26,7 @@ def evaluate(ctx, node):
             evaluate(ctx, d)
     # Definition
     elif nodeType is Definition:
+        # print(node.body)
         if type(node.body) is Var:
             bodyEval = evaluate(ctx, node.body)
             # If it was ... = native, it returns None, so we only define non-native functions
@@ -40,7 +40,7 @@ def evaluate(ctx, node):
     # If - Executa a operacao resultado do then
     elif nodeType is If:
         cond = evaluate(ctx, node.cond)
-        return cond and evaluate(ctx, node.then) or evaluate(
+        return evaluate(ctx, node.then) if cond else evaluate(
             ctx, node.otherwise)
     # Import - never happens
     elif nodeType is Import:
@@ -52,14 +52,13 @@ def evaluate(ctx, node):
             argument = 0 # TODO:
         else:
             argument = evaluate(ctx, node.argument)
-        #print(node.target, target)
-        #print(argument, node.argument)
+        # print(node.target, target)
+        # print(argument, node.argument)
         return target(argument)
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:
         # criar contexto proprio para abstracoes, a experimentar
-        newCtx = ctx.copy()
-        return lambda x: evaluate(ctxPut(newCtx, node.arg_name, x), node.body)
+        return lambda x: evaluate(ctxPut(ctx.copy(), node.arg_name, x), node.body)
     # TAbstraction - avaliar o corpo
     elif nodeType is TAbstraction:
         return evaluate(ctx, node.body)

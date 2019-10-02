@@ -84,6 +84,6 @@ initial_context = {
           lambda x: lambda y: x > y),
     ">=": (ty(">=", "(a:Integer, b:Integer) -> {c:Boolean | (a >= b)}"),
            lambda x: lambda y: x >= y),
-    # "fix": (ty("(a:*) => (f:(x:a) -> a) -> a"), Y), TODO:
+    # "fix": (ty("fix", "f<T> : (x:T -> T) -> T"), Y), TODO:
     "print": (ty("print", "(a:Integer) -> b:Integer"), std_print),
 }

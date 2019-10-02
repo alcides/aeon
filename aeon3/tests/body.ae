@@ -4,6 +4,13 @@ define funcao : () -> z:Integer {
     2;
 }
 
+/*
+    Comentario
+*/
+// Comentario
+def funcao :() -> z:Integer {
+    x : Integer = 10;
+}
 
 define funcao : () -> z:Integer {
     -1-1;
