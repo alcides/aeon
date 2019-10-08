@@ -1,0 +1,7 @@
+type Array<T>;
+
+def funcao : (x:Integer) -> y:Integer {
+    1 + 1;
+    2 + 2;
+    x + y;
+}

@@ -33,7 +33,7 @@ def parse(path):
         program = resolveImports(path, program)
 
     # Run the verifiers to search for errors
-    runVerifiers(tree)
+    # runVerifiers(tree)
     
     return program
     

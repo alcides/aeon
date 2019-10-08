@@ -1,7 +1,0 @@
-define teste : () -> x:Integer {
-    10;
-}
-
-define teste2 : () -> x:Integer {
-    10;
-}

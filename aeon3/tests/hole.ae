@@ -1,0 +1,56 @@
+def f : (x:Integer) -> Integer {
+    x + 1;
+}
+
+// Done - [{x:Integer | x > 0}]
+def hole1 : (y:Integer) -> {x:Integer | x > 0} {
+    [];
+}
+
+// Done - [Top]
+def hole2 : (y:Integer) -> Integer {
+    [];
+    1;
+}
+
+// Done - [Top]
+def hole3 : (y:Integer) -> Integer {
+    1;
+    [];
+    2;
+}
+
+// Done - [Boolean]
+def hole4 : (y:Integer) -> Boolean {
+    x : Boolean = 3 > [];
+}
+
+def hole5 : (y:Integer) -> Integer {
+    \x : String -> [];
+}
+
+def hole6 : (y:Integer) -> Integer {
+    \x : String -> [];
+    1;
+}
+
+def hole7 : (y:Integer) -> Integer {
+    y > 0 ? [] : true;
+}
+
+def hole8 : (y:Integer) -> Integer {
+    y > 0 ? [] : y;
+    1;
+}
+
+def hole9 : (y:Integer) -> Integer {
+    [] ? 3 : 10;
+}
+
+def hole10 : (y:Integer) -> Integer {
+    f([]);
+}
+
+def hole11 : (y:Integer) -> Integer {
+    [](10);
+}

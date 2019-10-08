@@ -13,7 +13,7 @@ class ContextVerifier(AeonVisitor):
 
     def __init__(self, errorList):
         self.errorList = errorList
-        self.context = {'print', 'fix'} # TODO: problemas com imports circulares python
+        self.context = {'print', 'fix'} 
         self.aeonASTVisitor = AeonASTVisitor({})
         self.typeeContext = {t_v, t_o, t_f, t_i, t_b, t_s, bottom}
 
@@ -52,6 +52,8 @@ class ContextVerifier(AeonVisitor):
 
         self.context = oldContext
 
+        self.typeeContext.add(typee)
+
     def visitFunction(self, ctx:AeonParser.FunctionContext):
         
         if ctx.name.text in self.context:
@@ -89,11 +91,12 @@ class ContextVerifier(AeonVisitor):
 
     def visitTypeeAbstractionApplication(self, ctx:AeonParser.TypeeAbstractionApplicationContext):
         if len(ctx.name.text) > 1:
-            if BasicType(ctx.name.text) not in self.typeeContext:
+            if BasicType(ctx.name.text) not in self.typeeContext and \
+                type(ctx.parentCtx) is not AeonParser.TypeeDeclarationContext:
                 extraParam = (ctx.name.text)
                 self.addError('Type', ctx.start.line, extraParam)
         if ctx.tabst:
-            self.visit(ctx.tabts)
+            self.visit(ctx.tabst)
 
     def visitBodyVarDefinition(self, ctx:AeonParser.BodyVarDefinitionContext):
         self.visit(ctx.varType)

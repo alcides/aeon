@@ -1,0 +1,61 @@
+type Array<T>;
+type Map<K, Map2<Integer, V>>;
+// (Map.K).((Map2.Integer).V)
+
+type Asd<K, V>;
+// (Asd.K).V
+/*
+
+Abstracao (
+    V,
+    *,
+    TypeApplication(
+        TypeApplication (
+            Asd,
+            K
+        )
+        V
+    )
+)
+
+*/
+
+/*
+
+    TypeDeclaration(
+        TypeAbstraction(
+            T,
+            *,
+            TypeApplication(
+                Array,
+                T
+            )
+        )
+        star
+    )
+
+*/
+
+/*
+    def f<T> : () -> Integer {
+        1;
+    }
+
+
+
+
+
+    Definition(
+        f,
+        TypeAbstraction(
+            T,
+            *,
+            AbsType(_0, Void, Integer)
+        )
+
+        TAbstraction(T, 
+                    *,
+                    Abstraction(_0, Void, Literal(1))
+        ),
+    )
+*/

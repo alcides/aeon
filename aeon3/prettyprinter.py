@@ -1,7 +1,7 @@
-from frontend_module.AeonASTVisitor import AeonASTVisitor
+from aeon3.frontend_module.AeonASTVisitor import AeonASTVisitor
 
-from frontend_module.generated.AeonParser import AeonParser
-from frontend_module.generated.AeonLexer import AeonLexer
+from aeon3.frontend_module.generated.AeonParser import AeonParser
+from aeon3.frontend_module.generated.AeonLexer import AeonLexer
 
 from .ast import *
 from antlr4 import *
@@ -22,24 +22,25 @@ def printAST(node):
         printAST(node.type)
 
     elif type(node) == Literal:
-        print(node.value, type(node.value))
-        printAST(node.type)
+        print(node.value, type(node.value), node.type)
 
     elif type(node) == Var:
         print(node.name, node.type)
 
     elif type(node) == If:
+        print("If statement: ", node.type)
         printAST(node.cond)
         printAST(node.then)
         printAST(node.otherwise)
 
     elif type(node) == Application:
+        print("Application statement", node.type)
         printAST(node.target)
         printAST(node.argument)
 
     elif type(node) == Abstraction:
+        print("Abstraction statement", node.arg_type)
         printAST(node.arg_name)
-        printAST(node.arg_type)
         printAST(node.body)
 
     elif type(node) == TAbstraction:
@@ -73,7 +74,7 @@ def printAST(node):
         print(node.name)
 
     elif type(node) == AbstractionType:
-        print(node.name)
+        print(node.arg_name)
         printAST(node.arg_type)
         printAST(node.return_type)
 
@@ -98,5 +99,3 @@ def printAST(node):
 
     else:
         print("Type of node not found: ", type(node), node)
-
-printAST(parse(sys.argv[1]))

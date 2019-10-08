@@ -40,7 +40,7 @@ def std_print(x):
     return x
 
 def ty(operation, typee):
-    typee = 'define temp : {} = native;'.format(typee)
+    typee = 'def temp : {} = native;'.format(typee)
     result = parse_strict(typee)
     result.name = operation
     return result
@@ -84,6 +84,6 @@ initial_context = {
           lambda x: lambda y: x > y),
     ">=": (ty(">=", "(a:Integer, b:Integer) -> {c:Boolean | (a >= b)}"),
            lambda x: lambda y: x >= y),
-    # "fix": (ty("fix", "f<T> : (x:T -> T) -> T"), Y), TODO:
+    # "fix": (ty("fix", "f : (x:T -> T) -> T"), Y),
     "print": (ty("print", "(a:Integer) -> b:Integer"), std_print),
 }

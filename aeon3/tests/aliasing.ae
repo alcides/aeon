@@ -1,5 +1,0 @@
-type String as String2;
-
-// type List<Integer> as ListaInteiros;
-
-// type Map<Integer, Boolean> as Mapa;

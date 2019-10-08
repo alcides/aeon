@@ -9,7 +9,7 @@ def run(a: Program):
     evaluate(ctx, a)
 
 def evaluate(ctx, node):
-    
+
     nodeType = type(node)
 
     # Literal
@@ -52,8 +52,8 @@ def evaluate(ctx, node):
             argument = 0 # TODO:
         else:
             argument = evaluate(ctx, node.argument)
-        # print(node.target, target)
-        # print(argument, node.argument)
+        # print("Target: ", node.target, target)
+        # print("Argument: ", argument, node.argument)
         return target(argument)
     # Abstraction - retorna representacao em string, convertida
     elif nodeType is Abstraction:

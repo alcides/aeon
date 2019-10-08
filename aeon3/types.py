@@ -192,6 +192,7 @@ class TypeApplication(Type):
 
 # defaults
 t_v = BasicType('Void')
+t_t = BasicType('Top')
 t_o = BasicType('Object')
 t_f = BasicType('Double')
 t_i = BasicType('Integer')

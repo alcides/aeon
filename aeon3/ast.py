@@ -35,7 +35,7 @@ class Hole(TypedNode):
 
 
 class Literal(TypedNode):
-    """ true | false | i """
+    """ true | false | 0 | 0.0 """
 
     def __init__(self, value, type):
         super(Literal, self).__init__()

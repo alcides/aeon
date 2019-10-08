@@ -1,6 +1,0 @@
-define funcao : (x:Integer) -> {z:Integer | (z > 1)} = native;
-
-define funcao : (x:Integer) -> {z:Integer | (x > y)} = native;
-
-define funcao : ({x:Integer | x > 0 && y < 0}) -> {z:Integer | (x > z)} = native;
-

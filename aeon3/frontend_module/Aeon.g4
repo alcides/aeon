@@ -49,7 +49,7 @@ body
 
 expression
     : LPARENS expression RPARENS                                                                    # Parenthesis
-    | functionName=IDENTIFIER LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
+    | functionName=expression LPARENS (param=expression (COMMA params=expression)*)? RPARENS        # FunctionCall
     | left=expression op=POWER right=expression                                                     # BinaryOperationCall
     | left=expression op=IMPLIE right= expression                                                   # BinaryOperationCall
     | op=(NOT | MINUS) right=expression                                                             # UnaryOperationCall
@@ -85,7 +85,7 @@ AS: 'as';
 AND: 'and';
 WHERE: 'where';
 NATIVE: 'native';
-DEFINE: 'define';
+DEFINE: 'def';
 ABSTRACTION: '\\';
 
 // Special Characters

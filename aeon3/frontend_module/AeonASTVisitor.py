@@ -48,8 +48,8 @@ class AeonASTVisitor(AeonVisitor):
     
     def visitTypeeDeclaration(self, ctx:AeonParser.TypeeDeclarationContext):
         typee = self.visit(ctx.name)
-        kind = star if type(typee) is BasicType or type(typee) is TypeApplication else typee.kind
-        parameters = [self.visit(attribute) for attribute in ctx.typee()[1:]]
+        kind = star if (type(typee) is BasicType or type(typee) is TypeApplication) else typee.kind
+        parameters = [self.visit(attribute) for attribute in ctx.typee()[1:]]                                       # TODO: Refazer aquilo que o prof tinha dito
         return TypeDeclaration(typee, kind, parameters)
     
 
@@ -62,11 +62,13 @@ class AeonASTVisitor(AeonVisitor):
 
         # Update the context
         self.general_context[function_name] = return_type
+
+        # Create a safe copy for the current function
         oldgeneral_context = self.general_context
         self.general_context = self.general_context.copy()
         
         # Computes de function parameters if they exist
-        params, last_param = ctx.params and self.visit(ctx.params) or (None, None)
+        params, last_param = self.visit(ctx.params) if ctx.params else (None, None)
 
         if params:
             last_param.return_type = return_type
@@ -136,10 +138,9 @@ class AeonASTVisitor(AeonVisitor):
     # x:T
     def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
         typee = self.visit(ctx.typed) 
-        if type(typee) is BasicType:
-            if typee in self.type_aliases:
+        self.basic_typee_stack.append(ctx.varName.text)
+        if type(typee) is BasicType and typee in self.type_aliases:
                 return self.type_aliases[typee]
-        self.basic_typee_stack.append(ctx.varName.text) # TODO: ver se nao eh preciso espaco aqui para previnir
         return typee
 
     # T -> T
@@ -149,25 +150,47 @@ class AeonASTVisitor(AeonVisitor):
         name = self.getBasicTypeName(type1)
         return AbstractionType(name, type1, type2)
     
-    # T<String, Integer> = TypeApplication()
-    # TODO: T<X, Y> =
+    # TypeAbstraction and TypeApplication()
     def visitTypeeAbstractionApplication(self, ctx:AeonParser.TypeeAbstractionApplicationContext):
         result = BasicType(ctx.name.text)
+        
         if ctx.tabst:
-            arguments = self.visit(ctx.tabst)
-            
-            if containsTypeAbst(arguments[-1]):
-                result = TypeAbstraction(arguments[-1], Kind(star, star), result)
-            else:
-                result = TypeApplication(result, arguments[-1])
+            # print("#############################################")
+            # print("Lets start the ", ctx.name.text)
+            abstractions, arguments = self.visit(ctx.tabst)
+            # print(">"*5, ctx.name.text, abstractions, arguments)
+            # print("----"*13, ctx.name.text, " has ended.")
 
-            for arg in reversed(arguments[:-1]):
-                if containsTypeAbst(arg):
-                    result = TypeAbstraction(arg, star, result)
-                else:
-                    result = TypeApplication(result, arg)
+            for arg in arguments:
+                result = TypeApplication(result, arg)
+
+            for abst in abstractions:
+                result = TypeAbstraction(abst, star, result)
         return result
 
+    # <K, Map<K, V>>
+    def visitAbstrParams(self, ctx:AeonParser.AbstrParamsContext):
+        result = self.visit(ctx.param)
+        
+        abstractions = set()
+        
+        if type(result) is BasicType:
+            if len(result.name) == 1:
+                abstractions.add(result) 
+
+        while type(result) is TypeAbstraction:
+            abstractions.add(result.name)
+            result = result.type
+
+        result = [result]
+
+        if ctx.restParams:
+            abstractionsParams, restParams = self.visit(ctx.restParams)
+            abstractions = abstractions.union(abstractionsParams)
+            result = result + restParams
+        
+        return abstractions, result
+        
     # ------------------------------------------------------------ Function Body
     # x : T = expression
     def visitBodyVarDefinition(self, ctx:AeonParser.BodyVarDefinitionContext):
@@ -175,9 +198,15 @@ class AeonASTVisitor(AeonVisitor):
         var_type = self.visit(ctx.varType)
         expression = self.visit(ctx.exp)
         var = Var(self.basic_typee_stack.pop() if self.basic_typee_stack else self.nextVoidName())
+        
+        name = var_type.arg_name.name if type(var_type) is AbstractionType else var_type.name
 
-        if not var_type.name.startswith('_'):
-            self.general_context[var_type.name] = var_type
+        if not name.startswith('_'):
+            if type(var_type) is AbstractionType:
+                name2 = var_type.arg_name.name
+            else:
+                name2 = var_type.name
+            self.general_context[name2] = var_type
 
         if ctx.nextExpr:
             return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
@@ -259,7 +288,8 @@ class AeonASTVisitor(AeonVisitor):
         elif ctx.value.type == AeonParser.STRING:
             return Literal(value, type=refined_value(value, t_s, '_s'))             
         elif ctx.value.type == AeonParser.HOLE:
-            return Hole(value)                                                          
+            # To be filled later
+            return Hole(None)                                                          
         return None
 
     # not/- expr
@@ -283,16 +313,17 @@ class AeonASTVisitor(AeonVisitor):
 
     # f(...)
     def visitFunctionCall(self, ctx:AeonParser.FunctionCallContext):
-        functionName = ctx.functionName.text
-        params = [Application(Var(functionName), self.visit(parameter)) \
-                  for parameter in ctx.expression()]
+        functionCall = self.visit(ctx.functionName)
+
+        params = [Application(functionCall, self.visit(parameter)) \
+                  for parameter in ctx.expression()[1:]] # careful here
 
         # Nest the applications
         for i in range(len(params) - 1, 0, -1):
             params[i].target = params[i - 1]
 
         if not params:
-            result = Application(Var(functionName), empty_argument)
+            result = Application(functionCall, empty_argument)
         else:
             result = params[len(params) - 1]
 

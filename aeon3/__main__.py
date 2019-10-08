@@ -6,7 +6,10 @@ import shutil
 from .frontend import parse
 from .automatic import synthesise_with_outputdir
 from .typechecker import typecheck, TypeException
+from .typeInferer import infereTypes
 from .interpreter import run
+
+from .prettyprinter import printAST
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
@@ -26,6 +29,17 @@ if __name__ == '__main__':
     random.seed(seed)
 
     ast = parse(sys.argv[-1])
+    
+    # print(ast)
+    # printAST(ast)
+    # print("Before: ", ast)
+    # print("---------------------------------------------------------\nBefore type infering:\n")
+    # print(ast)
+    infereTypes(ast)
+    #print("="*30)
+    # printAST(ast)
+    print("---------------------------------------------------------\nAfter type infering:\n")
+    print(ast)
     '''
     if debug:
         print("---------- Untyped -------")
