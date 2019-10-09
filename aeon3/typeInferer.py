@@ -212,7 +212,12 @@ class HoleInferer():
         print(self.hole_stack)
         # I am on a possible hole application case
         if type(node.target) is not Abstraction:
-            arg_type = node.argument.type if node.argument.type is not None else self.hole_stack[-1]
+            if node.argument.type is not None:
+                arg_type = node.argument.type
+            elif len(self.hole_stack) > 1:
+                arg_type = self.hole_stack[-1]
+            else:
+                arg_type = t_t
             typee = AbstractionType(self.nextVoidVar(), arg_type, self.hole_stack[-1])
             self.hole_stack.append(typee)
             self.visit(node.target)

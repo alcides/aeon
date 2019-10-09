@@ -286,11 +286,14 @@ class AeonASTVisitor(AeonVisitor):
             value = value == 'true' and True or False
             return Literal(value, type=refined_value(value, t_b, '_b'))
         elif ctx.value.type == AeonParser.STRING:
-            return Literal(value, type=refined_value(value, t_s, '_s'))             
-        elif ctx.value.type == AeonParser.HOLE:
-            # To be filled later
-            return Hole(None)                                                          
+            return Literal(value, type=refined_value(value, t_s, '_s'))                                                                     
         return None
+    
+    # Visit a parse tree produced by AeonParser#Hole.
+    def visitHole(self, ctx:AeonParser.HoleContext):
+        # Entrou aqui
+        typee = self.visit(ctx.typee()) if ctx.typee() else None
+        return Hole(typee)
 
     # not/- expr
     def visitUnaryOperationCall(self, ctx:AeonParser.UnaryOperationCallContext):

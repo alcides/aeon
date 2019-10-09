@@ -60,9 +60,10 @@ expression
     | left=expression op=CONJUNCTION right=expression                                               # BinaryOperationCall
     | left=expression op=DISJUNCTION right=expression                                               # BinaryOperationCall
     | ABSTRACTION varType=typee RARROW exp=expression                                               # Abstraction
-    | cond=expression QUESTION then=expression COLON elseBody=expression                              # IfThenElseExpr
+    | cond=expression QUESTION then=expression COLON elseBody=expression                            # IfThenElseExpr
+    | LBRACKET (typee)? RBRACKET                                                                      # Hole
     | varName=IDENTIFIER                                                                            # Variable
-    | value=(INTEGER | FLOAT | BOOLEAN | STRING | HOLE)                                             # Literal
+    | value=(INTEGER | FLOAT | BOOLEAN | STRING)                                                    # Literal
     ;
 
 // ---------- Helper parser rules
@@ -109,7 +110,7 @@ RBRACKET: ']';
 // LGUILLEMETS: '<';
 // RGUILLEMETS: '>';
 
-HOLE: '[]'      ;
+// HOLE: '[]'      ;
 QUESTION: '?'   ;
 
 PLUS: '+' 		;

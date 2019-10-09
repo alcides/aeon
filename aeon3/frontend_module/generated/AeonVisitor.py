@@ -99,6 +99,11 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by AeonParser#Hole.
+    def visitHole(self, ctx:AeonParser.HoleContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by AeonParser#Variable.
     def visitVariable(self, ctx:AeonParser.VariableContext):
         return self.visitChildren(ctx)

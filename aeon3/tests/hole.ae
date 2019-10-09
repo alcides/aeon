@@ -74,6 +74,18 @@ def hole11 : (y:Integer) -> {x:Integer | x > 10} {
     [](10);
 }
 
+def hole12 : (y:Integer) -> Double {
+    []([]);
+}
+
+
+def hole13 : (y:Integer) -> Double {
+    []([]([]));
+}
+
+def hole14 : (y:Integer) -> {x:Double | x > 0.0} {
+    [] ? [] : [];
+}
 
 def funcao : (x:Integer) -> Integer {
 	1;
