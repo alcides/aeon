@@ -19,7 +19,7 @@ def printAST(node):
             printAST(decl)
 
     elif type(node) == Hole:
-        printAST(node.type)
+        print(node.type)
 
     elif type(node) == Literal:
         print(node.value, type(node.value), node.type)
@@ -29,17 +29,17 @@ def printAST(node):
 
     elif type(node) == If:
         print("If statement: ", node.type)
-        printAST(node.cond)
+        printAST(node.cond,)
         printAST(node.then)
         printAST(node.otherwise)
 
     elif type(node) == Application:
-        print("Application statement", node.type)
+        print("Application statement: ", node.type)
         printAST(node.target)
         printAST(node.argument)
 
     elif type(node) == Abstraction:
-        print("Abstraction statement", node.arg_type)
+        print("Abstraction statement: ", node.type)
         printAST(node.arg_name)
         printAST(node.body)
 
@@ -53,8 +53,7 @@ def printAST(node):
         printAST(node.argument)
 
     elif type(node) == Definition:
-        printAST(node.name)
-        printAST(node.type)
+        print("Definition statement: ", node.type)
         printAST(node.body)
 
     elif type(node) == TypeAlias:

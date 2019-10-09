@@ -247,9 +247,9 @@ class AeonASTVisitor(AeonVisitor):
         else_body = self.visit(ctx.elseBody)
 
         node = If(cond, then_body, else_body)
-
+        
         if ctx.nextExpr:
-            return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), node)
+            return Application(Abstraction(var, None, self.visit(ctx.nextExpr)), node)
         else:
             return node
 

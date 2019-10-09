@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # print(ast)
     infereTypes(ast)
     #print("="*30)
-    # printAST(ast)
+    #printAST(ast)
     print("---------------------------------------------------------\nAfter type infering:\n")
     print(ast)
     '''
