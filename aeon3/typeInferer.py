@@ -61,6 +61,7 @@ class TypeInferer():
         if type(node.target) is Abstraction and node.target.arg_type is None:
             # Define the type of the arguments of the abstraction
             node.target.arg_type = node.argument.type
+            node.target.arg_name.type = node.argument.type
             
         # The type of the target of current node is the result of the abstraction
         if type(node.target.type) is AbstractionType:
@@ -72,8 +73,8 @@ class TypeInferer():
         self.ctx[node.arg_name.name] = node.arg_type
         self.visit(node.body)
         node.type = AbstractionType(node.arg_name, node.arg_type, node.body.type)
-
         self.ctx[node.arg_name.name] = node.arg_type
+        node.arg_name.type = node.arg_type
         
     def visitDefinition(self, node:Definition):
 
@@ -169,11 +170,12 @@ class HoleInferer():
             self.visit(x)
 
     def visitHole(self, node:Hole):
-        if self.hole_stack:
+        if node.type is None and self.hole_stack:
             node.type = self.hole_stack[-1]
             del(self.hole_stack[-1])
         else:
-            print("The hole stack is empty")
+            if not self.hole_stack:
+                print("The hole stack is empty")
     
     def visitLiteral(self, node:Literal):
         pass
@@ -209,7 +211,7 @@ class HoleInferer():
             node.type = getBasicType(node.then.type) # TODO: Give the most general type
 
     def visitApplication(self, node:Application):
-        print(self.hole_stack)
+  
         # I am on a possible hole application case
         if type(node.target) is not Abstraction:
             if node.argument.type is not None:
@@ -247,9 +249,10 @@ class HoleInferer():
         self.ctx = oldContext
 
         # The type of the argument of the abstraction, is the type of the argument of the application
-        if type(node.target) is Abstraction and node.target.arg_type is None:
+        if type(node.target) is Abstraction and node.target.arg_name.name.startswith('_'):
             # Define the type of the arguments of the abstraction
             node.target.arg_type = node.argument.type
+            node.target.arg_name.type = node.argument.type
             
         # The type of the target of current node is the result of the abstraction
         if type(node.target.type) is AbstractionType:
@@ -263,12 +266,12 @@ class HoleInferer():
         # For sure this contains a type
         if node.arg_type is None:
             print(">"*20, "Opsie, visitAbstraction in hole inferer")    
-        print("Nao devia de ter entrado aqui:", node)
+    
         self.visit(node.body)
 
         if node.arg_type in self.hole_stack:
             self.hole_stack.remove(node.arg_type)
-
+        
         node.type = AbstractionType(node.arg_name, node.arg_type, node.body.type)
         self.ctx[node.arg_name.name] = node.arg_type
 

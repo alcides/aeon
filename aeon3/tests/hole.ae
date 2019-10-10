@@ -1,7 +1,6 @@
-def f : (x:Integer) -> Integer {
+def f : (x:String) -> Double {
     x + 1;
 }
-
 
 // Done - [{x:Integer | x > 0}]
 def hole1 : (y:Integer) -> {x:Integer | x > 0} {
@@ -67,6 +66,17 @@ def hole9 : (y:Integer) -> Integer {
 
 def hole10 : (y:Integer) -> Integer {
     f([]);
+}
+
+
+def h2 : (y:Integer) -> Integer {
+    f([](2));
+    1;
+}
+
+def h3 : (y:Integer) -> Integer {
+    (\x:Integer -> x + 1)([]);
+    1;
 }
 
 
