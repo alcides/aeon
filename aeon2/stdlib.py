@@ -11,6 +11,10 @@ def is_builtin(name):
     return name in initial_context.keys()
 
 
+def is_builtin_in_z3(name):
+    return name in initial_context.keys() and len(initial_context[name]) >= 3
+
+
 def get_builtin_type(name):
     """ Returns the type of a builtin value """
     return initial_context[name][0]

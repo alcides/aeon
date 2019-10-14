@@ -64,7 +64,8 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
-            raise NoZ3TranslationException("Var not in scope: {}".format(v))
+            raise NoZ3TranslationException("Var not in scope: {} : {}".format(
+                v, v.type))
     return ztx[v.name]
 
 
