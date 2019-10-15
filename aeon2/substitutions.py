@@ -95,7 +95,7 @@ def substitution_expr_in_type(n: Type, replacement: Node, replaced) -> Node:
         raise TypeException("Substitution in type unknown:", n, type(n))
 
 
-def substitution_type_in_type(n, replacement: Type, replaced):
+def substitution_type_in_type(n, replacement: Type, replaced: str):
     """ T[U/V] """
     #print(""" T[U/V] """, n, replacement, replaced)
 

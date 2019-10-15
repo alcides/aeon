@@ -1,4 +1,4 @@
-from .ast import Var
+from .ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
@@ -57,17 +57,18 @@ def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication):
     return False
 
 
-def sub_appL(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ S-AppL . Beta-reduction on the left """
+def sub_appL(ctx, sub: TypeApplication, sup: Type):
+    """ S-Cong + C-Beta on the left """
     abst = sub.target
-    nsub = substitution_type_in_type(abst.type, abst.name, sub.argument)
+    assert (type(sub.target) == TypeAbstraction)
+    nsub = substitution_type_in_type(abst.type, sub.argument, abst.name)
     return is_subtype(ctx, nsub, sup)
 
 
-def sub_appR(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ S-AppR . Beta-reduction on the right"""
+def sub_appR(ctx, sub: Type, sup: TypeApplication):
+    """ S-Cong . C-Beta on the right"""
     abst = sup.target
-    nsup = substitution_type_in_type(abst.type, abst.name, sup.argument)
+    nsup = substitution_type_in_type(abst.type, sup.argument, abst.name)
     return is_subtype(ctx, sub, nsup)
 
 
@@ -105,7 +106,7 @@ def is_subtype(ctx, sub, sup):
         return sub_abs(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_tabs(ctx, sub, sup)
-    if type(sub) is TypeApplication and type(sup) is TypeApplication:
+    if type(sub) is TypeApplication or type(sup) is TypeApplication:
         if type(sub.target) is TypeAbstraction:
             return sub_appL(ctx, sub, sup)
         if type(sup.target) is TypeAbstraction:
@@ -199,6 +200,8 @@ def k_tabs(ctx, t: TypeAbstraction, k: Kind):
             raise TypeException(
                 "Body of TypeAbstraction {} (kind: {}) is not of kind {}.".
                 format(t, k2, k.k2))
+    else:
+        k2 = kinding(ctx.with_type_var(BasicType(t.name), t.kind), t.type, k)
 
     return Kind(k1=t.kind, k2=k2)
 
@@ -210,8 +213,9 @@ def k_tapp(ctx, t: TypeApplication, k: Kind):
     k1 = kinding(ctx, U, AnyKind())
     k_a = kinding(ctx, T, Kind(k1=k1, k2=AnyKind()))
     if k != k_a.k2:
-        raise TypeException("Type Abstraction has wrong kinding.",
-                            "Expected {}, given {}.".format(k, k_a.k2))
+        raise TypeException(
+            "Type Abstraction has wrong kinding.\nExpected {}, given {}.".
+            format(k, k_a.k2))
     return k_a.k2
 
 
@@ -233,7 +237,7 @@ def kinding(ctx, t: Type, k: Kind):
 
 
 def check_expects(ctx, n, expects):
-    if expects and not expr_has_type(ctx, n, expects):
+    if expects and not hasattr(n, "type"):  #  expr_has_type(ctx, n, expects):
         raise TypeException(
             '{} has wrong type'.format(type(n)),
             "{} has wrong type (given: {}, expected: {})".format(
@@ -263,7 +267,7 @@ def expr_has_type(ctx, e, t):
 def t_literal(ctx, n, expects=None):
     """ T-Bool, T-Int, T-Basic """
     # Literals have their type filled
-    if not n.type:
+    if not n.type and not n.ensured:
         name = "Literal_{}".format(n.value)
         if type(n.value) == bool:
             btype = t_b
@@ -275,7 +279,9 @@ def t_literal(ctx, n, expects=None):
                              type=btype,
                              cond=Application(
                                  Application(Var(op), Var(name)),
-                                 Literal(value=n.value, type=btype)))
+                                 Literal(value=n.value,
+                                         type=btype,
+                                         ensured=True)))
 
     return n
 
@@ -318,13 +324,9 @@ def t_abs(ctx, n, expects=None):
     return n
 
 
-def t_app(ctx, n, expects=None):
+def t_app(ctx, n: Application, expects=None):
     """ T-App """
     n.target = tc(ctx, n.target, expects=None)
-
-    if "+" in str(n):
-        print("Target:", n.target, n.target.type)
-        print("Argument", n.target, n.target.type)
 
     if type(n.target.type) is AbstractionType:
         ftype = n.target.type
@@ -342,7 +344,7 @@ def t_app(ctx, n, expects=None):
             given=n.target.type)
 
 
-def t_tabs(ctx, n, expects: Type = None):
+def t_tabs(ctx, n: TAbstraction, expects: Type = None):
     """ E-TAbs """
     a_expects = None
     if expects and type(expects) is TypeAbstraction:
@@ -353,7 +355,7 @@ def t_tabs(ctx, n, expects: Type = None):
     return n
 
 
-def e_tapp(ctx, n, expects=None):
+def e_tapp(ctx, n: TAbstraction, expects=None):
     """ E-TApp """
     n.target = tc(ctx, n.target, expects=None)
     if not type(n.target.type) is TypeAbstraction:
@@ -364,13 +366,14 @@ def e_tapp(ctx, n, expects=None):
 
     tabs = n.target.type
 
-    k1 = kinding(ctx, tabs, AnyKind())
-    k2 = kinding(ctx, n.argument, AnyKind())
-    if k1 != k2:
-        raise TypeException('Type abstraction has wrong kind',
-                            "In Type Application".format(n),
-                            expects=k2,
-                            given=k1)
+    kind_of_arg = kinding(ctx, n.argument, AnyKind())
+    if tabs.kind != kind_of_arg:
+
+        raise TypeException(
+            "Type abstraction has wrong kind.\nIn Type Application {}.".format(
+                n),
+            expects=kind_of_arg,
+            given=n.kind)
 
     n.type = substitution_type_in_type(tabs.type, n.argument, tabs.name)
     return n

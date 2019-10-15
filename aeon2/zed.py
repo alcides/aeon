@@ -2,8 +2,9 @@ from functools import reduce
 
 import z3
 
-from .types import *
-from .ast import *
+from .ast import Var, Literal, Application, Abstraction
+from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b
 from .stdlib import *
 from .substitutions import *
 from .zed_utils import *
@@ -41,6 +42,8 @@ def zed_mk_variable(name, ty: Type):
             return z3.Int(name)
         elif ty.name == "Boolean":
             return z3.Bool(name)
+        elif ty.name == "Bottom":
+            return z3.Bool(name)
     if type(ty) is RefinedType:
         return zed_mk_variable(name, ty.type)
 
@@ -64,6 +67,8 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
+            for k in ztx:
+                print(">", k, ztx[k])
             raise NoZ3TranslationException("Var not in scope: {} : {}".format(
                 v, v.type))
     return ztx[v.name]
@@ -84,11 +89,14 @@ def zed_translate_context(ztx, ctx):
     restrictions = []
     for name in ctx.variables.keys():
         t = ctx.variables[name]
+        if name not in ztx:
+            ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
         if type(t) is RefinedType:
             tprime = flatten_refined_types(t)
             new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
                                                  t.name)
             restrictions.append(new_cond)
+
     acc = []
     for e in restrictions:
         c = zed_translate_wrapped(ztx, e)

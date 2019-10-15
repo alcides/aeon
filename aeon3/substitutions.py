@@ -49,7 +49,7 @@ def substitution_type_in_expr(n: Node, replacement: Type, replaced):
     if type(n) is Literal:
         return n
     elif type(n) is Var:
-        return n
+        return n  # TODO. subs?
     elif type(n) is If:
         return If(r(n.cond), r(n.then), r(n.otherwise)).with_type(nty)
     elif type(n) is Application:

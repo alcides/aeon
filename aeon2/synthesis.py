@@ -96,10 +96,12 @@ def se_int(ctx, T, d):
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
-                                    type=t_i,
+                                    type=T,
                                     cond=Application(
                                         Application(Var("=="), Var(name)),
-                                        Literal(value=v, type=T))))
+                                        Literal(value=v,
+                                                type=t_i,
+                                                ensured=True))))
 
 
 def se_if(ctx, T, d):

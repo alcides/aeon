@@ -34,6 +34,7 @@ class TestSubstitutions(unittest.TestCase):
         self.assert_stt("T", "Bool", "X", expects="T")
         self.assert_stt("Bool", "Bool", "X", expects="Bool")
         self.assert_stt("X", "X", "Bool", expects="X")
+        self.assert_stt("T", "Integer", "T", expects="Integer")
 
     def test_type_in_type_refined(self):
         """ type in type, refined """
@@ -54,6 +55,22 @@ class TestSubstitutions(unittest.TestCase):
                         "X",
                         "Boolean",
                         expects="{x:{y:X where true} where true }")
+
+    def test_type_in_type_abs(self):
+        """ type in type, abs """
+
+        self.assert_stt("(T:*) => S",
+                        "Integer",
+                        "S",
+                        expects="(T:*) => Integer")
+        self.assert_stt("(T:*) => (A B)",
+                        "Integer",
+                        "A",
+                        expects="(T:*) => (Integer B)")
+        self.assert_stt("(T:*) => (A B)",
+                        "Integer",
+                        "B",
+                        expects="(T:*) => (A Integer)")
 
     def test_type_in_type_app(self):
         """ type in type, app """
