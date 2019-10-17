@@ -1,5 +1,5 @@
 from .ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
-from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
+from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
@@ -76,6 +76,40 @@ def is_same_type(ctx, a, b):
     return is_subtype(ctx, a, b) and is_subtype(ctx, b, a)
 
 
+def c_beta_simplication(ctx: TypingContext, t: Type, k: Kind):
+    """ Reduces a type according to C-Beta """
+    if type(t) is TypeApplication:
+        starget = c_beta_simplication(ctx, t.target, AnyKind())
+        sargument = c_beta_simplication(ctx, t.argument, AnyKind())
+
+        if type(starget) is TypeAbstraction:
+            small_t = starget.name
+            small_k = starget.kind
+            big_t = starget.type
+
+            return substitution_type_in_type(big_t, sargument, small_t)
+    return t
+
+
+def s_cong(ctx: TypingContext, sub: Type, sup: Type, k: Kind):
+    """"  Type Conversion  """
+    if type(sub) is BasicType:
+        if sub.name in ctx.type_aliases:
+            return s_cong(ctx, ctx.type_aliases[sub.typeName], sup, k)
+    if type(sup) is BasicType:
+        if sup.name in ctx.type_aliases:
+            return s_cong(ctx, sub, ctx.type_aliases[sup.typeName], k)
+
+    sub = c_beta_simplication(ctx, sub, k)
+    sup = c_beta_simplication(ctx, sub, k)
+    """ C-Ref """
+    if type(sub) is BasicType and type(
+            sup) is BasicType and sub.name == sup.name:
+        return kinding(ctx, sub, k)
+
+    return False
+
+
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
     if type(sub) is BasicType:
@@ -106,13 +140,7 @@ def is_subtype(ctx, sub, sup):
         return sub_abs(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_tabs(ctx, sub, sup)
-    if type(sub) is TypeApplication or type(sup) is TypeApplication:
-        if type(sub.target) is TypeAbstraction:
-            return sub_appL(ctx, sub, sup)
-        if type(sup.target) is TypeAbstraction:
-            return sub_appR(ctx, sub, sup)
-        return sub_tapp(ctx, sub, sup)
-    return False
+    return s_cong(ctx, sub, sup, AnyKind())
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 
 

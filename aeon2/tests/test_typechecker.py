@@ -89,6 +89,9 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ctx, "(T:*) => T", "(T:*) => T")
         self.assert_st(ctx, "(((T:*) => T) Integer)", "Integer")
 
+        self.assert_st(ctx, "((((T:*) => ((S:*) => T)) Integer) Void)",
+                       "Integer")
+
 
 if __name__ == '__main__':
     unittest.main()
