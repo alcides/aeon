@@ -37,10 +37,11 @@ class Hole(TypedNode):
 class Literal(TypedNode):
     """ true | false | i """
 
-    def __init__(self, value, type):
+    def __init__(self, value, type, ensured=False):
         super(Literal, self).__init__()
         self.value = value
         self.type = type
+        self.ensured = ensured  # Used to track if needs type validation or not
 
     def __str__(self):
         return "{}".format(self.value)

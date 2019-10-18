@@ -11,6 +11,10 @@ def is_builtin(name):
     return name in initial_context.keys()
 
 
+def is_builtin_in_z3(name):
+    return name in initial_context.keys() and len(initial_context[name]) >= 3
+
+
 def get_builtin_type(name):
     """ Returns the type of a builtin value """
     return initial_context[name][0]
@@ -45,6 +49,7 @@ def std_print(x):
 
 initial_context = {
     'native': (ty("Bottom"), None),
+    'uninterpreted': (ty("Bottom"), None),
     "+": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a + b))}"),
           lambda x: lambda y: x + y),
     "-": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a - b))}"),
@@ -82,4 +87,8 @@ initial_context = {
            lambda x: lambda y: x >= y),
     "fix": (ty("(a:*) => (f:(x:a) -> a) -> a"), Y),
     "print": (ty("(a:Integer) -> Integer"), std_print),
+
+    # TODO: support for lists
+    #"empty_list": ( ty("(T:*) => (_:Void) -> (List T)  "), lambda x: [] ), # todo refine
+    #"cons": ( ty("(T:*) => (l:(List T)) -> (e:T) ->  {l2: List T where true} "), lambda l: lambda e: [e] ++ l ), # todo refined
 }

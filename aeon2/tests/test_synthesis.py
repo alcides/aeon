@@ -20,7 +20,7 @@ class TestSynthesis(unittest.TestCase):
             tc(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
-    def test_synthesis(self):
+    def _test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()

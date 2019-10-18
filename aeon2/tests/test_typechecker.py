@@ -14,6 +14,10 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ctx, n.type, t)
 
     def assert_st(self, ctx, sub, sup):
+        if type(sub) == str:
+            sub = ty(sub)
+        if type(sup) == str:
+            sup = ty(sup)
         if not is_subtype(ctx, sub, sup):
             raise AssertionError(sub, "is not subtype of", sup)
 
@@ -26,14 +30,19 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ctx, ty("{x:Integer where true}"), ty("Integer"))
         self.assert_st(ctx, ty("{x:Boolean where x}"), ty("Boolean"))
 
+        self.assert_st(ctx, ty("Boolean"), ty("{x:Boolean where true}"))
+
+        self.assert_st(ctx, ty("{x:Boolean where (5 == 5)}"), ty("Boolean"))
+
         self.assert_st(ctx, ty("{x:Boolean where (5 == 5)}"),
-                       ty("{x:Boolean where true}"))
+                       ty("{x:Boolean where (true)}"))
         self.assert_st(ctx, ty("{x:{y:Boolean where true} where (5 == 5)}"),
                        ty("{x:Boolean where true}"))
 
         self.assert_st(ctx, ty("{x:Boolean where x}"),
                        ty("{x:Boolean where true}"))
-        #self.assert_st(ctx, ty("{x:Boolean where true}"), ty("{x:Boolean where x}")) TODO
+        self.assert_st(ctx, ty("{x:Boolean where true}"),
+                       ty("{x:Boolean where ((x === true) || (x === false))}"))
         self.assert_st(ctx, ty("{y:Boolean where y}"),
                        ty("{x:Boolean where x}"))
 
@@ -69,6 +78,19 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_tc(ctx.with_var("x", ty("Integer")),
                        "(x+1)",
                        expected="Integer")
+
+    def test_polymorphism(self):
+        ctx = TypingContext()
+        ctx.setup()
+
+        self.assert_tc(ctx, "T:* => 1", expected="(T:*) => Integer")
+        self.assert_tc(ctx, "(T:* => 1)[Integer]", expected="Integer")
+
+        self.assert_st(ctx, "(T:*) => T", "(T:*) => T")
+        self.assert_st(ctx, "(((T:*) => T) Integer)", "Integer")
+
+        self.assert_st(ctx, "((((T:*) => ((S:*) => T)) Integer) Void)",
+                       "Integer")
 
 
 if __name__ == '__main__':

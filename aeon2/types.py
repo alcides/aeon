@@ -88,6 +88,14 @@ class Kind(object):
         return "{} => {}".format(self.k1, self.k2)
 
 
+class AnyKind(Kind):
+    def __eq__(self, o):
+        return type(o) == Kind
+
+    def __str__(self):
+        return "Any *"
+
+
 star = Kind()
 
 

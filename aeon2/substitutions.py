@@ -1,5 +1,5 @@
-from .types import *
-from .ast import *
+from .types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, TypeException
+from .ast import Node, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 
 
 def substitution_expr_in_expr(n, replacement: Node, replaced):
@@ -67,7 +67,7 @@ def substitution_type_in_expr(n: Node, replacement: Type, replaced):
         raise Exception('No substitution rule for {}'.format(n))
 
 
-def substitution_expr_in_type(n: Type, replacement: Node, replaced):
+def substitution_expr_in_type(n: Type, replacement: Node, replaced) -> Node:
     """ T[e/t] """
     #print(""" T[e/t] """, n, replacement, replaced)
 
@@ -95,7 +95,7 @@ def substitution_expr_in_type(n: Type, replacement: Node, replaced):
         raise TypeException("Substitution in type unknown:", n, type(n))
 
 
-def substitution_type_in_type(n, replacement: Type, replaced):
+def substitution_type_in_type(n, replacement: Type, replaced: str):
     """ T[U/V] """
     #print(""" T[U/V] """, n, replacement, replaced)
 
