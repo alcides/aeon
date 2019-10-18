@@ -1,9 +1,12 @@
 import random
 import string
 
-from .ast import *
-from .types import *
-from .substitutions import *
+from .ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
+    TypeDeclaration, TypeAlias, Definition
+from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i
+from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
+    substitution_expr_in_expr, substitution_type_in_expr
 import aeon2.typechecker as tc
 
 forbidden_vars = ['native']

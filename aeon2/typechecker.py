@@ -156,13 +156,16 @@ def expr_eval(ctx, t: RefinedType):
 
 
 def entails(ctx, cond):
+    return zed_verify_entailment(ctx, cond)
+    """Disable for synthesis:
     cond_type = tc(ctx, cond).type
     if not is_subtype(ctx, cond_type, t_b):
         raise TypeException(
             'Clause not boolean',
-            "Condition {} is not a boolean expression".format(cond))
+            "Condition {}:{} is not a boolean expression".format(cond, cond_type))
     else:
         return zed_verify_entailment(ctx, cond)
+    """
 
 
 def is_satisfiable(ctx, cond):

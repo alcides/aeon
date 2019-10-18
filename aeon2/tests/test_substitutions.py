@@ -1,7 +1,7 @@
 import unittest
 
 from ..frontend import expr, typee
-from ..substitutions import *
+from ..substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr
 
 ex = expr.parse_strict
 ty = typee.parse_strict

@@ -20,7 +20,7 @@ class TestSynthesis(unittest.TestCase):
             tc(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
-    def _test_synthesis(self):
+    def test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()
@@ -34,16 +34,14 @@ class TestSynthesis(unittest.TestCase):
         self.assert_synth(ctx, ty("(x:Boolean) -> Integer"))
         self.assert_synth(ctx.with_var("z", ty("(x:Boolean) -> Boolean")),
                           ty("(x:Boolean) -> Boolean"))
-        """ TODO
+
         self.assert_synth(
             ctx.with_var(
                 "*",
-                tc.
                 tc(ctx,
                    n=ty(
                        "(x:Integer) -> (y:Integer) -> {z:Integer where (z == (x*y))}"
                    ))), ty("(x:Integer) -> {y:Integer where (y == (x*2)) }"))
-        """
 
 
 if __name__ == '__main__':
