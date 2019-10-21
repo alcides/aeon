@@ -89,6 +89,10 @@ initial_context = {
             lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
     'abs': (ty('abs', "(a:Integer) -> {b:Boolean | b == (a >= 0 ? a : -a)}"),
             lambda x: abs(x)),
+    'forall': (ty('forall', "(a:List<T>, f:(T -> Boolean)) -> {c:Boolean | true}"),
+            lambda lista: lambda f: all(map(lambda x : f(x), lista))),
+    'exists': (ty('exists', "(a:List<T>, f:(T -> Boolean)) -> {c:Boolean | true}"),
+            lambda lista: lambda f: any(map(lambda x : f(x), lista))),
     # "fix": (ty("fix", "f : (x:T -> T) -> T"), Y),
     "print": (ty("print", "(a:Integer) -> b:Integer"), std_print),
 }

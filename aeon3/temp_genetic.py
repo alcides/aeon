@@ -42,18 +42,8 @@ def generate_fitnesses(declaration):
         print("Declaration is not a refined type", declaration)
         return None
     and_expressions = generate_and_expressions(declaration.return_type.cond)
-    #print("And expressions:")
-    #for and_exp in and_expressions:
-    #    print(and_exp)
     converted_ands = convert_and_expressions(and_expressions)
-    #print("\nConverted And expressions:")
-    #for and_exp in converted_ands:
-    #    print(and_exp)
-    englobed_converted_ands = abstract_and_expressions(declaration, converted_ands)
-    #print("\nEnglobed And expressions:")
-    #for and_exp in englobed_converted_ands:
-    #    print(and_exp)
-    
+    englobed_converted_ands = abstract_and_expressions(declaration, converted_ands)    
     interpreted_ands = interprete_and_expressions(englobed_converted_ands)
     return interpreted_ands
 
