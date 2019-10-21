@@ -167,9 +167,10 @@ class TApplication(TypedNode):
 
 
 class Definition(Node):
-    def __init__(self, name, type, body):
+    def __init__(self, name, type, return_type, body):
         self.name = name
         self.type = type
+        self.return_type = return_type
         self.body = body
 
     def __str__(self):

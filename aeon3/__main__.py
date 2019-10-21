@@ -11,6 +11,8 @@ from .interpreter import run
 
 from .prettyprinter import printAST
 
+from .temp_genetic import retrieve_fitness_functions
+
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 if __name__ == '__main__':
@@ -40,6 +42,8 @@ if __name__ == '__main__':
     #printAST(ast)
     print("---------------------------------------------------------\nAfter type infering:\n")
     print(ast)
+    print("---------------------------------------------------------\nGenerate fitness functions:\n")
+    print(retrieve_fitness_functions(ast))
     '''
     if debug:
         print("---------- Untyped -------")

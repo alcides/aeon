@@ -87,6 +87,8 @@ initial_context = {
            lambda x: not x, lambda x: z3.Not(x)),
     'And': (ty('And', "(a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)}"),
             lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
+    'abs': (ty('abs', "(a:Integer) -> {b:Boolean | b == (a >= 0 ? a : -a)}"),
+            lambda x: abs(x)),
     # "fix": (ty("fix", "f : (x:T -> T) -> T"), Y),
     "print": (ty("print", "(a:Integer) -> b:Integer"), std_print),
 }

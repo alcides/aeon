@@ -3,10 +3,9 @@ from .ast import *
 from .stdlib import *
 
 
-def run(a: Program):
- 
+def run(node):
     ctx = nativeFunctions()
-    evaluate(ctx, a)
+    return evaluate(ctx, node)
 
 def evaluate(ctx, node):
 
@@ -77,7 +76,6 @@ def evaluate(ctx, node):
 
 
 ## HELPER
-
 
 def ctxPut(ctx, varName, var):
     if not varName.name.startswith('_'):

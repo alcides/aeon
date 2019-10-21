@@ -227,7 +227,7 @@ class HoleInferer():
 def getBodyAndReturnType(node:Definition):
 
     typee = node.type
-    return_type = node._function_return_typee
+    return_type = node.return_type
 
     # Strip off the typebastractions
     while type(typee) is TypeAbstraction:

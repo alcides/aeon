@@ -241,17 +241,13 @@ class AeonASTVisitor(AeonVisitor):
                 body = TAbstraction(type_abstract, star, body)
                 body.type = TypeAbstraction(type_abstract, star, body.body.type)
 
-        #Small hack
-        definition = Definition(name, typee, body)        
-        definition._function_return_typee = return_type
-
         # Re-update the context 
         self.general_context = old_context
         self.general_context[name] = typee
 
         self.counter = 0
-
-        return definition
+        self.basic_typee_stack =  []
+        return Definition(name, typee, return_type, body)
         
     # f<T, Integer>
     def visitFunction_identifier(self, ctx:AeonParser.Function_identifierContext):
@@ -316,7 +312,7 @@ class AeonASTVisitor(AeonVisitor):
 
         self.general_context[variable.name] = typee
 
-        return Definition(variable, typee, expression)
+        return Definition(variable, typee, typee, expression)
 
     # x = expression
     def visitVariable_assignment(self, ctx:AeonParser.Variable_assignmentContext):
@@ -327,7 +323,7 @@ class AeonASTVisitor(AeonVisitor):
         if variable.name not in self.general_context:
             self.general_context[variable.name] = typee
         
-        return Definition(variable, typee, expression)
+        return Definition(variable, typee, typee, expression)
 
     # if condition { ... } else { ... }
     def visitIf_statement(self, ctx:AeonParser.If_statementContext):
@@ -394,7 +390,7 @@ class AeonASTVisitor(AeonVisitor):
         
         # It is -expression
         if ctx.op.type is AeonParser.MINUS:
-            left = Literal(0, type=self.refined_value(int(value), t_i, '_i'))
+            left = Literal(0, type=self.refined_value(int(0), t_i, '_i'))
             expression = self.resolveExpression(operation, left, expression)
         # It is !expression
         else:
