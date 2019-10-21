@@ -1,110 +1,141 @@
-def f : (x:String) -> Double {
+/*f<K, Map<K, V>> : (x:String) -> Double {
     x + 1;
 }
 
+f2 : (x:Integer) -> Integer {
+    x + x;
+}
+
 // Done - [{x:Integer | x > 0}]
-def hole1 : (y:Integer) -> {x:Integer | x > 0} {
+hole1 : (y:Integer) -> ({x:Integer | x > 0} -> Integer) {
     [];
 }
 
 
 // Done - [Top]
-def hole2 : (y:Integer) -> Integer {
+hole2 : (y:Integer) -> Integer {
     [];
+    1;
+}
+
+hole35 : (y:Integer) -> Integer {
+    // [TypeApp(Integer String)]
+    f<Integer>([]);
     1;
 }
 
 
 // Done - [Top]
-def hole3 : (y:Integer) -> Integer {
+  hole3 : (y:Integer) -> Integer {
     1;
     [];
     2;
 }
 
 
-def h : () -> Integer {
+ h : () -> Integer {
     1;
     x : Boolean = [];
     2;
 }
 
 // Done - [Boolean]
-def hole4 : (y:Integer) -> Boolean {
+ hole4 : (y:Integer) -> Boolean {
     1;
     2;
     [];
 }
 
 
-def hole5 : (y:Integer) -> Double {
+ hole5 : (y:Integer) -> Double {
     \x : String -> [];
 }
+*/
 
-
-def hole6 : (y:Integer) -> Integer {
-    \x : String -> [];
+ hole6 : (y:Integer) -> Double {
+    \z : String -> [];
     1;
+    \a : String -> \b : Integer -> [];
+    2;
+    \c : String -> \d : Integer -> [];
+    3.0;
 }
 
-
-def hole7 : (y:Integer) -> Integer {
+/*
+ hole7 : (y:Integer) -> Integer {
     y > 0 ? [] : true;
 }
 
 
-def hole8 : (y:Integer) -> Integer {
+ hole8 : (y:Integer) -> Integer {
     y > 0 ? [] : y;
     1;
 }
 
 
-def hole9 : (y:Integer) -> Integer {
+ hole9 : (y:Integer) -> Integer {
     [] ? 3 : 10;
 }
 
 
-def hole10 : (y:Integer) -> Integer {
+ hole10 : (y:Integer) -> Integer {
     f([]);
 }
 
 
-def h2 : (y:Integer) -> Integer {
+ h2 : (y:Integer) -> Integer {
     f([](2));
     1;
 }
 
-def h3 : (y:Integer) -> Integer {
+ h3 : (y:Integer) -> Integer {
     (\x:Integer -> x + 1)([]);
     1;
 }
 
 
-def hole11 : (y:Integer) -> {x:Integer | x > 10} {
+ hole11 : (y:Integer) -> {x:Integer | x > 10} {
     [](10);
 }
 
-def hole12 : (y:Integer) -> Double {
+ hole12 : (y:Integer) -> Double {
     []([]);
 }
 
-
-def hole13 : (y:Integer) -> Double {
+ hole13 : (y:Integer) -> Double {
     []([]([]));
 }
 
-def hole14 : (y:Integer) -> {x:Double | x > 0.0} {
+ hole14 : (y:Integer) -> {x:Double | x > 0.0} {
     [] ? [] : [];
 }
 
-def funcao : (x:Integer) -> Integer {
+ funcao : (x:Integer) -> Integer {
 	1;
 	if x > 9 {
 		3;
 		5;
 		[];
+        6;
 	} else {
 		4;
-	}
+	};
     2;
 }
+
+ hole15 : (x:Integer) -> Double {
+  
+    2;
+}
+
+ main : () -> Void {
+
+    2 + 3;
+    1;
+    {x : {y : Integer | y < 20} | x > 10} = 10;
+    abc = 10;
+    3;
+    a = [];
+    print((\x:T -> x + 1)<Integer>(3));
+}
+*/

@@ -4,435 +4,661 @@ from .generated.AeonVisitor import AeonVisitor
 from ..ast import *
 from ..types import *
 
+from functools import reduce
+
 class AeonASTVisitor(AeonVisitor):
 
     def __init__(self, initial_context):
         self.counter = 0
         self.type_aliases = {}
 
+        self.declarations = []
         self.general_context = {}
         self.basic_typee_stack = []
+        
+        for x in list(initial_context.keys()):
+            if type(initial_context[x][0]) is Definition:
+                self.general_context[x] = initial_context[x][0].type
 
-        for x in list(initial_context.keys())[1:]:
-            self.general_context[x] = initial_context[x][0].type
-
-    # ------------------------------------------------------------------ Program
+    # -------------------------------------------------------------------------
+    # ----------------------------------------------------------------- Program
     def visitAeon(self, ctx:AeonParser.AeonContext):
-        return Program(list(map(self.visit, ctx.children))[:-1])
+        for child in ctx.children:
+            self.declarations.append(self.visit(child))
+        return Program(self.declarations[:-1])
 
-    # ------------------------------------------------------------------ Imports
-    # import path/to/package
-    def visitRegularImport(self, ctx:AeonParser.RegularImportContext):
+    # -------------------------------------------------------------------------
+    # ----------------------------------------------------------------- Imports 
+    def visitImprt(self, ctx:AeonParser.ImprtContext):
+        return self.visitChildren(ctx)
+    
+    # import path/to/package   
+    def visitRegular_import(self, ctx:AeonParser.Regular_importContext):
         return Import(self.visit(ctx.path))
 
     # import function from path/to/package
-    def visitSpecialImport(self, ctx:AeonParser.SpecialImportContext):
+    def visitFunction_import(self, ctx:AeonParser.Function_importContext):
         return Import(self.visit(ctx.path), ctx.functionName.text)
 
-    def visitImportName(self, ctx:AeonParser.ImportNameContext):
-        # If more than one line of import exists, concatenate everything
-        if ctx.importName():
-            import_name = self.visit(ctx.importName())
-            return '{}/{}'.format(ctx.folder.text if ctx.folder else '..', import_name)
-        else:
-            return ctx.name.text
+    # 'path/../to/../package'
+    def visitImport_path(self, ctx:AeonParser.Import_pathContext):
+        return str(reduce(lambda path, package : '{}{}'.format(path, package), ctx.children))
 
-    # --------------------------------------------------------------- Decl Types
-    # type T as T
-    def visitTypeeAlias(self, ctx:AeonParser.TypeeAliasContext):
+    # -------------------------------------------------------------------------
+    # --------------------------------------------------------------- TypeAlias
+    # type T as U
+    def visitTypee_alias(self, ctx:AeonParser.Typee_aliasContext):
         name = self.visit(ctx.name)
-        typee = self.visit(ctx.alias)
-        self.type_aliases[name] = typee
-        return TypeAlias(name, typee)
+        alias = self.visit(ctx.alias)
+        self.type_aliases[name] = alias
+        return TypeAlias(name, alias)
 
-    
-    def visitTypeeDeclaration(self, ctx:AeonParser.TypeeDeclarationContext):
+    # -------------------------------------------------------------------------
+    # --------------------------------------------------------- TypeDeclaration
+    def visitTypee_declaration(self, ctx:AeonParser.Typee_declarationContext):
+        return self.visitChildren(ctx)
+
+    # type Person
+    def visitRegular_typee_declaration(self, ctx:AeonParser.Regular_typee_declarationContext):
+        return TypeDeclaration(self.visit(ctx.name), star)
+
+    # type Person { ... }
+    def visitParameterized_typee_declaration(self, ctx:AeonParser.Parameterized_typee_declarationContext):
+ 
         typee = self.visit(ctx.name)
-        kind = star if (type(typee) is BasicType or type(typee) is TypeApplication) else typee.kind
-        parameters = [self.visit(attribute) for attribute in ctx.typee()[1:]]                                       # TODO: Refazer aquilo que o prof tinha dito
-        return TypeDeclaration(typee, kind, parameters)
-    
+        parameters = self.visit(ctx.params)
+        names = [self.getBasicTypeName(param) for param in parameters]
 
-    # ----------------------------------------------------------------- Function
-    def visitFunction(self, ctx:AeonParser.FunctionContext):
+        for name, param in zip(name, parameters):
+            function_name = '{}_{}'.format(typee, name)
+            function_type = AbstractionType(Var(self.nextVoidName(), typee), typee, param)
+            definition = Definition(function_name, function_typee, Var('uninterpreted', bottom))
+            self.declarations.append(definition)
 
-        function_name = ctx.name.text
-        return_type = self.visit(ctx.returnType)
-        return_name = self.getBasicTypeName(return_type)
+        return self.visitChildren(ctx)
 
-        # Update the context
-        self.general_context[function_name] = return_type
 
-        # Create a safe copy for the current function
-        oldgeneral_context = self.general_context
-        self.general_context = self.general_context.copy()
-        
-        # Computes de function parameters if they exist
-        params, last_param = self.visit(ctx.params) if ctx.params else (None, None)
+    # [size:Int, weight:Double, name:String]
+    def visitParameters_typee_declaration(self, ctx:AeonParser.Parameters_typee_declarationContext):
+        return [self.visit(typee) for typee in ctx.typee_definition()]
 
-        if params:
-            last_param.return_type = return_type
-            typee = params
-        else:
-            # f() converted into f(_0:Void)
-            typee = AbstractionType(Var(self.nextVoidName()), BasicType('Void'), return_type)
-
-        # Compute the where function expression
-        conditions = [self.visit(cond) for cond in ctx.expression()]
-        distributed_conditions = calculate_where_distribution(conditions)
-
-        # Distributes the And conditions
-        for cond, variables in zip(conditions, distributed_conditions):
-            if len(variables) > 0:
-                typee = apply_distribution(typee, cond, variables)
-            else:
-                if checkFunctionExistence(cond):
-                    name = return_name if type(return_type) is BasicType else return_type.name 
-                    apply_distribution(typee, cond, set([name]))
-                else:
-                    apply_distribution(typee, cond, set())
-
-        # Compute the body if it is not native
-        body = self.visit(ctx.body()) if ctx.body() else Var(ctx.native.text)
-
-        # Englobe the body with the function parameters Abstraction
-        if function_name != 'main':
-            body = Abstraction(typee.arg_name, typee.arg_type, body)
-            tempBody = body
-            tempTypee = typee.return_type
-            while type(tempTypee) is AbstractionType:
-                body.body = Abstraction(tempTypee.arg_name, tempTypee.arg_type, body.body)
-                body = body.body
-                tempTypee = tempTypee.return_type
-            body = tempBody
-        
-        self.counter = 0
-        self.general_context = oldgeneral_context
-
-        return Definition(function_name, typee, body)
-
-    # ---------- Function Parameters ----------
-    # (x:T, y:U, z:V)
-    def visitParameters(self, ctx:AeonParser.ParametersContext):
-        typee = self.visit(ctx.param)
-        name = self.getBasicTypeName(typee)
-        if ctx.restParams:
-            rest_params, lastParam = self.visit(ctx.restParams)
-            return AbstractionType(name, typee, rest_params), lastParam
-        result = AbstractionType(name, typee, None)
-        return result, result
-
+    # -------------------------------------------------------------------------
     # ------------------------------------------------------------------- Typee
-    # ( T )
-    def visitTypeeParens(self, ctx:AeonParser.TypeeParensContext):
-        return self.visit(ctx.typee())
+    def visitTypee(self, ctx:AeonParser.TypeeContext):
+        return self.visitChildren(ctx)
 
-    # ( T | cond )
-    def visitTypeeCondition(self, ctx:AeonParser.TypeeConditionContext):
-        typee = self.visit(ctx.typee())
-        cond = self.visit(ctx.cond)
+    # {T | condition}
+    def visitTypee_refined(self, ctx:AeonParser.Typee_refinedContext):
+        typee = self.visit(ctx.typeeRefined)
         name = self.getBasicTypeName(typee)
-        self.basic_typee_stack.append(name.name)
-        return RefinedType(name, typee, cond)
+        condition = self.visit(ctx.condition)
+        return RefinedType(name, typee, condition)
 
-    # x:T
-    def visitTypeeBasicType(self, ctx:AeonParser.TypeeBasicTypeContext):
-        typee = self.visit(ctx.typed) 
+    # (T -> U)
+    def visitTypee_abstraction_type(self, ctx:AeonParser.Typee_abstraction_typeContext):
+        argTypee = self.visit(ctx.argTypee)
+        name = self.getBasicTypeName(argTypee)
+        returnTypee = self.visit(ctx.returnTypee)
+        return AbstractionType(name, argTypee, returnTypee)
+
+    # x : T
+    def visitTypee_definition(self, ctx:AeonParser.Typee_definitionContext):
         self.basic_typee_stack.append(ctx.varName.text)
-        if type(typee) is BasicType and typee in self.type_aliases:
+        typee = self.visit(ctx.varTypee)
+        self.general_context[ctx.varName.text] = typee
+        return typee
+
+    # T, V, Integer, String, Boolean
+    def visitTypee_basic_type(self, ctx:AeonParser.Typee_basic_typeContext):
+        typee = BasicType(ctx.basicType.text)
+        if typee in self.type_aliases:
                 return self.type_aliases[typee]
         return typee
 
-    # T -> T
-    def visitTypeeAbstraction(self, ctx:AeonParser.TypeeAbstractionContext):
-        type1 = self.visit(ctx.type1)
-        type2 = self.visit(ctx.type2)
-        name = self.getBasicTypeName(type1)
-        return AbstractionType(name, type1, type2)
-    
-    # TypeAbstraction and TypeApplication()
-    def visitTypeeAbstractionApplication(self, ctx:AeonParser.TypeeAbstractionApplicationContext):
-        result = BasicType(ctx.name.text)
-        
-        if ctx.tabst:
-            # print("#############################################")
-            # print("Lets start the ", ctx.name.text)
-            abstractions, arguments = self.visit(ctx.tabst)
-            # print(">"*5, ctx.name.text, abstractions, arguments)
-            # print("----"*13, ctx.name.text, " has ended.")
+    # Map<K, V>
+    def visitTypee_type_abstract(self, ctx:AeonParser.Typee_type_abstractContext):
+        typee = BasicType(ctx.abstractType.text)
+        abstractions, applications = self.visit(ctx.abstractParams) 
+        # Englobe the typee in the applications and abstractions   
+        typee = reduce(lambda target, argument: TypeApplication(target, argument), applications, typee)
+        typee = reduce(lambda abst, retType: TypeAbstraction(retType, star, abst), abstractions, typee)
+        return typee
 
-            for arg in arguments:
-                result = TypeApplication(result, arg)
+    # ([X, Y, Z], [T1, T2, ..., Tn])
+    def visitTypee_abstract_parameters(self, ctx:AeonParser.Typee_abstract_parametersContext):
+        abstractions = []
+        applications = []
 
-            for abst in abstractions:
-                result = TypeAbstraction(abst, star, result)
-        return result
+        for typee in ctx.typee():
+            typee = self.visit(typee)
+            abstractions += self.searchAbstractions(typee)
+            typee = self.treatTypee(typee)
+            applications.append(typee)
 
-    # <K, Map<K, V>>
-    def visitAbstrParams(self, ctx:AeonParser.AbstrParamsContext):
-        result = self.visit(ctx.param)
-        
-        abstractions = set()
-        
-        if type(result) is BasicType:
-            if len(result.name) == 1:
-                abstractions.add(result) 
+        # In order to remove duplicates from the list and keep the order
+        return (list(dict.fromkeys(reversed(abstractions))), applications)
 
-        while type(result) is TypeAbstraction:
-            abstractions.add(result.name)
-            result = result.type
+    # Search for abstractions in a given T and return the list of them: [X, Y, Z]
+    def searchAbstractions(self, typee):
+        abstractions = []
+        # Check if the BasicType is a TypeeIdentifier
+        if type(typee) is BasicType:
+            if len(typee.name) == 1:
+                abstractions = [typee]
+        # Check the RefinedType type
+        elif type(typee) is RefinedType:
+            abstractions = self.searchAbstractions(typee.type)
+        # Check the AbstractionType arg_type and return_type
+        elif type(typee) is AbstractionType:
+            arg_type = self.searchAbstractions(typee.arg_type)
+            return_type = self.searchAbstractions(typee.return_type)
+            abstractions = arg_type + return_type
+        # Check the TypeApplication target and argument
+        elif type(typee) is TypeApplication:
+            target = self.searchAbstractions(typee.target)
+            argument = self.searchAbstractions(typee.argument)
+            abstractions = target + argument
+        # Check the name of each TypeAbstraction, progress the typee and return it
+        elif type(typee) is TypeAbstraction:
+            while type(typee) is TypeAbstraction:
+                abstractions = abstractions + self.searchAbstractions(typee.name)
+                typee = typee.type
+            abstractions = abstractions + self.searchAbstractions(typee)
+        return abstractions
 
-        result = [result]
+    # Removes every single TypeAbstraction and returns the type
+    def treatTypee(self, typee):
+        if type(typee) is BasicType:
+            return typee
+        elif type(typee) is RefinedType:
+            typee.type = self.treatTypee(typee.type)
+        elif type(typee) is AbstractionType:
+            typee.arg_type = self.treatTypee(typee.arg_type)
+            typee.return_type = self.treatTypee(typee.return_type)
+        elif type(typee) is TypeApplication:
+            typee.target = self.treatTypee(typee.target)
+            typee.argument = self.treatTypee(typee.argument)
+        elif type(typee) is TypeAbstraction:
+            while type(typee) is TypeAbstraction:
+                typee = typee.type
+        return typee
 
-        if ctx.restParams:
-            abstractionsParams, restParams = self.visit(ctx.restParams)
-            abstractions = abstractions.union(abstractionsParams)
-            result = result + restParams
-        
-        return abstractions, result
-        
-    # ------------------------------------------------------------ Function Body
-    # x : T = expression
-    def visitBodyVarDefinition(self, ctx:AeonParser.BodyVarDefinitionContext):
+    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------- Function
+    # Visit a parse tree produced by AeonParser#function.
+    def visitFunction(self, ctx:AeonParser.FunctionContext):
 
-        var_type = self.visit(ctx.varType)
-        expression = self.visit(ctx.exp)
-        var = Var(self.basic_typee_stack.pop() if self.basic_typee_stack else self.nextVoidName())
-        
-        name = var_type.arg_name.name if type(var_type) is AbstractionType else var_type.name
+        name, (abstractions, _) = self.visit(ctx.name)
 
-        if not name.startswith('_'):
-            if type(var_type) is AbstractionType:
-                name2 = var_type.arg_name.name
-            else:
-                name2 = var_type.name
-            self.general_context[name2] = var_type
+        self.general_context[name] = None
 
-        if ctx.nextExpr:
-            return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
+        # Update the general context
+        old_context = self.general_context.copy()
+        self.general_context = self.general_context.copy()
+
+        # Get the parameters and set the return type
+        if ctx.params:
+            typee, lastTypee = self.visit(ctx.params)
+            return_type = self.visit(ctx.returnType)
+            lastTypee.return_type = return_type
         else:
-            return expression
+            return_type = self.visit(ctx.returnType)
+            typee = AbstractionType(Var(self.nextVoidName(), t_v), t_v, return_type)
+
+        # Re-distribute the where statements
+        if ctx.where:
+            return_name = self.getBasicTypeName(return_type);
+            conditions = self.visit(ctx.where)
+            return_type = self.distribute_where_expressions(typee, return_name, return_type, conditions)
+            
+        for type_abstract in abstractions:
+            typee = TypeAbstraction(type_abstract, star, typee)
+
+        # The typee is fully completed
+        self.general_context[name] = typee
+
+        # Visit the body
+        body = self.visit(ctx.body)
+
+        # Only englobe if it is not main
+        if name != 'main':
+            # If there are parameters, englobe the body in them
+            tempTypee = typee
+            while type(tempTypee) is TypeAbstraction:
+                tempTypee = tempTypee.type
+            listParams = []
+            while tempTypee != return_type:
+                listParams.append((tempTypee.arg_name, tempTypee.arg_type))
+                tempTypee = tempTypee.return_type
+            listParams.reverse()
+
+            for param_name, param_typee in listParams:
+                body = Abstraction(param_name, param_typee, body)
+                body.type = AbstractionType(param_name, param_typee, body.body.type)
+
+            # If there are abstractions, englobe the body and typee in them
+            for type_abstract in abstractions:
+                body = TAbstraction(type_abstract, star, body)
+                body.type = TypeAbstraction(type_abstract, star, body.body.type)
+
+        #Small hack
+        definition = Definition(name, typee, body)        
+        definition._function_return_typee = return_type
+
+        # Re-update the context 
+        self.general_context = old_context
+        self.general_context[name] = typee
+
+        self.counter = 0
+
+        return definition
+        
+    # f<T, Integer>
+    def visitFunction_identifier(self, ctx:AeonParser.Function_identifierContext):
+        name = ctx.name.text
+        abstractions, applications = self.visit(ctx.abstractParams) if ctx.abstractParams else ([], []) 
+        return name, (abstractions, applications)
+
+    # (x:Integer, y:T, z:Map<Double, String>)
+    def visitFunction_parameters(self, ctx:AeonParser.Function_parametersContext):
+        parameters = [self.visit(typee) for typee in ctx.typee()]
+        names = [self.getBasicTypeName(typee) for typee in parameters]
+        parameters.reverse()
+        #names.reverse()
+        firstParam = AbstractionType(names[0], parameters[0], None)
+        lastParam = firstParam
+        for name, param in zip(names[1:], parameters[1:]):
+            firstParam = AbstractionType(name, param, firstParam)
+        return firstParam, lastParam
+
+    # ... where {x == 0 and 1 > 0}
+    def visitFunction_where(self, ctx:AeonParser.Function_whereContext):
+        return [self.visit(expression) for expression in ctx.expression()]
+
+    # ----------------------------------------------------------- Function Body
+    # function : () -> T = native
+    def visitNativeBody(self, ctx:AeonParser.NativeBodyContext):
+        return Var(ctx.native.text, bottom)
+
+    # function : () -> T { ... }
+    def visitRegularBody(self, ctx:AeonParser.RegularBodyContext):
+        statements = [self.visit(statement) for statement in ctx.statement()]
+        statements.reverse()
+        node = statements[0] 
+
+        # Prevent definitions at the end of the function
+        node = node.body if type(node) is Definition else node
+
+        for statement in statements[1:]:
+            name = statement.name if type(statement) is Definition else Var(self.nextVoidName(), statement.type)
+            statement = statement.body if type(statement) is Definition else statement
+
+            # Englobe each statement in Application(Abstraction(_0, T, node), statement)
+            abstraction = Abstraction(name, statement.type, node)
+            node = Application(abstraction, statement)
+
+            # Set the types
+            abstraction.type = AbstractionType(name, statement.type, node.type)
+            node.type = abstraction.type.return_type
+
+        return node
+
+    # -------------------------------------------------------------------------
+    # -------------------------------------------------------------- Statements
+    def visitStatement(self, ctx:AeonParser.StatementContext):
+        return self.visitChildren(ctx)
+
+    # x : T = expression
+    def visitVariable_definition(self, ctx:AeonParser.Variable_definitionContext):
+        typee = self.visit(ctx.variable)
+        variable = self.getBasicTypeName(typee)
+        expression = self.visit(ctx.exp)
+
+        self.general_context[variable.name] = typee
+
+        return Definition(variable, typee, expression)
 
     # x = expression
-    def visitBodyAssignment(self, ctx:AeonParser.BodyAssignmentContext):
-        var = Var(ctx.varName.text)
-        var_type = self.general_context.get(ctx.varName.text)
+    def visitVariable_assignment(self, ctx:AeonParser.Variable_assignmentContext):
+        typee = self.general_context.get(ctx.variable.text)
+        variable = Var(ctx.variable.text, typee)
         expression = self.visit(ctx.exp)
 
-        if ctx.nextExpr:
-            return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
-        else:
-            return expression
-
-    # (\_:Object -> ...) (expression)
-    def visitBodyExpression(self, ctx:AeonParser.BodyExpressionContext):
-        var = Var(self.nextVoidName())
-        expression = self.visit(ctx.expr)
+        if variable.name not in self.general_context:
+            self.general_context[variable.name] = typee
         
-        if type(expression) is Var:
-            var_type = self.general_context.get(expression.name)
-        else:
-            var_type = expression.type                
-        
-        if ctx.nextExpr:
-            return Application(Abstraction(var, var_type, self.visit(ctx.nextExpr)), expression)
-        else:
-            return expression
+        return Definition(variable, typee, expression)
 
-    # if cond {...} else {...}
-    def visitIfThenElse(self, ctx:AeonParser.IfThenElseContext):
-        var = Var(self.nextVoidName())                                        
-        cond = self.visit(ctx.cond)
-        then_body = self.visit(ctx.then)
-        else_body = self.visit(ctx.elseBody)
+    # if condition { ... } else { ... }
+    def visitIf_statement(self, ctx:AeonParser.If_statementContext):
+        condition = self.visit(ctx.cond)
+        then = self.visit(ctx.then)
+        otherwise = self.visit(ctx.otherwise)
+        typee = self.leastUpperBound(then.type, otherwise.type)
+        return If(condition, then, otherwise, typee)
 
-        node = If(cond, then_body, else_body)
-        
-        if ctx.nextExpr:
-            return Application(Abstraction(var, None, self.visit(ctx.nextExpr)), node)
-        else:
-            return node
-
-    # cond ? expr : expr
-    def visitIfThenElseExpr(self, ctx:AeonParser.IfThenElseExprContext):
-        cond = self.visit(ctx.cond)
-        then_body = self.visit(ctx.then)
-        else_body = self.visit(ctx.elseBody)
-        return If(cond, then_body, else_body)
-
-    # ( expr )
+    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------. Expressions
+    # ( expression )
     def visitParenthesis(self, ctx:AeonParser.ParenthesisContext):
         return self.visit(ctx.expression())
 
-    # x
-    def visitVariable(self, ctx:AeonParser.VariableContext):
-        return Var(ctx.varName.text)
-
-    # x operator y
-    def visitBinaryOperationCall(self, ctx:AeonParser.BinaryOperationCallContext):
-        left = self.visit(ctx.left)
-        operation = Var(ctx.op.text)
-        right = self.visit(ctx.right)
-        return Application(Application(operation, left), right)
-
-    # 0, 1, true, false, "string", hole
-    def visitLiteral(self, ctx:AeonParser.LiteralContext):
-        value = ctx.value.text
-        if ctx.value.type == AeonParser.INTEGER:
-            return Literal(int(value), type=refined_value(int(value), t_i, '_i'))
-        elif ctx.value.type == AeonParser.FLOAT:
-            return Literal(float(value), type=refined_value(float(value), t_f, '_f'))
-        elif ctx.value.type == AeonParser.BOOLEAN:
-            value = value == 'true' and True or False
-            return Literal(value, type=refined_value(value, t_b, '_b'))
-        elif ctx.value.type == AeonParser.STRING:
-            return Literal(value, type=refined_value(value, t_s, '_s'))                                                                     
-        return None
-    
-    # Visit a parse tree produced by AeonParser#Hole.
+    # [ T ]
     def visitHole(self, ctx:AeonParser.HoleContext):
-        # Entrou aqui
         typee = self.visit(ctx.typee()) if ctx.typee() else None
         return Hole(typee)
 
-    # not/- expr
-    def visitUnaryOperationCall(self, ctx:AeonParser.UnaryOperationCallContext):
+    # x
+    def visitVariable(self, ctx:AeonParser.VariableContext):
+        return Var(ctx.variable.text, self.general_context.get(ctx.variable.text))
 
-        operator = Var(ctx.op.text)
-        argument = self.visit(ctx.right)
+    # 1, 1.0, "Hello World", true, false
+    def visitLiteral(self, ctx:AeonParser.LiteralContext):
+        value = ctx.value.text
+        if ctx.value.type == AeonParser.INTEGER:
+            return Literal(int(value), type=self.refined_value(int(value), t_i, '_i'))
+        elif ctx.value.type == AeonParser.FLOAT:
+            return Literal(float(value), type=self.refined_value(float(value), t_f, '_f'))
+        elif ctx.value.type == AeonParser.BOOLEAN:
+            value = value == 'true' and True or False
+            return Literal(value, type=self.refined_value(value, t_b, '_b'))
+        elif ctx.value.type == AeonParser.STRING:
+            return Literal(value, type=self.refined_value(value, t_s, '_s'))                                                                     
+        return None
+        
+    # x -> y, x == y, x || y, x && y, x > y, x < y, ...
+    def visitLogicalExpression(self, ctx:AeonParser.LogicalExpressionContext):
+        left = self.visit(ctx.left)
+        right = self.visit(ctx.right)
+        
+        operation = Var(ctx.op.text, self.general_context.get(ctx.op.text))
+        expression = self.resolveExpression(operation, left, right)
 
-        if type(argument) is Literal:
-            if argument.type.type is t_b:
-                argument.value = not argument.value
-                argument.type.cond.argument.value = not argument.type.cond.argument.value
-            elif argument.type.type is t_i:
-                argument.value = -argument.value
-                argument.type.cond.argument.value = -argument.type.cond.argument.value
-            else: 
-                pass # If trying to apply the unary operator to another kind of default value
-            return argument
+        return expression
 
-        return Application(operator, argument)
-
-    # f(...)
-    def visitFunctionCall(self, ctx:AeonParser.FunctionCallContext):
-        functionCall = self.visit(ctx.functionName)
-
-        params = [Application(functionCall, self.visit(parameter)) \
-                  for parameter in ctx.expression()[1:]] # careful here
-
-        # Nest the applications
-        for i in range(len(params) - 1, 0, -1):
-            params[i].target = params[i - 1]
-
-        if not params:
-            result = Application(functionCall, empty_argument)
-        else:
-            result = params[len(params) - 1]
-
-        return result
+    # x + y, x - y, x * y, x ^ y, ...
+    def visitNumberExpression(self, ctx:AeonParser.NumberExpressionContext):
+        left = self.visit(ctx.left)
+        right = self.visit(ctx.right)
+        
+        operation = Var(ctx.op.text, self.general_context.get(ctx.op.text))
+        expression = self.resolveExpression(operation, left, right)
+        
+        return expression
     
-    # \x:T -> expr
-    def visitAbstraction(self, ctx:AeonParser.AbstractionContext):
-        typee = self.visit(ctx.varType)
-        exp = self.visit(ctx.exp)
-        name = self.getBasicTypeName(typee)
-        return Abstraction(name, typee, exp)
+    # !expression or -expression
+    def visitUnaryOperation(self, ctx:AeonParser.UnaryOperationContext):
 
+        expression = self.visit(ctx.right)
+        operation = Var(ctx.op.text, self.general_context.get(ctx.op.text))
+        
+        # It is -expression
+        if ctx.op.type is AeonParser.MINUS:
+            left = Literal(0, type=self.refined_value(int(value), t_i, '_i'))
+            expression = self.resolveExpression(operation, left, expression)
+        # It is !expression
+        else:
+            if type(expression) is Literal:
+                expression.value = not expression.value
+                expression.type.cond.argument.value = not expression.type.cond.argument.value
+            else:
+                typee = operation.type.return_type if operation.type else None
+                expression = Application(operation, expression, typee)
+        return expression
+
+    # cond ? then : otherwise
+    def visitIfExpression(self, ctx:AeonParser.IfExpressionContext):
+        condition = self.visit(ctx.cond)
+        then = self.visit(ctx.then)
+        otherwise = self.visit(ctx.otherwise)
+        typee = self.leastUpperBound(then.type, otherwise.type)
+        return If(condition, then, otherwise, typee)
+
+    # \\x:T -> expression
+    def visitAbstractionExpression(self, ctx:AeonParser.AbstractionExpressionContext):
+        typee = self.visit(ctx.variable)
+        name = self.getBasicTypeName(typee)
+        expression = self.visit(ctx.exp)
+
+        abstraction_typee = AbstractionType(name, typee, expression.type)
+        abstraction = Abstraction(name, typee, expression, abstraction_typee)
+
+        listAbstractions = list(dict.fromkeys(reversed(self.searchAbstractions(typee))))
+
+        for abstr in listAbstractions:
+            abstraction = TAbstraction(abstr, star, abstraction)
+            abstraction.type = TypeAbstraction(abstr, star, abstraction.body.type)
+
+        return abstraction
+
+    # expression <Integer, Boolean>? ( ... )
+    def visitFunctionCall(self, ctx:AeonParser.FunctionCallContext):
+        expression = self.visit(ctx.target)
+        applications = self.visit(ctx.app) if ctx.app else []
+        parameters = self.visit(ctx.params) if ctx.params else [Var(self.nextVoidName(), t_v)]
+        
+        for application in applications:
+            expression = TApplication(expression, application)
+            expression.type = TypeApplication(expression.type, application)
+
+        for param in parameters:
+            expression = Application(expression, param)
+            expression.type = self.getReturnType(expression.type)
+
+        return expression
+
+    # <Integer, Boolean>
+    def visitFunction_abstraction(self, ctx:AeonParser.Function_abstractionContext):
+        # I only want the applications list
+        _, applications = self.visit(ctx.typee_abstract_parameters()) 
+        return applications
+
+    # (x, 10, f(x))
+    def visitCall_parameters(self, ctx:AeonParser.Call_parametersContext):
+        return [self.visit(parameter) for parameter in ctx.expression()]
+
+# ------------------------------------------------------------------------------
 # -------------------------------- HELPERS -------------------------------------
     def nextVoidName(self):
         result = '_{}'.format(self.counter)
         self.counter += 1
         return result
 
+    # --------------------------------
+    # Returns the name of a given type
     def getBasicTypeName(self, typee):
-        if not self.basic_typee_stack:
-            name = Var(self.nextVoidName())
-        else:
-            name = Var(self.basic_typee_stack.pop())
-        return name
-        
-        
-
-def refined_value(v, t, label="_v"):
-    app1 = Application(Var(t == t_b and "===" or "=="), Var(label))
-    app2 = Application(app1, Literal(v, type=t))
-    return RefinedType(label, t, app2)
-
-def calculate_where_distribution(conditions):
-    result = [] 
-    def recursive_print(cond, variables):
-        if type(cond.target) is Application:
-            recursive_print(cond.target, variables)
-        if type(cond.argument) is Application:
-            recursive_print(cond.argument, variables)
-        elif type(cond.argument) is Var:
-            variables.add(cond.argument.name)
-
-    for cond in conditions:
-        variables = set()
-        recursive_print(cond, variables)
-        result.append(variables)
-
-    return result
-
-def apply_distribution(typee, cond, variables):
-    # Try to remove the variable name of the current type
-    if type(typee) is AbstractionType:
-        variables.discard(typee.arg_name.name)
-    else:
-        variables.discard(typee.name)
-
-    if len(variables) == 0:
-        # BasicType is transformed in RefinedType: x:T => {x:T where cond}
         if type(typee) is BasicType:
-            return RefinedType(typee.name, typee, cond)
-        # Refinement is improved: {T where T.cond} => {T where (T.cond And cond)}
-        elif type(typee) is RefinedType:
-            typee.cond = Application(Application(Var('And'), typee.cond), cond)
-            return typee
-        # Improve the BasicType or RefinedType within the AbstractionType.
+            if not self.basic_typee_stack:
+                name = Var(self.nextVoidName(), typee)
+            else:
+                name = Var(self.basic_typee_stack.pop(), typee)
         elif type(typee) is AbstractionType:
-            typee.arg_type = apply_distribution(typee.arg_type, cond, variables)
+            name = typee.arg_name
+        elif type(typee) is TypeAbstraction:
+            name = self.getBasicTypeName(typee.type)
+        elif type(typee) is TypeApplication:
+            name = self.getBasicTypeName(typee.argument)
+        else:
+            name = typee.name
+        return name
+
+    # -----------------------------------------------------------------------
+    # Given a native binary operation (+, -, *, ...), returns its proper Tree
+    def resolveExpression(self, operator, left, right):
+        
+        leastUpperBound = self.leastUpperBound(left.type, right.type)
+        
+        operator = TApplication(operator, leastUpperBound)
+        operator.type = TypeApplication(operator.target.type, leastUpperBound)
+        
+        application1 = Application(operator, left)
+        application2 = Application(application1, right)
+        application1.type = self.getReturnType(operator.type)
+        application2.type = self.getReturnType(application1.type)
+        
+        return application2
+
+    # -----------------------------------------
+    # Gets the return type for the Applications
+    def getReturnType(self, typee): 
+        if type(typee) is TypeApplication:
+            if type(typee.target) is AbstractionType:
+                return TypeApplication(typee.target.return_type, typee.argument)
+            else:
+                return TypeApplication(self.getReturnType(typee.target), typee.argument)
+        elif type(typee) is TypeAbstraction:
+            if type(typee.type) is AbstractionType:
+                return TypeAbstraction(typee.name, typee.kind, typee.type.return_type)
+            else:
+               return TypeAbstraction(typee.name, typee.kind, self.getReturnType(typee.type))
+        elif type(typee) is BasicType:
             return typee
-    
-    # Control undefined variables
-    if type(typee) is not AbstractionType:
-        return apply_distribution(typee, cond, set())
-    else:
-        typee.return_type = apply_distribution(typee.return_type, cond, variables)
-        return typee
-
-# Verifies if the typee contains a "T" type
-def containsTypeAbst(typee):
-    if type(typee) is BasicType:
-        return len(typee.name) == 1
-    elif type(typee) is RefinedType:
-        return containsTypeAbst(typee.type)
-    elif type(typee) is TypeAbstraction:
-        return containsTypeAbst(typee.type)
-    elif type(typee) is AbstractionType:
-        return containsTypeAbst(typee.arg_type) or containsTypeAbst(typee.returnType)
-    elif type(typee) is TypeApplication:
-        return containsTypeAbst(typee.target) or containsTypeAbst(typee.argument)
-    else: # It is of type str
-        return len(typee) == 1 
+        elif type(typee) is RefinedType:
+            return typee.type
+        elif type(typee) is AbstractionType:
+            return typee.return_type
+        else:
+            # TODO: problema do refinamento recursivo
+            # print(">"*10, "Error in getReturnType with type: ", typee, type(typee))
+            return None
 
 
-# TODO: Disgrace of implementation to properly discern >(3)(1) refinement from dependent type f(3)
-def checkFunctionExistence(cond):
+    # -------------------------------------------------------
+    # Calculates the least upper bound type between two types
+    def leastUpperBound(self, then_typee, otherwise_typee):
+        # >>>>>>>>>>>>>>>>>>>>> TODO: 
+        if type(then_typee) is TApplication:
+            result = then_typee.argument
+        if type(otherwise_typee) is TApplication:
+            otherwise_typee.argument
+        if type(then_typee) is BasicType and type(otherwise_typee) is BasicType:
+            # Delegate the check of then and otherwise to typechecker
+            result = then_typee
+        elif type(then_typee) is BasicType:
+            result = then_typee
+        elif type(otherwise_typee) is BasicType:
+            result = otherwise_typee
+        else:
+            if type(then_typee) is RefinedType and type(otherwise_typee) is RefinedType:
+                result = self.leastUpperBound(then_typee.type, otherwise_typee.type)
+            elif type(then_typee) is RefinedType:
+                # TODO:
+                result = then_typee.type
+            elif type(otherwise_typee) is RefinedType:
+                # TODO:
+                result = otherwise_typee.type
+            else:
+                # TODO:
+                result = then_typee
+        return result
 
-    import aeon3.stdlib
+    # -----------------------
+    # Refines a literal value
+    def refined_value(self, v, t, label="_v"):
+        operation = Var('==', self.general_context.get('=='))
+        left = Literal(v, t)
+        right = Var(label, t)
+        return RefinedType(label, t, self.resolveExpression(operation, left, right))
 
-    if type(cond.target) is Application:
-        target = checkFunctionExistence(cond.target)
-    else:
-        target = not aeon3.stdlib.is_builtin(cond.target.name)
-    if type(cond.argument) is Application:
-        argument = checkFunctionExistence(cond.argument)
-    elif type(cond.argument) is Var:
-        argument = not aeon3.stdlib.is_builtin(cond.argument.name)
-    else:
-        argument = False
+    # =========================================================================
+    # ---------------------------------------------
+    # Distributes each expression through the typee
+    def distribute_where_expressions(self, typee, return_name, return_type, conditions):
+        variables = self.functionVariables(typee, return_type)
+        variables.add(return_name.name)
+        variables_functions = []
+        
+        # Search through all the conditions for their functions and variables 
+        for cond in conditions:
+            # Search variables keeps the variables that exist in the function
+            variables_functions.append(self.searchVariables(cond, variables, set(), set()))
 
-    return target or argument
+        # For each set of variables and functions 
+        for amount, cond in zip(variables_functions, conditions):
+            variaveis, functions = amount
+            if variaveis:
+                return_type = self.apply_expression(variaveis, typee, return_name, return_type, cond)
+            else:
+                if functions:
+                    variaveis.add(return_name.name)
+                    return_type = self.apply_expression(variaveis, typee, return_name, return_type, cond)
+                else:
+                    print("Error: The given condition: ", cond, " always evaluates to true/false.")
+        return return_type
+
+    # Gets all the variables of the function
+    def functionVariables(self, typee, return_type):
+        variables = set()
+        # Guaranteed to be AbstractionType
+        while typee != return_type:
+            variables.add(typee.arg_name.name)
+            typee = typee.return_type
+        return variables
+
+    # Apply a refinement expression to a typee
+    def apply_expression(self, variables, typee, return_name, return_type, expression):
+        variables.discard(typee.arg_name.name)
+        while variables and typee.return_type != return_type:
+            typee = typee.return_type
+            variables.discard(typee.arg_name.name)
+        if not variables:
+            name = typee.arg_name
+            typee.arg_type = self.refine_expression(typee.arg_name, typee.arg_type, expression)
+        else:
+            return_type = self.refine_expression(return_name, typee.return_type, expression)
+            typee.return_type = return_type
+        return return_type
+
+    # Given an typee and an expression, refines it
+    def refine_expression(self, name, typee, expression):
+        if type(typee) is BasicType:
+            result = RefinedType(name, typee, expression)
+        elif type(typee) is AbstractionType:
+            result = RefinedType(typee.arg_name, typee, expression)
+        elif type(typee) is RefinedType:
+            and_typee = self.general_context['And']
+            application1 = Application(Var('And', and_typee), expression, self.getReturnType(and_typee))
+            application2 = Application(application1, typee.cond, self.getReturnType(application1))
+            result = RefinedType(typee.name, typee.type, application2)
+        elif type(typee) is TypeApplication:
+            typee.target = self.refine_expression(typee.target, expression)
+            result = typee
+        elif type(typee) is TypeAbstraction:
+            typee.type = self.refine_expression(typee.type, expression)
+            result = typee
+        else:
+            result = None
+        name.type = result
+        return result
+
+    # Counts the variables on an expression
+    def searchVariables(self, node, variables, set_vars, set_funs):
+        if type(node) is Hole:
+            return set_vars, set_funs
+        elif type(node) is Literal:
+            return set_vars, set_funs
+        elif type(node) is Var:
+            if node.name in variables:
+                set_vars.add(node.name)
+            else:   
+                import aeon3.stdlib
+                if not aeon3.stdlib.is_builtin(node.name):
+                    set_funs.add(node.name)
+            return set_vars, set_funs
+        elif type(node) is If:
+            v_cond, f_cond = self.searchVariables(node.cond, variables, set_vars, set_funs)
+            v_then, f_then = self.searchVariables(node.then, variables, set_vars, set_funs)
+            v_otherwise, f_otherwise = self.searchVariables(node.otherwise, variables, set_vars, set_funs)
+            return v_cond | v_then | v_otherwise, f_cond | f_then | f_otherwise
+        elif type(node) is Application:
+            v_target, f_target = self.searchVariables(node.target, variables, set_vars, set_funs)
+            v_argument, f_argument = self.searchVariables(node.argument, variables, set_vars, set_funs)
+            return v_target | v_argument, f_target | f_argument
+        elif type(node) is Abstraction:
+            return self.searchVariables(node.body, variables, set_vars, set_funs)
+        elif type(node) is TAbstraction:
+            return self.searchVariables(node.body, variables, set_vars, set_funs)
+        elif type(node) is TApplication:
+            return self.searchVariables(node.target, variables, set_vars, set_funs)
+        else:
+            return set_vars, set_funs

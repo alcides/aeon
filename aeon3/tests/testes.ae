@@ -1,0 +1,18 @@
+/*
+funcao : (i:Integer) -> x:Double where {i > 0} = native;
+
+funcao2 : (i:Integer) -> x:Double where {x > 0} = native;
+
+funcao3 : (i:Integer) -> x:Double where {x > i} = native;
+
+funcao4 : (i:Integer) -> x:Double where {2 > 0} = native;
+
+funcao5 : (i:Integer) -> x:Double where {funcao(2)} = native;
+
+funcao6 : (i:Integer, y:String) -> x:Double where {i > 0} = native;
+
+funcao7 : (x:Integer, y:String) -> z:Double where {x > y} = native;
+
+funcao8 : (i:Integer, y:Boolean) -> x:Double where {!y} = native;
+*/
+funcao9 : (x:Integer, y:Boolean) -> z:Double where {!y and (x > z)} = native;

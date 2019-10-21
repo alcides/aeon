@@ -3,6 +3,10 @@ type Map<K, Map2<Integer, V>>;
 // (Map.K).((Map2.Integer).V)
 
 type Asd<K, V>;
+
+def funcao<T> : (x:Integer) -> Integer {
+    0;
+}
 // (Asd.K).V
 /*
 

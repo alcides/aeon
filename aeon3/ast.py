@@ -53,9 +53,10 @@ class Literal(TypedNode):
 class Var(TypedNode):
     """ x """
 
-    def __init__(self, name):
+    def __init__(self, name, type=None):
         super(Var, self).__init__()
         self.name = name
+        self.type = type
 
     def __str__(self):
         return "{}".format(self.name)
@@ -68,11 +69,12 @@ class Var(TypedNode):
 class If(TypedNode):
     """ if cond then e else e """
 
-    def __init__(self, cond, then, otherwise):
+    def __init__(self, cond, then, otherwise, type=None):
         super(If, self).__init__()
         self.cond = cond
         self.then = then
         self.otherwise = otherwise
+        self.type = type
 
     def __str__(self):
         return "if {} then {} else {}".format(self.cond, self.then,
@@ -84,17 +86,15 @@ class If(TypedNode):
             and self.then == o.then \
             and self.otherwise == o.otherwise
 
-
-empty_argument = None
-
 class Application(TypedNode):
     """  e(e) """
 
-    def __init__(self, target, argument):
+    def __init__(self, target, argument, type=None):
         # Trying to Application(target, None) is the same as a call with no arguments
         super(Application, self).__init__()
         self.target = target
         self.argument = argument
+        self.type = type
 
     def __str__(self):
         return "{}({})".format(self.target, self.argument)
@@ -108,11 +108,12 @@ class Application(TypedNode):
 class Abstraction(TypedNode):
     """ \\x:T -> e """
 
-    def __init__(self, arg_name, arg_type, body):
+    def __init__(self, arg_name, arg_type, body, type=None):
         super(Abstraction, self).__init__()
         self.arg_name = arg_name
         self.arg_type = arg_type
         self.body = body
+        self.type = type
 
     def __str__(self):
         return "\{}:{} -> {}".format(self.arg_name, self.arg_type, self.body)
@@ -127,11 +128,12 @@ class Abstraction(TypedNode):
 class TAbstraction(TypedNode):
     """ T:k => e """
 
-    def __init__(self, typevar, kind, body):
+    def __init__(self, typevar, kind, body, type=None):
         super(TAbstraction, self).__init__()
         self.typevar = typevar
         self.kind = kind
         self.body = body
+        self.type = type
 
     def __str__(self):
         return "{}:{} => ({})".format(self.typevar, self.kind, self.body)
@@ -146,10 +148,11 @@ class TAbstraction(TypedNode):
 class TApplication(TypedNode):
     """ e[T] """
 
-    def __init__(self, target, argument):
+    def __init__(self, target, argument, type=None):
         super(TApplication, self).__init__()
         self.target = target
         self.argument = argument
+        self.type=None
 
     def __str__(self):
         return "{}[{}]".format(self.target, self.argument)
@@ -183,13 +186,12 @@ class TypeAlias(Node):
 
 
 class TypeDeclaration(Node):
-    def __init__(self, name, kind, parameters):
+    def __init__(self, name, kind):
         self.name = name
         self.kind = kind
-        self.parameters = parameters
 
     def __str__(self):
-        return "type {} {} : {}".format(self.name, self.parameters, self.kind)
+        return "type {} : {}".format(self.name, self.kind)
 
 
 class Import(Node):

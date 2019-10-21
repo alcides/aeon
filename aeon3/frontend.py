@@ -4,7 +4,7 @@ from .frontend_module.AeonASTVisitor import AeonASTVisitor
 from .frontend_module.generated.AeonParser import AeonParser
 from .frontend_module.generated.AeonLexer import AeonLexer
 
-from .frontend_module.verifiers.ContextVerifier import ContextVerifier
+# from .frontend_module.verifiers.ContextVerifier import ContextVerifier
 from .frontend_module.verifiers.AeonSyntaxErrorListener import AeonSyntaxErrorListener
 
 import os
@@ -26,7 +26,8 @@ def parse(path):
     
     # Build the program
     initial_context = aeon3.stdlib.initial_context
-    program = AeonASTVisitor(initial_context).visit(tree)
+    aeonVisitor = AeonASTVisitor(initial_context)
+    program = aeonVisitor.visit(tree)
     
     # Check if the imports are proper and resolve the imports
     if runImportVerifier(tree):

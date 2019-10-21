@@ -40,10 +40,13 @@ def std_print(x):
     return x
 
 def ty(operation, typee):
-    typee = 'def temp : {} = native;'.format(typee)
+    typee = 'temp : {} = native;'.format(typee)
     result = parse_strict(typee)
     result.name = operation
     return result
+
+native_op_template = "temp<T> : (a:T, b:T) -> {{c:T | c == (a {} b)}}"
+
 
 initial_context = {
     'native': (parse_strict("type Bottom;"), None),
@@ -65,10 +68,6 @@ initial_context = {
            lambda x: lambda y: x == y),
     "!=": (ty("!=", "(a:Integer, b:Integer) -> {c:Boolean | (a != b)}"),
            lambda x: lambda y: x != y),
-    "===": (ty("===", "(a:Boolean, b:Boolean) -> {c:Boolean | (a === b)}"),
-            lambda x: lambda y: x == y),
-    "!==": (ty("!==", "(a:Boolean, b:Boolean) -> {c:Boolean | (a !== b)}"),
-            lambda x: lambda y: x != y),
     "&&": (ty("&&", "(a:Boolean, b:Boolean) -> {c:Boolean | (a && b)}"),
            lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
     "||": (ty("||", "(a:Boolean, b:Boolean) -> {c:Boolean | (a || b)}"),
@@ -84,6 +83,10 @@ initial_context = {
           lambda x: lambda y: x > y),
     ">=": (ty(">=", "(a:Integer, b:Integer) -> {c:Boolean | (a >= b)}"),
            lambda x: lambda y: x >= y),
+    "!": (ty("!", "(a:Boolean) -> {b:Boolean | (!a == b)}"),
+           lambda x: not x, lambda x: z3.Not(x)),
+    'And': (ty('And', "(a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)}"),
+            lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
     # "fix": (ty("fix", "f : (x:T -> T) -> T"), Y),
     "print": (ty("print", "(a:Integer) -> b:Integer"), std_print),
 }
