@@ -39,6 +39,12 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ctx, ty("{x:{y:Boolean where true} where (5 == 5)}"),
                        ty("{x:Boolean where true}"))
 
+        self.assert_st(ctx, ty("{x:Integer where (x == 5)}"),
+                       ty("{v:Integer where (v > 4)}"))
+
+        self.assert_st(ctx, ty("{x:Integer where (x > 5)}"),
+                       ty("{k:Integer where (k > 4)}"))
+
         self.assert_st(ctx, ty("{x:Boolean where x}"),
                        ty("{x:Boolean where true}"))
         self.assert_st(ctx, ty("{x:Boolean where true}"),

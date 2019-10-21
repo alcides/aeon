@@ -44,9 +44,15 @@ def zed_mk_variable(name, ty: Type):
             return z3.Bool(name)
         elif ty.name == "Bottom":
             return z3.Bool(name)
-    if type(ty) is RefinedType:
+        elif ty.name in ["Top", "Object", "Void"]:
+            return z3.Bool(name)
+    elif type(ty) is RefinedType:
         return zed_mk_variable(name, ty.type)
-
+    elif type(ty) is AbstractionType:
+        isort = get_sort(ty.arg_type)
+        rsort = get_sort(ty.return_type)
+        f = z3.Function(name, isort, rsort)
+        return f
     raise NoZ3TranslationException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
 
@@ -55,14 +61,27 @@ def zed_translate_literal(ztx, literal: Literal):
     return literal.value
 
 
+def get_sort(t: Type):
+    if type(t) is RefinedType:
+        return get_sort(t.type)
+    if type(t) is BasicType:
+        if t.name == 'Integer':
+            return z3.IntSort()
+        elif t.name in ['Top', 'Void', 'Object']:
+            return z3.BoolSort()
+
+    raise NoZ3TranslationException("No sort for type " + str(t))
+
+
 def zed_translate_var(ztx, v: Var):
     if not v.name in ztx:
         if type(v.type) is BasicType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         elif type(v.type) is AbstractionType:
-            ztx[v.name] = lambda x: zed_mk_variable(v.name, v.type.return_type
-                                                    )  # TODO
+            ztx[v.name] = zed_mk_variable(v.name,
+                                          flatten_refined_types(v.type))
+
         elif type(v.type) is RefinedType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
@@ -139,8 +158,10 @@ def zed_verify_entailment(ctx, cond):
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     if relevant_vars:
+        s.add(z3_context)
         s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
     else:
+        s.add(z3_context)
         s.add(z3.Implies(z3_context, z3_cond))
     r = s.check()
     if r == z3.sat:
@@ -158,6 +179,7 @@ def zed_verify_satisfiability(ctx, cond):
     s = z3.Solver()
     s.add(z3.And(z3_context, z3_cond))
     r = s.check()
+    #print(s, r, 1)
     if r == z3.sat:
         return True
     if r == z3.unsat:

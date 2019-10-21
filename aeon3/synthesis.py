@@ -6,7 +6,7 @@ from .types import *
 from .substitutions import *
 import aeon2.typechecker as tc
 
-forbidden_vars = ['native']
+forbidden_vars = ['native', 'uninterpreted']
 
 
 def replicate(v, n):

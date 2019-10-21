@@ -36,7 +36,8 @@ class TypingContext(object):
             t_o: star,
             t_b: star,
             t_s: star,
-            bottom: star
+            bottom: star,
+            top: star
         }
         # As of Python3, dict_keys is not copyable, so a list is required
         self.basic_types = list(self.type_variables.keys())
@@ -203,3 +204,4 @@ t_i = BasicType('Integer')
 t_b = BasicType('Boolean')
 t_s = BasicType('String')
 bottom = BasicType('Bottom')
+top = BasicType('Top')
