@@ -62,29 +62,39 @@ initial_context = {
         lambda x: lambda y: x / y),
     "%": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a % b))}"),
           lambda x: lambda y: x % y),
-    "==": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a == b)}"),
-           lambda x: lambda y: x == y),
-    "!=": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a != b)}"),
-           lambda x: lambda y: x != y),
-    "===": (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (a === b)}"),
-            lambda x: lambda y: x == y),
-    "!==": (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (a !== b)}"),
-            lambda x: lambda y: x != y),
-    "&&": (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (a && b)}"),
-           lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
-    "||": (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (a || b)}"),
-           lambda x: lambda y: x or y, lambda x: lambda y: z3.Or(x, y)),
+    "==":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a == b))}"),
+     lambda x: lambda y: x == y),
+    "!=":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a != b))}"),
+     lambda x: lambda y: x != y),
+    "===":
+    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a === b))}"),
+     lambda x: lambda y: x == y),
+    "!==":
+    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c !== (a !== b))}"),
+     lambda x: lambda y: x != y),
+    "&&":
+    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a && b))}"),
+     lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
+    "||":
+    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a || b))}"),
+     lambda x: lambda y: x or y, lambda x: lambda y: z3.Or(x, y)),
     "-->":
-    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (a --> b)}"),
+    (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a --> b))}"),
      lambda x: lambda y: (not x) or y, lambda x: lambda y: z3.Implies(x, y)),
-    "<": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a < b)}"),
-          lambda x: lambda y: x < y),
-    "<=": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a <= b)}"),
-           lambda x: lambda y: x <= y),
-    ">": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a > b)}"),
-          lambda x: lambda y: x > y),
-    ">=": (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (a >= b)}"),
-           lambda x: lambda y: x >= y),
+    "<":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a < b))}"),
+     lambda x: lambda y: x < y),
+    "<=":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a <= b))}"),
+     lambda x: lambda y: x <= y),
+    ">":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a > b))}"),
+     lambda x: lambda y: x > y),
+    ">=":
+    (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a >= b))}"),
+     lambda x: lambda y: x >= y),
     "fix": (ty("(a:*) => (f:(x:a) -> a) -> a"), Y),
     "print": (ty("(a:Integer) -> Integer"), std_print),
 

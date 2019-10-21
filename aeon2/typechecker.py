@@ -6,8 +6,6 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
 from .synthesis import *
 from .zed import zed_verify_entailment, zed_verify_satisfiability, NotDecidableException
 
-# TODO: factorial. kinding is not correct.
-
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
     """ S-Int, S-Bool, S-Var """
@@ -118,13 +116,13 @@ def is_subtype(ctx, sub, sup):
         if sub.name in ctx.type_aliases:
             return is_subtype(ctx, ctx.type_aliases[sub.typeName], sup)
     if type(sup) is BasicType:
-        if sup.name in ['Void', 'Object']:
+        if sup.name in ['Void', 'Object', 'Top']:
             return True  # Top
         if sup.name in ctx.type_aliases:
             return is_subtype(ctx, sub, ctx.type_aliases[sup.typeName])
 
     if type(sub) is BasicType:
-        if sub.name in ['Void', 'Object']:
+        if sub.name in ['Void', 'Object', 'Top']:
             return False  # Top
     if type(sup) is BasicType:
         if sup.name == 'Bottom':
@@ -176,7 +174,7 @@ def is_satisfiable(ctx, cond):
             "Condition {} is not a boolean expression".format(cond))
     else:
         try:
-            cond = tc(ctx, cond)
+            #cond = tc(ctx, cond)
             return zed_verify_satisfiability(ctx, cond)
         except NotDecidableException:
             return True
@@ -268,13 +266,19 @@ def kinding(ctx, t: Type, k: Kind):
 
 
 def check_expects(ctx, n, expects):
-    if expects and not hasattr(n, "type"):  #  expr_has_type(ctx, n, expects):
-        raise TypeException(
-            '{} has wrong type'.format(type(n)),
-            "{} has wrong type (given: {}, expected: {})".format(
-                n, n.type, expects),
-            expected=expects,
-            given=n.type)
+    if expects != None:
+        if not hasattr(n, "type"):
+            raise TypeException('Node {} with unknown type'.format(n, type(n)),
+                                expected=expects,
+                                given=n.type)
+
+        if not is_subtype(ctx, n.type, expects):
+            raise TypeException(
+                '{} has wrong type'.format(type(n)),
+                "{} has wrong type (given: {}, expected: {})".format(
+                    n, n.type, expects),
+                expected=expects,
+                given=n.type)
 
 
 # Expression TypeChecking
@@ -347,6 +351,7 @@ def t_abs(ctx, n, expects=None):
                                                  expects.arg_name)
     else:
         body_expects = None
+
     nctx = ctx.with_var(n.arg_name, n.arg_type)
     n.body = tc(nctx, n.body, expects=body_expects)
     n.type = AbstractionType(arg_name=n.arg_name,
@@ -358,7 +363,7 @@ def t_abs(ctx, n, expects=None):
 def t_app(ctx, n: Application, expects=None):
     """ T-App """
     n.target = tc(ctx, n.target, expects=None)
-
+    n.target.type = c_beta_simplication(ctx, n.target.type, AnyKind())
     if type(n.target.type) is AbstractionType:
         ftype = n.target.type
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
@@ -440,9 +445,8 @@ def tc(ctx, n, expects=None):
         k = kinding(ctx, n.type, AnyKind())
         name = n.name
         body = n.body
+        ctx.variables[name] = n.type
         n.body = tc(ctx, body, expects=n.type)
-        ctx.add_var(name, n.type)
-        return n
     else:
         print("Could not typecheck {} of type {}".format(n, type(n)))
     check_expects(ctx, n, expects)

@@ -139,6 +139,7 @@ def zed_verify_entailment(ctx, cond):
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     if relevant_vars:
+        s.add(z3_context)
         s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
     else:
         s.add(z3.Implies(z3_context, z3_cond))
