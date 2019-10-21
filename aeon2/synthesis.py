@@ -121,7 +121,6 @@ def se_var(ctx, T, d):
         v for v in ctx.variables
         if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
     ]
-    #print("SE-Var", T, options)
     if options:
         n = random.choice(options)
         return Var(n).with_type(T)
@@ -171,10 +170,10 @@ def se_app(ctx, T, d):
 def se(ctx, T, d):
     """ Γ ⸠ T~>_{d} e """
     if type(T) is BasicType and T.name == "Integer":
-        yield (1, lambda: se_int(ctx, T, d))
+        yield (2000, lambda: se_int(ctx, T, d))
     if type(T) is BasicType and T.name == "Boolean":
-        yield (1, lambda: se_bool(ctx, T, d))
-    if [v for v in ctx.variables if tc.is_same_type(ctx, ctx.variables[v], T)]:
+        yield (2, lambda: se_bool(ctx, T, d))
+    if [v for v in ctx.variables if tc.is_subtype(ctx, ctx.variables[v], T)]:
         yield (100, lambda: se_var(ctx, T, d))
     if d + 100 > 0:
         # TODO

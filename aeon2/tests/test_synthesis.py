@@ -30,7 +30,7 @@ class TestSynthesis(unittest.TestCase):
         self.assertIn(sk(d=2), [star, Kind(star, star)])
         self.assertIsInstance(sk(d=5), Kind)
 
-    def test_synthesis(self):
+    def _test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()
@@ -51,20 +51,14 @@ class TestSynthesis(unittest.TestCase):
 
         self.assert_synth(ctx.with_var("z", ty("{k:Integer where (k > 0)}")),
                           ty("{v:Integer where (v > 1)}"))
-        """
 
-
-
-
-
+    def test_synthesis_current(self):
+        ctx = TypingContext()
+        ctx.setup()
         self.assert_synth(
-            ctx.with_var(
-                "*",
-                tc(ctx,
-                   n=ty(
-                       "(x:Integer) -> (y:Integer) -> {z:Integer where (z == (x*y))}"
-                   ))), ty("(x:Integer) -> {y:Integer where (y == (x*2)) }"))
-        """
+            ctx,
+            ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"),
+            times=10)
 
 
 if __name__ == '__main__':
