@@ -15,6 +15,7 @@ def sub_base(ctx, sub: BasicType, sup: BasicType):
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
     """ S-WhereL """
     nctx = ctx.with_var(sub.name, sub.type)
+    #print(sub, " subtype ofL ", sup)
     return is_satisfiable(nctx, sub.cond) and \
         is_subtype(ctx, sub.type, sup)
 
@@ -22,6 +23,7 @@ def sub_whereL(ctx, sub: RefinedType, sup: Type):
 def sub_whereR(ctx, sub: Type, sup: RefinedType):
     """ S-WhereR """
     nctx = ctx.with_var(sup.name, sub)
+    #print(sub, " subtype of ", sup)
     return is_subtype(ctx, sub, sup.type) and \
         entails(nctx, sup.cond)
 

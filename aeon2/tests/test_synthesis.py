@@ -1,7 +1,7 @@
 import unittest
 
 from ..frontend import expr, typee
-from ..synthesis import *
+from ..synthesis import se, se_bool
 from ..typechecker import *
 
 ex = expr.parse_strict
@@ -13,11 +13,11 @@ class TestSynthesis(unittest.TestCase):
         if not is_subtype(ctx, sub, sup):
             raise AssertionError(sub, "is not subtype of", sup)
 
-    def assert_synth(self, ctx, t, times=3):
+    def assert_synth(self, ctx, t, times=3, fun=se):
         d = 3
         print("----")
         for i in range(times):
-            e = se(ctx, t, d)
+            e = fun(ctx, t, d)
             print("Synth'ed: ", e)
             tc(ctx, e, t)
             self.assert_st(ctx, e.type, t)
@@ -26,9 +26,33 @@ class TestSynthesis(unittest.TestCase):
         ctx = TypingContext()
         ctx.setup()
 
-        self.assertEqual(sk(d=1), star)
-        self.assertIn(sk(d=2), [star, Kind(star, star)])
-        self.assertIsInstance(sk(d=5), Kind)
+        self.assertEqual(sk(0), star)
+        self.assertIn(sk(2), [star, Kind(star, star)])
+        self.assertIsInstance(sk(5), Kind)
+
+    def test_synthesis_step_by_step(self):
+        ctx = TypingContext()
+        ctx.setup()
+        """
+        self.assert_synth(ctx, ty("Boolean"), fun=se_bool)
+        self.assert_synth(ctx, ty("Integer"), fun=se_int)
+        self.assert_synth(ctx.with_var("x", ty("Boolean")), ty("Boolean"), fun=se_var)
+        self.assert_synth(ctx.with_var("x", ty("Integer")), ty("Integer"), fun=se_var)
+
+        self.assert_synth(ctx.with_var("x", ty("{x:Integer where (x > 3)}")), ty("Integer"), fun=se_var)
+        self.assert_synth(ctx, ty("Integer"), fun=se_int)
+        """
+
+        with self.assertRaises(Unsynthesizable):
+            self.assert_synth(ctx.with_var("x",
+                                           ty("{x:Integer where (x > 3)}")),
+                              ty("{y:Integer where (y < 2)}"),
+                              fun=se_var)
+
+        self.assert_synth(ctx.with_var("x", ty("{x:Integer where (x > 3)}")),
+                          ty("{y:Integer where (y > 2)}"),
+                          fun=se_var)
+        self.assert_synth(ctx, ty("{y:Integer where (y > 2)}"), fun=se_where)
 
     def _test_synthesis(self):
 
@@ -55,10 +79,12 @@ class TestSynthesis(unittest.TestCase):
     def test_synthesis_current(self):
         ctx = TypingContext()
         ctx.setup()
+        """
         self.assert_synth(
             ctx,
             ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"),
             times=10)
+        """
 
 
 if __name__ == '__main__':

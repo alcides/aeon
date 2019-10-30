@@ -96,7 +96,7 @@ initial_context = {
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a >= b))}"),
      lambda x: lambda y: x >= y),
     "fix": (ty("(a:*) => (f:(x:a) -> a) -> a"), Y),
-    "print": (ty("(a:Integer) -> Integer"), std_print),
+    "print": (ty("(a:Integer) -> {r:Integer where (r == a)}"), std_print),
 
     # TODO: support for lists
     #"empty_list": ( ty("(T:*) => (_:Void) -> (List T)  "), lambda x: [] ), # todo refine

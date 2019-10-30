@@ -42,6 +42,14 @@ class TypingContext(object):
         # As of Python3, dict_keys is not copyable, so a list is required
         self.basic_types = list(self.type_variables.keys())
 
+    def copy(self):
+        t = TypingContext()
+        t.type_aliases = self.type_aliases.copy()
+        t.variables = self.variables.copy()
+        t.type_variables = self.type_variables.copy()
+        t.basic_types = self.basic_types.copy()
+        return t
+
     def add_var(self, n, t):
         if type(t) is BasicType:
             if t.name in self.type_aliases:
@@ -58,12 +66,12 @@ class TypingContext(object):
         return False
 
     def with_var(self, name, type):
-        new_ctx = copy.deepcopy(self)
+        new_ctx = self.copy()
         new_ctx.add_var(name, type)
         return new_ctx
 
     def with_type_var(self, name, kind):
-        new_ctx = copy.deepcopy(self)
+        new_ctx = self.copy()
         new_ctx.add_type_var(name, kind)
         return new_ctx
 

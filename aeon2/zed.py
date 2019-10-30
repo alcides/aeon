@@ -2,7 +2,7 @@ from functools import reduce
 
 import z3
 
-from .ast import Var, Literal, Application, Abstraction
+from .ast import Var, Literal, Application, Abstraction, TApplication, Node
 from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b
 from .stdlib import *
@@ -123,13 +123,15 @@ def zed_translate_context(ztx, ctx):
     return reduce(z3.And, acc, True)
 
 
-def zed_translate(ztx, cond):
+def zed_translate(ztx, cond: Node):
     if type(cond) is Application:
         return zed_translate_app(ztx, cond)
     elif type(cond) is Var:
         return zed_translate_var(ztx, cond)
     elif type(cond) is Literal:
         return zed_translate_literal(ztx, cond)
+    elif type(cond) is Abstraction:
+        return zed_translate_tapp(ztx, cond)
     elif type(cond) is TApplication:
         return zed_translate_tapp(ztx, cond)
     else:
@@ -163,6 +165,7 @@ def zed_verify_entailment(ctx, cond):
     else:
         s.add(z3_context)
         s.add(z3.Implies(z3_context, z3_cond))
+    #print("zed_ver_entails", s)
     r = s.check()
     if r == z3.sat:
         return True
@@ -179,7 +182,7 @@ def zed_verify_satisfiability(ctx, cond):
     s = z3.Solver()
     s.add(z3.And(z3_context, z3_cond))
     r = s.check()
-    #print(s, r, 1)
+    #print("zed_ver_sat", s, r, 1)
     if r == z3.sat:
         return True
     if r == z3.unsat:
