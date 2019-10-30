@@ -29,6 +29,31 @@ weights = {
 }
 
 
+class WeightManager(object):
+    def __init__(self, **nw):
+        self.nw = nw
+
+    def __enter__(self):
+        w = all_disabled()
+        for k in self.nw:
+            w[k] = self.nw[k]
+        set_weights(w)
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        reset_weights()
+
+
+original_weights = weights.copy()
+
+
+def reset_weights():
+    set_weights(original_weights)
+
+
+def all_disabled():
+    return {k: 0 for k in weights.keys()}
+
+
 def set_weights(w):
     for k in w:
         weights[k] = w[k]
@@ -40,6 +65,8 @@ class Unsynthesizable(Exception):
 
 def pick_one_of(alts):
     total = sum([weights[v[0]] for v in alts])
+    if total <= 0:
+        raise Unsynthesizable("No options to pick from")
     i = random.randint(0, total - 1)
     for (prob, choice) in alts:
         i -= weights[prob]
@@ -212,7 +239,6 @@ def se(ctx, T, d):
         if type(T) is AbstractionType:
             yield ("se_abs", se_abs)
         if type(T) is RefinedType:
-            print("WHERE")
             yield ("se_where", se_where)
         if type(T) is TypeAbstraction:
             yield ("se_tabs", se_tabs)

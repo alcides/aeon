@@ -18,7 +18,7 @@ class TestSynthesis(unittest.TestCase):
         print("----")
         for i in range(times):
             e = fun(ctx, t, d)
-            print("Synth'ed: ", e)
+            print(t, "~>", e)
             tc(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
@@ -33,15 +33,26 @@ class TestSynthesis(unittest.TestCase):
     def test_synthesis_step_by_step(self):
         ctx = TypingContext()
         ctx.setup()
-        """
         self.assert_synth(ctx, ty("Boolean"), fun=se_bool)
-        self.assert_synth(ctx, ty("Integer"), fun=se_int)
-        self.assert_synth(ctx.with_var("x", ty("Boolean")), ty("Boolean"), fun=se_var)
-        self.assert_synth(ctx.with_var("x", ty("Integer")), ty("Integer"), fun=se_var)
 
-        self.assert_synth(ctx.with_var("x", ty("{x:Integer where (x > 3)}")), ty("Integer"), fun=se_var)
+        with WeightManager(se_bool=200):
+            self.assert_synth(ctx, ty("Boolean"))
+
+            with self.assertRaises(Unsynthesizable):
+                self.assert_synth(ctx, ty("Integer"))
+
         self.assert_synth(ctx, ty("Integer"), fun=se_int)
-        """
+        self.assert_synth(ctx.with_var("x", ty("Boolean")),
+                          ty("Boolean"),
+                          fun=se_var)
+        self.assert_synth(ctx.with_var("x", ty("Integer")),
+                          ty("Integer"),
+                          fun=se_var)
+
+        self.assert_synth(ctx.with_var("x", ty("{x:Integer where (x > 3)}")),
+                          ty("Integer"),
+                          fun=se_var)
+        self.assert_synth(ctx, ty("Integer"), fun=se_int)
 
         with self.assertRaises(Unsynthesizable):
             self.assert_synth(ctx.with_var("x",
@@ -54,7 +65,7 @@ class TestSynthesis(unittest.TestCase):
                           fun=se_var)
         self.assert_synth(ctx, ty("{y:Integer where (y > 2)}"), fun=se_where)
 
-    def _test_synthesis(self):
+    def test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()
