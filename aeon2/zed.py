@@ -67,6 +67,8 @@ def get_sort(t: Type):
     if type(t) is BasicType:
         if t.name == 'Integer':
             return z3.IntSort()
+        elif t.name == 'Boolean':
+            return z3.IntSort()
         elif t.name in ['Top', 'Void', 'Object']:
             return z3.BoolSort()
 

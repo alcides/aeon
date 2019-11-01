@@ -101,12 +101,12 @@ def s_cong(ctx: TypingContext, sub: Type, sup: Type, k: Kind):
             return s_cong(ctx, sub, ctx.type_aliases[sup.typeName], k)
 
     sub = c_beta_simplication(ctx, sub, k)
-    sup = c_beta_simplication(ctx, sub, k)
+    sup = c_beta_simplication(ctx, sup, k)
     """ C-Ref """
     if type(sub) is BasicType and type(
             sup) is BasicType and sub.name == sup.name:
-        return kinding(ctx, sub, k)
-
+        k2 = kinding(ctx, sub, k)
+        return True
     return False
 
 
@@ -140,6 +140,7 @@ def is_subtype(ctx, sub, sup):
         return sub_abs(ctx, sub, sup)
     if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
         return sub_tabs(ctx, sub, sup)
+
     return s_cong(ctx, sub, sup, AnyKind())
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
 

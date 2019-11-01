@@ -22,7 +22,7 @@ class TestSynthesis(unittest.TestCase):
             tc(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
-    def test_synthesis_kind(self):
+    def _test_synthesis_kind(self):
         ctx = TypingContext()
         ctx.setup()
 
@@ -30,16 +30,27 @@ class TestSynthesis(unittest.TestCase):
         self.assertIn(sk(2), [star, Kind(star, star)])
         self.assertIsInstance(sk(5), Kind)
 
-    def test_synthesis_step_by_step(self):
+    def test_with_weights(self):
         ctx = TypingContext()
         ctx.setup()
-        self.assert_synth(ctx, ty("Boolean"), fun=se_bool)
-
+        """
         with WeightManager(se_bool=200):
             self.assert_synth(ctx, ty("Boolean"))
 
             with self.assertRaises(Unsynthesizable):
                 self.assert_synth(ctx, ty("Integer"))
+
+        with WeightManager(se_int=100):
+            self.assert_synth(ctx, ty("Integer"))
+        """
+        with WeightManager(se_int=100, se_var=100, se_app=100):
+            self.assert_synth(ctx.with_var("x", ty("(b:Integer) -> Boolean")),
+                              ty("Boolean"))
+
+    def _test_synthesis_step_by_step(self):
+        ctx = TypingContext()
+        ctx.setup()
+        self.assert_synth(ctx, ty("Boolean"), fun=se_bool)
 
         self.assert_synth(ctx, ty("Integer"), fun=se_int)
         self.assert_synth(ctx.with_var("x", ty("Boolean")),
@@ -65,7 +76,7 @@ class TestSynthesis(unittest.TestCase):
                           fun=se_var)
         self.assert_synth(ctx, ty("{y:Integer where (y > 2)}"), fun=se_where)
 
-    def test_synthesis(self):
+    def _test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()

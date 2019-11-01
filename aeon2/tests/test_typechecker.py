@@ -65,6 +65,11 @@ class TestTypeChecking(unittest.TestCase):
             ty("(a:{v:Integer where (v > 0) }) -> {b:Integer where (b > 1)}"),
             ty("(k:{z:Integer where (z > 5) }) -> {x:Integer where (x > 0)}"))
 
+        with self.assertRaises(AssertionError):
+            self.assert_st(ctx,
+                           ty("(a:Integer) -> {r:Integer where (r == a)}"),
+                           ty("(a:Integer) -> (b:Integer) -> Bool"))
+
     def test_typechecking(self):
 
         ctx = TypingContext()

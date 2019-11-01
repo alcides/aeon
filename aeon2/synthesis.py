@@ -10,6 +10,8 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
     substitution_expr_in_expr, substitution_type_in_expr
 import aeon2.typechecker as tc
 
+MAX_TRIES = 10
+
 forbidden_vars = ['native', 'uninterpreted']
 
 weights = {
@@ -24,7 +26,6 @@ weights = {
     "se_abs": 1,
     "se_app": 1,
     "se_tabs": 1,
-    "stax_id": 1,
     "stax_id": 1,
 }
 
@@ -51,7 +52,8 @@ def reset_weights():
 
 
 def all_disabled():
-    return {k: 0 for k in weights.keys()}
+    w = {k: 1 for k in weights.keys()}
+    return w
 
 
 def set_weights(w):
@@ -63,10 +65,14 @@ class Unsynthesizable(Exception):
     pass
 
 
+def sum_of_alternative_weights(alts):
+    return sum([weights[v[0]] for v in alts])
+
+
 def pick_one_of(alts):
-    total = sum([weights[v[0]] for v in alts])
+    total = sum_of_alternative_weights(alts)
     if total <= 0:
-        raise Unsynthesizable("No options to pick from")
+        raise Unsynthesizable("No options to pick from:" + str(alts))
     i = random.randint(0, total - 1)
     for (prob, choice) in alts:
         i -= weights[prob]
@@ -79,16 +85,18 @@ def random_chooser(f):
     def f_alt(*args, **kwargs):
         random.seed(random.randint(0, 1030))
         valid_alternatives = list(f(*args, *kwargs))
-        if not valid_alternatives:
-            raise Unsynthesizable(*args)
-        while True:
+        if not valid_alternatives or sum_of_alternative_weights(
+                valid_alternatives) <= 0:
+            raise Unsynthesizable(f, *args, valid_alternatives)
+        for i in range(MAX_TRIES):
             fun = pick_one_of(valid_alternatives)
             try:
                 return fun(*args, **kwargs)
             except Exception as e:
-                print("Exception:", e)
+                print("Exception:", e, type(e))
                 print("Failed once to pick using", fun)
                 continue
+        raise Unsynthesizable("Too many tries for type: ", *args)
 
     return f_alt
 
@@ -215,12 +223,14 @@ def se_app(ctx, T, d):
     x = scfv(T)
     e2 = se(ctx, U, d - 1)
 
+    print("Found e2 of type", e2, U, " for ", T)
+
     nctx = ctx.with_type_var(x, U)
     V = stax(nctx, e2, x, T, d - 1)
     FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
-    print("last one", FT)
     e1 = se(ctx, FT, d - 1)
-    print("after", e1)
+    print("Found e1 of type", e1, FT, " for ", T)
+
     return Application(e1, e2).with_type(T)
 
 
@@ -231,6 +241,7 @@ def se(ctx, T, d):
         yield ("se_int", se_int)
     if type(T) is BasicType and T.name == "Boolean":
         yield ("se_bool", se_bool)
+    print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
@@ -258,7 +269,7 @@ def stax_id(nctx, e, x, T, d):
 def stax(ctx, e, x, T, d):
     """ Γ ⸠ T ~>_{d} U """
     #yield (1, lambda: stax_id(nctx, e, x, T, d))
-    yield (1, lambda ctx, e, x, T, d: T)
+    yield ("stax_id", lambda ctx, e, x, T, d: T)
     """ TODO: STAx-Arrow """
     """ TODO: STAx-App """
     """ TODO: STAx-Abs """
