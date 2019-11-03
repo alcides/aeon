@@ -186,12 +186,20 @@ def expr_wrapped():
     return o
 
 
+@lexeme
+@generate
+def not_op():
+    yield t("!")
+    e = yield expr
+    return Application(Var("!"), e)
+
+
 var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = literal ^ var
 
 term = hole | abstraction ^ tabstraction ^ expr_basic ^ (
-    t("(") >> expr_wrapped << t(")")) ^ (t("(") >> expr_ops << t(")"))
+    t("(") >> expr_wrapped << t(")")) ^ (t("(") >> expr_ops << t(")")) ^ not_op
 
 expr_tapp = tapplication ^ term
 
