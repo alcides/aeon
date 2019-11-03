@@ -1,7 +1,8 @@
 import unittest
 
 from ..frontend import expr, typee
-from ..synthesis import se, se_bool
+from ..synthesis import WeightManager, se, se_bool, se_int, se_var, se_app, \
+    se_where, stax
 from ..typechecker import *
 
 ex = expr.parse_strict
@@ -33,21 +34,18 @@ class TestSynthesis(unittest.TestCase):
     def test_with_weights(self):
         ctx = TypingContext()
         ctx.setup()
-        """
+
         with WeightManager(se_bool=200):
             self.assert_synth(ctx, ty("Boolean"))
 
-            with self.assertRaises(Unsynthesizable):
-                self.assert_synth(ctx, ty("Integer"))
-
         with WeightManager(se_int=100):
             self.assert_synth(ctx, ty("Integer"))
-        """
+
         with WeightManager(se_int=100, se_var=100, se_app=100):
             self.assert_synth(ctx.with_var("x", ty("(b:Integer) -> Boolean")),
                               ty("Boolean"))
 
-    def _test_synthesis_step_by_step(self):
+    def test_synthesis_step_by_step(self):
         ctx = TypingContext()
         ctx.setup()
         self.assert_synth(ctx, ty("Boolean"), fun=se_bool)
@@ -65,18 +63,12 @@ class TestSynthesis(unittest.TestCase):
                           fun=se_var)
         self.assert_synth(ctx, ty("Integer"), fun=se_int)
 
-        with self.assertRaises(Unsynthesizable):
-            self.assert_synth(ctx.with_var("x",
-                                           ty("{x:Integer where (x > 3)}")),
-                              ty("{y:Integer where (y < 2)}"),
-                              fun=se_var)
-
         self.assert_synth(ctx.with_var("x", ty("{x:Integer where (x > 3)}")),
                           ty("{y:Integer where (y > 2)}"),
                           fun=se_var)
         self.assert_synth(ctx, ty("{y:Integer where (y > 2)}"), fun=se_where)
 
-    def _test_synthesis(self):
+    def test_synthesis(self):
 
         ctx = TypingContext()
         ctx.setup()
@@ -101,12 +93,32 @@ class TestSynthesis(unittest.TestCase):
     def test_synthesis_current(self):
         ctx = TypingContext()
         ctx.setup()
-        """
+
         self.assert_synth(
             ctx,
             ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"),
             times=10)
-        """
+
+        self.assert_synth(ctx,
+                          ty("(a:Integer) -> {v:Integer where (v > 1)}"),
+                          times=10)
+
+    def assert_stax(self, ctx, e, x, T):
+        NT = stax(ctx, e, x, T, 1)
+        #print("NT:", NT)
+        assert (is_subtype(ctx, NT, T))
+
+    def test_stax(self):
+        ctx = TypingContext()
+        ctx.setup()
+
+        T = ty("{v:Integer where (v == 1)}")
+        self.assert_stax(ctx.with_var("x", ty("Integer")),
+                         expr.parse_strict("1"), "x", T)
+
+        T = ty("(v:{a:Integer where (a > 1)}) -> {k:Boolean where (k)}")
+        self.assert_stax(ctx.with_var("x", ty("Integer")),
+                         expr.parse_strict("1"), "x", T)
 
 
 if __name__ == '__main__':

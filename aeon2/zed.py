@@ -33,7 +33,8 @@ def flatten_refined_types(t):
         return t
     elif type(t) is AbstractionType:
         return t
-    raise Exception("No Refine Flattening for {} ({})".format(t, type(t)))
+    raise NoZ3TranslationException("No Refine Flattening for {} ({})".format(
+        t, type(t)))
 
 
 def zed_mk_variable(name, ty: Type):
@@ -88,8 +89,6 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
-            for k in ztx:
-                print(">", k, ztx[k])
             raise NoZ3TranslationException("Var not in scope: {} : {}".format(
                 v, v.type))
     return ztx[v.name]
@@ -110,14 +109,16 @@ def zed_translate_context(ztx, ctx):
     restrictions = []
     for name in ctx.variables.keys():
         t = ctx.variables[name]
-        if name not in ztx:
-            ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
-        if type(t) is RefinedType:
-            tprime = flatten_refined_types(t)
-            new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
-                                                 t.name)
-            restrictions.append(new_cond)
-
+        try:
+            if name not in ztx:
+                ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
+            if type(t) is RefinedType:
+                tprime = flatten_refined_types(t)
+                new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
+                                                     t.name)
+                restrictions.append(new_cond)
+        except NoZ3TranslationException:
+            continue
     acc = []
     for e in restrictions:
         c = zed_translate_wrapped(ztx, e)
@@ -151,7 +152,9 @@ def zed_translate_wrapped(ztx, cond):
 def zed_initial_context():
     c = {}
     for name in get_all_builtins():
-        c[name] = get_builtin_z3_function(name)
+        f = get_builtin_z3_function(name)
+        if f:
+            c[name] = get_builtin_z3_function(name)
     return c
 
 
@@ -180,7 +183,7 @@ def zed_verify_entailment(ctx, cond):
 def zed_verify_satisfiability(ctx, cond):
     ztx = zed_initial_context()
     z3_context = zed_translate_context(ztx, ctx)
-    z3_cond = zed_translate(ztx, cond)
+    z3_cond = zed_translate_wrapped(ztx, cond)
     s = z3.Solver()
     s.add(z3.And(z3_context, z3_cond))
     r = s.check()

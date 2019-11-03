@@ -2,7 +2,9 @@ import random
 import string
 import sys
 
-from .ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
+from typing import Union
+
+from .ast import Node, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i
@@ -11,6 +13,7 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
 import aeon2.typechecker as tc
 
 MAX_TRIES = 10
+MAX_TRIES_WHERE = 100
 
 forbidden_vars = ['native', 'uninterpreted']
 
@@ -26,7 +29,31 @@ weights = {
     "se_abs": 1,
     "se_app": 1,
     "se_tabs": 1,
+    "se_tapp": 1,
+    "se_if": 1,
     "stax_id": 1,
+    "stax_abs": 1000,
+    "stax_where": 1000,
+    "stax_app": 1000,
+    "seax_var": 1000000,
+    "seax_id": 1,
+    "seax_app": 100,
+    "seax_abs": 100,
+    "seax_if": 100,
+    "seax_tapp": 100,
+    "seax_tabs": 100,
+    "stat_id": 1,
+    "stat_var": 1,
+    "stat_abs": 1,
+    "stat_where": 1,
+    "stat_tapp": 1,
+    "stat_tabs": 1,
+    "seat_id": 1,
+    "seat_app": 1,
+    "seat_abs": 1,
+    "seat_if": 1,
+    "seat_tapp": 1,
+    "seat_tabs": 1,
 }
 
 
@@ -78,7 +105,7 @@ def pick_one_of(alts):
         i -= weights[prob]
         if i <= 0:
             return choice
-    print("BIG FAIL")
+    raise Exception("This line should never happen")
 
 
 def random_chooser(f):
@@ -92,9 +119,9 @@ def random_chooser(f):
             fun = pick_one_of(valid_alternatives)
             try:
                 return fun(*args, **kwargs)
-            except Exception as e:
-                print("Exception:", e, type(e))
-                print("Failed once to pick using", fun)
+            except Unsynthesizable as e:
+                #print("Exception:", e, type(e))
+                #print("Failed once to pick using", fun)
                 continue
         raise Unsynthesizable("Too many tries for type: ", *args)
 
@@ -116,7 +143,7 @@ def sk(d=5):
 
 
 @random_chooser
-def st(ctx, k, d):
+def st(ctx: TypingContext, k, d):
     """ Γ ⸠ k ~>_{d} T """
     if k == star:
         yield ("st_int", lambda ctx, k, d: t_i)
@@ -125,7 +152,13 @@ def st(ctx, k, d):
     # TODO
 
 
-def fv(T):
+def fv(T: Union[Type, TypingContext, Node]):
+    if type(T) is Node:
+        return []  # TODO
+    if type(T) is TypingContext:
+        ctx = T
+        return list(ctx.variables.keys()) + list(ctx.type_variables.keys() +
+                                                 list(ctx.type_aliases.keys()))
     if type(T) is RefinedType:
         return [T.name] + fv(T.type)
     if type(T) is AbstractionType:
@@ -133,18 +166,19 @@ def fv(T):
     return []
 
 
-def scfv(T):
+def scfv(T: Union[Type, TypingContext], upper: bool = False):
     """ ~fv(T) ~> t """
+    options = upper and string.ascii_uppercase or string.ascii_lowercase
     freevars = fv(T)
     w = ""
     for i in range(1000):
-        w += random.choice(string.ascii_letters)
+        w += random.choice(options)
         if w not in freevars:
             return w
     return "_qwerty"
 
 
-def get_variables_of_type(ctx, T):
+def get_variables_of_type(ctx: TypingContext, T):
     return [
         v for v in ctx.variables
         if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
@@ -154,13 +188,13 @@ def get_variables_of_type(ctx, T):
 """ Expression Synthesis """
 
 
-def se_bool(ctx, T, d):
+def se_bool(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Bool """
     v = random.random() < 0.5
     return Literal(v, type=T)
 
 
-def se_int(ctx, T, d):
+def se_int(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Int """
     v = random.randint(-100, 100)
     name = "lit_{}".format(v)
@@ -174,15 +208,21 @@ def se_int(ctx, T, d):
                                                 ensured=True))))
 
 
-def se_if(ctx, T, d):
+def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
-    cond = se(ctx, t_b, d - 1)
-    then = se(ctx, T, d - 1)  # missing refinement in type
-    otherwise = se(ctx, T, d - 1)  # missing refinement in type
-    return If(cond, then, otherwise).with_type(T)
+    with WeightManager(se_bool=1):
+        e1 = se(ctx, t_b, d - 1)
+    if tc.entails(
+            ctx,
+            e1) or not tc.is_satisfiable(ctx, e1):  # TODO Paper: explain this
+        raise Unsynthesizable(
+            "If condition is always true or always false: {}".format(e1))
+    e2 = se(ctx.with_cond(e1), T, d - 1)
+    e3 = se(ctx.with_cond(Application(Var("!"), e1)), T, d - 1)
+    return If(e1, e2, e3).with_type(T)
 
 
-def se_var(ctx, T, d):
+def se_var(ctx: TypingContext, T: Type, d: int):
     """ SE-Var """
     options = get_variables_of_type(ctx, T)
     if options:
@@ -191,17 +231,31 @@ def se_var(ctx, T, d):
     raise Unsynthesizable("No var of type {}".format(T))
 
 
-def se_abs(ctx, T: AbstractionType, d):
+def se_abs(ctx: TypingContext, T: AbstractionType, d: int):
     """ SE-Abs """
     nctx = ctx.with_var(T.arg_name, T.arg_type)
     body = se(nctx, T.return_type, d - 1)
-    print("Body:", body, " return type", T.return_type, "type", T)
     return Abstraction(T.arg_name, T.arg_type, body).with_type(T)
 
 
-def se_where(ctx, T: RefinedType, d):
+def se_app(ctx: TypingContext, T: Type, d: int):
+    """ SE-App """
+    k = sk(d)
+    U = st(ctx, k, d - 1)
+    x = scfv(T)
+    e2 = se(ctx, U, d - 1)
+
+    nctx = ctx.with_var(x, U)
+    V = stax(nctx, e2, x, T, d - 1)
+    FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
+    e1 = se(ctx, FT, d - 1)
+
+    return Application(e1, e2).with_type(T)
+
+
+def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
-    for _ in range(100):
+    for _ in range(MAX_TRIES_WHERE):
         e2 = se(ctx, T.type, d - 1)
         ncond = substitution_expr_in_expr(T.cond, e2, T.name)
         if tc.entails(ctx, ncond):
@@ -209,44 +263,35 @@ def se_where(ctx, T: RefinedType, d):
     raise Unsynthesizable("Bug in se_where: {}".format(T))
 
 
-def se_tabs(ctx, T: TypeAbstraction, d):
+def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     """ SE-TAbs """
     nctx = ctx.with_type_var(T.name, T.kind)
     e = se(nctx, T.type, d - 1)
     return TAbstraction(T.name, T.kind, e).with_type(T)
 
 
-def se_app(ctx, T, d):
-    """ SE-App """
-    k = sk(d)
-    U = st(ctx, k, d - 1)
-    x = scfv(T)
-    e2 = se(ctx, U, d - 1)
-
-    print("Found e2 of type", e2, U, " for ", T)
-
-    nctx = ctx.with_type_var(x, U)
-    V = stax(nctx, e2, x, T, d - 1)
-    FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
-    e1 = se(ctx, FT, d - 1)
-    print("Found e1 of type", e1, FT, " for ", T)
-
-    return Application(e1, e2).with_type(T)
+def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
+    k = sk(d - 1)
+    T = st(ctx, k, d - 1)
+    t = scfv(ctx, upper=True)
+    V = stat(ctx.with_type_var(T, k), T, t, U, d - 1)
+    e = se(ctx, AbstractionType(t, k, V), d - 1)
+    return TApplication(e, T)
 
 
 @random_chooser
-def se(ctx, T, d):
+def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
     if type(T) is BasicType and T.name == "Integer":
         yield ("se_int", se_int)
     if type(T) is BasicType and T.name == "Boolean":
         yield ("se_bool", se_bool)
-    print(T, " has vars ", get_variables_of_type(ctx, T))
+    #print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
         # TODO
-        # yield (1, lambda: se_if(ctx, T, d))
+        yield ("se_if", se_if)
         if type(T) is AbstractionType:
             yield ("se_abs", se_abs)
         if type(T) is RefinedType:
@@ -254,23 +299,280 @@ def se(ctx, T, d):
         if type(T) is TypeAbstraction:
             yield ("se_tabs", se_tabs)
         yield ("se_app", se_app)
-        """ TODO: SE-TApp """
+        if type(T) is TypeApplication:
+            yield ("se_tapp", se_tapp)
+        """ TODO: SE-Subtype """
 
 
 """ Expression Synthesis parameterized with x:T """
 
 
-def stax_id(nctx, e, x, T, d):
+def check_stax(ctx: TypingContext, e: Node, x: str, T: Type):
+    tc.tc(ctx, e)
+    U = e.type
+    return x in ctx.variables and \
+        tc.is_subtype(ctx, ctx.variables[x], U) and \
+        x not in fv(T) and \
+        tc.kinding(ctx, T, AnyKind())
+
+
+def stax_id(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
     """ STAx-Id """
     return T
 
 
+def stax_abs(ctx: TypingContext, e: Node, x: str, AT: AbstractionType, d: int):
+    """ STAx-Abs """
+    T = AT.arg_type
+    U = AT.return_type
+
+    Tp = stax(ctx, e, x, T, d - 1)
+    Up = stax(ctx, e, x, U, d - 1)
+    return AbstractionType(AT.arg_name, Tp, Up)
+
+
+def stax_app(ctx: TypingContext, e: Node, x: str, TA: TypeApplication, d: int):
+    """ STAx-app """
+    T = TA.target
+    U = TA.argument
+    Tp = stax(ctx, e, x, T, d - 1)
+    Up = stax(ctx, e, x, U, d - 1)
+    return TypeApplication(Tp, Up)
+
+
+def stax_where(ctx: TypingContext, e: Node, x: str, RT: RefinedType, d: int):
+    """  STAx-where """
+    T = RT.type
+    e1 = RT.cond
+    Tp = stax(ctx, e, x, T, d - 1)
+    ncond = seax(ctx, e, x, e1, d - 1)
+    return RefinedType(RT.name, Tp, ncond)
+
+
 @random_chooser
-def stax(ctx, e, x, T, d):
+def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
-    #yield (1, lambda: stax_id(nctx, e, x, T, d))
-    yield ("stax_id", lambda ctx, e, x, T, d: T)
-    """ TODO: STAx-Arrow """
-    """ TODO: STAx-App """
-    """ TODO: STAx-Abs """
-    """ TODO: STAx-Where """
+    if check_stax(ctx, e, x, T):
+        yield ("stax_id", stax_id)
+    if type(T) is AbstractionType:
+        yield ("stax_abs", stax_abs)
+    if type(T) is TypeApplication:
+        yield ("stax_app", stax_app)
+    if type(T) is RefinedType:
+        yield ("stax_where", stax_where)
+
+
+def seax_var(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+    """ assumes ex == e and x not in fv(e) """
+    return Var(x).with_type(e.type)
+
+
+def seax_id(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+    return e
+
+
+def seax_app(ctx: TypingContext, ex: Node, x: str, e: Application, d: int):
+    e1 = e.target
+    e2 = e.argument
+    e1p = seax(ctx, ex, x, e1, d - 1)
+    e2p = seax(ctx, ex, x, e2, d - 1)
+    return Application(e1p, e2p)
+
+
+def seax_abs(ctx: TypingContext, ex: Node, x: str, abs: Abstraction, d: int):
+    U = abs.arg_type
+    e = abs.body
+    Up = stax(ctx, ex, x, U, d - 1)
+    ep = seax(ctx, ex, x, e, d - 1)
+    return Abstraction(abs.arg_name, Up, ep)
+
+
+def seax_if(ctx: TypingContext, ex: Node, x: str, i: If, d: int):
+    e1 = i.cond
+    e2 = i.then
+    e3 = i.otherwise
+    e1p = seax(ctx, ex, x, e1, d - 1)
+    e2p = seax(ctx, ex, x, e2, d - 1)
+    e3p = seax(ctx, ex, x, e3, d - 1)
+    return If(e1p, e2p, e3p)
+
+
+def seax_tapp(ctx: TypingContext, ex: Node, x: str, tapp: TApplication,
+              d: int):
+    T = tapp.target
+    U = tapp.argument
+    Tp = stax(ctx, ex, x, T, d - 1)
+    Up = stax(ctx, ex, x, U, d - 1)
+    return TApplication(Tp, Up)
+
+
+def seax_tabs(ctx: TypingContext, ex: Node, x: str, tapp: TAbstraction,
+              d: int):
+    T = tapp.body
+    Tp = stax(ctx, ex, x, T, d - 1)
+    return TAbstraction(tapp.typevar, tapp.kind, Tp)
+
+
+@random_chooser
+def seax(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+    if e == ex and x not in fv(e):
+        yield ("seax_var", seax_var)
+    yield ("seax_id", seax_id)
+    if type(e) is Application:
+        yield ("seax_app", seax_app)
+    if type(e) is Abstraction:
+        yield ("seax_abs", seax_abs)
+    if type(e) is If:
+        yield ("seax_if", seax_if)
+    if type(e) is TApplication:
+        yield ("seax_tapp", seax_tapp)
+    if type(e) is TAbstraction:
+        yield ("seax_tabs", seax_tabs)
+
+
+def check_stat(ctx: TypingContext, T: Type, t: str, U: Type):
+    return T == U and \
+        t in ctx.type_variables and \
+        tc.kinding(ctx, T, ctx.type_variables[t]) and \
+        t not in fv(T)
+
+
+def stat_id(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
+    """ STAt-Id """
+    return T
+
+
+def stat_var(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
+    """ STAt-Var """
+    return BasicType(t)
+
+
+def stat_abs(ctx: TypingContext, T: Type, t: str, AT: AbstractionType, d: int):
+    """ STAt-Abs """
+    U = AT.arg_type
+    V = AT.return_type
+
+    Up = stat(ctx, T, t, U, d - 1)
+    Vp = stat(ctx, T, t, V, d - 1)
+    return AbstractionType(AT.arg_name, Up, Vp)
+
+
+def stat_tapp(ctx: TypingContext, T: Type, t: str, TA: TypeApplication,
+              d: int):
+    """ STAt-TApp """
+    U = TA.target
+    V = TA.argument
+    Up = stat(ctx, T, t, U, d - 1)
+    Vp = stat(ctx, T, t, V, d - 1)
+    return TypeApplication(Up, Vp)
+
+
+def stat_tabs(ctx: TypingContext, T: Type, t: str, TA: TypeAbstraction,
+              d: int):
+    """ STAt-TAbs """
+    u = TA.name
+    k = TA.kind
+    U = TA.body
+    Up = stat(ctx.with_type_var(u, k), T, t, U, d - 1)
+    return TypeAbstraction(u, k, Up)
+
+
+def stat_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
+    """  STAt-where """
+    U = RT.type
+    e1 = RT.cond
+    Up = stat(ctx, T, t, U, d - 1)
+    ncond = seat(ctx, T, t, e1, d - 1)
+    return RefinedType(RT.name, Up, ncond)
+
+
+@random_chooser
+def stat(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
+    """ Γ ⸠ [T/t] U ~>_{d} V """
+    if check_stat(ctx, T, x, U):
+        yield ("stat_id", stat_id)
+        yield ("stat_var", stat_var)
+    if type(T) is AbstractionType:
+        yield ("stat_abs", stat_abs)
+    if type(T) is TypeApplication:
+        yield ("stat_tapp", stat_tapp)
+    if type(T) is TypeAbstraction:
+        yield ("stat_tabs", stat_tabs)
+    if type(T) is RefinedType:
+        yield ("stat_where", stat_where)
+
+
+""" Inverse Type substitution """
+
+
+def check_seat(ctx: TypingContext, T: Type, t: str, e: Node):
+    return t in ctx.type_variables and \
+        tc.kinding(ctx, T, ctx.type_variables[t]) and \
+        t not in fv(e)
+
+
+def seat_id(ctx: TypingContext, T: Type, t: str, e: Node, d: int):
+    """ SEAt-Id """
+    return e
+
+
+def seat_app(ctx: TypingContext, T: Type, t: str, e: Application, d: int):
+    """ SEAt-App """
+    e1 = e.target
+    e2 = e.argument
+    e1p = seat(ctx, T, t, e1, d - 1)
+    e2p = seat(ctx, T, t, e2, d - 1)
+    return Application(e1p, e2p)
+
+
+def seat_abs(ctx: TypingContext, T: Type, t: str, a: Abstraction, d: int):
+    """ SEAt-Abs """
+    U = a.type
+    e = a.body
+    Up = stat(ctx, T, t, U, d - 1)
+    ep = seat(ctx, T, t, e, d - 1)
+    return Abstraction(e.name, Up, ep)
+
+
+def seat_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
+    """ SEAt-If """
+    e1 = i.cond
+    e2 = i.then
+    e3 = i.otherwise
+    e1p = seat(ctx, T, t, e1, d - 1)
+    e2p = seat(ctx, T, t, e2, d - 1)
+    e3p = seat(ctx, T, t, e3, d - 1)
+    return If(e1p, e2p, e3p)
+
+
+def seat_tapp(ctx: TypingContext, T: type, t: str, tapp: TApplication, d: int):
+    """ SEAt-TApp """
+    U = tapp.target
+    V = tapp.argument
+    Up = stat(ctx, T, t, U, d - 1)
+    Vp = stat(ctx, T, t, V, d - 1)
+    return TApplication(Up, Vp)
+
+
+def seat_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
+    """ SEAt-TAbs """
+    U = tapp.body
+    Up = stat(ctx, T, t, U, d - 1)
+    return TAbstraction(tapp.typevar, tapp.kind, Up)
+
+
+@random_chooser
+def seat(ctx: TypingContext, T: Type, t: str, e: Node, d: int):
+    """ Γ ⸠ [T/t] e ~>_{d} e2 """
+    if check_seat(ctx, T, t, e):
+        yield ("seat_id", seat_id)
+    if type(e) is Application:
+        yield ("seat_app", seat_app)
+    if type(e) is Abstraction:
+        yield ("seat_abs", seat_abs)
+    if type(e) is If:
+        yield ("seat_if", seat_if)
+    if type(e) is TApplication:
+        yield ("seat_tapp", seat_tapp)
+    if type(e) is TAbstraction:
+        yield ("seat_tabs", seat_tabs)

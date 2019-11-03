@@ -31,7 +31,7 @@ def get_builtin_z3_function(name):
     if len(definition) > 2:
         return definition[2]
     else:
-        return definition[1]
+        return None
 
 
 def get_all_builtins():
@@ -43,7 +43,8 @@ Y = lambda F: F(lambda x: Y(F)(x))
 
 
 def std_print(x):
-    print(x)
+    raise Exception("Should not happen in print")
+    print(x, "this was a print")
     return x
 
 
@@ -62,6 +63,8 @@ initial_context = {
         lambda x: lambda y: x / y),
     "%": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a % b))}"),
           lambda x: lambda y: x % y),
+    "!": (ty("(a:Boolean) -> {b:Boolean where (b != a)}"), lambda x: not x,
+          lambda x: z3.Not(x)),
     "==":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a == b))}"),
      lambda x: lambda y: x == y),

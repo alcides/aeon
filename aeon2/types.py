@@ -75,6 +75,11 @@ class TypingContext(object):
         new_ctx.add_type_var(name, kind)
         return new_ctx
 
+    def with_cond(self, c):
+        """  TODO Paper: Explain this """
+        name = "__hidden_cond__{}__".format(len(self.variables))
+        return self.with_var(name, RefinedType(name, BasicType('Boolean'), c))
+
 
 class Kind(object):
     def __init__(self, k1=None, k2=None):

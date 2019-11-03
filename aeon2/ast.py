@@ -1,3 +1,6 @@
+from .types import Type, Kind
+
+
 class Node(object):
     pass
 
@@ -22,7 +25,7 @@ class TypedNode(Node):
 class Hole(TypedNode):
     """ \hole """
 
-    def __init__(self, type):
+    def __init__(self, type: Type):
         super(Hole, self).__init__()
         self.type = type
 
@@ -54,7 +57,7 @@ class Literal(TypedNode):
 class Var(TypedNode):
     """ x """
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         super(Var, self).__init__()
         self.name = name
 
@@ -72,7 +75,7 @@ class If(TypedNode):
     # int a = (a > b) ? 1 : 0;
     #inteiro = True and "ola" or "adeus"
 
-    def __init__(self, cond, then, otherwise):
+    def __init__(self, cond: Node, then: Node, otherwise: Node):
         super(If, self).__init__()
         self.cond = cond
         self.then = then
@@ -92,7 +95,7 @@ class If(TypedNode):
 class Application(TypedNode):
     """  e(e) """
 
-    def __init__(self, target, argument):
+    def __init__(self, target: Node, argument: Node):
         super(Application, self).__init__()
         self.target = target
         self.argument = argument
@@ -109,7 +112,7 @@ class Application(TypedNode):
 class Abstraction(TypedNode):
     """ \\x:T -> e """
 
-    def __init__(self, arg_name, arg_type, body):
+    def __init__(self, arg_name: str, arg_type: Type, body: Node):
         super(Abstraction, self).__init__()
         self.arg_name = arg_name
         self.arg_type = arg_type
@@ -128,7 +131,7 @@ class Abstraction(TypedNode):
 class TAbstraction(TypedNode):
     """ T:k => e """
 
-    def __init__(self, typevar, kind, body):
+    def __init__(self, typevar: str, kind: Kind, body: Node):
         super(TAbstraction, self).__init__()
         self.typevar = typevar
         self.kind = kind
@@ -147,7 +150,7 @@ class TAbstraction(TypedNode):
 class TApplication(TypedNode):
     """ e[T] """
 
-    def __init__(self, target, argument):
+    def __init__(self, target: Node, argument: Type):
         super(TApplication, self).__init__()
         self.target = target
         self.argument = argument
@@ -165,7 +168,7 @@ class TApplication(TypedNode):
 
 
 class Definition(Node):
-    def __init__(self, name, type, body):
+    def __init__(self, name: str, type: Type, body: Node):
         self.name = name
         self.type = type
         self.body = body
@@ -175,7 +178,7 @@ class Definition(Node):
 
 
 class TypeAlias(Node):
-    def __init__(self, name, type):
+    def __init__(self, name: str, type: Type):
         self.name = name
         self.type = type
 
@@ -184,7 +187,7 @@ class TypeAlias(Node):
 
 
 class TypeDeclaration(Node):
-    def __init__(self, name, kind):
+    def __init__(self, name: str, kind: Kind):
         self.name = name
         self.kind = kind
 
@@ -193,7 +196,7 @@ class TypeDeclaration(Node):
 
 
 class Import(Node):
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
 
     def __str__(self):
