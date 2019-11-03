@@ -1,6 +1,5 @@
-f : (_:Integer) -> {x:Integer where (x==2)} = (\x:Integer -> (1 + 1) );
+f : (_:Integer) -> {x:Integer where (x==2)} = (\x:Integer -> ((6 / 2) - 2) );
+
+
 
 main : (_:Top) -> Void = (\_:Top -> print(f(3)));
-
-
-f : {v:Integer where (v > 2)} = ((0-5) + 10);

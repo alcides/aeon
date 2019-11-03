@@ -43,8 +43,7 @@ Y = lambda F: F(lambda x: Y(F)(x))
 
 
 def std_print(x):
-    raise Exception("Should not happen in print")
-    print(x, "this was a print")
+    print("PRINT:", x)
     return x
 
 
@@ -52,31 +51,32 @@ initial_context = {
     'native': (ty("Bottom"), None),
     'uninterpreted': (ty("Bottom"), None),
     "+": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a + b))}"),
-          lambda x: lambda y: x + y),
+          lambda x: lambda y: x + y, lambda x: lambda y: x + y),
     "-": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a - b))}"),
-          lambda x: lambda y: x - y),
+          lambda x: lambda y: x - y, lambda x: lambda y: x - y),
     "*": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a * b))}"),
-          lambda x: lambda y: x * y),
+          lambda x: lambda y: x * y, lambda x: lambda y: x * y),
     "/": (
-        ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a / b))}"
+        ty("(a:Integer) -> (b:{bp:Integer where (bp != 0)}) -> {c:Integer where (c == (a / b))}"
            ),  # safediv?
+        lambda x: lambda y: x / y,
         lambda x: lambda y: x / y),
     "%": (ty("(a:Integer) -> (b:Integer) -> {c:Integer where (c == (a % b))}"),
-          lambda x: lambda y: x % y),
+          lambda x: lambda y: x % y, lambda x: lambda y: x % y),
     "!": (ty("(a:Boolean) -> {b:Boolean where (b != a)}"), lambda x: not x,
           lambda x: z3.Not(x)),
     "==":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a == b))}"),
-     lambda x: lambda y: x == y),
+     lambda x: lambda y: x == y, lambda x: lambda y: x == y),
     "!=":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a != b))}"),
-     lambda x: lambda y: x != y),
+     lambda x: lambda y: x != y, lambda x: lambda y: x != y),
     "===":
     (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a === b))}"),
-     lambda x: lambda y: x == y),
+     lambda x: lambda y: x == y, lambda x: lambda y: x == y),
     "!==":
     (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c !== (a !== b))}"),
-     lambda x: lambda y: x != y),
+     lambda x: lambda y: x != y, lambda x: lambda y: x != y),
     "&&":
     (ty("(a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a && b))}"),
      lambda x: lambda y: x and y, lambda x: lambda y: z3.And(x, y)),
@@ -88,16 +88,16 @@ initial_context = {
      lambda x: lambda y: (not x) or y, lambda x: lambda y: z3.Implies(x, y)),
     "<":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a < b))}"),
-     lambda x: lambda y: x < y),
+     lambda x: lambda y: x < y, lambda x: lambda y: x < y),
     "<=":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a <= b))}"),
-     lambda x: lambda y: x <= y),
+     lambda x: lambda y: x <= y, lambda x: lambda y: x <= y),
     ">":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a > b))}"),
-     lambda x: lambda y: x > y),
+     lambda x: lambda y: x > y, lambda x: lambda y: x > y),
     ">=":
     (ty("(a:Integer) -> (b:Integer) -> {c:Boolean where (c === (a >= b))}"),
-     lambda x: lambda y: x >= y),
+     lambda x: lambda y: x >= y, lambda x: lambda y: x >= y),
     "fix": (ty("(a:*) => (f:(x:a) -> a) -> a"), Y),
     "print": (ty("(a:Integer) -> {r:Integer where (r == a)}"), std_print),
 

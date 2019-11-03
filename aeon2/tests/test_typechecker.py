@@ -93,6 +93,13 @@ class TestTypeChecking(unittest.TestCase):
                        "(x+1)",
                        expected="Integer")
 
+    def test_divide_by_zero(self):
+        ctx = TypingContext()
+        ctx.setup()
+
+        self.assert_tc(ctx, "(1 / 3)", expected="Integer")
+        self.assert_tc(ctx, "(1 / 0)", expected="Integer")
+
     def test_polymorphism(self):
         ctx = TypingContext()
         ctx.setup()

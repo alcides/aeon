@@ -7,6 +7,8 @@ def run(a: Program):
 
     ctx = nativeFunctions()
     evaluate(ctx, a)
+    evaluate(ctx,
+             Application(Var("main"), Literal(1, type=BasicType("Integer"))))
 
 
 def evaluate(ctx, node):
