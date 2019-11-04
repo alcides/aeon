@@ -39,11 +39,18 @@ if __name__ == '__main__':
     print(ast)
     infereTypes(ast)
     #print("="*30)
-    #printAST(ast)
+    # printAST(ast)
     print("---------------------------------------------------------\nAfter type infering:\n")
     print(ast)
-    print("---------------------------------------------------------\nGenerate fitness functions:\n")
-    print(retrieve_fitness_functions(ast))
+    print("---------------------------------------------------------\nGenerate fitness functions:")
+    res = retrieve_fitness_functions(ast)
+    if res:
+        print(res)
+        for f in res.keys():
+            if res[f]:
+                for expr, function in res[f]:
+                    print(expr, function, function(2)(1)(3), "\n")
+    print("\n")
     '''
     if debug:
         print("---------- Untyped -------")
