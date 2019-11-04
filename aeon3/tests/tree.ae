@@ -25,14 +25,12 @@
 // type Test14<({x:Map<Map<K, V>> | x > 0} -> Map<R, S>)>;
 // type Test15<({x:Integer | x > 0} -> Double)>;
 
-// Functions
-
-f : () -> Integer {
-    1;
+type Teste<T> {
+    asd:Integer;
 }
 
-f2 : (x:Integer) -> Double {
-    2;
-    3;
-    print("OLA");
+f: ({x:Teste<Integer> | x.asd > 0}) -> Integer {
+    10;
 }
+
+native_fun : (x:String) -> String = native;

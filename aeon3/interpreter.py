@@ -1,6 +1,6 @@
 from .types import *
 from .ast import *
-from .stdlib import *
+from .libraries.stdlib import *
 
 
 def run(node):
@@ -27,10 +27,14 @@ def evaluate(ctx, node):
     elif nodeType is Definition:
         # print(node.body)
         if type(node.body) is Var:
+            pass
+            ''' TODO: confirmar esta remocao
             bodyEval = evaluate(ctx, node.body)
+            print(">>>>>>", bodyEval)
             # If it was ... = native, it returns None, so we only define non-native functions
             if bodyEval is not None:
                 ctx[node.name] = bodyEval
+            '''
         else:
             ctx[node.name] = evaluate(ctx, node.body)
     # Hole - nao acontece
@@ -87,5 +91,5 @@ def nativeFunctions():
     " Builds the context with the native functions "
     ctx = {}
     for name in get_all_builtins():
-        ctx[name] = get_builtin_value(name)
+        ctx[name] = get_builtin_value(name) 
     return ctx

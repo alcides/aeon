@@ -1,0 +1,6 @@
+funcao : (x:Integer, y:Integer) -> z:Integer where { x == z and
+                                                     x + y > z and
+                                                     y > z and
+                                                     match_csv("fitness.csv")} {
+    1;
+}

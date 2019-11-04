@@ -145,6 +145,7 @@ expression
     | left=expression op=DISJUNCTION right=expression                                           # LogicalExpression
     | ABSTRACTION variable=typee RARROW exp=expression                                          # AbstractionExpression
     | cond=expression QUESTION then=expression COLON otherwise=expression                       # IfExpression
+    | variable=IDENTIFIER DOT attribute=IDENTIFIER                                              # TypeeAttributeCall
     | LBRACKET typee? RBRACKET                                                                  # Hole
     | variable=IDENTIFIER                                                                       # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING)                                                # Literal
@@ -218,6 +219,7 @@ ABSTRACTION: '\\'   ;
 
 // Special Characters
 DOTDOT: '..'    ;
+DOT: '.'        ;
 COLON: ':'      ;
 COMMA: ','      ;
 SEMICOLON: ';'  ;

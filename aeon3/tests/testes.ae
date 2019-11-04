@@ -14,8 +14,30 @@ funcao6 : (i:Integer, y:String) -> x:Double where {i > 0} = native;
 funcao7 : (x:Integer, y:String) -> z:Double where {x > y} = native;
 
 funcao8 : (i:Integer, y:Boolean) -> x:Double where {!y} = native;
-*/
-f : (x:Integer) -> y:Double {
-    x + 1;
-}
+
+f : (x:Integer) -> y:Double { x + 1; }
+
 funcao9 : (x:Integer, y:Boolean) -> z:Double where {(z > 0 ? true : false) and (x > z) and (z > 0) and !z and f(f(f(z)))} = native;
+*/
+
+type Morada {
+    rua:String;
+    numero_porta:Integer;
+    letra:String;
+    ocupado:Boolean;
+}
+
+type Pessoa {
+    peso:Double;
+    altura:Integer;
+    morada:Morada;
+    estado_civil:String;
+}
+
+type List<T> {
+    size:Integer;
+}
+
+type Familia {
+    agregado:List<Pessoa>;
+}

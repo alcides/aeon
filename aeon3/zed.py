@@ -4,7 +4,7 @@ import z3
 
 from .types import *
 from .ast import *
-from .stdlib import *
+from .libraries.stdlib import *
 from .substitutions import *
 from .zed_utils import *
 
