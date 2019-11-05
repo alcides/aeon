@@ -98,7 +98,9 @@ class TestTypeChecking(unittest.TestCase):
         ctx.setup()
 
         self.assert_tc(ctx, "(1 / 3)", expected="Integer")
-        self.assert_tc(ctx, "(1 / 0)", expected="Integer")
+
+        with self.assertRaises(TypeException):
+            self.assert_tc(ctx, "(1 / 0)", expected="Integer")
 
     def test_polymorphism(self):
         ctx = TypingContext()

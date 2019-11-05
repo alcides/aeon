@@ -4,7 +4,7 @@ from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType,
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .synthesis import *
-from .zed import zed_verify_entailment, zed_verify_satisfiability, NotDecidableException
+from .zed import zed_verify_entailment, zed_verify_satisfiability, zed_get_integer_where, NotDecidableException
 
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
@@ -167,6 +167,10 @@ def entails(ctx, cond):
     else:
         return zed_verify_entailment(ctx, cond)
     """
+
+
+def get_integer_where(ctx: TypingContext, name: str, cond):
+    return zed_get_integer_where(ctx, name, cond)
 
 
 def is_satisfiable(ctx, cond):

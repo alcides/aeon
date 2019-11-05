@@ -1,6 +1,7 @@
 from functools import reduce
 
 import z3
+import random
 
 from .ast import Var, Literal, Application, Abstraction, TApplication, Node
 from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
@@ -79,6 +80,7 @@ def get_sort(t: Type):
 def zed_translate_var(ztx, v: Var):
     if not v.name in ztx:
         if type(v.type) is BasicType:
+            print("ex: v.name=", v.name)
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         elif type(v.type) is AbstractionType:
@@ -86,6 +88,7 @@ def zed_translate_var(ztx, v: Var):
                                           flatten_refined_types(v.type))
 
         elif type(v.type) is RefinedType:
+            print("rx: v.name=", v.name)
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
         else:
@@ -194,3 +197,19 @@ def zed_verify_satisfiability(ctx, cond):
         return False
     raise NotDecidableException("{} could not be evaluated for satisfiability",
                                 cond)
+
+
+def zed_get_integer_where(ctx, name, cond):
+    ztx = zed_initial_context()
+    z3_context = zed_translate_context(ztx, ctx)
+    z3_cond = zed_translate_wrapped(ztx, cond)
+    s = z3.Solver()
+    s.add(z3.And(z3_context, z3_cond))
+    r = s.check()
+    if r == z3.sat:
+        print(s.model(), "MODEL")
+        m_name = zed_translate(ztx, Var(name))
+        return s.model()[m_name]
+    else:
+        raise NotDecidableException(
+            "{} could not be evaluated for generating an example", cond)

@@ -22,6 +22,11 @@ weights = {
     "sk_rec": 0,
     "st_int": 1,  # Terminal types
     "st_bool": 1,
+    "st_var": 1,
+    "st_where": 1,
+    "st_abs": 1,
+    "st_tabs": 1,
+    "st_tapp": 1,
     "se_int": 1,  # Terminal types
     "se_bool": 1,
     "se_var": 1,
@@ -30,7 +35,7 @@ weights = {
     "se_app": 1,
     "se_tabs": 1,
     "se_tapp": 1,
-    "se_if": 1,
+    "se_if": 0,
     "stax_id": 1,
     "stax_abs": 1000,
     "stax_where": 1000,
@@ -120,8 +125,8 @@ def random_chooser(f):
             try:
                 return fun(*args, **kwargs)
             except Unsynthesizable as e:
-                #print("Exception:", e, type(e))
-                #print("Failed once to pick using", fun)
+                print("Exception:", e, type(e))
+                print("Failed once to pick using", fun)
                 continue
         raise Unsynthesizable("Too many tries for type: ", *args)
 
@@ -142,14 +147,40 @@ def sk(d=5):
 """ Type Synthesis """
 
 
+def has_type_vars(ctx: TypingContext, k: Kind):
+    for v in ctx.type_variables:
+        if ctx.type_variables[v] == k:
+            return True
+    for b in ctx.basic_types:
+        if b.kind == k:
+            return True
+
+
+def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
+    "ST-Int"
+    return t_i
+
+
+def st_bool(ctx: TypingContext, k: Kind, d: int) -> Type:
+    "ST-Bool"
+    return t_b
+
+
+def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
+    "ST-Bool"
+    options = get_type_variables_of_kind(ctx, k)
+    return random.choice(options)
+
+
 @random_chooser
-def st(ctx: TypingContext, k, d):
+def st(ctx: TypingContext, k: Kind, d: int):
     """ Γ ⸠ k ~>_{d} T """
     if k == star:
-        yield ("st_int", lambda ctx, k, d: t_i)
+        yield ("st_int", st_int)
     if k == star:
-        yield ("st_bool", lambda ctx, k, d: t_b)
-    # TODO
+        yield ("st_bool", st_bool)
+    if has_type_vars(ctx, k):
+        yield ("st_var", st_var)
 
 
 def fv(T: Union[Type, TypingContext, Node]):
@@ -178,11 +209,23 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
     return "_qwerty"
 
 
-def get_variables_of_type(ctx: TypingContext, T):
+def get_variables_of_type(ctx: TypingContext, T: Type):
     return [
         v for v in ctx.variables
         if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
     ]
+
+
+def get_type_variables_of_kind(ctx: TypingContext,
+                               k: Kind) -> Union[str, Type]:
+    rs = []
+    for v in ctx.type_variables:
+        if ctx.type_variables[v] == k:
+            rs.append(BasicType(v))
+    for b in ctx.basic_types:
+        if b.kind == k:
+            rs.append(b)
+    return rs
 
 
 """ Expression Synthesis """
@@ -196,6 +239,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int):
 
 def se_int(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Int """
+
     v = random.randint(-100, 100)
     name = "lit_{}".format(v)
     return Literal(v,
@@ -260,7 +304,12 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
         ncond = substitution_expr_in_expr(T.cond, e2, T.name)
         if tc.entails(ctx, ncond):
             return e2.with_type(T)
-    raise Unsynthesizable("Bug in se_where: {}".format(T))
+
+    if T.type == t_i:
+        i = tc.get_integer_where(ctx.with_var(T.name, T), T.name, T.cond)
+        return Literal(i, type=T)
+    raise Unsynthesizable(
+        "Unable to generate a refinement example: {}".format(T))
 
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
@@ -310,6 +359,16 @@ def se(ctx: TypingContext, T: Type, d: int):
 def check_stax(ctx: TypingContext, e: Node, x: str, T: Type):
     tc.tc(ctx, e)
     U = e.type
+    """
+    print("a---")
+    print(x in ctx.variables)
+    print(ctx.variables[x], U)
+    #print(tc.is_subtype(ctx, ctx.variables[x], U))
+    print(x not in fv(T))
+    print(tc.kinding(ctx, T, AnyKind()))
+    print("b......")
+    """
+    # TODO
     return x in ctx.variables and \
         tc.is_subtype(ctx, ctx.variables[x], U) and \
         x not in fv(T) and \
@@ -354,6 +413,8 @@ def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
     if check_stax(ctx, e, x, T):
         yield ("stax_id", stax_id)
+    else:
+        print("T failed:", e, x, T)
     if type(T) is AbstractionType:
         yield ("stax_abs", stax_abs)
     if type(T) is TypeApplication:
