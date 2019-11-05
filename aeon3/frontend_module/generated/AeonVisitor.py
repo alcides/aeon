@@ -194,6 +194,11 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by AeonParser#TypeeAttributeCall.
+    def visitTypeeAttributeCall(self, ctx:AeonParser.TypeeAttributeCallContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by AeonParser#function_abstraction.
     def visitFunction_abstraction(self, ctx:AeonParser.Function_abstractionContext):
         return self.visitChildren(ctx)

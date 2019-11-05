@@ -8,7 +8,7 @@ from functools import reduce
 
 class AeonASTVisitor(AeonVisitor):
 
-    def __init__(self, initial_context):
+    def __init__(self, context):
         self.counter = 0
         self.type_aliases = {}
 
@@ -16,16 +16,25 @@ class AeonASTVisitor(AeonVisitor):
         self.general_context = {}
         self.basic_typee_stack = []
         
-        for x in list(initial_context.keys()):
-            if type(initial_context[x][0]) is Definition:
-                self.general_context[x] = initial_context[x][0].type
+        for x in list(context.keys()):
+            curr = context[x][0]
+            if type(curr) is Definition:
+                self.general_context[x] = curr.type
+            elif type(curr) is TypeAlias:
+                self.type_aliases[curr.name] = curr.type
+            elif type(curr) is TypeDeclaration:
+                self.general_context[x] = curr
 
     # -------------------------------------------------------------------------
     # ----------------------------------------------------------------- Program
     def visitAeon(self, ctx:AeonParser.AeonContext):
         for child in ctx.children:
-            self.declarations.append(self.visit(child))
-        return Program(self.declarations[:-1])
+            self.counter = 0
+            self.basic_typee_stack = []
+            child = self.visit(child)
+            if child is not None:
+                self.declarations.append(child)
+        return Program(self.declarations)
 
     # -------------------------------------------------------------------------
     # ----------------------------------------------------------------- Imports 
@@ -69,13 +78,17 @@ class AeonASTVisitor(AeonVisitor):
         parameters = self.visit(ctx.params)
         names = [self.getBasicTypeName(param) for param in parameters]
 
-        for name, param in zip(name, parameters):
-            function_name = '{}_{}'.format(typee, name)
-            function_type = AbstractionType(Var(self.nextVoidName(), typee), typee, param)
-            definition = Definition(function_name, function_typee, Var('uninterpreted', bottom))
-            self.declarations.append(definition)
+        self.declarations.append(TypeDeclaration(typee, star))
 
-        return self.visitChildren(ctx)
+        for name, param in zip(names, parameters):
+            typee_name = self.returnBasicTypee(typee).name
+            function_name = '_{}_{}'.format(typee_name, name)
+            function_type = AbstractionType(Var(self.nextVoidName(), typee), typee, param)
+            definition = Definition(function_name, function_type, bottom, Var('uninterpreted', bottom))
+            self.declarations.append(definition)
+            self.general_context[function_name] = function_type
+        # On purpose to prevent function declarations before type declaration
+        return None
 
 
     # [size:Int, weight:Double, name:String]
@@ -179,9 +192,21 @@ class AeonASTVisitor(AeonVisitor):
             typee.target = self.treatTypee(typee.target)
             typee.argument = self.treatTypee(typee.argument)
         elif type(typee) is TypeAbstraction:
-            while type(typee) is TypeAbstraction:
-                typee = typee.type
+            typee = self.treatTypee(typee.type)
         return typee
+
+    # Given a typee, returns the basic type of it
+    def returnBasicTypee(self, typee):
+        if type(typee) is BasicType:
+            return typee
+        elif type(typee) is RefinedType:
+            return self.returnBasicTypee(typee.type)
+        elif type(typee) is AbstractionType:
+            return self.returnBasicTypee(typee.return_type)
+        elif type(typee) is TypeApplication:
+            return self.returnBasicTypee(typee.target)
+        elif type(typee) is TypeAbstraction:
+            return self.returnBasicTypee(typee.type)
 
     # -------------------------------------------------------------------------
     # ---------------------------------------------------------------- Function
@@ -220,8 +245,8 @@ class AeonASTVisitor(AeonVisitor):
         # Visit the body
         body = self.visit(ctx.body)
 
-        # Only englobe if it is not main
-        if name != 'main':
+        # Only englobe if it is not main nor native
+        if name != 'main' and (type(body) is not Var or (body is Var and body.name.name != 'native')):
             # If there are parameters, englobe the body in them
             tempTypee = typee
             while type(tempTypee) is TypeAbstraction:
@@ -290,7 +315,7 @@ class AeonASTVisitor(AeonVisitor):
             statement = statement.body if type(statement) is Definition else statement
 
             # Englobe each statement in Application(Abstraction(_0, T, node), statement)
-            abstraction = Abstraction(name, statement.type, node)
+            abstraction = Abstraction(name, name.type, node)
             node = Application(abstraction, statement)
 
             # Set the types
@@ -409,6 +434,20 @@ class AeonASTVisitor(AeonVisitor):
         otherwise = self.visit(ctx.otherwise)
         typee = self.leastUpperBound(then.type, otherwise.type)
         return If(condition, then, otherwise, typee)
+
+    # variavel.atributo
+    # TODO: small complication with tabstractions and tapplications
+    def visitTypeeAttributeCall(self, ctx:AeonParser.TypeeAttributeCallContext):
+        variable = ctx.variable.text
+        attribute = ctx.attribute.text
+        
+        arg_typee = self.general_context[variable]
+        target_name = '_{}_{}'.format(self.returnBasicTypee(arg_typee).name, attribute)
+        
+        target = Var(target_name, self.general_context[target_name])
+        argument = Var(variable, arg_typee)
+
+        return Application(target, argument)
 
     # \\x:T -> expression
     def visitAbstractionExpression(self, ctx:AeonParser.AbstractionExpressionContext):
@@ -538,7 +577,7 @@ class AeonASTVisitor(AeonVisitor):
             if type(then_typee) is RefinedType and type(otherwise_typee) is RefinedType:
                 result = self.leastUpperBound(then_typee.type, otherwise_typee.type)
             elif type(then_typee) is RefinedType:
-                # TODO:
+                # TODO: c_beta_reduction -> typechecker
                 result = then_typee.type
             elif type(otherwise_typee) is RefinedType:
                 # TODO:
@@ -612,8 +651,8 @@ class AeonASTVisitor(AeonVisitor):
         elif type(typee) is AbstractionType:
             result = RefinedType(typee.arg_name, typee, expression)
         elif type(typee) is RefinedType:
-            and_typee = self.general_context['And']
-            application1 = Application(Var('And', and_typee), expression, self.getReturnType(and_typee))
+            and_typee = self.general_context['and']
+            application1 = Application(Var('and', and_typee), expression, self.getReturnType(and_typee))
             application2 = Application(application1, typee.cond, self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
         elif type(typee) is TypeApplication:
@@ -637,8 +676,8 @@ class AeonASTVisitor(AeonVisitor):
             if node.name in variables:
                 set_vars.add(node.name)
             else:   
-                import aeon3.stdlib
-                if not aeon3.stdlib.is_builtin(node.name):
+                import aeon3.libraries.stdlib
+                if not aeon3.libraries.stdlib.is_builtin(node.name):
                     set_funs.add(node.name)
             return set_vars, set_funs
         elif type(node) is If:

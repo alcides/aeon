@@ -3,7 +3,7 @@ from .types import *
 from .substitutions import *
 from .synthesis import *
 from .zed import *
-from .stdlib import initial_context
+from .libraries.stdlib import initial_context
 
 def infereTypes(ast):
      
@@ -61,7 +61,7 @@ class HoleInferer():
                 void_var = Var(self.nextVoidVar(), node.otherwise.type)
                 self.hole_stack.append(RefinedType(self.nextVoidVar(), node.otherwise.type, node.cond))
             self.visit(node.then)
-            node.type = getBasicType(node.otherwise.type) # TODO: Give the most general type
+            node.type = returnBasicTypee(node.otherwise.type) # TODO: Give the most general type
             self.visit(node.otherwise)
         # Else is None
         elif node.otherwise.type is None:
@@ -69,7 +69,7 @@ class HoleInferer():
                 typee = RefinedType(self.nextVoidVar(), node.then.type, Application(Var('!'), node.cond))
                 self.hole_stack.append(typee)
             self.visit(node.otherwise)
-            node.type = getBasicType(node.then.type) # TODO: Give the most general type
+            node.type = returnBasicTypee(node.then.type) # TODO: Give the most general type
             self.visit(node.then)
         # There may be an hole in the middle of the if or else, so we revisit the tree
         else:
@@ -99,7 +99,10 @@ class HoleInferer():
         self.ctx = self.ctx.copy()
         
         if type(node.target) is Abstraction:
-            tee = t_t
+            if node.target.arg_name.name.startswith('_'):
+                tee = t_t
+            else:
+                tee = node.target.arg_type
         elif type(node.target) is Var:
             tee = node.target.type 
         elif type(node.target) is Application:
@@ -155,7 +158,10 @@ class HoleInferer():
 
         
     def visitDefinition(self, node:Definition):
-
+        # If it native or uninterpreted, skip
+        if type(node.body) is Var:
+            return None
+        
         # Add the current var to the context
         self.ctx[node.name] = node.type  
 
@@ -244,13 +250,16 @@ def getBodyAndReturnType(node:Definition):
 
     return node, typee
 
-def getBasicType(typee):
 
+# Given a typee, returns the basic type of it
+def returnBasicTypee(self, typee):
     if type(typee) is BasicType:
         return typee
     elif type(typee) is RefinedType:
-        return getBasicType(typee.type)
+        return self.returnBasicTypee(typee.type)
     elif type(typee) is AbstractionType:
-        # return getBasicType(type.)
-        pass
-    return typee # TODO:
+        return self.returnBasicTypee(typee.return_type)
+    elif type(typee) is TypeApplication:
+        return self.returnBasicTypee(typee.target)
+    elif type(typee) is TypeAbstraction:
+        return self.returnBasicTypee(typee.type)

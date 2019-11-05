@@ -1,4 +1,5 @@
-/*f<K, Map<K, V>> : (x:String) -> Double {
+
+f<K> : (x:Integer) -> Integer {
     x + 1;
 }
 
@@ -6,7 +7,7 @@ f2 : (x:Integer) -> Integer {
     x + x;
 }
 
-// Done - [{x:Integer | x > 0}]
+// Done - [{x:Integer | x > 0} -> Integer]
 hole1 : (y:Integer) -> ({x:Integer | x > 0} -> Integer) {
     [];
 }
@@ -39,6 +40,8 @@ hole35 : (y:Integer) -> Integer {
     2;
 }
 
+
+
 // Done - [Boolean]
  hole4 : (y:Integer) -> Boolean {
     1;
@@ -50,9 +53,10 @@ hole35 : (y:Integer) -> Integer {
  hole5 : (y:Integer) -> Double {
     \x : String -> [];
 }
-*/
+
 
  hole6 : (y:Integer) -> Double {
+    // Top
     \z : String -> [];
     1;
     \a : String -> \b : Integer -> [];
@@ -61,7 +65,7 @@ hole35 : (y:Integer) -> Integer {
     3.0;
 }
 
-/*
+
  hole7 : (y:Integer) -> Integer {
     y > 0 ? [] : true;
 }
@@ -79,7 +83,7 @@ hole35 : (y:Integer) -> Integer {
 
 
  hole10 : (y:Integer) -> Integer {
-    f([]);
+    f2([]);
 }
 
 
@@ -123,8 +127,7 @@ hole35 : (y:Integer) -> Integer {
     2;
 }
 
- hole15 : (x:Integer) -> Double {
-  
+ hole15 : (x:Integer) -> Integer {
     2;
 }
 
@@ -138,4 +141,3 @@ hole35 : (y:Integer) -> Integer {
     a = [];
     print((\x:T -> x + 1)<Integer>(3));
 }
-*/

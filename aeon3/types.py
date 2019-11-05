@@ -25,7 +25,7 @@ class TypingContext(object):
         self.basic_types = []
 
     def setup(self):
-        from .stdlib import get_all_builtins, get_builtin_type
+        from .libraries.stdlib import get_all_builtins, get_builtin_type
         for name in get_all_builtins():
             self.variables[name] = get_builtin_type(name)
 
