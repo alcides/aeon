@@ -84,7 +84,7 @@ class AeonASTVisitor(AeonVisitor):
             typee_name = self.returnBasicTypee(typee).name
             function_name = '_{}_{}'.format(typee_name, name)
             function_type = AbstractionType(Var(self.nextVoidName(), typee), typee, param)
-            definition = Definition(function_name, function_type, bottom, Var('uninterpreted', bottom))
+            definition = Definition(function_name, function_type, param, Var('uninterpreted', bottom))
             self.declarations.append(definition)
             self.general_context[function_name] = function_type
         # On purpose to prevent function declarations before type declaration
@@ -282,13 +282,15 @@ class AeonASTVisitor(AeonVisitor):
 
     # (x:Integer, y:T, z:Map<Double, String>)
     def visitFunction_parameters(self, ctx:AeonParser.Function_parametersContext):
-        parameters = [self.visit(typee) for typee in ctx.typee()]
-        names = [self.getBasicTypeName(typee) for typee in parameters]
+        parameters = []
+        for param in ctx.typee():
+            typee = self.visit(param)
+            name = self.getBasicTypeName(typee)
+            parameters.append((name, typee))
         parameters.reverse()
-        #names.reverse()
-        firstParam = AbstractionType(names[0], parameters[0], None)
+        firstParam = AbstractionType(parameters[0][0], parameters[0][1], None)
         lastParam = firstParam
-        for name, param in zip(names[1:], parameters[1:]):
+        for name, param in parameters[1:]:
             firstParam = AbstractionType(name, param, firstParam)
         return firstParam, lastParam
 
@@ -474,13 +476,20 @@ class AeonASTVisitor(AeonVisitor):
         
         for application in applications:
             expression = TApplication(expression, application)
-            expression.type = TypeApplication(expression.type, application)
+            expression.type = TypeApplication(expression.target.type, application)
 
         for param in parameters:
             expression = Application(expression, param)
-            expression.type = self.getReturnType(expression.type)
+            expression.type = self.getReturnType(expression.type)   # TODO: isto nao esta bem
 
         return expression
+
+    # @maximize(...), @minimze(...) and @evaluate(...)
+    def visitFitnessImprovement(self, ctx:AeonParser.FitnessImprovementContext):
+        improvement = ctx.improvement.text
+        parameter = self.visit(ctx.param) 
+        # TODO:
+        return Application(Var(improvement, None), parameter, None)
 
     # <Integer, Boolean>
     def visitFunction_abstraction(self, ctx:AeonParser.Function_abstractionContext):
@@ -651,8 +660,8 @@ class AeonASTVisitor(AeonVisitor):
         elif type(typee) is AbstractionType:
             result = RefinedType(typee.arg_name, typee, expression)
         elif type(typee) is RefinedType:
-            and_typee = self.general_context['and']
-            application1 = Application(Var('and', and_typee), expression, self.getReturnType(and_typee))
+            and_typee = self.general_context['And']
+            application1 = Application(Var('And', and_typee), expression, self.getReturnType(and_typee))
             application2 = Application(application1, typee.cond, self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
         elif type(typee) is TypeApplication:

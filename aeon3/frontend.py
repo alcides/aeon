@@ -48,7 +48,7 @@ def parse_strict(text):
     # Build the program and return it
     program = AeonASTVisitor({}).visit(tree)
     
-    return program.declarations[0]
+    return program
     
 def parse_input(input_stream):
 
@@ -92,27 +92,39 @@ def runVerifiers(tree):
 def resolveImports(path, program):
     result = []
     from .libraries.stdlib import add_function
-    for declaration in program.declarations:
-        if type(declaration) is Import:
+    for node in program.declarations:
+        if type(node) is Import:
+
             # Get the os path for the ae file
-            importPath = declaration.name + '.ae'
+            importPath = node.name + '.ae'
             joinedPath = os.path.join(os.path.dirname(path), importPath)
             realPath = os.path.normpath(joinedPath)
-            importedProgram = parse(realPath)
-            
-            # If we only want a specific function from the program
-            if declaration.function is not None:
-                importedProgram.declarations = list(filter(lambda x : type(x) is Definition \
-                                            and x.name == declaration.function, \
-                                            importedProgram.declarations))
-            for decl in importedProgram.declarations:
-                # native variable
-                if type(decl) is Definition and type(decl.body) is Var and decl.body.name == 'native':
-                    path = realPath[:-3].replace('/', '.')
-                    res = importNative(path, decl.name)
-                    for key in res.keys():
-                        add_function(key, (decl, res[key]))
+
+            # It is a regular .ae import
+            if os.path.exists(realPath):
+                importedProgram = parse(realPath)
+                # If we only want a specific function from the program
+                if node.function is not None:
+                    importedProgram.declarations = list(filter(lambda x : type(x) is Definition \
+                                                and x.name == node.function, \
+                                                importedProgram.declarations))
+            # It is a .py import
+            else:
+                importedProgram = Program([])
+                realPath = realPath.replace('.ae', '')
+                realPath = realPath.replace('/', '.')
+                natives = importNative(realPath, '*' if node.function is None else node.function)
+                
+                for native in natives.keys():
+                    aetype, function = natives[native]
+                    aetype = parse_strict(aetype)
+                    if type(aetype) is Definition:
+                        add_function(aetype.name, (aetype, function))
+                    else:
+                        # TODO: should add to the context the class itself?
+                        importedProgram.declarations.append(aetype)
+
             result = importedProgram.declarations + result
         else:
-            result.append(declaration)
+            result.append(node)
     return Program(result)
