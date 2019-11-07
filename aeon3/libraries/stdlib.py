@@ -34,7 +34,8 @@ def add_function(key, value):
     initial_context[key] = value
 
 def ty(operation, typee):
-    result = aeon3.frontend.parse_strict(typee)
+    program = aeon3.frontend.parse_strict(typee)
+    result = program.declarations[0]
     result.name = operation
     return result
 
@@ -42,6 +43,18 @@ def ty(operation, typee):
 native_operation = lambda op: ty(op, "temp<T>: (a:T, b:T) -> {{c:T | c == (a {} b)}} = native;".format(op))
 typed_unary_operation = lambda op, typee: ty(op, "temp: (a:{}) -> {{c:{} | c == {}a}} = native;".format(typee, typee, op))
 typed_native_operation =  lambda op, typee: ty(op, "temp: (a:{}, b:{}) -> {{c:{} | c == (a {} b)}} = native;".format(typee, typee, typee, op))
+
+# TODO:
+def maximize():
+    pass
+
+# TODO:
+def minimize():
+    pass
+
+# TODO:
+def evaluate():
+    pass
 
 initial_context = {
     'native': (aeon3.frontend.parse_strict("type Bottom;"), None),
@@ -65,12 +78,19 @@ initial_context = {
     "-->" : (typed_native_operation('-->', 'Boolean'), lambda x: lambda y: (not x) or y,
                                                        lambda x: lambda y: z3.Implies(x, y)),
     "!" : (typed_unary_operation('!', 'Boolean'), lambda x: not x,
-                                                  lambda x: z3.Not(x)),   
+                                                  lambda x: z3.Not(x)),  
+    "And" : (ty('And', 'temp: (a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)} = native;'), 
+                                                  lambda x: lambda y: x and y),   
+   "@maximize" : (ty('@maximize', 'temp: () -> Boolean = native;'), 
+                                                  maximize),   
+   "@minimize" : (ty('@minimize', 'temp: () -> Boolean = native;'), 
+                                                  minimize),   
+   "@evaluate" : (ty('@evaluate', 'temp: (path:String) -> Boolean = native;'), 
+                                                  evaluate),   
 }
 
-native_declarations = aeon3.frontend.parse('aeon3/libraries/native.ae')
 native_implementations = importNative('aeon3.libraries.native', '*')
 
-for expr in native_declarations.declarations:
-    if type(expr) is Definition and type(expr.body) is Var and expr.body.name == 'native':
-        add_function(expr.name, (expr, native_implementations[expr.name]))
+for expr_name in native_implementations.keys():
+    node, implementation = native_implementations[expr_name]
+    add_function(expr_name, (node, implementation))
