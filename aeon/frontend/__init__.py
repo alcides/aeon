@@ -96,7 +96,7 @@ def runVerifiers(tree):
 # Resolves the imports
 def resolveImports(path, program):
     result = []
-    from .libraries.stdlib import add_function
+    from ..libraries.stdlib import add_function
     for node in program.declarations:
         if type(node) is Import:
 

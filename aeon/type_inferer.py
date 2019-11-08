@@ -93,7 +93,7 @@ class HoleInferer():
                 arg_type = self.hole_stack[-1]
             else:
                 arg_type = top
-            typee = AbstractionType(Var(self.nextVoidVar()), arg_type,
+            typee = AbstractionType(self.nextVoidVar(), arg_type,
                                     self.hole_stack[-1])
             self.hole_stack.append(typee)
             self.visit(node.target)
@@ -106,7 +106,7 @@ class HoleInferer():
         self.ctx = self.ctx.copy()
 
         if type(node.target) is Abstraction:
-            if node.target.arg_name.name.startswith('_'):
+            if node.target.arg_name.startswith('_'):
                 tee = top
             else:
                 tee = node.target.arg_type
@@ -140,7 +140,7 @@ class HoleInferer():
         # The type of the argument of the abstraction, is the type of the argument of the application
         if type(node.target) is Abstraction and (
                 node.target.arg_type is None
-                or node.target.arg_name.name.startswith('_')):
+                or node.target.arg_name.startswith('_')):
             # Define the type of the arguments of the abstraction
             node.target.arg_type = node.argument.type
             node.target.arg_name.type = node.argument.type
@@ -153,7 +153,7 @@ class HoleInferer():
 
     def visitAbstraction(self, node: Abstraction):
 
-        self.ctx[node.arg_name.name] = node.arg_type
+        self.ctx[node.arg_name] = node.arg_type
 
         # For sure this contains a type
         if node.arg_type is None:
@@ -164,7 +164,7 @@ class HoleInferer():
         node.type = AbstractionType(node.arg_name, node.arg_type,
                                     node.body.type)
 
-        self.ctx[node.arg_name.name] = node.arg_type
+        self.ctx[node.arg_name] = node.arg_type
 
     def visitDefinition(self, node: Definition):
         # If it native or uninterpreted, skip
