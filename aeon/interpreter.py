@@ -105,8 +105,8 @@ def evaluate(ctx, node):
 
 
 def ctxPut(ctx, varName, var):
-    if not varName.name.startswith('_'):
-        ctx[varName.name] = var
+    if not varName.startswith('_'):
+        ctx[varName] = var
     return ctx
 
 
