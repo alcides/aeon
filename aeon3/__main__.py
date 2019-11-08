@@ -12,8 +12,8 @@ from .interpreter import run
 from .translate import Translator
 from .prettyprinter import printAST
 
-from .automatic_module.fitnessConversor import retrieve_fitness_functions
-from .automatic_module.fitnessConversor import get_holes
+from .automatic_module.conversor import retrieve_fitness_functions
+from .automatic_module.utils import get_holes
 from .automatic_module.random import Random
 
 

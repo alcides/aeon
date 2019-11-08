@@ -81,12 +81,12 @@ initial_context = {
                                                   lambda x: z3.Not(x)),  
     "And" : (ty('And', 'temp: (a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)} = native;'), 
                                                   lambda x: lambda y: x and y),   
-   "@maximize" : (ty('@maximize', 'temp: () -> Boolean = native;'), 
-                                                  maximize),   
-   "@minimize" : (ty('@minimize', 'temp: () -> Boolean = native;'), 
-                                                  minimize),   
+   "@maximize" : (ty('@maximize', 'temp<T>: (something:T) -> Boolean = native;'), 
+                                                  lambda x : True),   
+   "@minimize" : (ty('@minimize', 'temp<T>: (something:T) -> Boolean = native;'), 
+                                                  lambda x : True),   
    "@evaluate" : (ty('@evaluate', 'temp: (path:String) -> Boolean = native;'), 
-                                                  evaluate),   
+                                                  lambda x : True),   
 }
 
 native_implementations = importNative('aeon3.libraries.native', '*')

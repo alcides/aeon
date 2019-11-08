@@ -1,7 +1,7 @@
 import aeon2.synthesis as synthesis
 
 from .genProg import *
-from .fitnessConversor import replaceHoles
+from .utils import replaceHoles
 
 
 class Random(GenProg):

@@ -12,11 +12,11 @@ def cons(list):
     return 
 
 '''
-@aetype('type List<T>;')
+@aetype('type List;')
 class List(object):
     def __init__(self, next):
         self.next = next
 
-@aetype('empty_list<T> : () -> l:List<T> /* where {l.size == 0} */ = native;')
+@aetype('empty_list : () -> l:List<T> /* where {l.size == 0} */ = native;')
 def empty_list():
     return []

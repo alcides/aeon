@@ -4,6 +4,7 @@ from aeon3.types import *
 from aeon3.ast import * 
 
 import sys
+import csv 
 
 def retrieve_fitness_functions(program):
     result = {}
@@ -12,64 +13,6 @@ def retrieve_fitness_functions(program):
             result[declaration.name] = generate_fitnesses(declaration)
     return result
 
-def get_holes(node):
-    if type(node) is Hole:
-        return [node.type]
-    elif type(node) is Literal:
-        return []
-    elif type(node) is Var:
-        return []
-    elif type(node) is If:
-        return get_holes(node.cond) + get_holes(node.then) + get_holes(node.otherwise)
-    elif type(node) is Application:
-        return get_holes(node.target) + get_holes(node.argument)
-    elif type(node) is Abstraction:
-        return get_holes(node.body)
-    elif type(node) is TAbstraction:
-        return get_holes(node.body)
-    elif type(node) is TApplication:
-        return get_holes(node.target)
-    else:
-        return []
-
-def replaceHoles(node, holes):
-    if type(node) is If:
-        if type(node.cond) is Hole:
-            node.cond = holes.pop(-1)
-        else:
-            replaceHoles(node.cond, holes)
-        if type(node.then) is Hole:
-            node.then = holes.pop(-1)
-        else:
-            replaceHoles(node.then, holes)
-        if type(node.otherwise) is Hole:
-            node.otherwise = holes.pop(-1)
-    elif type(node) is Application:
-        if type(node.target) is Hole:
-            node.target = holes.pop(-1)
-        else:
-            replaceHoles(node.target, holes)
-        if type(node.argument) is Hole:
-            node.argument = holes.pop(-1)
-        else:
-            replaceHoles(node.argument)
-    elif type(node) is Abstraction:
-        if type(node.body) is Hole:
-            node.body = holes.pop(-1)
-        else:
-            replaceHoles(node.body)
-    elif type(node) is TAbstraction:
-        if type(node.body) is Hole:
-            node.body = holes.pop(-1)
-        else:
-            replaceHoles(node.body)
-    elif type(node) is TApplication:
-        if type(node.target) is Hole:
-            node.target = holes.pop(-1)
-        else:
-            replaceHoles(node.body)
-    else:
-        raise Exception("Trying to replace unknown node: ", type(node), node)
 
 def generate_fitnesses(declaration):
     if type(declaration.return_type) is not RefinedType:
@@ -119,7 +62,7 @@ def generate_and_expressions(condition):
     # I always ensure that condition is an Application
     result = []
     if type(condition.target) is Var:
-        if condition.target.name == 'and':
+        if condition.target.name == 'And':
             result.append(condition.argument)
             if type(condition.argument) is Application:    
                 result += generate_and_expressions(condition.argument)
@@ -132,7 +75,7 @@ def generate_and_expressions(condition):
         result += condition
     elif type(condition.target) is Application:
         if type(condition.target.target) is Var:
-            if condition.target.target.name == 'and':
+            if condition.target.target.name == 'And':
                 result.append(condition.target.argument)
                 if type(condition.argument) is Application:
                     result += generate_and_expressions(condition.argument)
@@ -189,6 +132,8 @@ def apply_conversion(and_expr):
         return implie_conversion(and_expr)
     elif application_var.name in ['>', '<', '<=', '>=', '!=']:
         return if_conversion(and_expr)
+    elif application_var.name == '@evaluate':
+        return evaluate_conversion(and_expr)
     else:
         return boolean_conversion(and_expr)
 
@@ -235,6 +180,18 @@ def boolean_conversion(and_expr):
     then = Literal(0, BasicType('Integer'))
     otherwise = Literal(1, BasicType('Integer'))
     return If(cond, then, otherwise)
+
+# 3.2.7 @evaluate('path')
+def evaluate_conversion(and_expr, function):
+    path = and_expr.argument.name
+    function = run(function)
+    with open(path) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            function_result = 0
+            for column in row:
+                pass
+            function_result = function(param)
 
 # 4 - englobe the expressions in abstractions
 def abstract_and_expressions(declaration, converted_ands):
