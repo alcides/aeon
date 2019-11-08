@@ -3,8 +3,8 @@
 import z3
 
 import aeon.frontend
-from aeon3.ast import *
-from aeon3.libraries.standard import importNative
+from aeon.ast import *
+from aeon.libraries.standard import importNative
 
 
 def is_builtin(name):
@@ -111,7 +111,7 @@ initial_context = {
                   lambda x: True),
 }
 
-native_implementations = importNative('aeon3.libraries.native', '*')
+native_implementations = importNative('aeon.libraries.native', '*')
 
 for expr_name in native_implementations.keys():
     node, implementation = native_implementations[expr_name]

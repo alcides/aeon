@@ -10,7 +10,7 @@ from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType,
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
-import aeon2.typechecker as tc
+import aeon.typechecker as tc
 
 MAX_TRIES = 100
 MAX_TRIES_WHERE = 100

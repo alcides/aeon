@@ -1,7 +1,7 @@
 import importlib
 from functools import reduce
 
-import aeon3.frontend
+import aeon.frontend
 
 
 def aetype(str):

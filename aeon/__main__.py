@@ -10,9 +10,9 @@ from .interpreter import run
 
 from .translate import Translator
 
-from .automatic_module.conversor import retrieve_fitness_functions
-from .automatic_module.utils import get_holes
-from .automatic_module.random import Random
+from .automatic.conversor import retrieve_fitness_functions
+from .automatic.utils import get_holes
+from .automatic.random import Random
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
@@ -70,7 +70,8 @@ if __name__ == '__main__':
         print(ast)
         print("--------------------------")
     try:
-        ast, context, tcontext = typecheck(ast)
+        #ast, context, tcontext = typecheck(ast)
+        pass
 
     except TypeException as t:
         print(t.args[0])
