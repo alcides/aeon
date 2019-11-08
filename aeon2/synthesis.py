@@ -12,7 +12,7 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
     substitution_expr_in_expr, substitution_type_in_expr
 import aeon2.typechecker as tc
 
-MAX_TRIES = 10
+MAX_TRIES = 100
 MAX_TRIES_WHERE = 100
 
 forbidden_vars = ['native', 'uninterpreted']
@@ -32,10 +32,10 @@ weights = {
     "se_var": 1,
     "se_where": 1,
     "se_abs": 1,
-    "se_app": 1,
+    "se_app": 10,
     "se_tabs": 1,
     "se_tapp": 1,
-    "se_if": 0,
+    "se_if": 1,
     "stax_id": 1,
     "stax_abs": 1000,
     "stax_where": 1000,
@@ -259,6 +259,7 @@ def se_if(ctx: TypingContext, T: Type, d: int):
     if tc.entails(
             ctx,
             e1) or not tc.is_satisfiable(ctx, e1):  # TODO Paper: explain this
+        #print("Cond not usable", e1)
         raise Unsynthesizable(
             "If condition is always true or always false: {}".format(e1))
     e2 = se(ctx.with_cond(e1), T, d - 1)
@@ -411,10 +412,8 @@ def stax_where(ctx: TypingContext, e: Node, x: str, RT: RefinedType, d: int):
 @random_chooser
 def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
-    if check_stax(ctx, e, x, T):
-        yield ("stax_id", stax_id)
-    else:
-        print("T failed:", e, x, T)
+    #if check_stax(ctx, e, x, T): TODO PAPER
+    yield ("stax_id", stax_id)
     if type(T) is AbstractionType:
         yield ("stax_abs", stax_abs)
     if type(T) is TypeApplication:

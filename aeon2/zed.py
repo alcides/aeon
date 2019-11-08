@@ -3,12 +3,14 @@ from functools import reduce
 import z3
 import random
 
-from .ast import Var, Literal, Application, Abstraction, TApplication, Node
+from .ast import Var, Literal, Application, Abstraction, TApplication, TAbstraction, Node
 from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b
 from .stdlib import *
 from .substitutions import *
 from .zed_utils import *
+
+MAX_Z3_SEEDS = 5
 
 
 class NotDecidableException(Exception):
@@ -17,6 +19,15 @@ class NotDecidableException(Exception):
 
 class NoZ3TranslationException(Exception):
     pass
+
+
+random_name_counter = 0
+
+
+def random_name():
+    global random_name_counter
+    random_name_counter += 1
+    return "lambda_{}".format(random_name_counter)
 
 
 def flatten_refined_types(t):
@@ -103,9 +114,26 @@ def zed_translate_app(ztx, app: Application):
     return target(argument)
 
 
-def zed_translate_tapp(ztx, app: Application):
-    target = zed_translate(ztx, app.target)
-    return target
+def zed_translate_abs(ztx, ab: Abstraction):
+
+    i_sort = get_sort(ab.arg_type)
+    o_sort = get_sort(ab.body.type)
+    f = z3.Function(random_name(), i_sort, o_sort)
+    x = zed_mk_variable(ab.arg_name, ab.arg_type)
+    ztx[ab.arg_name] = x
+    b = zed_translate(ztx, ab.body)
+    del ztx[ab.arg_name]
+    g = z3.ForAll([x], b)
+    # Add to context
+    return f
+
+
+def zed_translate_tabs(ztx, tabs: TypeAbstraction):
+    return tabs.type
+
+
+def zed_translate_tapp(ztx, tabs: TypeApplication):
+    return tabs.target
 
 
 def zed_translate_context(ztx, ctx):
@@ -137,9 +165,11 @@ def zed_translate(ztx, cond: Node):
     elif type(cond) is Literal:
         return zed_translate_literal(ztx, cond)
     elif type(cond) is Abstraction:
-        return zed_translate_tapp(ztx, cond)
+        return zed_translate_abs(ztx, cond)
     elif type(cond) is TApplication:
         return zed_translate_tapp(ztx, cond)
+    elif type(cond) is TAbstraction:
+        return zed_translate_tabs(ztx, cond)
     else:
         raise NoZ3TranslationException(
             "{} could not be translated".format(cond))
@@ -174,13 +204,20 @@ def zed_verify_entailment(ctx, cond):
         s.add(z3_context)
         s.add(z3.Implies(z3_context, z3_cond))
     #print("zed_ver_entails", s)
-    r = s.check()
-    if r == z3.sat:
-        return True
-    if r == z3.unsat:
-        return False
-    raise NotDecidableException("{} could not be evaluated for entailment",
-                                cond)
+
+    for i in range(MAX_Z3_SEEDS):
+        r = s.check()
+        if r == z3.sat:
+            return True
+        if r == z3.unsat:
+            return False
+        z3.set_option("smt.random_seed", i)
+    print("S:", s, cond, r)
+    # S: [x == u%o, ForAll(x, Or(Not(x == u%o), And(x%4 == 0, Not(x <= 2))))]
+    #
+
+    raise NotDecidableException(
+        "{} could not be evaluated for entailment".format(cond))
 
 
 def zed_verify_satisfiability(ctx, cond):
@@ -195,8 +232,8 @@ def zed_verify_satisfiability(ctx, cond):
         return True
     if r == z3.unsat:
         return False
-    raise NotDecidableException("{} could not be evaluated for satisfiability",
-                                cond)
+    raise NotDecidableException(
+        "{} could not be evaluated for satisfiability".format(cond))
 
 
 def zed_get_integer_where(ctx, name, cond):
@@ -212,4 +249,4 @@ def zed_get_integer_where(ctx, name, cond):
         return s.model()[m_name]
     else:
         raise NotDecidableException(
-            "{} could not be evaluated for generating an example", cond)
+            "{} could not be evaluated for generating an example".format(cond))

@@ -115,6 +115,12 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ctx, "((((T:*) => ((S:*) => T)) Integer) Void)",
                        "Integer")
 
+    def bug001(self):
+        ctx = TypingContext()
+        ctx.setup()
+        self.assert_tc(ctx, "(\\b:Boolean -> !(true))(true)",
+                       "{ x:Boolean where (x === false) }")
+
 
 if __name__ == '__main__':
     unittest.main()
