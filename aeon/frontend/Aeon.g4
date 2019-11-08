@@ -5,7 +5,7 @@
 grammar Aeon;
 
 aeon
-    : (imprt | typee_alias | typee_declaration | function)* EOF ;
+    : (imprt | typee_alias | typee_declaration | function | statement | typee)* EOF ;
 
 // ----------------------------------------------------------------------------
 // ---------------------------------- Import ----------------------------------

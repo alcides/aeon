@@ -5,6 +5,7 @@ from typing.io import TextIO
 import sys
 
 
+
 def serializedATN():
     with StringIO() as buf:
         buf.write("\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\29")
@@ -169,7 +170,7 @@ class AeonLexer(Lexer):
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
+    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
 
     IMPORT = 1
     FROM = 2
@@ -227,49 +228,47 @@ class AeonLexer(Lexer):
     BLOCK_COMMENT = 54
     WS = 55
 
-    channelNames = [u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN"]
+    channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN" ]
 
-    modeNames = ["DEFAULT_MODE"]
+    modeNames = [ "DEFAULT_MODE" ]
 
-    literalNames = [
-        "<INVALID>", "'import'", "'from'", "'if'", "'else'", "'?'",
-        "'@maximize'", "'@minimize'", "'@evaluate'", "'+'", "'-'", "'*'",
-        "'/'", "'%'", "'^'", "'&&'", "'||'", "'!'", "'|'", "'<'", "'<='",
-        "'>'", "'>='", "'=='", "'!='", "'='", "'->'", "'=>'", "'-->'", "'{'",
-        "'}'", "'('", "')'", "'['", "']'", "'type'", "'as'", "'and'",
-        "'where'", "'native'", "'\\'", "'..'", "'.'", "':'", "','", "';'"
-    ]
+    literalNames = [ "<INVALID>",
+            "'import'", "'from'", "'if'", "'else'", "'?'", "'@maximize'", 
+            "'@minimize'", "'@evaluate'", "'+'", "'-'", "'*'", "'/'", "'%'", 
+            "'^'", "'&&'", "'||'", "'!'", "'|'", "'<'", "'<='", "'>'", "'>='", 
+            "'=='", "'!='", "'='", "'->'", "'=>'", "'-->'", "'{'", "'}'", 
+            "'('", "')'", "'['", "']'", "'type'", "'as'", "'and'", "'where'", 
+            "'native'", "'\\'", "'..'", "'.'", "':'", "','", "';'" ]
 
-    symbolicNames = [
-        "<INVALID>", "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE",
-        "MINIMIZE", "EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE",
-        "POWER", "CONJUNCTION", "DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT",
-        "GE", "EQUAL", "DIFF", "ASSIGN", "RARROW", "FATARROW", "IMPLIE",
-        "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", "RBRACKET",
-        "TYPEE", "AS", "AND", "WHERE", "NATIVE", "ABSTRACTION", "DOTDOT",
-        "DOT", "COLON", "COMMA", "SEMICOLON", "BOOLEAN", "INTEGER", "FLOAT",
-        "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER",
-        "ABSTRACT_TYPEE_IDENTIFIER", "LINE_COMMENT", "BLOCK_COMMENT", "WS"
-    ]
+    symbolicNames = [ "<INVALID>",
+            "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE", 
+            "EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER", 
+            "CONJUNCTION", "DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT", 
+            "GE", "EQUAL", "DIFF", "ASSIGN", "RARROW", "FATARROW", "IMPLIE", 
+            "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", "RBRACKET", 
+            "TYPEE", "AS", "AND", "WHERE", "NATIVE", "ABSTRACTION", "DOTDOT", 
+            "DOT", "COLON", "COMMA", "SEMICOLON", "BOOLEAN", "INTEGER", 
+            "FLOAT", "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", 
+            "LINE_COMMENT", "BLOCK_COMMENT", "WS" ]
 
-    ruleNames = [
-        "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE",
-        "EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER",
-        "CONJUNCTION", "DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT", "GE",
-        "EQUAL", "DIFF", "ASSIGN", "RARROW", "FATARROW", "IMPLIE", "LBRACE",
-        "RBRACE", "LPARENS", "RPARENS", "LBRACKET", "RBRACKET", "TYPEE", "AS",
-        "AND", "WHERE", "NATIVE", "ABSTRACTION", "DOTDOT", "DOT", "COLON",
-        "COMMA", "SEMICOLON", "BOOLEAN", "INTEGER", "FLOAT", "STRING",
-        "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER",
-        "LINE_COMMENT", "BLOCK_COMMENT", "WS"
-    ]
+    ruleNames = [ "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", 
+                  "MINIMIZE", "EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", 
+                  "MODULE", "POWER", "CONJUNCTION", "DISJUNCTION", "NOT", 
+                  "PIPE", "LT", "LE", "GT", "GE", "EQUAL", "DIFF", "ASSIGN", 
+                  "RARROW", "FATARROW", "IMPLIE", "LBRACE", "RBRACE", "LPARENS", 
+                  "RPARENS", "LBRACKET", "RBRACKET", "TYPEE", "AS", "AND", 
+                  "WHERE", "NATIVE", "ABSTRACTION", "DOTDOT", "DOT", "COLON", 
+                  "COMMA", "SEMICOLON", "BOOLEAN", "INTEGER", "FLOAT", "STRING", 
+                  "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", 
+                  "LINE_COMMENT", "BLOCK_COMMENT", "WS" ]
 
     grammarFileName = "Aeon.g4"
 
-    def __init__(self, input=None, output: TextIO = sys.stdout):
+    def __init__(self, input=None, output:TextIO = sys.stdout):
         super().__init__(input, output)
         self.checkVersion("4.7.2")
-        self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA,
-                                         PredictionContextCache())
+        self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None
+
+
