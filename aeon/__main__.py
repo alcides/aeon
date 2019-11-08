@@ -4,6 +4,7 @@ import random
 import shutil
 
 from .frontend import parse
+from .frontend import parse_strict
 from .typechecker import typecheck, TypeException
 from .type_inferer import inferTypes
 from .interpreter import run
