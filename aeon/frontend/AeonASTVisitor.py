@@ -356,11 +356,8 @@ class AeonASTVisitor(AeonVisitor):
             statement = statement.body if type(
                 statement) is Definition else statement
 
-            # Englobe each statement in Application(Abstraction(_0, T, node), statement)
-            variable = Var(name).with_type(statement.type)
-
             # Create the abstraction
-            abstraction = Abstraction(variable, statement.type, node)
+            abstraction = Abstraction(name, statement.type, node)
             abstraction.type = AbstractionType(name, statement.type, node.type)
 
             # Create the application
@@ -514,7 +511,7 @@ class AeonASTVisitor(AeonVisitor):
         expression = self.visit(ctx.exp)
 
         abstraction_typee = AbstractionType(name, typee, expression.type)
-        abstraction = Abstraction(Var(name).with_type(typee), typee,
+        abstraction = Abstraction(name, typee,
                                   expression).with_type(abstraction_typee)
 
         listAbstractions = list(
