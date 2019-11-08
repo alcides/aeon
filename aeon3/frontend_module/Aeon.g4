@@ -149,6 +149,7 @@ expression
     | LBRACKET typee? RBRACKET                                                                  # Hole
     | variable=IDENTIFIER                                                                       # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING)                                                # Literal
+    | improvement=(MAXIMIZE | MINIMIZE | EVALUATE) LPARENS param=expression RPARENS             # FitnessImprovement
     ;
 
 function_abstraction
@@ -169,6 +170,11 @@ FROM: 'from'        ;
 IF: 'if'        ;
 ELSE: 'else'    ;
 QUESTION: '?'   ;
+
+// Improvements
+MAXIMIZE: '@maximize' ;
+MINIMIZE: '@minimize' ;
+EVALUATE: '@evaluate' ;
 
 // Number operations
 PLUS: '+' 		;
@@ -191,8 +197,6 @@ GT: '>' 			;
 GE: '>=' 			;
 EQUAL: '==' 		;
 DIFF: '!='			;
-BEQUAL: '===' 		;
-BDIFF: '!=='		;
 
 ASSIGN: '='     ;
 

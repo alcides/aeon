@@ -1,4 +1,4 @@
-import ../libraries/list;
+// import ../libraries/list;
 
 test : (x:Integer) -> Integer {
     x * 10;

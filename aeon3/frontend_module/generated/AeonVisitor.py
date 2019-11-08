@@ -144,6 +144,11 @@ class AeonVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by AeonParser#FitnessImprovement.
+    def visitFitnessImprovement(self, ctx:AeonParser.FitnessImprovementContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by AeonParser#LogicalExpression.
     def visitLogicalExpression(self, ctx:AeonParser.LogicalExpressionContext):
         return self.visitChildren(ctx)

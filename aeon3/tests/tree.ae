@@ -29,8 +29,18 @@ type Teste<T> {
     asd:Integer;
 }
 
-f: ({x:Teste<Integer> | x.asd > 0}) -> Integer {
+f: () -> Integer {
     10;
+    f(3, 2); 
+    x > 0 ? 1 : 0;
+    if x > 0 {
+        3;
+        4;
+    } else {
+        5;
+        6;
+    };
+    20;
 }
 
-native_fun : (x:String) -> String = native;
+native_fun : (x:String, y:Double, Float, Boolean, z:Paulo) -> String = native;

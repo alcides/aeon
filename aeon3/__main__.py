@@ -9,9 +9,13 @@ from .typechecker import typecheck, TypeException
 from .typeInferer import infereTypes
 from .interpreter import run
 
+from .translate import Translator
 from .prettyprinter import printAST
 
-from .temp_genetic import retrieve_fitness_functions
+from .automatic_module.conversor import retrieve_fitness_functions
+from .automatic_module.utils import get_holes
+from .automatic_module.random import Random
+
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
@@ -29,28 +33,38 @@ if __name__ == '__main__':
             outputdir = arg[12:]
 
     random.seed(seed)
-
-    ast = parse(sys.argv[-1])
     
-    # print(ast)
-    # printAST(ast)
-    # print("Before: ", ast)
-    print("---------------------------------------------------------\nBefore type infering:\n")
+    print("---------------------------------------------------------\nAeonCore transformation:\n")
+    ast = parse(sys.argv[-1])
     print(ast)
+
+    print("---------------------------------------------------------\nType discovery:\n")
     infereTypes(ast)
-    #print("="*30)
-    # printAST(ast)
-    print("---------------------------------------------------------\nAfter type infering:\n")
     print(ast)
-    print("---------------------------------------------------------\nGenerate fitness functions:")
+    
+    print("---------------------------------------------------------\nAeonPretty transformation:\n")
+    print(Translator().translate(ast))
+    
+    print("\n-------------------------------------------------------\nFitness function generation:")
     res = retrieve_fitness_functions(ast)
     if res:
         print(res)
-        for f in res.keys():
-            if res[f]:
-                for expr, function in res[f]:
-                    print(expr, function, function(2)(1)(3), "\n")
     print("\n")
+    
+    print("\n-------------------------------------------------------\nFirst 10 random individuals:")
+    # Temp
+    '''   
+    for declaration in ast:
+        if type(declaration) is Definition and declaration.name in res:
+            holes = get_holes(declaration)
+            from .libraries.stdlib import initial_context
+            ctx = {}
+            for name in initial_context.keys():
+                ctx[name] = initial_context[name][0]
+            random = Random(ctx, declaration, holes)
+    '''
+
+    
     '''
     if debug:
         print("---------- Untyped -------")

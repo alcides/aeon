@@ -71,22 +71,23 @@ class AeonASTVisitor(AeonVisitor):
     def visitRegular_typee_declaration(self, ctx:AeonParser.Regular_typee_declarationContext):
         return TypeDeclaration(self.visit(ctx.name), star)
 
-    # type Person { ... }
+    # type Person<T> { ... }
     def visitParameterized_typee_declaration(self, ctx:AeonParser.Parameterized_typee_declarationContext):
  
         typee = self.visit(ctx.name)
         parameters = self.visit(ctx.params)
         names = [self.getBasicTypeName(param) for param in parameters]
 
-        self.declarations.append(TypeDeclaration(typee, star))
+        self.declarations.append(TypeDeclaration(typee, self.getTypeeKind(typee)))
 
         for name, param in zip(names, parameters):
             typee_name = self.returnBasicTypee(typee).name
             function_name = '_{}_{}'.format(typee_name, name)
             function_type = AbstractionType(Var(self.nextVoidName(), typee), typee, param)
-            definition = Definition(function_name, function_type, bottom, Var('uninterpreted', bottom))
+            definition = Definition(function_name, function_type, param, Var('uninterpreted', bottom))
             self.declarations.append(definition)
             self.general_context[function_name] = function_type
+
         # On purpose to prevent function declarations before type declaration
         return None
 
@@ -128,7 +129,7 @@ class AeonASTVisitor(AeonVisitor):
                 return self.type_aliases[typee]
         return typee
 
-    # Map<K, V>
+    # Map<K, V> : (* => *) => *
     def visitTypee_type_abstract(self, ctx:AeonParser.Typee_type_abstractContext):
         typee = BasicType(ctx.abstractType.text)
         abstractions, applications = self.visit(ctx.abstractParams) 
@@ -208,6 +209,19 @@ class AeonASTVisitor(AeonVisitor):
         elif type(typee) is TypeAbstraction:
             return self.returnBasicTypee(typee.type)
 
+    # Discover typee kind. Given a typee, discovers its kind
+    def getTypeeKind(self, typee):
+        if type(typee) is BasicType:
+            return star
+        elif type(typee) is RefinedType:
+            return star
+        elif type(typee) is AbstractionType:
+            return star
+        elif type(typee) is TypeApplication:
+            return Kind(self.getTypeeKind(typee.target), star)
+        elif type(typee) is TypeAbstraction:
+            return self.getTypeeKind(typee.type)
+
     # -------------------------------------------------------------------------
     # ---------------------------------------------------------------- Function
     # Visit a parse tree produced by AeonParser#function.
@@ -236,8 +250,10 @@ class AeonASTVisitor(AeonVisitor):
             conditions = self.visit(ctx.where)
             return_type = self.distribute_where_expressions(typee, return_name, return_type, conditions)
             
+        # >>>>>> TODO: falta envolver nas applications
+        
         for type_abstract in abstractions:
-            typee = TypeAbstraction(type_abstract, star, typee)
+            typee = TypeAbstraction(type_abstract, type_abstract, typee)
 
         # The typee is fully completed
         self.general_context[name] = typee
@@ -262,7 +278,7 @@ class AeonASTVisitor(AeonVisitor):
                 body.type = AbstractionType(param_name, param_typee, body.body.type)
 
             # If there are abstractions, englobe the body and typee in them
-            for type_abstract in abstractions:
+            for type_abstract in abstractions:  
                 body = TAbstraction(type_abstract, star, body)
                 body.type = TypeAbstraction(type_abstract, star, body.body.type)
 
@@ -282,13 +298,15 @@ class AeonASTVisitor(AeonVisitor):
 
     # (x:Integer, y:T, z:Map<Double, String>)
     def visitFunction_parameters(self, ctx:AeonParser.Function_parametersContext):
-        parameters = [self.visit(typee) for typee in ctx.typee()]
-        names = [self.getBasicTypeName(typee) for typee in parameters]
+        parameters = []
+        for param in ctx.typee():
+            typee = self.visit(param)
+            name = self.getBasicTypeName(typee)
+            parameters.append((name, typee))
         parameters.reverse()
-        #names.reverse()
-        firstParam = AbstractionType(names[0], parameters[0], None)
+        firstParam = AbstractionType(parameters[0][0], parameters[0][1], None)
         lastParam = firstParam
-        for name, param in zip(names[1:], parameters[1:]):
+        for name, param in parameters[1:]:
             firstParam = AbstractionType(name, param, firstParam)
         return firstParam, lastParam
 
@@ -474,13 +492,20 @@ class AeonASTVisitor(AeonVisitor):
         
         for application in applications:
             expression = TApplication(expression, application)
-            expression.type = TypeApplication(expression.type, application)
+            expression.type = TypeApplication(expression.target.type, application)
 
         for param in parameters:
             expression = Application(expression, param)
-            expression.type = self.getReturnType(expression.type)
+            expression.type = self.getReturnType(expression.type)   # TODO: isto nao esta bem
 
         return expression
+
+    # @maximize(...), @minimze(...) and @evaluate(...)
+    def visitFitnessImprovement(self, ctx:AeonParser.FitnessImprovementContext):
+        improvement = ctx.improvement.text
+        parameter = self.visit(ctx.param) 
+        # TODO: missing the typee
+        return Application(Var(improvement, None), parameter, None)
 
     # <Integer, Boolean>
     def visitFunction_abstraction(self, ctx:AeonParser.Function_abstractionContext):
@@ -651,8 +676,8 @@ class AeonASTVisitor(AeonVisitor):
         elif type(typee) is AbstractionType:
             result = RefinedType(typee.arg_name, typee, expression)
         elif type(typee) is RefinedType:
-            and_typee = self.general_context['and']
-            application1 = Application(Var('and', and_typee), expression, self.getReturnType(and_typee))
+            and_typee = self.general_context['And']
+            application1 = Application(Var('And', and_typee), expression, self.getReturnType(and_typee))
             application2 = Application(application1, typee.cond, self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
         elif type(typee) is TypeApplication:

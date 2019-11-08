@@ -70,17 +70,14 @@ hole35 : (y:Integer) -> Integer {
     y > 0 ? [] : true;
 }
 
-
  hole8 : (y:Integer) -> Integer {
     y > 0 ? [] : y;
     1;
 }
 
-
  hole9 : (y:Integer) -> Integer {
     [] ? 3 : 10;
 }
-
 
  hole10 : (y:Integer) -> Integer {
     f2([]);
@@ -98,9 +95,17 @@ hole35 : (y:Integer) -> Integer {
 }
 
 
+
+
+
  hole11 : (y:Integer) -> {x:Integer | x > 10} {
     [](10);
 }
+
+
+
+
+
 
  hole12 : (y:Integer) -> Double {
     []([]);
