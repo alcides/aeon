@@ -190,7 +190,7 @@ class TypeAlias(Node):
 
 
 class TypeDeclaration(Node):
-    def __init__(self, name: str, kind: Kind):
+    def __init__(self, name: Type, kind: Kind):
         self.name = name
         self.kind = kind
 

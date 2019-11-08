@@ -72,8 +72,7 @@ class AeonASTVisitor(AeonVisitor):
         return self.visitChildren(ctx)
 
     # type Person
-    def visitRegular_typee_declaration(
-            self, ctx: AeonParser.Regular_typee_declarationContext):
+    def visitRegular_typee_declaration(self, ctx: AeonParser.Regular_typee_declarationContext):
         return TypeDeclaration(self.visit(ctx.name), star)
 
     # type Person<T> { ... }
@@ -173,7 +172,7 @@ class AeonASTVisitor(AeonVisitor):
         # Check if the BasicType is a TypeeIdentifier
         if type(typee) is BasicType:
             if len(typee.name) == 1:
-                abstractions = [typee]
+                abstractions = [typee.name]
         # Check the RefinedType type
         elif type(typee) is RefinedType:
             abstractions = self.searchAbstractions(typee.type)
@@ -267,7 +266,7 @@ class AeonASTVisitor(AeonVisitor):
             return_type = self.distribute_where_expressions(
                 typee, return_name, return_type, conditions)
 
-        # >>>>>> TODO: falta envolver nas applications
+        # >>>>>> TODO: falta envolver nas tapplications
 
         for type_abstract in abstractions:
             typee = TypeAbstraction(type_abstract, type_abstract, typee)
@@ -353,17 +352,19 @@ class AeonASTVisitor(AeonVisitor):
         node = node.body if type(node) is Definition else node
 
         for statement in statements[1:]:
-            name = statement.name if type(statement) is Definition else Var(
-                self.nextVoidName()).with_type(statement.type)
+            name = statement.name if type(statement) is Definition else self.nextVoidName()
             statement = statement.body if type(
                 statement) is Definition else statement
 
             # Englobe each statement in Application(Abstraction(_0, T, node), statement)
-            abstraction = Abstraction(name, statement.type, node)
-            node = Application(abstraction, statement)
+            variable = Var(name).with_type(statement.type)
 
-            # Set the types
+            # Create the abstraction
+            abstraction = Abstraction(variable, statement.type, node)
             abstraction.type = AbstractionType(name, statement.type, node.type)
+
+            # Create the application
+            node = Application(abstraction, statement)
             node.type = abstraction.type.return_type
 
         return node
@@ -392,6 +393,7 @@ class AeonASTVisitor(AeonVisitor):
         expression = self.visit(ctx.exp)
 
         if variable.name not in self.general_context:
+            typee = expression.type
             self.general_context[variable.name] = typee
 
         return Definition(variable, typee, typee, expression)
@@ -512,7 +514,7 @@ class AeonASTVisitor(AeonVisitor):
         expression = self.visit(ctx.exp)
 
         abstraction_typee = AbstractionType(name, typee, expression.type)
-        abstraction = Abstraction(name, typee,
+        abstraction = Abstraction(Var(name).with_type(typee), typee,
                                   expression).with_type(abstraction_typee)
 
         listAbstractions = list(
