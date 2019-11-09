@@ -51,3 +51,8 @@ class TestConversion(unittest.TestCase):
         T = ty(
             "(((((T1:*) => (T2:*) => (T3:*) => T1) Integer) Boolean) Float)")
         self.assertEquals(type_conversion(T), ty("Integer"))
+
+        T = ty(
+            "(((((T1:*) => (T2:*) => (T3:*) => T1) ((T:*) => J)) Boolean) Float)"
+        )
+        self.assertEquals(type_conversion(T), ty("(T:*) => J"))
