@@ -122,7 +122,7 @@ class HoleInferer():
             print("It happened", node, type(node.target))
             tee = node.target.type
 
-        if type(tee) is TypeAbstraction:
+        if isinstance(tee, TypeAbstraction):
             tempTee = node.target.type
             while type(tempTee.type) is TypeAbstraction:
                 tempTee = tempTee.type
@@ -205,31 +205,31 @@ class HoleInferer():
         pass
 
     def visit(self, node):
-        if type(node) is Program:
+        if isinstance(node, Program):
             self.visitProgram(node)
-        elif type(node) is Hole:
+        elif isinstance(node, Hole):
             self.visitHole(node)
-        elif type(node) is Literal:
+        elif isinstance(node, Literal):
             self.visitLiteral(node)
-        elif type(node) is Var:
+        elif isinstance(node, Var):
             self.visitVar(node)
-        elif type(node) is If:
+        elif isinstance(node, If):
             self.visitIf(node)
-        elif type(node) is Application:
+        elif isinstance(node, Application):
             self.visitApplication(node)
-        elif type(node) is Abstraction:
+        elif isinstance(node, Abstraction):
             self.visitAbstraction(node)
-        elif type(node) is Definition:
+        elif isinstance(node, Definition):
             self.visitDefinition(node)
-        elif type(node) is TypeAlias:
+        elif isinstance(node, TypeAlias):
             self.visitTypeAlias(node)
-        elif type(node) is TypeDeclaration:
+        elif isinstance(node, TypeDeclaration):
             self.visitTypeDeclaration(node)
-        elif type(node) is TAbstraction:
+        elif isinstance(node, TAbstraction):
             self.visitTAbstraction(node)
-        elif type(node) is TApplication:
+        elif isinstance(node, TApplication):
             self.visitTApplication(node)
-        elif type(node) is Import:
+        elif isinstance(node, Import):
             self.visitImport(node)
         else:
             print("Unknown type of node: ", type(node))
@@ -246,11 +246,11 @@ def getBodyAndReturnType(node: Definition):
     return_type = node.return_type
 
     # Strip off the typebastractions
-    while type(typee) is TypeAbstraction:
+    while isinstance(typee, TypeAbstraction):
         typee = typee.type
 
     # Strip off the TAbstraction
-    while type(node) is TAbstraction:
+    while isinstance(node, TAbstraction):
         node = node.body
 
     # Strip off the function parameters
@@ -263,13 +263,13 @@ def getBodyAndReturnType(node: Definition):
 
 # Given a typee, returns the basic type of it
 def returnBasicTypee(typee):
-    if type(typee) is BasicType:
+    if isinstance(typee, BasicType):
         return typee
-    elif type(typee) is RefinedType:
+    elif isinstance(typee, RefinedType):
         return self.returnBasicTypee(typee.type)
-    elif type(typee) is AbstractionType:
+    elif isinstance(typee, AbstractionType):
         return self.returnBasicTypee(typee.return_type)
-    elif type(typee) is TypeApplication:
+    elif isinstance(typee, TypeApplication):
         return self.returnBasicTypee(typee.target)
-    elif type(typee) is TypeAbstraction:
+    elif isinstance(typee, TypeAbstraction):
         return self.returnBasicTypee(typee.type)

@@ -1,6 +1,7 @@
 import unittest
 
-from ..frontend import parse_strict as expr, typee
+from ..types import *
+from ..frontend2 import expr, typee
 from ..typechecker import *
 
 ex = expr.parse_strict

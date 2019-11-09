@@ -1,75 +1,19 @@
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from .ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .synthesis import *
 from .zed import zed_verify_entailment, zed_verify_satisfiability, zed_get_integer_where, NotDecidableException
 
-
-def sub_base(ctx, sub: BasicType, sup: BasicType):
-    """ S-Int, S-Bool, S-Var """
-    return sub.name == sup.name
-
-
-def sub_whereL(ctx, sub: RefinedType, sup: Type):
-    """ S-WhereL """
-    nctx = ctx.with_var(sub.name, sub.type)
-    #print(sub, " subtype ofL ", sup)
-    return is_satisfiable(nctx, sub.cond) and \
-        is_subtype(ctx, sub.type, sup)
+def flatten_refined_type(t:Type):
+    if isinstance(t, BasicType):
+        return t
+    if isinstance(t, RefinedType):
+        return flatten_refined_type(t.type)
+    print("FAIL")
 
 
-def sub_whereR(ctx, sub: Type, sup: RefinedType):
-    """ S-WhereR """
-    nctx = ctx.with_var(sup.name, sub)
-    #print(sub, " subtype of ", sup)
-    return is_subtype(ctx, sub, sup.type) and \
-        entails(nctx, sup.cond)
-
-
-def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType):
-    """ S-Abs """
-    nctx = ctx.with_var(sup.arg_name, sup.arg_type)
-    sub_return_type = substitution_expr_in_type(sub.return_type,
-                                                Var(sup.arg_name),
-                                                sub.arg_name)
-    return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
-        is_subtype(nctx, sub_return_type, sup.return_type)
-
-
-def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
-    """ S-TAbs """
-    if sub.kind != sup.kind:
-        return False
-    nctx = ctx.with_type_var(sup.name, sup.kind)
-    return is_subtype(
-        nctx, substitution_type_in_type(sub.type, BasicType(sup.name),
-                                        sub.name), sup.type)
-
-
-def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication):
-    """ S-TApp . Final case """
-    if type(sub.target) is BasicType and type(sup.target) is BasicType:
-        return sub.target.name == sup.target.name and is_subtype(
-            ctx, sub.argument, sup.argument)
-    print("Weird bug in sub_tapp", sub, sup)
-    return False
-
-
-def sub_appL(ctx, sub: TypeApplication, sup: Type):
-    """ S-Cong + C-Beta on the left """
-    abst = sub.target
-    assert (type(sub.target) == TypeAbstraction)
-    nsub = substitution_type_in_type(abst.type, sub.argument, abst.name)
-    return is_subtype(ctx, nsub, sup)
-
-
-def sub_appR(ctx, sub: Type, sup: TypeApplication):
-    """ S-Cong . C-Beta on the right"""
-    abst = sup.target
-    nsup = substitution_type_in_type(abst.type, sup.argument, abst.name)
-    return is_subtype(ctx, sub, nsup)
 
 
 def is_same_type(ctx, a, b):
@@ -78,11 +22,11 @@ def is_same_type(ctx, a, b):
 
 def c_beta_simplication(ctx: TypingContext, t: Type, k: Kind):
     """ Reduces a type according to C-Beta """
-    if type(t) is TypeApplication:
+    if isinstance(t, TypeApplication):
         starget = c_beta_simplication(ctx, t.target, AnyKind())
         sargument = c_beta_simplication(ctx, t.argument, AnyKind())
 
-        if type(starget) is TypeAbstraction:
+        if isinstance(starget, TypeAbstraction):
             small_t = starget.name
             small_k = starget.kind
             big_t = starget.type
@@ -93,17 +37,17 @@ def c_beta_simplication(ctx: TypingContext, t: Type, k: Kind):
 
 def s_cong(ctx: TypingContext, sub: Type, sup: Type, k: Kind):
     """"  Type Conversion  """
-    if type(sub) is BasicType:
+    if isinstance(sub, BasicType):
         if sub.name in ctx.type_aliases:
             return s_cong(ctx, ctx.type_aliases[sub.typeName], sup, k)
-    if type(sup) is BasicType:
+    if isinstance(sup, BasicType):
         if sup.name in ctx.type_aliases:
             return s_cong(ctx, sub, ctx.type_aliases[sup.typeName], k)
 
     sub = c_beta_simplication(ctx, sub, k)
     sup = c_beta_simplication(ctx, sup, k)
     """ C-Ref """
-    if type(sub) is BasicType and type(
+    if isinstance(sub, BasicType) and type(
             sup) is BasicType and sub.name == sup.name:
         k2 = kinding(ctx, sub, k)
         return True
@@ -112,33 +56,33 @@ def s_cong(ctx: TypingContext, sub: Type, sup: Type, k: Kind):
 
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
-    if type(sub) is BasicType:
+    if isinstance(sub, BasicType):
         if sub.name == 'Bottom':
             return True  # Bottom
         if sub.name in ctx.type_aliases:
             return is_subtype(ctx, ctx.type_aliases[sub.typeName], sup)
-    if type(sup) is BasicType:
+    if isinstance(sup, BasicType):
         if sup.name in ['Void', 'Object', 'Top']:
             return True  # Top
         if sup.name in ctx.type_aliases:
             return is_subtype(ctx, sub, ctx.type_aliases[sup.typeName])
 
-    if type(sub) is BasicType:
+    if isinstance(sub, BasicType):
         if sub.name in ['Void', 'Object', 'Top']:
             return False  # Top
-    if type(sup) is BasicType:
+    if isinstance(sup, BasicType):
         if sup.name == 'Bottom':
             return False  # Bottom
 
-    if type(sub) is BasicType and type(sup) is BasicType:
+    if isinstance(sub, BasicType) and isinstance(sup, BasicType):
         return sub_base(ctx, sub, sup)
-    if type(sup) is RefinedType:
+    if isinstance(sup, RefinedType):
         return sub_whereR(ctx, sub, sup)
-    if type(sub) is RefinedType:
+    if isinstance(sub, RefinedType):
         return sub_whereL(ctx, sub, sup)
-    if type(sub) is AbstractionType and type(sup) is AbstractionType:
+    if isinstance(sub, AbstractionType) and isinstance(sup, AbstractionType):
         return sub_abs(ctx, sub, sup)
-    if type(sub) is TypeAbstraction and type(sup) is TypeAbstraction:
+    if isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
         return sub_tabs(ctx, sub, sup)
 
     return s_cong(ctx, sub, sup, AnyKind())
@@ -146,7 +90,7 @@ def is_subtype(ctx, sub, sup):
 
 
 def extract_clauses(t):
-    if type(t) is RefinedType:
+    if isinstance(t, RefinedType):
         return [t.cond] + extract_clauses(t.type)
     return []
 
@@ -207,7 +151,7 @@ def k_abs(ctx, t: AbstractionType, k: Kind):
     U = t.return_type
     kinding(ctx, T, star)
     kinding(ctx.with_var(x, T), U, star)
-    if not type(k) is AnyKind and k != star:
+    if not isinstance(k, AnyKind) and k != star:
         raise TypeException("Type has wrong kinding.",
                             "Expected {}, given {}.".format(star, t))
     return star
@@ -256,15 +200,15 @@ def k_tapp(ctx, t: TypeApplication, k: Kind):
 
 
 def kinding(ctx, t: Type, k: Kind):
-    if type(t) is BasicType:
+    if isinstance(t, BasicType):
         return k_base(ctx, t, k)
-    elif type(t) is AbstractionType:
+    elif isinstance(t, AbstractionType):
         return k_abs(ctx, t, k)
-    elif type(t) is RefinedType:
+    elif isinstance(t, RefinedType):
         return k_where(ctx, t, k)
-    elif type(t) is TypeAbstraction:
+    elif isinstance(t, TypeAbstraction):
         return k_tabs(ctx, t, k)
-    elif type(t) is TypeApplication:
+    elif isinstance(t, TypeApplication):
         return k_tapp(ctx, t, k)
     raise Exception('No kinding rule for {}'.format(t))
 
@@ -298,7 +242,7 @@ def expr_has_type(ctx, e, t):
     if e.type == t:
         return True
 
-    if type(t) is RefinedType:
+    if isinstance(t, RefinedType):
         """ T-Where """
         ne = substitution_expr_in_expr(t.cond, e, t.name)
         return expr_has_type(ctx, e, t.type) and entails(ctx, ne)
@@ -352,7 +296,7 @@ def t_if(ctx, n, expects=None):
 
 def t_abs(ctx, n, expects=None):
     """ T-Abs """
-    if expects and type(expects) is AbstractionType:
+    if expects and isinstance(expects, AbstractionType):
         body_expects = substitution_expr_in_type(expects.return_type,
                                                  Var(n.arg_name),
                                                  expects.arg_name)
@@ -369,14 +313,22 @@ def t_abs(ctx, n, expects=None):
 
 def t_app(ctx, n: Application, expects=None):
     """ T-App """
+
+    if type(n.target) is TApplication and n.target.argument == t_delegate:
+        n.argument = tc(ctx, n.argument, expects=None)
+        n.target.argument = flatten_refined_type(n.argument.type)
+
     n.target = tc(ctx, n.target, expects=None)
     n.target.type = c_beta_simplication(ctx, n.target.type, AnyKind())
+
     if type(n.target.type) is AbstractionType:
         ftype = n.target.type
         nctx = ctx.with_var(n.target.type.arg_name, n.target.type.arg_type)
         n.argument = tc(ctx, n.argument, expects=ftype.arg_type)
+        print("type of app", n, "is", ..)
         n.type = substitution_expr_in_type(ftype.return_type, n.argument,
                                            n.target.type.arg_name)
+        print("type of app", n, "is", n.type)
         return n
     else:
         raise TypeException(
@@ -390,7 +342,7 @@ def t_app(ctx, n: Application, expects=None):
 def t_tabs(ctx, n: TAbstraction, expects: Type = None):
     """ E-TAbs """
     a_expects = None
-    if expects and type(expects) is TypeAbstraction:
+    if expects and isinstance(expects, TypeAbstraction):
         a_expects = expects.type
     nctx = ctx.with_type_var(n.typevar, n.kind)
     n.body = tc(nctx, n.body, a_expects)
@@ -400,49 +352,48 @@ def t_tabs(ctx, n: TAbstraction, expects: Type = None):
 
 def e_tapp(ctx, tapp: TApplication, expects=None):
     """ E-TApp """
-
-    if not type(tapp.target.type) is TypeAbstraction:  # TODO C-Beta
+    tc(ctx, tapp.target)
+    target_type = c_beta_simplication(ctx, tapp.target.type, k=AnyKind())
+    if not isinstance(target_type, TypeAbstraction):  # TODO C-Beta
         raise TypeException('Not a type function',
-                            "{} does not have the right type".format(tapp),
+                            "{} does not have the right type: {} (expecting: {})".format(tapp, target_type, expects),
                             expects=expects,
                             given=tapp.target.type)
 
     tabs: TypeAbstraction = tapp.target.type
     t, k, U = tabs.name, tabs.kind, tabs.type
     T = tapp.argument
-    kinding(ctx, T, k)
-
     tapp.type = substitution_type_in_type(U, T, t)
     return tapp
 
 
 def tc(ctx, n, expects=None):
     """ TypeChecking AST nodes. Expects make it bidirectional """
-    if type(n) is list:
+    if isinstance(n, list):
         return [tc(ctx, e) for e in n]
-    elif type(n) is Hole:
+    elif isinstance(n, Hole):
         n = synthesize(ctx, n.type)
-    elif type(n) is Literal:
+    elif isinstance(n, Literal):
         n = t_literal(ctx, n, expects)
-    elif type(n) is Var:
+    elif isinstance(n, Var):
         n = t_var(ctx, n, expects)
-    elif type(n) is If:
+    elif isinstance(n, If):
         n = t_if(ctx, n, expects)
-    elif type(n) is Application:
+    elif isinstance(n, Application):
         n = t_app(ctx, n, expects)
-    elif type(n) is Abstraction:
+    elif isinstance(n, Abstraction):
         n = t_abs(ctx, n, expects)
-    elif type(n) is TApplication:
+    elif isinstance(n, TApplication):
         n = e_tapp(ctx, n, expects)
-    elif type(n) is TAbstraction:
+    elif isinstance(n, TAbstraction):
         n = t_tabs(ctx, n, expects)
-    elif type(n) is Program:
+    elif isinstance(n, Program):
         n.declarations = tc(ctx, n.declarations)
-    elif type(n) is TypeDeclaration:
+    elif isinstance(n, TypeDeclaration):
         ctx.add_type_var(n.name, n.kind)
-    elif type(n) is TypeAlias:
+    elif isinstance(n, TypeAlias):
         ctx.type_aliases[n.name] = n.type
-    elif type(n) is Definition:
+    elif isinstance(n, Definition):
         k = kinding(ctx, n.type, AnyKind())
         name = n.name
         body = n.body

@@ -20,11 +20,11 @@ class AeonASTVisitor(AeonVisitor):
 
         for x in list(context.keys()):
             curr = context[x][0]
-            if type(curr) is Definition:
+            if isinstance(curr, Definition):
                 self.general_context[x] = curr.type
-            elif type(curr) is TypeAlias:
+            elif isinstance(curr, TypeAlias):
                 self.type_aliases[curr.name] = curr.type
-            elif type(curr) is TypeDeclaration:
+            elif isinstance(curr, TypeDeclaration):
                 self.general_context[x] = curr
 
     # -------------------------------------------------------------------------
@@ -72,7 +72,8 @@ class AeonASTVisitor(AeonVisitor):
         return self.visitChildren(ctx)
 
     # type Person
-    def visitRegular_typee_declaration(self, ctx: AeonParser.Regular_typee_declarationContext):
+    def visitRegular_typee_declaration(
+            self, ctx: AeonParser.Regular_typee_declarationContext):
         return TypeDeclaration(self.visit(ctx.name), star)
 
     # type Person<T> { ... }
@@ -170,25 +171,25 @@ class AeonASTVisitor(AeonVisitor):
     def searchAbstractions(self, typee):
         abstractions = []
         # Check if the BasicType is a TypeeIdentifier
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             if len(typee.name) == 1:
                 abstractions = [typee.name]
         # Check the RefinedType type
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             abstractions = self.searchAbstractions(typee.type)
         # Check the AbstractionType arg_type and return_type
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             arg_type = self.searchAbstractions(typee.arg_type)
             return_type = self.searchAbstractions(typee.return_type)
             abstractions = arg_type + return_type
         # Check the TypeApplication target and argument
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             target = self.searchAbstractions(typee.target)
             argument = self.searchAbstractions(typee.argument)
             abstractions = target + argument
         # Check the name of each TypeAbstraction, progress the typee and return it
-        elif type(typee) is TypeAbstraction:
-            while type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
+            while isinstance(typee, TypeAbstraction):
                 abstractions = abstractions + self.searchAbstractions(
                     typee.name)
                 typee = typee.type
@@ -197,44 +198,44 @@ class AeonASTVisitor(AeonVisitor):
 
     # Removes every single TypeAbstraction and returns the type
     def treatTypee(self, typee):
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             return typee
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             typee.type = self.treatTypee(typee.type)
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             typee.arg_type = self.treatTypee(typee.arg_type)
             typee.return_type = self.treatTypee(typee.return_type)
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             typee.target = self.treatTypee(typee.target)
             typee.argument = self.treatTypee(typee.argument)
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             typee = self.treatTypee(typee.type)
         return typee
 
     # Given a typee, returns the basic type of it
     def returnBasicTypee(self, typee):
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             return typee
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             return self.returnBasicTypee(typee.type)
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             return self.returnBasicTypee(typee.return_type)
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             return self.returnBasicTypee(typee.target)
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             return self.returnBasicTypee(typee.type)
 
     # Discover typee kind. Given a typee, discovers its kind
     def getTypeeKind(self, typee):
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             return star
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             return star
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             return star
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             return Kind(self.getTypeeKind(typee.target), star)
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             return self.getTypeeKind(typee.type)
 
     # -------------------------------------------------------------------------
@@ -278,11 +279,12 @@ class AeonASTVisitor(AeonVisitor):
         body = self.visit(ctx.body)
 
         # Only englobe if it is not main nor native
-        if name != 'main' and (type(body) is not Var or
-                               (body is Var and body.name.name != 'native')):
+        if name != 'main' and (not isinstance(body, Var) or
+                               (isinstance(body, Var)
+                                and body.name != 'native')):
             # If there are parameters, englobe the body in them
             tempTypee = typee
-            while type(tempTypee) is TypeAbstraction:
+            while isinstance(tempTypee, TypeAbstraction):
                 tempTypee = tempTypee.type
             listParams = []
             while tempTypee != return_type:
@@ -349,10 +351,11 @@ class AeonASTVisitor(AeonVisitor):
         node = statements[0]
 
         # Prevent definitions at the end of the function
-        node = node.body if type(node) is Definition else node
+        node = node.body if isinstance(node, Definition) else node
 
         for statement in statements[1:]:
-            name = statement.name if type(statement) is Definition else self.nextVoidName()
+            name = statement.name if isinstance(
+                statement, Definition) else self.nextVoidName()
             statement = statement.body if type(
                 statement) is Definition else statement
 
@@ -473,7 +476,7 @@ class AeonASTVisitor(AeonVisitor):
             expression = self.resolveExpression(operation, left, expression)
         # It is !expression
         else:
-            if type(expression) is Literal:
+            if isinstance(expression, Literal):
                 expression.value = not expression.value
                 expression.type.cond.argument.value = not expression.type.cond.argument.value
             else:
@@ -514,8 +517,9 @@ class AeonASTVisitor(AeonVisitor):
         expression = self.visit(ctx.exp)
 
         abstraction_typee = AbstractionType(name, typee, expression.type)
-        abstraction = Abstraction(Var(name).with_type(typee), typee,
-                                  expression).with_type(abstraction_typee)
+        abstraction = Abstraction(
+            Var(name).with_type(typee), typee,
+            expression).with_type(abstraction_typee)
 
         listAbstractions = list(
             dict.fromkeys(reversed(self.searchAbstractions(typee))))
@@ -578,16 +582,16 @@ class AeonASTVisitor(AeonVisitor):
     # --------------------------------
     # Returns the name of a given type
     def getBasicTypeName(self, typee):
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             if not self.basic_typee_stack:
                 name = self.nextVoidName()
             else:
                 name = self.basic_typee_stack.pop()
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             name = typee.arg_name
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             name = self.getBasicTypeName(typee.type)
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             name = self.getBasicTypeName(typee.argument)
         else:
             name = typee.name
@@ -612,25 +616,25 @@ class AeonASTVisitor(AeonVisitor):
     # -----------------------------------------
     # Gets the return type for the Applications
     def getReturnType(self, typee):
-        if type(typee) is TypeApplication:
+        if isinstance(typee, TypeApplication):
             if type(typee.target) is AbstractionType:
                 return TypeApplication(typee.target.return_type,
                                        typee.argument)
             else:
                 return TypeApplication(self.getReturnType(typee.target),
                                        typee.argument)
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             if type(typee.type) is AbstractionType:
                 return TypeAbstraction(typee.name, typee.kind,
                                        typee.type.return_type)
             else:
                 return TypeAbstraction(typee.name, typee.kind,
                                        self.getReturnType(typee.type))
-        elif type(typee) is BasicType:
+        elif isinstance(typee, BasicType):
             return typee
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             return typee.type
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             return typee.return_type
         else:
             # TODO: problema do refinamento recursivo
@@ -641,27 +645,28 @@ class AeonASTVisitor(AeonVisitor):
     # Calculates the least upper bound type between two types
     def leastUpperBound(self, then_typee, otherwise_typee):
         # >>>>>>>>>>>>>>>>>>>>> TODO:
-        if type(then_typee) is TApplication:
+        if isinstance(then_typee, TApplication):
             result = then_typee.argument
-        if type(otherwise_typee) is TApplication:
+        if isinstance(otherwise_typee, TApplication):
             otherwise_typee.argument
-        if type(then_typee) is BasicType and type(
-                otherwise_typee) is BasicType:
+        if isinstance(then_typee,
+                      BasicType) and type(otherwise_typee) is BasicType:
             # Delegate the check of then and otherwise to typechecker
             result = then_typee
-        elif type(then_typee) is BasicType:
+        elif isinstance(then_typee, BasicType):
             result = then_typee
-        elif type(otherwise_typee) is BasicType:
+        elif isinstance(otherwise_typee, BasicType):
             result = otherwise_typee
         else:
-            if type(then_typee) is RefinedType and type(
-                    otherwise_typee) is RefinedType:
+            if isinstance(
+                    then_typee,
+                    RefinedType) and type(otherwise_typee) is RefinedType:
                 result = self.leastUpperBound(then_typee.type,
                                               otherwise_typee.type)
-            elif type(then_typee) is RefinedType:
+            elif isinstance(then_typee, RefinedType):
                 # TODO: c_beta_reduction -> typechecker
                 result = then_typee.type
-            elif type(otherwise_typee) is RefinedType:
+            elif isinstance(otherwise_typee, RefinedType):
                 # TODO:
                 result = otherwise_typee.type
             else:
@@ -738,11 +743,11 @@ class AeonASTVisitor(AeonVisitor):
 
     # Given an typee and an expression, refines it
     def refine_expression(self, name, typee, expression):
-        if type(typee) is BasicType:
+        if isinstance(typee, BasicType):
             result = RefinedType(name, typee, expression)
-        elif type(typee) is AbstractionType:
+        elif isinstance(typee, AbstractionType):
             result = RefinedType(typee.arg_name, typee, expression)
-        elif type(typee) is RefinedType:
+        elif isinstance(typee, RefinedType):
             and_typee = self.general_context['And']
             application1 = Application(
                 Var('And').with_type(and_typee),
@@ -750,10 +755,10 @@ class AeonASTVisitor(AeonVisitor):
             application2 = Application(application1, typee.cond).with_type(
                 self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
-        elif type(typee) is TypeApplication:
+        elif isinstance(typee, TypeApplication):
             typee.target = self.refine_expression(typee.target, expression)
             result = typee
-        elif type(typee) is TypeAbstraction:
+        elif isinstance(typee, TypeAbstraction):
             typee.type = self.refine_expression(typee.type, expression)
             result = typee
         else:
@@ -763,11 +768,11 @@ class AeonASTVisitor(AeonVisitor):
 
     # Counts the variables on an expression
     def searchVariables(self, node, variables, set_vars, set_funs):
-        if type(node) is Hole:
+        if isinstance(node, Hole):
             return set_vars, set_funs
-        elif type(node) is Literal:
+        elif isinstance(node, Literal):
             return set_vars, set_funs
-        elif type(node) is Var:
+        elif isinstance(node, Var):
             if node.name in variables:
                 set_vars.add(node.name)
             else:
@@ -775,7 +780,7 @@ class AeonASTVisitor(AeonVisitor):
                 if not aeon.libraries.stdlib.is_builtin(node.name):
                     set_funs.add(node.name)
             return set_vars, set_funs
-        elif type(node) is If:
+        elif isinstance(node, If):
             v_cond, f_cond = self.searchVariables(node.cond, variables,
                                                   set_vars, set_funs)
             v_then, f_then = self.searchVariables(node.then, variables,
@@ -783,19 +788,19 @@ class AeonASTVisitor(AeonVisitor):
             v_otherwise, f_otherwise = self.searchVariables(
                 node.otherwise, variables, set_vars, set_funs)
             return v_cond | v_then | v_otherwise, f_cond | f_then | f_otherwise
-        elif type(node) is Application:
+        elif isinstance(node, Application):
             v_target, f_target = self.searchVariables(node.target, variables,
                                                       set_vars, set_funs)
             v_argument, f_argument = self.searchVariables(
                 node.argument, variables, set_vars, set_funs)
             return v_target | v_argument, f_target | f_argument
-        elif type(node) is Abstraction:
+        elif isinstance(node, Abstraction):
             return self.searchVariables(node.body, variables, set_vars,
                                         set_funs)
-        elif type(node) is TAbstraction:
+        elif isinstance(node, TAbstraction):
             return self.searchVariables(node.body, variables, set_vars,
                                         set_funs)
-        elif type(node) is TApplication:
+        elif isinstance(node, TApplication):
             return self.searchVariables(node.target, variables, set_vars,
                                         set_funs)
         else:

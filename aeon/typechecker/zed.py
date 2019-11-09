@@ -3,10 +3,10 @@ from functools import reduce
 import z3
 import random
 
-from .ast import Var, Literal, Application, Abstraction, TApplication, TAbstraction, Node
-from .types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
+from ..ast import Var, Literal, Application, Abstraction, TApplication, TAbstraction, Node
+from ..types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b
-from .libraries.stdlib import *
+from ..libraries.stdlib import *
 from .substitutions import *
 from .zed_utils import *
 
@@ -20,6 +20,24 @@ class NotDecidableException(Exception):
 class NoZ3TranslationException(Exception):
     pass
 
+def is_satisfiable(ctx, cond):
+    try:
+        return zed_verify_satisfiability(ctx, cond)
+    except NotDecidableException:
+        print("Not Decidable Exception", cond)
+        return True
+
+def entails(ctx, cond):
+    return zed_verify_entailment(ctx, cond)
+    """Disable for synthesis:
+    cond_type = tc(ctx, cond).type
+    if not is_subtype(ctx, cond_type, t_b):
+        raise TypeException(
+            'Clause not boolean',
+            "Condition {}:{} is not a boolean expression".format(cond, cond_type))
+    else:
+        return zed_verify_entailment(ctx, cond)
+    """
 
 random_name_counter = 0
 
@@ -31,7 +49,7 @@ def random_name():
 
 
 def flatten_refined_types(t):
-    if type(t) is RefinedType:
+    if isinstance(t, RefinedType):
         if type(t.type) is RefinedType:
             inner = t.type
             new_cond = Application(
@@ -41,16 +59,16 @@ def flatten_refined_types(t):
             return flatten_refined_types(merged)
         else:
             return RefinedType(t.name, flatten_refined_types(t.type), t.cond)
-    elif type(t) is BasicType:
+    elif isinstance(t, BasicType):
         return t
-    elif type(t) is AbstractionType:
+    elif isinstance(t, AbstractionType):
         return t
     raise NoZ3TranslationException("No Refine Flattening for {} ({})".format(
         t, type(t)))
 
 
 def zed_mk_variable(name, ty: Type):
-    if type(ty) is BasicType:
+    if isinstance(ty, BasicType):
         if ty.name == "Integer":
             return z3.Int(name)
         elif ty.name == "Boolean":
@@ -59,9 +77,9 @@ def zed_mk_variable(name, ty: Type):
             return z3.Bool(name)
         elif ty.name in ["Top", "Object", "Void"]:
             return z3.Bool(name)
-    elif type(ty) is RefinedType:
+    elif isinstance(ty, RefinedType):
         return zed_mk_variable(name, ty.type)
-    elif type(ty) is AbstractionType:
+    elif isinstance(ty, AbstractionType):
         isort = get_sort(ty.arg_type)
         rsort = get_sort(ty.return_type)
         f = z3.Function(name, isort, rsort)
@@ -75,9 +93,9 @@ def zed_translate_literal(ztx, literal: Literal):
 
 
 def get_sort(t: Type):
-    if type(t) is RefinedType:
+    if isinstance(t, RefinedType):
         return get_sort(t.type)
-    if type(t) is BasicType:
+    if isinstance(t, BasicType):
         if t.name == 'Integer':
             return z3.IntSort()
         elif t.name == 'Boolean':
@@ -133,7 +151,7 @@ def zed_translate_tabs(ztx, tabs: TypeAbstraction):
 
 
 def zed_translate_tapp(ztx, tabs: TypeApplication):
-    return tabs.target
+    return zed_translate(ztx, tabs.target)
 
 
 def zed_translate_context(ztx, ctx):
@@ -143,7 +161,7 @@ def zed_translate_context(ztx, ctx):
         try:
             if name not in ztx:
                 ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
-            if type(t) is RefinedType:
+            if isinstance(t, RefinedType):
                 tprime = flatten_refined_types(t)
                 new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
                                                      t.name)
@@ -158,17 +176,17 @@ def zed_translate_context(ztx, ctx):
 
 
 def zed_translate(ztx, cond: Node):
-    if type(cond) is Application:
+    if isinstance(cond, Application):
         return zed_translate_app(ztx, cond)
-    elif type(cond) is Var:
+    elif isinstance(cond, Var):
         return zed_translate_var(ztx, cond)
-    elif type(cond) is Literal:
+    elif isinstance(cond, Literal):
         return zed_translate_literal(ztx, cond)
-    elif type(cond) is Abstraction:
+    elif isinstance(cond, Abstraction):
         return zed_translate_abs(ztx, cond)
-    elif type(cond) is TApplication:
+    elif isinstance(cond, TApplication):
         return zed_translate_tapp(ztx, cond)
-    elif type(cond) is TAbstraction:
+    elif isinstance(cond, TAbstraction):
         return zed_translate_tabs(ztx, cond)
     else:
         raise NoZ3TranslationException(

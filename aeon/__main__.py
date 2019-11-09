@@ -52,7 +52,7 @@ if __name__ == '__main__':
         # Temp
         '''
         for declaration in ast:
-            if type(declaration) is Definition and declaration.name in res:
+            if isinstance(declaration, Definition) and declaration.name in res:
                 holes = get_holes(declaration)
                 from .libraries.stdlib import initial_context
                 ctx = {}

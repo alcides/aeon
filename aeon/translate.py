@@ -76,7 +76,7 @@ class Translator():
                     node.argument) is Var and node.argument.name.startswith(
                         '_') else self.translate(node.argument)
                 tempNode = node.target
-                while type(tempNode) is Application:
+                while isinstance(tempNode, Application):
                     arguments = '{}, {}'.format(
                         self.translate(tempNode.argument), arguments)
                     tempNode = tempNode.target
@@ -105,7 +105,7 @@ class Translator():
         # Get the abstractions of the function
         abstractions = ''
         tempTypee = node.type
-        while type(tempTypee) is TypeAbstraction:
+        while isinstance(tempTypee, TypeAbstraction):
             abstractions = '{}, {}'.format(abstractions,
                                            self.translate(tempTypee.name))
             tempTypee = tempTypee.type
@@ -132,8 +132,8 @@ class Translator():
                                                     self.translate(node.body))
         else:
             tempBody = node.body
-            while type(tempBody) is Abstraction or type(
-                    tempBody) is TAbstraction:
+            while isinstance(tempBody,
+                             Abstraction) or type(tempBody) is TAbstraction:
                 tempBody = tempBody.body
             return '{}{} : ({}) -> {} {{\r\n{}{};\r\n}}'.format(
                 node.name, abstractions, typee, return_type, self.tab(),
@@ -188,6 +188,6 @@ class Translator():
 
 
 def is_statement(node):
-    return type(node) is Application and type(
+    return isinstance(node, Application) and type(
         node.target) is Abstraction and node.target.arg_name.name.startswith(
             '_')

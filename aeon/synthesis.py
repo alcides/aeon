@@ -184,15 +184,15 @@ def st(ctx: TypingContext, k: Kind, d: int):
 
 
 def fv(T: Union[Type, TypingContext, Node]):
-    if type(T) is Node:
+    if isinstance(T, Node):
         return []  # TODO
-    if type(T) is TypingContext:
+    if isinstance(T, TypingContext):
         ctx = T
         return list(ctx.variables.keys()) + list(ctx.type_variables.keys() +
                                                  list(ctx.type_aliases.keys()))
-    if type(T) is RefinedType:
+    if isinstance(T, RefinedType):
         return [T.name] + fv(T.type)
-    if type(T) is AbstractionType:
+    if isinstance(T, AbstractionType):
         return [T.arg_name] + fv(T.arg_type) + fv(T.return_type)
     return []
 
@@ -332,9 +332,9 @@ def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
-    if type(T) is BasicType and T.name == "Integer":
+    if isinstance(T, BasicType) and T.name == "Integer":
         yield ("se_int", se_int)
-    if type(T) is BasicType and T.name == "Boolean":
+    if isinstance(T, BasicType) and T.name == "Boolean":
         yield ("se_bool", se_bool)
     #print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
@@ -342,14 +342,14 @@ def se(ctx: TypingContext, T: Type, d: int):
     if d > 0:
         # TODO
         yield ("se_if", se_if)
-        if type(T) is AbstractionType:
+        if isinstance(T, AbstractionType):
             yield ("se_abs", se_abs)
-        if type(T) is RefinedType:
+        if isinstance(T, RefinedType):
             yield ("se_where", se_where)
-        if type(T) is TypeAbstraction:
+        if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
         yield ("se_app", se_app)
-        if type(T) is TypeApplication:
+        if isinstance(T, TypeApplication):
             yield ("se_tapp", se_tapp)
         """ TODO: SE-Subtype """
 
@@ -414,11 +414,11 @@ def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
     #if check_stax(ctx, e, x, T): TODO PAPER
     yield ("stax_id", stax_id)
-    if type(T) is AbstractionType:
+    if isinstance(T, AbstractionType):
         yield ("stax_abs", stax_abs)
-    if type(T) is TypeApplication:
+    if isinstance(T, TypeApplication):
         yield ("stax_app", stax_app)
-    if type(T) is RefinedType:
+    if isinstance(T, RefinedType):
         yield ("stax_where", stax_where)
 
 
@@ -478,15 +478,15 @@ def seax(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
     if e == ex and x not in fv(e):
         yield ("seax_var", seax_var)
     yield ("seax_id", seax_id)
-    if type(e) is Application:
+    if isinstance(e, Application):
         yield ("seax_app", seax_app)
-    if type(e) is Abstraction:
+    if isinstance(e, Abstraction):
         yield ("seax_abs", seax_abs)
-    if type(e) is If:
+    if isinstance(e, If):
         yield ("seax_if", seax_if)
-    if type(e) is TApplication:
+    if isinstance(e, TApplication):
         yield ("seax_tapp", seax_tapp)
-    if type(e) is TAbstraction:
+    if isinstance(e, TAbstraction):
         yield ("seax_tabs", seax_tabs)
 
 
@@ -552,13 +552,13 @@ def stat(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
     if check_stat(ctx, T, x, U):
         yield ("stat_id", stat_id)
         yield ("stat_var", stat_var)
-    if type(T) is AbstractionType:
+    if isinstance(T, AbstractionType):
         yield ("stat_abs", stat_abs)
-    if type(T) is TypeApplication:
+    if isinstance(T, TypeApplication):
         yield ("stat_tapp", stat_tapp)
-    if type(T) is TypeAbstraction:
+    if isinstance(T, TypeAbstraction):
         yield ("stat_tabs", stat_tabs)
-    if type(T) is RefinedType:
+    if isinstance(T, RefinedType):
         yield ("stat_where", stat_where)
 
 
@@ -626,13 +626,13 @@ def seat(ctx: TypingContext, T: Type, t: str, e: Node, d: int):
     """ Γ ⸠ [T/t] e ~>_{d} e2 """
     if check_seat(ctx, T, t, e):
         yield ("seat_id", seat_id)
-    if type(e) is Application:
+    if isinstance(e, Application):
         yield ("seat_app", seat_app)
-    if type(e) is Abstraction:
+    if isinstance(e, Abstraction):
         yield ("seat_abs", seat_abs)
-    if type(e) is If:
+    if isinstance(e, If):
         yield ("seat_if", seat_if)
-    if type(e) is TApplication:
+    if isinstance(e, TApplication):
         yield ("seat_tapp", seat_tapp)
-    if type(e) is TAbstraction:
+    if isinstance(e, TAbstraction):
         yield ("seat_tabs", seat_tabs)

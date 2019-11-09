@@ -176,7 +176,11 @@ def expr_ops():
     a1 = yield expr
     op = yield op_all
     a2 = yield expr
-    return Application(Application(Var(op), a1), a2)
+    if op in ["==", "!=", "+", "-", "*", "/"]:
+        return Application(Application(TApplication(Var(op), t_delegate), a1),
+                           a2)
+    else:
+        return Application(Application(Var(op), a1), a2)
 
 
 @lexeme
@@ -336,7 +340,7 @@ cached_imports = []
 def resolve_imports(p, base_path=lambda x: x):
     n_p = []
     for n in p:
-        if type(n) is Import:
+        if isinstance(n, Import):
             fname = n.name
             path = ""
             while fname.startswith(".."):

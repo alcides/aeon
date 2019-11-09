@@ -10,7 +10,7 @@ import csv
 def retrieve_fitness_functions(program):
     result = {}
     for declaration in program.declarations:
-        if type(declaration) is Definition:
+        if isinstance(declaration, Definition):
             result[declaration.name] = generate_fitnesses(declaration)
     return result
 
@@ -48,12 +48,12 @@ def generate_abstractions(declaration):
             abstraction = abstraction.body
         typee = typee.return_type
 
-    if type(typee) is BasicType:
+    if isinstance(typee, BasicType):
         pass
-    elif type(typee) is AbstractionType:
+    elif isinstance(typee, AbstractionType):
         abstraction.body = Abstraction(typee.arg_name, typee.arg_type, None)
         abstraction = abstraction.body
-    elif type(typee) is RefinedType:
+    elif isinstance(typee, RefinedType):
         abstraction.body = Abstraction(typee.name, typee.type, None)
         abstraction = abstraction.body
     else:
@@ -107,17 +107,17 @@ def convert_and_expressions(and_expressions):
 
 # 3.1 obtains the most left var name of the application
 def obtain_application_var(and_expr):
-    if type(and_expr) is Literal:
+    if isinstance(and_expr, Literal):
         return None
-    elif type(and_expr) is Var:
+    elif isinstance(and_expr, Var):
         return and_expr
-    elif type(and_expr) is If:
+    elif isinstance(and_expr, If):
         return None
-    elif type(and_expr) is Abstraction:
+    elif isinstance(and_expr, Abstraction):
         return None
-    elif type(and_expr) is TAbstraction:
+    elif isinstance(and_expr, TAbstraction):
         return obtain_application_var(and_expr.body)
-    elif type(and_expr) is TApplication:
+    elif isinstance(and_expr, TApplication):
         return obtain_application_var(and_expr.target)
     # Application
     else:

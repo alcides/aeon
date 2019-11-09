@@ -98,7 +98,7 @@ def resolveImports(path, program):
     result = []
     from ..libraries.stdlib import add_function
     for node in program.declarations:
-        if type(node) is Import:
+        if isinstance(node, Import):
 
             # Get the os path for the ae file
             importPath = node.name + '.ae'
@@ -110,7 +110,7 @@ def resolveImports(path, program):
                 importedProgram = parse(realPath)
                 # If we only want a specific function from the program
                 if node.function is not None:
-                    importedProgram.declarations = list(filter(lambda x : type(x) is Definition \
+                    importedProgram.declarations = list(filter(lambda x : isinstance(x, Definition) \
                                                 and x.name == node.function, \
                                                 importedProgram.declarations))
             # It is a .py import
@@ -124,7 +124,7 @@ def resolveImports(path, program):
                 for native in natives.keys():
                     aetype, function = natives[native]
                     aetype = parse_strict(aetype)
-                    if type(aetype) is Definition:
+                    if isinstance(aetype, Definition):
                         add_function(aetype.name, (aetype, function))
                     else:
                         # TODO: should add to the context the class itself?

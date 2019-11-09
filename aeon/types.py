@@ -49,7 +49,7 @@ class TypingContext(object):
         return t
 
     def add_var(self, n, t):
-        if type(t) is BasicType:
+        if isinstance(t, BasicType):
             if t.name in self.type_aliases:
                 t = self.type_aliases[t.name]
         self.variables[n] = t
@@ -219,3 +219,5 @@ t_b = BasicType('Boolean')
 t_s = BasicType('String')
 bottom = BasicType('Bottom')
 top = BasicType('Top')
+
+t_delegate = BasicType("??")
