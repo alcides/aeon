@@ -143,7 +143,6 @@ class HoleInferer():
                 or node.target.arg_name.startswith('_')):
             # Define the type of the arguments of the abstraction
             node.target.arg_type = node.argument.type
-            node.target.arg_name.type = node.argument.type
 
         # The type of the target of current node is the result of the abstraction
         if type(node.target.type) is AbstractionType:

@@ -118,6 +118,7 @@ def resolveImports(path, program):
                 importedProgram = Program([])
                 realPath = realPath.replace('.ae', '')
                 realPath = realPath.replace('/', '.')
+                # TODO: realPath not working?
                 natives = importNative(
                     realPath, '*' if node.function is None else node.function)
 

@@ -359,11 +359,8 @@ class AeonASTVisitor(AeonVisitor):
             statement = statement.body if type(
                 statement) is Definition else statement
 
-            # Englobe each statement in Application(Abstraction(_0, T, node), statement)
-            variable = Var(name).with_type(statement.type)
-
             # Create the abstraction
-            abstraction = Abstraction(variable, statement.type, node)
+            abstraction = Abstraction(name, statement.type, node)
             abstraction.type = AbstractionType(name, statement.type, node.type)
 
             # Create the application
@@ -689,7 +686,7 @@ class AeonASTVisitor(AeonVisitor):
     def distribute_where_expressions(self, typee, return_name, return_type,
                                      conditions):
         variables = self.functionVariables(typee, return_type)
-        variables.add(return_name.name)
+        variables.add(return_name)
         variables_functions = []
 
         # Search through all the conditions for their functions and variables
@@ -720,17 +717,17 @@ class AeonASTVisitor(AeonVisitor):
         variables = set()
         # Guaranteed to be AbstractionType
         while typee != return_type:
-            variables.add(typee.arg_name.name)
+            variables.add(typee.arg_name)
             typee = typee.return_type
         return variables
 
     # Apply a refinement expression to a typee
     def apply_expression(self, variables, typee, return_name, return_type,
                          expression):
-        variables.discard(typee.arg_name.name)
+        variables.discard(typee.arg_name)
         while variables and typee.return_type != return_type:
             typee = typee.return_type
-            variables.discard(typee.arg_name.name)
+            variables.discard(typee.arg_name)
         if not variables:
             name = typee.arg_name
             typee.arg_type = self.refine_expression(typee.arg_name,
@@ -763,7 +760,6 @@ class AeonASTVisitor(AeonVisitor):
             result = typee
         else:
             result = None
-        name.type = result
         return result
 
     # Counts the variables on an expression
