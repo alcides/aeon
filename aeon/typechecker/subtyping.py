@@ -5,7 +5,7 @@ from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Lit
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .zed import is_satisfiable, entails
-from .typechecker import check
+from .typechecker import check_type
 
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
@@ -16,7 +16,7 @@ def sub_base(ctx, sub: BasicType, sup: BasicType):
 def sub_whereL(ctx, sub: RefinedType, sup: Type):
     """ S-WhereL """
     nctx = ctx.with_var(sub.name, sub.type)
-    return check(nctx, sub.cond, t_b) and \
+    return check_type(nctx, sub.cond, t_b) and \
         is_satisfiable(nctx, sub.cond) and \
         is_subtype(ctx, sub.type, sup)
 
@@ -48,7 +48,7 @@ def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction):
 
 def sub_tappL(ctx, sub: TypeApplication, sup: Type):
     """ S-Cong + C-Beta on the left """
-    c_beta
+    #c_beta
     abst: TypeAbstraction = sub.target
     assert (type(sub.target) == TypeAbstraction)
     nsub = substitution_type_in_type(abst.type, sub.argument, abst.name)
@@ -65,33 +65,19 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication):
 
 def is_subtype(ctx, sub, sup):
     """ Subtyping Rules """
-    if isinstance(sub, BasicType):
-        if sub.name == 'Bottom':
-            return True  # Bottom
-        if sub.name in ctx.type_aliases:
-            return is_subtype(ctx, ctx.type_aliases[sub.typeName], sup)
-    if isinstance(sup, BasicType):
-        if sup.name in ['Void', 'Object', 'Top']:
-            return True  # Top
-        if sup.name in ctx.type_aliases:
-            return is_subtype(ctx, sub, ctx.type_aliases[sup.typeName])
-
-    if isinstance(sub, BasicType):
-        if sub.name in ['Void', 'Object', 'Top']:
-            return False  # Top
-    if isinstance(sup, BasicType):
-        if sup.name == 'Bottom':
-            return False  # Bottom
-
-    if isinstance(sub, BasicType) and isinstance(sup, BasicType):
+    if isinstance(sub, BasicType) and sub.name == 'Bottom':
+        return True
+    elif isinstance(sup, BasicType) and sup.name == 'Top':
+        return True
+    elif isinstance(sub, BasicType) and isinstance(sup, BasicType):
         return sub_base(ctx, sub, sup)
-    if isinstance(sup, RefinedType):
+    elif isinstance(sup, RefinedType):
         return sub_whereR(ctx, sub, sup)
-    if isinstance(sub, RefinedType):
+    elif isinstance(sub, RefinedType):
         return sub_whereL(ctx, sub, sup)
-    if isinstance(sub, AbstractionType) and isinstance(sup, AbstractionType):
+    elif isinstance(sub, AbstractionType) and isinstance(sup, AbstractionType):
         return sub_abs(ctx, sub, sup)
-    if isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
+    elif isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
         return sub_tabs(ctx, sub, sup)
 
     raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))

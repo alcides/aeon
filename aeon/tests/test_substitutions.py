@@ -1,7 +1,7 @@
 import unittest
 
 from ..frontend2 import expr, typee
-from ..substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr
+from ..typechecker.substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -100,26 +100,25 @@ class TestSubstitutions(unittest.TestCase):
 
         self.assert_stt("(List X)", "Bool", "X", expects="(List Bool)")
         self.assert_stt("(List X)", "SList", "List", expects="(SList X)")
-        self.assert_stt("(X:(List X)) -> (List X)",
+        self.assert_stt("(x:(List X)) -> (List X)",
                         "Bool",
                         "X",
-                        expects="(X:(List Bool)) -> (List Bool)")
-        self.assert_stt("(X:(List X)) -> (List Y)",
+                        expects="(x:(List Bool)) -> (List Bool)")
+        self.assert_stt("(x:(List X)) -> (List Y)",
                         "Bool",
                         "X",
-                        expects="(X:(List Bool)) -> (List Y)")
+                        expects="(x:(List Bool)) -> (List Y)")
 
     def test_type_in_type_tabs(self):
         """ type in type, tabs """
-        # TODO: this should not be possible
-        self.assert_stt("(X:*) => (List X)",
+        self.assert_stt("(x:*) => (List X)",
                         "Y",
                         "X",
-                        expects="(X:*) => (List Y)")
-        self.assert_stt("(X:*) => {x:Y where true}",
+                        expects="(x:*) => (List Y)")
+        self.assert_stt("(x:*) => {x:Y where true}",
                         "Z",
                         "Y",
-                        expects="(X:*) => {x:Z where true}")
+                        expects="(x:*) => {x:Z where true}")
 
     def test_var_in_type(self):
         """ var in type """
@@ -127,20 +126,28 @@ class TestSubstitutions(unittest.TestCase):
         self.assert_svt("{x:Boolean where x}",
                         "true",
                         "x",
-                        expects="{x:Boolean where true}")
+                        expects="{x:Boolean where x}")
+        self.assert_svt("{y:Boolean where x}",
+                        "true",
+                        "x",
+                        expects="{y:Boolean where true}")
         self.assert_svt("(y:T) -> {x:Boolean where x}",
                         "true",
                         "x",
-                        expects="(y:T) -> {x:Boolean where true}")
-        self.assert_svt("(T:*) => {x:T where x}",
+                        expects="(y:T) -> {x:Boolean where x}")
+        self.assert_svt("(y:T) -> {z:Boolean where x}",
                         "true",
                         "x",
-                        expects="(T:*) => {x:T where true}")
+                        expects="(y:T) -> {z:Boolean where true}")
+        self.assert_svt("(T:*) => {y:T where x}",
+                        "true",
+                        "x",
+                        expects="(T:*) => {y:T where true}")
 
-        self.assert_svt("{x:Boolean where (x > 0)}",
+        self.assert_svt("{k:Boolean where (x > 0)}",
                         "1",
                         "x",
-                        expects="{x:Boolean where (1 > 0)}")
+                        expects="{k:Boolean where (1 > 0)}")
 
         self.assert_svt(
             "(a:{x:Boolean where (y > 0)}) -> {z:Boolean where (y > 0)}",

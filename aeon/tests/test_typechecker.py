@@ -22,58 +22,6 @@ class TestTypeChecking(unittest.TestCase):
         if not is_subtype(ctx, sub, sup):
             raise AssertionError(sub, "is not subtype of", sup)
 
-    def test_subtyping(self):
-        ctx = TypingContext()
-        ctx.setup()
-        self.assert_st(ctx, ty("Boolean"), ty("Boolean"))
-        self.assert_st(ctx, ty("Integer"), ty("Integer"))
-
-        self.assert_st(ctx, ty("{x:Integer where true}"), ty("Integer"))
-        self.assert_st(ctx, ty("{x:Boolean where x}"), ty("Boolean"))
-
-        self.assert_st(ctx, ty("Boolean"), ty("{x:Boolean where true}"))
-
-        self.assert_st(ctx, ty("{x:Boolean where (5 == 5)}"), ty("Boolean"))
-
-        self.assert_st(ctx, ty("{x:Boolean where (5 == 5)}"),
-                       ty("{x:Boolean where (true)}"))
-        self.assert_st(ctx, ty("{x:{y:Boolean where true} where (5 == 5)}"),
-                       ty("{x:Boolean where true}"))
-
-        self.assert_st(ctx, ty("{x:Integer where (x == 5)}"),
-                       ty("{v:Integer where (v > 4)}"))
-
-        self.assert_st(ctx, ty("{x:Integer where (x > 5)}"),
-                       ty("{k:Integer where (k > 4)}"))
-
-        self.assert_st(ctx, ty("{x:Integer where (x > 5)}"),
-                       ty("{k:Integer where (!(k < 4))}"))
-
-        self.assert_st(ctx, ty("{x:Boolean where x}"),
-                       ty("{x:Boolean where true}"))
-        self.assert_st(ctx, ty("{x:Boolean where true}"),
-                       ty("{x:Boolean where ((x === true) || (x === false))}"))
-        self.assert_st(ctx, ty("{y:Boolean where y}"),
-                       ty("{x:Boolean where x}"))
-
-        self.assert_st(ctx, ty("{x:{y:Integer where (y < 5)} where (x == 0)}"),
-                       ty("{x:Integer where (x==0)}"))
-
-        self.assert_st(ctx, ty("(z:Integer) -> {y:Boolean where y}"),
-                       ty("(k:Integer) -> {x:Boolean where x}"))
-        self.assert_st(ctx, ty("(a:Integer) -> {b:Integer where (b > 1)}"),
-                       ty("(k:Integer) -> {x:Integer where (x > 0)}"))
-
-        self.assert_st(
-            ctx,
-            ty("(a:{v:Integer where (v > 0) }) -> {b:Integer where (b > 1)}"),
-            ty("(k:{z:Integer where (z > 5) }) -> {x:Integer where (x > 0)}"))
-
-        with self.assertRaises(AssertionError):
-            self.assert_st(ctx,
-                           ty("(a:Integer) -> {r:Integer where (r == a)}"),
-                           ty("(a:Integer) -> (b:Integer) -> Bool"))
-
     def test_typechecking(self):
 
         ctx = TypingContext()

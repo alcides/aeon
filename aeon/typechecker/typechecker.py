@@ -3,5 +3,10 @@ from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal, Node
 
 
-def check(ctx: TypingContext, n: Node, expected: Type):
+def synth_type(ctx: TypingContext, n: Node) -> Type:
+    """ Γ ⸠ e => T """
+
+
+def check_type(ctx: TypingContext, n: Node, expected: Type):
+    """ Γ ⸠ e <= T """
     return True
