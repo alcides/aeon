@@ -28,14 +28,14 @@ class TypingContext(object):
             self.variables[name] = get_builtin_type(name)
 
         self.type_variables = {
-            t_v: star,
-            t_i: star,
-            t_f: star,
-            t_o: star,
-            t_b: star,
-            t_s: star,
-            bottom: star,
-            top: star
+            t_v.name: star,
+            t_i.name: star,
+            t_f.name: star,
+            t_o.name: star,
+            t_b.name: star,
+            t_s.name: star,
+            bottom.name: star,
+            top.name: star
         }
         # As of Python3, dict_keys is not copyable, so a list is required
         self.basic_types = list(self.type_variables.keys())

@@ -1,28 +1,34 @@
 import unittest
 
 from ..frontend2 import expr, typee, kind
-from ..types import star
-from ..typechecker import *
+from ..types import star, TypingContext, Kind
+from ..typechecker.kinding import check_kind
+from ..typechecker.exceptions import TypingException
 
 ex = expr.parse_strict
 ty = typee.parse_strict
 ki = kind.parse_strict
 
 
-class TestKinding(unittest.TestCase):
+class Testcheck_kind(unittest.TestCase):
     def assert_kind(self, ctx, T, expected_kind):
-        k = kinding(ctx, T, expected_kind)
+        k = check_kind(ctx, T, expected_kind)
         self.assertEqual(k, expected_kind)
 
     def assert_not_kind(self, ctx, T, expected_kind):
-        self.assertRaises(TypeException, kinding, ctx, T, expected_kind)
+        self.assertRaises(TypingException, check_kind, ctx, T, expected_kind)
 
-    def test_kinding(self):
+    def test_check_kind(self):
         ctx = TypingContext()
         ctx.setup()
         self.assert_kind(ctx, ty("Integer"), star)
         self.assert_kind(ctx, ty("Boolean"), star)
         self.assert_kind(ctx, ty("Object"), star)
+
+        self.assert_kind(ctx, ty("{x:Boolean where true}"), star)
+
+        self.assert_kind(ctx, ty("(y:Integer) -> {x:Boolean where true}"),
+                         star)
 
         self.assert_not_kind(ctx, ty("Integer"), Kind(k1=star, k2=star))
 

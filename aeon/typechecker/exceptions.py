@@ -1,0 +1,2 @@
+class TypingException(Exception):
+    pass
