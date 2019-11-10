@@ -7,6 +7,12 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
 from .zed import is_satisfiable, entails
 from .typechecker import check_type
 
+from .exceptions import TypingException
+
+
+class SubtypingException(TypingException):
+    pass
+
 
 def sub_base(ctx, sub: BasicType, sup: BasicType):
     """ S-Int, S-Bool, S-Var """
@@ -63,7 +69,7 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication):
     return is_subtype(ctx, sub, nsup)
 
 
-def is_subtype(ctx, sub, sup):
+def is_subtype(ctx, sub, sup) -> bool:
     """ Subtyping Rules """
     if isinstance(sub, BasicType) and sub.name == 'Bottom':
         return True
@@ -80,4 +86,4 @@ def is_subtype(ctx, sub, sup):
     elif isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
         return sub_tabs(ctx, sub, sup)
 
-    raise Exception('No subtyping rule for {} <: {}'.format(sub, sup))
+    raise SubtypingException('No subtyping rule for {} <: {}'.format(sub, sup))

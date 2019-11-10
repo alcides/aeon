@@ -2,7 +2,7 @@ import unittest
 
 from ..types import *
 from ..frontend2 import expr, typee
-from ..typechecker import *
+from ..typechecker.subtyping import SubtypingException, is_subtype
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -35,10 +35,7 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ty("{x:Boolean where x}"), ty("Boolean"))
         self.assert_st(ty("Boolean"), ty("{x:Boolean where true}"))
 
-    def test_single(self):
-        self.assert_st(ty("{x:Boolean where x}"), ty("{x:Boolean where true}"))
-
-    def _test_refined_entails(self):
+    def test_refined_entails(self):
         self.assert_st(ty("{x:Boolean where (5 == 5)}"), ty("Boolean"))
         self.assert_st(ty("{x:Boolean where (5 == 5)}"),
                        ty("{x:Boolean where (true)}"))
@@ -62,7 +59,7 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ty("{x:{y:Integer where (y < 5)} where (x == 0)}"),
                        ty("{x:Integer where (x==0)}"))
 
-    def _test_abs(self):
+    def test_abs(self):
         self.assert_st(ty("(z:Integer) -> {y:Boolean where y}"),
                        ty("(k:Integer) -> {x:Boolean where x}"))
         self.assert_st(ty("(a:Integer) -> {b:Integer where (b > 1)}"),
@@ -72,6 +69,6 @@ class TestTypeChecking(unittest.TestCase):
             ty("(a:{v:Integer where (v > 0) }) -> {b:Integer where (b > 1)}"),
             ty("(k:{z:Integer where (z > 5) }) -> {x:Integer where (x > 0)}"))
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(SubtypingException):
             self.assert_st(ty("(a:Integer) -> {r:Integer where (r == a)}"),
                            ty("(a:Integer) -> (b:Integer) -> Bool"))
