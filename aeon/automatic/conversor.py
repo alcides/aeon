@@ -1,227 +1,150 @@
 from aeon.interpreter import run
+from aeon.automatic.utils import generate_abstractions
 
-from aeon.types import *
-from aeon.ast import *
+from aeon.ast import Var, Literal, Abstraction, Application, If, TAbstraction, TApplication
 
-import sys
-import csv
+# Given a list of expressions, convert them into numeric discrete values
+def convert(and_expressions):
+    return [apply_conversion(condition) for condition in and_expressions]
 
-
-def retrieve_fitness_functions(program):
-    result = {}
-    for declaration in program.declarations:
-        if isinstance(declaration, Definition):
-            result[declaration.name] = generate_fitnesses(declaration)
-    return result
-
-
-def generate_fitnesses(declaration):
-    if type(declaration.return_type) is not RefinedType:
-        # print("Declaration is not a refined type", declaration)
-        return None
-    and_expressions = generate_and_expressions(declaration.return_type.cond)
-    converted_ands = convert_and_expressions(and_expressions)
-    englobed_converted_ands = abstract_and_expressions(declaration,
-                                                       converted_ands)
-    interpreted_ands = interprete_and_expressions(englobed_converted_ands)
-    # TODO: DELETE LATER
-    ls = []
-    for expr, function in zip(converted_ands, interpreted_ands):
-        ls.append((expr, function))
-    return reversed(ls)
-    # return reversed(interpreted_ands)
-
-
-# 1 - Generate the abstractions so I can englobe the and expressions
-def generate_abstractions(declaration):
-    typee = declaration.type
-    first_abstraction = Abstraction(typee.arg_name, typee.arg_type,
-                                    None)  # None on purpose
-
-    abstraction = first_abstraction
-    typee = typee.return_type
-
-    while typee != declaration.return_type:
-        if not typee.arg_name.name.startswith("_"):
-            abstraction.body = Abstraction(typee.arg_name, typee.arg_type,
-                                           None)
-            abstraction = abstraction.body
-        typee = typee.return_type
-
-    if isinstance(typee, BasicType):
-        pass
-    elif isinstance(typee, AbstractionType):
-        abstraction.body = Abstraction(typee.arg_name, typee.arg_type, None)
-        abstraction = abstraction.body
-    elif isinstance(typee, RefinedType):
-        abstraction.body = Abstraction(typee.name, typee.type, None)
-        abstraction = abstraction.body
+# Apply the conversion to an expression
+def apply_conversion(condition):
+    variable = obtain_application_var(condition)
+    if isinstance(variable, If):
+        variable.then = apply_conversion(variable.then)
+        variable.otherwise = apply_conversion(variable.otherwise)
+        return condition
+    elif isinstance(variable, Abstraction):
+        variable.body = apply_conversion(variable.body)
+        return condition
+    # Else it is a Var
+    elif variable.name.startswith('@'):
+        return condition
+    elif variable.name in ['==']:
+        return abs_conversion(condition)
+    elif variable.name in ['!']:
+        return not_conversion(condition)
+    elif variable.name in ['&&']:
+        return and_conversion(condition)
+    elif variable.name in ['||']:
+        return or_conversion(condition)
+    elif variable.name in ['-->']:
+        return implie_conversion(condition)
+    elif variable.name in ['>', '<', '<=', '>=', '!=']:
+        return if_conversion(condition)
+    # It is a variable or f(variable)
     else:
-        print("Opsie in generate_abstractions", typee, type(typee))
-        sys.exit(-1)
+        return boolean_conversion(condition)
 
-    return first_abstraction, abstraction
-
-
-# 2 - Generate the and expressions for the return type
-def generate_and_expressions(condition):
-    # I always ensure that condition is an Application
-    result = []
-    if type(condition.target) is Var:
-        if condition.target.name == 'And':
-            result.append(condition.argument)
-            if type(condition.argument) is Application:
-                result += generate_and_expressions(condition.argument)
-            else:
-                result.append(condition.argument)
-            return result
-        else:
-            result.append(condition)
-    elif type(condition.target) is Abstraction:
-        result += condition
-    elif type(condition.target) is Application:
-        if type(condition.target.target) is Var:
-            if condition.target.target.name == 'And':
-                result.append(condition.target.argument)
-                if type(condition.argument) is Application:
-                    result += generate_and_expressions(condition.argument)
-                else:
-                    result.append(condition.argument)
-                return result
-        result.append(condition)
-    elif type(condition.target) is TApplication:
-        result += generate_and_expressions(condition.target)
-    elif type(condition.target) is TAbstraction:
-        result += generate_and_expressions(condition.body)
-
-    return result
-
-
-# 3 - Convert each and expression
-def convert_and_expressions(and_expressions):
-    result = []
-    for and_expr in and_expressions:
-        result.append(apply_conversion(and_expr))
-    return result
-
-
-# 3.1 obtains the most left var name of the application
-def obtain_application_var(and_expr):
-    if isinstance(and_expr, Literal):
-        return None
-    elif isinstance(and_expr, Var):
-        return and_expr
-    elif isinstance(and_expr, If):
-        return None
-    elif isinstance(and_expr, Abstraction):
-        return None
-    elif isinstance(and_expr, TAbstraction):
-        return obtain_application_var(and_expr.body)
-    elif isinstance(and_expr, TApplication):
-        return obtain_application_var(and_expr.target)
-    # Application
+# Obtains the most left var name of the application
+def obtain_application_var(condition):
+    if isinstance(condition, Var):
+        return condition
+    elif isinstance(condition, TAbstraction):
+        return obtain_application_var(condition.body)
+    elif isinstance(condition, TApplication):
+        return obtain_application_var(condition.target)
+    elif isinstance(condition, Application):
+        return obtain_application_var(condition.target)
+    # condition is Abstraction or If
     else:
-        return obtain_application_var(and_expr.target)
+        return condition
 
-
-# 3.2 Apply conversion
-def apply_conversion(and_expr):
-    application_var = obtain_application_var(and_expr)
-    if application_var is None:
-        return and_expr
-    elif application_var.name in ['==']:
-        return abs_conversion(and_expr)
-    elif application_var.name in ['!']:
-        return boolean_conversion(and_expr)
-    elif application_var.name in ['&&']:
-        return and_conversion(and_expr)
-    elif application_var.name in ['||']:
-        return or_conversion(and_expr)
-    elif application_var.name in ['-->']:
-        return implie_conversion(and_expr)
-    elif application_var.name in ['>', '<', '<=', '>=', '!=']:
-        return if_conversion(and_expr)
-    elif application_var.name == '@evaluate':
-        return evaluate_conversion(and_expr)
-    else:
-        return boolean_conversion(and_expr)
-
-
-# 3.2.1 abs_conversion
-def abs_conversion(and_expr):
-    result = Application(Var('-'), and_expr.argument)
-    result = Application(result, and_expr.target.argument)
+# =============================================================================
+# ============================================================ Conversion rules
+# a == b ~> abs(a - b)
+def abs_conversion(condition):
+    result = Application(Var('-'), condition.argument)
+    result = Application(result, condition.target.argument)
     return Application(Var('abs'), result)
 
-
-# 3.2.2 if_conversion
-def if_conversion(and_expr):
-    cond = and_expr
+# condition ~> condition ? 0 : abs_conversion(condition)
+def if_conversion(condition):
     then = Literal(0, BasicType('Integer'))
-    otherwise = abs_conversion(and_expr)
-    return If(cond, then, otherwise)
+    otherwise = abs_conversion(condition)
+    return If(condition, then, otherwise)
 
-
-# 3.2.3 and_conversion
-def and_conversion(and_expr):
-    cond = and_expr
+# a && b ~> a && b ? 0 : convert(a) + convert(b)
+def and_conversion(condition):
     then = Literal(0, BasicType('Integer'))
-    otherwise_left = apply_conversion(and_expr.argument)
-    otherwise.right = apply_conversion(and_expr.target.argument)
+    otherwise_left = apply_conversion(condition.argument)
+    otherwise.right = apply_conversion(condition.target.argument)
     otherwise = Application(Application(Var('+'), otherwise_left),
                             otherwise_right)
-    return If(cond, then, otherwise)
+    return If(condition, then, otherwise)
 
-
-# 3.2.4 or_conversion
-def or_conversion(and_expr):
-    cond = and_expr
+# a || b ~> a || b ? 0 : min(convert(a), convert(b))
+def or_conversion(condition):
     then = Literal(0, BasicType('Integer'))
-    otherwise_left = apply_conversion(and_expr.argument)
-    otherwise.right = apply_conversion(and_expr.target.argument)
+    otherwise_left = apply_conversion(condition.argument)
+    otherwise.right = apply_conversion(condition.target.argument)
     otherwise = Application(Application(Var('min'), otherwise_left),
                             otherwise_right)
-    return If(cond, then, otherwise)
+    return If(condition, then, otherwise)
 
-
-# 3.2.5 implie_conversion
-def implie_conversion(and_expr):
-    # Translate the --> expression to !a V B
-    not_a = Application(Var('!'), and_expr.target.argument)
+# a --> b ~> convert(!a || b)
+def implie_conversion(condition):
+    not_a = Application(Var('!'), condition.target.argument)
     return apply_conversion(Application(not_a, and_expr.argument))
 
+# !condition ~> revert(condition ? 0 : convert(condition))
+def not_conversion(condition):
+    converted = apply_conversion(condition.argument)
+    # If it is a regular if conversion. Revert everything
+    if isinstance(converted, If):
+        converted.condition = condition
+    else:
+        converted = boolean_conversion(condition)
+    return converted
 
-# 3.2.6 not_conversion
-def boolean_conversion(and_expr):
-    cond = and_expr
+# x or f(x) ~> f(x) ? 0 : 1
+def boolean_conversion(condition):
     then = Literal(0, BasicType('Integer'))
     otherwise = Literal(1, BasicType('Integer'))
     return If(cond, then, otherwise)
 
+# =============================================================================
+# ================================================ Fitness functions conversion
+def interpret_expressions(abstractions, expressions):
 
-# 3.2.7 @evaluate('path')
-def evaluate_conversion(and_expr, function):
-    path = and_expr.argument.name
-    function = run(function)
-    with open(path) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        for row in csv_reader:
-            function_result = 0
-            for column in row:
-                pass
-            function_result = function(param)
+    abstraction, last_abstraction = abstractions
 
+    optimizers = {'@maximize': maximize, 
+                  '@minimize': minimize, 
+                  '@evaluate': evaluate}
 
-# 4 - englobe the expressions in abstractions
-def abstract_and_expressions(declaration, converted_ands):
-    result = []
-    for and_expr in converted_ands:
-        abstraction, last_abstraction = generate_abstractions(declaration)
-        last_abstraction.body = and_expr
-        result.append(abstraction)
+    result = list()
+    
+    for condition in expressions:
+        if isinstance(condition, Application) and \
+                isinstance(condition.target, Var) and \
+                condition.target.name.startswith('@'):
+            function = optimizers[condition.target.name]
+            result.append(function(condition.argument.name))
+        else:
+            # Englobe the expressions with the parameters and return
+            last_abstraction = condition
+            function = run(abstraction)
+            result.append(function)
+
     return result
 
+# @maximize
+def maximize():
+    pass
 
-# 5 - Interpret the fitness functions
-def interprete_and_expressions(englobed_converted_ands):
-    return [run(and_expr) for and_expr in englobed_converted_ands]
+# @minimze
+def minimize():
+    pass
+
+# @evaluate('path')
+def evaluate(path):
+    # Applies a function to a row and get its error
+    def apply(function, row):
+        return abs(row[-1] - reduce(lambda f, x: f(x), row[:-1], function))
+
+    with open(path) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        return lambda f: sum([apply(f, row) for row in csv_reader[1:]])
+    
+    raise Exception('The csv file', path, 'is invalid.')

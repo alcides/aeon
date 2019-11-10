@@ -1,13 +1,13 @@
 import aeon.synthesis as synthesis
 
-from .genProg import *
+from .gen_prog import *
 from .utils import replaceHoles
 
 
 class Random(GenProg):
-    def __init__(self, ctx, function, holes):
+    def __init__(self, definition, function, holes):
         super(Random, self).__init__()
-        self.ctx = ctx
+        self.definition = definition
         self.function = function
         self.holes = holes
 
@@ -21,19 +21,20 @@ class Random(GenProg):
         pass
 
     def run(self):
-        population = generatePopulation()
+        population = generate_population()
         return population
 
-    def generatePopulation(self):
+    # Generates the initial population
+    def generate_population(self):
 
         population = []
 
         for i in range(self.POPULATION_SIZE):
             individual_holes = [
-                synthesis.se(self.ctx, hole, self.DEPTH) for hole in self.holes
+                synthesis.se(ctx, hole, self.DEPTH) for ctx, hole in self.holes
             ]
             individual = self.function.copy()
-            individual.replaceHoles(individual, individual_holes)
+            individual.replace_holes(individual, individual_holes)
             population.append(individual)
 
         return population
