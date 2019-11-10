@@ -19,7 +19,7 @@ class TestTypeChecking(unittest.TestCase):
         if type(sup) == str:
             sup = ty(sup)
         if not is_subtype(self.ctx, sub, sup):
-            raise AssertionError(sub, "is not subtype of", sup)
+            raise SubtypingException(sub, "is not subtype of", sup)
 
     def test_bottom_top(self):
         self.assert_st(ty("Bottom"), ty("Boolean"))
@@ -71,4 +71,24 @@ class TestTypeChecking(unittest.TestCase):
 
         with self.assertRaises(SubtypingException):
             self.assert_st(ty("(a:Integer) -> {r:Integer where (r == a)}"),
-                           ty("(a:Integer) -> (b:Integer) -> Bool"))
+                           ty("(a:Integer) -> (b:Integer) -> Boolean"))
+
+    def test_app(self):
+        self.assert_st(ty("(((T:*) => T) Integer)"), ty("Integer"))
+
+        self.assert_st(ty("(((T:*) => T) Integer)"),
+                       ty("(((T:*) => T) Integer)"))
+
+        self.assert_st(ty("(((T:*) => (Y:*) => T) Integer)"),
+                       ty("((Z:*) => Integer)"))
+
+        self.assert_st(ty("((((T:*) => (Y:*) => T) Integer) Boolean)"),
+                       ty("Integer"))
+
+        with self.assertRaises(SubtypingException):
+            self.assert_st(ty("(((T:*) => T) Integer)"), ty("Boolean"))
+
+            self.assert_st(ty("((T:*) => T)"), ty("Boolean"))
+
+            self.assert_st(ty("(((T:*) => T) Boolean)"),
+                           ty("(((T:*) => T) Integer)"))
