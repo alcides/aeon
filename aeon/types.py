@@ -20,7 +20,6 @@ class TypingContext(object):
         self.type_aliases = {}
         self.variables = {}
         self.type_variables = {}
-        self.basic_types = []
 
     def setup(self):
         from .libraries.stdlib import get_all_builtins, get_builtin_type
@@ -37,15 +36,12 @@ class TypingContext(object):
             bottom.name: star,
             top.name: star
         }
-        # As of Python3, dict_keys is not copyable, so a list is required
-        self.basic_types = list(self.type_variables.keys())
 
     def copy(self):
         t = TypingContext()
         t.type_aliases = self.type_aliases.copy()
         t.variables = self.variables.copy()
         t.type_variables = self.type_variables.copy()
-        t.basic_types = self.basic_types.copy()
         return t
 
     def add_var(self, n, t):
@@ -56,12 +52,6 @@ class TypingContext(object):
 
     def add_type_var(self, n, k):
         self.type_variables[n] = k
-
-    def is_basic_type(self, type):
-        for t in self.basic_types:
-            if t.name == type.name:
-                return True
-        return False
 
     def with_var(self, name, type):
         new_ctx = self.copy()

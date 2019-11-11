@@ -65,8 +65,10 @@ def avoid_reserved_keywords(ks):
 
 arrow = t('->')
 fatarrow = t('=>')
-true = t('true').result(Literal(True, type=refined_value(True, t_b, "_v")))
-false = t('false').result(Literal(False, type=refined_value(False, t_b, "_v")))
+true = t('true').parsecmap(lambda x: Literal(
+    True, type=refined_value(True, t_b, "_v")))
+false = t('false').parsecmap(lambda x: Literal(
+    False, type=refined_value(False, t_b, "_v")))
 null = t('null').result(Literal(None, type=t_o))
 symbol = lexeme(regex(r'[.\d\w_]+')).bind(
     avoid_reserved_keywords(reserved_keywords)) ^ operators_definition

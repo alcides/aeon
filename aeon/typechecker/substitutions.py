@@ -18,7 +18,8 @@ def substitution_expr_in_expr(n, replacement: TypedNode,
     assert (isinstance(replaced, str))
 
     r = lambda x: substitution_expr_in_expr(x, replacement, replaced)
-    nty = n.type and substitution_expr_in_type(n.type, replacement, replaced)
+    nty = n.type if n.type == None else substitution_expr_in_type(
+        n.type, replacement, replaced)
     if isinstance(n, Literal):
         return n
     elif isinstance(n, Var):
@@ -56,11 +57,10 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
     assert (isinstance(replaced, str))
 
     r = lambda x: substitution_type_in_expr(x, replacement, replaced)
-    nty = n.type
-    if nty:
-        nty = substitution_type_in_type(n.type, replacement, replaced)
+    nty = n.type if n.type == None else substitution_type_in_type(
+        n.type, replacement, replaced)
     if isinstance(n, Literal):
-        return n.with_type(nty)
+        return n
     elif isinstance(n, Var):
         return n.with_type(nty)
     elif isinstance(n, If):

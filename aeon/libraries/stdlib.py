@@ -1,7 +1,5 @@
 """ This file describes the standard library of Aeon """
 
-import z3
-
 import aeon.frontend2 as frontend2
 
 import aeon.frontend

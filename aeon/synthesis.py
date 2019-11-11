@@ -151,9 +151,6 @@ def has_type_vars(ctx: TypingContext, k: Kind):
     for v in ctx.type_variables:
         if ctx.type_variables[v] == k:
             return True
-    for b in ctx.basic_types:
-        if b.kind == k:
-            return True
 
 
 def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
@@ -245,7 +242,9 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
                    type=RefinedType(name=name,
                                     type=T,
                                     cond=Application(
-                                        Application(Var("=="), Var(name)),
+                                        Application(
+                                            TApplication(Var("=="), t_i),
+                                            Var(name)),
                                         Literal(value=v,
                                                 type=t_i,
                                                 ensured=True))))

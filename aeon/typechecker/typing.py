@@ -20,6 +20,8 @@ class TypeCheckingError(TypingException):
 
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
+    if e.type == None:
+        raise Exception("WTF???")
     return e.type
 
 
@@ -30,7 +32,7 @@ def t_var(ctx: TypingContext, e: Var) -> Type:
 
 
 def t_if(ctx: TypingContext, e: If) -> Type:
-    pass
+    pass  # TODO
 
 
 def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
@@ -100,7 +102,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
             e, t, expected))
-    e.type = t
+    #e.type = t if e.type != None else e.type
     return t
 
 
