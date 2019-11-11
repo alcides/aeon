@@ -98,5 +98,4 @@ def is_subtype(ctx, sub, sup) -> bool:
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):
         return sub_tappR(ctx, sub, sup)
-
     raise SubtypingException('No subtyping rule for {} <: {}'.format(sub, sup))

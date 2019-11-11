@@ -112,7 +112,9 @@ def check_program(ast):
 
         if isinstance(e, Program):
             for decl in e.declarations:
-                check_program(decl)
+                internal_check(ctx, decl)
+                print("--..")
+            return e.declarations
         elif isinstance(e, Definition):
             check_type(ctx, e.body, e.type)
             ctx.variables[e.name] = e.type
@@ -122,3 +124,4 @@ def check_program(ast):
     ctx = TypingContext()
     ctx.setup()
     internal_check(ctx, ast)
+    return ast

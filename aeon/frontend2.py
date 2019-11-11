@@ -177,7 +177,7 @@ def expr_ops():
     a1 = yield expr
     op = yield op_all
     a2 = yield expr
-    if op in ["==", "!=", "+", "-", "*", "/"]:
+    if op in ["==", "!=", "+", "-", "*", "/", "<", ">", "<=", ">="]:
         return Application(Application(TApplication(Var(op), t_delegate), a1),
                            a2)
     else:

@@ -3,8 +3,8 @@ import os
 import random
 import shutil
 
-from .frontend import parse
-from .frontend import parse_strict
+from .frontend import parse, parse_strict
+from .frontend2 import parse as parse2
 from .typechecker import check_program
 from .type_inferer import inferTypes
 from .interpreter import run
@@ -22,8 +22,11 @@ if __name__ == '__main__':
             seed = int(arg[7:])
 
     random.seed(seed)
-
-    ast = parse(sys.argv[-1])
+    fname = sys.argv[-1]
+    if fname.endswith(".ae2"):
+        ast = parse2(fname)
+    else:
+        ast = parse(fname)
     if debug:
         print(20 * "-", "Aeon to AeonCore transformation:")
         print(ast)
@@ -37,8 +40,6 @@ if __name__ == '__main__':
     if debug:
         print(20 * "-", "Prettify:")
         print(ast)
-
-    print(20 * "-", "First 10 random individuals:")
 
     try:
         ast = check_program(ast)

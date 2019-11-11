@@ -20,12 +20,14 @@ class NotDecidableException(Exception):
 class NoZ3TranslationException(Exception):
     pass
 
+
 def is_satisfiable(ctx, cond):
     try:
         return zed_verify_satisfiability(ctx, cond)
     except NotDecidableException:
         print("Not Decidable Exception", cond)
         return True
+
 
 def entails(ctx, cond):
     return zed_verify_entailment(ctx, cond)
@@ -38,6 +40,7 @@ def entails(ctx, cond):
     else:
         return zed_verify_entailment(ctx, cond)
     """
+
 
 random_name_counter = 0
 
@@ -146,11 +149,13 @@ def zed_translate_abs(ztx, ab: Abstraction):
     return f
 
 
-def zed_translate_tabs(ztx, tabs: TypeAbstraction):
+def zed_translate_tabs(ztx, tabs: TAbstraction):
+    # TODO
+    raise Exception("Not implemented yet")
     return tabs.type
 
 
-def zed_translate_tapp(ztx, tabs: TypeApplication):
+def zed_translate_tapp(ztx, tabs: TApplication):
     return zed_translate(ztx, tabs.target)
 
 
@@ -201,12 +206,24 @@ def zed_translate_wrapped(ztx, cond):
 
 
 def zed_initial_context():
-    c = {}
-    for name in get_all_builtins():
-        f = get_builtin_z3_function(name)
-        if f:
-            c[name] = get_builtin_z3_function(name)
-    return c
+    return {
+        "==": lambda x: lambda y: x == y,
+        "!=": lambda x: lambda y: x != y,
+        "<": lambda x: lambda y: x < y,
+        ">": lambda x: lambda y: x > y,
+        "<=": lambda x: lambda y: x <= y,
+        ">=": lambda x: lambda y: x >= y,
+        "!": z3.Not,
+        "-->": lambda x: lambda y: z3.Implies(x, y),
+        "&&": lambda x: lambda y: z3.And(x, y),
+        "||": lambda x: lambda y: z3.Or(x, y),
+        "+": lambda x: lambda y: x + y,
+        "-": lambda x: lambda y: x - y,
+        "*": lambda x: lambda y: x * y,
+        "/": lambda x: lambda y: x / y,
+        "^": lambda x: lambda y: x ^ y,
+        "%": lambda x: lambda y: x % y,
+    }
 
 
 def zed_verify_entailment(ctx, cond):

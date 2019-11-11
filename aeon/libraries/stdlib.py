@@ -23,15 +23,6 @@ def get_builtin_value(name):
     return initial_context[name][1]
 
 
-def get_builtin_z3_function(name):
-    """ Allows for z3 function definition in some cases """
-    definition = initial_context[name]
-    if len(definition) > 2:
-        return definition[2]
-    else:
-        return definition[1]
-
-
 def get_all_builtins():
     return list(initial_context.keys())
 
@@ -47,37 +38,10 @@ def ty(operation, typee):
     return result
 
 
-# Native operations layouts
-native_operation = lambda op: ty(
-    op, "temp<T>: (a:T, b:T) -> {{c:T | c == (a {} b)}} = native;".format(op)
-).type
-typed_unary_operation = lambda op, typee: ty(
-    op, "temp: (a:{}) -> {{c:{} | c == {}a}} = native;".format(
-        typee, typee, op)).type
-typed_native_operation = lambda op, typee: ty(
-    op, "temp: (a:{}, b:{}) -> {{c:{} | c == (a {} b)}} = native;".format(
-        typee, typee, typee, op)).type
-
-
-# TODO:
-def maximize():
-    pass
-
-
-# TODO:
-def minimize():
-    pass
-
-
-# TODO:
-def evaluate():
-    pass
-
-
 ty2 = frontend2.typee.parse_strict
 
 initial_context = {
-    'native': (aeon.frontend.parse_strict("type Bottom;"), None),
+    'native': (ty2("Bottom"), None),
     '==':
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x == y),
     '!=':
@@ -111,10 +75,11 @@ initial_context = {
     '@minimize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
     '@evaluate': (ty2("(T:*) => (a:String) -> Boolean"), lambda x: True),
 }
-
+"""
 native_implementations = importNative('aeon.libraries.native', '*')
 
 for expr_name in native_implementations.keys():
     ntype, implementation = native_implementations[expr_name]
     node = Definition(expr_name, ntype, Var("native"))
-    add_function(expr_name, (node, implementation))
+    add_function(expr_name, (ntype, implementation))
+"""

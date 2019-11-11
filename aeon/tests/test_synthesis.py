@@ -1,9 +1,11 @@
 import unittest
+import random
 
+from ..types import TypingContext, Kind, star
 from ..frontend2 import expr, typee
 from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
     se_where, stax
-from ..typechecker import *
+from ..typechecker import check_type, is_subtype
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -23,7 +25,7 @@ class TestSynthesis(unittest.TestCase):
         for i in range(times):
             e = fun(ctx, t, d)
             print(t, "~>", e)
-            tc(ctx, e, t)
+            check_type(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
     def test_synthesis_kind(self):
@@ -63,7 +65,7 @@ class TestSynthesis(unittest.TestCase):
         ctx.setup()
         self.assert_synth(ctx, ty("Boolean"))
         self.assert_synth(ctx, ty("{x:Boolean where x}"))
-        self.assert_synth(ctx, ty("{x:Boolean where (x === false)}"))
+        self.assert_synth(ctx, ty("{x:Boolean where (x == false)}"))
 
         self.assert_synth(ctx, ty("Integer"))
         self.assert_synth(ctx, ty("{x:Integer where (x > 0)}"))

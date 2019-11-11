@@ -8,7 +8,7 @@ ex = expr.parse_strict
 ty = typee.parse_strict
 
 
-class TestTypeChecking(unittest.TestCase):
+class TestSubtyping(unittest.TestCase):
     def setUp(self):
         self.ctx = TypingContext()
         self.ctx.setup()
@@ -36,11 +36,19 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ty("Boolean"), ty("{x:Boolean where true}"))
 
     def test_refined_entails(self):
+
+        self.assert_st(ty("{x:{y:Boolean where true} where (5 == 5)}"),
+                       ty("{x:Boolean where true}"))
+
+        self.assert_st(ty("{x:Boolean where true}"),
+                       ty("{x:Boolean where true}"))
+        self.assert_st(ty("{x:Boolean where (5 == 5)}"), ty("Boolean"))
+        self.assert_st(ty("{x:Boolean where (5 == 5)}"),
+                       ty("{x:Boolean where true}"))
+
         self.assert_st(ty("{x:Boolean where (5 == 5)}"), ty("Boolean"))
         self.assert_st(ty("{x:Boolean where (5 == 5)}"),
                        ty("{x:Boolean where (true)}"))
-        self.assert_st(ty("{x:{y:Boolean where true} where (5 == 5)}"),
-                       ty("{x:Boolean where true}"))
 
         self.assert_st(ty("{x:Integer where (x == 5)}"),
                        ty("{v:Integer where (v > 4)}"))
@@ -51,13 +59,23 @@ class TestTypeChecking(unittest.TestCase):
         self.assert_st(ty("{x:Integer where (x > 5)}"),
                        ty("{k:Integer where (!(k < 4))}"))
 
+        self.assert_st(ty("{x:{y:Boolean where true} where (5 == 5)}"),
+                       ty("{x:Boolean where true}"))
+
         self.assert_st(ty("{x:Boolean where x}"), ty("{x:Boolean where true}"))
         self.assert_st(ty("{x:Boolean where true}"),
-                       ty("{x:Boolean where ((x === true) || (x === false))}"))
+                       ty("{x:Boolean where ((x == true) || (x == false))}"))
         self.assert_st(ty("{y:Boolean where y}"), ty("{x:Boolean where x}"))
 
         self.assert_st(ty("{x:{y:Integer where (y < 5)} where (x == 0)}"),
                        ty("{x:Integer where (x==0)}"))
+
+        with self.assertRaises(SubtypingException):
+            self.assert_st(ty("{x:Integer where (x > 5)}"),
+                           ty("{k:Integer where (k > 6)}"))
+
+            self.assert_st(ty("{x:Integer where (x < 5)}"),
+                           ty("{k:Integer where (k > (4-6))}"))
 
     def test_abs(self):
         self.assert_st(ty("(z:Integer) -> {y:Boolean where y}"),

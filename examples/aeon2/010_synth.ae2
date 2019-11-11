@@ -1,7 +1,7 @@
 one : Integer = 1;
 
 
-(&&) : (a:Boolean) -> (b:Boolean) -> {c:Boolean where (c === (a && b))} = native;
+(&&) : (a:Boolean) -> (b:Boolean) -> {c:Boolean where (c == (a && b))} = native;
 
 
 a : Integer = [[Integer]];
@@ -41,7 +41,7 @@ Map<String, X>
 X:* => ((Map<String>)<X>)
 
 TypeAbstraction (X, star,
-  TypeApp( 
+  TypeApp(
     TypeApp(Map, String)
   , X )
 )

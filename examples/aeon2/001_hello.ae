@@ -1,3 +1,0 @@
-print : (x:Integer) -> Void = native;
-
-main : Void = print(1);

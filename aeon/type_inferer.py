@@ -256,7 +256,7 @@ class HoleInferer():
             current_node = current_node.body
 
         # Strip off the function parameters
-        while typee != return_type and isinstance(
+        while typee != node.return_type and isinstance(
                 typee, AbstractionType) and isinstance(current_node,
                                                        Abstraction):
             typee = typee.return_type
