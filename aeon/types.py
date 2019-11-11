@@ -198,6 +198,8 @@ class TypeApplication(Type):
     """ T U """
 
     def __init__(self, target: Type, argument: Type):
+        if target == None:
+            raise Exception("First none!")
         self.target = target
         self.argument = argument
 

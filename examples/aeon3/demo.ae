@@ -21,19 +21,19 @@ returns_function : () -> f:(Integer -> Integer) {
 }
 
 main : () -> Void {
-    
-    print("Result of applying lambda function:");
+
+    print<String>("Result of applying lambda function:");
     aplicaFuncao(\x:Integer -> x + 1);
 
     print("Result of applying a function:");
     aplicaFuncao(test);
-    
+
     print("Result of function returning function:");
     print(returns_function()(9));
 
     print("Result of fatorial:");
     print(fatorial(5));
-    
+
     print("Result of applying fibonacci:");
     print(fibonacci(3));
 
@@ -45,6 +45,6 @@ main : () -> Void {
     print(f(3));
 
     print("Abstraction with TypeAbstraction and TypeApplication");
-    
+
     (\x:T -> \y:U -> print(x))<Integer>(10)<Double>(5.0);
 }

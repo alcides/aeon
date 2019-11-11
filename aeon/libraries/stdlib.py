@@ -5,7 +5,7 @@ import z3
 import aeon.frontend2 as frontend2
 
 import aeon.frontend
-from aeon.ast import *
+from aeon.ast import Var, Definition
 from aeon.libraries.standard import importNative
 
 
@@ -82,45 +82,39 @@ initial_context = {
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x == y),
     '!=':
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x != y),
-
-    # Native functions
-    "+": (native_operation('+'), lambda x: lambda y: x + y),
-    "-": (native_operation('-'), lambda x: lambda y: x - y),
-    "*": (native_operation('*'), lambda x: lambda y: x * y),
-    "/": (native_operation('/'), lambda x: lambda y: x / y),
-    "^": (native_operation('^'), lambda x: lambda y: x ^ y),
-    "%": (native_operation('%'), lambda x: lambda y: x % y),
-    "<": (native_operation('<'), lambda x: lambda y: x < y),
-    ">": (native_operation('>'), lambda x: lambda y: x > y),
-    "<=": (native_operation('<='), lambda x: lambda y: x <= y),
-    ">=": (native_operation('>='), lambda x: lambda y: x >= y),
-    #"==": (native_operation('=='), lambda x: lambda y: x == y),
-    #"!=": (native_operation('!='), lambda x: lambda y: x != y),
-    "&&": (typed_native_operation('&&', 'Boolean'),
-           lambda x: lambda y: (x and y), lambda x: lambda y: z3.And(x, y)),
-    "||": (typed_native_operation('||', 'Boolean'), lambda x: lambda y: x or y,
-           lambda x: lambda y: z3.Or(x, y)),
-    "-->":
-    (typed_native_operation('-->', 'Boolean'),
-     lambda x: lambda y: (not x) or y, lambda x: lambda y: z3.Implies(x, y)),
-    "!": (typed_unary_operation('!', 'Boolean'), lambda x: not x,
-          lambda x: z3.Not(x)),
-    "And": (ty(
-        'And',
-        'temp: (a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)} = native;'
-    ), lambda x: lambda y: x and y),
-    "@maximize":
-    (ty('@maximize',
-        'temp<T>: (something:T) -> Boolean = native;'), lambda x: True),
-    "@minimize": (ty('@minimize',
-                     'temp<T>: (something:T) -> Boolean = native;'),
-                  lambda x: True),
-    "@evaluate": (ty('@evaluate', 'temp: (path:String) -> Boolean = native;'),
-                  lambda x: True),
+    '+': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x + y),
+    '-': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x - y),
+    '*': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x * y),
+    '/': (ty2("(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> T"),
+          lambda x: lambda y: x / y),
+    '^': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x ^ y),
+    '%': (ty2("(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> T"),
+          lambda x: lambda y: x % y),
+    '<':
+    (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x < y),
+    '>':
+    (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x > y),
+    '<=': (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"),
+           lambda x: lambda y: x <= y),
+    '>=': (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"),
+           lambda x: lambda y: x >= y),
+    '&&': (ty2("(a:Boolean) -> (b:Boolean) -> Boolean"),
+           lambda x: lambda y: x and y),
+    '||': (ty2("(a:Boolean) -> (b:Boolean) -> Boolean"),
+           lambda x: lambda y: x or y),
+    '-->': (ty2("(a:Boolean) -> (b:Boolean) -> Boolean"),
+            lambda x: lambda y: (not x) or y),
+    "!": (ty2("(a:Boolean) -> Boolean"), lambda x: not x),
+    "And": (ty2("(a:Boolean) -> (b:Boolean) -> Boolean"),
+            lambda x: lambda y: x and y),
+    '@maximize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
+    '@minimize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
+    '@evaluate': (ty2("(T:*) => (a:String) -> Boolean"), lambda x: True),
 }
 
 native_implementations = importNative('aeon.libraries.native', '*')
 
 for expr_name in native_implementations.keys():
-    node, implementation = native_implementations[expr_name]
+    ntype, implementation = native_implementations[expr_name]
+    node = Definition(expr_name, ntype, Var("native"))
     add_function(expr_name, (node, implementation))

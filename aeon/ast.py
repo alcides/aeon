@@ -170,8 +170,11 @@ class TApplication(TypedNode):
 
 
 class Definition(Node):
-    def __init__(self, name: str, type: Type, return_type: Type,
-                 body: TypedNode):
+    def __init__(self,
+                 name: str,
+                 type: Type,
+                 body: TypedNode,
+                 return_type: Optional[Type] = None):
         self.name = name
         self.type = type
         self.return_type = return_type

@@ -1,8 +1,10 @@
 from .ast import Var, Literal, Definition, TypeAlias, TypeDeclaration, Program, Import, Abstraction, Application, If, Hole, TAbstraction, TApplication
 from .types import Type, BasicType, AbstractionType, RefinedType, TypeApplication, TypeAbstraction, Kind, star, bottom, t_v, t_i, t_f, t_b, t_s, top
 from .typechecker.substitutions import *
-from .synthesis import *
 from .typechecker.zed import *
+from .typechecker.typing import synth_type
+
+from .synthesis import *
 from .libraries.stdlib import initial_context
 
 
@@ -60,12 +62,13 @@ class HoleInferer():
         # Then is None
         elif node.then.type is None:
             if len(self.hole_stack) > 1:
-                void_var = Var(self.nextVoidVar(), node.otherwise.type)
+                void_var = Var(self.nextVoidVar()).with_type(
+                    node.otherwise.type)
                 self.hole_stack.append(
                     RefinedType(self.nextVoidVar(), node.otherwise.type,
                                 node.cond))
             self.visit(node.then)
-            node.type = returnBasicTypee(
+            node.type = self.returnBasicTypee(
                 node.otherwise.type)  # TODO: Give the most general type
             self.visit(node.otherwise)
         # Else is None
@@ -75,7 +78,7 @@ class HoleInferer():
                                     Application(Var('!'), node.cond))
                 self.hole_stack.append(typee)
             self.visit(node.otherwise)
-            node.type = returnBasicTypee(
+            node.type = self.returnBasicTypee(
                 node.then.type)  # TODO: Give the most general type
             self.visit(node.then)
         # There may be an hole in the middle of the if or else, so we revisit the tree
@@ -86,7 +89,7 @@ class HoleInferer():
     def visitApplication(self, node: Application):
 
         # I am on a possible hole application case
-        if type(node.target) is not Abstraction:
+        if not isinstance(node.target, Abstraction):
             if node.argument.type is not None:
                 arg_type = node.argument.type
             elif len(self.hole_stack) > 1:
@@ -105,7 +108,8 @@ class HoleInferer():
         oldContext = self.ctx.copy()
         self.ctx = self.ctx.copy()
 
-        if type(node.target) is Abstraction:
+        tee: Type = top
+        if isinstance(node.target, Abstraction):
             if node.target.arg_name.startswith('_'):
                 tee = top
             else:
@@ -119,12 +123,11 @@ class HoleInferer():
         elif type(node.target) is Hole:
             tee = node.target.type.arg_type
         else:
-            print("It happened", node, type(node.target))
             tee = node.target.type
 
         if isinstance(tee, TypeAbstraction):
             tempTee = node.target.type
-            while type(tempTee.type) is TypeAbstraction:
+            while isinstance(tempTee.type, TypeAbstraction):
                 tempTee = tempTee.type
             tempTee.type = tempTee.type.return_type if type(
                 tempTee.type) is AbstractionType else tempTee.type
@@ -138,9 +141,9 @@ class HoleInferer():
         self.ctx = oldContext
 
         # The type of the argument of the abstraction, is the type of the argument of the application
-        if type(node.target) is Abstraction and (
-                node.target.arg_type is None
-                or node.target.arg_name.startswith('_')):
+        if isinstance(node.target,
+                      Abstraction) and (node.target.arg_type is None or
+                                        node.target.arg_name.startswith('_')):
             # Define the type of the arguments of the abstraction
             node.target.arg_type = node.argument.type
 
@@ -175,7 +178,7 @@ class HoleInferer():
 
         oldContext = self.ctx
 
-        bodyNode, typee = getBodyAndReturnType(node)
+        bodyNode, typee = self.getBodyAndReturnType(node)
 
         self.hole_stack = list()
 
@@ -238,37 +241,38 @@ class HoleInferer():
         self.counter += 1
         return result
 
+    def getBodyAndReturnType(self, node: Definition):
 
-def getBodyAndReturnType(node: Definition):
+        if not isinstance(node.body, TypeAbstraction):
+            return (node.body, node.type)
 
-    typee = node.type
-    return_type = node.return_type
+        current_type: Type = node.type
+        current_node: TypedNode = node.body
 
-    # Strip off the typebastractions
-    while isinstance(typee, TypeAbstraction):
-        typee = typee.type
+        # Strip off the TypeAbstractions and TAbstractions
+        while isinstance(current_type, TypeAbstraction) and isinstance(
+                current_node, TAbstraction):
+            typee = current_type.type
+            current_node = current_node.body
 
-    # Strip off the TAbstraction
-    while isinstance(node, TAbstraction):
-        node = node.body
+        # Strip off the function parameters
+        while typee != return_type and isinstance(
+                typee, AbstractionType) and isinstance(current_node,
+                                                       Abstraction):
+            typee = typee.return_type
+            current_node = current_node.body
 
-    # Strip off the function parameters
-    while typee != return_type:
-        typee = typee.return_type
-        node = node.body
+        return node, typee
 
-    return node, typee
-
-
-# Given a typee, returns the basic type of it
-def returnBasicTypee(typee):
-    if isinstance(typee, BasicType):
-        return typee
-    elif isinstance(typee, RefinedType):
-        return self.returnBasicTypee(typee.type)
-    elif isinstance(typee, AbstractionType):
-        return self.returnBasicTypee(typee.return_type)
-    elif isinstance(typee, TypeApplication):
-        return self.returnBasicTypee(typee.target)
-    elif isinstance(typee, TypeAbstraction):
-        return self.returnBasicTypee(typee.type)
+    # Given a typee, returns the basic type of it
+    def returnBasicTypee(self, typee):
+        if isinstance(typee, BasicType):
+            return typee
+        elif isinstance(typee, RefinedType):
+            return self.returnBasicTypee(typee.type)
+        elif isinstance(typee, AbstractionType):
+            return self.returnBasicTypee(typee.return_type)
+        elif isinstance(typee, TypeApplication):
+            return self.returnBasicTypee(typee.target)
+        elif isinstance(typee, TypeAbstraction):
+            return self.returnBasicTypee(typee.type)

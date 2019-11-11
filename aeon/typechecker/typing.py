@@ -53,9 +53,6 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
             "Application requires a function: {} : {} in {}".format(
                 e.target, F, e))
     T = check_type(ctx, e.argument, F.arg_type)
-
-    print("hack", e.target.type, e.argument.type)
-    print("Replacing:", F.return_type, e.argument, F.arg_name)
     return substitution_expr_in_type(F.return_type, e.argument, F.arg_name)
 
 
@@ -77,22 +74,24 @@ def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
     """ Γ ⸠ e => T """
     if isinstance(e, Literal):
-        return t_base(ctx, e)
+        t = t_base(ctx, e)
     elif isinstance(e, Var):
-        return t_var(ctx, e)
+        t = t_var(ctx, e)
     elif isinstance(e, If):
-        return t_if(ctx, e)
+        t = t_if(ctx, e)
     elif isinstance(e, Abstraction):
-        return t_abs(ctx, e)
+        t = t_abs(ctx, e)
     elif isinstance(e, Application):
-        return t_app(ctx, e)
+        t = t_app(ctx, e)
     elif isinstance(e, TApplication):
-        return t_tapp(ctx, e)
+        t = t_tapp(ctx, e)
     elif isinstance(e, TAbstraction):
-        return t_tabs(ctx, e)
+        t = t_tabs(ctx, e)
     else:
         raise TypeCheckingError(
             "{} does not have a type synthesis rule".format(e))
+    e.type = t
+    return t
 
 
 def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
@@ -101,6 +100,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
             e, t, expected))
+    e.type = t
     return t
 
 

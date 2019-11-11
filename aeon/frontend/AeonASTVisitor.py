@@ -536,8 +536,8 @@ class AeonASTVisitor(AeonVisitor):
 
         for application in applications:
             expression = TApplication(expression, application)
-            expression.type = TypeApplication(expression.target.type,
-                                              application)
+            #expression.type = TypeApplication(expression.target.type,
+            #                                  application)
 
         for param in parameters:
             expression = Application(expression, param)
@@ -599,12 +599,13 @@ class AeonASTVisitor(AeonVisitor):
         leastUpperBound = self.leastUpperBound(left.type, right.type)
 
         operator = TApplication(operator, leastUpperBound)
-        operator.type = TypeApplication(operator.target.type, leastUpperBound)
+        #print("operator.target.type:", operator.target.type, operator.target, operator)
+        #operator.type = TypeApplication(operator.target.type, leastUpperBound)
 
         application1 = Application(operator, left)
         application2 = Application(application1, right)
-        application1.type = self.getReturnType(operator.type)
-        application2.type = self.getReturnType(application1.type)
+        #application1.type = self.getReturnType(operator.type)
+        #application2.type = self.getReturnType(application1.type)
 
         return application2
 
