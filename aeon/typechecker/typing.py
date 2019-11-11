@@ -3,7 +3,7 @@ import copy
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
-    If, Literal, TypedNode
+    If, Literal, TypedNode, TypeDeclaration, Definition, Program
 
 from .kinding import check_kind
 from .conversions import type_conversion
@@ -108,8 +108,17 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 
 
 def check_program(ast):
-    if isinstance(ast, Program):
-        for decl in ast.declarations:
-            check_program(decl)
-    else:
-        print("failed in", ast, type(ast))
+    def internal_check(ctx: TypingContext, e: TypedNode):
+
+        if isinstance(e, Program):
+            for decl in e.declarations:
+                check_program(decl)
+        elif isinstance(e, Definition):
+            check_type(ctx, e.body, e.type)
+            ctx.variables[e.name] = e.type
+        else:
+            print("TypeChecking ignoring:", e, type(e))
+
+    ctx = TypingContext()
+    ctx.setup()
+    internal_check(ctx, ast)

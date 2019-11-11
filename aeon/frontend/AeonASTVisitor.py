@@ -294,7 +294,6 @@ class AeonASTVisitor(AeonVisitor):
 
             for param_name, param_typee in listParams:
                 body = Abstraction(param_name, param_typee, body)
-                print("Param", param_name, type(param_name))
                 body.type = AbstractionType(param_name, param_typee,
                                             body.body.type)
 
@@ -514,9 +513,8 @@ class AeonASTVisitor(AeonVisitor):
         expression = self.visit(ctx.exp)
 
         abstraction_typee = AbstractionType(name, typee, expression.type)
-        abstraction = Abstraction(
-            Var(name).with_type(typee), typee,
-            expression).with_type(abstraction_typee)
+        abstraction = Abstraction(name, typee,
+                                  expression).with_type(abstraction_typee)
 
         listAbstractions = list(
             dict.fromkeys(reversed(self.searchAbstractions(typee))))
