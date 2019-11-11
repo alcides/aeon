@@ -2,7 +2,7 @@ import unittest
 
 from ..types import *
 from ..frontend2 import expr, typee
-from ..typechecker.subtyping import SubtypingException, is_subtype
+from ..typechecker import SubtypingException, is_subtype
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -75,15 +75,15 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_app(self):
         self.assert_st(ty("(((T:*) => T) Integer)"), ty("Integer"))
-
         self.assert_st(ty("(((T:*) => T) Integer)"),
                        ty("(((T:*) => T) Integer)"))
-
         self.assert_st(ty("(((T:*) => (Y:*) => T) Integer)"),
                        ty("((Z:*) => Integer)"))
-
         self.assert_st(ty("((((T:*) => (Y:*) => T) Integer) Boolean)"),
                        ty("Integer"))
+        self.assert_st("(T:*) => T", "(T:*) => T")
+        self.assert_st("(((T:*) => T) Integer)", "Integer")
+        self.assert_st("((((T:*) => ((S:*) => T)) Integer) Void)", "Integer")
 
         with self.assertRaises(SubtypingException):
             self.assert_st(ty("(((T:*) => T) Integer)"), ty("Boolean"))

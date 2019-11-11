@@ -56,7 +56,9 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
     assert (isinstance(replaced, str))
 
     r = lambda x: substitution_type_in_expr(x, replacement, replaced)
-    nty = n.type and substitution_type_in_type(n.type, replacement, replaced)
+    nty = n.type
+    if nty:
+        nty = substitution_type_in_type(n.type, replacement, replaced)
     if isinstance(n, Literal):
         return n.with_type(nty)
     elif isinstance(n, Var):
@@ -82,7 +84,7 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
         raise Exception('No substitution rule for {}'.format(n))
 
 
-def substitution_expr_in_type(n: Optional[Type], replacement: TypedNode,
+def substitution_expr_in_type(n: Type, replacement: TypedNode,
                               replaced: str) -> Type:
     """ T[e/t] """
 

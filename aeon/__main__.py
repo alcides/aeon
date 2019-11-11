@@ -5,7 +5,7 @@ import shutil
 
 from .frontend import parse
 from .frontend import parse_strict
-from .typechecker import typecheck, TypeException
+from .typechecker import check_program
 from .type_inferer import inferTypes
 from .interpreter import run
 
@@ -62,14 +62,8 @@ if __name__ == '__main__':
                 random = Random(ctx, declaration, holes)
         '''
     try:
-        ast, context, tcontext = typecheck(ast)
-    except TypeException as t:
-        print(t.args[0])
-        print(t.args[1])
-        print("Given:")
-        print(t.given)
-        print("Expected:")
-        print(t.expected)
+        ast = check_program(ast)
+    except Exception as t:
         raise t
         sys.exit(-1)
 

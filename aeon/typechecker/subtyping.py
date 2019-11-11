@@ -6,7 +6,6 @@ from .conversions import type_conversion
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .zed import is_satisfiable, entails
-from .typechecker import check_type
 from .kinding import check_kind
 from .exceptions import TypingException
 
@@ -22,6 +21,8 @@ def sub_base(ctx, sub: BasicType, sup: BasicType) -> bool:
 
 def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
     """ S-WhereL """
+    from .typing import check_type
+
     nctx = ctx.with_var(sub.name, sub.type)
     return check_type(nctx, sub.cond, t_b) and \
         is_satisfiable(nctx, sub.cond) and \

@@ -27,7 +27,8 @@ t = lambda k: lexeme(string(k))
 
 
 def refined_value(v, t, label="_v"):
-    app1 = Application(Var(t == t_b and "===" or "=="), Var(label))
+    tapp = TApplication(Var("=="), t)
+    app1 = Application(tapp, Var(label))
     app2 = Application(app1, Literal(v, type=t))
     return RefinedType(label, t, app2)
 

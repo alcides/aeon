@@ -1,8 +1,8 @@
 from .ast import Var, Literal, Definition, TypeAlias, TypeDeclaration, Program, Import, Abstraction, Application, If, Hole, TAbstraction, TApplication
 from .types import Type, BasicType, AbstractionType, RefinedType, TypeApplication, TypeAbstraction, Kind, star, bottom, t_v, t_i, t_f, t_b, t_s, top
-from .substitutions import *
+from .typechecker.substitutions import *
 from .synthesis import *
-from .zed import *
+from .typechecker.zed import *
 from .libraries.stdlib import initial_context
 
 

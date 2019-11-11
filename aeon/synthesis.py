@@ -2,15 +2,15 @@ import random
 import string
 import sys
 
-from typing import Union
+from typing import Union, Sequence
 
-from .ast import Node, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
+from .ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i
-from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
+from .typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
-import aeon.typechecker as tc
+from . import typechecker as tc
 
 MAX_TRIES = 100
 MAX_TRIES_WHERE = 100
@@ -167,7 +167,7 @@ def st_bool(ctx: TypingContext, k: Kind, d: int) -> Type:
 
 
 def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
-    "ST-Bool"
+    "ST-Var"
     options = get_type_variables_of_kind(ctx, k)
     return random.choice(options)
 
@@ -183,8 +183,8 @@ def st(ctx: TypingContext, k: Kind, d: int):
         yield ("st_var", st_var)
 
 
-def fv(T: Union[Type, TypingContext, Node]):
-    if isinstance(T, Node):
+def fv(T: Union[Type, TypingContext, TypedNode]):
+    if isinstance(T, TypedNode):
         return []  # TODO
     if isinstance(T, TypingContext):
         ctx = T
@@ -216,8 +216,7 @@ def get_variables_of_type(ctx: TypingContext, T: Type):
     ]
 
 
-def get_type_variables_of_kind(ctx: TypingContext,
-                               k: Kind) -> Union[str, Type]:
+def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
     rs = []
     for v in ctx.type_variables:
         if ctx.type_variables[v] == k:
@@ -357,8 +356,8 @@ def se(ctx: TypingContext, T: Type, d: int):
 """ Expression Synthesis parameterized with x:T """
 
 
-def check_stax(ctx: TypingContext, e: Node, x: str, T: Type):
-    tc.tc(ctx, e)
+def check_stax(ctx: TypingContext, e: TypedNode, x: str, T: Type):
+    tc.synth_type(ctx, e)
     U = e.type
     """
     print("a---")
@@ -372,16 +371,16 @@ def check_stax(ctx: TypingContext, e: Node, x: str, T: Type):
     # TODO
     return x in ctx.variables and \
         tc.is_subtype(ctx, ctx.variables[x], U) and \
-        x not in fv(T) and \
-        tc.kinding(ctx, T, AnyKind())
+        x not in fv(T)
 
 
-def stax_id(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
+def stax_id(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     """ STAx-Id """
     return T
 
 
-def stax_abs(ctx: TypingContext, e: Node, x: str, AT: AbstractionType, d: int):
+def stax_abs(ctx: TypingContext, e: TypedNode, x: str, AT: AbstractionType,
+             d: int):
     """ STAx-Abs """
     T = AT.arg_type
     U = AT.return_type
@@ -391,7 +390,8 @@ def stax_abs(ctx: TypingContext, e: Node, x: str, AT: AbstractionType, d: int):
     return AbstractionType(AT.arg_name, Tp, Up)
 
 
-def stax_app(ctx: TypingContext, e: Node, x: str, TA: TypeApplication, d: int):
+def stax_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
+             d: int):
     """ STAx-app """
     T = TA.target
     U = TA.argument
@@ -400,7 +400,8 @@ def stax_app(ctx: TypingContext, e: Node, x: str, TA: TypeApplication, d: int):
     return TypeApplication(Tp, Up)
 
 
-def stax_where(ctx: TypingContext, e: Node, x: str, RT: RefinedType, d: int):
+def stax_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
+               d: int):
     """  STAx-where """
     T = RT.type
     e1 = RT.cond
@@ -410,7 +411,7 @@ def stax_where(ctx: TypingContext, e: Node, x: str, RT: RefinedType, d: int):
 
 
 @random_chooser
-def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
+def stax(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
     #if check_stax(ctx, e, x, T): TODO PAPER
     yield ("stax_id", stax_id)
@@ -422,16 +423,17 @@ def stax(ctx: TypingContext, e: Node, x: str, T: Type, d: int):
         yield ("stax_where", stax_where)
 
 
-def seax_var(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+def seax_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     """ assumes ex == e and x not in fv(e) """
     return Var(x).with_type(e.type)
 
 
-def seax_id(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+def seax_id(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     return e
 
 
-def seax_app(ctx: TypingContext, ex: Node, x: str, e: Application, d: int):
+def seax_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application,
+             d: int):
     e1 = e.target
     e2 = e.argument
     e1p = seax(ctx, ex, x, e1, d - 1)
@@ -439,7 +441,8 @@ def seax_app(ctx: TypingContext, ex: Node, x: str, e: Application, d: int):
     return Application(e1p, e2p)
 
 
-def seax_abs(ctx: TypingContext, ex: Node, x: str, abs: Abstraction, d: int):
+def seax_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
+             d: int):
     U = abs.arg_type
     e = abs.body
     Up = stax(ctx, ex, x, U, d - 1)
@@ -447,7 +450,7 @@ def seax_abs(ctx: TypingContext, ex: Node, x: str, abs: Abstraction, d: int):
     return Abstraction(abs.arg_name, Up, ep)
 
 
-def seax_if(ctx: TypingContext, ex: Node, x: str, i: If, d: int):
+def seax_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
     e1 = i.cond
     e2 = i.then
     e3 = i.otherwise
@@ -457,7 +460,7 @@ def seax_if(ctx: TypingContext, ex: Node, x: str, i: If, d: int):
     return If(e1p, e2p, e3p)
 
 
-def seax_tapp(ctx: TypingContext, ex: Node, x: str, tapp: TApplication,
+def seax_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
               d: int):
     T = tapp.target
     U = tapp.argument
@@ -466,7 +469,7 @@ def seax_tapp(ctx: TypingContext, ex: Node, x: str, tapp: TApplication,
     return TApplication(Tp, Up)
 
 
-def seax_tabs(ctx: TypingContext, ex: Node, x: str, tapp: TAbstraction,
+def seax_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
               d: int):
     T = tapp.body
     Tp = stax(ctx, ex, x, T, d - 1)
@@ -474,7 +477,7 @@ def seax_tabs(ctx: TypingContext, ex: Node, x: str, tapp: TAbstraction,
 
 
 @random_chooser
-def seax(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
+def seax(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     if e == ex and x not in fv(e):
         yield ("seax_var", seax_var)
     yield ("seax_id", seax_id)
@@ -493,7 +496,7 @@ def seax(ctx: TypingContext, ex: Node, x: str, e: Node, d: int):
 def check_stat(ctx: TypingContext, T: Type, t: str, U: Type):
     return T == U and \
         t in ctx.type_variables and \
-        tc.kinding(ctx, T, ctx.type_variables[t]) and \
+        tc.check_kind(ctx, T, ctx.type_variables[t]) and \
         t not in fv(T)
 
 
@@ -532,7 +535,7 @@ def stat_tabs(ctx: TypingContext, T: Type, t: str, TA: TypeAbstraction,
     """ STAt-TAbs """
     u = TA.name
     k = TA.kind
-    U = TA.body
+    U = TA.type
     Up = stat(ctx.with_type_var(u, k), T, t, U, d - 1)
     return TypeAbstraction(u, k, Up)
 
@@ -565,13 +568,13 @@ def stat(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
 """ Inverse Type substitution """
 
 
-def check_seat(ctx: TypingContext, T: Type, t: str, e: Node):
+def check_seat(ctx: TypingContext, T: Type, t: str, e: TypedNode):
     return t in ctx.type_variables and \
-        tc.kinding(ctx, T, ctx.type_variables[t]) and \
+        tc.check_kind(ctx, T, ctx.type_variables[t]) and \
         t not in fv(e)
 
 
-def seat_id(ctx: TypingContext, T: Type, t: str, e: Node, d: int):
+def seat_id(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
     """ SEAt-Id """
     return e
 
@@ -591,7 +594,7 @@ def seat_abs(ctx: TypingContext, T: Type, t: str, a: Abstraction, d: int):
     e = a.body
     Up = stat(ctx, T, t, U, d - 1)
     ep = seat(ctx, T, t, e, d - 1)
-    return Abstraction(e.name, Up, ep)
+    return Abstraction(a.arg_name, Up, ep)
 
 
 def seat_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
@@ -622,7 +625,7 @@ def seat_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
 
 
 @random_chooser
-def seat(ctx: TypingContext, T: Type, t: str, e: Node, d: int):
+def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
     """ Γ ⸠ [T/t] e ~>_{d} e2 """
     if check_seat(ctx, T, t, e):
         yield ("seat_id", seat_id)

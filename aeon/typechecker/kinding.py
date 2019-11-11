@@ -60,7 +60,7 @@ def synth_kind(ctx: TypingContext, t: Type) -> Kind:
         return k_tabs(ctx, t)
     elif isinstance(t, TypeApplication):
         return k_tapp(ctx, t)
-    raise KindingError("{} does not have a type synthesis rule".format(t))
+    raise KindingError("{} does not have a kind synthesis rule".format(t))
 
 
 def check_kind(ctx: TypingContext, t: Type, e: Kind) -> Kind:

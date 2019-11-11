@@ -268,9 +268,9 @@ class AeonASTVisitor(AeonVisitor):
                 typee, return_name, return_type, conditions)
 
         # >>>>>> TODO: falta envolver nas tapplications
-
+        # TODO: (alcides) alterei o kind para star, mas devia ser calculado
         for type_abstract in abstractions:
-            typee = TypeAbstraction(type_abstract, type_abstract, typee)
+            typee = TypeAbstraction(type_abstract, star, typee)
 
         # The typee is fully completed
         self.general_context[name] = typee

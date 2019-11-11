@@ -2,6 +2,8 @@
 
 import z3
 
+import aeon.frontend2 as frontend2
+
 import aeon.frontend
 from aeon.ast import *
 from aeon.libraries.standard import importNative
@@ -72,8 +74,15 @@ def evaluate():
     pass
 
 
+ty2 = frontend2.typee.parse_strict
+
 initial_context = {
     'native': (aeon.frontend.parse_strict("type Bottom;"), None),
+    '==':
+    (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x == y),
+    '!=':
+    (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x != y),
+
     # Native functions
     "+": (native_operation('+'), lambda x: lambda y: x + y),
     "-": (native_operation('-'), lambda x: lambda y: x - y),
@@ -85,8 +94,8 @@ initial_context = {
     ">": (native_operation('>'), lambda x: lambda y: x > y),
     "<=": (native_operation('<='), lambda x: lambda y: x <= y),
     ">=": (native_operation('>='), lambda x: lambda y: x >= y),
-    "==": (native_operation('=='), lambda x: lambda y: x == y),
-    "!=": (native_operation('!='), lambda x: lambda y: x != y),
+    #"==": (native_operation('=='), lambda x: lambda y: x == y),
+    #"!=": (native_operation('!='), lambda x: lambda y: x != y),
     "&&": (typed_native_operation('&&', 'Boolean'),
            lambda x: lambda y: (x and y), lambda x: lambda y: z3.And(x, y)),
     "||": (typed_native_operation('||', 'Boolean'), lambda x: lambda y: x or y,
@@ -94,9 +103,8 @@ initial_context = {
     "-->":
     (typed_native_operation('-->', 'Boolean'),
      lambda x: lambda y: (not x) or y, lambda x: lambda y: z3.Implies(x, y)),
-    "!":
-    (typed_unary_operation('!',
-                           'Boolean'), lambda x: not x, lambda x: z3.Not(x)),
+    "!": (typed_unary_operation('!', 'Boolean'), lambda x: not x,
+          lambda x: z3.Not(x)),
     "And": (ty(
         'And',
         'temp: (a:Boolean, b:Boolean) -> {c:Boolean | c == (a && b)} = native;'
@@ -104,9 +112,9 @@ initial_context = {
     "@maximize":
     (ty('@maximize',
         'temp<T>: (something:T) -> Boolean = native;'), lambda x: True),
-    "@minimize":
-    (ty('@minimize',
-        'temp<T>: (something:T) -> Boolean = native;'), lambda x: True),
+    "@minimize": (ty('@minimize',
+                     'temp<T>: (something:T) -> Boolean = native;'),
+                  lambda x: True),
     "@evaluate": (ty('@evaluate', 'temp: (path:String) -> Boolean = native;'),
                   lambda x: True),
 }

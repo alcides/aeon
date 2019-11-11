@@ -77,7 +77,7 @@ class If(TypedNode):
     # int a = (a > b) ? 1 : 0;
     #inteiro = True and "ola" or "adeus"
 
-    def __init__(self, cond: Node, then: Node, otherwise: Node):
+    def __init__(self, cond: TypedNode, then: TypedNode, otherwise: TypedNode):
         super(If, self).__init__()
         self.cond = cond
         self.then = then
@@ -97,7 +97,7 @@ class If(TypedNode):
 class Application(TypedNode):
     """  e(e) """
 
-    def __init__(self, target: Node, argument: Node):
+    def __init__(self, target: TypedNode, argument: TypedNode):
         super(Application, self).__init__()
         self.target = target
         self.argument = argument
@@ -114,7 +114,7 @@ class Application(TypedNode):
 class Abstraction(TypedNode):
     """ \\x:T -> e """
 
-    def __init__(self, arg_name: str, arg_type: Type, body: Node):
+    def __init__(self, arg_name: str, arg_type: Type, body: TypedNode):
         super(Abstraction, self).__init__()
         self.arg_name = arg_name
         self.arg_type = arg_type
@@ -133,7 +133,7 @@ class Abstraction(TypedNode):
 class TAbstraction(TypedNode):
     """ T:k => e """
 
-    def __init__(self, typevar: str, kind: Kind, body: Node):
+    def __init__(self, typevar: str, kind: Kind, body: TypedNode):
         super(TAbstraction, self).__init__()
         self.typevar = typevar
         self.kind = kind
@@ -152,7 +152,7 @@ class TAbstraction(TypedNode):
 class TApplication(TypedNode):
     """ e[T] """
 
-    def __init__(self, target: Node, argument: Type):
+    def __init__(self, target: TypedNode, argument: Type):
         super(TApplication, self).__init__()
         self.target = target
         self.argument = argument
@@ -170,7 +170,8 @@ class TApplication(TypedNode):
 
 
 class Definition(Node):
-    def __init__(self, name: str, type: Type, return_type: Type, body: Node):
+    def __init__(self, name: str, type: Type, return_type: Type,
+                 body: TypedNode):
         self.name = name
         self.type = type
         self.return_type = return_type
