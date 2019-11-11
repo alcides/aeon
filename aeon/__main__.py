@@ -11,10 +11,6 @@ from .interpreter import run
 
 from .translate import Translator
 
-from .automatic.conversor import retrieve_fitness_functions
-from .automatic.utils import get_holes
-from .automatic.random import Random
-
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 if __name__ == '__main__':
@@ -42,25 +38,8 @@ if __name__ == '__main__':
         print(20 * "-", "Prettify:")
         print(ast)
 
-    if should_print_fitness:
-        res = retrieve_fitness_functions(ast)
-        if res:
-            print(res)
-            print("\n")
+    print(20 * "-", "First 10 random individuals:")
 
-        print(20 * "-", "First 10 random individuals:")
-
-        # Temp
-        '''
-        for declaration in ast:
-            if isinstance(declaration, Definition) and declaration.name in res:
-                holes = get_holes(declaration)
-                from .libraries.stdlib import initial_context
-                ctx = {}
-                for name in initial_context.keys():
-                    ctx[name] = initial_context[name][0]
-                random = Random(ctx, declaration, holes)
-        '''
     try:
         ast = check_program(ast)
     except Exception as t:
