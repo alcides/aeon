@@ -1,7 +1,8 @@
 import unittest
 
 from ..frontend2 import expr, typee
-from ..typechecker.substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr
+from ..typechecker.substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr,\
+     rename_abs, rename_tabs
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -181,6 +182,24 @@ class TestSubstitutions(unittest.TestCase):
         self.assert_sve("T:* => y", "2", "y", expects="T:* => 2")
         self.assert_sve("y[Boolean]", "2", "y", expects="2[Boolean]")
         self.assert_sve("a b c", "c", "b", expects="a c c")
+
+    def test_substition_with_clashes(self):
+        self.assert_sve("\\b:Integer -> (b + a)",
+                        "b",
+                        "a",
+                        expects="\\b_fresh:Integer -> (b_fresh + b)")
+
+    def test_renaming_abs(self):
+        self.assertEqual(rename_abs(ex("\\x:Integer -> x"), "y"),
+                         ex("\\y:Integer -> y"))
+        self.assertEqual(rename_abs(ex("\\x:Integer -> 1"), "y"),
+                         ex("\\y:Integer -> 1"))
+
+    def test_renaming_tabs(self):
+        self.assertEqual(rename_tabs(ex("t:* => 1[t]"), "v"),
+                         ex("v:* => 1[v]"))
+        self.assertEqual(rename_tabs(ex("t:* => 1[z]"), "v"),
+                         ex("v:* => 1[z]"))
 
 
 if __name__ == '__main__':

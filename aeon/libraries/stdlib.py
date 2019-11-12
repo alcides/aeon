@@ -44,7 +44,9 @@ initial_context = {
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x == y),
     '!=':
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x != y),
-    '+': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x + y),
+    '+':
+    (ty2("(T:*) => (a:T) -> (b:T) -> {x:T where (x == ((smtPlus[T] a) b))}"),
+     lambda x: lambda y: x + y),
     '-': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x - y),
     '*': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x * y),
     '/': (ty2("(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> T"),
@@ -54,8 +56,8 @@ initial_context = {
           lambda x: lambda y: x % y),
     '<':
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x < y),
-    '>':
-    (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x > y),
+    '>': (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"),
+          lambda x: lambda y: x > y),
     '<=': (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"),
            lambda x: lambda y: x <= y),
     '>=': (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"),
@@ -72,6 +74,8 @@ initial_context = {
     '@maximize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
     '@minimize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
     '@evaluate': (ty2("(T:*) => (a:String) -> Boolean"), lambda x: True),
+    'smtPlus': (ty2("(T:*) => (a:T) -> (b:T) -> T"),
+                lambda x: lambda y: x + y),
 }
 """
 native_implementations = importNative('aeon.libraries.native', '*')

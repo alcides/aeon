@@ -1,7 +1,7 @@
 import copy
 
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program
 
@@ -20,8 +20,10 @@ class TypeCheckingError(TypingException):
 
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
-    if e.type == None:
-        raise Exception("WTF???")
+    if isinstance(e.value, bool) and not e.type:
+        return t_b
+    if isinstance(e.value, int) and not e.type:
+        return t_i
     return e.type
 
 
@@ -102,7 +104,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
             e, t, expected))
-    #e.type = t if e.type != None else e.type
+    e.type = t if e.type != None else e.type
     return t
 
 
@@ -115,7 +117,6 @@ def check_program(ast):
         if isinstance(e, Program):
             for decl in e.declarations:
                 internal_check(ctx, decl)
-                print("--..")
             return e.declarations
         elif isinstance(e, Definition):
             check_type(ctx, e.body, e.type)
