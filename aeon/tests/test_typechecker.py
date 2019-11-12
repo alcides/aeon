@@ -49,8 +49,8 @@ class TestTypeChecking(unittest.TestCase):
         nctx = ctx.with_var("f", ty("(x:Integer) -> Boolean"))
         self.assert_tc(nctx, "f 1", expected="Boolean")
 
-        #self.assert_tc(ctx, "(1+1)", expected="Integer")
-        #self.assert_tc(ctx, "(1+2)", expected="{x:Integer where (x == 3)}")
+        self.assert_tc(ctx, "(1+1)", expected="Integer")
+        self.assert_tc(ctx, "(1+2)", expected="{x:Integer where (x == 3)}")
 
     def test_divide_by_zero(self):
         ctx = TypingContext()
@@ -60,6 +60,11 @@ class TestTypeChecking(unittest.TestCase):
 
         with self.assertRaises(TypeCheckingError):
             self.assert_tc(ctx, "(1 / 0)", expected="Integer")
+
+    def test_tabs(self):
+        ctx = TypingContext()
+        ctx.setup()
+        self.assert_tc(ctx, "t:* => 1", expected="(t:*) => Integer")
 
     def test_polymorphism(self):
         ctx = TypingContext()
@@ -83,6 +88,13 @@ class TestTypeChecking(unittest.TestCase):
 
         with self.assertRaises(TypeCheckingError):
             self.assert_tc(ctx, "1", "{ x:Integer where (x == (3-1)) }")
+
+    def _test_if(self):
+        ctx = TypingContext()
+        ctx.setup()
+
+        self.assert_tc(ctx, "if true then 1 else 0",
+                       "{ x:Integer where ((x == 1) || (x == 0)) }")
 
 
 if __name__ == '__main__':

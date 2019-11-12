@@ -205,8 +205,8 @@ var = symbol.parsecmap(lambda x: Var(x))
 literal = true ^ false ^ null ^ number() ^ quoted
 expr_basic = literal ^ var
 
-term = hole | abstraction ^ tabstraction ^ expr_basic ^ (
-    t("(") >> expr_wrapped << t(")")) ^ (t("(") >> expr_ops << t(")")) ^ not_op
+term = hole | abstraction ^ tabstraction ^ expr_basic ^ not_op ^ (
+    t("(") >> expr_wrapped << t(")")) ^ (t("(") >> expr_ops << t(")"))
 
 expr_tapp = tapplication ^ term
 

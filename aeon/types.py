@@ -18,8 +18,8 @@ class TypeException(Exception):
 class TypingContext(object):
     def __init__(self):
         self.type_aliases = {}
-        self.variables = {}
-        self.type_variables = {}
+        self.variables: Dict[str, Type] = {}
+        self.type_variables: Dict[str, Kind] = {}
 
     def setup(self):
         from .libraries.stdlib import get_all_builtins, get_builtin_type
@@ -67,6 +67,17 @@ class TypingContext(object):
         """  TODO Paper: Explain this """
         name = "__hidden_cond__{}__".format(len(self.variables))
         return self.with_var(name, RefinedType(name, BasicType('Boolean'), c))
+
+    def __contains__(self, n):
+        return n in self.variables.keys() or n in self.type_variables.keys()
+
+    def fresh_var(self):
+        k = "fresh_0"
+        i = 0
+        while k in self:
+            i += 1
+            k = "fresh_{}".format(i)
+        return k
 
 
 class Kind(object):

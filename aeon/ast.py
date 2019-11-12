@@ -19,6 +19,9 @@ class TypedNode(Node):
     def __init__(self):
         self.type = None
 
+    def __repr__(self):
+        return str(self)
+
     def with_type(self, t: Type):
         self.type = t
         return self
