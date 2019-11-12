@@ -87,8 +87,8 @@ class If(TypedNode):
         self.otherwise = otherwise
 
     def __str__(self):
-        return "if {} then {} else {}".format(self.cond, self.then,
-                                              self.otherwise)
+        return "(if {} then {} else {})".format(self.cond, self.then,
+                                                self.otherwise)
 
     def __eq__(self, o):
         return type(self) == type(o) \
@@ -106,7 +106,7 @@ class Application(TypedNode):
         self.argument = argument
 
     def __str__(self):
-        return "{}({})".format(self.target, self.argument)
+        return "({} {})".format(self.target, self.argument)
 
     def __eq__(self, o):
         return type(self) == type(o) \
@@ -124,7 +124,7 @@ class Abstraction(TypedNode):
         self.body = body
 
     def __str__(self):
-        return "\{}:{} -> {}".format(self.arg_name, self.arg_type, self.body)
+        return "(\{}:{} -> {})".format(self.arg_name, self.arg_type, self.body)
 
     def __eq__(self, o):
         return type(self) == type(o) \
@@ -143,7 +143,7 @@ class TAbstraction(TypedNode):
         self.body = body
 
     def __str__(self):
-        return "{}:{} => ({})".format(self.typevar, self.kind, self.body)
+        return "({}:{} => ({}))".format(self.typevar, self.kind, self.body)
 
     def __eq__(self, o):
         return type(self) == type(o) \

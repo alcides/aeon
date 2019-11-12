@@ -86,7 +86,6 @@ class TestSynthesis(unittest.TestCase):
         ctx.setup()
 
         self.assert_synth(ctx, ty("{x:Integer where (x > 0)}"))
-        return
 
         self.assert_synth(
             ctx,

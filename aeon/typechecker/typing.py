@@ -34,6 +34,7 @@ def t_var(ctx: TypingContext, e: Var) -> Type:
 
 
 def t_if(ctx: TypingContext, e: If) -> Type:
+
     pass  # TODO
 
 

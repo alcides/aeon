@@ -70,7 +70,14 @@ def flatten_refined_types(t):
         t, type(t)))
 
 
+global counter
+counter = 0
+
+
 def zed_mk_variable(name, ty: Type):
+    global counter
+    name = "{}_{}".format(name, counter)
+
     if isinstance(ty, BasicType):
         if ty.name == "Integer":
             return z3.Int(name)
@@ -102,7 +109,7 @@ def get_sort(t: Type):
         if t.name == 'Integer':
             return z3.IntSort()
         elif t.name == 'Boolean':
-            return z3.IntSort()
+            return z3.BoolSort()
         elif t.name in ['Top', 'Void', 'Object']:
             return z3.BoolSort()
 
@@ -231,19 +238,24 @@ def zed_initial_context():
 def zed_verify_entailment(ctx, cond):
     ztx = zed_initial_context()
     z3_context = zed_translate_context(ztx, ctx)
+    print("Cond:", cond, ztx.keys())
+    if 'a' in ztx:
+        print("a:", type(ztx["a"]))
+        print(ctx.variables)
     z3_cond = zed_translate_wrapped(ztx, cond)
     relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
-    if relevant_vars:
+    if relevant_vars and not isinstance(z3_context, bool):
         s.add(z3_context)
         s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
     else:
         s.add(z3_context)
         s.add(z3.Implies(z3_context, z3_cond))
-    #print("zed_ver_entails", s)
+    #print("zed_ver_entails", cond, "..", s)
 
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
+        #print("R:", r)
         if r == z3.sat:
             return True
         if r == z3.unsat:

@@ -84,10 +84,17 @@ class TestTypeChecking(unittest.TestCase):
 
         self.assert_tc(ctx, "1", "{ x:Integer where (x >= 1) }")
 
+        self.assert_tc(ctx, "1", "{ x:Integer where (x >= 0) }")
+
+        self.assert_tc(ctx, "6", "{ x:Integer where ( (x % 2) == 0) }")
+
         self.assert_tc(ctx, "1", "{ x:Integer where (x == (2-1)) }")
 
         with self.assertRaises(TypeCheckingError):
             self.assert_tc(ctx, "1", "{ x:Integer where (x == (3-1)) }")
+
+            self.assert_tc(ctx, "(5 % 0)", "Integer")
+            self.assert_tc(ctx, "(5 % 1)", "Integer")
 
     def _test_if(self):
         ctx = TypingContext()

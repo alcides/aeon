@@ -13,9 +13,9 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
 from . import typechecker as tc
 
 MAX_TRIES = 100
-MAX_TRIES_WHERE = 100
+MAX_TRIES_WHERE = 15
 
-forbidden_vars = ['native', 'uninterpreted']
+forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
 weights = {
     "sk_star": 1,  # Kinding
@@ -125,9 +125,11 @@ def random_chooser(f):
             try:
                 return fun(*args, **kwargs)
             except Unsynthesizable as e:
-                print("Exception:", e, type(e))
-                print("Failed once to pick using", fun)
-                continue
+                pass
+                #if i % 10 == 0:
+                #    print("Exception:", e, type(e))
+                #    print("Failed once to pick using", fun)
+                #continue
         raise Unsynthesizable("Too many tries for type: ", *args)
 
     return f_alt
@@ -218,9 +220,6 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
     for v in ctx.type_variables:
         if ctx.type_variables[v] == k:
             rs.append(BasicType(v))
-    for b in ctx.basic_types:
-        if b.kind == k:
-            rs.append(b)
     return rs
 
 
@@ -299,7 +298,7 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
     for _ in range(MAX_TRIES_WHERE):
-        e2 = se(ctx, T.type, d - 1)
+        e2 = se(ctx, T.type, 1)  # d - 1) # TODO: Optimization
         ncond = substitution_expr_in_expr(T.cond, e2, T.name)
         if tc.entails(ctx, ncond):
             return e2.with_type(T)
@@ -339,7 +338,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_var", se_var)
     if d > 0:
         # TODO
-        yield ("se_if", se_if)
+        #yield ("se_if", se_if)
         if isinstance(T, AbstractionType):
             yield ("se_abs", se_abs)
         if isinstance(T, RefinedType):
@@ -423,7 +422,6 @@ def stax(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
 
 
 def seax_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
-    """ assumes ex == e and x not in fv(e) """
     return Var(x).with_type(e.type)
 
 

@@ -52,7 +52,7 @@ initial_context = {
     '/': (ty2("(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> T"),
           lambda x: lambda y: x / y),
     '^': (ty2("(T:*) => (a:T) -> (b:T) -> T"), lambda x: lambda y: x ^ y),
-    '%': (ty2("(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> T"),
+    '%': (ty2("(a:Integer) -> (b:{z:Integer where (z != 0)}) -> Integer"),
           lambda x: lambda y: x % y),
     '<':
     (ty2("(T:*) => (a:T) -> (b:T) -> Boolean"), lambda x: lambda y: x < y),

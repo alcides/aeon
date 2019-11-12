@@ -25,7 +25,6 @@ def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
 
     nctx = ctx.with_var(sub.name, sub.type)
     return check_type(nctx, sub.cond, t_b) and \
-        is_satisfiable(nctx, sub.cond) and \
         is_subtype(ctx, sub.type, sup)
 
 
@@ -98,4 +97,5 @@ def is_subtype(ctx, sub, sup) -> bool:
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):
         return sub_tappR(ctx, sub, sup)
-    raise SubtypingException('No subtyping rule for {} <: {}'.format(sub, sup))
+    #raise SubtypingException('No subtyping rule for {} <: {}'.format(sub, sup))
+    return False
