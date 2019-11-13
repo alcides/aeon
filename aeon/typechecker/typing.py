@@ -1,9 +1,9 @@
 import copy
 
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
-    If, Literal, TypedNode, TypeDeclaration, Definition, Program
+    If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole
 
 from .kinding import check_kind
 from .conversions import type_conversion
@@ -75,6 +75,8 @@ def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
 
+def t_hole(ctx: TypingContext, e:Hole) -> Type:
+    return e.type if e.type else bottom
 
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
     """ Γ ⸠ e => T """
@@ -92,6 +94,8 @@ def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
         t = t_tapp(ctx, e)
     elif isinstance(e, TAbstraction):
         t = t_tabs(ctx, e)
+    elif isinstance(e, Hole):
+        t = t_hole(ctx, e)
     else:
         raise TypeCheckingError(
             "{} does not have a type synthesis rule".format(e))

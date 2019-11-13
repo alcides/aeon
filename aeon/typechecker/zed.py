@@ -243,7 +243,15 @@ def zed_verify_entailment(ctx, cond):
         print("a:", type(ztx["a"]))
         print(ctx.variables)
     z3_cond = zed_translate_wrapped(ztx, cond)
-    relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
+    
+    # TODO: fix - quick fix, need a better one
+    relevant_vars = list()
+    for x in get_z3_vars(z3_cond):
+        for key, value in ztx.items():
+            if not hasattr(value, '__call__') and value == x.n:
+                relevant_vars.append(key)
+
+    # relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     if relevant_vars and not isinstance(z3_context, bool):
         s.add(z3_context)
