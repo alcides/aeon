@@ -70,14 +70,7 @@ def flatten_refined_types(t):
         t, type(t)))
 
 
-global counter
-counter = 0
-
-
 def zed_mk_variable(name, ty: Type):
-    global counter
-    name = "{}_{}".format(name, counter)
-
     if isinstance(ty, BasicType):
         if ty.name == "Integer":
             return z3.Int(name)
@@ -238,20 +231,10 @@ def zed_initial_context():
 def zed_verify_entailment(ctx, cond):
     ztx = zed_initial_context()
     z3_context = zed_translate_context(ztx, ctx)
-    print("Cond:", cond, ztx.keys())
-    if 'a' in ztx:
-        print("a:", type(ztx["a"]))
-        print(ctx.variables)
-    z3_cond = zed_translate_wrapped(ztx, cond)
-    
-    # TODO: fix - quick fix, need a better one
-    relevant_vars = list()
-    for x in get_z3_vars(z3_cond):
-        for key, value in ztx.items():
-            if not hasattr(value, '__call__') and value == x.n:
-                relevant_vars.append(key)
 
-    # relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
+    z3_cond = zed_translate_wrapped(ztx, cond)
+
+    relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
     s = z3.Solver()
     if relevant_vars and not isinstance(z3_context, bool):
         s.add(z3_context)

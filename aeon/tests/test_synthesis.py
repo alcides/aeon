@@ -89,12 +89,8 @@ class TestSynthesis(unittest.TestCase):
 
         self.assert_synth(
             ctx,
-            ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"),
-            times=10)
-
-        self.assert_synth(ctx,
-                          ty("(a:Integer) -> {v:Integer where (v > 1)}"),
-                          times=10)
+            ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"))
+        self.assert_synth(ctx, ty("(a:Integer) -> {v:Integer where (v > 1)}"))
 
     def assert_stax(self, ctx, e, x, T):
         NT = stax(ctx, e, x, T, 1)

@@ -2,7 +2,7 @@ import unittest
 
 from ..types import *
 from ..frontend2 import expr, typee
-from ..typechecker import check_type, TypeCheckingError
+from ..typechecker import check_type, TypeCheckingError, TypingException
 
 ex = expr.parse_strict
 ty = typee.parse_strict
@@ -96,12 +96,22 @@ class TestTypeChecking(unittest.TestCase):
             self.assert_tc(ctx, "(5 % 0)", "Integer")
             self.assert_tc(ctx, "(5 % 1)", "Integer")
 
-    def _test_if(self):
+    def test_if(self):
         ctx = TypingContext()
         ctx.setup()
 
         self.assert_tc(ctx, "if true then 1 else 0",
                        "{ x:Integer where ((x == 1) || (x == 0)) }")
+
+        with self.assertRaises(TypingException) as exc:
+            self.assert_tc(ctx, "if true then 1 else 0",
+                           "{ x:Integer where ((x == 2) || (x == 0)) }")
+        with self.assertRaises(TypingException) as exc:
+            self.assert_tc(ctx, "if true then 1 else 0",
+                           "{ x:Integer where (x == 0) }")
+        with self.assertRaises(TypingException) as exc:
+            self.assert_tc(ctx, "if true then 1 else 0",
+                           "{ x:Integer where (x == 1) }")
 
 
 if __name__ == '__main__':

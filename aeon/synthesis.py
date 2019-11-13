@@ -12,7 +12,7 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
     substitution_expr_in_expr, substitution_type_in_expr
 from . import typechecker as tc
 
-MAX_TRIES = 100
+MAX_TRIES = 20
 MAX_TRIES_WHERE = 15
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']

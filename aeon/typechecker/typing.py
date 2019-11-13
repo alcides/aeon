@@ -12,6 +12,7 @@ from .exceptions import TypingException
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .utils import flatten_refined_type
+from .bounds import lub
 
 
 class TypeCheckingError(TypingException):
@@ -34,8 +35,11 @@ def t_var(ctx: TypingContext, e: Var) -> Type:
 
 
 def t_if(ctx: TypingContext, e: If) -> Type:
+    check_type(ctx, e.cond, t_b)
 
-    pass  # TODO
+    T = synth_type(ctx, e.then)
+    U = synth_type(ctx, e.otherwise)
+    return lub(T, U)
 
 
 def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
@@ -75,8 +79,10 @@ def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
 
-def t_hole(ctx: TypingContext, e:Hole) -> Type:
+
+def t_hole(ctx: TypingContext, e: Hole) -> Type:
     return e.type if e.type else bottom
+
 
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
     """ Γ ⸠ e => T """
