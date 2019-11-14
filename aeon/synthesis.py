@@ -36,6 +36,7 @@ weights = {
     "se_tabs": 1,
     "se_tapp": 1,
     "se_if": 1,
+    "se_subtype": 1,
     "stax_id": 1,
     "stax_abs": 1000,
     "stax_where": 1000,
@@ -59,6 +60,14 @@ weights = {
     "seat_if": 1,
     "seat_tapp": 1,
     "seat_tabs": 1,
+    'ssub_base': 1,
+    'ssub_abs': 1,
+    'ssub_whereR': 1,
+    'ssub_top': 1,
+    'ssup_base': 1,
+    'ssup_abs': 1,
+    'ssup_whereL': 1,
+    'ssup_bottom': 1,
 }
 
 
@@ -348,6 +357,11 @@ def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
     return TApplication(e, T)
 
 
+def se_subtype(ctx: TypingContext, T: Type, d: int):
+    U = ssub(ctx, T, d - 1)  # TODO: paper: d-1????
+    return se(ctx, U, d - 1)
+
+
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
@@ -370,6 +384,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         if isinstance(T, TypeApplication):
             yield ("se_tapp", se_tapp)
         """ TODO: SE-Subtype """
+        yield ("se_subtype", se_subtype)
 
 
 """ Expression Synthesis parameterized with x:T """
@@ -644,7 +659,6 @@ def seat_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
 @random_chooser
 def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
     """ Γ ⸠ [T/t] e ~>_{d} e2 """
-    #if check_seat(ctx, T, t, e):
     yield ("seat_id", seat_id)
     if isinstance(e, Application):
         yield ("seat_app", seat_app)
@@ -656,3 +670,80 @@ def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
         yield ("seat_tapp", seat_tapp)
     if isinstance(e, TAbstraction):
         yield ("seat_tabs", seat_tabs)
+
+
+def ssub_base(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSub-Int, SSub-Boolean """
+    return T
+
+
+def ssub_abs(ctx: TypingContext, T: AbstractionType,
+             d: int) -> AbstractionType:
+    """ SSub-Abs """
+    U1 = ssup(ctx, T.arg_type, d - 1)
+    U2 = ssub(ctx.with_var(T.arg_name, T.arg_type), T.return_type, d - 1)
+    return AbstractionType(T.arg_name, U1, U2)
+
+
+def ssub_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
+    """ SSub-WhereR """
+    x = ctx.fresh_var()
+    U = ssub(ctx, T, d - 1)
+    nctx = ctx.with_var(x, U)
+    e = se(nctx, t_b, d - 1)
+    if tc.entails(nctx, e):
+        return RefinedType(x, U, e)
+    raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
+
+
+def ssub_top(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSub-Top """
+    k = sk(d - 1)
+    return st(ctx, k, d - 1)
+
+
+@random_chooser
+def ssub(ctx: TypingContext, T: Type, d: int) -> Type:
+    yield ('ssub_base', ssub_base)
+    if d > 0:
+        if isinstance(T, BasicType) and T.name == 'Top':
+            yield ('ssub_top', ssub_top)
+        yield ('ssub_whereR', ssub_whereR)
+        if isinstance(T, AbstractionType):
+            yield ('ssub_abs', ssub_abs)
+
+
+def ssup_base(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSup-Int, SSup-Boolean """
+    return T
+
+
+def ssup_abs(ctx: TypingContext, T: AbstractionType,
+             d: int) -> AbstractionType:
+    """ SSup-Abs """
+    U1 = ssub(ctx, T.arg_type, d - 1)
+    U2 = ssup(ctx.with_var(T.arg_name, T.arg_type), T.return_type, d - 1)
+    return AbstractionType(T.arg_name, U1, U2)
+
+
+def ssup_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
+    """ SSup-WhereL """
+    return T.type
+
+
+def ssup_bottom(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSup-Bottom """
+    k = sk(d - 1)
+    return st(ctx, k, d - 1)
+
+
+@random_chooser
+def ssup(ctx: TypingContext, T: Type, d: int) -> Type:
+    yield ('ssup_base', ssup_base)
+    if d > 0:
+        if isinstance(T, BasicType) and T.name == 'Bottom':
+            yield ('ssup_bottom', ssup_bottom)
+        if isinstance(T, RefinedType):
+            yield ('ssup_whereL', ssup_whereL)
+        if isinstance(T, AbstractionType):
+            yield ('ssup_abs', ssup_abs)
