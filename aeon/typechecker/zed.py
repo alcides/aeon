@@ -161,7 +161,7 @@ def zed_translate_tapp(ztx, tabs: TApplication):
 
 
 def zed_translate_context(ztx, ctx):
-    restrictions = []
+    restrictions = ctx.restrictions  # start with the restrictions already in context
     for name in ctx.variables.keys():
         t = ctx.variables[name]
         try:

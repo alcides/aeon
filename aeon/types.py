@@ -1,5 +1,8 @@
 import copy
 import sys
+import random
+
+from typing import Any, Dict, List
 
 
 class TypeException(Exception):
@@ -15,11 +18,16 @@ class TypeException(Exception):
         self.given = given
 
 
+global fresh_var_counter
+fresh_var_counter = 0
+
+
 class TypingContext(object):
     def __init__(self):
         self.type_aliases = {}
         self.variables: Dict[str, Type] = {}
         self.type_variables: Dict[str, Kind] = {}
+        self.restrictions: List[Any] = []
 
     def setup(self):
         from .libraries.stdlib import get_all_builtins, get_builtin_type
@@ -42,6 +50,7 @@ class TypingContext(object):
         t.type_aliases = self.type_aliases.copy()
         t.variables = self.variables.copy()
         t.type_variables = self.type_variables.copy()
+        t.restrictions = self.restrictions.copy()
         return t
 
     def add_var(self, n, t):
@@ -64,19 +73,20 @@ class TypingContext(object):
         return new_ctx
 
     def with_cond(self, c):
-        """  TODO Paper: Explain this """
-        name = "__hidden_cond__{}__".format(len(self.variables))
-        return self.with_var(name, RefinedType(name, BasicType('Boolean'), c))
+        new_ctx = self.copy()
+        new_ctx.restrictions.append(c)
+        return new_ctx
 
     def __contains__(self, n):
         return n in self.variables.keys() or n in self.type_variables.keys()
 
     def fresh_var(self):
-        k = "fresh_0"
-        i = 0
-        while k in self:
-            i += 1
-            k = "fresh_{}".format(i)
+        global fresh_var_counter
+        while True:
+            fresh_var_counter += 1
+            k = "fresh_{}".format(fresh_var_counter)
+            if k not in self:
+                break
         return k
 
 
@@ -149,8 +159,8 @@ class AbstractionType(Type):
         self.return_type = return_type
 
     def __str__(self):
-        return "{}:{} -> ({}):".format(self.arg_name, self.arg_type,
-                                       self.return_type)
+        return "({}:{} -> ({}))".format(self.arg_name, self.arg_type,
+                                        self.return_type)
 
     def __eq__(self, o):
         return type(self) == type(o) \
@@ -186,7 +196,7 @@ class TypeAbstraction(Type):
         self.type = type
 
     def __str__(self):
-        return "{}:{} => {}".format(self.name, self.kind, self.type)
+        return "({}:{} => {})".format(self.name, self.kind, self.type)
 
     def __eq__(self, o):
         return type(self) == type(o) \

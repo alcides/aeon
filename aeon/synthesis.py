@@ -171,16 +171,43 @@ def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
     return random.choice(options)
 
 
+def st_abs(ctx: TypingContext, k: Kind, d: int) -> AbstractionType:
+    "ST-Abs"
+    x = ctx.fresh_var()
+    T = st(ctx, k, d - 1)
+    U = st(ctx.with_var(x, T), k, d - 1)
+    return AbstractionType(x, T, U)
+
+
+def st_tabs(ctx: TypingContext, k: Kind, d: int) -> TypeAbstraction:
+    "ST-Tabs"
+    t = ctx.fresh_var()
+    T = st(ctx.with_type_var(t, k.k1), k.k2, d - 1)
+    return TypeAbstraction(t, k, T)
+
+
+def st_tapp(ctx: TypingContext, k: Kind, d: int) -> TypeApplication:
+    "ST-Tapp"
+    kp = sk(d - 1)
+    T = st(ctx, Kind(kp, k), d - 1)
+    U = st(ctx, kp, d - 1)
+    return TypeApplication(T, U)
+
+
 @random_chooser
 def st(ctx: TypingContext, k: Kind, d: int):
     """ Γ ⸠ k ~>_{d} T """
     if k == star:
         yield ("st_int", st_int)
-    if k == star:
         yield ("st_bool", st_bool)
+        if d > 0:
+            yield ("st_abs", st_abs)
     if has_type_vars(ctx, k):
         yield ("st_var", st_var)
-    #  TODO ST-Abs, ST-Tabs, ST-Tapp
+    if d > 0:
+        if k != star:
+            yield ("st_tabs", st_tabs)
+        yield ("st_tapp", st_tapp)
 
 
 def fv(T: Union[Type, TypingContext, TypedNode]):
@@ -188,8 +215,8 @@ def fv(T: Union[Type, TypingContext, TypedNode]):
         return []  # TODO
     if isinstance(T, TypingContext):
         ctx = T
-        return list(ctx.variables.keys()) + list(ctx.type_variables.keys() +
-                                                 list(ctx.type_aliases.keys()))
+        return list(ctx.variables.keys()) + list(ctx.type_variables.keys()) + \
+                                                 list(ctx.type_aliases.keys())
     if isinstance(T, RefinedType):
         return [T.name] + fv(T.type)
     if isinstance(T, AbstractionType):
@@ -199,6 +226,7 @@ def fv(T: Union[Type, TypingContext, TypedNode]):
 
 def scfv(T: Union[Type, TypingContext], upper: bool = False):
     """ ~fv(T) ~> t """
+    # TODO: refactor this with context.freshvar()
     options = upper and string.ascii_uppercase or string.ascii_lowercase
     freevars = fv(T)
     w = ""
