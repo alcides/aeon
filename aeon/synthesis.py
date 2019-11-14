@@ -304,7 +304,7 @@ def se_abs(ctx: TypingContext, T: AbstractionType, d: int):
 
 def se_app(ctx: TypingContext, T: Type, d: int):
     """ SE-App """
-    k = sk(d)
+    k = sk(d - 1)
     U = st(ctx, k, d - 1)
     x = scfv(T)
     e2 = se(ctx, U, d - 1)
