@@ -219,7 +219,6 @@ def zed_initial_context():
         "&&": lambda x: lambda y: z3.And(x, y),
         "||": lambda x: lambda y: z3.Or(x, y),
         "+": lambda x: lambda y: x + y,
-        "smtPlus": lambda x: lambda y: x + y,
         "-": lambda x: lambda y: x - y,
         "*": lambda x: lambda y: x * y,
         "/": lambda x: lambda y: x / y,

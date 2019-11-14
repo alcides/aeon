@@ -37,8 +37,8 @@ def t_var(ctx: TypingContext, e: Var) -> Type:
 def t_if(ctx: TypingContext, e: If) -> Type:
     check_type(ctx, e.cond, t_b)
 
-    T = synth_type(ctx, e.then)
-    U = synth_type(ctx, e.otherwise)
+    T = synth_type(ctx.with_cond(e.cond), e.then)
+    U = synth_type(ctx.with_cond(Application(Var("!"), e.cond)), e.otherwise)
     return lub(T, U)
 
 

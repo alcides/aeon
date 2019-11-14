@@ -90,11 +90,18 @@ class TestTypeChecking(unittest.TestCase):
 
         self.assert_tc(ctx, "1", "{ x:Integer where (x == (2-1)) }")
 
+        self.assert_tc(ctx, "(1 + 1)", "{ x:Integer where (x == 2) }")
+        self.assert_tc(ctx, "(1 - 1)", "{ x:Integer where (x == 0) }")
+        self.assert_tc(ctx, "(true && false)",
+                       "{ x:Boolean where (x == false) }")
+
+        self.assert_tc(ctx, "(5 % 1)", "Integer")
+
         with self.assertRaises(TypeCheckingError):
             self.assert_tc(ctx, "1", "{ x:Integer where (x == (3-1)) }")
 
+        with self.assertRaises(TypeCheckingError):
             self.assert_tc(ctx, "(5 % 0)", "Integer")
-            self.assert_tc(ctx, "(5 % 1)", "Integer")
 
     def test_if(self):
         ctx = TypingContext()

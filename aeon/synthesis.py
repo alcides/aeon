@@ -22,7 +22,7 @@ weights = {
     "sk_rec": 0,
     "st_int": 1,  # Terminal types
     "st_bool": 1,
-    "st_var": 1,
+    "st_var": 5,
     "st_where": 1,
     "st_abs": 1,
     "st_tabs": 1,
@@ -115,7 +115,7 @@ def pick_one_of(alts):
 
 def random_chooser(f):
     def f_alt(*args, **kwargs):
-        random.seed(random.randint(0, 1030))
+        #random.seed(random.randint(0, 1030))
         valid_alternatives = list(f(*args, *kwargs))
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
@@ -180,6 +180,7 @@ def st(ctx: TypingContext, k: Kind, d: int):
         yield ("st_bool", st_bool)
     if has_type_vars(ctx, k):
         yield ("st_var", st_var)
+    #  TODO ST-Abs, ST-Tabs, ST-Tapp
 
 
 def fv(T: Union[Type, TypingContext, TypedNode]):
@@ -251,14 +252,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
 
 def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
-    with WeightManager(se_bool=1):
-        e1 = se(ctx, t_b, d - 1)
-    if tc.entails(
-            ctx,
-            e1) or not tc.is_satisfiable(ctx, e1):  # TODO Paper: explain this
-        #print("Cond not usable", e1)
-        raise Unsynthesizable(
-            "If condition is always true or always false: {}".format(e1))
+    e1 = se(ctx, t_b, d - 1)
     e2 = se(ctx.with_cond(e1), T, d - 1)
     e3 = se(ctx.with_cond(Application(Var("!"), e1)), T, d - 1)
     return If(e1, e2, e3).with_type(T)
@@ -337,8 +331,7 @@ def se(ctx: TypingContext, T: Type, d: int):
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
-        # TODO
-        #yield ("se_if", se_if)
+        yield ("se_if", se_if)
         if isinstance(T, AbstractionType):
             yield ("se_abs", se_abs)
         if isinstance(T, RefinedType):
@@ -411,7 +404,6 @@ def stax_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
 @random_chooser
 def stax(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
-    #if check_stax(ctx, e, x, T): TODO PAPER
     yield ("stax_id", stax_id)
     if isinstance(T, AbstractionType):
         yield ("stax_abs", stax_abs)
@@ -475,7 +467,7 @@ def seax_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
 
 @random_chooser
 def seax(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
-    if e == ex and x not in fv(e):
+    if e == ex:  # and x not in fv(e):
         yield ("seax_var", seax_var)
     yield ("seax_id", seax_id)
     if isinstance(e, Application):
@@ -549,9 +541,9 @@ def stat_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
 @random_chooser
 def stat(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
     """ Γ ⸠ [T/t] U ~>_{d} V """
-    if check_stat(ctx, T, x, U):
-        yield ("stat_id", stat_id)
-        yield ("stat_var", stat_var)
+    #if check_stat(ctx, T, x, U):
+    yield ("stat_id", stat_id)
+    yield ("stat_var", stat_var)
     if isinstance(T, AbstractionType):
         yield ("stat_abs", stat_abs)
     if isinstance(T, TypeApplication):
@@ -624,8 +616,8 @@ def seat_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
 @random_chooser
 def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
     """ Γ ⸠ [T/t] e ~>_{d} e2 """
-    if check_seat(ctx, T, t, e):
-        yield ("seat_id", seat_id)
+    #if check_seat(ctx, T, t, e):
+    yield ("seat_id", seat_id)
     if isinstance(e, Application):
         yield ("seat_app", seat_app)
     if isinstance(e, Abstraction):
