@@ -3,3 +3,6 @@ islpy
 antlr4-python3-runtime
 multipledispatch
 zss
+pandas
+matplotlib
+seaborn

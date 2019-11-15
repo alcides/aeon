@@ -1,0 +1,101 @@
+Typee,Individual,Tree Size,Tree Depth,Diversity
+Boolean,((\b:(fresh_1:Double -> (Integer)) -> True) (\fresh_1:Double -> -71)),5,3,401.36
+Boolean,(if (if True then False else False) then (! False) else (! True)),11,3,909.0
+Boolean,((\q:Top -> False) (And True)),6,3,426.0
+Boolean,((|| False) False),5,3,439.0
+Boolean,True,1,1,432.0
+Boolean,((\x:Integer -> False) 32),4,3,330.693
+Boolean,((\z:Integer -> False) (if False then -55 else 14)),7,3,467.716
+Boolean,((|| False) True),5,3,424.0
+Boolean,((\f:Integer -> True) -92),4,3,349.063
+Boolean,((\c:Integer -> False) -5),4,3,330.473
+Boolean,((\b:Top -> False) (--> False)),6,3,422.0
+Boolean,((\b:Integer -> False) (if False then 78 else 17)),7,3,470.105
+Boolean,((And True) (if True then False else True)),8,3,605.0
+Boolean,((if True then ! else !) False),6,3,488.0
+Boolean,(! True),3,2,383.0
+Boolean,(! (! False)),5,3,440.0
+Boolean,True,1,1,432.0
+Boolean,(! (! False)),5,3,440.0
+Boolean,(! False),3,2,371.0
+Boolean,((\b:Integer -> False) 92),4,3,338.49
+Boolean,False,1,1,426.0
+Boolean,((|| False) False),5,3,439.0
+Boolean,(! (if True then False else False)),6,3,483.0
+Boolean,False,1,1,426.0
+Boolean,((\a:Integer -> False) (if False then -35 else -100)),7,3,474.242
+Boolean,False,1,1,426.0
+Boolean,((\v:Top -> True) (% -75)),6,3,423.891
+Boolean,((\t:Integer -> True) 43),4,3,341.123
+Boolean,((\g:Integer -> False) (if True then 40 else -35)),7,3,458.468
+Boolean,((\e:Integer -> False) (if False then -40 else 76)),7,3,469.463
+Boolean,((\k:Top -> True) ==),4,3,369.0
+Boolean,((\s:Integer -> False) -18),4,3,330.477
+Boolean,((\j:Integer -> True) 78),4,3,345.523
+Boolean,((\b:Top -> True) (% -97)),6,3,426.844
+Boolean,(! (! False)),5,3,440.0
+Boolean,((\z:Top -> True) (if True then - else >)),7,3,515.0
+Boolean,((\c:Integer -> False) (if True then -62 else 34)),7,3,459.033
+Boolean,False,1,1,426.0
+Boolean,True,1,1,432.0
+Boolean,((--> False) False),5,3,438.0
+Boolean,((\v:Integer -> True) (if False then -66 else -95)),7,3,476.148
+Boolean,((\h:Top -> True) (if True then ^ else &&)),7,3,515.0
+Boolean,((\g:Integer -> True) -24),4,3,340.614
+Boolean,False,1,1,426.0
+Boolean,((\j:(fresh_4:Integer -> (Top)) -> True) %),4,3,365.0
+Boolean,(if (! False) then (if True then False else False) else False),9,3,730.0
+Boolean,(! False),3,2,371.0
+Boolean,((\b:Integer -> True) (if False then -92 else -23)),7,3,469.659
+Boolean,True,1,1,432.0
+Boolean,(! (! False)),5,3,440.0
+Boolean,((\b:(fresh_5:Bottom -> (Integer)) -> True) (% -42)),6,3,419.458
+Boolean,(! True),3,2,383.0
+Boolean,((\k:Integer -> False) (if False then 58 else 12)),7,3,468.136
+Boolean,((\d:Integer -> False) 55),4,3,332.071
+Boolean,((\j:Integer -> True) 76),4,3,345.141
+Boolean,((\m:Integer -> False) 64),4,3,333.179
+Boolean,((|| True) (! True)),7,3,544.0
+Boolean,((\a:Top -> False) (if True then ! else <=)),7,3,478.0
+Boolean,((\m:Boolean -> False) False),4,3,331.0
+Boolean,False,1,1,426.0
+Boolean,((\p:Integer -> False) 48),4,3,331.445
+Boolean,((\k:Boolean -> False) (! False)),6,3,402.0
+Boolean,((\o:Top -> False) (&& True)),6,3,426.0
+Boolean,((And False) (if True then True else True)),8,3,603.0
+Boolean,True,1,1,432.0
+Boolean,((\n:Integer -> False) (if False then 53 else 59)),7,3,473.481
+Boolean,((\o:Integer -> False) 17),4,3,330.195
+Boolean,((\n:Integer -> False) (if False then -1 else -35)),7,3,469.542
+Boolean,True,1,1,432.0
+Boolean,((\u:Top -> False) (% -15)),6,3,415.463
+Boolean,((\v:Integer -> True) 48),4,3,341.445
+Boolean,((\j:Top -> False) (--> False)),6,3,422.0
+Boolean,((\l:Integer -> True) -27),4,3,340.816
+Boolean,(if (! False) then (if False then True else False) else (! False)),11,3,879.0
+Boolean,(if (if False then False else True) then False else True),7,3,621.0
+Boolean,(if True then False else (! False)),6,3,529.0
+Boolean,((\v:Integer -> True) 53),4,3,341.849
+Boolean,((\g:Integer -> False) -83),4,3,337.959
+Boolean,True,1,1,432.0
+Boolean,((\j:Integer -> False) (if True then 44 else -18)),7,3,457.793
+Boolean,True,1,1,432.0
+Boolean,((\v:Integer -> True) -3),4,3,340.485
+Boolean,False,1,1,426.0
+Boolean,((\m:Integer -> False) 65),4,3,333.321
+Boolean,((if True then ! else !) (! False)),8,3,612.0
+Boolean,((--> False) (! False)),7,3,526.0
+Boolean,((if False then ! else !) True),6,3,500.0
+Boolean,((\f:Integer -> True) 28),4,3,340.57
+Boolean,(if (if False then True else False) then True else (! True)),9,3,743.0
+Boolean,(if (if True then False else False) then (! True) else True),9,3,751.0
+Boolean,((--> True) (! True)),7,3,545.0
+Boolean,((\h:Integer -> True) (if True then -20 else 14)),7,3,476.158
+Boolean,((\p:Integer -> True) -24),4,3,340.614
+Boolean,True,1,1,432.0
+Boolean,((\g:Integer -> True) (if True then -13 else 11)),7,3,476.891
+Boolean,((\i:Boolean -> False) (! False)),6,3,402.0
+Boolean,(! (! False)),5,3,440.0
+Boolean,((\z:Integer -> True) 66),4,3,343.482
+Boolean,((\s:Integer -> True) -29),4,3,340.976
+Boolean,((\m:Integer -> False) 14),4,3,330.12

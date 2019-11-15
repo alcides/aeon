@@ -1,8 +1,8 @@
 from aeon.synthesis import se
-from aeon.metrics import Measurer
+from aeon.evaluation import Measurer
 from aeon.types import TypingContext, BasicType
 
-MAX_TREE_DEPTH = 3
+MAX_TREE_DEPTH = 2
 POPULATION_SIZE = 100
 
 def generate_and_benchmark(typee, file_writer):
@@ -15,6 +15,6 @@ def generate_and_benchmark(typee, file_writer):
             print('Generated individual:', result)
             population.append(result)
         except Exception as e: 
-            print("Not able to synthesise", e)
+            print("Not able to synthesise:", e)
     measurer = Measurer(file_writer)
     measurer.measure(typee, population)

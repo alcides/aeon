@@ -1,0 +1,73 @@
+Typee,Individual,Tree Size,Tree Depth,Diversity
+{ x:Integer where ((>[??] x) 0) },26,1,1,310.504
+{ x:Integer where ((>[??] x) 0) },(if False then -30 else -74),4,2,288.429
+{ x:Integer where ((>[??] x) 0) },((% 45) -61),5,3,249.245
+{ x:Integer where ((>[??] x) 0) },88,1,1,318.838
+{ x:Integer where ((>[??] x) 0) },76,1,1,315.915
+{ x:Integer where ((>[??] x) 0) },((% -55) -51),5,3,253.102
+{ x:Integer where ((>[??] x) 0) },((\n:Integer -> n) 93),4,3,322.147
+{ x:Integer where ((>[??] x) 0) },((\q:Integer -> q) -72),4,3,319.223
+{ x:Integer where ((>[??] x) 0) },10,1,1,310.473
+{ x:Integer where ((>[??] x) 0) },((% 14) (if False then 19 else -98)),8,3,347.649
+{ x:Integer where ((>[??] x) 0) },((% -70) (if False then -22 else -33)),8,3,351.607
+{ x:Integer where ((>[??] x) 0) },((% 27) -72),5,3,249.202
+{ x:Integer where ((>[??] x) 0) },14,1,1,310.383
+{ x:Integer where ((>[??] x) 0) },((% -30) 31),5,3,244.424
+{ x:Integer where ((>[??] x) 0) },((% -63) (if False then -54 else 92)),8,3,354.258
+{ x:Integer where ((>[??] x) 0) },3,1,1,310.654
+{ x:Integer where ((>[??] x) 0) },((% 21) 3),5,3,242.178
+{ x:Integer where ((>[??] x) 0) },((% 77) 60),5,3,254.016
+{ x:Integer where ((>[??] x) 0) },((% 95) -91),5,3,262.714
+{ x:Integer where ((>[??] x) 0) },((% -52) 80),5,3,254.356
+{ x:Integer where ((>[??] x) 0) },57,1,1,313.643
+{ x:Integer where ((>[??] x) 0) },30,1,1,310.797
+{ x:Integer where ((>[??] x) 0) },((\f:Integer -> f) -89),4,3,322.778
+{ x:Integer where ((>[??] x) 0) },((% 51) (if False then -100 else 77)),8,3,356.247
+{ x:Integer where ((>[??] x) 0) },((% -46) 14),5,3,244.742
+{ x:Integer where ((>[??] x) 0) },((% -37) -8),5,3,244.912
+{ x:Integer where ((>[??] x) 0) },(if (if True then True else True) then (if True then 43 else -99) else (if False then 23 else -23)),13,3,751.681
+{ x:Integer where ((>[??] x) 0) },((% -62) (if True then -47 else -88)),8,3,364.156
+{ x:Integer where ((>[??] x) 0) },(if False then 87 else -28),4,2,285.474
+{ x:Integer where ((>[??] x) 0) },((% -34) 31),5,3,244.731
+{ x:Integer where ((>[??] x) 0) },((% -90) 27),5,3,252.915
+{ x:Integer where ((>[??] x) 0) },(if (if True then True else True) then 31 else 26),7,3,442.958
+{ x:Integer where ((>[??] x) 0) },(if (if True then False else True) then (if False then 94 else -61) else 77),10,3,567.798
+{ x:Integer where ((>[??] x) 0) },((% -81) 87),5,3,261.73
+{ x:Integer where ((>[??] x) 0) },((% 0) -23),5,3,242.631
+{ x:Integer where ((>[??] x) 0) },((% 95) -11),5,3,250.438
+{ x:Integer where ((>[??] x) 0) },87,1,1,318.534
+{ x:Integer where ((>[??] x) 0) },22,1,1,310.39
+{ x:Integer where ((>[??] x) 0) },(if (if False then True else False) then (if False then 77 else -6) else 46),10,3,563.579
+{ x:Integer where ((>[??] x) 0) },58,1,1,313.776
+{ x:Integer where ((>[??] x) 0) },((% 22) (if True then -10 else 4)),8,3,349.971
+{ x:Integer where ((>[??] x) 0) },((% 9) -59),5,3,246.299
+{ x:Integer where ((>[??] x) 0) },((\q:Integer -> q) (if False then 45 else -15)),7,3,379.674
+{ x:Integer where ((>[??] x) 0) },((\e:Integer -> e) (if True then -17 else -34)),7,3,389.311
+{ x:Integer where ((>[??] x) 0) },(if (if True then True else False) then 15 else (if True then -49 else 79)),10,3,584.897
+{ x:Integer where ((>[??] x) 0) },((\s:Integer -> s) 43),4,3,312.855
+{ x:Integer where ((>[??] x) 0) },((\c:Integer -> c) (if False then 13 else -48)),7,3,381.369
+{ x:Integer where ((>[??] x) 0) },(if True then -85 else 77),4,2,299.368
+{ x:Integer where ((>[??] x) 0) },((\o:Integer -> o) (if False then -52 else -84)),7,3,394.793
+{ x:Integer where ((>[??] x) 0) },((% 83) 43),5,3,251.408
+{ x:Integer where ((>[??] x) 0) },((% 51) 1),5,3,244.045
+{ x:Integer where ((>[??] x) 0) },((% 25) (if True then 49 else 80)),8,3,357.836
+{ x:Integer where ((>[??] x) 0) },((\f:Integer -> f) -88),4,3,322.515
+{ x:Integer where ((>[??] x) 0) },(if False then -52 else -2),4,2,281.655
+{ x:Integer where ((>[??] x) 0) },((% 11) 58),5,3,245.774
+{ x:Integer where ((>[??] x) 0) },5,1,1,310.612
+{ x:Integer where ((>[??] x) 0) },(if True then -76 else -16),4,2,292.873
+{ x:Integer where ((>[??] x) 0) },((% -48) (if False then -69 else -85)),8,3,360.478
+{ x:Integer where ((>[??] x) 0) },((% -7) -25),5,3,243.502
+{ x:Integer where ((>[??] x) 0) },(if True then 53 else 36),4,2,289.58
+{ x:Integer where ((>[??] x) 0) },(if (if True then True else True) then (if True then -4 else 77) else 20),10,3,565.408
+{ x:Integer where ((>[??] x) 0) },91,1,1,319.782
+{ x:Integer where ((>[??] x) 0) },((% 12) -27),5,3,242.459
+{ x:Integer where ((>[??] x) 0) },((% 79) -11),5,3,247.235
+{ x:Integer where ((>[??] x) 0) },(if (if False then False else True) then (if True then 99 else -16) else 12),10,3,568.92
+{ x:Integer where ((>[??] x) 0) },(if False then -1 else 45),4,2,280.031
+{ x:Integer where ((>[??] x) 0) },(if False then -21 else 34),4,2,279.715
+{ x:Integer where ((>[??] x) 0) },((% -19) (if False then -18 else -93)),8,3,350.407
+{ x:Integer where ((>[??] x) 0) },70,1,1,315.376
+{ x:Integer where ((>[??] x) 0) },((% 38) (if False then 66 else -4)),8,3,344.815
+{ x:Integer where ((>[??] x) 0) },((% 2) -29),5,3,243.012
+{ x:Integer where ((>[??] x) 0) },((% 64) -44),5,3,249.135
