@@ -24,7 +24,7 @@ def lub(T: Type, U: Type) -> Type:
             U, TypeAbstraction) and T.kind == U.kind:
         return lub_tabs(T, U)
     elif isinstance(T, TypeApplication) and isinstance(U, TypeApplication):
-        return glb_tapp(T, U)
+        return lub_tapp(T, U)
     return top
 
 

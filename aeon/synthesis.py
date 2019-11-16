@@ -61,13 +61,23 @@ weights = {
     "seat_tapp": 1,
     "seat_tabs": 1,
     'ssub_base': 1,
+    'ssub_top': 1,
     'ssub_abs': 1,
     'ssub_whereR': 1,
-    'ssub_top': 1,
+    'ssub_whereL': 1,
+    'ssub_tabs': 1,
+    'ssub_tapp': 1,
+    'ssub_tappL': 1,
+    'ssub_tappR': 1,
     'ssup_base': 1,
+    'ssup_bottom': 1,
     'ssup_abs': 1,
     'ssup_whereL': 1,
-    'ssup_bottom': 1,
+    'ssup_whereL': 1,
+    'ssup_tabs': 1,
+    'ssup_tapp': 1,
+    'ssup_tappL': 1,
+    'ssup_tappR': 1,
 }
 
 
@@ -672,9 +682,15 @@ def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
         yield ("seat_tabs", seat_tabs)
 
 
-def ssub_base(ctx: TypingContext, T: Type, d: int) -> Type:
-    """ SSub-Int, SSub-Boolean """
+def ssub_base(ctx: TypingContext, T: BasicType, d: int) -> Type:
+    """ SSub-Int, SSub-Bool, SSub-Var """
     return T
+
+
+def ssub_top(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSub-Top """
+    k = sk(d - 1)
+    return st(ctx, k, d - 1)
 
 
 def ssub_abs(ctx: TypingContext, T: AbstractionType,
@@ -691,31 +707,84 @@ def ssub_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
     U = ssub(ctx, T, d - 1)
     nctx = ctx.with_var(x, U)
     e = se(nctx, t_b, d - 1)
-    if tc.entails(nctx, e):
-        return RefinedType(x, U, e)
-    raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
+    return RefinedType(x, U, e)
+    #if tc.entails(nctx, e):
+    #    return RefinedType(x, U, e)
+    #raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
 
 
-def ssub_top(ctx: TypingContext, T: Type, d: int) -> Type:
-    """ SSub-Top """
+def ssub_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
+    """ SSub-whereL """
+    nctx = ctx.with_var(T.name, T.type).with_cond(T.cond)
+    return ssub(nctx, T.type, d - 1)
+
+
+def ssub_tabs(ctx: TypingContext, T: TypeAbstraction, d: int) -> Type:
+    """ SSub-TAbs """
+    U = ssub(ctx.with_type_var(T.name, T.kind), T.type, d - 1)
+    return TypeAbstraction(T.name, T.kind, U)
+
+
+def ssub_tapp(ctx: TypingContext, T: TypeApplication,
+              d: int) -> TypeApplication:
+    """ SSub-TApp, requires (tU) """
+    assert isinstance(T.target, BasicType)
+    U = ssub(ctx, T.argument, d - 1)
+    return TypeApplication(T.target, U)
+
+
+def ssub_tappL(ctx: TypingContext, T: TypeApplication, d: int) -> Type:
+    """ SSub-TAppL, requires ((∀T:k.U) V) """
+    tabs = T.target
+    assert isinstance(tabs, TypeAbstraction)
+    V = ssub(ctx, substitution_type_in_type(tabs.type, T.argument, tabs.name),
+             d - 1)
+    return V
+
+
+def ssub_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
+    """ SSub-TAppR """
+    t = ctx.fresh_var()
     k = sk(d - 1)
-    return st(ctx, k, d - 1)
+    V = st(ctx, k, d - 1)
+    W = stat(ctx, V, t, T, d - 1)
+    U = ssub(ctx, W, d - 1)
+    tabs = TypeAbstraction(t, k, U)
+    return TypeApplication(tabs, V)
 
 
 @random_chooser
 def ssub(ctx: TypingContext, T: Type, d: int) -> Type:
+    #if isinstance(T, BasicType):
     yield ('ssub_base', ssub_base)
+    if isinstance(T, BasicType) and T.name == 'Top':
+        yield ('ssub_top', ssub_top)
     if d > 0:
-        if isinstance(T, BasicType) and T.name == 'Top':
-            yield ('ssub_top', ssub_top)
-        yield ('ssub_whereR', ssub_whereR)
         if isinstance(T, AbstractionType):
             yield ('ssub_abs', ssub_abs)
+        yield ('ssub_whereR', ssub_whereR)
+        if isinstance(T, RefinedType):
+            yield ('ssub_whereL', ssub_whereL)
+        if isinstance(T, TypeAbstraction):
+            yield ('ssub_tabs', ssub_tabs)
+        if isinstance(T, TypeApplication) and isinstance(
+                T.argument, BasicType):
+            yield ('ssub_tapp', ssub_tapp)
+        if isinstance(T, TypeApplication) and isinstance(
+                T.argument, TypeAbstraction):
+            yield ('ssub_tappL', ssub_tappL)
+        yield ('ssub_tappR', ssub_tappR)
 
 
 def ssup_base(ctx: TypingContext, T: Type, d: int) -> Type:
     """ SSup-Int, SSup-Boolean """
     return T
+
+
+def ssup_bottom(ctx: TypingContext, T: Type, d: int) -> Type:
+    """ SSup-Bottom """
+    k = sk(d - 1)
+    return st(ctx, k, d - 1)
 
 
 def ssup_abs(ctx: TypingContext, T: AbstractionType,
@@ -728,22 +797,71 @@ def ssup_abs(ctx: TypingContext, T: AbstractionType,
 
 def ssup_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     """ SSup-WhereL """
-    return T.type
+    U = ssup(ctx, T.type, d - 1)
+    return U
 
 
-def ssup_bottom(ctx: TypingContext, T: Type, d: int) -> Type:
-    """ SSup-Bottom """
+def ssup_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
+    """ SSup-WhereR """
+    x = ctx.fresh_var()
+    U = ssup(ctx, T, d - 1)
+    e = se(ctx.with_var(x, U), t_b, d - 1)
+    if tc.entails(ctx, e):
+        return RefinedType(x, U, e)
+    raise Unsynthesizable("Boolean expression did not end up to being true")
+
+
+def ssup_tabs(ctx: TypingContext, T: TypeAbstraction, d: int) -> Type:
+    """ SSup-TAbs """
+    U = ssup(ctx.with_type_var(T.name, T.kind), T.type, d - 1)
+    return TypeAbstraction(T.name, T.kind, U)
+
+
+def ssup_tapp(ctx: TypingContext, T: TypeApplication,
+              d: int) -> TypeApplication:
+    """ SSup-TApp, requires (tU) """
+    assert isinstance(T.target, BasicType)
+    U = ssup(ctx, T.argument, d - 1)
+    return TypeApplication(T.target, U)
+
+
+def ssup_tappL(ctx: TypingContext, T: TypeApplication, d: int) -> Type:
+    """ SSup-TAppL, requires ((∀T:k.U) V) """
+    tabs = T.target
+    assert isinstance(tabs, TypeAbstraction)
+    V = ssup(ctx, substitution_type_in_type(tabs.type, T.argument, tabs.name),
+             d - 1)
+    return V
+
+
+def ssup_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
+    """ SSup-TAppR """
+    t = ctx.fresh_var()
     k = sk(d - 1)
-    return st(ctx, k, d - 1)
+    V = st(ctx, k, d - 1)
+    W = stat(ctx, V, t, T, d - 1)
+    U = ssup(ctx, W, d - 1)
+    tabs = TypeAbstraction(t, k, U)
+    return TypeApplication(tabs, V)
 
 
 @random_chooser
 def ssup(ctx: TypingContext, T: Type, d: int) -> Type:
     yield ('ssup_base', ssup_base)
+    if isinstance(T, BasicType) and T.name == 'Bottom':
+        yield ('ssup_bottom', ssup_bottom)
     if d > 0:
-        if isinstance(T, BasicType) and T.name == 'Bottom':
-            yield ('ssup_bottom', ssup_bottom)
         if isinstance(T, RefinedType):
             yield ('ssup_whereL', ssup_whereL)
+        yield ('ssup_whereR', ssup_whereL)
         if isinstance(T, AbstractionType):
             yield ('ssup_abs', ssup_abs)
+        if isinstance(T, TypeAbstraction):
+            yield ('ssup_tabs', ssup_tabs)
+        if isinstance(T, TypeApplication) and isinstance(
+                T.argument, BasicType):
+            yield ('ssup_tapp', ssup_tapp)
+        if isinstance(T, TypeApplication) and isinstance(
+                T.argument, TypeAbstraction):
+            yield ('ssup_tappL', ssup_tappL)
+        yield ('ssup_tappR', ssup_tappR)
