@@ -29,6 +29,8 @@ weights = {
     "st_tapp": 1,
     "se_int": 1,  # Terminal types
     "se_bool": 1,
+    "se_double": 1,
+    "se_string": 1,
     "se_var": 1,
     "se_where": 1,
     "se_abs": 1,
@@ -273,7 +275,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int):
 def se_int(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Int """
 
-    v = random.randint(-100, 100)
+    v = round(random.gauss(0, 0.05) * 7500)
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
@@ -286,6 +288,16 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
                                                 type=t_i,
                                                 ensured=True))))
 
+def se_double(ctx: TypingContext, T: BasicType, d:int):
+    """ SE-Double """
+    v = random.gauss(0, 0.05) * 7500
+    return Literal(v, T)
+
+def se_string(ctx: TypingContext, T: BasicType, d:int):
+    """ SE-String """
+    length = random.randint(1, 100)
+    v = ''.join(random.choice(string.ascii_letters) for i in range(length))
+    return Literal(v, T)
 
 def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
@@ -369,6 +381,11 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_int", se_int)
     if isinstance(T, BasicType) and T.name == "Boolean":
         yield ("se_bool", se_bool)
+    if isinstance(T, BasicType) and T.name == 'String':
+        yield("se_string", se_string)
+    if isinstance(T, BasicType) and T.name == 'Double':
+        yield("se_double", se_double)
+
     #print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
