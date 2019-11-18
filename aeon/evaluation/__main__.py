@@ -1,28 +1,40 @@
-from aeon.frontend2 import expr, typee
+import os
+import shutil
 
-from aeon.evaluation.benchmark import *
-from aeon.evaluation.process_data import process
+from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
+from .evaluators.regular_evaluator import RegularEvaluator
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+from aeon.evaluation.benchmark import generate_and_benchmark
 
-typees = [
-    ty('Boolean'),
-    ty('Integer'),
-    ty('{x:Integer where (x > 0)}')
-]
+def reset_folder(directory):
+    if os.path.exists(directory):
+        shutil.rmtree(directory)
+    os.makedirs(directory)
+        
+
+def generate_data(evaluator):
+    i = 0
+    
+    # Resets the output folder
+    reset_folder(evaluator.path)
+
+    for typee in evaluator.typees:
+        file_name = '{}run_{}.csv'.format(evaluator.path, i)
+
+        with open(file_name, 'w') as writer:
+            generate_and_benchmark(typee, evaluator.get_depth(), 
+                                    evaluator.POPULATION_SIZE, writer)
+        i += 1
 
 if __name__ == '__main__':
-    i = 0
-    folder_name = 'aeon/evaluation/results/'
-    for typee in typees:
-        print('=' * 30)
-        print('Typee:', typee, '\n')
-        file_name = '{}/typee_{}.csv'.format(folder_name, i) 
-        # Generate and benchmark typee
-        with open(file_name, 'w') as file_writer:
-            generate_and_benchmark(typee, file_writer)
-        i += 1
+    # Get the evaluator
+    evaluator = RegularEvaluator()
+    # evaluator = IncreasingDepthEvaluator()
+
+    # Generate the data with the evaluator path
+    generate_data(evaluator)
+
+    # Process the data
+    evaluator.process()
+
     
-    # Process the csvs into plots
-    process(folder_name)

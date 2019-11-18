@@ -1,0 +1,101 @@
+Typee,Individual,Tree Size,Tree Depth,Diversity
+Integer,((if (! True) then (\o:Integer -> -36) else (\o:Integer -> -19)) 80),10,4,852.559
+Integer,((if (! False) then (\u:Integer -> 50) else (\u:Integer -> -55)) -45),10,4,852.994
+Integer,-81,1,1,911.175
+Integer,-68,1,1,908.741
+Integer,(if ((\m:(fresh_5:String -> (Double)) -> True) (\fresh_5:String -> -29.068704540908925)) then ((\d:Double -> 4) 7.219005808316254) else (if (! True) then 17 else -83)),16,4,1374.203
+Integer,-60,1,1,907.299
+Integer,((if True then (\l:Double -> -72) else (\l:Double -> 20)) ((\q:Integer -> -27.645062825410633) (if True then 49 else -58))),14,4,974.052
+Integer,((\b:Boolean -> 11) ((\p:Integer -> False) -94)),7,4,749.592
+Integer,((\j:Integer -> 74) (if (if False then False else False) then -97 else -32)),10,4,962.302
+Integer,((if (! False) then (\j:String -> 4) else (\j:String -> -93)) ((\e:(fresh_12:Boolean -> (Integer)) -> jqc) (\fresh_12:Boolean -> 100))),14,4,954.619
+Integer,-72,1,1,909.33
+Integer,-57,1,1,906.672
+Integer,((% 99) (if (if False then True else False) then 51 else -5)),11,4,1007.179
+Integer,((\h:Boolean -> -48) ((--> True) False)),8,4,834.262
+Integer,((\e:Double -> (if True then 51 else -91)) ((\x:Top -> -54.49149164453502) max)),10,4,913.252
+Integer,((% 84) ((\n:Top -> 80) (--> False))),10,4,896.186
+Integer,-98,1,1,917.185
+Integer,((if True then (\a:(fresh_23:Integer -> (Integer)) -> 41) else (\a:(fresh_23:Integer -> (Integer)) -> -12)) (% (if True then 34 else -5))),13,4,939.144
+Integer,((% (if False then -13 else 18)) ((\w:(fresh_25:Top -> (Integer)) -> 25) (\fresh_25:Top -> -80))),12,4,951.158
+Integer,(if ((\p:(fresh_33:Boolean -> (Integer)) -> False) (\fresh_33:Boolean -> -87)) then -83 else (if (! False) then (if False then 86 else 58) else 52)),16,4,1382.108
+Integer,((if (! True) then (\b:Boolean -> -100) else (\b:Boolean -> -11)) ((\i:Integer -> False) -10)),13,4,930.395
+Integer,((% (if True then 61 else 70)) ((% 78) (if False then 5 else -50))),15,4,1167.64
+Integer,((\o:Integer -> 28) -31),4,3,764.023
+Integer,((if (! True) then (\d:String -> -92) else (\d:String -> -40)) ((\a:Top -> teCqNIakGKeLerPjXIJUEFeqPLbnmUJXbCEjmxbOQFQ) (% -51))),15,4,998.155
+Integer,-15,1,1,902.982
+Integer,(if (if True then False else (if False then False else True)) then ((\v:Top -> 6) (! True)) else ((\i:Integer -> 71) 69)),18,4,1508.115
+Integer,((if (if True then False else True) then (\c:(fresh_47:Boolean -> (Top)) -> -51) else (\c:(fresh_47:Boolean -> (Top)) -> -22)) -->),11,4,936.557
+Integer,((if (if False then False else True) then (\w:Double -> -87) else (\w:Double -> 49)) (if True then 95.26842773476503 else -32.888587607327906)),14,4,1087.091
+Integer,-9,1,1,902.836
+Integer,((\r:Top -> (if False then 6 else 85)) (--> (! False))),11,4,961.565
+Integer,((if False then (\t:Boolean -> 33) else (\t:Boolean -> 6)) ((\h:Integer -> True) 53)),11,4,815.191
+Integer,((if False then (\i:Top -> -94) else (\i:Top -> 81)) (&& (! False))),12,4,933.918
+Integer,((if (if True then True else False) then (\a:Boolean -> 21) else (\a:Boolean -> 39)) ((\z:Top -> True) (|| True))),16,4,1130.386
+Integer,((if (! True) then (\q:Integer -> -66) else (\q:Integer -> -3)) ((\j:Double -> 17) 29.15911545744433)),13,4,942.985
+Integer,((\q:Integer -> (if False then -21 else 60)) ((\f:Top -> -5) (% 42))),12,4,941.718
+Integer,((\h:(fresh_60:Integer -> (Integer)) -> (h 84)) (if (if True then False else False) then (\fresh_60:Integer -> 0) else (\fresh_60:Integer -> 12))),14,4,1157.068
+Integer,((% (if False then 69 else 69)) ((\w:(fresh_63:Boolean -> (Top)) -> -29) &&)),11,4,951.382
+Integer,((\t:Double -> (if True then -99 else 9)) ((\y:Top -> 89.8964698046411) !)),10,4,906.036
+Integer,((if (! True) then (\m:String -> 5) else (\m:String -> 85)) noUlTCXyhmHffyJsZgoygUUab),10,4,816.135
+Integer,((if (! False) then (\g:(fresh_64:Integer -> (String)) -> -18) else (\g:(fresh_64:Integer -> (String)) -> 45)) (if True then (\fresh_64:Integer -> ymQOUDGBMTmLOANYMbMABCRUUwjDmywnkfPczyMWYAELRrSCcziziTApRFmWYgeok) else (\fresh_64:Integer -> zVZNLoecnIxtSLOyRmxZJFTdiNbxNUCYZjPrGFfspJWXbqaOvlPJZpcdOMtgnarjvKcdtOrHoMlOphRkq))),15,4,1006.014
+Integer,((\f:(fresh_67:Top -> (Boolean)) -> 38) (if (if True then True else True) then (\fresh_67:Top -> False) else (\fresh_67:Top -> True))),12,4,1061.608
+Integer,((if (! True) then (\a:Top -> -74) else (\a:Top -> -34)) ((\p:String -> pow) (if True then ndALsvvDKzzqYDcvZoqFDJZHUSsSINbhbdA else UfvfdStCUEksLngcuMmhblpyEtTPHrBsokAZGpQBpRQrYcWznenElRiKKZqHjCJbIcENyrMvfInzFJQzdReWug))),16,4,1040.979
+Integer,((if True then (\v:Top -> -51) else (\v:Top -> -82)) (% (if False then 25 else -56))),13,4,947.66
+Integer,((\c:(fresh_71:Boolean -> (Integer)) -> 2) (if (! False) then (\fresh_71:Boolean -> -76) else (\fresh_71:Boolean -> -95))),11,4,939.361
+Integer,((% (if False then 34 else -17)) ((\f:Boolean -> 68) (! False))),13,4,1008.836
+Integer,((if True then (\b:Boolean -> -55) else (\b:Boolean -> 4)) ((\h:Double -> True) (if False then 69.54472795941894 else 0.5912314871717257))),14,4,997.259
+Integer,((% -99) ((\l:Double -> -31) 61.96810081587435)),8,4,828.193
+Integer,(if True then ((\n:Integer -> -19) -30) else ((\r:Integer -> 85) (if True then 32 else -9))),13,4,1061.334
+Integer,-70,1,1,909.036
+Integer,((if False then (\i:(fresh_80:Integer -> (Integer)) -> -28) else (\i:(fresh_80:Integer -> (Integer)) -> 26)) (% (if True then 33 else -2))),13,4,940.49
+Integer,((if False then (\x:Top -> 28) else (\x:Top -> -54)) ((\c:String -> /) (if False then MRvnMRmizzfPYQgSsfMIaTgYtqcVcWlVEarJerlJWzbYrgLuRBxHkQzWHglzCWNzWUAUzbDwsdQBFUScixaBeeXBBvnobdMsK else GVHdOUiHhKYJHdpgYznsnEgxWTMpdpBBmYmhawNroBJeNfHJtGqAkfxPOmuglTCqLzMDgxj))),14,4,919.875
+Integer,((\a:String -> 62) ((\z:Integer -> lVeUNZAgTwmEXebtyUOsvtJjYPMQCNvPovRVJCdbSaNtmUNRUYMAidFJUGHUZFAZihkH) (if False then 14 else -82))),10,4,808.196
+Integer,((if True then (\i:Boolean -> -34) else (\i:Boolean -> 99)) (if False then False else False)),11,4,876.697
+Integer,-3,1,1,902.696
+Integer,((if (if True then False else False) then (\e:Boolean -> -14) else (\e:Boolean -> 62)) ((&& True) False)),15,4,1091.335
+Integer,((if (! True) then (\i:Integer -> 42) else (\i:Integer -> -51)) ((% -39) -34)),14,4,998.126
+Integer,((if (! False) then (\x:String -> 26) else (\x:String -> -26)) RdRwnl),10,4,805.371
+Integer,((if (! True) then (\x:String -> 64) else (\x:String -> -95)) ((\d:String -> ZinSkiDrleRQotLVqCfGAWfdYEYnlhHyEiWJLcbCvlOsNxeU) rRsCrctNwuXkTbPfbpfkZqBpzkePGh)),13,4,854.896
+Integer,-29,1,1,903.219
+Integer,-93,1,1,915.093
+Integer,((% (if True then 79 else -19)) -15),8,4,889.32
+Integer,-28,1,1,903.202
+Integer,((% (if False then 42 else -47)) ((% -67) 26)),12,4,1004.827
+Integer,((\v:Boolean -> (if False then -73 else 15)) (if True then (if True then False else True) else (! False))),15,4,1251.52
+Integer,((% -75) ((\y:Boolean -> -52) False)),8,4,802.114
+Integer,((\l:Boolean -> -86) True),4,3,784.6
+Integer,((% 93) ((% 2) 60)),9,4,888.254
+Integer,((% 64) ((\e:Boolean -> 55) (! True))),10,4,880.263
+Integer,((if (if False then False else True) then (\t:(fresh_93:(fresh_94:Boolean -> (Top)) -> ((fresh_95:Integer -> (Integer)))) -> -22) else (\t:(fresh_93:(fresh_94:Boolean -> (Top)) -> ((fresh_95:Integer -> (Integer)))) -> 44)) (\fresh_93:(fresh_94:Boolean -> (Top)) -> (% 46))),14,4,1056.48
+Integer,((\j:Double -> -77) (if False then (if False then -53.24956263640346 else 32.880281772295746) else 8.353106204346219)),10,4,1041.911
+Integer,((% 22) (if False then 59 else 93)),8,3,861.449
+Integer,((if False then (\y:Boolean -> -94) else (\y:Boolean -> -84)) ((\f:Integer -> True) -23)),11,4,837.305
+Integer,((if True then (\x:Double -> -10) else (\x:Double -> -41)) ((\v:(fresh_97:Top -> (Integer)) -> -92.11366584061184) (\fresh_97:Top -> 13))),12,4,884.976
+Integer,9,1,1,902.956
+Integer,((% 75) ((% -41) (if False then 33 else -47))),12,4,1018.658
+Integer,-29,1,1,903.219
+Integer,((if (if False then True else True) then (\b:Top -> -4) else (\b:Top -> -4)) (--> True)),13,4,995.321
+Integer,((\x:Boolean -> -27) ((|| False) True)),8,4,845.247
+Integer,((if (if False then True else False) then (\t:(fresh_107:Boolean -> ((fresh_108:Top -> (Integer)))) -> 18) else (\t:(fresh_107:Boolean -> ((fresh_108:Top -> (Integer)))) -> -56)) (\fresh_107:Boolean -> (\fresh_108:Top -> -44))),13,4,1018.064
+Integer,(((\w:(fresh_113:Double -> (Integer)) -> w) (\fresh_113:Double -> 98)) ((\u:Boolean -> -94.92425622200176) (if False then True else False))),13,4,1041.266
+Integer,((if (! True) then (\j:Integer -> 73) else (\j:Integer -> 71)) 97),10,4,878.619
+Integer,((\j:Integer -> (if True then 29 else 84)) (if (if True then True else False) then (if True then -87 else 64) else -42)),16,4,1316.328
+Integer,((\u:Integer -> u) ((\i:Boolean -> -36) False)),7,4,787.801
+Integer,(if (if True then (! True) else (if True then True else False)) then 14 else ((\l:Boolean -> -10) True)),15,4,1317.667
+Integer,38,1,1,906.355
+Integer,((\u:Boolean -> 16) ((\k:String -> True) (if False then GYkWQClQcSbUFqgBOnCLvvDShzwLfuLuKoDUMikbtTPGMWPEqqNXceVpPbpBSEsMKq else zkEiFybOgxzOCcLCwqqzZUlFyGKQlxVwNMMdUFRLpHeQYAzVzPQIfbZnQDIyiRRPTkLwTRttBGcKN))),10,4,792.904
+Integer,99,1,1,921.069
+Integer,(if ((\c:Integer -> True) 19) then ((\w:String -> -61) fjFFOSmoptKHpqrufTOOopOgi) else 51),10,4,924.822
+Integer,63,1,1,909.942
+Integer,((\a:Top -> 57) ((\n:(fresh_122:Integer -> (Boolean)) -> %) (\fresh_122:Integer -> False))),8,4,803.334
+Integer,((\b:Boolean -> -17) ((\q:(fresh_123:Bottom -> (Integer)) -> True) (\fresh_123:Bottom -> -82))),8,4,790.411
+Integer,((if True then (\w:String -> -31) else (\w:String -> 85)) (if (! True) then bOUoeUSFdiCKquTWwycZVkjfqSqJINAlejnBmEZYCxGQpagsqS else DRfbwfSMdXrYvLxSiNi)),13,4,919.66
+Integer,((% 10) 98),5,3,829.709
+Integer,((\a:Top -> 13) ((--> False) (! False))),10,4,944.85
+Integer,((\u:Boolean -> (if True then 63 else -75)) ((\v:Top -> False) (And True))),12,4,968.63
+Integer,((if (if True then False else False) then (\o:Boolean -> 20) else (\o:Boolean -> 4)) ((\t:Boolean -> False) (! False))),16,4,1119.765
+Integer,((if False then (\s:Top -> 11) else (\s:Top -> 65)) (And (if True then True else False))),13,4,970.933
+Integer,((if (! False) then (\f:Integer -> -57) else (\f:Integer -> -55)) ((\m:Boolean -> 34) (! False))),15,4,1041.572
+Integer,((if False then (\g:Double -> 12) else (\g:Double -> -39)) ((\p:Integer -> -51.24206172283217) (if False then 60 else -50))),14,4,973.315
+Integer,((% (if False then -58 else 97)) ((% -46) (if False then 31 else -87))),15,4,1167.204

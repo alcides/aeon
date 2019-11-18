@@ -10,7 +10,8 @@ def count_nodes(node):
     elif isinstance(node, Literal):
         return 1
     elif isinstance(node, If):
-        return 1 + count_nodes(node.cond) + count_nodes(node.then) + count_nodes(node.otherwise)
+        return 1 + count_nodes(node.cond) + count_nodes(node.then) +\
+                                            count_nodes(node.otherwise)
     elif isinstance(node, Application):
         return 1 + count_nodes(node.target) + count_nodes(node.argument)
     elif isinstance(node, Abstraction):
