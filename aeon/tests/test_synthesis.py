@@ -4,7 +4,7 @@ import random
 from ..types import TypingContext, Kind, star
 from ..frontend2 import expr, typee
 from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
-    se_where, stax
+    se_where, iet
 from ..typechecker import check_type, is_subtype
 
 ex = expr.parse_strict
@@ -92,21 +92,21 @@ class TestSynthesis(unittest.TestCase):
             ty("(a:{k:Integer where (k > 2)}) -> {v:Integer where (v > 1)}"))
         self.assert_synth(ctx, ty("(a:Integer) -> {v:Integer where (v > 1)}"))
 
-    def assert_stax(self, ctx, e, x, T):
-        NT = stax(ctx, e, x, T, 1)
+    def assert_iet(self, ctx, e, x, T):
+        NT = iet(ctx, e, x, T, 1)
         #print("NT:", NT)
         assert (is_subtype(ctx, NT, T))
 
-    def test_stax(self):
+    def test_iet(self):
         ctx = TypingContext()
         ctx.setup()
 
         T = ty("{v:Integer where (v == 1)}")
-        self.assert_stax(ctx.with_var("x", T), expr.parse_strict("1"), "x", T)
+        self.assert_iet(ctx.with_var("x", T), expr.parse_strict("1"), "x", T)
 
         T = ty("(v:{a:Integer where (a > 1)}) -> {k:Boolean where (k)}")
-        self.assert_stax(ctx.with_var("x", ty("{x:Integer where (x==1)}")),
-                         expr.parse_strict("1"), "x", T)
+        self.assert_iet(ctx.with_var("x", ty("{x:Integer where (x==1)}")),
+                        expr.parse_strict("1"), "x", T)
 
 
 if __name__ == '__main__':

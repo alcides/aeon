@@ -39,29 +39,29 @@ weights = {
     "se_tapp": 1,
     "se_if": 1,
     "se_subtype": 1,
-    "stax_id": 1,
-    "stax_abs": 1000,
-    "stax_where": 1000,
-    "stax_app": 1000,
-    "seax_var": 1000000,
-    "seax_id": 1,
-    "seax_app": 100,
-    "seax_abs": 100,
-    "seax_if": 100,
-    "seax_tapp": 100,
-    "seax_tabs": 100,
-    "stat_id": 1,
-    "stat_var": 1,
-    "stat_abs": 1,
-    "stat_where": 1,
-    "stat_tapp": 1,
-    "stat_tabs": 1,
-    "seat_id": 1,
-    "seat_app": 1,
-    "seat_abs": 1,
-    "seat_if": 1,
-    "seat_tapp": 1,
-    "seat_tabs": 1,
+    "iet_id": 1,
+    "iet_abs": 1000,
+    "iet_where": 1000,
+    "iet_app": 1000,
+    "iee_var": 1000000,
+    "iee_id": 1,
+    "iee_app": 100,
+    "iee_abs": 100,
+    "iee_if": 100,
+    "iee_tapp": 100,
+    "iee_tabs": 100,
+    "itt_id": 1,
+    "itt_var": 1,
+    "itt_abs": 1,
+    "itt_where": 1,
+    "itt_tapp": 1,
+    "itt_tabs": 1,
+    "ite_id": 1,
+    "ite_app": 1,
+    "ite_abs": 1,
+    "ite_if": 1,
+    "ite_tapp": 1,
+    "ite_tabs": 1,
     'ssub_base': 1,
     'ssub_top': 1,
     'ssub_abs': 1,
@@ -298,16 +298,19 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
                                                 type=t_i,
                                                 ensured=True))))
 
-def se_double(ctx: TypingContext, T: BasicType, d:int):
+
+def se_double(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Double """
     v = random.gauss(0, 0.05) * 7500
     return Literal(v, T)
 
-def se_string(ctx: TypingContext, T: BasicType, d:int):
+
+def se_string(ctx: TypingContext, T: BasicType, d: int):
     """ SE-String """
     length = random.randint(1, 100)
     v = ''.join(random.choice(string.ascii_letters) for i in range(length))
     return Literal(v, T)
+
 
 def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
@@ -341,7 +344,7 @@ def se_app(ctx: TypingContext, T: Type, d: int):
     e2 = se(ctx, U, d - 1)
 
     nctx = ctx.with_var(x, U)
-    V = stax(nctx, e2, x, T, d - 1)
+    V = iet(nctx, e2, x, T, d - 1)
     FT = AbstractionType(arg_name=x, arg_type=U, return_type=V)
     e1 = se(ctx, FT, d - 1)
 
@@ -374,7 +377,7 @@ def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
     k = sk(d - 1)
     T = st(ctx, k, d - 1)
     t = scfv(ctx, upper=True)
-    V = stat(ctx.with_type_var(T, k), T, t, U, d - 1)
+    V = itt(ctx.with_type_var(T, k), T, t, U, d - 1)
     e = se(ctx, AbstractionType(t, k, V), d - 1)
     return TApplication(e, T)
 
@@ -392,9 +395,9 @@ def se(ctx: TypingContext, T: Type, d: int):
     if isinstance(T, BasicType) and T.name == "Boolean":
         yield ("se_bool", se_bool)
     if isinstance(T, BasicType) and T.name == 'String':
-        yield("se_string", se_string)
+        yield ("se_string", se_string)
     if isinstance(T, BasicType) and T.name == 'Double':
-        yield("se_double", se_double)
+        yield ("se_double", se_double)
 
     #print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
@@ -417,7 +420,7 @@ def se(ctx: TypingContext, T: Type, d: int):
 """ Expression Synthesis parameterized with x:T """
 
 
-def check_stax(ctx: TypingContext, e: TypedNode, x: str, T: Type):
+def check_iet(ctx: TypingContext, e: TypedNode, x: str, T: Type):
     tc.synth_type(ctx, e)
     U = e.type
     """
@@ -435,268 +438,265 @@ def check_stax(ctx: TypingContext, e: TypedNode, x: str, T: Type):
         x not in fv(T)
 
 
-def stax_id(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
-    """ STAx-Id """
+def iet_id(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
+    """ IET-Id """
     return T
 
 
-def stax_abs(ctx: TypingContext, e: TypedNode, x: str, AT: AbstractionType,
-             d: int):
-    """ STAx-Abs """
+def iet_abs(ctx: TypingContext, e: TypedNode, x: str, AT: AbstractionType,
+            d: int):
+    """ IET-Abs """
     T = AT.arg_type
     U = AT.return_type
 
-    Tp = stax(ctx, e, x, T, d - 1)
-    Up = stax(ctx, e, x, U, d - 1)
+    Tp = iet(ctx, e, x, T, d - 1)
+    Up = iet(ctx, e, x, U, d - 1)
     return AbstractionType(AT.arg_name, Tp, Up)
 
 
-def stax_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
-             d: int):
-    """ STAx-app """
+def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
+            d: int):
+    """ IET-app """
     T = TA.target
     U = TA.argument
-    Tp = stax(ctx, e, x, T, d - 1)
-    Up = stax(ctx, e, x, U, d - 1)
+    Tp = iet(ctx, e, x, T, d - 1)
+    Up = iet(ctx, e, x, U, d - 1)
     return TypeApplication(Tp, Up)
 
 
-def stax_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
-               d: int):
-    """  STAx-where """
+def iet_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
+              d: int):
+    """  IET-where """
     T = RT.type
     e1 = RT.cond
-    Tp = stax(ctx, e, x, T, d - 1)
-    ncond = seax(ctx, e, x, e1, d - 1)
+    Tp = iet(ctx, e, x, T, d - 1)
+    ncond = iee(ctx, e, x, e1, d - 1)
     return RefinedType(RT.name, Tp, ncond)
 
 
 @random_chooser
-def stax(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
+def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     """ Γ ⸠ T ~>_{d} U """
-    yield ("stax_id", stax_id)
+    yield ("iet_id", iet_id)
     if isinstance(T, AbstractionType):
-        yield ("stax_abs", stax_abs)
+        yield ("iet_abs", iet_abs)
     if isinstance(T, TypeApplication):
-        yield ("stax_app", stax_app)
+        yield ("iet_app", iet_app)
     if isinstance(T, RefinedType):
-        yield ("stax_where", stax_where)
+        yield ("iet_where", iet_where)
 
 
-def seax_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+def iee_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     return Var(x).with_type(e.type)
 
 
-def seax_id(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+def iee_id(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     return e
 
 
-def seax_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application,
-             d: int):
+def iee_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application, d: int):
     e1 = e.target
     e2 = e.argument
-    e1p = seax(ctx, ex, x, e1, d - 1)
-    e2p = seax(ctx, ex, x, e2, d - 1)
+    e1p = iee(ctx, ex, x, e1, d - 1)
+    e2p = iee(ctx, ex, x, e2, d - 1)
     return Application(e1p, e2p)
 
 
-def seax_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
-             d: int):
+def iee_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
+            d: int):
     U = abs.arg_type
     e = abs.body
-    Up = stax(ctx, ex, x, U, d - 1)
-    ep = seax(ctx, ex, x, e, d - 1)
+    Up = iet(ctx, ex, x, U, d - 1)
+    ep = iee(ctx, ex, x, e, d - 1)
     return Abstraction(abs.arg_name, Up, ep)
 
 
-def seax_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
+def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
     e1 = i.cond
     e2 = i.then
     e3 = i.otherwise
-    e1p = seax(ctx, ex, x, e1, d - 1)
-    e2p = seax(ctx, ex, x, e2, d - 1)
-    e3p = seax(ctx, ex, x, e3, d - 1)
+    e1p = iee(ctx, ex, x, e1, d - 1)
+    e2p = iee(ctx, ex, x, e2, d - 1)
+    e3p = iee(ctx, ex, x, e3, d - 1)
     return If(e1p, e2p, e3p)
 
 
-def seax_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
-              d: int):
+def iee_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
+             d: int):
     T = tapp.target
     U = tapp.argument
-    Tp = stax(ctx, ex, x, T, d - 1)
-    Up = stax(ctx, ex, x, U, d - 1)
+    Tp = iet(ctx, ex, x, T, d - 1)
+    Up = iet(ctx, ex, x, U, d - 1)
     return TApplication(Tp, Up)
 
 
-def seax_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
-              d: int):
+def iee_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
+             d: int):
     T = tapp.body
-    Tp = stax(ctx, ex, x, T, d - 1)
+    Tp = iet(ctx, ex, x, T, d - 1)
     return TAbstraction(tapp.typevar, tapp.kind, Tp)
 
 
 @random_chooser
-def seax(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+def iee(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     if e == ex:  # and x not in fv(e):
-        yield ("seax_var", seax_var)
-    yield ("seax_id", seax_id)
+        yield ("iee_var", iee_var)
+    yield ("iee_id", iee_id)
     if isinstance(e, Application):
-        yield ("seax_app", seax_app)
+        yield ("iee_app", iee_app)
     if isinstance(e, Abstraction):
-        yield ("seax_abs", seax_abs)
+        yield ("iee_abs", iee_abs)
     if isinstance(e, If):
-        yield ("seax_if", seax_if)
+        yield ("iee_if", iee_if)
     if isinstance(e, TApplication):
-        yield ("seax_tapp", seax_tapp)
+        yield ("iee_tapp", iee_tapp)
     if isinstance(e, TAbstraction):
-        yield ("seax_tabs", seax_tabs)
+        yield ("iee_tabs", iee_tabs)
 
 
-def check_stat(ctx: TypingContext, T: Type, t: str, U: Type):
+def check_itt(ctx: TypingContext, T: Type, t: str, U: Type):
     return T == U and \
         t in ctx.type_variables and \
         tc.check_kind(ctx, T, ctx.type_variables[t]) and \
         t not in fv(T)
 
 
-def stat_id(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
-    """ STAt-Id """
+def itt_id(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
+    """ ITT-Id """
     return T
 
 
-def stat_var(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
-    """ STAt-Var """
+def itt_var(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
+    """ ITT-Var """
     return BasicType(t)
 
 
-def stat_abs(ctx: TypingContext, T: Type, t: str, AT: AbstractionType, d: int):
-    """ STAt-Abs """
+def itt_abs(ctx: TypingContext, T: Type, t: str, AT: AbstractionType, d: int):
+    """ ITT-Abs """
     U = AT.arg_type
     V = AT.return_type
 
-    Up = stat(ctx, T, t, U, d - 1)
-    Vp = stat(ctx, T, t, V, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
+    Vp = itt(ctx, T, t, V, d - 1)
     return AbstractionType(AT.arg_name, Up, Vp)
 
 
-def stat_tapp(ctx: TypingContext, T: Type, t: str, TA: TypeApplication,
-              d: int):
-    """ STAt-TApp """
+def itt_tapp(ctx: TypingContext, T: Type, t: str, TA: TypeApplication, d: int):
+    """ ITT-TApp """
     U = TA.target
     V = TA.argument
-    Up = stat(ctx, T, t, U, d - 1)
-    Vp = stat(ctx, T, t, V, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
+    Vp = itt(ctx, T, t, V, d - 1)
     return TypeApplication(Up, Vp)
 
 
-def stat_tabs(ctx: TypingContext, T: Type, t: str, TA: TypeAbstraction,
-              d: int):
-    """ STAt-TAbs """
+def itt_tabs(ctx: TypingContext, T: Type, t: str, TA: TypeAbstraction, d: int):
+    """ ITT-TAbs """
     u = TA.name
     k = TA.kind
     U = TA.type
-    Up = stat(ctx.with_type_var(u, k), T, t, U, d - 1)
+    Up = itt(ctx.with_type_var(u, k), T, t, U, d - 1)
     return TypeAbstraction(u, k, Up)
 
 
-def stat_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
-    """  STAt-where """
+def itt_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
+    """  ITT-where """
     U = RT.type
     e1 = RT.cond
-    Up = stat(ctx, T, t, U, d - 1)
-    ncond = seat(ctx, T, t, e1, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
+    ncond = ite(ctx, T, t, e1, d - 1)
     return RefinedType(RT.name, Up, ncond)
 
 
 @random_chooser
-def stat(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
+def itt(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
     """ Γ ⸠ [T/t] U ~>_{d} V """
-    #if check_stat(ctx, T, x, U):
-    yield ("stat_id", stat_id)
-    yield ("stat_var", stat_var)
+    #if check_itt(ctx, T, x, U):
+    yield ("itt_id", itt_id)
+    yield ("itt_var", itt_var)
     if isinstance(T, AbstractionType):
-        yield ("stat_abs", stat_abs)
+        yield ("itt_abs", itt_abs)
     if isinstance(T, TypeApplication):
-        yield ("stat_tapp", stat_tapp)
+        yield ("itt_tapp", itt_tapp)
     if isinstance(T, TypeAbstraction):
-        yield ("stat_tabs", stat_tabs)
+        yield ("itt_tabs", itt_tabs)
     if isinstance(T, RefinedType):
-        yield ("stat_where", stat_where)
+        yield ("itt_where", itt_where)
 
 
 """ Inverse Type substitution """
 
 
-def check_seat(ctx: TypingContext, T: Type, t: str, e: TypedNode):
+def check_ite(ctx: TypingContext, T: Type, t: str, e: TypedNode):
     return t in ctx.type_variables and \
         tc.check_kind(ctx, T, ctx.type_variables[t]) and \
         t not in fv(e)
 
 
-def seat_id(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
-    """ SEAt-Id """
+def ite_id(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
+    """ ITE-Id """
     return e
 
 
-def seat_app(ctx: TypingContext, T: Type, t: str, e: Application, d: int):
-    """ SEAt-App """
+def ite_app(ctx: TypingContext, T: Type, t: str, e: Application, d: int):
+    """ ITE-App """
     e1 = e.target
     e2 = e.argument
-    e1p = seat(ctx, T, t, e1, d - 1)
-    e2p = seat(ctx, T, t, e2, d - 1)
+    e1p = ite(ctx, T, t, e1, d - 1)
+    e2p = ite(ctx, T, t, e2, d - 1)
     return Application(e1p, e2p)
 
 
-def seat_abs(ctx: TypingContext, T: Type, t: str, a: Abstraction, d: int):
-    """ SEAt-Abs """
+def ite_abs(ctx: TypingContext, T: Type, t: str, a: Abstraction, d: int):
+    """ ITE-Abs """
     U = a.type
     e = a.body
-    Up = stat(ctx, T, t, U, d - 1)
-    ep = seat(ctx, T, t, e, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
+    ep = ite(ctx, T, t, e, d - 1)
     return Abstraction(a.arg_name, Up, ep)
 
 
-def seat_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
-    """ SEAt-If """
+def ite_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
+    """ ITE-If """
     e1 = i.cond
     e2 = i.then
     e3 = i.otherwise
-    e1p = seat(ctx, T, t, e1, d - 1)
-    e2p = seat(ctx, T, t, e2, d - 1)
-    e3p = seat(ctx, T, t, e3, d - 1)
+    e1p = ite(ctx, T, t, e1, d - 1)
+    e2p = ite(ctx, T, t, e2, d - 1)
+    e3p = ite(ctx, T, t, e3, d - 1)
     return If(e1p, e2p, e3p)
 
 
-def seat_tapp(ctx: TypingContext, T: type, t: str, tapp: TApplication, d: int):
-    """ SEAt-TApp """
+def ite_tapp(ctx: TypingContext, T: type, t: str, tapp: TApplication, d: int):
+    """ ITE-TApp """
     U = tapp.target
     V = tapp.argument
-    Up = stat(ctx, T, t, U, d - 1)
-    Vp = stat(ctx, T, t, V, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
+    Vp = itt(ctx, T, t, V, d - 1)
     return TApplication(Up, Vp)
 
 
-def seat_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
-    """ SEAt-TAbs """
+def ite_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
+    """ ITE-TAbs """
     U = tapp.body
-    Up = stat(ctx, T, t, U, d - 1)
+    Up = itt(ctx, T, t, U, d - 1)
     return TAbstraction(tapp.typevar, tapp.kind, Up)
 
 
 @random_chooser
-def seat(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
+def ite(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
     """ Γ ⸠ [T/t] e ~>_{d} e2 """
-    yield ("seat_id", seat_id)
+    yield ("ite_id", ite_id)
     if isinstance(e, Application):
-        yield ("seat_app", seat_app)
+        yield ("ite_app", ite_app)
     if isinstance(e, Abstraction):
-        yield ("seat_abs", seat_abs)
+        yield ("ite_abs", ite_abs)
     if isinstance(e, If):
-        yield ("seat_if", seat_if)
+        yield ("ite_if", ite_if)
     if isinstance(e, TApplication):
-        yield ("seat_tapp", seat_tapp)
+        yield ("ite_tapp", ite_tapp)
     if isinstance(e, TAbstraction):
-        yield ("seat_tabs", seat_tabs)
+        yield ("ite_tabs", ite_tabs)
 
 
 def ssub_base(ctx: TypingContext, T: BasicType, d: int) -> Type:
@@ -764,7 +764,7 @@ def ssub_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
     t = ctx.fresh_var()
     k = sk(d - 1)
     V = st(ctx, k, d - 1)
-    W = stat(ctx, V, t, T, d - 1)
+    W = itt(ctx, V, t, T, d - 1)
     U = ssub(ctx, W, d - 1)
     tabs = TypeAbstraction(t, k, U)
     return TypeApplication(tabs, V)
@@ -856,7 +856,7 @@ def ssup_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
     t = ctx.fresh_var()
     k = sk(d - 1)
     V = st(ctx, k, d - 1)
-    W = stat(ctx, V, t, T, d - 1)
+    W = itt(ctx, V, t, T, d - 1)
     U = ssup(ctx, W, d - 1)
     tabs = TypeAbstraction(t, k, U)
     return TypeApplication(tabs, V)
