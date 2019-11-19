@@ -1,40 +1,44 @@
 import os
 import shutil
 
-from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
-from .evaluators.regular_evaluator import RegularEvaluator
-
+from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
+
+from .evaluators.regular_evaluator import RegularEvaluator
+from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
 
 def reset_folder(directory):
     if os.path.exists(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
         
+def generate_data():
+    for depth in range(MAX_TREE_DEPTH):
+        for run in range(RUNS):
+            i = 0
+            for typee in typees:
+                file_name = '{}typee{}_depth{}_run{}.csv'.format(OUTPUT_PATH, i,
+                                                                 depth, run)
 
-def generate_data(evaluator):
-    i = 0
-    
-    # Resets the output folder
+                with open(file_name, 'w') as writer:
+                    generate_and_benchmark(typee, depth, POPULATION_SIZE, writer)
+            i += 1
+
+def run_evaluator(evaluator):
     reset_folder(evaluator.path)
-
-    for typee in evaluator.typees:
-        file_name = '{}run_{}.csv'.format(evaluator.path, i)
-
-        with open(file_name, 'w') as writer:
-            generate_and_benchmark(typee, evaluator.get_depth(), 
-                                    evaluator.POPULATION_SIZE, writer)
-        i += 1
+    evaluator.process()
 
 if __name__ == '__main__':
-    # Get the evaluator
-    evaluator = RegularEvaluator()
-    # evaluator = IncreasingDepthEvaluator()
+
+    # Reset the output directory
+    reset_folder(OUTPUT_PATH)
 
     # Generate the data with the evaluator path
-    generate_data(evaluator)
+    generate_data()
 
-    # Process the data
-    evaluator.process()
+    # Run the evaluator
+    run_evaluator(RegularEvaluator())
+    # TODO: still working on this one
+    #run_evaluator(IncreasingDepthEvaluator())
 
     

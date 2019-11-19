@@ -1,4 +1,4 @@
-import seaborn as sns
+import seaborn as sns 
 
 def plot(path, f_name, axis, labels, data):
 

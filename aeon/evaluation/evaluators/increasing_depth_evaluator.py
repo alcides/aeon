@@ -3,14 +3,12 @@ import pandas as pd
 from os import listdir
 
 from .evaluator import Evaluator
+from aeon.evaluation import OUTPUT_PATH
 from aeon.frontend2 import expr, typee
 
 import aeon.evaluation.plots.boxplot as boxplot
 import aeon.evaluation.plots.violinplot as violinplot
 import aeon.evaluation.plots.scatterplot as scatterplot
-
-ex = expr.parse_strict
-ty = typee.parse_strict
 
 class IncreasingDepthEvaluator(Evaluator):
 
@@ -18,22 +16,15 @@ class IncreasingDepthEvaluator(Evaluator):
     PATH = 'increasing_depth/'
 
     def __init__(self):
-        self.depth = 0
         self.path = self.FOLDER_PATH + self.PATH
-        self.typees = [ty('Integer')] * self.MAX_TREE_DEPTH
     
-    def get_depth(self):
-        result = self.depth
-        self.depth += 1
-        return result
-
     def process(self):
-        data = pd.DataFrame()
+        data = {}
 
-        for f in listdir(self.path):
-            csv = pd.read_csv(self.path + f)['Tree Depth']
-            name = str(int(re.findall('\d+', f)[0]) + 1)
-            data[name] = csv
+        for f in listdir(OUTPUT_PATH):
+            _, depth, _ = tuple(map(lambda x: int(x), re.findall('\d+', f)))
+            csv = pd.read_csv(OUTPUT_PATH + f)
+            data[depth] = csv if depth not in data else pd.concat([data[depth], csv])
 
         # Generate the plots
         axis = (None, None)
