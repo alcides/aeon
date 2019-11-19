@@ -354,7 +354,7 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
     for _ in range(MAX_TRIES_WHERE):
-        e2 = se(ctx, T.type, 1)  # d - 1) # TODO: Optimization
+        e2 = se(ctx, T.type, d - 1)
         ncond = substitution_expr_in_expr(T.cond, e2, T.name)
         if tc.entails(ctx, ncond):
             return e2.with_type(T)
@@ -446,12 +446,24 @@ def iet_id(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
 def iet_abs(ctx: TypingContext, e: TypedNode, x: str, AT: AbstractionType,
             d: int):
     """ IET-Abs """
+    y = AT.arg_name
     T = AT.arg_type
     U = AT.return_type
 
     Tp = iet(ctx, e, x, T, d - 1)
-    Up = iet(ctx, e, x, U, d - 1)
-    return AbstractionType(AT.arg_name, Tp, Up)
+    Up = iet(ctx.with_var(y, T), e, x, U, d - 1)
+    return AbstractionType(y, Tp, Up)
+
+
+def iet_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
+              d: int):
+    """  IET-where """
+    y = RT.name
+    T = RT.type
+    e1 = RT.cond
+    Tp = iet(ctx, e, x, T, d - 1)
+    ncond = iee(ctx.with_var(y, T), e, x, e1, d - 1)
+    return RefinedType(y, Tp, ncond)
 
 
 def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
@@ -462,16 +474,6 @@ def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
     Tp = iet(ctx, e, x, T, d - 1)
     Up = iet(ctx, e, x, U, d - 1)
     return TypeApplication(Tp, Up)
-
-
-def iet_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
-              d: int):
-    """  IET-where """
-    T = RT.type
-    e1 = RT.cond
-    Tp = iet(ctx, e, x, T, d - 1)
-    ncond = iee(ctx, e, x, e1, d - 1)
-    return RefinedType(RT.name, Tp, ncond)
 
 
 @random_chooser
@@ -504,11 +506,12 @@ def iee_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application, d: int):
 
 def iee_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
             d: int):
+    y = abs.arg_name
     U = abs.arg_type
     e = abs.body
     Up = iet(ctx, ex, x, U, d - 1)
-    ep = iee(ctx, ex, x, e, d - 1)
-    return Abstraction(abs.arg_name, Up, ep)
+    ep = iee(ctx.with_var(y, U), ex, x, e, d - 1)
+    return Abstraction(y, Up, ep)
 
 
 def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
@@ -516,8 +519,8 @@ def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
     e2 = i.then
     e3 = i.otherwise
     e1p = iee(ctx, ex, x, e1, d - 1)
-    e2p = iee(ctx, ex, x, e2, d - 1)
-    e3p = iee(ctx, ex, x, e3, d - 1)
+    e2p = iee(ctx.with_cond(e1), ex, x, e2, d - 1)
+    e3p = iee(ctx.with_cond(Application(Var("!"), e1)), ex, x, e3, d - 1)
     return If(e1p, e2p, e3p)
 
 
@@ -573,12 +576,23 @@ def itt_var(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
 
 def itt_abs(ctx: TypingContext, T: Type, t: str, AT: AbstractionType, d: int):
     """ ITT-Abs """
+    y = AT.arg_name
     U = AT.arg_type
     V = AT.return_type
 
     Up = itt(ctx, T, t, U, d - 1)
-    Vp = itt(ctx, T, t, V, d - 1)
-    return AbstractionType(AT.arg_name, Up, Vp)
+    Vp = itt(ctx.with_var(y, U), T, t, V, d - 1)
+    return AbstractionType(y, Up, Vp)
+
+
+def itt_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
+    """  ITT-where """
+    y = RT.name
+    U = RT.type
+    e1 = RT.cond
+    Up = itt(ctx, T, t, U, d - 1)
+    ncond = ite(ctx.with_var(y, U), T, t, e1, d - 1)
+    return RefinedType(y, Up, ncond)
 
 
 def itt_tapp(ctx: TypingContext, T: Type, t: str, TA: TypeApplication, d: int):
@@ -597,15 +611,6 @@ def itt_tabs(ctx: TypingContext, T: Type, t: str, TA: TypeAbstraction, d: int):
     U = TA.type
     Up = itt(ctx.with_type_var(u, k), T, t, U, d - 1)
     return TypeAbstraction(u, k, Up)
-
-
-def itt_where(ctx: TypingContext, T: Type, t: str, RT: RefinedType, d: int):
-    """  ITT-where """
-    U = RT.type
-    e1 = RT.cond
-    Up = itt(ctx, T, t, U, d - 1)
-    ncond = ite(ctx, T, t, e1, d - 1)
-    return RefinedType(RT.name, Up, ncond)
 
 
 @random_chooser
@@ -649,11 +654,12 @@ def ite_app(ctx: TypingContext, T: Type, t: str, e: Application, d: int):
 
 def ite_abs(ctx: TypingContext, T: Type, t: str, a: Abstraction, d: int):
     """ ITE-Abs """
+    y = a.arg_name
     U = a.type
     e = a.body
     Up = itt(ctx, T, t, U, d - 1)
-    ep = ite(ctx, T, t, e, d - 1)
-    return Abstraction(a.arg_name, Up, ep)
+    ep = ite(ctx.with_var(y, U), T, t, e, d - 1)
+    return Abstraction(y, Up, ep)
 
 
 def ite_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
@@ -662,8 +668,8 @@ def ite_if(ctx: TypingContext, T: type, t: str, i: If, d: int):
     e2 = i.then
     e3 = i.otherwise
     e1p = ite(ctx, T, t, e1, d - 1)
-    e2p = ite(ctx, T, t, e2, d - 1)
-    e3p = ite(ctx, T, t, e3, d - 1)
+    e2p = ite(ctx.with_cond(e1), T, t, e2, d - 1)
+    e3p = ite(ctx.with_cond(Application(Var("!"), e1)), T, t, e3, d - 1)
     return If(e1p, e2p, e3p)
 
 
