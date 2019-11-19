@@ -52,6 +52,8 @@ class Literal(TypedNode):
         self.ensured = ensured  # Used to track if needs type validation or not
 
     def __str__(self):
+        if isinstance(self.value, str):
+            return '"{}"'.format(self.value)
         return "{}".format(self.value)
 
     def __eq__(self, o):
