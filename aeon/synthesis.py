@@ -399,7 +399,6 @@ def se(ctx: TypingContext, T: Type, d: int):
     if isinstance(T, BasicType) and T.name == 'Double':
         yield ("se_double", se_double)
 
-    #print(T, " has vars ", get_variables_of_type(ctx, T))
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
@@ -413,29 +412,10 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_app", se_app)
         if isinstance(T, TypeApplication):
             yield ("se_tapp", se_tapp)
-        """ TODO: SE-Subtype """
         yield ("se_subtype", se_subtype)
 
 
 """ Expression Synthesis parameterized with x:T """
-
-
-def check_iet(ctx: TypingContext, e: TypedNode, x: str, T: Type):
-    tc.synth_type(ctx, e)
-    U = e.type
-    """
-    print("a---")
-    print(x in ctx.variables)
-    print(ctx.variables[x], U)
-    #print(tc.is_subtype(ctx, ctx.variables[x], U))
-    print(x not in fv(T))
-    print(tc.kinding(ctx, T, AnyKind()))
-    print("b......")
-    """
-    # TODO
-    return x in ctx.variables and \
-        tc.is_subtype(ctx, ctx.variables[x], U) and \
-        x not in fv(T)
 
 
 def iet_id(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
@@ -478,7 +458,7 @@ def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
 
 @random_chooser
 def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
-    """ Γ ⸠ T ~>_{d} U """
+    """ Γ ⸠ [e/x] T ~>_{d} U """
     yield ("iet_id", iet_id)
     if isinstance(T, AbstractionType):
         yield ("iet_abs", iet_abs)
@@ -489,14 +469,17 @@ def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
 
 
 def iee_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+    """ IEE-Var """
     return Var(x).with_type(e.type)
 
 
 def iee_id(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+    """ IEE-Id """
     return e
 
 
 def iee_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application, d: int):
+    """ IEE-App """
     e1 = e.target
     e2 = e.argument
     e1p = iee(ctx, ex, x, e1, d - 1)
@@ -506,6 +489,7 @@ def iee_app(ctx: TypingContext, ex: TypedNode, x: str, e: Application, d: int):
 
 def iee_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
             d: int):
+    """ IEE-Abs """
     y = abs.arg_name
     U = abs.arg_type
     e = abs.body
@@ -515,6 +499,7 @@ def iee_abs(ctx: TypingContext, ex: TypedNode, x: str, abs: Abstraction,
 
 
 def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
+    """ IEE-If """
     e1 = i.cond
     e2 = i.then
     e3 = i.otherwise
@@ -526,6 +511,7 @@ def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
 
 def iee_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
              d: int):
+    """ IEE-TApp """
     T = tapp.target
     U = tapp.argument
     Tp = iet(ctx, ex, x, T, d - 1)
@@ -535,6 +521,7 @@ def iee_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
 
 def iee_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
              d: int):
+    """ IEE-TAbs """
     T = tapp.body
     Tp = iet(ctx, ex, x, T, d - 1)
     return TAbstraction(tapp.typevar, tapp.kind, Tp)
@@ -542,6 +529,7 @@ def iee_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
 
 @random_chooser
 def iee(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
+    """ Γ ⸠ [e/x] e ~>_{d} e """
     if e == ex:  # and x not in fv(e):
         yield ("iee_var", iee_var)
     yield ("iee_id", iee_id)
@@ -630,12 +618,6 @@ def itt(ctx: TypingContext, T: Type, x: str, U: Type, d: int):
 
 
 """ Inverse Type substitution """
-
-
-def check_ite(ctx: TypingContext, T: Type, t: str, e: TypedNode):
-    return t in ctx.type_variables and \
-        tc.check_kind(ctx, T, ctx.type_variables[t]) and \
-        t not in fv(e)
 
 
 def ite_id(ctx: TypingContext, T: Type, t: str, e: TypedNode, d: int):
