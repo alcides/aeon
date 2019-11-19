@@ -4,7 +4,7 @@ from aeon.ast import Definition
 from aeon.types import TypingContext, Type
 
 from aeon.automatic.conversor import convert
-from aeon.automatic.conversor import interprete_expressions
+from aeon.automatic.conversor import interpret_expressions
 
 from aeon.automatic.utils import generate_expressions
 

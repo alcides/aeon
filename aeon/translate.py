@@ -56,11 +56,11 @@ class Translator():
                                         self.tab(),
                                         self.translate(node.target.body))
         else:
-            is_native_var = lambda node, lista: type(
-                node.target) is Application and type(
-                    node.target.target) is TApplication and type(
-                        node.target.target.target
-                    ) is Var and node.target.target.target.name in lista
+            is_native_var = lambda node, lista: isinstance(
+                node.target, Application) and isinstance(
+                    node.target.target, TApplication) and isinstance(
+                        node.target.target.target, Var) and node.target.target.target.name in lista
+
             if is_native_var(node, [
                     '+', '-', '*', '/', '%', '^', '>', '<', '>=', '<=', '==',
                     '!=', '&&', '||', '-->'
@@ -84,7 +84,7 @@ class Translator():
 
     @dispatch(Abstraction)
     def translate(self, node):
-        return '\{}:{} -> {}'.format(self.translate(node.arg_name),
+        return '\{}:{} -> {}'.format(node.arg_name,
                                      self.translate(node.arg_type),
                                      self.translate(node.body))
 
@@ -166,7 +166,7 @@ class Translator():
 
     @dispatch(RefinedType)
     def translate(self, node):
-        return '{{{}:{} | {}}}'.format(self.translate(node.name),
+        return '{{{}:{} | {}}}'.format(node.name,
                                        self.translate(node.type),
                                        self.translate(node.cond))
 

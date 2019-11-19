@@ -1,5 +1,7 @@
 """ This file describes the standard library of Aeon """
 
+import math
+
 import aeon.frontend2 as frontend2
 
 import aeon.frontend
@@ -73,6 +75,27 @@ initial_context = {
     '@minimize': (ty2("(T:*) => (a:T) -> Boolean"), lambda x: True),
     '@evaluate': (ty2("(T:*) => (a:String) -> Boolean"), lambda x: True),
 }
+
+math_context = {
+    'min': (ty2('(T:*) => (a:T) -> (b:T) -> T'), 
+            lambda x: lambda y: min(x, y)),
+    'max': (ty2('(T:*) => (a:T) -> (b:T) -> T'), 
+            lambda x: lambda y: max(x, y)),
+    'abs': (ty2('(T:*) => (a:T) -> T'), 
+            lambda x: abs(x)),
+    'ceil': (ty2('(T:*) => (a:T) -> Integer'), 
+            lambda x: math.ceil(x)),
+    'floor': (ty2('(T:*) => (a:T) -> Integer'), 
+            lambda x: math.floor(x)),
+    'pow': (ty2('(T:*) => (a:T) -> (b:T) -> T'), 
+            lambda x: lambda y: pow(x, y)),
+    'sqrt': (ty2('(T:*) => (a:T) -> (b:T) -> T'), 
+            lambda x: math.sqrt(x))
+}
+
+for expression in math_context.keys():
+    ntype, implementation = math_context[expression]
+    add_function(expression, (ntype, implementation))
 """
 native_implementations = importNative('aeon.libraries.native', '*')
 

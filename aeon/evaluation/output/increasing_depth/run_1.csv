@@ -1,0 +1,101 @@
+Typee,Individual,Tree Size,Tree Depth,Diversity
+Double,((\u:String -> (if True then 38.066296802012715 else 32.154030893630306)) ((\f:String -> XrwjcyOpPRpImngH) (if False then RTajFDiEmCsYrJWejxApjfMymGBmSkHJzusGOSBBKKDICyQFtQaXzvHXmpS else lDJeYWgkVP))),13,4,897.84
+Double,((\x:Integer -> -33.7247577592851) -17),4,3,708.423
+Double,((\g:String -> 86.90775569117653) AqrmDrYWwZHsrdjMLhgiPoYUPxYQSvoyWEufkMjjvRmbhmFartOf),4,3,682.797
+Double,((if True then (\n:Integer -> -18.6798984274444) else (\n:Integer -> 99.6731701649015)) ((% -38) -45)),12,4,870.6
+Double,((if (! False) then (\q:Integer -> 88.33884652486873) else (\q:Integer -> 28.49082243808658)) 39),10,4,838.546
+Double,((\z:Integer -> (if False then -28.26262502366626 else -64.67265375726896)) ((% -20) 81)),11,4,916.309
+Double,23.159834571376734,1,1,842.685
+Double,-63.348286858642425,1,1,840.53
+Double,((if (if True then True else False) then (\e:String -> -56.73045490775821) else (\e:String -> 57.384817116926)) LvfPIsoOaYxfswWMOfvXEIwiDlyMTANkLbdGfEttLYFKBnuybMUFamoTcOLPAfgSxf),11,4,860.659
+Double,-71.82981726990991,1,1,842.436
+Double,((\v:Integer -> (if False then 94.84505849258005 else -33.01596713124053)) ((\q:String -> 66) vWfMcyYHkweDftoVaaSmTDGzbxhuiwnlDYeDSrRrqwPHVroUWlSsiYPbyjKOAeyopRHiiIiGhubHZllnTGiWfF)),10,4,811.576
+Double,-32.055685660892166,1,1,838.114
+Double,((if (! True) then (\j:Boolean -> -24.080127422927404) else (\j:Boolean -> -34.41421370917732)) False),10,4,836.257
+Double,-56.921099941977445,1,1,839.212
+Double,((if (! True) then (\a:String -> -70.53209470626757) else (\a:String -> -65.98403817256724)) FqELHeEqwilbUdrozTwpyYBPadEdUvqXkSUjiiaSylEwCYxVsNFvGcObkQYYxknOJTsmRbsPugKecgULpcmXtqdQXxMSUA),10,4,794.668
+Double,((\v:(fresh_137:(fresh_138:Boolean -> (Boolean)) -> (Integer)) -> (if False then 46.53979262750315 else 8.516630217140289)) (\fresh_137:(fresh_138:Boolean -> (Boolean)) -> -83)),8,4,834.264
+Double,((if True then (\g:Boolean -> -18.073883965474806) else (\g:Boolean -> 65.35970905105813)) (! False)),10,4,786.233
+Double,((if True then (\h:Integer -> -45.75631099098531) else (\h:Integer -> 51.39151369878013)) ((% 37) (if True then -75 else 40))),15,4,1048.947
+Double,((if False then (\j:Integer -> 79.27899964565316) else (\j:Integer -> 10.140255340354301)) (if True then (if True then 33 else 89) else (if True then 90 else -78))),17,4,1317.451
+Double,((if False then (\i:Boolean -> 43.25827266587032) else (\i:Boolean -> -53.30816784912877)) ((\i:Integer -> True) (if False then 2 else 11))),14,4,971.03
+Double,((if (! False) then (\q:Top -> -77.16868815374305) else (\q:Top -> -80.83843541964353)) ((if True then % else %) (if False then -68 else 78))),18,4,1289.974
+Double,((\o:Integer -> -43.81701516040491) -25),4,3,708.094
+Double,((if (if False then True else False) then (\n:Top -> 5.862056297323619) else (\n:Top -> 26.260641680025827)) ((% 100) (if True then -24 else -44))),18,4,1253.365
+Double,-21.6817052343375,1,1,838.905
+Double,((if (! True) then (\s:Integer -> 20.781602426004014) else (\s:Integer -> -42.99318633111828)) (if (! True) then 12 else 33)),15,4,1074.76
+Double,((\l:Boolean -> -14.74672716847256) ((\h:Integer -> False) (if False then 91 else -51))),10,4,871.715
+Double,-47.359472754194165,1,1,838.449
+Double,((\s:Integer -> (if True then 7.744561745251758 else -84.21950047491117)) ((% 63) -44)),11,4,910.876
+Double,((if (! True) then (\d:(fresh_151:Integer -> ((fresh_152:Integer -> (Double)))) -> -82.73202340841168) else (\d:(fresh_151:Integer -> ((fresh_152:Integer -> (Double)))) -> -8.714228583396789)) (\fresh_151:Integer -> (\fresh_152:Integer -> 29.787617536720944))),12,4,944.543
+Double,((if (if True then False else False) then (\u:Integer -> 31.049656278009763) else (\u:Integer -> -28.89767021665253)) ((\r:Boolean -> -54) (! False))),16,4,1126.82
+Double,((if False then (\s:Boolean -> -16.634950445197248) else (\s:Boolean -> -81.94301159584683)) ((\o:Top -> False) (&& False))),13,4,940.663
+Double,((if (! True) then (\w:Integer -> -73.89910017175751) else (\w:Integer -> -3.2775480919002433)) ((% -65) (if False then -27 else -85))),17,4,1161.44
+Double,((\l:String -> (if True then 58.87503852573775 else -75.77904086965876)) (if (! False) then (if True then kcgqzvtxbrfcUmZllqdkaKAyIpTjnkhqRDOmCUTSChdUKRbdbvnxNfBKdMPRCNJzwxtGwdKidNNLDCQ else GNKGebcwivroxdfHrLsMHAtGuftFMsocqZjkaTEUBLmNFflbREXmAkdwtHQRqZLJy) else kxHXIIOVSLbnUMlauGuqnUlyBVxxE)),15,4,1146.493
+Double,-52.35758419918584,1,1,838.741
+Double,-85.7349470732716,1,1,846.414
+Double,((\m:Integer -> 3.2998393774312405) 26),4,3,714.056
+Double,18.531925548487592,1,1,842.117
+Double,-67.35955335964945,1,1,841.413
+Double,((if True then (\e:Integer -> -35.69648484644141) else (\e:Integer -> 67.22224651207787)) -8),8,4,730.841
+Double,((if True then (\e:Integer -> 50.92735919096873) else (\e:Integer -> -78.81039559016409)) ((% 61) -91)),12,4,865.464
+Double,((\d:Integer -> (if False then 19.74710127134503 else -75.26737001725809)) ((% 57) 21)),11,4,914.491
+Double,-33.12983426222556,1,1,838.019
+Double,((\j:Integer -> -74.07553792251468) ((\l:Boolean -> -26) (! False))),9,4,832.601
+Double,29.171929042327918,1,1,843.649
+Double,((if False then (\y:(fresh_171:Boolean -> (Double)) -> 47.41500439627217) else (\y:(fresh_171:Boolean -> (Double)) -> 98.41167056753511)) (\fresh_171:Boolean -> 44.10122691778733)),9,4,802.759
+Double,((\b:Integer -> -78.4280456449901) ((\r:Double -> 56) -49.097216594523815)),7,4,745.879
+Double,-59.49421925349589,1,1,839.674
+Double,((if True then (\q:Top -> -92.01598020248657) else (\q:Top -> -78.53301110812252)) ((\n:Integer -> @minimize) (if True then 73 else -53))),14,4,1002.519
+Double,((\x:Boolean -> (if False then 45.98241803304842 else 54.29761411559426)) ((if True then ! else !) (if True then False else False))),15,4,1262.181
+Double,((\t:Integer -> 20.98630509800796) ((\m:(fresh_172:Integer -> (String)) -> -30) (\fresh_172:Integer -> dfCDYtFyfHPwGdJvFXirvZRIlAFwvS))),8,4,718.698
+Double,(if (if (! True) then True else (! True)) then ((\z:(fresh_173:Integer -> (Top)) -> -37.103009063159284) %) else (if True then -3.6486295023578066 else 19.750121900002355)),17,4,1510.479
+Double,((\f:Integer -> -4.639772700504423) ((% 28) 79)),8,4,798.789
+Double,((if (! False) then (\e:Integer -> -54.533463119903125) else (\e:Integer -> -74.69833869167415)) ((\l:Double -> -13) -81.57899495855563)),13,4,921.911
+Double,((\s:String -> 46.87372519715177) ((\l:Double -> iuRLLuJqHwAebfAgcuEgodPuUmMffWqQXbvutOE) 67.51205704319653)),7,4,683.552
+Double,((if True then (\z:Integer -> -67.35273173138921) else (\z:Integer -> 34.120733264435444)) ((\h:Boolean -> 61) (! True))),13,4,929.012
+Double,((\j:Integer -> (if True then -13.217144050594953 else -36.43397328961227)) ((\z:Top -> -58) And)),10,4,862.247
+Double,((if (! False) then (\n:(fresh_176:(fresh_177:Void -> (Integer)) -> (Integer)) -> 16.81254057123833) else (\n:(fresh_176:(fresh_177:Void -> (Integer)) -> (Integer)) -> 2.1122630762859984)) (if True then (\fresh_176:(fresh_177:Void -> (Integer)) -> 0) else (\fresh_176:(fresh_177:Void -> (Integer)) -> 48))),15,4,1090.41
+Double,((\u:Boolean -> (if True then -9.785486531095827 else -42.745437241211825)) (if (! False) then (if False then True else False) else (! True))),17,4,1402.289
+Double,((\o:Integer -> (if False then 46.99543813809015 else 21.71558309750303)) ((% -35) 34)),11,4,922.3
+Double,((\h:Integer -> (if True then -42.00991554886351 else 48.86915998086718)) ((% -74) -87)),11,4,916.038
+Double,((\e:(fresh_190:Void -> (Boolean)) -> -85.07463451009403) (if False then (\fresh_190:Void -> True) else (\fresh_190:Void -> False))),9,4,877.131
+Double,(if (if True then (! False) else True) then ((\o:Integer -> -76.04098893541702) 55) else ((\w:Boolean -> 12.448699083322694) True)),15,4,1290.133
+Double,((\s:String -> 75.4776950732533) ((\n:Boolean -> wefTmuQTzykgSmXyZ) (! True))),9,4,771.339
+Double,((\o:(fresh_192:Integer -> (Integer)) -> 76.72520485263868) (if (! False) then (\fresh_192:Integer -> -96) else (\fresh_192:Integer -> 24))),11,4,987.427
+Double,((if False then (\e:Boolean -> 3.7394784768778067) else (\e:Boolean -> -98.53115033971338)) ((\i:(fresh_193:String -> (Boolean)) -> False) (\fresh_193:String -> False))),12,4,884.579
+Double,(if False then ((\m:Integer -> -57.312089603990344) (if True then -3 else -92)) else ((\v:String -> -49.028500969221845) (if False then hgicsJesCzmnYCWlTDwBjupZxqFpFQGkotsZUSZzJvBvQqTlMTHewOipThSkaWHIodflOndzO else GSaXmnlLywJJRSskjiBDppFYIrHRsmOSoeCqGofaFWCrpHNGsn))),16,4,1282.139
+Double,40.50907982853013,1,1,845.939
+Double,((if (! True) then (\c:Integer -> -37.79171065842626) else (\c:Integer -> 79.29996729363086)) ((% -34) (if False then -6 else -59))),17,4,1160.506
+Double,((if (! True) then (\t:String -> -44.31552716384037) else (\t:String -> -90.0476516841338)) ((\n:Integer -> iOwBfMXzMcfBWLslCqyYAXFTwQqsUlkRJScfWWZYJMZjMDpYCXHVNNHuUmSxYIMjjC) 12)),13,4,866.38
+Double,((if False then (\p:(fresh_196:Integer -> (Boolean)) -> -31.056215334862998) else (\p:(fresh_196:Integer -> (Boolean)) -> -92.76269011391722)) (\fresh_196:Integer -> False)),9,4,767.982
+Double,(if False then ((\k:Double -> -96.84189981156021) -41.062532481626654) else ((\c:Boolean -> -97.79783285006228) False)),10,4,956.696
+Double,((\f:String -> -75.98727961058029) ((\i:Boolean -> rjFocmMdCjqnEFNRuAikioqHkpyXMbaWrxpEvkSamfyxwRiEfVXgT) (! True))),9,4,762.278
+Double,((if False then (\q:(fresh_200:Double -> ((fresh_201:Integer -> (Integer)))) -> 20.213221948675567) else (\q:(fresh_200:Double -> ((fresh_201:Integer -> (Integer)))) -> -95.6228307600523)) (\fresh_200:Double -> (% 4))),11,4,844.046
+Double,67.6185605633658,1,1,852.864
+Double,-79.17445638097331,1,1,844.143
+Double,-24.79592088388516,1,1,838.736
+Double,((if (! False) then (\o:Double -> 27.53413334128865) else (\o:Double -> 63.38487527021829)) ((\e:Boolean -> -40.211408592471656) True)),13,4,924.042
+Double,((\h:Boolean -> 55.82422990797761) ((\u:Top -> False) (% -31))),9,4,817.416
+Double,((\d:Integer -> 97.65549224278908) ((\u:Boolean -> -15) False)),7,4,740.157
+Double,((\o:(fresh_206:Boolean -> (Integer)) -> (if False then -85.24725824788786 else -57.571808331315346)) (\fresh_206:Boolean -> (if False then 2 else -87))),11,4,978.094
+Double,((if (if True then False else False) then (\v:Integer -> 53.55076806920863) else (\v:Integer -> -22.19628766433472)) ((% -29) 42)),15,4,1058.929
+Double,((\e:Integer -> 90.55604336292308) ((\e:Boolean -> 33) (if False then True else True))),10,4,917.478
+Double,((if (! False) then (\o:Top -> 95.1334089663871) else (\o:Top -> 51.49073813457761)) @maximize),10,4,876.294
+Double,((\o:Double -> o) -35.1980436287072),4,3,768.423
+Double,((if (! False) then (\e:Top -> -58.884851626782165) else (\e:Top -> 7.293689315222338)) max),10,4,849.558
+Double,((if (if True then False else False) then (\m:Integer -> -55.709279791538876) else (\m:Integer -> -84.3521932620832)) 97),11,4,919.374
+Double,((\x:Double -> x) -10.634471484789415),4,3,770.321
+Double,78.95757943932915,1,1,856.266
+Double,((if (if False then True else False) then (\a:Integer -> -58.56984118863318) else (\a:Integer -> 72.92183552191855)) ((% 46) -88)),15,4,1057.75
+Double,-64.61853337169588,1,1,840.79
+Double,(if ((\k:Integer -> True) (if False then -61 else -38)) then ((\c:(fresh_227:Boolean -> (Integer)) -> 26.49221744585259) (\fresh_227:Boolean -> 86)) else ((\m:String -> -23.670591105590617) (if True then FGpDuoQrrKoqBSrKsVEjHaNkZQezoWzKqfurGcFABBkJGIgPjgYFAURH else AAdELeZJtxpkFJrFegRmmxWvGUPuEwQUQXgGtRngdcwsPVKbwUpMpMeTrWJE))),20,4,1592.874
+Double,((if (if True then False else True) then (\w:Boolean -> -53.058750465497816) else (\w:Boolean -> -90.52168898168019)) False),11,4,913.49
+Double,65.77715377260776,1,1,852.294
+Double,-55.71843653306809,1,1,839.045
+Double,(((\o:(fresh_232:Boolean -> (Double)) -> o) (\fresh_232:Boolean -> -36.711228083721245)) ((\j:Integer -> True) (if True then -1 else -21))),13,4,1033.865
+Double,((\t:Double -> -64.83570212285338) ((\d:Boolean -> -15.050479761546342) (! True))),9,4,811.378
+Double,((if (! True) then (\t:Boolean -> -58.758205429218926) else (\t:Boolean -> 25.49978317948171)) ((\b:Integer -> True) (if False then 14 else -42))),16,4,1079.279
+Double,((if (if True then True else False) then (\f:Integer -> 95.31373432433148) else (\f:Integer -> 45.28801064056614)) ((\k:Double -> -91) 17.831009108290345)),14,4,1027.12
+Double,((if (! True) then (\y:Integer -> -37.95789804632817) else (\y:Integer -> 34.25757702707054)) ((\b:Top -> -75) (% 73))),15,4,1025.188
+Double,((if True then (\y:Integer -> -96.4391454002786) else (\y:Integer -> 16.228494961641445)) -59),8,4,736.772
