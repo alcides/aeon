@@ -2,10 +2,10 @@ import unittest
 import random
 
 from ..frontend import parse_strict
-from ..metrics.distance import compare_trees
+from ..evaluation.metrics.distance import compare_trees
+
 
 class TestSynthesis(unittest.TestCase):
-
     def parse(self, text):
         return parse_strict(text).declarations[0]
 
@@ -15,7 +15,7 @@ class TestSynthesis(unittest.TestCase):
     def test_literals(self):
         ast1 = self.parse('10')
         ast2 = self.parse('30')
-        
+
         expected = self.diff_formula(ast1.value, ast2.value)
         result = compare_trees(ast1, ast2)
 
