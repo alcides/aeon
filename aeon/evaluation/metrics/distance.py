@@ -2,9 +2,9 @@ from aeon.ast import Var, Hole, Literal, If, Application, Abstraction, TAbstract
 
 import zss
 
+
 # Used for the tree edit distance
 class DistanceNode(object):
-
     @staticmethod
     def get_children(node):
         if isinstance(node, str):
@@ -27,7 +27,7 @@ class DistanceNode(object):
             return [node.target]
         else:
             raise Exception("Forgot the node: ", type(node), node)
-    
+
     @staticmethod
     def get_label(node):
         return node
@@ -37,7 +37,7 @@ class DistanceNode(object):
 
         if node1 is '' or node2 is '':
             return 1
-        
+
         if type(node1) != type(node2):
             return 1
 
@@ -54,18 +54,19 @@ class DistanceNode(object):
                 # value1 is not boolean and value 2 is boolean
                 if isinstance(value2, bool):
                     return 1
-                
+
                 result = 1 if type(value1) != type(value2) else 0
                 return result + (1 - pow(0.99, abs(value1 - value2)))
             # TODO: Perhaps a better value to compare strings
             else:
                 return 1 if value1 == value2 else 0
-        
+
         if isinstance(node1, Var) and isinstance(node2, Var):
-            return 1 if node1.name != node2.name else 0    
-        
+            return 1 if node1.name != node2.name else 0
+
         return 0
 
+
 def compare_trees(ast1, ast2):
-    return zss.simple_distance(ast1, ast2, DistanceNode.get_children, 
-                                DistanceNode.get_label, DistanceNode.distance)
+    return zss.simple_distance(ast1, ast2, DistanceNode.get_children,
+                               DistanceNode.get_label, DistanceNode.distance)
