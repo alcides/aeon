@@ -1,5 +1,5 @@
 class Evaluator(object):
-    FOLDER_PATH = 'aeon/evaluation/output/'
+    FOLDER_PATH = 'evaluation_diversity/'
 
     def __init__(self):
         pass
