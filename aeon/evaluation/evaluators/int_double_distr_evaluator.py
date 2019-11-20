@@ -11,10 +11,10 @@ import aeon.evaluation.plots.violinplot as violinplot
 import aeon.evaluation.plots.scatterplot as scatterplot
 
 
-class IncreasingDepthEvaluator(Evaluator):
+class IntDoubleDistrEvaluator(Evaluator):
 
     # CONSTANTS
-    PATH = 'increasing_depth/'
+    PATH = 'int_double_distribution/'
 
     def __init__(self):
         self.path = self.FOLDER_PATH + self.PATH
@@ -27,7 +27,7 @@ class IncreasingDepthEvaluator(Evaluator):
             csv = pd.read_csv(OUTPUT_PATH + f)
             data[depth] = csv if depth not in data else pd.concat(
                 [data[depth], csv])
-
+        '''
         df = pd.DataFrame()
 
         for max_depth, dataframe in data.items():
@@ -41,3 +41,4 @@ class IncreasingDepthEvaluator(Evaluator):
         scatterplot.plot(self.path, f_name, axis, labels, df)
         boxplot.plot(self.path, f_name, axis, labels, df)
         violinplot.plot(self.path, f_name, axis, labels, df)
+        '''
