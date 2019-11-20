@@ -36,11 +36,8 @@ class RegularEvaluator(Evaluator):
                 axis = ('Typee', metric)
                 labels = axis
                 f_name = 'depth{}_{}'.format(depth, metric)
-                print('Generating scatterplot:', f_name)
                 scatterplot.plot(self.path, f_name, axis, labels, res)
-                print('Generating boxplot:', f_name)
                 boxplot.plot(self.path, f_name, axis, labels, res)
-                print('Generating violinplot:', f_name)
                 violinplot.plot(self.path, f_name, axis, labels, res)
 
     def treat_data(self, data):

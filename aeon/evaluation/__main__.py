@@ -31,14 +31,13 @@ def run_evaluator(evaluator):
 if __name__ == '__main__':
 
     # Reset the output directory
-    reset_folder(OUTPUT_PATH)
+    # reset_folder(OUTPUT_PATH)
 
     # Generate the data with the evaluator path
-    generate_data()
+    # generate_data()
 
     # Run the evaluator
     run_evaluator(RegularEvaluator())
-    # TODO: still working on this one
-    #run_evaluator(IncreasingDepthEvaluator())
+    run_evaluator(IncreasingDepthEvaluator())
 
     
