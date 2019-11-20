@@ -1,4 +1,5 @@
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def plot(path, f_name, axis, labels, data):
@@ -12,6 +13,7 @@ def plot(path, f_name, axis, labels, data):
 
     plot = sns.violinplot(x=x, y=y, data=data, inner='points')
     plot.set(xlabel=xlabel, ylabel=ylabel)
+    plot.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
     f_name = '{}violin_{}.pdf'.format(path, f_name)
 

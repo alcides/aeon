@@ -5,6 +5,7 @@ from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
 
 from .evaluators.regular_evaluator import RegularEvaluator
+from .evaluators.int_double_distr_evaluator import IntDoubleDistrEvaluator
 from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
 
 
@@ -41,4 +42,5 @@ if __name__ == '__main__':
 
     # Run the evaluator
     run_evaluator(RegularEvaluator())
+    run_evaluator(IntDoubleDistrEvaluator())
     run_evaluator(IncreasingDepthEvaluator())

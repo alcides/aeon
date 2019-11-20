@@ -14,4 +14,9 @@ typees = [
     ty('Integer'),
     ty('{x:Integer where (x > 0)}'),
     ty('{x:Integer where ((x % 4) == 0 )}'),
+    ty('Double'),
+    ty('String'),
+    ty('Boolean'),
+    ty('(x:Integer) -> {x:Integer where (x > 0)}'),
+    ty('(x:{y:Integer where (y > 0)}) -> {z:Integer where (z > x)}')
 ]
