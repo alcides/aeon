@@ -20,9 +20,9 @@ forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 weights = {
     "sk_star": 1,  # Kinding
     "sk_rec": 0,
-    "st_int": 1,  # Terminal types
-    "st_bool": 1,
-    "st_var": 5,
+    "st_int": 50,  # Terminal types
+    "st_bool": 50,
+    "st_var": 50,
     "st_where": 1,
     "st_abs": 1,
     "st_tabs": 1,
