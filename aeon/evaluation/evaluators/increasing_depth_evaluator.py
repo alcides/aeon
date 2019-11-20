@@ -31,13 +31,13 @@ class IncreasingDepthEvaluator(Evaluator):
         df = pd.DataFrame()
 
         for max_depth, dataframe in data.items():
-            df[str(max_depth)] = pd.Series(dataframe['Tree Depth'].values)
+            df[str(max_depth + 1)] = pd.Series(dataframe['Tree Depth'].values)
 
         # Generate the plots
         axis = (None, None)
         labels = ('Maximum Depth', 'Depth')
         f_name = 'depth'
-
-        scatterplot.plot(self.path, f_name, axis, labels, df)
+    
+        #scatterplot.plot(self.path, f_name, axis, labels, df)
         boxplot.plot(self.path, f_name, axis, labels, df)
         violinplot.plot(self.path, f_name, axis, labels, df)

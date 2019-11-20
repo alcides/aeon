@@ -5,6 +5,7 @@ from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
 
 from .evaluators.regular_evaluator import RegularEvaluator
+from .evaluators.int_double_distr_evaluator import IntDoubleDistrEvaluator
 from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
 
 
@@ -23,9 +24,8 @@ def generate_data():
                     OUTPUT_PATH, i, depth, run)
 
                 with open(file_name, 'w') as writer:
-                    generate_and_benchmark(typee, depth, POPULATION_SIZE,
-                                           writer)
-            i += 1
+                    generate_and_benchmark(typee, depth, POPULATION_SIZE, writer)
+                i += 1
 
 
 def run_evaluator(evaluator):
@@ -43,4 +43,6 @@ if __name__ == '__main__':
 
     # Run the evaluator
     run_evaluator(RegularEvaluator())
+    run_evaluator(IntDoubleDistrEvaluator())
     run_evaluator(IncreasingDepthEvaluator())
+    
