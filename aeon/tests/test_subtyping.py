@@ -37,6 +37,12 @@ class TestSubtyping(unittest.TestCase):
 
     def test_refined_entails(self):
 
+        self.assert_st(ty("{x:Integer where (x == (1+1))}"),
+                       ty("{x:Integer where (x == 2)}"))
+
+        self.assert_st(ty("{x:Integer where (x == (1+1))}"),
+                       ty("{z:Integer where (z == (3-1))}"))
+
         self.assert_st(ty("{x:{y:Boolean where true} where (5 == 5)}"),
                        ty("{x:Boolean where true}"))
 

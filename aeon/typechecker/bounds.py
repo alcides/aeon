@@ -5,6 +5,10 @@ from .substitutions import substitution_expr_in_type, substitution_expr_in_expr
 from .conversions import type_conversion
 
 
+def is_inhabitable(T: RefinedType):
+    pass
+
+
 def lub(T: Type, U: Type) -> Type:
     """ T ⊔ U  """
     T = type_conversion(T)

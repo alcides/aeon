@@ -28,11 +28,14 @@ class TypingContext(object):
         self.variables: Dict[str, Type] = {}
         self.type_variables: Dict[str, Kind] = {}
         self.restrictions: List[Any] = []
+        self.uninterpreted_functions: Dict[str, Type] = {}
 
     def setup(self):
-        from .libraries.stdlib import get_all_builtins, get_builtin_type
-        for name in get_all_builtins():
-            self.variables[name] = get_builtin_type(name)
+        from .libraries.stdlib import get_builtin_variables, get_all_uninterpreted_functions
+        for name, type, _ in get_builtin_variables():
+            self.variables[name] = type
+        for name, type in get_all_uninterpreted_functions():
+            self.uninterpreted_functions[name] = type
 
         self.type_variables = {
             t_v.name: star,
@@ -51,6 +54,7 @@ class TypingContext(object):
         t.variables = self.variables.copy()
         t.type_variables = self.type_variables.copy()
         t.restrictions = self.restrictions.copy()
+        t.uninterpreted_functions = self.uninterpreted_functions.copy()
         return t
 
     def add_var(self, n, t):
@@ -58,6 +62,13 @@ class TypingContext(object):
             if t.name in self.type_aliases:
                 t = self.type_aliases[t.name]
         self.variables[n] = t
+
+    def with_uninterpreted(self):
+        n = self.copy()
+        for k in n.uninterpreted_functions:
+            n.variables[k] = n.uninterpreted_functions[k]
+        n.uninterpreted_functions = {}
+        return n
 
     def add_type_var(self, n, k):
         self.type_variables[n] = k

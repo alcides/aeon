@@ -24,15 +24,15 @@ def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
     from .typing import check_type
 
     nctx = ctx.with_var(sub.name, sub.type)
-    return check_type(nctx, sub.cond, t_b) and \
+    return check_type(nctx.with_uninterpreted(), sub.cond, t_b) and \
         is_subtype(ctx, sub.type, sup)
 
 
 def sub_whereR(ctx, sub: Type, sup: RefinedType) -> bool:
     """ S-WhereR """
     nctx = ctx.with_var(sup.name, sub)
-    return is_subtype(ctx, sub, sup.type) and \
-        entails(nctx, sup.cond)
+    return is_subtype(nctx.with_uninterpreted(), sub, sup.type) and \
+        entails(nctx.with_uninterpreted(), sup.cond)
 
 
 def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType) -> bool:

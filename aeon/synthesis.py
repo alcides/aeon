@@ -12,8 +12,8 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
     substitution_expr_in_expr, substitution_type_in_expr
 from . import typechecker as tc
 
-MAX_TRIES = 20
-MAX_TRIES_WHERE = 15
+MAX_TRIES = 5
+MAX_TRIES_WHERE = 3
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
@@ -27,29 +27,29 @@ weights = {
     "st_abs": 1,
     "st_tabs": 1,
     "st_tapp": 1,
-    "se_int": 1,  # Terminal types
-    "se_bool": 1,
-    "se_double": 1,
-    "se_string": 1,
-    "se_var": 1,
+    "se_int": 50,  # Terminal types
+    "se_bool": 50,
+    "se_double": 50,
+    "se_string": 50,
+    "se_var": 45,
     "se_where": 1,
     "se_abs": 1,
-    "se_app": 10,
+    "se_app": 1,
     "se_tabs": 1,
     "se_tapp": 1,
     "se_if": 1,
     "se_subtype": 1,
     "iet_id": 1,
-    "iet_abs": 1000,
-    "iet_where": 1000,
-    "iet_app": 1000,
-    "iee_var": 1000000,
+    "iet_abs": 1,
+    "iet_where": 1,
+    "iet_app": 1,
+    "iee_var": 1,
     "iee_id": 1,
-    "iee_app": 100,
-    "iee_abs": 100,
-    "iee_if": 100,
-    "iee_tapp": 100,
-    "iee_tabs": 100,
+    "iee_app": 1,
+    "iee_abs": 1,
+    "iee_if": 1,
+    "iee_tapp": 1,
+    "iee_tabs": 1,
     "itt_id": 1,
     "itt_var": 1,
     "itt_abs": 1,
@@ -140,17 +140,26 @@ def random_chooser(f):
         valid_alternatives = list(f(*args, *kwargs))
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
-            raise Unsynthesizable(f, *args, valid_alternatives)
+            raise Unsynthesizable("No valid alternatives for", f.__name__,
+                                  *args)
         for i in range(MAX_TRIES):
             fun = pick_one_of(valid_alternatives)
             try:
+                w_app = weights['se_app']
+                w_abs = weights['se_abs']
                 return fun(*args, **kwargs)
             except Unsynthesizable as e:
+                weights['se_abs'] -= 1
+                weights['se_app'] -= 1
+                #if i % 10 == 0:
+                #    print("Exception", type(e), str(e))
                 pass
                 #if i % 10 == 0:
                 #    print("Exception:", e, type(e))
                 #    print("Failed once to pick using", fun)
-                #continue
+            finally:
+                weights['se_abs'] = w_abs
+                weights['se_app'] = w_app
         raise Unsynthesizable("Too many tries for type: ", *args)
 
     return f_alt
@@ -353,15 +362,25 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
+    if T.type == t_i:
+        v = tc.get_integer_where(
+            ctx.with_var(T.name, T).with_uninterpreted(), T.name, T.cond)
+        name = "lit_{}".format(v)
+        return Literal(
+            v,
+            RefinedType(name=name,
+                        type=t_i,
+                        cond=Application(
+                            Application(TApplication(Var("=="), t_i),
+                                        Var(name)),
+                            Literal(value=v, type=t_i, ensured=True))))
+
     for _ in range(MAX_TRIES_WHERE):
         e2 = se(ctx, T.type, d - 1)
         ncond = substitution_expr_in_expr(T.cond, e2, T.name)
-        if tc.entails(ctx, ncond):
-            return e2.with_type(T)
+        if tc.entails(ctx.with_uninterpreted(), ncond):
+            return e2  #.with_type(T)
 
-    if T.type == t_i:
-        i = tc.get_integer_where(ctx.with_var(T.name, T), T.name, T.cond)
-        return Literal(i, type=T)
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
 
@@ -383,13 +402,14 @@ def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
 
 
 def se_subtype(ctx: TypingContext, T: Type, d: int):
-    U = ssub(ctx, T, d - 1)  # TODO: paper: d-1????
+    U = ssub(ctx, T, d - 1)
     return se(ctx, U, d - 1)
 
 
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
+
     if isinstance(T, BasicType) and T.name == "Integer":
         yield ("se_int", se_int)
     if isinstance(T, BasicType) and T.name == "Boolean":

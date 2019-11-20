@@ -112,21 +112,19 @@ def get_sort(t: Type):
 def zed_translate_var(ztx, v: Var):
     if not v.name in ztx:
         if type(v.type) is BasicType:
-            print("ex: v.name=", v.name)
-            ztx[v.name] = zed_mk_variable(v.name,
-                                          flatten_refined_types(v.type))
+            ztx[v.name] = zed_mk_variable(v.name, v.type)
+            return ztx[v.name]
         elif type(v.type) is AbstractionType:
-            ztx[v.name] = zed_mk_variable(v.name,
-                                          flatten_refined_types(v.type))
-
+            #ztx[v.name] = zed_mk_variable(v.name,
+            #                              flatten_refined_types(v.type))
+            print("TODO: abstype in z3")
         elif type(v.type) is RefinedType:
-            print("rx: v.name=", v.name)
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
-        else:
-            print("ooops", v)
-            raise NoZ3TranslationException("Var not in scope: {} : {}".format(
-                v, v.type))
+            return ztx[v.name]
+        print("ooops", v)
+        raise NoZ3TranslationException("Var not in scope: {} : {}".format(
+            v, v.type))
     return ztx[v.name]
 
 
@@ -137,7 +135,7 @@ def zed_translate_app(ztx, app: Application):
 
 
 def zed_translate_abs(ztx, ab: Abstraction):
-
+    raise NoZ3TranslationException("Not implemented yet")
     i_sort = get_sort(ab.arg_type)
     o_sort = get_sort(ab.body.type)
     f = z3.Function(random_name(), i_sort, o_sort)
@@ -152,7 +150,7 @@ def zed_translate_abs(ztx, ab: Abstraction):
 
 def zed_translate_tabs(ztx, tabs: TAbstraction):
     # TODO
-    raise Exception("Not implemented yet")
+    raise NoZ3TranslationException("Not implemented yet")
     return tabs.type
 
 
@@ -160,25 +158,44 @@ def zed_translate_tapp(ztx, tabs: TApplication):
     return zed_translate(ztx, tabs.target)
 
 
-def zed_translate_context(ztx, ctx):
-    restrictions = ctx.restrictions  # start with the restrictions already in context
+def zed_translate_type(solver, ztx, name, t):
+    if isinstance(t, BasicType):
+        ztx[name] = zed_mk_variable(name, t)
+        return None
+    if isinstance(t, RefinedType):
+        ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
+        return zed_translate(
+            ztx, substitution_expr_in_expr(t.cond, Var(name), t.name))
+    else:
+        #print("Should have a translation for z3", t) TODO
+        return None
+
+
+def zed_convert_var_to_cond(solver, ztx, ctx, name):
+    try:
+        return zed_translate_type(solver, ztx, name, ctx.variables[name])
+    except NoZ3TranslationException:
+        return None
+
+
+def zed_translate_context(solver, ztx, ctx):
+    ctx_var = z3.Bool("#context")
+
+    ctx_vars = []
+    for i, restriction in enumerate(ctx.restrictions):
+        r_var = z3.Bool("#restriction_{}".format(i))
+        solver.add(r_var == zed_translate_wrapped(ztx, restriction))
+        ctx_vars.append(r_var)
+
     for name in ctx.variables.keys():
-        t = ctx.variables[name]
-        try:
-            if name not in ztx:
-                ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
-            if isinstance(t, RefinedType):
-                tprime = flatten_refined_types(t)
-                new_cond = substitution_expr_in_expr(tprime.cond, Var(name),
-                                                     t.name)
-                restrictions.append(new_cond)
-        except NoZ3TranslationException:
-            continue
-    acc = []
-    for e in restrictions:
-        c = zed_translate_wrapped(ztx, e)
-        acc.append(c)
-    return reduce(z3.And, acc, True)
+        r_var = z3.Bool("#var_{}".format(name))
+        #print("v:", name, ctx.variables[name])
+        var_cond = zed_convert_var_to_cond(solver, ztx, ctx, name)
+        if var_cond != None:
+            solver.add(r_var == var_cond)
+            ctx_vars.append(r_var)
+    solver.add(ctx_var == reduce(z3.And, ctx_vars, True))
+    return ctx_var
 
 
 def zed_translate(ztx, cond: Node):
@@ -224,31 +241,46 @@ def zed_initial_context():
         "/": lambda x: lambda y: x / y,
         "^": lambda x: lambda y: x ^ y,
         "%": lambda x: lambda y: x % y,
+        "smtEq": lambda x: lambda y: x == y,
+        "smtIneq": lambda x: lambda y: x != y,
+        "smtLt": lambda x: lambda y: x < y,
+        "smtGt": lambda x: lambda y: x > y,
+        "smtLte": lambda x: lambda y: x <= y,
+        "smtGte": lambda x: lambda y: x >= y,
+        "smtNot": z3.Not,
+        "smtImplies": lambda x: lambda y: z3.Implies(x, y),
+        "smtAnd": lambda x: lambda y: z3.And(x, y),
+        "smtOr": lambda x: lambda y: z3.Or(x, y),
+        "smtPlus": lambda x: lambda y: x + y,
+        "smtMinus": lambda x: lambda y: x - y,
+        "smtMult": lambda x: lambda y: x * y,
+        "smtDiv": lambda x: lambda y: x / y,
+        "smtCaret": lambda x: lambda y: x ^ y,
+        "smtMod": lambda x: lambda y: x % y,
     }
 
 
 def zed_verify_entailment(ctx, cond):
     ztx = zed_initial_context()
-    z3_context = zed_translate_context(ztx, ctx)
-
+    s = z3.Solver()
+    z3_context = zed_translate_context(s, ztx, ctx)
     z3_cond = zed_translate_wrapped(ztx, cond)
 
-    relevant_vars = [ztx[str(x)] for x in get_z3_vars(z3_cond)]
-    s = z3.Solver()
-    if relevant_vars and not isinstance(z3_context, bool):
-        s.add(z3_context)
-        s.add(z3.ForAll(relevant_vars, z3.Implies(z3_context, z3_cond)))
-    else:
-        s.add(z3_context)
-        s.add(z3.Implies(z3_context, z3_cond))
+    s.push()
+    s.add(z3_context)
+    if s.check() == z3.unsat:
+        return True
+    s.pop()
+    #s.add(z3.And(z3_context, z3.Implies(z3_context, z3_cond)))
+    s.add(z3.And(z3_context, z3.Not(z3_cond)))
     #print("zed_ver_entails", cond, "..", s)
 
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
         #print("R:", r)
-        if r == z3.sat:
-            return True
         if r == z3.unsat:
+            return True
+        if r == z3.sat:
             return False
         z3.set_option("smt.random_seed", i)
     print("S:", s, cond, r)
@@ -261,9 +293,10 @@ def zed_verify_entailment(ctx, cond):
 
 def zed_verify_satisfiability(ctx, cond):
     ztx = zed_initial_context()
-    z3_context = zed_translate_context(ztx, ctx)
-    z3_cond = zed_translate_wrapped(ztx, cond)
     s = z3.Solver()
+
+    z3_context = zed_translate_context(s, ztx, ctx)
+    z3_cond = zed_translate_wrapped(ztx, cond)
     s.add(z3.And(z3_context, z3_cond))
     r = s.check()
     #print("zed_ver_sat", s, r, 1)
@@ -277,15 +310,19 @@ def zed_verify_satisfiability(ctx, cond):
 
 def zed_get_integer_where(ctx, name, cond):
     ztx = zed_initial_context()
-    z3_context = zed_translate_context(ztx, ctx)
-    z3_cond = zed_translate_wrapped(ztx, cond)
     s = z3.Solver()
+
+    z3_context = zed_translate_context(s, ztx, ctx)
+    z3_cond = zed_translate_wrapped(ztx, cond)
     s.add(z3.And(z3_context, z3_cond))
+    #print("Solver:", s)
     r = s.check()
     if r == z3.sat:
-        print(s.model(), "MODEL")
+        #print(s.model(), "MODEL")
         m_name = zed_translate(ztx, Var(name))
-        return s.model()[m_name]
+        return int(str(s.model()[m_name]))
     else:
+        return 1
+        # If its impossible, then it does not matter
         raise NotDecidableException(
             "{} could not be evaluated for generating an example".format(cond))

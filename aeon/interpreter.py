@@ -1,6 +1,6 @@
 from .types import *
 from .ast import *
-from .libraries.stdlib import *
+from .libraries.stdlib import get_builtin_variables
 
 from multipledispatch import dispatch
 
@@ -113,6 +113,6 @@ def ctxPut(ctx, varName, var):
 def nativeFunctions():
     " Builds the context with the native functions "
     ctx = {}
-    for name in get_all_builtins():
-        ctx[name] = get_builtin_value(name)
+    for name, _, value in get_builtin_variables():
+        ctx[name] = value
     return ctx

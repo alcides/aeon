@@ -13,33 +13,51 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
     substitution_expr_in_expr, substitution_type_in_expr
 from .utils import flatten_refined_type
 from .bounds import lub
+from .zed import is_satisfiable
+
+
+def is_not_inhabited(ctx: TypingContext, T: RefinedType):
+    nctx = ctx.with_var(T.name, T.type)
+    return not is_satisfiable(nctx, T.cond)
 
 
 class TypeCheckingError(TypingException):
     pass
 
 
+def w_lub(ctxT: TypingContext, T: Type, ctxU: TypingContext, U: Type) -> Type:
+    if isinstance(T, RefinedType) and is_not_inhabited(ctxT, T):
+        return U
+    if isinstance(U, RefinedType) and is_not_inhabited(ctxU, U):
+        return T
+    return lub(T, U)
+
+
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
     if isinstance(e.value, bool) and not e.type:
         return t_b
-    if isinstance(e.value, int) and not e.type:
+    elif isinstance(e.value, int) and not e.type:
         return t_i
     return e.type
 
 
 def t_var(ctx: TypingContext, e: Var) -> Type:
     if e.name not in ctx.variables:
+        print("WRONG", e.name, ctx.variables.keys(), ctx.type_variables.keys())
         raise TypeCheckingError("Variable {} not in context".format(e))
     return ctx.variables[e.name]
 
 
 def t_if(ctx: TypingContext, e: If) -> Type:
     check_type(ctx, e.cond, t_b)
+    ctxThen = ctx.with_cond(e.cond)
+    ctxElse = ctx.with_cond(Application(Var("!"), e.cond))
 
-    T = synth_type(ctx.with_cond(e.cond), e.then)
-    U = synth_type(ctx.with_cond(Application(Var("!"), e.cond)), e.otherwise)
-    return lub(T, U)
+    T = synth_type(ctxThen, e.then)
+    U = synth_type(ctxElse, e.otherwise)
+    print("LUB", T, U, w_lub(ctxThen, T, ctxElse, U), e)
+    return w_lub(ctxThen, T, ctxElse, U)
 
 
 def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
