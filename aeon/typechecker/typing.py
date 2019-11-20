@@ -16,9 +16,12 @@ from .bounds import lub
 from .zed import is_satisfiable
 
 
-def is_not_inhabited(ctx: TypingContext, T: RefinedType):
-    nctx = ctx.with_var(T.name, T.type)
-    return not is_satisfiable(nctx, T.cond)
+def is_not_inhabited(ctx: TypingContext, T: Type):
+    if isinstance(T, RefinedType):
+        nctx = ctx.with_var(T.name, T.type)
+        return not is_satisfiable(nctx, T.cond)
+    else:
+        return not is_satisfiable(ctx, Literal(True, t_b))
 
 
 class TypeCheckingError(TypingException):
@@ -26,25 +29,37 @@ class TypeCheckingError(TypingException):
 
 
 def w_lub(ctxT: TypingContext, T: Type, ctxU: TypingContext, U: Type) -> Type:
-    if isinstance(T, RefinedType) and is_not_inhabited(ctxT, T):
+    if is_not_inhabited(ctxT, T):
         return U
-    if isinstance(U, RefinedType) and is_not_inhabited(ctxU, U):
+    if is_not_inhabited(ctxU, U):
         return T
     return lub(T, U)
 
 
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
-    if isinstance(e.value, bool) and not e.type:
-        return t_b
+    v = e.value
+    name = "lit_{}".format(v)
+    if isinstance(e.value,
+                  bool) and not e.type and not isinstance(e.type, RefinedType):
+        return RefinedType(name=name,
+                           type=t_b,
+                           cond=Application(
+                               Application(TApplication(Var("=="), t_b),
+                                           Var(name)),
+                               Literal(value=v, type=t_b, ensured=True)))
     elif isinstance(e.value, int) and not e.type:
-        return t_i
+        return RefinedType(name=name,
+                           type=t_i,
+                           cond=Application(
+                               Application(TApplication(Var("=="), t_i),
+                                           Var(name)),
+                               Literal(value=v, type=t_i, ensured=True)))
     return e.type
 
 
 def t_var(ctx: TypingContext, e: Var) -> Type:
     if e.name not in ctx.variables:
-        print("WRONG", e.name, ctx.variables.keys(), ctx.type_variables.keys())
         raise TypeCheckingError("Variable {} not in context".format(e))
     return ctx.variables[e.name]
 
@@ -56,7 +71,6 @@ def t_if(ctx: TypingContext, e: If) -> Type:
 
     T = synth_type(ctxThen, e.then)
     U = synth_type(ctxElse, e.otherwise)
-    print("LUB", T, U, w_lub(ctxThen, T, ctxElse, U), e)
     return w_lub(ctxThen, T, ctxElse, U)
 
 

@@ -134,9 +134,19 @@ class TestTypeChecking(unittest.TestCase):
             "(if false then ((\\u:Integer -> u) 9) else (if true then 3 else 1))",
             "{ x:Integer where (x == 3) }")
 
-    def test_abs(self):
-        self.generic_test("((\\u:Integer -> u) 9)",
-                          "{ x:Integer where (x == 9) }")
+    def test_abs_wrong(self):
+        with self.assertRaises(TypingException):
+            self.generic_test("((\\u:Integer -> u) 9)",
+                              "{ x:Integer where (x == 9) }")
+
+    def test_if_bool(self):
+        self.generic_test("if false then true else false",
+                          "{ x:Boolean where (x == false) }")
+
+    def test_if_bool_2(self):
+        self.generic_test(
+            "if false then true else (if false then true else false)",
+            "{ x:Boolean where (x == false) }")
 
 
 if __name__ == '__main__':

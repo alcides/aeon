@@ -288,7 +288,17 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 def se_bool(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Bool """
     v = random.random() < 0.5
-    return Literal(v, type=T)
+    name = "lit_{}".format(v)
+    return Literal(v,
+                   type=RefinedType(name=name,
+                                    type=T,
+                                    cond=Application(
+                                        Application(
+                                            TApplication(Var("=="), t_b),
+                                            Var(name)),
+                                        Literal(value=v,
+                                                type=t_b,
+                                                ensured=True))))
 
 
 def se_int(ctx: TypingContext, T: BasicType, d: int):
@@ -349,7 +359,7 @@ def se_app(ctx: TypingContext, T: Type, d: int):
     """ SE-App """
     k = sk(d - 1)
     U = st(ctx, k, d - 1)
-    x = scfv(T)
+    x = ctx.fresh_var()  #scfv(T)
     e2 = se(ctx, U, d - 1)
 
     nctx = ctx.with_var(x, U)
