@@ -118,12 +118,13 @@ math_context = {
     (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: min(x, y)),
     'max':
     (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: max(x, y)),
-    'abs': (ty2('(T:*) => (a:T) -> T'), lambda x: abs(x)),
+    'abs': (ty2('(T:*) => (a:T) -> {x:T where (x >= 0)}'), lambda x: abs(x)),
     'ceil': (ty2('(T:*) => (a:T) -> Integer'), lambda x: math.ceil(x)),
     'floor': (ty2('(T:*) => (a:T) -> Integer'), lambda x: math.floor(x)),
     'pow':
     (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: pow(x, y)),
-    'sqrt': (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: math.sqrt(x))
+    'sqrt': (ty2('(T:*) => (a:T) -> (b:T) -> {x:T where (x >= 0)}'),
+             lambda x: math.sqrt(x))
 }
 
 for expression in math_context.keys():

@@ -12,8 +12,8 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
     substitution_expr_in_expr, substitution_type_in_expr
 from . import typechecker as tc
 
-MAX_TRIES = 5
-MAX_TRIES_WHERE = 3
+MAX_TRIES = 10
+MAX_TRIES_WHERE = 10
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
@@ -137,20 +137,26 @@ def pick_one_of(alts):
 def random_chooser(f):
     def f_alt(*args, **kwargs):
         #random.seed(random.randint(0, 1030))
+        rules = ['se_bool', 'se_int', 'se_double', 'se_string', 'se_var']
+        if f.__name__ == 'se':
+            d = args[2]
+            if d < 3:
+                for r in rules:
+                    weights[r] *= 2
+
         valid_alternatives = list(f(*args, *kwargs))
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
             raise Unsynthesizable("No valid alternatives for", f.__name__,
                                   *args)
+        old_values = [weights[r] for r in rules]
         for i in range(MAX_TRIES):
             fun = pick_one_of(valid_alternatives)
             try:
-                w_app = weights['se_app']
-                w_abs = weights['se_abs']
                 return fun(*args, **kwargs)
             except Unsynthesizable as e:
-                weights['se_abs'] -= 1
-                weights['se_app'] -= 1
+                for r in rules:
+                    weights[r] *= 2
                 #if i % 10 == 0:
                 #    print("Exception", type(e), str(e))
                 pass
@@ -158,8 +164,8 @@ def random_chooser(f):
                 #    print("Exception:", e, type(e))
                 #    print("Failed once to pick using", fun)
             finally:
-                weights['se_abs'] = w_abs
-                weights['se_app'] = w_app
+                for i, r in enumerate(rules):
+                    weights[r] = old_values[i]
         raise Unsynthesizable("Too many tries for type: ", *args)
 
     return f_alt

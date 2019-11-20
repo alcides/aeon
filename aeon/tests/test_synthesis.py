@@ -23,7 +23,7 @@ class TestSynthesis(unittest.TestCase):
         if not isinstance(t, Type):
             t = ty(t)
         if d == None:
-            d = 3
+            d = 10
         print("----")
         for i in range(times):
             e = fun(ctx, t, d)
