@@ -7,7 +7,6 @@ from aeon.translate import Translator
 
 
 class Measurer(object):
-
     def __init__(self, writer):
         self.writer = writer
 
@@ -17,7 +16,7 @@ class Measurer(object):
         self.writer.flush()
 
     # Given a population and supposed typee to be synthesised, measure the outcomes
-    def measure(self, typee, population):
+    def measure(self, typee, population, eval_results):
         self.write('Typee')
         self.write('Individual')
         self.write('Tree Size')
@@ -26,12 +25,18 @@ class Measurer(object):
         #self.write('Fitness', '')
         self.write('\r\n', '')
 
-        for individual in population:
+        for individual, res in zip(population, eval_results):
             print('Evaluating:', individual)
             self.write(typee)
             self.write(individual)
             self.write(count_nodes(individual))
             self.write(depth(individual))
-            self.write(round(sum([compare_trees(individual, ast2) for ast2 in population if ast2 != individual]), 3), '')
+            self.write(res)
+            self.write(
+                round(
+                    sum([
+                        compare_trees(individual, ast2) for ast2 in population
+                        if ast2 != individual
+                    ]), 3), '')
             # self.write(evaluate_fitness(individual))
             self.write('\r\n', '')

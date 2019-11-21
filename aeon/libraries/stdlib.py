@@ -127,8 +127,16 @@ math_context = {
              lambda x: math.sqrt(x))
 }
 
+string_context = {
+    'string_length': (ty2("(x:String) -> Integer"), lambda x: len(x)),
+}
+
 for expression in math_context.keys():
     ntype, implementation = math_context[expression]
+    add_function(expression, (ntype, implementation))
+
+for expression in string_context.keys():
+    ntype, implementation = string_context[expression]
     add_function(expression, (ntype, implementation))
 """
 native_implementations = importNative('aeon.libraries.native', '*')

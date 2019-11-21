@@ -157,8 +157,7 @@ def random_chooser(f):
             except Unsynthesizable as e:
                 for r in rules:
                     weights[r] *= 2
-                #if i % 10 == 0:
-                #    print("Exception", type(e), str(e))
+                #print("Exception", type(e), str(e))
                 pass
                 #if i % 10 == 0:
                 #    print("Exception:", e, type(e))
@@ -283,7 +282,7 @@ def get_variables_of_type(ctx: TypingContext, T: Type):
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
     rs = []
     for v in ctx.type_variables:
-        if ctx.type_variables[v] == k:
+        if ctx.type_variables[v] == k and v not in ['Bottom', 'Void']:
             rs.append(BasicType(v))
     return rs
 
@@ -426,14 +425,16 @@ def se_subtype(ctx: TypingContext, T: Type, d: int):
 def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
 
-    if isinstance(T, BasicType) and T.name == "Integer":
+    if isinstance(T, BasicType) and T.name in ["Integer", "Top", "Object"]:
         yield ("se_int", se_int)
-    if isinstance(T, BasicType) and T.name == "Boolean":
+    if isinstance(T, BasicType) and T.name in ["Boolean", "Top", "Object"]:
         yield ("se_bool", se_bool)
-    if isinstance(T, BasicType) and T.name == 'String':
+    if isinstance(T, BasicType) and T.name in ["String", "Top", "Object"]:
         yield ("se_string", se_string)
-    if isinstance(T, BasicType) and T.name == 'Double':
+    if isinstance(T, BasicType) and T.name in ["Double", "Top", "Object"]:
         yield ("se_double", se_double)
+    if isinstance(T, RefinedType):
+        yield ("se_where", se_where)
 
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
@@ -441,8 +442,6 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_if", se_if)
         if isinstance(T, AbstractionType):
             yield ("se_abs", se_abs)
-        if isinstance(T, RefinedType):
-            yield ("se_where", se_where)
         if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
         yield ("se_app", se_app)

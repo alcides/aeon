@@ -150,7 +150,7 @@ def substitution_expr_in_type(n: Type, replacement: TypedNode,
         new_type = n.type
         if isinstance(replacement, Var) and new_name == replacement.name:
             new_name = new_name + "_fresh"
-            new_type = substitution_type_in_type(new_cond, BasicType(new_name),
+            new_type = substitution_type_in_type(new_type, BasicType(new_name),
                                                  n.name)
         return TypeAbstraction(name=new_name, kind=n.kind, type=r(new_type))
     else:
@@ -185,7 +185,7 @@ def substitution_type_in_type(n: Type, replacement: Type,
         new_body = n.return_type
         if isinstance(replacement, BasicType) and new_name == replacement.name:
             new_name = new_name + "_fresh"
-            new_body = substitution_expr_in_type(new_cond, Var(new_name),
+            new_body = substitution_expr_in_type(new_body, Var(new_name),
                                                  n.arg_name)
         return AbstractionType(arg_name=new_name,
                                arg_type=r(n.arg_type),
@@ -197,7 +197,7 @@ def substitution_type_in_type(n: Type, replacement: Type,
         new_type = n.type
         if isinstance(replacement, BasicType) and new_name == replacement.name:
             new_name = new_name + "_fresh"
-            new_type = substitution_type_in_type(new_cond, BasicType(new_name),
+            new_type = substitution_type_in_type(new_type, BasicType(new_name),
                                                  n.name)
         return TypeAbstraction(name=n.name, kind=n.kind, type=r(new_type))
     else:
