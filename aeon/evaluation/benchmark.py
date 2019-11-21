@@ -4,7 +4,7 @@ from aeon.types import TypingContext, BasicType
 from aeon.interpreter import run
 
 
-def generate_and_benchmark(typee, depth, pop_size, file_writer, wrapper):
+def generate_and_benchmark(typee, pretty_typee, depth, pop_size, file_writer, wrapper):
     population = list()
     eval_results = list()
     i = 0
@@ -22,4 +22,4 @@ def generate_and_benchmark(typee, depth, pop_size, file_writer, wrapper):
         except Exception as e:
             print("Not able to synthesise:", e)
     measurer = Measurer(file_writer)
-    measurer.measure(typee, population, eval_results)
+    measurer.measure(typee, pretty_typee, population, eval_results)

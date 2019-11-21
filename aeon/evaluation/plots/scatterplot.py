@@ -13,9 +13,10 @@ def plot(path, f_name, axis, labels, data):
 
     plot = sns.swarmplot(x=x, y=y, data=data, orient='h')
     plot.set(xlabel=xlabel, ylabel=ylabel)
-    plot.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    plot.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    plot.set_xlim(left=0)
     f_name = '{}scatter_{}.pdf'.format(path, f_name)
 
     figure = plot.get_figure()
-    figure.savefig(f_name)
+    figure.savefig(f_name, bbox_inches='tight')
     figure.clf()

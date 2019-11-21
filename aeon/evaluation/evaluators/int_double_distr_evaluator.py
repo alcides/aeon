@@ -35,7 +35,6 @@ class IntDoubleDistrEvaluator(Evaluator):
         doubles = []
 
         for depth, csv in data.items():
-
             res_ints, res_doubles = self.treat_data(csv)
 
             integers += res_ints
@@ -64,6 +63,10 @@ class IntDoubleDistrEvaluator(Evaluator):
         integers = []
         doubles = []
         for individual in data['Individual'].values:
-            integers += re.findall('-?\d+', str(individual))
-            doubles += re.findall('-?\d+\.\d+', str(individual))
+            found = re.findall('-?\d+(?:\.\d+)?', str(individual))
+            for f in found:
+                if('.' in f):
+                    doubles.append(f)
+                else:
+                    integers.append(f)
         return (integers, doubles)

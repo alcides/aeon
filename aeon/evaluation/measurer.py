@@ -16,28 +16,30 @@ class Measurer(object):
         self.writer.flush()
 
     # Given a population and supposed typee to be synthesised, measure the outcomes
-    def measure(self, typee, population, eval_results):
+    def measure(self, typee, pretty_typee, population, eval_results):
         self.write('Typee')
+        self.write('Pretty Typee')
         self.write('Individual')
         self.write('Tree Size')
         self.write('Tree Depth')
         self.write('Diversity')
-        self.write('Evaluation', '')
+        self.write('Semantic Diversity', '')
         #self.write('Fitness', '')
         self.write('\r\n', '')
 
         for individual, res in zip(population, eval_results):
             print('Evaluating:', individual)
             self.write(typee)
+            self.write(pretty_typee)
             self.write(individual)
             self.write(count_nodes(individual))
             self.write(depth(individual))
-            self.write(res)
             self.write(
                 round(
                     sum([
                         compare_trees(individual, ast2) for ast2 in population
                         if ast2 != individual
-                    ]), 3), '')
+                    ]), 3))
+            self.write(res, '')
             # self.write(evaluate_fitness(individual))
             self.write('\r\n', '')

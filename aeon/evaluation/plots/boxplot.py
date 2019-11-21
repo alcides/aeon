@@ -13,10 +13,11 @@ def plot(path, f_name, axis, labels, data, orient='v'):
     f_name = '{}box_{}.pdf'.format(path, f_name)
 
     plot = sns.boxplot(x=x, y=y, data=data, whis='range', palette='vlag', orient='h')
-    plt.ylabel(ylabel, rotation = 0)
-    plot.set(xlabel=xlabel)
+    plot.set(xlabel=xlabel, ylabel = ylabel)
     plot.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-
+    plot.set_xlim(left=0)
+    # Needed for violin plot
+    # plot.set_yscale('log')
     figure = plot.get_figure()
-    figure.savefig(f_name)
+    figure.savefig(f_name, bbox_inches='tight')
     figure.clf()

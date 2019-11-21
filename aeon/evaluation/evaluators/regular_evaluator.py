@@ -1,5 +1,6 @@
 import re
 import pandas as pd
+
 from os import listdir
 
 from .evaluator import Evaluator
@@ -35,17 +36,18 @@ class RegularEvaluator(Evaluator):
 
             # Generate the plots
             for metric, res in result.items():
-                axis = ('Typee', metric)
-                labels = axis
+                axis = ('Pretty Typee', metric)
+                labels = ('Types', metric)
                 f_name = 'depth{}_{}'.format(depth, metric)
+                res = res.sort_values(by=['Pretty Typee'])
                 scatterplot.plot(self.path, f_name, axis, labels, res)
                 boxplot.plot(self.path, f_name, axis, labels, res)
                 violinplot.plot(self.path, f_name, axis, labels, res)
 
     def treat_data(self, data):
         result = {}
-        typee_column = data.columns[0]
-        for column in data.columns[2:]:
+        typee_column = data.columns[1]
+        for column in data.columns[3:]:
             new_data = data[[typee_column, column]]
             if column not in result:
                 result[column] = new_data
