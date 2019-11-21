@@ -51,6 +51,8 @@ class IntDoubleDistrEvaluator(Evaluator):
             df.loc[i] = [integer, double]
             i += 1
 
+        print(df)
+
         axis = (None, None)
         labels = ('Types', 'Value Distribution')
         f_name = 'value_distribution'
@@ -63,7 +65,7 @@ class IntDoubleDistrEvaluator(Evaluator):
         integers = []
         doubles = []
         for individual in data['Individual'].values:
-            found = re.findall('-?\d+(?:\.\d+)?', str(individual))
+            found = re.findall('(?:(?<!\w))(-?\d+(?:\.\d+)?)', str(individual))
             for f in found:
                 if('.' in f):
                     doubles.append(f)
