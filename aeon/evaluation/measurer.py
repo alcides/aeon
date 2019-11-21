@@ -21,7 +21,8 @@ class Measurer(object):
         self.write('Individual')
         self.write('Tree Size')
         self.write('Tree Depth')
-        self.write('Diversity', '')
+        self.write('Diversity')
+        self.write('Evaluation', '')
         #self.write('Fitness', '')
         self.write('\r\n', '')
 

@@ -18,13 +18,15 @@ def reset_folder(directory):
 def generate_data():
     for depth in range(MIN_TREE_DEPTH, MAX_TREE_DEPTH):
         for run in range(RUNS):
+            i = 0
             for (typee, wrapper) in typees:
                 file_name = '{}typee{}_depth{}_run{}.csv'.format(
-                    OUTPUT_PATH, run, depth, run)
+                    OUTPUT_PATH, i, depth, run)
 
                 with open(file_name, 'w') as writer:
                     generate_and_benchmark(typee, depth, POPULATION_SIZE,
                                            writer, wrapper)
+                i += 1
 
 
 def run_evaluator(evaluator):

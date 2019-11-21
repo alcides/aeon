@@ -331,7 +331,8 @@ def se_double(ctx: TypingContext, T: BasicType, d: int):
 
 def se_string(ctx: TypingContext, T: BasicType, d: int):
     """ SE-String """
-    length = random.randint(1, 100)
+    # TODO: alterar distribuicao do tamanho das strings
+    length = round(abs(random.gauss(0, 0.1) * 1000))
     v = ''.join(random.choice(string.ascii_letters) for i in range(length))
     return Literal(v, T)
 

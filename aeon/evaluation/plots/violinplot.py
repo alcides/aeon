@@ -6,12 +6,12 @@ def plot(path, f_name, axis, labels, data):
 
     print('Generating violinplot:', f_name)
 
-    x, y = axis
-    xlabel, ylabel = labels
+    y, x = axis
+    ylabel, xlabel = labels
 
     sns.set(style='whitegrid', palette='muted')
 
-    plot = sns.violinplot(x=x, y=y, data=data, inner='points')
+    plot = sns.violinplot(x=x, y=y, data=data, inner='points', orient='h')
     plot.set(xlabel=xlabel, ylabel=ylabel)
     plot.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
