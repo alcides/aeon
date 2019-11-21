@@ -1,12 +1,9 @@
 import os
+import sys
 import shutil
 
 from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
-
-from .evaluators.regular_evaluator import RegularEvaluator
-from .evaluators.int_double_distr_evaluator import IntDoubleDistrEvaluator
-from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
 
 
 def reset_folder(directory):
@@ -36,13 +33,18 @@ def run_evaluator(evaluator):
 
 if __name__ == '__main__':
 
-    # Reset the output directory
-    reset_folder(OUTPUT_PATH)
+    if len(sys.argv) == 1 or sys.argv[1] == 'record':
+        # Reset the output directory
+        reset_folder(OUTPUT_PATH)
 
-    # Generate the data with the evaluator path
-    generate_data()
+        # Generate the data with the evaluator path
+        generate_data()
+    else:
+        from .evaluators.regular_evaluator import RegularEvaluator
+        from .evaluators.int_double_distr_evaluator import IntDoubleDistrEvaluator
+        from .evaluators.increasing_depth_evaluator import IncreasingDepthEvaluator
 
-    # Run the evaluator
-    run_evaluator(RegularEvaluator())
-    run_evaluator(IntDoubleDistrEvaluator())
-    run_evaluator(IncreasingDepthEvaluator())
+        # Run the evaluator
+        run_evaluator(RegularEvaluator())
+        run_evaluator(IntDoubleDistrEvaluator())
+        run_evaluator(IncreasingDepthEvaluator())
