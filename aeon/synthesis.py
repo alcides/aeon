@@ -35,7 +35,7 @@ weights = {
     "se_where": 1,
     "se_abs": 1,
     "se_app": 1,
-    "se_tabs": 1,
+    "se_tabs": 0,
     "se_tapp": 1,
     "se_if": 1,
     "se_subtype": 1,
@@ -157,7 +157,7 @@ def random_chooser(f):
             except Unsynthesizable as e:
                 for r in rules:
                     weights[r] *= 2
-                #print("Exception", type(e), str(e))
+                print("Exception", type(e), str(e))
                 pass
                 #if i % 10 == 0:
                 #    print("Exception:", e, type(e))
@@ -272,11 +272,17 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
     return "_qwerty"
 
 
+def is_compatible(ctx, v, T):
+    try:
+        return tc.is_subtype(ctx, ctx.variables[v],
+                             T) and v not in forbidden_vars
+    except:  #TODO
+        return False
+
+
 def get_variables_of_type(ctx: TypingContext, T: Type):
-    return [
-        v for v in ctx.variables
-        if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
-    ]
+    ls = [v for v in ctx.variables if is_compatible(ctx, v, T)]
+    return ls
 
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
@@ -408,13 +414,14 @@ def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     return TAbstraction(T.name, T.kind, e).with_type(T)
 
 
-def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
+def se_tapp(ctx: TypingContext, T: Type, d: int):
     k = sk(d - 1)
-    T = st(ctx, k, d - 1)
-    t = scfv(ctx, upper=True)
-    V = itt(ctx.with_type_var(T, k), T, t, U, d - 1)
-    e = se(ctx, AbstractionType(t, k, V), d - 1)
-    return TApplication(e, T)
+    U = st(ctx, k, d - 1)
+    t = ctx.fresh_var()  #scfv(ctx, upper=True)
+    # TODO: V = itt(ctx.with_type_var(t, k), U, t, T, d - 1)
+    V = T
+    e = se(ctx, TypeAbstraction(t, k, V), d - 1)
+    return TApplication(e, U)
 
 
 def se_subtype(ctx: TypingContext, T: Type, d: int):
@@ -445,9 +452,8 @@ def se(ctx: TypingContext, T: Type, d: int):
             yield ("se_abs", se_abs)
         if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
+        yield ("se_tapp", se_tapp)
         yield ("se_app", se_app)
-        if isinstance(T, TypeApplication):
-            yield ("se_tapp", se_tapp)
         yield ("se_subtype", se_subtype)
 
 
