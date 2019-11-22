@@ -26,7 +26,7 @@ class IntDoubleDistrEvaluator(Evaluator):
         data = {}
 
         for f in listdir(OUTPUT_PATH):
-            _, depth, _ = tuple(map(lambda x: int(x), re.findall('\d+', f)))
+            depth = int(re.search(r'\d+', re.findall('depth\d+', f)[0]).group())
             csv = pd.read_csv(OUTPUT_PATH + f)
             data[depth] = csv if depth not in data else pd.concat(
                 [data[depth], csv])
@@ -50,8 +50,6 @@ class IntDoubleDistrEvaluator(Evaluator):
         for integer, double in zip(integers, doubles):
             df.loc[i] = [integer, double]
             i += 1
-
-        print(df)
 
         axis = (None, None)
         labels = ('Types', 'Value Distribution')

@@ -23,15 +23,16 @@ class IncreasingDepthEvaluator(Evaluator):
         data = {}
 
         for f in listdir(OUTPUT_PATH):
-            _, depth, _ = tuple(map(lambda x: int(x), re.findall('\d+', f)))
+            depth = int(re.search(r'\d+', re.findall('depth\d+', f)[0]).group())
             csv = pd.read_csv(OUTPUT_PATH + f)
             data[depth] = csv if depth not in data else pd.concat(
                 [data[depth], csv])
 
         df = pd.DataFrame()
 
-        for max_depth, dataframe in data.items():
-            df[str(max_depth + 1)] = pd.Series(dataframe['Tree Depth'].values)
+        for depth in sorted(data.keys()):
+            dataframe = data[depth]
+            df[depth + 1] = pd.Series(dataframe['Tree Depth'].values)
 
         # Generate the plots
         axis = (None, None)
