@@ -1,10 +1,6 @@
-if hash pypy3 2>/dev/null; then
-    PY=pypy3
-else
-    PY=python3
-fi
+PY=python3
 
-for d in {0..15}
+for d in {0..9}
 do
     for i in {0..10}
     do

@@ -111,6 +111,36 @@ initial_context = {
     '%': (ty2(
         "(a:Integer) -> (b:{z:Integer where (z != 0)}) -> {c:Integer where ((smtEq c) ((smtMod a) b))}"
     ), lambda x: lambda y: x % y),
+    '+Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Integer where ((smtEq c) ((smtPlus a) b))}"
+    ), lambda x: lambda y: x + y),
+    '-Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Integer where ((smtEq c) ((smtMinus a) b))}"
+    ), lambda x: lambda y: x - y),
+    '*Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Integer where ((smtEq c) ((smtMult a) b))}"
+    ), lambda x: lambda y: x * y),
+    '/Int': (ty2(
+        "(a:Integer) -> (b:{z:Integer where (z != 0)}) -> {c:Integer where ((smtEq c) ((smtDiv a) b))}"
+    ), lambda x: lambda y: x / y),
+    '==Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtEq a) b))}"
+    ), lambda x: lambda y: x == y),
+    '!=Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtIneq a) b))}"
+    ), lambda x: lambda y: x != y),
+    '<Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtLt a) b))}"
+    ), lambda x: lambda y: x < y),
+    '>Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtGt a) b))}"
+    ), lambda x: lambda y: x > y),
+    '<=Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtLte a) b))}"
+    ), lambda x: lambda y: x <= y),
+    '>=Int': (ty2(
+        "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
+    ), lambda x: lambda y: x >= y),
 }
 
 math_context = {

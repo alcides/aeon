@@ -31,7 +31,7 @@ class TestSynthesis(unittest.TestCase):
             check_type(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
-    def generic_test(self, t, fun=None, extra_ctx=None, d=None):
+    def generic_test(self, t, fun=None, extra_ctx=None, d=None, times=3):
         if not fun:
             fun = se
         ctx = TypingContext()
@@ -39,7 +39,7 @@ class TestSynthesis(unittest.TestCase):
         if extra_ctx:
             for (k, v) in extra_ctx:
                 ctx = ctx.with_var(k, ty(v))
-        self.assert_synth(ctx, t, fun=fun, d=d)
+        self.assert_synth(ctx, t, fun=fun, d=d, times=times)
 
     def test_synthesis_kind_1(self):
         ctx = TypingContext()
@@ -61,6 +61,9 @@ class TestSynthesis(unittest.TestCase):
 
     def test_int(self):
         self.generic_test("Integer", fun=se_int, d=1)
+
+    def test_big_int(self):
+        self.generic_test("Integer", fun=se_app, d=7, times=10)
 
     def test_var(self):
         self.generic_test("Integer",

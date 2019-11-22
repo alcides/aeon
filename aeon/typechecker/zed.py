@@ -257,6 +257,17 @@ def zed_initial_context():
         "smtDiv": lambda x: lambda y: x / y,
         "smtCaret": lambda x: lambda y: x ^ y,
         "smtMod": lambda x: lambda y: x % y,
+        "==Int": lambda x: lambda y: x == y,
+        "!=Int": lambda x: lambda y: x != y,
+        "<Int": lambda x: lambda y: x < y,
+        ">Int": lambda x: lambda y: x > y,
+        "<=Int": lambda x: lambda y: x <= y,
+        ">=Int": lambda x: lambda y: x >= y,
+        "+Int": lambda x: lambda y: x + y,
+        "-Int": lambda x: lambda y: x - y,
+        "*Int": lambda x: lambda y: x * y,
+        "/Int": lambda x: lambda y: x / y,
+        "^Int": lambda x: lambda y: x ^ y,
     }
 
 

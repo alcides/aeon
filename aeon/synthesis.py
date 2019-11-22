@@ -13,7 +13,7 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
 from . import typechecker as tc
 
 MAX_TRIES = 10
-MAX_TRIES_WHERE = 100
+MAX_TRIES_WHERE = 10
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
@@ -27,16 +27,16 @@ weights = {
     "st_abs": 1,
     "st_tabs": 1,
     "st_tapp": 1,
-    "se_int": 50,  # Terminal types
-    "se_bool": 50,
-    "se_double": 50,
-    "se_string": 50,
-    "se_var": 45,
+    "se_int": 1,  # Terminal types
+    "se_bool": 1,
+    "se_double": 1,
+    "se_string": 1,
+    "se_var": 1,
     "se_where": 1,
     "se_abs": 1,
     "se_app": 1,
-    "se_tabs": 1,
-    "se_tapp": 1,
+    "se_tabs": 0,
+    "se_tapp": 0,
     "se_if": 1,
     "se_subtype": 1,
     "iet_id": 1,
@@ -137,10 +137,12 @@ def pick_one_of(alts):
 def random_chooser(f):
     def f_alt(*args, **kwargs):
         #random.seed(random.randint(0, 1030))
+        actual_max_tries = MAX_TRIES
         rules = ['se_bool', 'se_int', 'se_double', 'se_string', 'se_var']
         if f.__name__ == 'se':
             d = args[2]
             if d < 3:
+                actual_max_tries = 1
                 for r in rules:
                     weights[r] *= 2
 
@@ -150,10 +152,11 @@ def random_chooser(f):
             raise Unsynthesizable("No valid alternatives for", f.__name__,
                                   *args)
         old_values = [weights[r] for r in rules]
-        for i in range(MAX_TRIES):
+        for i in range(actual_max_tries):
             fun = pick_one_of(valid_alternatives)
             try:
-                return fun(*args, **kwargs)
+                v = fun(*args, **kwargs)
+                return v
             except Unsynthesizable as e:
                 for r in rules:
                     weights[r] *= 2
@@ -272,11 +275,18 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
     return "_qwerty"
 
 
+def is_compatible(ctx, v, T):
+    try:
+        return tc.is_subtype(ctx, ctx.variables[v],
+                             T) and v not in forbidden_vars
+    except Exception as e:
+        print(">>>", e)  #TODO
+        return False
+
+
 def get_variables_of_type(ctx: TypingContext, T: Type):
-    return [
-        v for v in ctx.variables
-        if tc.is_subtype(ctx, ctx.variables[v], T) and v not in forbidden_vars
-    ]
+    ls = [v for v in ctx.variables if is_compatible(ctx, v, T)]
+    return ls
 
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
@@ -296,7 +306,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int):
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
-                                    type=T,
+                                    type=t_b,
                                     cond=Application(
                                         Application(
                                             TApplication(Var("=="), t_b),
@@ -313,7 +323,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
-                                    type=T,
+                                    type=t_i,
                                     cond=Application(
                                         Application(
                                             TApplication(Var("=="), t_i),
@@ -408,13 +418,14 @@ def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     return TAbstraction(T.name, T.kind, e).with_type(T)
 
 
-def se_tapp(ctx: TypingContext, U: TypeApplication, d: int):
+def se_tapp(ctx: TypingContext, T: Type, d: int):
     k = sk(d - 1)
-    T = st(ctx, k, d - 1)
-    t = scfv(ctx, upper=True)
-    V = itt(ctx.with_type_var(T, k), T, t, U, d - 1)
-    e = se(ctx, AbstractionType(t, k, V), d - 1)
-    return TApplication(e, T)
+    U = st(ctx, k, d - 1)
+    t = ctx.fresh_var()  #scfv(ctx, upper=True)
+    # TODO: V = itt(ctx.with_type_var(t, k), U, t, T, d - 1)
+    V = T
+    e = se(ctx, TypeAbstraction(t, k, V), d - 1)
+    return TApplication(e, U)
 
 
 def se_subtype(ctx: TypingContext, T: Type, d: int):
@@ -445,9 +456,8 @@ def se(ctx: TypingContext, T: Type, d: int):
             yield ("se_abs", se_abs)
         if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
+        yield ("se_tapp", se_tapp)
         yield ("se_app", se_app)
-        if isinstance(T, TypeApplication):
-            yield ("se_tapp", se_tapp)
         yield ("se_subtype", se_subtype)
 
 

@@ -80,7 +80,7 @@ def is_subtype(ctx, sub, sup) -> bool:
     """ Subtyping Rules """
     if isinstance(sub, BasicType) and sub.name == 'Bottom':
         return True
-    elif isinstance(sup, BasicType) and sup.name == 'Top':
+    elif isinstance(sup, BasicType) and sup.name in ['Top', 'Object', 'Void']:
         return True
     elif isinstance(sub, BasicType) and isinstance(sup, BasicType):
         return sub_base(ctx, sub, sup)
