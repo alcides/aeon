@@ -13,7 +13,7 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
 from . import typechecker as tc
 
 MAX_TRIES = 10
-MAX_TRIES_WHERE = 100
+MAX_TRIES_WHERE = 10
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
@@ -27,14 +27,14 @@ weights = {
     "st_abs": 1,
     "st_tabs": 1,
     "st_tapp": 1,
-    "se_int": 5,  # Terminal types
-    "se_bool": 5,
-    "se_double": 5,
-    "se_string": 5,
-    "se_var": 15,
+    "se_int": 1,  # Terminal types
+    "se_bool": 1,
+    "se_double": 1,
+    "se_string": 1,
+    "se_var": 1,
     "se_where": 1,
     "se_abs": 1,
-    "se_app": 10,
+    "se_app": 1,
     "se_tabs": 0,
     "se_tapp": 0,
     "se_if": 1,
@@ -137,10 +137,12 @@ def pick_one_of(alts):
 def random_chooser(f):
     def f_alt(*args, **kwargs):
         #random.seed(random.randint(0, 1030))
+        actual_max_tries = MAX_TRIES
         rules = ['se_bool', 'se_int', 'se_double', 'se_string', 'se_var']
         if f.__name__ == 'se':
             d = args[2]
             if d < 3:
+                actual_max_tries = 1
                 for r in rules:
                     weights[r] *= 2
 
@@ -150,10 +152,11 @@ def random_chooser(f):
             raise Unsynthesizable("No valid alternatives for", f.__name__,
                                   *args)
         old_values = [weights[r] for r in rules]
-        for i in range(MAX_TRIES):
+        for i in range(actual_max_tries):
             fun = pick_one_of(valid_alternatives)
             try:
-                return fun(*args, **kwargs)
+                v = fun(*args, **kwargs)
+                return v
             except Unsynthesizable as e:
                 for r in rules:
                     weights[r] *= 2
