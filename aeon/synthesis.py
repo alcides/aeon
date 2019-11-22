@@ -27,16 +27,16 @@ weights = {
     "st_abs": 1,
     "st_tabs": 1,
     "st_tapp": 1,
-    "se_int": 50,  # Terminal types
-    "se_bool": 50,
-    "se_double": 50,
-    "se_string": 50,
-    "se_var": 45,
+    "se_int": 5,  # Terminal types
+    "se_bool": 5,
+    "se_double": 5,
+    "se_string": 5,
+    "se_var": 15,
     "se_where": 1,
     "se_abs": 1,
-    "se_app": 1,
+    "se_app": 10,
     "se_tabs": 0,
-    "se_tapp": 1,
+    "se_tapp": 0,
     "se_if": 1,
     "se_subtype": 1,
     "iet_id": 1,
@@ -157,7 +157,7 @@ def random_chooser(f):
             except Unsynthesizable as e:
                 for r in rules:
                     weights[r] *= 2
-                print("Exception", type(e), str(e))
+                #print("Exception", type(e), str(e))
                 pass
                 #if i % 10 == 0:
                 #    print("Exception:", e, type(e))
@@ -276,7 +276,8 @@ def is_compatible(ctx, v, T):
     try:
         return tc.is_subtype(ctx, ctx.variables[v],
                              T) and v not in forbidden_vars
-    except:  #TODO
+    except Exception as e:
+        print(">>>", e)  #TODO
         return False
 
 
@@ -302,7 +303,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int):
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
-                                    type=T,
+                                    type=t_b,
                                     cond=Application(
                                         Application(
                                             TApplication(Var("=="), t_b),
@@ -319,7 +320,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
     name = "lit_{}".format(v)
     return Literal(v,
                    type=RefinedType(name=name,
-                                    type=T,
+                                    type=t_i,
                                     cond=Application(
                                         Application(
                                             TApplication(Var("=="), t_i),

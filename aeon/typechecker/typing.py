@@ -39,7 +39,7 @@ def w_lub(ctxT: TypingContext, T: Type, ctxU: TypingContext, U: Type) -> Type:
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
     v = e.value
-    name = "lit_{}".format(v)
+    name = "lit_b_{}".format(v)
     if isinstance(e.value,
                   bool) and not e.type and not isinstance(e.type, RefinedType):
         return RefinedType(name=name,
