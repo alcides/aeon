@@ -4,11 +4,14 @@ from aeon.types import TypingContext, BasicType
 from aeon.interpreter import run
 
 
-def generate_and_benchmark(typee, pretty_typee, depth, pop_size, file_writer, wrapper):
+def generate_and_benchmark(typee, pretty_typee, depth, pop_size, file_writer,
+                           wrapper):
     population = list()
     eval_results = list()
     i = 0
-    while i < pop_size:
+    j = 0
+    while i < pop_size and j < 3 * pop_size:
+        j += 1
         try:
             ctx = TypingContext()
             ctx.setup()

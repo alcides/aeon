@@ -10,7 +10,7 @@ ty = typee.parse_strict
 RUNS = 1
 MIN_TREE_DEPTH = 2
 MAX_TREE_DEPTH = 5
-POPULATION_SIZE = 1000
+POPULATION_SIZE = 100
 OUTPUT_PATH = Evaluator().FOLDER_PATH + 'output/'
 
 typees = [
