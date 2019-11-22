@@ -14,10 +14,10 @@ def plot(path, f_name, axis, labels, data, orient='v'):
 
     plot = sns.boxplot(x=x, y=y, data=data, whis='range', palette='vlag', orient='h')
     plot.set(xlabel=xlabel, ylabel = ylabel)
+    #plot.set_xscale('log')
     plot.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     plot.set_xlim(left=0)
-    # Needed for violin plot
-    # plot.set_yscale('log')
+    
     figure = plot.get_figure()
     figure.savefig(f_name, bbox_inches='tight')
     figure.clf()

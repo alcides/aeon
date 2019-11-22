@@ -5,6 +5,8 @@ import shutil
 from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
 
+from aeon.evaluation.z3.z3_generation_benchmark import run_z3
+
 
 def reset_folder(directory):
     if os.path.exists(directory):
@@ -49,3 +51,4 @@ if __name__ == '__main__':
         run_evaluator(RegularEvaluator())
         run_evaluator(IntDoubleDistrEvaluator())
         run_evaluator(IncreasingDepthEvaluator())
+        run_z3()
