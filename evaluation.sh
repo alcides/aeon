@@ -1,6 +1,17 @@
 if hash pypy3 2>/dev/null; then
-    pypy3 -m aeon.evaluation record
+    PY=pypy3
 else
-    python3 -m aeon.evaluation record
+    PY=python3
 fi
+
+for d in {0..15}
+do
+    for i in {0..10}
+    do
+        $PY -m aeon.evaluation record $i $d &
+    done
+done
+
+wait
+
 python3 -m aeon.evaluation plot

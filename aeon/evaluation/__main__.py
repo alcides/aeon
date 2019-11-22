@@ -12,18 +12,16 @@ def reset_folder(directory):
     os.makedirs(directory)
 
 
-def generate_data():
-    for depth in range(MIN_TREE_DEPTH, MAX_TREE_DEPTH):
+def generate_data(typees_selection, depth_selection):
+    for depth in depth_selection:
         for run in range(RUNS):
-            i = 0
-            for (typee, pretty_typee, wrapper) in typees:
+            for (typee, pretty_typee, wrapper) in typees_selection:
                 file_name = '{}typee{}_depth{}_run{}.csv'.format(
-                    OUTPUT_PATH, i, depth, run)
+                    OUTPUT_PATH, pretty_typee, depth, run)
 
                 with open(file_name, 'w') as writer:
-                    generate_and_benchmark(typee, pretty_typee, depth, POPULATION_SIZE,
-                                           writer, wrapper)
-                i += 1
+                    generate_and_benchmark(typee, pretty_typee, depth,
+                                           POPULATION_SIZE, writer, wrapper)
 
 
 def run_evaluator(evaluator):
@@ -33,12 +31,15 @@ def run_evaluator(evaluator):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) == 1 or sys.argv[1] == 'record':
+    if len(sys.argv) >= 1 or sys.argv[1] == 'record':
         # Reset the output directory
         #reset_folder(OUTPUT_PATH)
-
+        typees_selection = [typees[int(sys.argv[2])]
+                            ] if len(sys.argv) >= 2 else typees
+        depth_selection = [int(sys.argv[3])] if len(sys.argv) >= 3 else range(
+            MIN_TREE_DEPTH, MAX_TREE_DEPTH)
         # Generate the data with the evaluator path
-        generate_data()
+        generate_data(typees_selection, depth_selection)
     else:
         from .evaluators.regular_evaluator import RegularEvaluator
         from .evaluators.int_double_distr_evaluator import IntDoubleDistrEvaluator
