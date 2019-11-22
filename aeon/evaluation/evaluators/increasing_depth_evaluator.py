@@ -23,7 +23,11 @@ class IncreasingDepthEvaluator(Evaluator):
         data = {}
 
         for f in listdir(OUTPUT_PATH):
-            depth = int(re.search(r'\d+', re.findall('depth\d+', f)[0]).group())
+            if not f.endswith(".csv"):
+                continue
+            depth = int(
+                re.search(r'\d+',
+                          re.findall('depth\d+', f)[0]).group())
             csv = pd.read_csv(OUTPUT_PATH + f)
             data[depth] = csv if depth not in data else pd.concat(
                 [data[depth], csv])

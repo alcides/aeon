@@ -12,6 +12,22 @@ import aeon.evaluation.plots.violinplot as violinplot
 import aeon.evaluation.plots.scatterplot as scatterplot
 
 
+def rename(n):
+    if n == 'Multiple of 4':
+        return 'M4'
+    if n == 'Smaller than 10 Natural':
+        return 'Lt10'
+    if n == 'Abstract Integer':
+        return 'Abs'
+    if n == 'Refined Abstract Integer':
+        return 'AbsR'
+    if n == 'Refined Input-Output':
+        return 'RAbsR'
+    if n == 'Refined Double Abstract Integer':
+        return 'AbsAbs'
+    return n
+
+
 class RegularEvaluator(Evaluator):
 
     # CONSTANTS
@@ -25,7 +41,11 @@ class RegularEvaluator(Evaluator):
         data = {}
 
         for f in listdir(OUTPUT_PATH):
-            depth = int(re.search(r'\d+', re.findall('depth\d+', f)[0]).group())
+            if not f.endswith(".csv"):
+                continue
+            depth = int(
+                re.search(r'\d+',
+                          re.findall('depth\d+', f)[0]).group())
             csv = pd.read_csv(OUTPUT_PATH + f)
             data[depth] = csv if depth not in data else pd.concat(
                 [data[depth], csv])
@@ -36,13 +56,37 @@ class RegularEvaluator(Evaluator):
 
             # Generate the plots
             for metric, res in result.items():
+                res['Pretty Typee'] = res['Pretty Typee'].map(rename)
+                if metric.endswith('Diversity'):
+                    v = res[metric].count()
+                    res[metric].map(lambda x: x / float(v))
                 axis = ('Pretty Typee', metric)
-                labels = ('Types', metric)
+
+                labelx = metric
+                if metric == 'Diversity':
+                    labelx = 'Syntactic Diversity'
+
+                labels = ('Types', labelx)
                 f_name = 'depth{}_{}'.format(depth, metric)
-                res = res.sort_values(by=['Pretty Typee'])
-                scatterplot.plot(self.path, f_name, axis, labels, res)
-                boxplot.plot(self.path, f_name, axis, labels, res)
-                violinplot.plot(self.path, f_name, axis, labels, res)
+
+                order = [
+                    'Integer', 'Natural', 'M4', 'Lt10', 'Boolean', 'String',
+                    'Double', 'Abs', 'AbsR', 'RAbsR', 'AbsAbs'
+                ]
+
+                scatterplot.plot(self.path,
+                                 f_name,
+                                 axis,
+                                 labels,
+                                 res,
+                                 order=order)
+                boxplot.plot(self.path, f_name, axis, labels, res, order=order)
+                violinplot.plot(self.path,
+                                f_name,
+                                axis,
+                                labels,
+                                res,
+                                order=order)
 
     def treat_data(self, data):
         result = {}

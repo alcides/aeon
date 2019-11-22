@@ -31,7 +31,7 @@ def run_evaluator(evaluator):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) >= 1 or sys.argv[1] == 'record':
+    if len(sys.argv) < 0 or sys.argv[1] == 'record':
         # Reset the output directory
         #reset_folder(OUTPUT_PATH)
         typees_selection = [typees[int(sys.argv[2])]
