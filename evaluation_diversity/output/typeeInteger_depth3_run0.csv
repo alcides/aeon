@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+Integer,Integer,-372,1,1,271.178,-372
+Integer,Integer,321,1,1,271.934,321
+Integer,Integer,67,1,1,262.979,67
+Integer,Integer,(if (if False then (if True then False else False) else True) then 682 else (if False then 61 else -63)),13,4,1174.741,682
+Integer,Integer,(if False then 192 else -604),4,2,412.069,-604
+Integer,Integer,565,1,1,277.488,565
+Integer,Integer,-467,1,1,275.212,-467
+Integer,Integer,137,1,1,265.339,137
+Integer,Integer,188,1,1,268.326,188
+Integer,Integer,(if (if False then (if True then True else False) else False) then 101 else -39),10,4,889.449,-39
+Integer,Integer,-24,1,1,263.329,-24
+Integer,Integer,((\fresh_9:Boolean -> -630) False),4,3,465.341,-630
+Integer,Integer,(if (if False then True else True) then 260 else -4),7,3,630.796,260
+Integer,Integer,120,1,1,264.486,120
+Integer,Integer,((\fresh_16:Integer -> fresh_16) (if False then 475 else -343)),7,3,656.098,-343
+Integer,Integer,-343,1,1,269.786,-343
+Integer,Integer,-169,1,1,265.041,-169
+Integer,Integer,-265,1,1,268.412,-265
+Integer,Integer,10,1,1,263.087,10
+Integer,Integer,809,1,1,282.954,809
+Integer,Integer,139,1,1,265.458,139
+Integer,Integer,77,1,1,263.075,77
+Integer,Integer,-378,1,1,271.563,-378
+Integer,Integer,(if False then 342 else (if (if False then True else True) then -61 else 76)),10,4,904.826,-61
+Integer,Integer,233,1,1,270.555,233
+Integer,Integer,(if False then 304 else -684),4,2,416.752,-684
+Integer,Integer,434,1,1,273.835,434
+Integer,Integer,158,1,1,266.792,158
+Integer,Integer,539,1,1,276.772,539
+Integer,Integer,226,1,1,270.273,226
+Integer,Integer,-192,1,1,266.139,-192
+Integer,Integer,382,1,1,272.185,382
+Integer,Integer,(if False then 331 else 387),4,2,415.465,387
+Integer,Integer,-112,1,1,264.013,-112
+Integer,Integer,((\fresh_21:Boolean -> 195) (! (! True))),8,4,797.168,195
+Integer,Integer,-302,1,1,268.837,-302
+Integer,Integer,-341,1,1,269.728,-341
+Integer,Integer,427,1,1,273.502,427
+Integer,Integer,(if True then -22 else -381),4,2,401.733,-22
+Integer,Integer,-160,1,1,264.717,-160
+Integer,Integer,(if (if True then True else (if False then True else False)) then -470 else -59),10,4,904.818,-470
+Integer,Integer,618,1,1,278.8,618
+Integer,Integer,-1036,1,1,286.087,-1036
+Integer,Integer,387,1,1,272.073,387
+Integer,Integer,(if False then -105 else -362),4,2,406.002,-362
+Integer,Integer,119,1,1,264.456,119
+Integer,Integer,505,1,1,276.055,505
+Integer,Integer,141,1,1,265.609,141
+Integer,Integer,550,1,1,277.038,550
+Integer,Integer,-187,1,1,265.89,-187
+Integer,Integer,-488,1,1,275.68,-488
+Integer,Integer,706,1,1,280.425,706
+Integer,Integer,(if False then 1 else -571),4,2,408.578,-571
+Integer,Integer,-313,1,1,269.22,-313
+Integer,Integer,(if False then (if True then -224 else -132) else 415),7,3,630.431,415
+Integer,Integer,13,1,1,263.047,13
+Integer,Integer,((\fresh_47:Boolean -> 67) True),4,3,446.038,67
+Integer,Integer,22,1,1,262.994,22
+Integer,Integer,(if False then 205 else 283),4,2,413.641,283
+Integer,Integer,(if True then -478 else -152),4,2,403.832,-478
+Integer,Integer,(if (! False) then 604 else -190),6,3,574.869,604
+Integer,Integer,-276,1,1,268.446,-276
+Integer,Integer,168,1,1,267.375,168
+Integer,Integer,739,1,1,281.072,739
+Integer,Integer,-93,1,1,263.728,-93
+Integer,Integer,387,1,1,272.073,387
+Integer,Integer,(if (if (if True then False else True) then True else False) then 51 else -749),10,4,904.444,-749
+Integer,Integer,-81,1,1,263.422,-81
+Integer,Integer,(if True then -300 else -231),4,2,407.928,-300
+Integer,Integer,717,1,1,280.582,717
+Integer,Integer,-165,1,1,264.849,-165
+Integer,Integer,-42,1,1,263.084,-42
+Integer,Integer,((if (if True then True else False) then (\fresh_69:Boolean -> 133) else (\fresh_69:Boolean -> 759)) True),11,4,998.662,133
+Integer,Integer,((\fresh_70:Boolean -> 274) True),4,3,452.306,274
+Integer,Integer,607,1,1,278.417,607
+Integer,Integer,408,1,1,272.755,408
+Integer,Integer,(if True then -280 else -674),4,2,414.599,-280
+Integer,Integer,(if False then 36 else -79),4,2,400.862,-79
+Integer,Integer,-176,1,1,265.428,-176
+Integer,Integer,(if True then 121 else -242),4,2,396.393,121
+Integer,Integer,(if True then -222 else -163),4,2,405.658,-222
+Integer,Integer,23,1,1,263.013,23
+Integer,Integer,-138,1,1,264.324,-138
+Integer,Integer,((if False then (% 476) else (\fresh_71:Integer -> -271)) -46),9,4,831.444,-271
+Integer,Integer,(if ((\fresh_75:Boolean -> True) True) then 337 else -64),7,4,641.107,337
+Integer,Integer,(if ((\fresh_76:Integer -> True) (if True then 21 else -374)) then 274 else -1070),10,4,896.888,274
+Integer,Integer,(if (if True then False else False) then -6 else 392),7,3,630.838,392
+Integer,Integer,-339,1,1,269.704,-339
+Integer,Integer,-522,1,1,277.073,-522
+Integer,Integer,(if True then 79 else -120),4,2,395.966,79
+Integer,Integer,-509,1,1,276.538,-509
+Integer,Integer,-305,1,1,268.921,-305
+Integer,Integer,520,1,1,276.369,520
+Integer,Integer,822,1,1,283.342,822
+Integer,Integer,-215,1,1,266.936,-215
+Integer,Integer,((\fresh_80:Top -> 76) (if True then (if True then True else True) else "MqnwdPjeLJMPutBxueIqSbnWqpCGcNbejHPhospbCkoKjDVDQGextajfPCm")),10,4,920.688,76
+Integer,Integer,(string_length (if True then "tuOzubeQQymOYeKVdoHexyGxqaOTtQDfOLEVxfuGuUOElTXVKhG" else "vXkBQxIjxGSHUNGHWdaChSRNYrqWkXlrgrxCNyZoQsskbYTLbAjTmdviwCRzBch")),6,3,593.442,51
+Integer,Integer,((\fresh_82:Object -> (if True then -480 else -144)) "reJoLbecsPHcXCtvHzc"),7,4,654.59,-480
+Integer,Integer,-536,1,1,277.723,-536
+Integer,Integer,112,1,1,264.317,112

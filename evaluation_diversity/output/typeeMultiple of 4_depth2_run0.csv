@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then 1 else (if True then 4 else 1)),7,3,550.611,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then 1 else (if False then 1 else 4)),7,3,552.89,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_6:Boolean -> 4) False),4,3,318.208,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then (if False then 1 else 1) else 4),7,3,551.575,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if True then 4 else (if True then 1 else 1)),7,3,555.433,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_18:Object -> 4) False),4,3,318.208,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_19:Integer -> 4) 237),4,3,320.508,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then (if False then 1 else 1) else (if True then 4 else 1)),10,3,826.744,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then 1 else 4),4,2,307.635,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if True then 4 else 1),4,2,309.374,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_24:Object -> 4) 204),4,3,319.924,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if True then 4 else (if True then 1 else 1)),7,3,555.433,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then (if True then 1 else 1) else 4),7,3,551.575,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_31:Boolean -> 4) True),4,3,316.238,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_32:Integer -> 4) 128),4,3,318.251,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if True then 4 else (if False then 1 else 1)),7,3,554.433,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then 1 else 4),4,2,307.635,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_33:Boolean -> 4) False),4,3,318.208,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_34:Boolean -> 4) True),4,3,316.238,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_36:Boolean -> 4) True),4,3,316.238,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then 1 else (if True then 4 else 1)),7,3,550.611,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_42:Integer -> 4) 360),4,3,322.216,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,((\fresh_45:Integer -> 4) -108),4,3,318.399,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if True then 4 else (if False then 1 else 1)),7,3,554.433,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,4,1,1,111.0,4
+{ x:Integer where ((==[??] ((% x) 4)) 0) },Multiple of 4,(if False then (if False then 1 else 1) else 4),7,3,551.575,4

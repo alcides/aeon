@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+Boolean,Boolean,(if True then True else True),4,2,414.0,1
+Boolean,Boolean,(! True),3,2,358.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if (if True then False else False) then ((if False then (\fresh_4:Integer -> False) else (\fresh_4:Integer -> True)) -19) else True),14,5,1205.819,1
+Boolean,Boolean,((\fresh_8:Integer -> (! (if True then False else True))) 123),9,5,745.914,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! False),3,2,370.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(((\fresh_23:Boolean -> (\fresh_16:Integer -> False)) (if True then False else True)) -357),10,5,849.831,0
+Boolean,Boolean,(if (if ((!=Int -229) (if True then -511 else 512)) then (if True then True else True) else True) then True else False),17,5,1508.714,1
+Boolean,Boolean,(if True then (! False) else False),6,3,528.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,((if True then ! else (\fresh_27:Boolean -> True)) (if False then False else True)),10,4,831.0,0
+Boolean,Boolean,((\fresh_29:Boolean -> fresh_29) False),4,3,444.0,0
+Boolean,Boolean,((if True then ! else !) False),6,3,514.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,((\fresh_40:Integer -> False) 6),4,3,446.846,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if (if True then (if False then False else True) else True) then False else True),10,4,846.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(! True),3,2,358.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,((\fresh_45:Integer -> False) ((\fresh_46:Boolean -> (if False then 350 else 229)) False)),10,5,900.23,0
+Boolean,Boolean,(if True then True else True),4,2,414.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! True),3,2,358.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(if True then True else (! (if True then True else True))),9,4,789.0,1
+Boolean,Boolean,((\fresh_51:Integer -> ((\fresh_61:Boolean -> False) True)) -645),7,5,636.314,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! (! True)),5,3,498.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! False),3,2,370.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,((\fresh_66:Boolean -> (if fresh_66 then True else fresh_66)) False),7,4,607.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if True then (if True then (! (if True then True else True)) else True) else False),12,5,1010.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(! (if True then (if True then False else True) else False)),9,4,725.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if (if True then False else ((\fresh_72:Boolean -> fresh_72) False)) then False else False),10,5,868.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,((==Int 71) (if True then 449 else -229)),8,3,752.407,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! (if (if True then False else True) then False else False)),9,4,731.0,1
+Boolean,Boolean,(if False then False else True),4,2,398.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,((\fresh_80:Integer -> True) 81),4,3,433.04,1
+Boolean,Boolean,((\fresh_82:Boolean -> (if True then fresh_82 else fresh_82)) True),7,4,638.0,1
+Boolean,Boolean,(! False),3,2,370.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(if True then (if False then True else True) else False),7,3,586.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! ((if True then ! else !) False)),8,4,677.0,0
+Boolean,Boolean,(if False then False else (if False then True else (if False then False else True))),10,4,875.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,((\fresh_96:Object -> True) (|| True)),6,3,575.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,(if True then False else False),4,2,387.0,0
+Boolean,Boolean,(if False then True else True),4,2,394.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(! (if (if True then True else True) then True else (if True then False else False))),12,4,1011.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,((\fresh_110:Top -> False) -95.31028772398115),4,3,452.355,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if False then (if True then True else False) else False),7,3,590.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,((\fresh_119:Integer -> False) -694),4,3,448.182,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,(if False then ((\fresh_121:Integer -> (if True then True else False)) 759) else False),10,5,838.996,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,((\fresh_125:Boolean -> (if fresh_125 then True else fresh_125)) False),7,4,607.0,0
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,True,1,1,290.0,1
+Boolean,Boolean,False,1,1,300.0,0
+Boolean,Boolean,False,1,1,300.0,0

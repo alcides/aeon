@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if True then ((if (if True then False else True) then (\fresh_1:Boolean -> +Int) else (\fresh_1:Boolean -> +Int)) False) else (if (if (if True then True else (if True then False else False)) then True else ((\fresh_5:Object -> True) "JZBCKaTbthkckTTDtBQkfsMIGVLvRYoc")) then *Int else (\a:Integer -> (% -23)))),32,6,2906.682,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> 290)),3,3,753.596,290
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((if True then (\fresh_7:Integer -> *Int) else (\fresh_7:Integer -> *Int)) ((\fresh_8:Boolean -> -428) False)),11,4,1163.86,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if True then *Int else /Int),4,2,778.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if True then -Int else ((\fresh_25:Object -> (\a:Integer -> (\b:Integer -> a))) "hOuAhDOLYoEfdyypnCvjWBLchdKLXWUGgUZIOPkSPVKrIsHRvjWwZdZDSxFNFktMuvVJBxOBpRjLQPHPkMsJzEJqPGBerVfiIPGDiefcfY")),9,6,1064.26,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_35:Top -> +Int) "PZmibOnCFKCIxPYQnDKHsEhsHJssGvM"),4,3,791.875,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_53:Boolean -> -Int) ((\fresh_55:(fresh_54:Integer -> (Integer)) -> (if False then False else True)) (\fresh_54:Integer -> 41))),11,5,1213.685,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then (if True then *Int else %) else *Int),7,3,923.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if True then (+Int 281) else (\b:Integer -> -93))),8,4,979.367,323
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -150)),3,3,749.714,-150
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -95)),3,3,749.334,-95
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((if False then (\fresh_62:Boolean -> *Int) else (\fresh_62:Boolean -> -Int)) (if False then False else ((\fresh_64:String -> True) "BVGn"))),14,5,1376.165,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (! (if False then False else False)) then (\a:Integer -> ((if (if True then True else False) then *Int else +Int) a)) else +Int),18,6,1720.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (((\fresh_72:Boolean -> !) False) False) then (if ((\fresh_73:Boolean -> False) False) then (if True then (\a:Integer -> (\b:Integer -> 593)) else %) else +Int) else (if False then % else -Int)),23,6,2147.014,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then (if False then (if (! (if True then True else False)) then (if True then -Int else (if False then +Int else -Int)) else *Int) else *Int) else (if True then +Int else -Int)),24,6,2241.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> 233)),3,3,753.156,233
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if True then False else (if (! False) then ((!=Int 105) 294) else False)) then -Int else (if ((\fresh_82:Double -> (if True then True else True)) 242.49661935502448) then +Int else -Int)),25,6,2328.876,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if (if (if False then False else False) then False else (! True)) then False else False) then *Int else ((\fresh_84:Boolean -> -Int) (if False then (if False then True else False) else True))),24,5,2227.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_85:Top -> *Int) True),4,3,771.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if True then True else False) then +Int else -Int),7,3,901.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -182)),3,3,750.103,-182
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if True then (*Int -210) else (\b:Integer -> 167))),8,4,975.408,-8820
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_91:Boolean -> *Int) True),4,3,771.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if False then (if False then (\b:Integer -> -6) else (\b:Integer -> -304)) else (*Int a))),12,5,1228.05,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then (\a:Integer -> (if (if False then (if True then True else True) else False) then (/Int -304) else (\b:Integer -> -175))) else (\a:Integer -> (if (! False) then (\b:Integer -> a) else (\b:Integer -> -386)))),25,6,2325.713,42
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (! True) then (\a:Integer -> (\b:Integer -> a)) else -Int),8,4,973.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> ((if (! True) then (\fresh_118:Object -> (\b:Integer -> b)) else (\fresh_118:Object -> (+Int a))) ((\fresh_119:Integer -> -73.76472043395911) 237))),17,6,1661.503,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if (if False then True else True) then (\b:Integer -> -390) else (if False then (\b:Integer -> 467) else (\b:Integer -> 27)))),14,5,1393.097,-390
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((if (if (if False then False else True) then True else True) then (\fresh_129:Integer -> -Int) else (\fresh_129:Integer -> -Int)) (if True then 244 else ((\fresh_130:Integer -> 102) (if (if False then True else False) then -86 else -194)))),26,6,2419.524,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (((\fresh_155:Top -> (>=Int 291)) (if False then 151 else -238.5194278243959)) 74) then (\a:Integer -> ((if False then +Int else -Int) ((\fresh_159:Boolean -> -995) False))) else ((\fresh_160:Boolean -> (\a:Integer -> (\b:Integer -> b))) True)),28,6,2620.632,-1037
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if True then (if ((if True then (\fresh_171:Boolean -> True) else !) False) then (if True then *Int else /Int) else -Int) else *Int),16,6,1543.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_174:Integer -> -Int) (if True then -388 else -320)),7,3,949.148,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if False then (if False then (\b:Integer -> -507) else (+Int a)) else (\b:Integer -> a))),12,5,1247.665,42
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -344)),3,3,751.694,-344
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if ((if True then (if False then (\fresh_182:Top -> False) else (\fresh_182:Top -> False)) else (\fresh_182:Top -> False)) max) then *Int else -Int),15,6,1454.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((if True then (\fresh_183:Boolean -> -Int) else (\fresh_183:Boolean -> (\a:Integer -> (\b:Integer -> 629)))) (! False)),12,6,1271.42,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then (if True then *Int else /Int) else ((\fresh_192:Boolean -> -Int) True)),10,4,1060.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -281)),3,3,751.515,-281
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if ((if False then (\fresh_198:Object -> True) else (\fresh_198:Object -> False)) -438.5798484803608) then *Int else *Int),11,5,1167.907,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if (! True) then ((if True then (\fresh_203:Integer -> False) else (\fresh_203:Integer -> False)) -125) else (if False then True else False)) then ((\fresh_204:Integer -> (\a:Integer -> (\b:Integer -> 438))) ((if False then (*Int 153) else (\fresh_207:Integer -> fresh_207)) -121)) else *Int),32,6,2926.8,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if ((<=Int (if True then -271 else a)) a) then (\b:Integer -> ((\fresh_215:Object -> a) False)) else (\b:Integer -> b))),17,6,1660.491,42
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if True then True else True) then -Int else (if (if True then True else (if True then True else True)) then -Int else (if True then +Int else *Int))),19,5,1828.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if (if True then (if False then True else True) else False) then (\b:Integer -> -2) else (\b:Integer -> 84))),13,5,1313.581,-2
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if True then *Int else (\a:Integer -> (\b:Integer -> -1014))),6,4,858.143,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if (if True then True else False) then (if False then (if False then (\b:Integer -> a) else (\b:Integer -> 522)) else (-Int a)) else (if (if (if False then True else True) then True else False) then (\b:Integer -> b) else (\b:Integer -> a)))),29,6,2646.528,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if False then False else (if True then False else (if False then False else True))) then ((\fresh_233:Integer -> ((\fresh_235:Integer -> *Int) 114)) 258) else *Int),19,6,1794.372,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if (if (! False) then True else False) then -Int else ((\fresh_237:Boolean -> -Int) (if ((\fresh_238:Object -> True) 220) then False else True))),18,6,1703.654,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,((\fresh_242:Boolean -> (if ((\fresh_244:Integer -> True) -323) then *Int else +Int)) True),10,6,1123.539,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(((\fresh_260:Integer -> (\fresh_245:Double -> *Int)) 330) ((if True then (\fresh_246:Boolean -> -314.6189532674579) else (\fresh_246:Boolean -> -235.88667988809732)) True)),14,5,1448.249,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then +Int else ((\fresh_264:Object -> *Int) >Int)),7,4,903.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if False then (\b:Integer -> b) else (\b:Integer -> b))),7,4,915.0,42
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if False then (if False then (if True then /Int else +Int) else ((\fresh_270:Double -> /Int) -888.039983622548)) else (\a:Integer -> (\b:Integer -> -600))),15,5,1479.489,-600
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (if True then (\b:Integer -> 108) else (\b:Integer -> -87))),7,4,906.579,108
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,*Int,1,1,712.0,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> (\b:Integer -> -140)),3,3,749.647,-140
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,-Int,1,1,716.0,0
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(if ((\fresh_277:Integer -> True) ((\fresh_278:Double -> 422) 57.19956732251077)) then *Int else *Int),10,5,1130.506,1764
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,(\a:Integer -> ((\fresh_279:Boolean -> (if fresh_279 then (\b:Integer -> -223) else (\b:Integer -> b))) False)),10,6,1146.045,42
+(a:Integer -> ((b:Integer -> (Integer)))),Refined Double Abstract Integer,+Int,1,1,723.0,84

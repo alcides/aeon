@@ -74,6 +74,18 @@ class RegularEvaluator(Evaluator):
                     'Double', 'Abs', 'AbsR', 'RAbsR', 'AbsAbs'
                 ]
 
+                if metric == 'Tree Depth':
+                    res2 = res.groupby([
+                        'Pretty Typee', 'Tree Depth'
+                    ]).size().reset_index(name='treedepthcount')
+                    print(res2)
+                    scatterplot.plot(self.path,
+                                     f_name + "_hist",
+                                     axis,
+                                     labels,
+                                     res2,
+                                     order=order,
+                                     size='treedepthcount')
                 scatterplot.plot(self.path,
                                  f_name,
                                  axis,

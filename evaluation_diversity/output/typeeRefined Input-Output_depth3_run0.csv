@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_17:Integer -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) -107),5,4,413.764,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then (if True then 2 else x) else x)),8,4,624.917,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_67:Object -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) +),5,4,418.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_69:Boolean -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) (if True then True else True)),8,4,652.917,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> ((\fresh_71:Boolean -> 2) False)),5,4,412.01,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> ((\fresh_72:Integer -> 2) -18)),5,4,406.219,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if True then (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2) else (% -151)),7,3,566.963,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then 1 else 2)),5,3,392.945,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)),5,3,392.927,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> ((\fresh_148:Integer -> 2) x)),5,4,403.01,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)),5,3,392.927,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if (if True then False else False) then (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2) else (if True then (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> x))),13,4,1044.506,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2))),10,4,788.868,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if (if True then True else False) then (if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)),13,4,1045.878,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)),5,3,392.927,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_214:Integer -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) 555),5,4,418.926,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> ((\fresh_243:Integer -> 2) 232)),5,4,415.809,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if True then (if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) else (% -32)),11,4,873.773,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if (! False) then (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> x)),11,4,863.936,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if True then (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> x)),9,4,685.927,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (% 261) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)),7,3,579.869,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_317:Top -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) -73),5,4,412.795,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if True then (if (if True then False else True) then (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> x)),13,4,1044.804,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then (if True then 2 else x) else x)),8,4,624.917,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if (if False then False else True) then (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else 2)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)),12,4,946.878,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else x)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else 2))),12,4,958.952,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> ((\fresh_342:Boolean -> 2) False)),5,4,412.01,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else 2)),5,3,395.868,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (% 469) else (if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2))),11,4,890.653,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if ((\fresh_370:Boolean -> fresh_370) False) then (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else 2)) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)),12,4,954.795,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if True then 2 else x)),5,3,392.927,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (if True then (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> x))),10,4,774.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then (if False then x else x) else (if False then x else 2))),11,4,879.158,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_397:Integer -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) -90),5,4,413.207,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> (if (if True then False else True) then (if True then 2 else x) else 2)),11,4,874.888,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(\x:{ y:Integer where ((>[Integer] y) 0) } -> 2),2,2,220.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,(if False then (\x:{ y:Integer where ((>[Integer] y) 0) } -> x) else (\x:{ y:Integer where ((>[Integer] y) 0) } -> (if False then x else 2))),9,4,705.868,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_417:Boolean -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) True),5,4,416.0,2
+(x:{ y:Integer where ((>[Integer] y) 0) } -> ({ z:Integer where ((>[??] z) x) })),Refined Input-Output,((\fresh_418:Top -> (\x:{ y:Integer where ((>[Integer] y) 0) } -> 2)) -318.0525475182673),5,4,423.641,2

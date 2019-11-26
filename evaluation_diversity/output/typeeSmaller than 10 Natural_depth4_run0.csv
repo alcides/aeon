@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_1:Integer -> (if (if True then False else True) then (if False then fresh_1 else 1) else (if False then fresh_1 else 1))) 39),16,5,1380.169,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if True then False else False) then (if (if True then (if False then True else False) else False) then 1 else 1) else 1),16,5,1372.413,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (! True) then 1 else 1),6,3,560.886,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_15:Integer -> 1) (if False then (if False then 269 else 239) else (if True then 216 else 61))),13,4,1140.813,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(((\fresh_33:Top -> (\fresh_20:Double -> 1)) -89.90190652625695) -436.6198211601542),7,5,751.803,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then 1 else (if False then 1 else 1)),7,3,618.554,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then (if True then ((*Int 5) -480) else (if True then (if False then 1 else 1) else 1)) else 1),17,5,1475.54,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_48:Top -> 1) 152),4,3,466.283,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_52:Integer -> 1) -315),4,3,468.573,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if True then False else ((>=Int -37) 40)) then ((\fresh_61:Boolean -> 1) True) else 1),14,5,1191.727,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if (if False then True else False) then True else True) then 1 else 1),10,4,852.871,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then 1 else 1),4,2,418.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if ((!=Int 39) -83) then True else False) then 1 else ((\fresh_71:Boolean -> 1) ((\fresh_72:Integer -> False) -160))),17,5,1494.43,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if ((if True then ! else !) False) then 1 else 1),9,4,774.205,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then (string_length "pJrsuQmhbtpXguDfOUFernIUXnTcEjcjOKvAZVUabelwRKOeAQDrIlfKbAfNdqbmDtUCbfesdSKDWASepXtOToutIqEjoUYHLymroDobXFSuYeuaiXmOMBHleIXwkKkCBxWNmzzDNhOPtvnSBHwDNflVhKtLhiIhEUFbZDs") else (if False then (string_length "nzHIsPwmkQGfskAiauPUPspcOXeKYAReNFBLFRkShdjGmqHykdpajLeAIHxqUUfnkgtpGnghhcQGxSMbEdMGjMKGhCnFoTYmrJXZyZTVLzNFjXkDGrRziIIGFBczGAEwS") else 1)),11,4,994.636,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if True then False else True) then 1 else 1),7,3,606.778,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then 1 else (if True then ((\fresh_88:Integer -> fresh_88) 584) else 1)),10,5,875.792,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if False then (if False then False else False) else True) then 1 else 1),10,4,853.373,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then 1 else (if (if (if True then False else False) then False else (! True)) then 1 else 1)),15,5,1285.777,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_97:Boolean -> 1) False),4,3,461.804,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then (if (if True then False else False) then 1 else 1) else 1),10,4,839.569,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if True then (if True then False else False) else False) then 1 else 1),10,4,854.874,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_109:Top -> 1) -269),4,3,467.762,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (! True) then ((\fresh_114:Top -> 1) -573) else 1),9,4,788.478,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_115:Integer -> 1) 459),4,3,471.551,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_124:Double -> 1) -220.11148579214546),4,3,493.343,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_129:Integer -> 1) 345),4,3,470.35,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if (if True then True else False) then True else True) then 1 else 1),10,4,853.833,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_138:String -> (if False then 1 else 1)) (if ((if False then ! else !) True) then "ESZjgBWIFCqfjwhRXkSTYnSnBLRpCMfHGkaRTgvuBeTHGHjCjrEuXUiIPDBrCKJBleoEJAIBoAynOGCdomIzdTbwnoAeHeWVsWirBKeZoBOtUccxkvfzeIDfkiTWurTqrdmInjqkMEsravTlNjLlQuWIYrVBd" else "RPXMtDmcHRJlJaRZVpRYPxFPtmjvGLI")),15,5,1309.185,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_140:Boolean -> 1) True),4,3,460.804,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_146:Boolean -> 1) ((\fresh_150:Double -> True) 69.89804713725576)),7,4,707.462,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if (if False then False else False) then 1 else (if ((!=Int 145) -568) then 1 else 1)),14,5,1213.626,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then 1 else 1),4,2,418.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if True then ((if False then (+Int -412) else (\fresh_161:Integer -> 1)) -347) else 1),12,5,1032.37,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_191:String -> 1) "VWYRqOCzgvDJMoKtmnmDaiJzoWKOuAOrJhYwQXdgogpvyjunKpPxoWUKdSDxSEuqoMrwRFdQgpKFokFqzdOhCTuFVLFVCxcahkESFRfjFcKBAWLoZUlUkkySBkWCOxlMLPYbAQgwzdQOXLOmBxwAfbxydIKaNsmuOQUaQjqdYzYOcrohkrxWqcQHruwJQzHyWfDyoogoldpRfIhOKHUdPlvPWUn"),4,3,470.524,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then (if False then 1 else 1) else 1),7,3,615.701,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,((\fresh_197:Integer -> 1) (if False then ((\fresh_198:Object -> -498) ==Int) else -267)),10,5,912.475,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(((\fresh_203:Top -> (\fresh_199:Integer -> 1)) (if (if True then True else True) then <= else True)) 300),13,5,1175.56,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,1,1,1,335.0,1
+{ x:Integer where ((&& ((>[??] x) 0)) ((<[??] x) 10)) },Smaller than 10 Natural,(if False then 1 else 1),4,2,410.385,1

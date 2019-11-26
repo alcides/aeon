@@ -15,18 +15,26 @@ def plot_inner(path, f_name, axis, labels, data, order=None):
 
     y, x = axis
     ylabel, xlabel = labels
+    if labels[1] == 'Semantic Diversity':
+        # Initialize figure and ax
+        fig, ax = plt.subplots()
+
+        # Set the scale of the x-and y-axes
+        ax.set(xscale="log")
 
     sns.set(style='whitegrid', palette='muted')
 
     plot = sns.violinplot(x=x,
                           y=y,
                           data=data,
-                          inner='points',
+                          inner='stick',
                           orient='h',
                           order=order)
     plot.set(xlabel=xlabel, ylabel=ylabel)
     plot.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-    plot.set_xlim(left=0)
+
+    ma = data[x].max()
+    plot.set_xlim(left=0, right=ma + 0.5)
 
     f_name = '{}violin_{}.pdf'.format(path, f_name.replace(" ", "_"))
 

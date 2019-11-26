@@ -5,6 +5,8 @@ import shutil
 from aeon.evaluation import *
 from aeon.evaluation.benchmark import generate_and_benchmark
 
+from aeon.evaluation.z3.z3_generation_benchmark import run_z3
+
 
 def reset_folder(directory):
     if os.path.exists(directory):
@@ -30,8 +32,9 @@ def run_evaluator(evaluator):
 
 
 if __name__ == '__main__':
-
-    if len(sys.argv) < 0 or sys.argv[1] == 'record':
+    if len(sys.argv) > 0 and sys.argv[1] == 'z3':
+        run_z3()
+    elif len(sys.argv) < 0 or sys.argv[1] == 'record':
         # Reset the output directory
         #reset_folder(OUTPUT_PATH)
         typees_selection = [typees[int(sys.argv[2])]
@@ -49,3 +52,4 @@ if __name__ == '__main__':
         run_evaluator(RegularEvaluator())
         run_evaluator(IntDoubleDistrEvaluator())
         run_evaluator(IncreasingDepthEvaluator())
+        run_z3()

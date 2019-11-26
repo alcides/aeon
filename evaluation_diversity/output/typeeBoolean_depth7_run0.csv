@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+Boolean,Boolean,(! (if False then False else ((\fresh_2:Boolean -> True) True))),9,5,1794.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(! True),3,2,1528.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if ((if False then (if False then (\fresh_4:Top -> False) else (\fresh_4:Top -> True)) else (\fresh_4:Top -> True)) +) then True else ((if False then (if False then (if (if (! True) then False else True) then (\fresh_12:Object -> True) else (\fresh_12:Object -> False)) else (\fresh_12:Object -> False)) else (if (if True then False else False) then (if True then (\fresh_12:Object -> False) else (\fresh_12:Object -> False)) else (\fresh_12:Object -> (if False then True else False)))) "CvJrhrHQPEbwghgxIwDVqUkDSiOlBNzNIlYLFyxWriaCTXhWhWFBKkqUrEkXDOCGDdyjaWUXbmidyXSkYncPKkmqVlJLDyL")),49,8,4798.801,1
+Boolean,Boolean,((if ((\fresh_36:Integer -> False) (if True then (if False then -383 else 900) else 102)) then (if ((\fresh_52:Top -> (! True)) False) then (if True then (\fresh_31:Integer -> False) else (if (if (if False then True else False) then False else True) then (<Int -444) else (\fresh_31:Integer -> True))) else (if (if True then True else False) then (>=Int 603) else (\fresh_31:Integer -> (if False then False else True)))) else (\fresh_31:Integer -> True)) (((\fresh_35:Boolean -> (\fresh_32:Boolean -> -301)) False) ((\fresh_33:Boolean -> (if fresh_33 then True else fresh_33)) (if True then True else ((\fresh_34:Boolean -> fresh_34) False))))),70,8,6623.104,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if False then (((if False then (if False then (if True then >Int else <=Int) else >Int) else !=Int) 522) 151) else True),17,7,2394.685,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(! (if True then (if False then (if ((if (if False then False else False) then (==Int 332) else (\fresh_68:Integer -> False)) 496) then (if False then False else True) else (! (if (! False) then True else True))) else True) else False)),33,8,3508.288,0
+Boolean,Boolean,(if (((\fresh_78:Boolean -> (\fresh_72:String -> fresh_78)) False) ((\fresh_73:Integer -> "BokHDvAcUtmkTQYkFFcIaOInivZEsHuoBSBnFjQypXiUMNuukRhEkoDKFmur") (if ((--> False) True) then -627 else (if False then ((-Int -215) -173) else -532)))) then False else False),27,8,3115.488,0
+Boolean,Boolean,(if ((\fresh_105:Integer -> True) ((\fresh_106:Top -> (if True then -356 else -176)) "GFJuubjapRPKtSrcQruPxHkKXynddzXMmznOlZSOSyuavsCWsNcjEXQQQBKwfjtSgdHaOVcAYQRQvrZRIWaIA")) then ((if False then (\fresh_107:Boolean -> False) else (if True then ! else (\fresh_107:Boolean -> fresh_107))) (if (if True then False else True) then True else (if False then (! False) else True))) else (if (! False) then False else False)),39,6,3960.455,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if (((\fresh_112:Boolean -> (\fresh_111:Integer -> False)) False) 305) then (if False then (if True then ((\fresh_149:Integer -> (if False then False else False)) -181) else False) else True) else True),22,7,2665.946,1
+Boolean,Boolean,(if ((((\fresh_169:Top -> (\fresh_166:Boolean -> (\fresh_159:Integer -> False))) (if True then pow else <)) (if False then ((\fresh_167:Integer -> (! True)) 284) else False)) (((\fresh_162:Boolean -> (\fresh_160:Integer -> fresh_160)) (if False then True else (! False))) ((if True then (\fresh_161:Object -> (if True then -424 else -679)) else (\fresh_161:Object -> 5)) -568.8955800533926))) then (if (if (if False then (if (! True) then ((|| True) False) else True) else True) then (if False then False else (if (if False then True else True) then False else True)) else True) then (((\fresh_210:Integer -> (>=Int fresh_210)) -532) ((\fresh_183:Integer -> fresh_183) 38)) else True) else True),82,8,7771.17,1
+Boolean,Boolean,(((if (if (! True) then True else (if False then False else (! True))) then (if True then (\fresh_218:Object -> (\fresh_212:Integer -> False)) else (\fresh_218:Object -> (<Int (if False then 1150 else 271)))) else (if ((!=Int 254) -369) then (\fresh_218:Object -> (<Int -366)) else (\fresh_218:Object -> (\fresh_212:Integer -> True)))) -37.594983988203005) (if True then ((\fresh_213:Integer -> fresh_213) -97) else (((\fresh_215:Integer -> (\fresh_214:Boolean -> 372)) -183) True))),53,8,5244.888,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((if (if False then False else True) then (\fresh_247:Boolean -> (! True)) else ((if (if (if False then (! False) else False) then (! True) else False) then (if False then (\fresh_249:Integer -> !) else (\fresh_249:Integer -> (if False then ! else !))) else (\fresh_249:Integer -> !)) ((\fresh_250:Boolean -> -589) True))) (if False then False else True)),42,8,4228.805,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if False then False else False),4,2,1547.0,0
+Boolean,Boolean,((\fresh_259:String -> (((\fresh_281:Integer -> !) 256) True)) ((((\fresh_275:Double -> (\fresh_261:Boolean -> (\fresh_260:String -> "ABESgOvZIDckpPZcJzeuGVO"))) (if False then 127.10980675091983 else 24.350558068482403)) False) "tQxcPunYXApFlTnxjaerrJTeQUbHLGBDGlWaJoJ")),21,8,2711.428,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if ((if ((\fresh_288:Boolean -> (if fresh_288 then True else False)) False) then (\fresh_287:Integer -> (if (if False then False else False) then (if False then False else True) else True)) else (\fresh_287:Integer -> (if True then False else False))) -436) then False else (if ((\fresh_289:Boolean -> True) ((if True then (!=Int 221) else (==Int 148)) (if False then -340 else -168))) then ((if True then (\fresh_296:Integer -> True) else (\fresh_296:Integer -> True)) (if ((\fresh_297:Boolean -> fresh_297) False) then (if True then 133 else (if True then -93 else 175)) else 77)) else ((\fresh_299:Integer -> True) ((\fresh_300:Boolean -> 111) (if True then False else False))))),75,7,7132.716,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if ((\fresh_315:Boolean -> False) False) then (if (if True then (! True) else False) then (if False then (if ((\fresh_320:Object -> False) "qwIbSRmvMyTNktNacDqHaqviDfvLVIlQrtXKkpcaZyKCeJCumXdxjJtmIPsJsTfTakPzmaKMGvZqnHxkoAMRllGopJZ") then True else False) else (if True then True else (if (if (if False then True else False) then (if True then True else True) else False) then (! True) else True))) else ((--> (! False)) True)) else True),47,8,4624.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((\fresh_330:Double -> False) -615.6861942519969),4,3,1594.244,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if ((if False then (if False then (\fresh_331:Integer -> (if (if False then False else False) then True else True)) else (\fresh_331:Integer -> False)) else (if (! True) then (\fresh_331:Integer -> True) else (\fresh_331:Integer -> True))) ((if False then (\fresh_332:Boolean -> 7) else (\fresh_332:Boolean -> -1650)) False)) then (if (if False then (if (! True) then True else False) else False) then True else ((if (if False then False else True) then ! else (\fresh_370:Boolean -> fresh_370)) (if ((if (if False then True else False) then (\fresh_372:Integer -> True) else (\fresh_372:Integer -> True)) (if False then 529 else -107)) then (if False then (if False then False else False) else True) else ((\fresh_373:Top -> True) False)))) else ((if False then ! else (\fresh_374:Boolean -> (if False then False else False))) (if (if False then ((\fresh_378:Integer -> False) (if True then -164 else 13)) else False) then ((\fresh_379:Top -> (if True then False else False)) (if True then 52 else True)) else (if True then False else False)))),112,8,10531.255,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if (if (! (((\fresh_392:Top -> (\fresh_382:Integer -> True)) "dTkDXcqQAnCfSARSmHgXBojkdULbUErCWywOprPHjCzMwmsxLCAfKsIpODbgIHFLuwrAHv") (if False then 273 else -148))) then (if (! True) then (if (if True then False else True) then (if False then False else False) else True) else False) else True) then (((if False then (\fresh_395:Top -> !) else (\fresh_395:Top -> !)) "lMHRDxnaHtvQnpVvqMZTkQfNcGsYIOjOOdswRUSNEEImzvnJJQyFYWBSuAfhmEYTLnpRJdweFqPWhFVeKJCodYwMoINHhNmAlAQr") False) else ((\fresh_401:Double -> True) 541.6318624858343)),44,8,4418.112,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if True then False else True),4,2,1517.0,0
+Boolean,Boolean,((\fresh_402:Integer -> (if False then False else (((\fresh_412:Boolean -> (\fresh_410:Integer -> fresh_412)) True) (if (if False then False else True) then 313 else fresh_402)))) (if (if ((\fresh_403:Integer -> False) -46) then (if False then (! False) else False) else (if True then False else (if (if (if True then True else False) then True else False) then True else False))) then 925 else 825)),45,8,4493.601,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,((\fresh_413:Double -> True) (((if True then (\fresh_415:Integer -> (\fresh_414:Boolean -> 108.88611952409434)) else (\fresh_415:Integer -> (\fresh_414:Boolean -> 678.2026429297111))) (if (if True then False else False) then -66 else -358)) True)),21,7,2652.034,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(((if ((if (if True then (if True then False else True) else False) then (if (if False then True else True) then (<Int -3) else (\fresh_511:Integer -> True)) else (if (if True then False else False) then (\fresh_511:Integer -> False) else (\fresh_511:Integer -> True))) -96) then ((\fresh_513:Double -> (\fresh_509:Object -> (\fresh_507:Top -> False))) 539.2100950265673) else (if (if False then True else True) then (\fresh_509:Object -> (\fresh_507:Top -> (if False then True else True))) else (\fresh_509:Object -> (\fresh_507:Top -> True)))) (if (! True) then 218 else -269.8642925723482)) ((\fresh_508:Top -> 24) -480)),62,8,5969.993,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((if True then ((\fresh_525:Boolean -> (\fresh_524:Object -> True)) False) else (if True then (if False then (\fresh_524:Object -> False) else (\fresh_524:Object -> (if (if False then True else True) then False else False))) else (if True then (\fresh_524:Object -> (! False)) else (\fresh_524:Object -> False)))) -543),31,8,3320.198,1
+Boolean,Boolean,((\fresh_604:Boolean -> False) (if (! (if True then ((==Int 596) ((\fresh_608:Boolean -> 47) True)) else (if (if True then False else True) then True else True))) then True else False)),25,8,2920.292,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if False then False else True),4,2,1513.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,((if (if (if True then True else False) then (if (if False then (if True then False else False) else True) then (if True then False else True) else False) else (if True then True else False)) then (<=Int -614) else (if False then (if True then (\fresh_610:Integer -> (! True)) else (!=Int ((\fresh_651:Integer -> -269) -214))) else ((\fresh_652:Double -> (\fresh_610:Integer -> True)) 667.4736872063405))) ((if False then ((\fresh_614:Boolean -> (\fresh_611:Boolean -> -517)) ((if False then ! else !) False)) else (if True then (\fresh_611:Boolean -> ((\fresh_638:Boolean -> -126) fresh_611)) else (\fresh_611:Boolean -> -149))) (if False then (if True then ((\fresh_612:Integer -> False) 1005) else ((\fresh_613:Boolean -> fresh_613) True)) else True))),81,8,7678.07,1
+Boolean,Boolean,(if ((if (if True then True else (if True then (if (! False) then False else False) else ((\fresh_687:Integer -> False) 54))) then (if ((\fresh_688:Integer -> (if True then True else False)) -37) then (\fresh_662:Integer -> True) else (\fresh_662:Integer -> True)) else (if (if False then False else True) then (\fresh_662:Integer -> True) else (if False then (\fresh_662:Integer -> False) else ((if False then <=Int else !=Int) -429)))) ((\fresh_663:Top -> 339) (if (if False then False else True) then || else True))) then (if True then ((if False then (And (if False then False else True)) else !) (! (if True then (if True then True else True) else False))) else (! (((\fresh_725:Boolean -> (\fresh_721:Integer -> fresh_725)) True) ((\fresh_724:Double -> -723) 216.2947235143062)))) else True),91,8,8592.235,1
+Boolean,Boolean,(if True then True else ((\fresh_726:Boolean -> fresh_726) (! ((\fresh_728:Integer -> False) -337)))),12,6,2029.887,1
+Boolean,Boolean,(if False then True else False),4,2,1517.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if (if ((if (if False then True else True) then (if (if True then False else (if False then False else True)) then (\fresh_736:Object -> True) else (\fresh_736:Object -> True)) else (if True then (\fresh_736:Object -> True) else (\fresh_736:Object -> False))) 236) then (! (if True then True else ((\fresh_741:Boolean -> True) (if False then True else False)))) else ((if False then (!=Int -380) else (\fresh_742:Integer -> True)) ((\fresh_743:Top -> ((\fresh_747:Boolean -> -884) True)) True))) then (if True then (if ((\fresh_754:(fresh_753:Boolean -> (Boolean)) -> True) !) then True else ((\fresh_764:Boolean -> False) False)) else False) else ((if True then (if ((if (if True then False else True) then ! else !) (! (! False))) then (\fresh_765:Boolean -> False) else !) else !) ((if True then (\fresh_766:Integer -> True) else (\fresh_766:Integer -> False)) 220))),96,8,9053.209,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if True then True else True),4,2,1556.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if False then False else False),4,2,1547.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if (if True then (if True then False else (if True then (if (if True then False else True) then False else False) else (if True then False else True))) else True) then ((if True then (\fresh_774:Object -> True) else (\fresh_774:Object -> (((\fresh_783:Integer -> !) -314) (if True then True else True)))) True) else (if False then (if True then ((\fresh_784:Boolean -> fresh_784) False) else ((\fresh_785:String -> ((\fresh_787:Boolean -> fresh_787) (if True then True else False))) "cgbwvZgNakggGCRmOGIYbpckqmtZSriyhuVZEpdkgeryDXEOajGaCsWsGNxFXRMtKXbThNOrudh")) else True)),55,8,5336.352,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((\fresh_788:Boolean -> (if (if ((if fresh_788 then ! else !) (if (! True) then (if False then False else False) else False)) then fresh_788 else True) then (if fresh_788 then fresh_788 else fresh_788) else (if (if False then fresh_788 else False) then False else False))) (if False then (! False) else False)),37,8,3879.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,(if ((if ((\fresh_810:Top -> False) string_length) then ((if True then ((\fresh_813:Boolean -> <Int) False) else >Int) -165) else (if False then (>Int -271) else (if False then (\fresh_799:Integer -> (if False then True else True)) else (<Int 316)))) (if (! (if False then True else False)) then (if True then -289 else 20) else ((\fresh_808:Double -> (if False then (if False then 366 else -794) else 300)) ((\fresh_809:Boolean -> (if fresh_809 then -267.112093049011 else 370.32571937306477)) (if (if True then True else False) then False else (if True then False else True)))))) then (if False then True else True) else True),72,8,6883.366,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((\fresh_825:Integer -> False) 82),4,3,1585.877,0
+Boolean,Boolean,(! False),3,2,1529.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if False then ((\fresh_827:Boolean -> fresh_827) ((\fresh_828:Integer -> (if (if True then False else (if False then True else False)) then True else False)) -57)) else (if (if (if False then True else True) then ((\fresh_831:Integer -> True) 35) else True) then True else True)),31,8,3365.877,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,((((\fresh_834:Integer -> (\fresh_833:String -> (if (if False then True else False) then (\fresh_832:Integer -> True) else (!=Int 630)))) (if False then (if True then 299 else -28) else (if ((\fresh_835:String -> False) "sCUwUuWApuyk") then -67 else -191))) "NGgPvVaGeYUvUKhfkaCuDEhFyvOwPBNsNtFpiVRFscRzUJisOabYalAiDHedgOENMMnVggBLJMRtSCTdgVqqsqwPOlmlVjKwDdTAZvJCxIcBzidXxtdXkiDpt") -729),30,8,3353.903,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,False,1,1,1468.0,0
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,True,1,1,1468.0,1
+Boolean,Boolean,(if False then False else False),4,2,1547.0,0
+Boolean,Boolean,(if False then False else True),4,2,1513.0,1

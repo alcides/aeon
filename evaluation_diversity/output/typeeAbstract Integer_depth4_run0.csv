@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+(x:Integer -> (Integer)),Abstract Integer,(if (! True) then (\x:Integer -> -25) else (\x:Integer -> 470)),8,3,883.463,470
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_9:Boolean -> (\x:Integer -> -274)) (if (! (! False)) then True else True)),12,5,1259.685,-274
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> (if False then x else x)) else (\x:Integer -> (if False then 244 else x))),12,4,1077.786,42
+(x:Integer -> (Integer)),Abstract Integer,(if (! (! False)) then (\x:Integer -> x) else (if True then (\x:Integer -> x) else (\x:Integer -> x))),14,4,1228.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 287),2,2,822.506,287
+(x:Integer -> (Integer)),Abstract Integer,(if (if (if False then True else (if True then True else True)) then (if True then False else True) else (if False then False else True)) then (\x:Integer -> x) else (\x:Integer -> (if False then -296 else x))),24,5,2062.524,42
+(x:Integer -> (Integer)),Abstract Integer,(if ((\fresh_43:Integer -> (if True then True else False)) 125) then (\x:Integer -> x) else (if (! (if True then True else False)) then (\x:Integer -> -816) else (if False then (\x:Integer -> 34) else (\x:Integer -> 519)))),25,5,2121.483,42
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_55:Boolean -> (\x:Integer -> x)) False),5,4,835.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 306) else (if ((And True) False) then (\x:Integer -> 80) else (\x:Integer -> -634))),14,5,1256.366,306
+(x:Integer -> (Integer)),Abstract Integer,(-Int 505),3,2,867.359,463
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> -57) else (if False then (\x:Integer -> x) else (\x:Integer -> -69))),10,4,948.432,-57
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_67:Object -> (\x:Integer -> x)) True),5,4,839.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (*Int 463)),7,3,823.361,19446
+(x:Integer -> (Integer)),Abstract Integer,(if False then (-Int 70) else (\x:Integer -> x)),7,3,818.76,42
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_85:Boolean -> (-Int (if True then 242 else -245))) False),9,5,1058.915,200
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -258),2,2,816.32,-258
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> (string_length "usRjWGUwHaKIiPKhPXFZlUdPwMrXcZOhbYP")) else (\x:Integer -> x)),8,4,874.062,42
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_90:Boolean -> (\x:Integer -> x)) False),5,4,835.0,42
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_106:Integer -> (\x:Integer -> -242)) (((if True then +Int else +Int) -33) 237)),12,5,1257.828,-242
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 354),2,2,822.556,354
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else (\x:Integer -> (if True then x else x))),9,4,882.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> (if True then x else x)),5,3,797.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -660),2,2,826.847,-660
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> (if True then -147 else x)) else (*Int 306)),10,4,976.904,-147
+(x:Integer -> (Integer)),Abstract Integer,(+Int 618),3,2,864.818,660
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -606),2,2,825.485,-606
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_154:Double -> (\x:Integer -> -502)) 292.14155662731156),5,4,897.228,-502
+(x:Integer -> (Integer)),Abstract Integer,(if (if (if False then True else True) then (if True then False else True) else False) then (\x:Integer -> -223) else (if False then (\x:Integer -> 9) else (\x:Integer -> -487))),19,4,1648.686,-487
+(x:Integer -> (Integer)),Abstract Integer,(if (if ((<Int 29) (if False then -178 else 46)) then False else True) then (+Int 418) else ((\fresh_182:Object -> (\x:Integer -> -311)) -834.240317670672)),20,5,1794.63,-311
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else (\x:Integer -> x)),6,3,732.0,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int (if True then ((\fresh_210:Integer -> fresh_210) -372) else (if False then -36 else -431))),12,5,1184.793,-15624
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -505),2,2,822.209,-505
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> -208) else (\x:Integer -> x)),6,3,753.333,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (if False then (\x:Integer -> x) else (\x:Integer -> 108)) else ((\fresh_225:Boolean -> (\x:Integer -> x)) ((\fresh_226:Top -> False) "pBHNfePGtCfgoDjSEKDS"))),16,5,1385.156,108
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if (if False then (if True then False else False) else False) then (\x:Integer -> ((\fresh_227:Integer -> x) (if True then x else x))) else (\x:Integer -> x)),18,5,1493.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 214),2,2,822.603,214
+(x:Integer -> (Integer)),Abstract Integer,(if (if True then True else (if (! False) then True else (! False))) then (\x:Integer -> (if True then x else x)) else (\x:Integer -> -555)),19,5,1606.187,42
+(x:Integer -> (Integer)),Abstract Integer,(if (if ((\fresh_240:Double -> True) (if False then -65.48965058611151 else 848.7294386288204)) then False else True) then (+Int -67) else (\x:Integer -> 374)),16,5,1444.22,374
+(x:Integer -> (Integer)),Abstract Integer,(if False then (if False then (\x:Integer -> x) else (\x:Integer -> -566)) else (\x:Integer -> 230)),10,4,975.508,230
+(x:Integer -> (Integer)),Abstract Integer,(*Int -212),3,2,853.735,-8904
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> -430) else (\x:Integer -> x)),6,3,755.538,-430
+(x:Integer -> (Integer)),Abstract Integer,(if True then (if False then (\x:Integer -> 23) else (\x:Integer -> -193)) else (if False then (\x:Integer -> -121) else (if True then (\x:Integer -> x) else (+Int -58)))),19,5,1618.325,-193
+(x:Integer -> (Integer)),Abstract Integer,(+Int 342),3,2,858.337,384
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else ((\fresh_288:Boolean -> (\x:Integer -> x)) True)),9,5,910.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if (if False then False else True) then (+Int (string_length "tszixwIOCnLxVUJiVCtZPJFJhKayaHnAXRuRNVATfQxuaIogemHSLkNpwUjNxXtzPsOZULCrkDvwmqFcxMwRnibPOpmHWXkIHCVvwwqTSJHUrMq")) else ((\fresh_304:Boolean -> (\x:Integer -> x)) True)),15,5,1348.264,153
+(x:Integer -> (Integer)),Abstract Integer,(if True then (if False then (/Int 951) else (if False then (\x:Integer -> x) else (\x:Integer -> -301))) else (\x:Integer -> ((\fresh_312:Integer -> x) x))),18,5,1533.347,-301
+(x:Integer -> (Integer)),Abstract Integer,(if False then (*Int (if False then -185 else -495)) else (+Int 215)),11,4,1117.542,257
+(x:Integer -> (Integer)),Abstract Integer,(if ((if (! True) then (\fresh_317:Integer -> False) else (\fresh_317:Integer -> True)) 132) then (\x:Integer -> 926) else (\x:Integer -> 19)),15,5,1357.243,926
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> (string_length (if False then "TqTaXIPabYwDPzodFrMHizTCFXDizUIMizMNEVFLPgXHmkTCsURvIESLJCbCPLdhhipMmeWwbrcYwQCyNqaSBtwJBhgoRRsFeJjnxmGeJaxXhQtKoxMaznWyhBRmSyulllVRvdWgiEZmlYMyWwzuYhLdAprIxCsQpoutOAMQNMSAHqlYiKgLhsWtbGRCocoGviRTfQwrH" else "rkQianopdoprSvamqHpUOhuwudUCGDeDNulrffQmoJwsUlqJcYdIONjkaDltYa"))) else (\x:Integer -> (string_length "HBPrxlDqZCmnnHgcROTLAgwCdAzoFQ"))),13,5,1227.289,62
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> 692) else (\x:Integer -> x)),6,3,765.211,42
+(x:Integer -> (Integer)),Abstract Integer,(if ((\fresh_325:Top -> False) 88) then ((if True then +Int else -Int) -472) else (\x:Integer -> 604)),13,4,1203.166,604
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else ((if True then (if True then /Int else %) else -Int) 44)),13,5,1242.74,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (*Int -244) else (\x:Integer -> -130)),7,3,839.848,-10248
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 524),2,2,823.004,524
+(x:Integer -> (Integer)),Abstract Integer,(if True then (-Int 433) else (% (if False then 402 else -342))),11,4,1133.851,391
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 497) else (*Int 113)),7,3,849.259,497
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else (*Int 648)),7,3,822.161,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> (if False then x else -680)),5,3,820.691,-680
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 796),2,2,831.078,796
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (+Int 78)),7,3,821.482,120
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (if True then (\x:Integer -> x) else (\x:Integer -> x)) else (\x:Integer -> x)),10,4,947.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> (if True then 86 else 922)) else (\x:Integer -> x)),9,4,907.626,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 440) else (if ((\fresh_378:Integer -> True) 14) then (\x:Integer -> x) else (/Int 309))),14,5,1259.592,440
+(x:Integer -> (Integer)),Abstract Integer,(if ((\fresh_380:Boolean -> fresh_380) True) then (\x:Integer -> (if False then x else x)) else (\x:Integer -> 484)),12,4,1081.746,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (if (! True) then (\x:Integer -> -19) else (+Int (if True then 419 else -611))) else (\x:Integer -> x)),16,5,1378.12,461
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_390:Boolean -> (\x:Integer -> (if True then -155 else -215))) False),8,5,1004.703,-155
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (if True then (*Int 756) else (\x:Integer -> x))),11,4,1011.522,31752
+(x:Integer -> (Integer)),Abstract Integer,(if False then (*Int -112) else (\x:Integer -> x)),7,3,812.825,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> ((/Int x) x)) else (\x:Integer -> x)),10,5,990.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if ((!=Int 346) -255) then (\x:Integer -> (if True then 515 else -165)) else (\x:Integer -> -513)),13,4,1220.532,515
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (\x:Integer -> 395)),6,3,754.136,395
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_425:Boolean -> (\x:Integer -> 21)) ((\fresh_426:Integer -> (! True)) (if False then -485 else 527))),13,5,1302.023,21
+(x:Integer -> (Integer)),Abstract Integer,(if ((\fresh_428:Boolean -> fresh_428) False) then (\x:Integer -> -19) else (\x:Integer -> 70)),9,4,944.399,70
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> ((\fresh_459:Integer -> fresh_459) (if False then -20 else -370))),8,4,983.692,-370
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> (if (if True then True else True) then x else 283)),8,4,953.313,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 541),2,2,823.804,541
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_473:Integer -> (if False then (*Int -299) else (+Int -180))) (if False then 1032 else 146)),14,5,1348.48,-138
+(x:Integer -> (Integer)),Abstract Integer,(if (if True then (if (! True) then False else True) else ((\fresh_477:Integer -> False) -114)) then ((\fresh_478:Boolean -> (*Int -34)) True) else (\x:Integer -> (if True then x else x))),24,5,2027.883,-1428
+(x:Integer -> (Integer)),Abstract Integer,(if True then (-Int -422) else (\x:Integer -> x)),7,3,815.411,-464
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 71) else (\x:Integer -> 368)),6,3,781.335,71
+(x:Integer -> (Integer)),Abstract Integer,(*Int -122),3,2,856.598,-5124
+(x:Integer -> (Integer)),Abstract Integer,(if (if False then False else False) then (\x:Integer -> x) else (\x:Integer -> (if False then -393 else x))),12,4,1085.033,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -285),2,2,816.105,-285
+(x:Integer -> (Integer)),Abstract Integer,(if ((if True then (\fresh_516:Integer -> True) else (<=Int -276)) 497) then (\x:Integer -> x) else (\x:Integer -> -109)),14,5,1245.172,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,778.0,42
+(x:Integer -> (Integer)),Abstract Integer,(-Int (if (! False) then (if True then 182 else -156) else (if (if True then True else True) then -200 else -280))),17,5,1619.639,140
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -297),2,2,816.184,-297
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> ((if True then (\fresh_528:Top -> -3) else (\fresh_528:Top -> x)) -537.8794250317884)),9,5,974.134,-3
+(x:Integer -> (Integer)),Abstract Integer,((\fresh_529:Boolean -> (+Int -454)) (! False)),8,4,1001.88,-412
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> (if False then 555 else x)) else (\x:Integer -> (if False then -453 else x))),12,4,1075.824,42
+(x:Integer -> (Integer)),Abstract Integer,(if (if False then False else False) then (\x:Integer -> -305) else (\x:Integer -> -555)),9,3,942.32,-555
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> (if False then x else -325)),5,3,814.958,-325
+(x:Integer -> (Integer)),Abstract Integer,(if (if (if True then (if False then False else False) else False) then True else False) then (if True then (if True then (+Int 574) else (\x:Integer -> x)) else (\x:Integer -> 240)) else (if True then (*Int 106) else (\x:Integer -> -682))),29,5,2489.757,4452
+(x:Integer -> (Integer)),Abstract Integer,(if True then (*Int (if (if True then False else False) then -209 else 159)) else (if (if False then (if True then True else True) else True) then (\x:Integer -> x) else (\x:Integer -> -146))),23,5,1951.734,6678

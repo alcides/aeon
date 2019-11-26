@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -63),2,2,219.562,-63
+(x:Integer -> (Integer)),Abstract Integer,(if True then (*Int 22) else (\x:Integer -> 151)),7,3,553.81,924
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(-Int -494),3,2,308.72,-536
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 42) else (% -102)),7,3,557.213,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int -569),3,2,305.158,-23898
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 279),2,2,223.675,279
+(x:Integer -> (Integer)),Abstract Integer,(-Int 203),3,2,303.713,161
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -306),2,2,225.996,-306
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 306),2,2,223.864,306
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (% -310) else (-Int -76)),8,3,703.155,-118
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -244),2,2,224.911,-244
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 104),2,2,219.758,104
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -36),2,2,219.285,-36
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(-Int -237),3,2,306.377,-279
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int -413),3,2,303.116,-17346
+(x:Integer -> (Integer)),Abstract Integer,(*Int -107),3,2,294.785,-4494
+(x:Integer -> (Integer)),Abstract Integer,(*Int -165),3,2,297.287,-6930
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 867),2,2,232.228,867
+(x:Integer -> (Integer)),Abstract Integer,(-Int 506),3,2,312.292,464
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -469),2,2,225.736,-469
+(x:Integer -> (Integer)),Abstract Integer,(+Int 304),3,2,303.746,346
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> 312) else (\x:Integer -> x)),6,3,464.756,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (% -62) else (\x:Integer -> -568)),7,3,568.032,-568
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 178),2,2,221.032,178
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -611),2,2,229.264,-611
+(x:Integer -> (Integer)),Abstract Integer,(+Int -113),3,2,299.064,-71
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -53),2,2,219.333,-53
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 197),2,2,221.466,197
+(x:Integer -> (Integer)),Abstract Integer,(*Int 2),3,2,294.224,84
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 425),2,2,228.291,425
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> -317) else (\x:Integer -> -178)),6,3,487.869,-178
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -76),2,2,219.888,-76
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 130),2,2,219.913,130
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -44),2,2,219.214,-44
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -154),2,2,222.232,-154
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else (\x:Integer -> x)),6,3,471.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 843),2,2,231.96,843
+(x:Integer -> (Integer)),Abstract Integer,(-Int 74),3,2,301.996,32
+(x:Integer -> (Integer)),Abstract Integer,(*Int -537),3,2,304.387,-22554
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> -1170) else (*Int 103)),7,3,549.032,4326
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -398),2,2,226.605,-398
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> 187) else (\x:Integer -> x)),6,3,461.319,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int -720),3,2,307.994,-30240
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -46),2,2,219.22,-46
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (\x:Integer -> 370)),6,3,465.347,370
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (\x:Integer -> x)),6,3,468.0,42
+(x:Integer -> (Integer)),Abstract Integer,(-Int 58),3,2,302.11,16
+(x:Integer -> (Integer)),Abstract Integer,(+Int -25),3,2,297.149,17
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 149) else (*Int 190)),7,3,545.89,149
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -123),2,2,221.391,-123
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (\x:Integer -> x)),6,3,468.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(+Int 104),3,2,299.08,146
+(x:Integer -> (Integer)),Abstract Integer,(if True then (-Int -459) else (*Int -23)),8,3,695.012,-501
+(x:Integer -> (Integer)),Abstract Integer,(+Int 728),3,2,312.106,770
+(x:Integer -> (Integer)),Abstract Integer,(+Int -678),3,2,311.176,-636
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> 199) else (+Int 188)),7,3,549.619,199
+(x:Integer -> (Integer)),Abstract Integer,(+Int 345),3,2,305.684,387
+(x:Integer -> (Integer)),Abstract Integer,(*Int -165),3,2,297.287,-6930
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 124),2,2,219.793,124
+(x:Integer -> (Integer)),Abstract Integer,(if False then (\x:Integer -> x) else (-Int -28)),7,3,523.269,-70
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int 2),3,2,294.224,84
+(x:Integer -> (Integer)),Abstract Integer,(+Int -441),3,2,306.242,-399
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 428),2,2,228.375,428
+(x:Integer -> (Integer)),Abstract Integer,(+Int 591),3,2,311.073,633
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 115),2,2,219.691,115
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(*Int 111),3,2,295.166,4662
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -218),2,2,224.245,-218
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -501),2,2,226.31,-501
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> -471),2,2,225.753,-471
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(if True then (\x:Integer -> x) else (\x:Integer -> 298)),6,3,465.7,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 288),2,2,223.643,288
+(x:Integer -> (Integer)),Abstract Integer,(*Int 579),3,2,306.936,24318
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> 803),2,2,231.93,803
+(x:Integer -> (Integer)),Abstract Integer,(\x:Integer -> x),2,2,201.0,42
+(x:Integer -> (Integer)),Abstract Integer,(+Int -233),3,2,303.951,-191

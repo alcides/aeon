@@ -1,0 +1,101 @@
+Typee,Pretty Typee,Individual,Tree Size,Tree Depth,Diversity,Semantic Diversity
+Integer,Integer,((if True then (if False then (/Int -736) else (\fresh_1:Integer -> -120)) else (if True then (\fresh_1:Integer -> -258) else (\fresh_1:Integer -> -643))) -872),17,5,1615.939,-120
+Integer,Integer,-127,1,1,704.636,-127
+Integer,Integer,-416,1,1,714.028,-416
+Integer,Integer,(if (if False then True else (if True then (if False then True else False) else False)) then -806 else -35),13,5,1316.706,-35
+Integer,Integer,((if (if False then True else False) then (\fresh_12:Object -> 109) else (\fresh_12:Object -> -654)) False),11,4,1154.026,-654
+Integer,Integer,(if (if (if False then True else True) then (if False then False else True) else False) then ((if True then (\fresh_23:Boolean -> -310) else (\fresh_23:Boolean -> 101)) False) else 445),20,5,1831.051,-310
+Integer,Integer,229,1,1,702.907,229
+Integer,Integer,-290,1,1,709.464,-290
+Integer,Integer,(if True then -39 else 192),4,2,764.171,-39
+Integer,Integer,-279,1,1,709.144,-279
+Integer,Integer,(if (if False then True else (! False)) then -565 else 164),9,4,1036.451,-565
+Integer,Integer,((\fresh_26:Object -> 226) ceil),4,3,765.023,226
+Integer,Integer,412,1,1,714.372,412
+Integer,Integer,((if (! True) then (\fresh_27:Boolean -> (if True then (if False then -39 else 179) else 142)) else (if False then (\fresh_27:Boolean -> -542) else (\fresh_27:Boolean -> 68))) False),20,6,1848.208,68
+Integer,Integer,(if (if True then True else True) then ((\fresh_36:Boolean -> -284) True) else 222),10,4,1057.912,-284
+Integer,Integer,(if False then 437 else -156),4,2,773.166,-156
+Integer,Integer,((if True then (\fresh_37:Integer -> ((\fresh_39:Boolean -> fresh_37) False)) else (\fresh_37:Integer -> fresh_37)) -59),11,6,1181.302,-59
+Integer,Integer,(if ((if False then (<=Int 2) else (==Int -462)) -244) then 486 else (if ((if True then (\fresh_43:Integer -> False) else (\fresh_43:Integer -> False)) 316) then (if False then -108 else -117) else -155)),26,6,2400.213,-155
+Integer,Integer,-185,1,1,705.275,-185
+Integer,Integer,((\fresh_48:Integer -> fresh_48) 274),4,3,769.045,274
+Integer,Integer,345,1,1,712.879,345
+Integer,Integer,(if ((if False then (\fresh_49:Integer -> False) else (!=Int -228)) (if (if True then False else False) then -141 else -98)) then -206 else 223),18,5,1693.315,-206
+Integer,Integer,-38,1,1,706.666,-38
+Integer,Integer,-85,1,1,705.432,-85
+Integer,Integer,-812,1,1,725.453,-812
+Integer,Integer,-172,1,1,705.27,-172
+Integer,Integer,103,1,1,706.093,103
+Integer,Integer,611,1,1,724.576,611
+Integer,Integer,-57,1,1,706.438,-57
+Integer,Integer,219,1,1,702.527,219
+Integer,Integer,(if True then ((if True then (if False then string_length else string_length) else string_length) "DXclWkLAzlOluTRdUsOmLCxmIxDyWxlAWdUEgCaIyMbYHSMegkpUPkRrraJHMLZvOcahEdJiZVwhWBrLFDeVgabnfPVnXRzyWxbYDgpGspRVaXArrGesjdzMSjAzjWmQCqKEvbHVZtlauBHyUFTDFrdajkhCbzy") else ((if True then (\fresh_59:Integer -> 120) else (\fresh_59:Integer -> -516)) -803)),19,5,1786.544,159
+Integer,Integer,(if (if True then (! (if False then True else True)) else (if (if (! True) then False else False) then True else True)) then (if True then 30 else 203) else -121),23,6,2141.455,-121
+Integer,Integer,(if True then ((\fresh_79:Boolean -> 256) True) else (if True then ((\fresh_85:String -> -186) "nPqSRVBuCnlTPVjRAYxxYjGGbEDBizZdjWoppALItRjQsYyYvZ") else 46)),13,5,1295.283,256
+Integer,Integer,208,1,1,702.781,208
+Integer,Integer,-353,1,1,712.266,-353
+Integer,Integer,((if True then (\fresh_88:Boolean -> -406) else (\fresh_88:Boolean -> (if (if False then True else False) then 256 else -77))) ((\fresh_89:Double -> True) 590.2367072192775)),17,6,1621.092,-406
+Integer,Integer,(if ((\fresh_98:Object -> False) (&& False)) then (if True then -223 else 485) else (if False then (if ((if False then ! else !) (if True then False else True)) then -98 else ((\fresh_112:Boolean -> -400) True)) else 742)),29,6,2676.673,742
+Integer,Integer,(((\fresh_114:Boolean -> (\fresh_113:Integer -> fresh_113)) False) 45),7,5,910.313,45
+Integer,Integer,(if ((\fresh_116:Integer -> True) 302) then 36 else -517),7,4,910.586,36
+Integer,Integer,-815,1,1,725.556,-815
+Integer,Integer,((\fresh_118:Integer -> -392) ((\fresh_119:Integer -> 429) (if (if True then (if False then False else False) else True) then 83 else 431))),16,6,1561.538,-392
+Integer,Integer,918,1,1,732.371,918
+Integer,Integer,(if False then -307 else 473),4,2,774.58,473
+Integer,Integer,-525,1,1,719.531,-525
+Integer,Integer,((\fresh_124:Double -> -852) -252.60808957977335),4,3,784.814,-852
+Integer,Integer,(((\fresh_126:Double -> (\fresh_125:Object -> 222)) 141.10280382338544) False),7,5,927.166,222
+Integer,Integer,-440,1,1,715.764,-440
+Integer,Integer,61,1,1,706.491,61
+Integer,Integer,(((\fresh_146:Boolean -> (\fresh_135:Object -> -172)) (if (if (! True) then False else True) then False else True)) True),15,6,1466.046,-172
+Integer,Integer,((\fresh_153:Boolean -> 203) ((\fresh_154:Top -> True) "JDzFsrcfIxnMKgwMegutBwDzIgUfpMXIRyWslmpyIhmLXxhHtKEqNHbxbbJrhuEAYiGZJOSeLpDndRBJwihooTnhodLetNrksDkQqkxsLiNSYzsLtMixSSYMdtJxyYXQrLiZVAMtPjRuCrGVRIVXiyxStGQgPAzxCdfreBBaxlYjEaeMoppafRYJtivVfCQtlGUYLNakWuOEccgEtjoOrXdpkUOOYmkCkHWCjUIvxDkLrrqOIOuWGVxNauJWRvoXXBxbeed")),7,4,918.707,203
+Integer,Integer,((-Int -108) (if False then -335 else (if False then -285 else (if False then 172 else -117)))),14,5,1430.695,9
+Integer,Integer,(((\fresh_162:Integer -> string_length) 158) "JnSABVKANzfLWMKZoJFVnUNiVOOXEpLzceGpWCwASnJpAdklpoCPqRbmYp"),6,4,865.505,58
+Integer,Integer,(((\fresh_170:Boolean -> (\fresh_166:Boolean -> 47)) True) (if True then True else (if False then True else True))),13,5,1316.127,47
+Integer,Integer,492,1,1,718.106,492
+Integer,Integer,-185,1,1,705.275,-185
+Integer,Integer,289,1,1,708.36,289
+Integer,Integer,-606,1,1,722.984,-606
+Integer,Integer,(if (if False then False else (! True)) then (((\fresh_179:Integer -> (\fresh_174:Boolean -> -299)) (string_length "xbNnEhyyjnPSWDWqxePIKdfLfUuVKFnfOdrIgghhJsQWsxxmIwMQlrKWOEsrvDZVOdovgwIkQXtGWETUAbcCuloKUAlBWQycTSUuCCdrhFuCYbmowx")) True) else 162),17,6,1625.822,162
+Integer,Integer,-111,1,1,704.76,-111
+Integer,Integer,(if True then (if ((\fresh_181:Integer -> True) -385) then (if False then (if True then 633 else -707) else -317) else ((\fresh_182:Boolean -> -23) True)) else ((\fresh_183:Object -> 47) (! True))),24,5,2217.065,-317
+Integer,Integer,(if (if (! True) then False else False) then ((\fresh_187:Boolean -> (if False then -312 else -388)) False) else ((*Int 96) 94)),19,5,1783.787,9024
+Integer,Integer,((if True then (\fresh_196:Integer -> fresh_196) else (\fresh_196:Integer -> fresh_196)) -239),8,4,977.133,-239
+Integer,Integer,-187,1,1,705.391,-187
+Integer,Integer,(if (if True then False else True) then (if False then ((if True then (/Int 420) else (\fresh_201:Integer -> fresh_201)) 635) else -196) else ((\fresh_203:Integer -> 96) -358)),21,6,1951.724,96
+Integer,Integer,388,1,1,714.106,388
+Integer,Integer,14,1,1,707.825,14
+Integer,Integer,410,1,1,714.361,410
+Integer,Integer,(if False then -13 else ((\fresh_211:Object -> -468) (if False then -304.4222035905757 else "McjdDHUddUrGlefAyzEnMuFmoVrNiXaNerxlYjESMCZhstbVPGDlhBiKvVLdqtrOelgfaIvYzDrHozcDwKPEMbPzGTCUIXpgaBchNJVognlmLOmXOZwsFyXAJScFaQbdIEdkXaTvOKeNlOIBLDilRLRZntfVKAdgTTRxLmJGEJgfnFePBRsRyvaqIcNOBLajOH"))),10,4,1111.868,-468
+Integer,Integer,(((\fresh_213:Boolean -> (\fresh_212:Boolean -> 581)) False) True),7,5,910.859,581
+Integer,Integer,((\fresh_214:Object -> -675) "mxNDATmDtIwqPIsEgKoBvZthOLsJgFGnMttMZPbIoZAHtvNYJPxtmwkkTPbcZlkbl"),4,3,776.152,-675
+Integer,Integer,-74,1,1,705.833,-74
+Integer,Integer,(if (if True then False else True) then ((\fresh_220:Top -> 31) (if ((\fresh_223:Top -> False) -234.1122854983685) then ((\fresh_224:Integer -> fresh_224) -128) else 269.64255414714404)) else 510),19,6,1797.863,510
+Integer,Integer,118,1,1,706.212,118
+Integer,Integer,(((\fresh_226:Boolean -> (\fresh_225:Boolean -> 225)) (if (! False) then True else False)) False),12,5,1245.137,225
+Integer,Integer,(((\fresh_245:Integer -> (\fresh_229:Double -> -156)) -80) -83.28067055988657),7,5,933.12,-156
+Integer,Integer,-266,1,1,708.795,-266
+Integer,Integer,267,1,1,706.728,267
+Integer,Integer,((if (! True) then (\fresh_252:Object -> (if False then (if False then -413 else 230) else -215)) else ((\fresh_260:Boolean -> (\fresh_252:Object -> -133)) True)) 417),19,6,1749.003,-133
+Integer,Integer,90,1,1,706.17,90
+Integer,Integer,((\fresh_261:Boolean -> 391) (if False then False else ((if True then ! else !) False))),12,5,1257.249,391
+Integer,Integer,227,1,1,702.724,227
+Integer,Integer,-186,1,1,705.314,-186
+Integer,Integer,((\fresh_263:Integer -> -119) -361),4,3,757.222,-119
+Integer,Integer,284,1,1,707.998,284
+Integer,Integer,-780,1,1,725.246,-780
+Integer,Integer,(if True then -6 else (if (if True then True else False) then 379 else (if ((\fresh_271:Integer -> False) -161) then -579 else (if True then 296 else 293)))),19,6,1798.487,-6
+Integer,Integer,((if False then (-Int -466) else (\fresh_272:Integer -> 490)) (if True then -178 else 221)),12,4,1235.669,490
+Integer,Integer,428,1,1,714.881,428
+Integer,Integer,(if ((\fresh_278:Integer -> ((\fresh_283:Boolean -> True) False)) -181) then (if False then -325 else 322) else 177),13,6,1306.555,322
+Integer,Integer,198,1,1,703.084,198
+Integer,Integer,235,1,1,703.604,235
+Integer,Integer,565,1,1,722.643,565
+Integer,Integer,(if (if (! ((<Int 323) 536)) then False else ((if False then (\fresh_290:Double -> True) else (\fresh_290:Double -> True)) (if True then (if False then -314.6441382827102 else 15.938255956582704) else 956.706683842383))) then 191 else (((\fresh_293:Boolean -> (\fresh_291:Boolean -> -386)) True) False)),32,6,2941.082,191
+Integer,Integer,-699,1,1,724.388,-699
+Integer,Integer,(if True then ((*Int -95) -251) else 602),8,4,988.684,23845
+Integer,Integer,(if True then ((if (if True then True else (if False then False else True)) then (\fresh_297:Double -> -47) else (\fresh_297:Double -> -733)) -237.83431916435632) else (if True then -338 else (if False then 68 else 248))),23,6,2115.193,-47
+Integer,Integer,-207,1,1,706.556,-207
+Integer,Integer,(((\fresh_307:Boolean -> (*Int -408)) True) 324),8,5,984.991,-132192
+Integer,Integer,(if True then -513 else ((\fresh_309:Boolean -> -239) True)),7,4,893.311,-513
+Integer,Integer,(((\fresh_328:Integer -> (\fresh_327:Integer -> (if False then fresh_328 else fresh_328))) -929) 149),10,6,1145.489,-929
