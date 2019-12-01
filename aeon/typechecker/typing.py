@@ -93,6 +93,10 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
                 e.target, F, e))
+    print(e, F)
+    print("--->", e.argument, F.arg_type)
+    if 'c' in ctx.variables:
+        print("c:", ctx.variables['c'])
     T = check_type(ctx, e.argument, F.arg_type)
     return substitution_expr_in_type(F.return_type, e.argument, F.arg_name)
 

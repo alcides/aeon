@@ -233,6 +233,7 @@ def zed_initial_context():
         ">=": lambda x: lambda y: x >= y,
         "!": z3.Not,
         "-->": lambda x: lambda y: z3.Implies(x, y),
+        "And": lambda x: lambda y: z3.And(x, y),
         "&&": lambda x: lambda y: z3.And(x, y),
         "||": lambda x: lambda y: z3.Or(x, y),
         "+": lambda x: lambda y: x + y,

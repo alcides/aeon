@@ -156,6 +156,8 @@ def random_chooser(f):
             fun = pick_one_of(valid_alternatives)
             try:
                 v = fun(*args, **kwargs)
+                if f.__name__ == 'se':
+                    tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
                 for r in rules:
@@ -342,7 +344,7 @@ def se_double(ctx: TypingContext, T: BasicType, d: int):
 def se_string(ctx: TypingContext, T: BasicType, d: int):
     """ SE-String """
     # TODO: alterar distribuicao do tamanho das strings
-    length = round(abs(random.gauss(0, 0.1) * 1000))
+    length = round(abs(random.gauss(0, 0.1) * 10))
     v = ''.join(random.choice(string.ascii_letters) for i in range(length))
     return Literal(v, T)
 
@@ -350,8 +352,10 @@ def se_string(ctx: TypingContext, T: BasicType, d: int):
 def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
     e1 = se(ctx, t_b, d - 1)
+    print("if e1", e1)
     e2 = se(ctx.with_cond(e1), T, d - 1)
     e3 = se(ctx.with_cond(Application(Var("!"), e1)), T, d - 1)
+    print("if: ", If(e1, e2, e3))
     return If(e1, e2, e3).with_type(T)
 
 
@@ -388,6 +392,7 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
+
     if T.type == t_i:
         v = tc.get_integer_where(
             ctx.with_var(T.name, T).with_uninterpreted(), T.name, T.cond)
@@ -403,9 +408,12 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
 
     for _ in range(MAX_TRIES_WHERE):
         e2 = se(ctx, T.type, d - 1)
-        ncond = substitution_expr_in_expr(T.cond, e2, T.name)
-        if tc.entails(ctx.with_uninterpreted(), ncond):
+        try:
+            tc.check_type(ctx, e2, T)
+            #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
             return e2  #.with_type(T)
+        except:
+            continue
 
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
