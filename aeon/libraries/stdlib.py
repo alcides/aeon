@@ -161,12 +161,24 @@ string_context = {
     'string_length': (ty2("(x:String) -> Integer"), lambda x: len(x)),
 }
 
+def r_print(x):
+    print(x)
+    x
+
+io_context = {
+    'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),
+}
+
 for expression in math_context.keys():
     ntype, implementation = math_context[expression]
     add_function(expression, (ntype, implementation))
 
 for expression in string_context.keys():
     ntype, implementation = string_context[expression]
+    add_function(expression, (ntype, implementation))
+
+for expression in io_context.keys():
+    ntype, implementation = io_context[expression]
     add_function(expression, (ntype, implementation))
 """
 native_implementations = importNative('aeon.libraries.native', '*')

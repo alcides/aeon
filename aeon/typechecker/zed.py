@@ -115,14 +115,15 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name, v.type)
             return ztx[v.name]
         elif type(v.type) is AbstractionType:
-            #ztx[v.name] = zed_mk_variable(v.name,
-            #                              flatten_refined_types(v.type))
-            print("TODO: abstype in z3")
+            # TODO: confirmar que esta arranjado?
+            ztx[v.name] = zed_mk_variable(v.name,
+                                          flatten_refined_types(v.type))
+            return ztx[v.name]
         elif type(v.type) is RefinedType:
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
             return ztx[v.name]
-        print("ooops", v)
+        print("ooops", v, v.type)
         raise NoZ3TranslationException("Var not in scope: {} : {}".format(
             v, v.type))
     return ztx[v.name]

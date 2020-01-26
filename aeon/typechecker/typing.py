@@ -15,7 +15,6 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
-
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
         nctx = ctx.with_var(T.name, T.type)
@@ -160,10 +159,10 @@ def check_program(ast):
         if isinstance(e, Program):
             for decl in e.declarations:
                 internal_check(ctx, decl)
-            return e.declarations
         elif isinstance(e, Definition):
-            check_type(ctx, e.body, e.type)
+            # Troquei, ja da funcoes recursivas!
             ctx.variables[e.name] = e.type
+            check_type(ctx, e.body, e.type)
         else:
             print("TypeChecking ignoring:", e, type(e))
 

@@ -31,10 +31,10 @@ if __name__ == '__main__':
         print(20 * "-", "Aeon to AeonCore transformation:")
         print(ast)
 
-    inferTypes(ast)
-    if debug:
-        print(20 * "-", "Type inference:")
-        print(ast)
+    #inferTypes(ast)
+    #if debug:
+    #    print(20 * "-", "Type inference:")
+    #    print(ast)
 
     #print(Translator().translate(ast))
     if debug:
@@ -42,6 +42,7 @@ if __name__ == '__main__':
         print(ast)
 
     try:
+        print(ast.declarations[0])
         ast = check_program(ast)
     except Exception as t:
         raise t

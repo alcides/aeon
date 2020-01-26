@@ -39,6 +39,8 @@ def evaluate(ctx, node):
             ctx[node.name] = bodyEval
         '''
     else:
+        if node.name == 'main':
+            node.body = Application(node.body, None)
         ctx[node.name] = evaluate(ctx, node.body)
 
 

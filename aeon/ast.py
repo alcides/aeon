@@ -173,7 +173,6 @@ class TApplication(TypedNode):
 
 # Other Structure
 
-
 class Definition(Node):
     def __init__(self,
                  name: str,

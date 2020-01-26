@@ -1,8 +1,8 @@
 from aeon.interpreter import run
 from aeon.automatic.utils import generate_abstractions
 
+from aeon.types import t_i, t_f
 from aeon.ast import Var, Literal, Abstraction, Application, If, TAbstraction, TApplication
-
 
 # Given a list of expressions, convert them into numeric discrete values
 def convert(and_expressions):
@@ -24,6 +24,8 @@ def apply_conversion(condition):
         return condition
     elif variable.name in ['==']:
         return abs_conversion(condition)
+    elif variable.name in ['!=']:
+        return neg_abs_conversion(condition)
     elif variable.name in ['!']:
         return not_conversion(condition)
     elif variable.name in ['&&']:
@@ -32,7 +34,7 @@ def apply_conversion(condition):
         return or_conversion(condition)
     elif variable.name in ['-->']:
         return implie_conversion(condition)
-    elif variable.name in ['>', '<', '<=', '>=', '!=']:
+    elif variable.name in ['>', '<', '<=', '>=']:
         return if_conversion(condition)
     # It is a variable or f(variable)
     else:
@@ -56,38 +58,43 @@ def obtain_application_var(condition):
 
 # =============================================================================
 # ============================================================ Conversion rules
-# a == b ~> abs(a - b)
+# a == b ~> norm(|a - b|) 
 def abs_conversion(condition):
     result = Application(Var('-'), condition.argument)
     result = Application(result, condition.target.argument)
-    return Application(Var('abs'), result)
+    return normalize(Application(Var('abs'), result))
+# Auxiliary to normalize
+def normalize(value):
+    norm = Application(Application(Var('pow'), Literal(0.99, t_f)))
+    return Application(Application(Var('-'), 1), norm)
+
+
+# a != b ~> 1 - norm(|a - b|)
+def abs_conversion(condition):
+    converted = abs_conversion(condition)
+    return Application(Application(Var('-'), Literal(1, t_i)), converted)
 
 
 # condition ~> condition ? 0 : abs_conversion(condition)
 def if_conversion(condition):
-    then = Literal(0, BasicType('Integer'))
+    then = Literal(0, t_i)
     otherwise = abs_conversion(condition)
     return If(condition, then, otherwise)
 
 
-# a && b ~> a && b ? 0 : convert(a) + convert(b)
+# a && b ~> (convert(a) + convert(b))/2
 def and_conversion(condition):
-    then = Literal(0, BasicType('Integer'))
-    otherwise_left = apply_conversion(condition.argument)
-    otherwise.right = apply_conversion(condition.target.argument)
-    otherwise = Application(Application(Var('+'), otherwise_left),
-                            otherwise_right)
-    return If(condition, then, otherwise)
+    left = apply_conversion(condition.argument)
+    right = apply_conversion(condition.target.argument)
+    op = Application(Application(Var('+'), left), right)
+    return Application(Application(Var('/'), op), Literal(2, t_i))
 
 
-# a || b ~> a || b ? 0 : min(convert(a), convert(b))
+# a v b ~> min(f(a), f(b))
 def or_conversion(condition):
-    then = Literal(0, BasicType('Integer'))
-    otherwise_left = apply_conversion(condition.argument)
-    otherwise.right = apply_conversion(condition.target.argument)
-    otherwise = Application(Application(Var('min'), otherwise_left),
-                            otherwise_right)
-    return If(condition, then, otherwise)
+    left = apply_conversion(condition.argument)
+    right = apply_conversion(condition.target.argument)
+    return Application(Application(Var('min'), left), right)
 
 
 # a --> b ~> convert(!a || b)
@@ -96,23 +103,16 @@ def implie_conversion(condition):
     return apply_conversion(Application(not_a, and_expr.argument))
 
 
-# !condition ~> revert(condition ? 0 : convert(condition))
+# !condition ~> 1 - convert(condition)
 def not_conversion(condition):
     converted = apply_conversion(condition.argument)
-    # If it is a regular if conversion. Revert everything
-    if isinstance(converted, If):
-        converted.condition = condition
-    else:
-        converted = boolean_conversion(condition)
-    return converted
-
+    return Application(Application(Var('-'), Literal(1, t_i)), converted)
 
 # x or f(x) ~> f(x) ? 0 : 1
 def boolean_conversion(condition):
-    then = Literal(0, BasicType('Integer'))
-    otherwise = Literal(1, BasicType('Integer'))
+    then = Literal(0, t_i)
+    otherwise = Literal(1, t_i)
     return If(cond, then, otherwise)
-
 
 # =============================================================================
 # ================================================ Fitness functions conversion
@@ -133,7 +133,7 @@ def interpret_expressions(abstractions, expressions):
                 isinstance(condition.target, Var) and \
                 condition.target.name.startswith('@'):
             function = optimizers[condition.target.name]
-            result.append(function(condition.argument.name))
+            result.append(function(condition.argument))
         else:
             # Englobe the expressions with the parameters and return
             last_abstraction = condition
@@ -144,20 +144,20 @@ def interpret_expressions(abstractions, expressions):
 
 
 # @maximize
-def maximize():
+def maximize(argument):
     pass
 
 
 # @minimze
-def minimize():
+def minimize(argument):
     pass
 
-
 # @evaluate('path')
-def evaluate(path):
+def evaluate(argument):
+    path = argument.name
     # Applies a function to a row and get its error
     def apply(function, row):
-        return abs(row[-1] - reduce(lambda f, x: f(x), row[:-1], function))
+        return normalize(abs(row[-1] - reduce(lambda f, x: f(x), row[:-1], function)))
 
     with open(path) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
