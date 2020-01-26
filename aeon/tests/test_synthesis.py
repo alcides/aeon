@@ -13,7 +13,7 @@ ty = typee.parse_strict
 
 class TestSynthesis(unittest.TestCase):
     def setUp(self):
-        random.seed(10)
+        random.seed(0)
 
     def assert_st(self, ctx, sub, sup):
         if not is_subtype(ctx, sub, sup):
@@ -23,7 +23,7 @@ class TestSynthesis(unittest.TestCase):
         if not isinstance(t, Type):
             t = ty(t)
         if d == None:
-            d = 10
+            d = 5
         print("----")
         for i in range(times):
             e = fun(ctx, t, d)
@@ -31,7 +31,7 @@ class TestSynthesis(unittest.TestCase):
             check_type(ctx, e, t)
             self.assert_st(ctx, e.type, t)
 
-    def generic_test(self, t, fun=None, extra_ctx=None, d=None, times=3):
+    def generic_test(self, t, fun=None, extra_ctx=None, d=None, times=10):
         if not fun:
             fun = se
         ctx = TypingContext()
@@ -115,7 +115,8 @@ class TestSynthesis(unittest.TestCase):
 
     def test_g_abs_with_var(self):
         self.generic_test("(x:Boolean) -> Integer",
-                          extra_ctx=[("z", "(x:Boolean) -> Boolean")])
+                          d=1,
+                          extra_ctx=[("z", "(x:Boolean) -> Integer")])
 
     def test_g_abs_with_var_2(self):
         self.generic_test("(x:Boolean) -> Integer",
@@ -133,7 +134,6 @@ class TestSynthesis(unittest.TestCase):
 
     def assert_iet(self, ctx, e, x, T):
         NT = iet(ctx, e, x, T, 1)
-        #print("NT:", NT)
         assert (is_subtype(ctx, NT, T))
 
     def test_iet(self):
