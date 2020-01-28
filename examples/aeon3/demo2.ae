@@ -1,65 +1,13 @@
-type Array<T>;
-type Map<K, Map2<Integer, V>>;
-// (Map.K).((Map2.Integer).V)
-
-type Asd<K, V>;
-
-def funcao<T> : (x:Integer) -> Integer {
-    0;
+r1 : (x:Integer) -> y:Integer {
+    print<Integer>(x);
+    x > 0 ? r2(x-1) : 0;
 }
-// (Asd.K).V
-/*
 
-Abstracao (
-    V,
-    *,
-    TypeApplication(
-        TypeApplication (
-            Asd,
-            K
-        )
-        V
-    )
-)
+r2 : (x:Integer) -> y:Integer {
+    print<Integer>(x);
+    r1(x-1);
+}
 
-*/
-
-/*
-
-    TypeDeclaration(
-        TypeAbstraction(
-            T,
-            *,
-            TypeApplication(
-                Array,
-                T
-            )
-        )
-        star
-    )
-
-*/
-
-/*
-    def f<T> : () -> Integer {
-        1;
-    }
-
-
-
-
-
-    Definition(
-        f,
-        TypeAbstraction(
-            T,
-            *,
-            AbsType(_0, Void, Integer)
-        )
-
-        TAbstraction(T, 
-                    *,
-                    Abstraction(_0, Void, Literal(1))
-        ),
-    )
-*/
+main : () -> Void {
+    r1(10);
+}

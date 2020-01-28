@@ -130,8 +130,8 @@ class AeonASTVisitor(AeonVisitor):
     # T, V, Integer, String, Boolean
     def visitTypee_basic_type(self, ctx: AeonParser.Typee_basic_typeContext):
         typee = BasicType(ctx.basicType.text)
-        if typee in self.type_aliases:
-            return self.type_aliases[typee]
+        #if typee in self.type_aliases:
+            #return self.type_aliases[typee]
         return typee
 
     # Map<K, V> : (* => *) => *

@@ -3,7 +3,7 @@ import copy
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
-    If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole
+    If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
 
 from .kinding import check_kind
 from .conversions import type_conversion
@@ -92,10 +92,6 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
                 e.target, F, e))
-    print(e, F)
-    print("--->", e.argument, F.arg_type)
-    if 'c' in ctx.variables:
-        print("c:", ctx.variables['c'])
     T = check_type(ctx, e.argument, F.arg_type)
     return substitution_expr_in_type(F.return_type, e.argument, F.arg_name)
 
@@ -114,9 +110,11 @@ def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
 
+holes = []
 
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
-    return e.type if e.type else bottom
+    holes.append((ctx.copy(), e.type))
+    return e.type
 
 
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
@@ -158,19 +156,26 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 
 
 def check_program(ast):
+    holed = []
     def internal_check(ctx: TypingContext, e: TypedNode):
-
         if isinstance(e, Program):
             for decl in e.declarations:
+                holes.clear() # Reset to add holes of curr decl.
                 internal_check(ctx, decl)
+                if holes:
+                    holed.append((decl, holes.copy())) # Append the holes
+
         elif isinstance(e, Definition):
             # Troquei, ja da funcoes recursivas!
             ctx.variables[e.name] = e.type
             check_type(ctx, e.body, e.type)
+        # TODO: Still WIP
+        elif isinstance(e, TypeAlias):
+            ctx.type_aliases[e.name.name] = e.type
         else:
             print("TypeChecking ignoring:", e, type(e))
 
     ctx = TypingContext()
     ctx.setup()
     internal_check(ctx, ast)
-    return ast
+    return ast, holed

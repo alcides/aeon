@@ -13,6 +13,9 @@ def k_base(ctx: TypingContext, t: BasicType):
         return star
     elif t.name in ctx.type_variables:
         return ctx.type_variables[t.name]
+    # TODO: Added this, check later
+    elif t.name in ctx.type_aliases:
+        return synth_kind(ctx, ctx.type_aliases[t.name])
     else:
         raise KindingError("{} is not a base type or in context".format(t))
 

@@ -1,45 +1,78 @@
 from typing import List, Tuple
 
-from aeon.ast import Definition
-from aeon.types import TypingContext, Type
+from aeon.ast import Definition, Program
+from aeon.types import TypingContext, Type, RefinedType
+
+from aeon.interpreter import run, EvaluationContext
 
 from aeon.automatic.conversor import convert
 from aeon.automatic.conversor import interpret_expressions
 
-from aeon.automatic.utils import generate_expressions
+from aeon.automatic.utils import has_holes, generate_expressions, generate_abstractions, filter_dependent_types
 
 
 # Returns the definition with its holes filled
-def generate(definition: Definition, holes: List[Tuple[TypingContext, Type]]):
+# holed : List[Tuple[Definition, List[Tuple[TypingContext, Type]]]]
+def automatic(program: Program, holed):
 
-    # Get the fitness functions
-    fitness_functions = generate_fitness_functions(definition)
+    # 1. Build the context for the fitness functions
+    eval_ctx = build_evaluation_context(program)
 
-    # Choose a genetic approach
-    genetic_approach = Random(definition, fitness_functions, holes)
+    for declaration, holes in holed:
 
-    # Run the genetic approach and get filled program
-    generated = genetic_approach.run()
+        # 2. Get the fitness functions
+        fitness_functions = generate_fitness_functions(eval_ctx, declaration)
 
-    return generated
+        # 3. Choose a genetic approach
+        #genetic_approach = Random(definition, fitness_functions, holes)
 
+        # 4. Run the genetic approach and get filled program
+        #generated = genetic_approach.run()
+
+        # 5. Replace the holes with the generated programs
+        # declaration = ????
+
+        # 6. Now that the hole has been filled, run, so it is available
+        # run(declaration, eval_ctx)
+
+    return program
+
+# Builds the evaluation context with unholed functions for fitness functions
+def build_evaluation_context(program: Program):
+    eval_ctx = EvaluationContext()
+    unholed_program = []
+
+    for declaration in program.declarations:
+        if not has_holes(declaration):
+            if isinstance(declaration, Definition) and declaration.name != 'main':
+                run(declaration, eval_ctx)
+
+    return eval_ctx
 
 # Given a definition, generate its fitness functions
-def generate_fitness_function(definition: Definition):
+def generate_fitness_functions(eval_ctx: EvaluationContext, definition: Definition):
 
-    # It must be a RefinedType, otherwise we aren't able to generate
-    conditions = definition.return_type.cond
+    fitness_functions = []
 
-    # 1. Get each 'And' expression
-    and_expressions = generate_expressions(conditions)
+    # Check if there are conditions for the fitness function
+    if isinstance(definition.return_type, RefinedType):
 
-    # 2. Get function parameters
-    abstractions = generate_abstractions(definition)
+        # 0. Obtain the condition from the return type
+        conditions = definition.return_type.cond
+        
+        # 1. Get each 'And' expression
+        and_expressions = generate_expressions(conditions)
 
-    # 3. Convert each expression
-    and_expressions = convert(and_expressions)
+        # 2. Filter expressions to obtain the dependent types only
+        and_expressions = filter_dependent_types(eval_ctx, and_expressions)
 
-    # 4. Translate the ast into fitness functions
-    fitness_functions = interprete_expressions(abstractions, and_expressions)
+        # 3. Get function parameters
+        abstractions = generate_abstractions(definition)
+        
+        # 4. Convert each expression
+        and_expressions = convert(and_expressions)
+
+        # 5. Translate the ast into fitness functions
+        fitness_functions = interpret_expressions(eval_ctx, abstractions, and_expressions)
 
     return fitness_functions

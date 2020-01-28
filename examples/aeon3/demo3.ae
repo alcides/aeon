@@ -1,7 +1,15 @@
-type Array<T>;
+// ----------------------------------------------------------------- Type Alias
+type Nat as {x:Integer | x > 0};
+type BigNat as {x:Integer | x > 1000};
 
-def funcao : (x:Integer) -> y:Integer {
-    1 + 1;
-    2 + 2;
-    x + y;
+f: (a:Nat) -> y:Nat {
+    10091;
 }
+
+// ---------------------------------------------- TAbstraction and TApplication
+/*type List<T>;
+
+f2: (x:List<Integer>) -> y:Nat {
+    1;
+}
+*/

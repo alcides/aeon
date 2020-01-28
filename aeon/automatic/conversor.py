@@ -62,15 +62,16 @@ def obtain_application_var(condition):
 def abs_conversion(condition):
     result = Application(Var('-'), condition.argument)
     result = Application(result, condition.target.argument)
-    return normalize(Application(Var('abs'), result))
+    result = Application(Var('abs'), result)
+    return normalize(result)
+
 # Auxiliary to normalize
 def normalize(value):
-    norm = Application(Application(Var('pow'), Literal(0.99, t_f)))
-    return Application(Application(Var('-'), 1), norm)
-
+    norm = Application(Application(Var('pow'), Literal(0.99, t_f)), value)
+    return Application(Application(Var('-'), Literal(1, t_i)), norm)
 
 # a != b ~> 1 - norm(|a - b|)
-def abs_conversion(condition):
+def neg_abs_conversion(condition):
     converted = abs_conversion(condition)
     return Application(Application(Var('-'), Literal(1, t_i)), converted)
 
@@ -116,7 +117,7 @@ def boolean_conversion(condition):
 
 # =============================================================================
 # ================================================ Fitness functions conversion
-def interpret_expressions(abstractions, expressions):
+def interpret_expressions(eval_ctx, abstractions, expressions):
 
     abstraction, last_abstraction = abstractions
 
@@ -136,8 +137,8 @@ def interpret_expressions(abstractions, expressions):
             result.append(function(condition.argument))
         else:
             # Englobe the expressions with the parameters and return
-            last_abstraction = condition
-            function = run(abstraction)
+            last_abstraction.body = condition
+            function = run(abstraction, eval_ctx)
             result.append(function)
 
     return result

@@ -4,10 +4,15 @@ from .libraries.stdlib import get_builtin_variables
 
 from multipledispatch import dispatch
 
+class EvaluationContext(object):
+    def __init__(self):
+        # Builds the context with the native functions
+        self.ctx = {}
+        for name, _, value in get_builtin_variables():
+            self.ctx[name] = value
 
-def run(node):
-    ctx = nativeFunctions()
-    return evaluate(ctx, node)
+def run(node, ctx=EvaluationContext()):
+    return evaluate(ctx.ctx, node)
 
 
 @dispatch(dict, Literal)
@@ -67,8 +72,8 @@ def evaluate(ctx, node):
         argument = 0  # TODO:
     else:
         argument = evaluate(ctx, node.argument)
-    # print("Target: ", node.target, target)
-    # print("Argument: ", argument, node.argument)
+    #print("Target: ", node.target, target)
+    #print("Argument: ", argument, node.argument)
     return target(argument)
 
 
@@ -111,10 +116,3 @@ def ctxPut(ctx, varName, var):
         ctx[varName] = var
     return ctx
 
-
-def nativeFunctions():
-    " Builds the context with the native functions "
-    ctx = {}
-    for name, _, value in get_builtin_variables():
-        ctx[name] = value
-    return ctx
