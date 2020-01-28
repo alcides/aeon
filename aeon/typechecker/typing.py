@@ -167,8 +167,8 @@ def check_program(ast):
 
         elif isinstance(e, Definition):
             # Troquei, ja da funcoes recursivas!
-            ctx.variables[e.name] = e.type
             check_type(ctx, e.body, e.type)
+            ctx.variables[e.name] = e.type
         # TODO: Still WIP
         elif isinstance(e, TypeAlias):
             ctx.type_aliases[e.name.name] = e.type

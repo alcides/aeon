@@ -34,7 +34,7 @@ weights = {
     "se_var": 1,
     "se_where": 1,
     "se_abs": 1,
-    "se_app": 1,
+    "se_app": 20,
     "se_tabs": 0,
     "se_tapp": 0,
     "se_if": 1,
@@ -352,10 +352,10 @@ def se_string(ctx: TypingContext, T: BasicType, d: int):
 def se_if(ctx: TypingContext, T: Type, d: int):
     """ SE-If """
     e1 = se(ctx, t_b, d - 1)
-    print("if e1", e1)
+    #print("if e1", e1)
     e2 = se(ctx.with_cond(e1), T, d - 1)
     e3 = se(ctx.with_cond(Application(Var("!"), e1)), T, d - 1)
-    print("if: ", If(e1, e2, e3))
+    #print("if: ", If(e1, e2, e3))
     return If(e1, e2, e3).with_type(T)
 
 

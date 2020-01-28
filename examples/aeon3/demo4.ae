@@ -1,8 +1,8 @@
-decipher : (x:Integer) -> out:Integer {
-    (x - 10);
+decipher : (x:Integer, k:Integer) -> out:Integer {
+    (x - k);
 }
 
-cipher : ({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and x == decipher(z)} {
+cipher : ({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and x == decipher(z, key)} {
     // x + key;
     [Integer];
 }

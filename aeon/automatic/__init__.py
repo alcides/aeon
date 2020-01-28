@@ -1,5 +1,7 @@
 from typing import List, Tuple
 
+from aeon.automatic.gen_program import GenProg
+
 from aeon.ast import Definition, Program
 from aeon.types import TypingContext, Type, RefinedType
 
@@ -9,6 +11,9 @@ from aeon.automatic.conversor import convert
 from aeon.automatic.conversor import interpret_expressions
 
 from aeon.automatic.utils import has_holes, generate_expressions, generate_abstractions, filter_dependent_types
+
+from aeon.synthesis import se
+from aeon.types import TypingContext, BasicType
 
 
 # Returns the definition with its holes filled
@@ -23,17 +28,14 @@ def automatic(program: Program, holed):
         # 2. Get the fitness functions
         fitness_functions = generate_fitness_functions(eval_ctx, declaration)
 
-        # 3. Choose a genetic approach
-        #genetic_approach = Random(definition, fitness_functions, holes)
+        # 3. Prepare the evolution
+        genetic = GenProg(declaration, holes, eval_ctx, fitness_functions)
 
-        # 4. Run the genetic approach and get filled program
-        #generated = genetic_approach.run()
+        # 4. Run the genetic approach and get generated expressions
+        solved_declaration = genetic.evolve()
 
-        # 5. Replace the holes with the generated programs
-        # declaration = ????
-
-        # 6. Now that the hole has been filled, run, so it is available
-        # run(declaration, eval_ctx)
+        # 5. Now that the hole has been filled, run, so it is available to add to ctx
+        # run(solved_declaration, eval_ctx)
 
     return program
 
