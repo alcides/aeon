@@ -18,7 +18,7 @@ from aeon.types import TypingContext, BasicType
 
 # Returns the definition with its holes filled
 # holed : List[Tuple[Definition, List[Tuple[TypingContext, Type]]]]
-def automatic(program: Program, holed):
+def automatic(program: Program, context: TypingContext, holed):
 
     # 1. Build the context for the fitness functions
     eval_ctx = build_evaluation_context(program)
@@ -29,7 +29,7 @@ def automatic(program: Program, holed):
         fitness_functions = generate_fitness_functions(eval_ctx, declaration)
 
         # 3. Prepare the evolution
-        genetic = GenProg(declaration, holes, eval_ctx, fitness_functions)
+        genetic = GenProg(declaration, holes, eval_ctx, context, fitness_functions)
 
         # 4. Run the genetic approach and get generated expressions
         solved_declaration = genetic.evolve()

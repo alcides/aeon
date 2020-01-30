@@ -4,6 +4,7 @@ from functools import total_ordering
 @total_ordering
 class Individual(object):
     def __init__(self, synthesized=None):
+        self.fitness = None
         self.synthesized = synthesized
     
     def with_fitness(self, fitness):

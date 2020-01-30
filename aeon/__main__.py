@@ -37,11 +37,11 @@ if __name__ == '__main__':
         print(ast)
 
     try:
-        ast, holed = check_program(ast)
+        ast, context, holed = check_program(ast)
         
         # If there are holes, lets fill them
         if holed:
-            ast = automatic(ast, holed)
+            ast = automatic(ast, context, holed)
 
     except Exception as t:
         raise t

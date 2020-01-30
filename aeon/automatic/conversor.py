@@ -36,9 +36,9 @@ def apply_conversion(condition):
     elif variable.name == '>':
         return greater_than_conversion(condition)
     elif variable.name == '<':
-        pass less_than_conversion(condition)
+        return less_than_conversion(condition)
     elif variable.name == '<=':
-        pass less_or_equal_conversion(condition)
+        return less_or_equal_conversion(condition)
     elif variable.name == '>=':
         return greater_or_equal_conversion(condition)
     # It is a variable or f(variable)

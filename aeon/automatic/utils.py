@@ -116,3 +116,47 @@ def has_holes(node):
         return has_holes(node.target)
     else:
         raise Exception("Couldnt find the node", node)
+
+def replace_holes(node, holes):
+    if isinstance(node, If):
+        if type(node.cond) is Hole:
+            node.cond = holes.pop(-1)
+        else:
+            replace_holes(node.cond, holes)
+        if type(node.then) is Hole:
+            node.then = holes.pop(-1)
+        else:
+            replace_holes(node.then, holes)
+        if type(node.otherwise) is Hole:
+            node.otherwise = holes.pop(-1)
+    elif isinstance(node, Application):
+        if type(node.target) is Hole:
+            node.target = holes.pop(-1)
+        else:
+            replace_holes(node.target, holes)
+        if type(node.argument) is Hole:
+            node.argument = holes.pop(-1)
+        else:
+            replace_holes(node.argument, holes)
+    elif isinstance(node, Abstraction):
+        if type(node.body) is Hole:
+            node.body = holes.pop(-1)
+        else:
+            replace_holes(node.body, holes)
+    elif isinstance(node, TAbstraction):
+        if type(node.body) is Hole:
+            node.body = holes.pop(-1)
+        else:
+            replace_holes(node.body, holes)
+    elif isinstance(node, TApplication):
+        if type(node.target) is Hole:
+            node.target = holes.pop(-1)
+        else:
+            replace_holes(node.body, holes)
+    elif isinstance(node, Definition):
+        if isinstance(node, Hole):
+            node.body = holes.pop(-1)
+        else:
+            replace_holes(node.body, holes)
+    else:
+        raise Exception("Trying to replace unknown node: ", type(node), node)

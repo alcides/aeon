@@ -47,6 +47,7 @@ def evaluate(ctx, node):
         if node.name == 'main':
             node.body = Application(node.body, None)
         ctx[node.name] = evaluate(ctx, node.body)
+        return ctx[node.name]
 
 
 @dispatch(dict, Hole)
@@ -109,8 +110,6 @@ def evaluate(ctx, node):
 
 # -----------------------------------------------------------------------------
 # ---------------------------------------------------------------------- HELPER
-
-
 def ctxPut(ctx, varName, var):
     if not varName.startswith('_'):
         ctx[varName] = var

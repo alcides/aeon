@@ -163,7 +163,7 @@ def check_program(ast):
                 holes.clear() # Reset to add holes of curr decl.
                 internal_check(ctx, decl)
                 if holes:
-                    holed.append((decl, holes.copy())) # Append the holes
+                    holed.append((decl,  holes.copy())) # Append the holes
 
         elif isinstance(e, Definition):
             # Troquei, ja da funcoes recursivas!
@@ -178,4 +178,4 @@ def check_program(ast):
     ctx = TypingContext()
     ctx.setup()
     internal_check(ctx, ast)
-    return ast, holed
+    return ast, ctx, holed
