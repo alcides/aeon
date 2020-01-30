@@ -8,7 +8,6 @@ from aeon.ast import Var, Literal, Abstraction, Application, If, TAbstraction, T
 def convert(and_expressions):
     return [apply_conversion(condition) for condition in and_expressions]
 
-
 # Apply the conversion to an expression
 def apply_conversion(condition):
     variable = obtain_application_var(condition)
@@ -22,24 +21,29 @@ def apply_conversion(condition):
     # Else it is a Var
     elif variable.name.startswith('@'):
         return condition
-    elif variable.name in ['==']:
+    elif variable.name == '==':
         return abs_conversion(condition)
-    elif variable.name in ['!=']:
+    elif variable.name == '!=':
         return neg_abs_conversion(condition)
-    elif variable.name in ['!']:
+    elif variable.name == '!':
         return not_conversion(condition)
-    elif variable.name in ['&&']:
+    elif variable.name == '&&':
         return and_conversion(condition)
-    elif variable.name in ['||']:
+    elif variable.name == '||':
         return or_conversion(condition)
-    elif variable.name in ['-->']:
+    elif variable.name == '-->':
         return implie_conversion(condition)
-    elif variable.name in ['>', '<', '<=', '>=']:
-        return if_conversion(condition)
+    elif variable.name == '>':
+        return greater_than_conversion(condition)
+    elif variable.name == '<':
+        pass less_than_conversion(condition)
+    elif variable.name == '<=':
+        pass less_or_equal_conversion(condition)
+    elif variable.name == '>=':
+        return greater_or_equal_conversion(condition)
     # It is a variable or f(variable)
     else:
         return boolean_conversion(condition)
-
 
 # Obtains the most left var name of the application
 def obtain_application_var(condition):
@@ -60,15 +64,10 @@ def obtain_application_var(condition):
 # ============================================================ Conversion rules
 # a == b ~> norm(|a - b|) 
 def abs_conversion(condition):
-    result = Application(Var('-'), condition.argument)
-    result = Application(result, condition.target.argument)
+    result = Application(Var('-'), condition.target.argument)
+    result = Application(result, condition.argument)
     result = Application(Var('abs'), result)
     return normalize(result)
-
-# Auxiliary to normalize
-def normalize(value):
-    norm = Application(Application(Var('pow'), Literal(0.99, t_f)), value)
-    return Application(Application(Var('-'), Literal(1, t_i)), norm)
 
 # a != b ~> 1 - norm(|a - b|)
 def neg_abs_conversion(condition):
@@ -82,6 +81,33 @@ def if_conversion(condition):
     otherwise = abs_conversion(condition)
     return If(condition, then, otherwise)
 
+
+# a > b ~> norm(relu(y - x + offset))
+def greater_than_conversion(condition):
+    result = Application(Var('-'), condition.argument)
+    result = Application(result, condition.target.argument)
+    result = Application(Application(Var('+'), result), Literal(1, t_i))
+    return normalize(relu(result))
+
+# a < b ~> norm(relu(x - y + offset))
+def less_than_conversion(condition):
+    result = Application(Var('-'), condition.target.argument)
+    result = Application(result, condition.argument)
+    result = Application(Application(Var('+'), result), Literal(1, t_i))
+    return normalize(relu(result))
+
+# a >= b ~> norm(ReLU(a - b))
+def greater_or_equal_conversion(condition):
+    result = Application(Var('-'), condition.argument)
+    result = Application(result, condition.target.argument)
+    return normalize(relu(result))
+
+
+# a <= b ~> norm(ReLU(b - a))
+def less_or_equal_conversion(conditon):
+    result = Application(Var('-'), condition.target.argument)
+    result = Application(result, condition.argument)
+    return normalize(relu(result))
 
 # a && b ~> (convert(a) + convert(b))/2
 def and_conversion(condition):
@@ -109,11 +135,24 @@ def not_conversion(condition):
     converted = apply_conversion(condition.argument)
     return Application(Application(Var('-'), Literal(1, t_i)), converted)
 
-# x or f(x) ~> f(x) ? 0 : 1
+
+# x, f(x) ~> f(x) ? 0 : 1
 def boolean_conversion(condition):
     then = Literal(0, t_i)
     otherwise = Literal(1, t_i)
     return If(cond, then, otherwise)
+
+
+# ========================================== Auxiliary functions for conversion
+# normalize
+def normalize(value):
+    norm = Application(Application(Var('pow'), Literal(0.99, t_f)), value)
+    return Application(Application(Var('-'), Literal(1, t_i)), norm)
+
+# ReLU
+def relu(condition):
+    return Application(Application(Var('max'), Literal(0, t_i)), condition)
+
 
 # =============================================================================
 # ================================================ Fitness functions conversion
