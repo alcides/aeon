@@ -22,6 +22,8 @@ weights = {
     "sk_rec": 0,
     "st_int": 50,  # Terminal types
     "st_bool": 50,
+    "st_double": 50,
+    "st_string": 50,
     "st_var": 50,
     "st_where": 1,
     "st_abs": 1,
@@ -42,7 +44,8 @@ weights = {
     "iet_id": 1,
     "iet_abs": 1,
     "iet_where": 1,
-    "iet_app": 1,
+    "iet_tapp": 1,
+    "iet_tabs": 1,
     "iee_var": 1,
     "iee_id": 1,
     "iee_app": 1,
@@ -199,11 +202,17 @@ def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Int"
     return t_i
 
-
 def st_bool(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Bool"
     return t_b
 
+def st_double(ctx: TypingContext, k: Kind, d: int) -> Type:
+    "ST-Double"
+    return t_f
+
+def st_string(ctx: TypingContext, k: Kind, d: int) -> Type:
+    "ST-String"
+    return t_s
 
 def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Var"
@@ -217,6 +226,14 @@ def st_abs(ctx: TypingContext, k: Kind, d: int) -> AbstractionType:
     T = st(ctx, k, d - 1)
     U = st(ctx.with_var(x, T), k, d - 1)
     return AbstractionType(x, T, U)
+
+
+def st_where(ctx: TypingContext, k: Kind, d: int) -> RefinedType:
+    "ST-Where"
+    x = ctx.fresh_var()
+    T = st(ctx, k, d - 1)
+    e = se(ctx, BasicType('Boolean'), d - 1)
+    return RefinedType(x, T, e)
 
 
 def st_tabs(ctx: TypingContext, k: Kind, d: int) -> TypeAbstraction:
@@ -240,8 +257,11 @@ def st(ctx: TypingContext, k: Kind, d: int):
     if k == star:
         yield ("st_int", st_int)
         yield ("st_bool", st_bool)
+        yield ("st_double", st_double)
+        yield ("st_string", st_string)
         if d > 0:
             yield ("st_abs", st_abs)
+            yield ("st_where", st_where)
     if has_type_vars(ctx, k):
         yield ("st_var", st_var)
     if d > 0:
@@ -279,8 +299,8 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
 
 def is_compatible(ctx, v, T):
     try:
-        return tc.is_subtype(ctx, ctx.variables[v],
-                             T) and v not in forbidden_vars
+        # TODO: Paulo: troquei a ordem, confirmar depois
+        return v not in forbidden_vars and tc.is_subtype(ctx, ctx.variables[v], T) 
     except Exception as e:
         print(">>>", e)  #TODO
         return False
@@ -293,9 +313,9 @@ def get_variables_of_type(ctx: TypingContext, T: Type):
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
     rs = []
-    for v in ctx.type_variables:
-        if ctx.type_variables[v] == k and v not in ['Bottom', 'Void']:
-            rs.append(BasicType(v))
+    for typee, kind in ctx.type_variables:
+        if kind == k and typee not in ['Bottom', 'Void']:
+            rs.append(BasicType(typee))
     return rs
 
 
@@ -320,7 +340,6 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int):
 
 def se_int(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Int """
-
     v = round(random.gauss(0, 0.05) * 7500)
     name = "lit_{}".format(v)
     return Literal(v,
@@ -392,7 +411,6 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
-
     if T.type == t_i:
         v = tc.get_integer_where(
             ctx.with_var(T.name, T).with_uninterpreted(), T.name, T.cond)
@@ -418,6 +436,12 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
 
+'''
+def se_where(ctx: TypingContext, T: RefinedType, d: int):
+    """ SE-Where """
+    e2 = se(ctx, T.type, d - 1)
+    pass
+'''
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     """ SE-TAbs """
@@ -427,6 +451,7 @@ def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
 
 
 def se_tapp(ctx: TypingContext, T: Type, d: int):
+    """ SE-TApp """
     k = sk(d - 1)
     U = st(ctx, k, d - 1)
     t = ctx.fresh_var()  #scfv(ctx, upper=True)
@@ -500,7 +525,7 @@ def iet_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
     return RefinedType(y, Tp, ncond)
 
 
-def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
+def iet_tapp(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
             d: int):
     """ IET-app """
     T = TA.target
@@ -510,6 +535,16 @@ def iet_app(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
     return TypeApplication(Tp, Up)
 
 
+def iet_tabs(ctx: TypingContext, e: TypedNode, x: str, TB: TypeAbstraction,
+            d: int):
+    """ IET-Tabs """
+    t = TB.name
+    k = TB.kind
+    T = TB.type
+    Tp = iet(ctx.with_type_var(t, k), e, x, T, d - 1)
+    return TypeAbstraction(t, k, Tp)
+
+
 @random_chooser
 def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     """ Γ ⸠ [e/x] T ~>_{d} U """
@@ -517,10 +552,14 @@ def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
     if isinstance(T, AbstractionType):
         yield ("iet_abs", iet_abs)
     if isinstance(T, TypeApplication):
-        yield ("iet_app", iet_app)
+        yield ("iet_tapp", iet_tapp)
     if isinstance(T, RefinedType):
         yield ("iet_where", iet_where)
+    if isinstance(T, TypeAbstraction):
+        yield ("iet_tabs", iet_tabs)
 
+
+""" Inverse exp-subs in expression """
 
 def iee_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     """ IEE-Var """
@@ -720,9 +759,11 @@ def ite_tapp(ctx: TypingContext, T: type, t: str, tapp: TApplication, d: int):
 
 def ite_tabs(ctx: TypingContext, T: type, t: str, tapp: TAbstraction, d: int):
     """ ITE-TAbs """
+    u = tapp.typevar
+    k = tapp.kind
     U = tapp.body
-    Up = itt(ctx, T, t, U, d - 1)
-    return TAbstraction(tapp.typevar, tapp.kind, Up)
+    Up = itt(ctx.with_type_var(u, k), T, t, U, d - 1)
+    return TAbstraction(u, k, Up)
 
 
 @random_chooser
