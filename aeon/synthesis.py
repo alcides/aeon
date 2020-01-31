@@ -313,7 +313,7 @@ def get_variables_of_type(ctx: TypingContext, T: Type):
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
     rs = []
-    for typee, kind in ctx.type_variables:
+    for typee, kind in ctx.type_variables.items():
         if kind == k and typee not in ['Bottom', 'Void']:
             rs.append(BasicType(typee))
     return rs
