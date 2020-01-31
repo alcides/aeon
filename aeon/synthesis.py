@@ -455,8 +455,8 @@ def se_tapp(ctx: TypingContext, T: Type, d: int):
     k = sk(d - 1)
     U = st(ctx, k, d - 1)
     t = ctx.fresh_var()  #scfv(ctx, upper=True)
-    # TODO: V = itt(ctx.with_type_var(t, k), U, t, T, d - 1)
-    V = T
+    V = itt(ctx.with_type_var(t, k), U, t, T, d - 1)
+    #V = T
     e = se(ctx, TypeAbstraction(t, k, V), d - 1)
     return TApplication(e, U)
 
@@ -605,18 +605,18 @@ def iee_if(ctx: TypingContext, ex: TypedNode, x: str, i: If, d: int):
 def iee_tapp(ctx: TypingContext, ex: TypedNode, x: str, tapp: TApplication,
              d: int):
     """ IEE-TApp """
-    T = tapp.target
-    U = tapp.argument
+    e = tapp.target
+    T = tapp.argument
+    ep = iee(ctx, ex, x, e, d - 1)
     Tp = iet(ctx, ex, x, T, d - 1)
-    Up = iet(ctx, ex, x, U, d - 1)
-    return TApplication(Tp, Up)
+    return TApplication(ep, Tp)
 
 
 def iee_tabs(ctx: TypingContext, ex: TypedNode, x: str, tapp: TAbstraction,
              d: int):
     """ IEE-TAbs """
     T = tapp.body
-    Tp = iet(ctx, ex, x, T, d - 1)
+    Tp = iee(ctx, ex, x, T, d - 1)
     return TAbstraction(tapp.typevar, tapp.kind, Tp)
 
 
@@ -805,7 +805,7 @@ def ssub_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
     """ SSub-WhereR """
     x = ctx.fresh_var()
     U = ssub(ctx, T, d - 1)
-    nctx = ctx.with_var(x, U)
+    nctx = ctx.with_var(x, T)
     e = se(nctx, t_b, d - 1)
     return RefinedType(x, U, e)
     #if tc.entails(nctx, e):
@@ -816,7 +816,7 @@ def ssub_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
 def ssub_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     """ SSub-whereL """
     nctx = ctx.with_var(T.name, T.type).with_cond(T.cond)
-    return ssub(nctx, T.type, d - 1)
+    return ssup(nctx, T.type, d - 1)
 
 
 def ssub_tabs(ctx: TypingContext, T: TypeAbstraction, d: int) -> Type:
@@ -897,7 +897,7 @@ def ssup_abs(ctx: TypingContext, T: AbstractionType,
 
 def ssup_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     """ SSup-WhereL """
-    U = ssup(ctx, T.type, d - 1)
+    U = ssub(ctx, T.type, d - 1)
     return U
 
 
