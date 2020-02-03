@@ -6,6 +6,7 @@ from typing import Union, Sequence
 
 from .ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
+from typing import List
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from .typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
@@ -83,8 +84,11 @@ weights = {
     'ssup_tapp': 1,
     'ssup_tappL': 1,
     'ssup_tappR': 1,
+    # Pool of Genetic Material
+    'se_genetics': 0,
 }
 
+genetic_material = []
 
 class WeightManager(object):
     def __init__(self, **nw):
@@ -115,6 +119,16 @@ def all_disabled():
 def set_weights(w):
     for k in w:
         weights[k] = w[k]
+
+
+def set_genetics(material: List[TypedNode]):
+    weights['se_genetics'] = len(material)
+    genetic_material.extend(material)
+
+
+def reset_genetics():
+    genetic_material = []
+    weights['se_genetics'] = 0
 
 
 class Unsynthesizable(Exception):
@@ -179,8 +193,29 @@ def random_chooser(f):
     return f_alt
 
 
-""" Kind synthesis """
+""" Genetic synthesis """
+def get_valid_genetics(ctx: TypingContext, T: Type, d: int):
+    result = []
 
+    for tree in genetic_material:
+        has_valid_size = d - tree.height >= 0
+        has_valid_type = tc.is_subtype(ctx, tree.type, T) 
+
+        if has_valid_size and has_valid_type:
+            result.append(tree)
+
+    return result
+
+
+def se_genetics(ctx: TypingContext, T: Type, d: int):
+    valid_alternatives = get_valid_genetics(ctx, T, d)
+    choice = random.choice(valid_alternatives)
+    genetic_material.remove(choice)
+    weights['se_genetics'] -= 1
+    return choice
+
+
+""" Kind synthesis """
 
 @random_chooser
 def sk(d=5):
@@ -436,12 +471,6 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
 
-'''
-def se_where(ctx: TypingContext, T: RefinedType, d: int):
-    """ SE-Where """
-    e2 = se(ctx, T.type, d - 1)
-    pass
-'''
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     """ SE-TAbs """
@@ -501,6 +530,9 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_tapp", se_tapp)
         yield ("se_app", se_app) 
         yield ("se_subtype", se_subtype)
+    
+    if get_valid_genetics(ctx, T, d):
+        yield ("se_genetics", se_genetics)
 
 
 """ Expression Synthesis parameterized with x:T """

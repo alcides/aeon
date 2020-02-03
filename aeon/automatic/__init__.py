@@ -32,10 +32,13 @@ def automatic(program: Program, context: TypingContext, holed):
         genetic = GenProg(declaration, holes, eval_ctx, context, fitness_functions)
 
         # 4. Run the genetic approach and get generated expressions
-        solved_declaration = genetic.evolve()
+        synthesized_individual = genetic.evolve()
 
-        # 5. Now that the hole has been filled, run, so it is available to add to ctx
-        # run(solved_declaration, eval_ctx)
+        # 5. Fill the holes with the synthesized individual 
+        # function = 
+        
+        # 6. Now that the hole has been filled, run, so it is available to add to ctx
+        # run(function, eval_ctx)
 
     return program
 

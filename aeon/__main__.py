@@ -17,11 +17,10 @@ if __name__ == '__main__':
 
     debug = '-d' in sys.argv
     should_print_fitness = '--fitness' in sys.argv
-    seed = 0
     for arg in sys.argv:
         if arg.startswith("--seed="):
             seed = int(arg[7:])
-    random.seed(seed)
+            random.seed(seed)
     fname = sys.argv[-1]
 
     if fname.endswith(".ae2"):

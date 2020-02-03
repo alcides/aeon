@@ -6,14 +6,17 @@ from aeon.automatic.utils import replace_holes, generate_abstractions
 from aeon.automatic.individual import Individual
 
 from aeon.automatic.operators.evaluate import generate_inputs
-
+from aeon.automatic.operators.initialize import initialize
+from aeon.automatic.operators.mutation import mutate
 from copy import deepcopy
 
 from aeon.typechecker import check_program
 
+import random
+
 class GenProg(object):
 
-    MAX_DEPTH = 20
+    MAX_DEPTH = 5
     MAX_GENERATIONS = 100
     POPULATION_SIZE = 2
 
@@ -22,10 +25,9 @@ class GenProg(object):
     MUTATION_RATE = 0.1
     CROSSOVER_RATE = 0.8
 
-    AMOUNT_TESTS = 10
+    AMOUNT_TESTS = 100
 
     TIMES = 5
-    DEPTH = 5
 
     def __init__(self, declaration, holes, eval_ctx, context, fitness_functions):
         self.declaration = declaration
@@ -36,24 +38,21 @@ class GenProg(object):
 
         self.population = list()
         self.select = None
-        self.mutate = None
+        self.mutate = mutate
         self.crossover = None
+        self.initialize = initialize
         
-    def initialize(self):
-        for i in range(self.POPULATION_SIZE):
-            expression = [se(ctx, hole, self.DEPTH) for ctx, hole in self.holes]
-            self.population.append(Individual(expression))
         
     def evaluate_fitness(self):
 
         # The abstractions of the declaration
         abstractions, _ = generate_abstractions(self.declaration)
 
+        # Generate inputs and interpret them
+        inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
+
         for individual in self.population:
             
-            # Generate inputs and interpret them
-            inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
-       
             # Fill the holes and interpret the individual
             synthesized = deepcopy(self.declaration)
             replace_holes(synthesized, deepcopy(individual.synthesized))
@@ -88,20 +87,33 @@ class GenProg(object):
     def evolve(self):
         
         # Generate and evaluate the initial population
-        self.initialize()
+        self.population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
         self.evaluate_fitness()
 
         print(self.population)
 
-        # Run every generation until an individual is foudn
+        # Run every generation until an individual is found
         for i in range(self.MAX_GENERATIONS):
             
+            new_population = []
+
             # Select
 
             # Crossover
 
             # Mutate
+            #if random.random() < self.MUTATION_RATE:
+            #    self.mutate(self.type_context, self.MAX_DEPTH, individual) # TODO: set individual
 
             # Evaluate
+            #self.evaluate_fitness()
+            
+            # Sort the individuals
+            #self.population = sorted(self.population, key=lambda x : x.fitness)
 
-            pass
+            # TODO: nao gosto de breaks S:
+            #if self.population[0].fitness == 0.0:
+            #    break
+        
+        self.mutate(self.type_context, self.MAX_DEPTH, self.population[0])
+        return self.population[0]
