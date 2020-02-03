@@ -601,13 +601,13 @@ class AeonASTVisitor(AeonVisitor):
     # Refines a literal value
     def refined_value(self, v, t, label="_v"):
         operator = Var('==')
-        left = Literal(v, t)
+        left = Literal(v, t,  ensured=True)
         right = Var(label)
                       
         operator = TApplication(operator, t_delegate)
         expression = Application(Application(operator, left), right)
 
-        return RefinedType(label, t, expression)
+        return RefinedType(name=label, type=t, cond=expression)
 
     # =========================================================================
     # ---------------------------------------------

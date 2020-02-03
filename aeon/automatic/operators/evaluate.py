@@ -6,17 +6,15 @@ def generate_inputs(abstraction, context, size_tests):
     result = list()
 
     for i in range(size_tests):
+        inputs = []
         current = abstraction
 
-        inputs = []
-
         while current.body != None:
-            print(current)
-            typee = abstraction.arg_type
-            inputs.append(se(context, typee, 3))
+            typee = current.arg_type
+            inputs.append(se(context, typee, 0).value)
             current = current.body
-
-        print("INPUTS:", inputs)
+            
         result.append(tuple(inputs))
+
     return result
 

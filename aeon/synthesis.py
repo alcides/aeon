@@ -7,7 +7,7 @@ from typing import Union, Sequence
 from .ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from .typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from . import typechecker as tc
@@ -142,19 +142,20 @@ def random_chooser(f):
         #random.seed(random.randint(0, 1030))
         actual_max_tries = MAX_TRIES
         rules = ['se_bool', 'se_int', 'se_double', 'se_string', 'se_var']
+        old_values = [weights[r] for r in rules]
         if f.__name__ == 'se':
             d = args[2]
             if d < 3:
-                actual_max_tries = 1
+                actual_max_tries = MAX_TRIES
                 for r in rules:
-                    weights[r] *= 2
-
+                    weights[r] *= 100
+        #print(args, "#", kwargs, "#", list(f(*args, *kwargs)))
         valid_alternatives = list(f(*args, *kwargs))
+        
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
             raise Unsynthesizable("No valid alternatives for", f.__name__,
                                   *args)
-        old_values = [weights[r] for r in rules]
         for i in range(actual_max_tries):
             fun = pick_one_of(valid_alternatives)
             try:
@@ -164,12 +165,12 @@ def random_chooser(f):
                 return v
             except Unsynthesizable as e:
                 for r in rules:
-                    weights[r] *= 2
+                    weights[r] *= 100
                 #print("Exception", type(e), str(e))
-                pass
                 #if i % 10 == 0:
-                #    print("Exception:", e, type(e))
-                #    print("Failed once to pick using", fun)
+                #print("Exception:", e) #, type(e))
+                #print("Failed once to pick using", fun)
+                pass
             finally:
                 for i, r in enumerate(rules):
                     weights[r] = old_values[i]
@@ -321,7 +322,6 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 """ Expression Synthesis """
 
-
 def se_bool(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Bool """
     v = random.random() < 0.5
@@ -357,7 +357,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int):
 def se_double(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Double """
     v = random.gauss(0, 0.05) * 7500
-    return Literal(v, T)
+    return Literal(v, type=T)
 
 
 def se_string(ctx: TypingContext, T: BasicType, d: int):
@@ -365,7 +365,7 @@ def se_string(ctx: TypingContext, T: BasicType, d: int):
     # TODO: alterar distribuicao do tamanho das strings
     length = round(abs(random.gauss(0, 0.1) * 10))
     v = ''.join(random.choice(string.ascii_letters) for i in range(length))
-    return Literal(v, T)
+    return Literal(v, type=T)
 
 
 def se_if(ctx: TypingContext, T: Type, d: int):
@@ -411,6 +411,15 @@ def se_app(ctx: TypingContext, T: Type, d: int):
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
+    for i in range(MAX_TRIES_WHERE):
+        e2 = se(ctx, T.type, d - 1)
+        try:
+            tc.check_type(ctx, e2, T)
+            #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
+            return e2  #.with_type(T)
+        except:
+            continue
+
     if T.type == t_i:
         v = tc.get_integer_where(
             ctx.with_var(T.name, T).with_uninterpreted(), T.name, T.cond)
@@ -423,16 +432,7 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
                             Application(TApplication(Var("=="), t_i),
                                         Var(name)),
                             Literal(value=v, type=t_i, ensured=True))))
-
-    for _ in range(MAX_TRIES_WHERE):
-        e2 = se(ctx, T.type, d - 1)
-        try:
-            tc.check_type(ctx, e2, T)
-            #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
-            return e2  #.with_type(T)
-        except:
-            continue
-
+    
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
 
@@ -465,6 +465,15 @@ def se_subtype(ctx: TypingContext, T: Type, d: int):
     U = ssub(ctx, T, d - 1)
     return se(ctx, U, d - 1)
 
+def has_applications_return(ctx, T: Type):
+    for name, typee in ctx.variables.items():
+        new_ctx = ctx.copy()
+        while isinstance(typee, AbstractionType) :
+            new_ctx.add_var(typee.arg_name, typee.arg_type)
+            if tc.is_subtype(new_ctx, typee, T) or tc.is_subtype(new_ctx, T, typee.arg_type): # TODO: CHECK
+                return True
+            typee = typee.return_type
+    return False
 
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
@@ -480,7 +489,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_double", se_double)
     if isinstance(T, RefinedType):
         yield ("se_where", se_where)
-
+    
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
@@ -490,7 +499,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
         yield ("se_tapp", se_tapp)
-        yield ("se_app", se_app)
+        yield ("se_app", se_app) 
         yield ("se_subtype", se_subtype)
 
 

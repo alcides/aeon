@@ -287,9 +287,10 @@ def zed_verify_entailment(ctx, cond):
     #s.add(z3.And(z3_context, z3.Implies(z3_context, z3_cond)))
     s.add(z3.And(z3_context, z3.Not(z3_cond)))
     #print("zed_ver_entails", cond, "..", s)
-
+    
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
+        
         #print("R:", r)
         if r == z3.unsat:
             return True

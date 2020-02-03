@@ -15,14 +15,14 @@ class GenProg(object):
 
     MAX_DEPTH = 20
     MAX_GENERATIONS = 100
-    POPULATION_SIZE = 10
+    POPULATION_SIZE = 2
 
     ELITISM = 1
     NOVELTY = 10
     MUTATION_RATE = 0.1
     CROSSOVER_RATE = 0.8
 
-    AMOUNT_TESTS = 100
+    AMOUNT_TESTS = 10
 
     TIMES = 5
     DEPTH = 5
@@ -41,9 +41,8 @@ class GenProg(object):
         
     def initialize(self):
         for i in range(self.POPULATION_SIZE):
-            synthesized = [se(ctx, hole, self.DEPTH) for ctx, hole in self.holes]
-            self.population.append(synthesized)
-            print("Generated: ", declaration)
+            expression = [se(ctx, hole, self.DEPTH) for ctx, hole in self.holes]
+            self.population.append(Individual(expression))
         
     def evaluate_fitness(self):
 
@@ -51,16 +50,39 @@ class GenProg(object):
         abstractions, _ = generate_abstractions(self.declaration)
 
         for individual in self.population:
-            # 1. Interpret the individual
-            interpreted = run(individual.synthesized, self.eval_ctx)
+            
+            # Generate inputs and interpret them
+            inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
+       
+            # Fill the holes and interpret the individual
+            synthesized = deepcopy(self.declaration)
+            replace_holes(synthesized, deepcopy(individual.synthesized))
 
-            # 2. Generate inputs and interpret them
-            #inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
-            #inputs = []
+            # Interpret the individual
+            interpreted = run(synthesized, self.eval_ctx)
+            
+            # Get the output from running the function
+            tests = []
+            for function_input in inputs:
+                res = interpreted
+                for param in function_input:
+                    res = res(param)
+                tests.append(function_input + (res,))
 
-            # 3. Get the output from running the function
-            # 4. Run the fitness functions and obtain results
-            pass
+            # Codigo feio, depois melhoro
+            # Run the fitness functions and obtain results
+            individual_fitness = list()
+            for fitness in self.fitness_functions:
+                total = 0
+                for test in tests:
+                    result = fitness
+                    for param in test:
+                        result = result(param)
+                    total += result
+                individual_fitness.append(total)
+            
+            # Add the fitness to the individual
+            individual.add_fitness(individual_fitness)
 
 
     def evolve(self):
@@ -68,6 +90,8 @@ class GenProg(object):
         # Generate and evaluate the initial population
         self.initialize()
         self.evaluate_fitness()
+
+        print(self.population)
 
         # Run every generation until an individual is foudn
         for i in range(self.MAX_GENERATIONS):
