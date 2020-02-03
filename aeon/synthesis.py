@@ -814,19 +814,19 @@ def ssub_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
     """ SSub-WhereR """
     x = ctx.fresh_var()
     U = ssub(ctx, T, d - 1)
-    nctx = ctx.with_var(x, T)
+    nctx = ctx.with_var(x, U)
     e = se(nctx, t_b, d - 1)
     return RefinedType(x, U, e)
-    #if tc.entails(nctx, e):
-    #    return RefinedType(x, U, e)
-    #raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
 
 
 def ssub_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     """ SSub-whereL """
-    nctx = ctx.with_var(T.name, T.type).with_cond(T.cond)
-    return ssup(nctx, T.type, d - 1)
-
+    U = ssub(ctx, T.type, d - 1)
+    nctx = ctx.with_var(T.name, U)
+    if tc.entails(nctx, T.cond):
+        return U
+    raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
+    
 
 def ssub_tabs(ctx: TypingContext, T: TypeAbstraction, d: int) -> Type:
     """ SSub-TAbs """
@@ -906,7 +906,7 @@ def ssup_abs(ctx: TypingContext, T: AbstractionType,
 
 def ssup_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     """ SSup-WhereL """
-    U = ssub(ctx, T.type, d - 1)
+    U = ssup(ctx, T.type, d - 1)
     return U
 
 
@@ -914,8 +914,9 @@ def ssup_whereR(ctx: TypingContext, T: Type, d: int) -> RefinedType:
     """ SSup-WhereR """
     x = ctx.fresh_var()
     U = ssup(ctx, T, d - 1)
-    e = se(ctx.with_var(x, U), t_b, d - 1)
-    if tc.entails(ctx, e):
+    newCtx = ctx.with_var(x, T)
+    e = se(newCtx, t_b, d - 1)
+    if tc.entails(newCtx, e):
         return RefinedType(x, U, e)
     raise Unsynthesizable("Boolean expression did not end up to being true")
 
