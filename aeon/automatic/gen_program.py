@@ -36,14 +36,14 @@ class GenProg(object):
         self.type_context = context
         self.fitness_functions = fitness_functions
 
-        self.population = list()
         self.select = None
+        self.evaluate = None
         self.mutate = mutate
         self.crossover = None
         self.initialize = initialize
         
         
-    def evaluate_fitness(self):
+    def evaluate_fitness(self, population):
 
         # The abstractions of the declaration
         abstractions, _ = generate_abstractions(self.declaration)
@@ -51,7 +51,7 @@ class GenProg(object):
         # Generate inputs and interpret them
         inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
 
-        for individual in self.population:
+        for individual in population:
             
             # Fill the holes and interpret the individual
             synthesized = deepcopy(self.declaration)
@@ -87,33 +87,45 @@ class GenProg(object):
     def evolve(self):
         
         # Generate and evaluate the initial population
-        self.population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
-        self.evaluate_fitness()
+        population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
+        self.evaluate_fitness(population)
 
-        print(self.population)
+        # print(population)
 
         # Run every generation until an individual is found
-        for i in range(self.MAX_GENERATIONS):
-            
+        for _ in range(self.MAX_GENERATIONS):
+            '''
             new_population = []
-
+            
             # Select
+            new_population = self.select(...)
 
-            # Crossover
+            for _ in range(self.POPULATION_SIZE):
+                # Crossover
+                parent1 = select1
+                parent2 = select2
+                individual = self.crossover(self.type_context, self.MAX_DEPTH, parent1, parent2)
+                
+                # Mutate
+                if random.random() < self.MUTATION_RATE:
+                    individual = self.mutate(self.type_context, self.MAX_DEPTH, individual) # TODO: set individual
 
-            # Mutate
-            #if random.random() < self.MUTATION_RATE:
-            #    self.mutate(self.type_context, self.MAX_DEPTH, individual) # TODO: set individual
-
+                new_population.append(individual)
+            
             # Evaluate
-            #self.evaluate_fitness()
+            self.evaluate_fitness(new_population)
             
             # Sort the individuals
-            #self.population = sorted(self.population, key=lambda x : x.fitness)
+            population = sorted(self.population, key=lambda x : x.fitness)
 
-            # TODO: nao gosto de breaks S:
-            #if self.population[0].fitness == 0.0:
-            #    break
+            population = new_population
+
+            # TODO: nao gosto de breaks, == cuidado, erro virgula
+            if population[0].fitness == 0.0:
+                break
+            '''
+            pass
         
-        self.mutate(self.type_context, self.MAX_DEPTH, self.population[0])
-        return self.population[0]
+        mutation = self.mutate(self.type_context, self.MAX_DEPTH, population[0])
+        print(mutation)
+        return population[0]

@@ -181,8 +181,8 @@ class Definition(Node):
                  return_type: Optional[Type] = None):
         self.name = name
         self.type = type
-        self.return_type = return_type
         self.body = body
+        self.return_type = return_type
 
     def __str__(self):
         return "{} : {} = {}".format(self.name, self.type, self.body)

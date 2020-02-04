@@ -8,15 +8,19 @@ from aeon.synthesis import se, set_genetics, reset_genetics
 
 def mutate(context: TypingContext, depth: int, individual: Individual):
 
+
     # Choose a hole to be mutated
     hole = random.choice(individual.synthesized)
-    print("\nChose the hole:", hole, "\n\n")
+    
+    # Annotate the tree with height and size useful for prob. control
+    calculate_height_depth(hole, 0)
+
     # Choose what parent node will have one of its son mutated, typee is son type
-    parent_node, son_node = choose_node(hole, context.copy())
-    print("The parent node and son nodes are\n", parent_node, "\n", son_node, "\n\n")
+    context = context.copy()
+    parent_node, son_node = choose_node(hole, context)
+
     # Split the remaining tree into subtrees array, filter then and set their height
-    subtrees = split_trees(son_node, 0)
-    print("All the subtrees are", subtrees, "\n\n") 
+    subtrees = split_trees(son_node)
     subtrees = filter_trees(subtrees, context)
 
     # Add the genetic material to the synthesis procedure
@@ -25,72 +29,107 @@ def mutate(context: TypingContext, depth: int, individual: Individual):
     mutation = se(context, son_node.type, depth)
     reset_genetics()
 
-    print("Generated the mutation\n", mutation, "\n\n")
-
-    # Replace the dead node
+    # Replace the previous code. Careful: This changes the tree
     mutate = replace_son(parent_node, mutation, son_node)
-
-    print("The final mutant is\n", mutate, '\n\n')
 
     return mutate
 
-# Returns the parent and its selected son for mutation
-# TODO: super naive implementation, not all nodes have the same odd of being chosen
-def choose_node(node, ctx: TypingContext):
-
-    keep_recursion = None
+def calculate_height_depth(node: TypedNode, height: int):
+    node.height = height
 
     if isinstance(node, Literal) or isinstance(node, Var):
-        choices = [node]
-    elif isinstance(node, If):
-        choices = [node, node.cond, node.then, node.otherwise, keep_recursion]
-    elif isinstance(node, Application):
-        choices = [node, node.target, node.argument, keep_recursion]
-    elif isinstance(node, Abstraction):
-        choices = [node, node.body, keep_recursion]
-        ctx = ctx.add_var(node.arg_name, node.arg_type)
-    elif isinstance(node, TAbstraction):
-        choices = [node, node.body, keep_recursion]
-    elif isinstance(node, TApplication):
-        choices = [node. node.target, keep_recursion]
+        node.size = 1
     
+    elif isinstance(node, If):
+        cond = calculate_height_depth(node.cond, height + 1)
+        then = calculate_height_depth(node.then, height + 1)
+        otherwise = calculate_height_depth(node.otherwise, height + 1)
+        node.size = cond + then + otherwise + 1
+    
+    elif isinstance(node, Application):
+        target = calculate_height_depth(node.target, height + 1)
+        argument = calculate_height_depth(node.argument, height + 1)
+        node.size = target + argument + 1
+    
+    elif isinstance(node, Abstraction) or isinstance(node, TAbstraction):
+        body = calculate_height_depth(node.body, height + 1)
+        node.size = body + 1
+    
+    elif isinstance(node, TApplication):
+        target = calculate_height_depth(node.target, height + 1)
+        node.size = target + 1
+    
+    else:
+        raise Exception("Unkown node when calculating height and size", node)
+
+    return node.size
+
+def choose_node(node, ctx: TypingContext):
+    
+    if isinstance(node, Literal) or isinstance(node, Var):
+        choices = [node]
+    
+    elif isinstance(node, If):
+        cond = node.cond
+        then = node.then
+        other = node.otherwise
+        choices = [node] + [cond] * cond.size + [then] * then.size +\
+                                                [other] * other.size
+    elif isinstance(node, Application):
+        target = node.target
+        argument = node.argument
+        choices = [node] + [target] * target.size + [argument] * argument.size
+
+    elif isinstance(node, Abstraction):
+        body = node.body
+        choices = [node] + [body] * body.size
+        ctx.add_var(node.arg_name, node.arg_type)
+
+    elif isinstance(node, TAbstraction):
+        body = node.body
+        choices = [node] + [body] * body.size
+    
+    elif isinstance(node, TApplication):
+        target = node.target
+        choices = [node] + [target] * node.target
+    
+    else:
+        raise Exception("Unknown node when choosing", node)
+
     choice = random.choice(choices)
 
-    if not choice:
-        choice = choose_node(random.choice(choices[:-1]), ctx)[1]
+    if choice != node:
+        choice = choose_node(choice, ctx)[1]
     
-    return (node, choice)
+    return node, choice
 
-def split_trees(node, height: int):
-    
-    node.height = height
-    height += 1
+def split_trees(node):
 
     if isinstance(node, Literal) or isinstance(node, Var):
         return [node]
 
     elif isinstance(node, If):
-        cond = split_trees(node.cond, height)
-        then = split_trees(node.then, height)
-        other = split_trees(node.otherwise, height)
+        cond = split_trees(node.cond)
+        then = split_trees(node.then)
+        other = split_trees(node.otherwise)
         return [node] + cond + then + other
     
     elif isinstance(node, Application):
-        target = split_trees(node.target, height)
-        argument = split_trees(node.argument, height)
+        target = split_trees(node.target)
+        argument = split_trees(node.argument)
         return [node] + target + argument
     
     elif isinstance(node, Abstraction):
-        return [node] + split_trees(node.body, height)
+        return [node] + split_trees(node.body)
     
     elif isinstance(node, TAbstraction):
-        return [node] + split_trees(node.body, height)
+        return [node] + split_trees(node.body)
     
     elif isinstance(node, TApplication):
-        return [node] + split_trees(node.target, height)
+        return [node] + split_trees(node.target)
     
     else:
-        raise Exception("Unknown node when splitting trees", e)
+        raise Exception("Unknown node when splitting trees", node)
     
     return None # Never happens
 
@@ -120,7 +159,7 @@ def filter_trees(trees, context):
             return filter_tree(node.target, ctx)
         
         else:
-            raise Exception("Unknown node when filtering", e)
+            raise Exception("Unknown node when filtering", node)
 
         return None # Never happens
 
@@ -128,7 +167,11 @@ def filter_trees(trees, context):
     
 # Replaces the nodes' son with the mutation
 def replace_son(node, mutation, son_node):
-    if isinstance(node, Literal) or isinstance(node, Var):
+
+    if node == son_node:
+        node = mutation
+
+    elif isinstance(node, Literal) or isinstance(node, Var):
         node = mutation
 
     elif isinstance(node, If):
@@ -148,10 +191,10 @@ def replace_son(node, mutation, son_node):
     elif isinstance(node, Abstraction) or isinstance(node, TAbstraction):
         node.body = mutation
     
-    elif isinstance(node. TApplication):
+    elif isinstance(node, TApplication):
         node.target = mutation
     
     else:
-        raise Exception("Unknown node when replacing", e)
+        raise Exception("Unknown node when replacing", node)
     
     return node
