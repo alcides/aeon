@@ -4,13 +4,15 @@ from .libraries.stdlib import get_builtin_variables
 
 from multipledispatch import dispatch
 
+from copy import deepcopy
+
 class EvaluationContext(object):
     def __init__(self):
         # Builds the context with the native functions
         self.ctx = {}
         for name, _, value in get_builtin_variables():
             self.ctx[name] = value
-
+    
 def run(node, ctx=EvaluationContext()):
     return evaluate(ctx.ctx, node)
 

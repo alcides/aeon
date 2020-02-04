@@ -12,7 +12,6 @@ from aeon.automatic.conversor import interpret_expressions
 
 from aeon.automatic.utils import has_holes, generate_expressions, generate_abstractions, filter_dependent_types
 
-from aeon.synthesis import se
 from aeon.types import TypingContext, BasicType
 
 
@@ -36,7 +35,7 @@ def automatic(program: Program, context: TypingContext, holed):
 
         # 5. Fill the holes with the synthesized individual 
         # function = 
-        
+
         # 6. Now that the hole has been filled, run, so it is available to add to ctx
         # run(function, eval_ctx)
 
@@ -71,13 +70,10 @@ def generate_fitness_functions(eval_ctx: EvaluationContext, definition: Definiti
         # 2. Filter expressions to obtain the dependent types only
         and_expressions = filter_dependent_types(eval_ctx, and_expressions)
 
-        # 3. Get function parameters
-        abstractions = generate_abstractions(definition)
-        
-        # 4. Convert each expression
+        # 3. Convert each expression
         and_expressions = convert(and_expressions)
 
-        # 5. Translate the ast into fitness functions
-        fitness_functions = interpret_expressions(eval_ctx, abstractions, and_expressions)
+        # 4. Translate the ast into fitness functions
+        fitness_functions = interpret_expressions(eval_ctx, definition, and_expressions)
 
     return fitness_functions

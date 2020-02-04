@@ -154,7 +154,7 @@ def replace_holes(node, holes):
         else:
             replace_holes(node.body, holes)
     elif isinstance(node, Definition):
-        if isinstance(node, Hole):
+        if isinstance(node.body, Hole):
             node.body = holes.pop(-1)
         else:
             replace_holes(node.body, holes)

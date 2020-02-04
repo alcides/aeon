@@ -11,6 +11,7 @@ from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType,
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from .typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
+from .typechecker.typing import TypeCheckingError
 from . import typechecker as tc
 
 MAX_TRIES = 10
@@ -34,7 +35,7 @@ weights = {
     "se_bool": 1,
     "se_double": 1,
     "se_string": 1,
-    "se_var": 1,
+    "se_var": 2,
     "se_where": 1,
     "se_abs": 1,
     "se_app": 20,
@@ -534,6 +535,14 @@ def se(ctx: TypingContext, T: Type, d: int):
     if get_valid_genetics(ctx, T, d):
         yield ("se_genetics", se_genetics)
 
+
+def se_safe(ctx: TypingContext, T: Type, d: int):
+    try:
+        return se(ctx, T, d)
+    except TypeCheckingError:
+        print("Se-safe in action...")
+        # Try until we get one that works
+        return se_safe(ctx, T, d)
 
 """ Expression Synthesis parameterized with x:T """
 

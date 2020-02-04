@@ -3,9 +3,10 @@ from functools import total_ordering
 # Represents an individual with fitness
 @total_ordering
 class Individual(object):
-    def __init__(self, synthesized=None):
+    def __init__(self, synthesized, contexts):
         self.fitness = list()
         self.synthesized = synthesized
+        self.contexts = contexts
     
     def add_fitness(self, fitness):
         self.fitness = fitness
@@ -32,4 +33,4 @@ class Individual(object):
         return str(self)
 
     def __str__(self):
-        return "{}\t:\t{}".format(self.fitness, self.synthesized)
+        return "{}:{}".format(self.fitness, self.synthesized)

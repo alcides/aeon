@@ -465,7 +465,7 @@ class AeonASTVisitor(AeonVisitor):
                 expression.value = not expression.value
                 expression.type.cond.argument.value = not expression.type.cond.argument.value
             else:
-                expression = Application(operation, expression)
+                expression = Application(operator, expression)
         return expression
 
     # cond ? then : otherwise

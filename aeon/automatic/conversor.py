@@ -4,6 +4,8 @@ from aeon.automatic.utils import generate_abstractions
 from aeon.types import t_i, t_f
 from aeon.ast import Var, Literal, Abstraction, Application, If, TAbstraction, TApplication
 
+from copy import deepcopy
+
 # Given a list of expressions, convert them into numeric discrete values
 def convert(and_expressions):
     return [apply_conversion(condition) for condition in and_expressions]
@@ -72,12 +74,12 @@ def abs_conversion(condition):
 # a != b ~> 1 - norm(|a - b|)
 def neg_abs_conversion(condition):
     converted = abs_conversion(condition)
-    return Application(Application(Var('-'), Literal(1, t_i)), converted)
+    return Application(Application(Var('-'), Literal(1.0, t_f)), converted)
 
 
 # condition ~> condition ? 0 : abs_conversion(condition)
 def if_conversion(condition):
-    then = Literal(0, t_i)
+    then = Literal(0.0, t_f)
     otherwise = abs_conversion(condition)
     return If(condition, then, otherwise)
 
@@ -86,14 +88,14 @@ def if_conversion(condition):
 def greater_than_conversion(condition):
     result = Application(Var('-'), condition.argument)
     result = Application(result, condition.target.argument)
-    result = Application(Application(Var('+'), result), Literal(1, t_i))
+    result = Application(Application(Var('+'), result), Literal(1.0, t_f))
     return normalize(relu(result))
 
 # a < b ~> norm(relu(x - y + offset))
 def less_than_conversion(condition):
     result = Application(Var('-'), condition.target.argument)
     result = Application(result, condition.argument)
-    result = Application(Application(Var('+'), result), Literal(1, t_i))
+    result = Application(Application(Var('+'), result), Literal(1.0, t_f))
     return normalize(relu(result))
 
 # a >= b ~> norm(ReLU(a - b))
@@ -133,32 +135,30 @@ def implie_conversion(condition):
 # !condition ~> 1 - convert(condition)
 def not_conversion(condition):
     converted = apply_conversion(condition.argument)
-    return Application(Application(Var('-'), Literal(1, t_i)), converted)
+    return Application(Application(Var('-'), Literal(1.0, t_f)), converted)
 
 
 # x, f(x) ~> f(x) ? 0 : 1
 def boolean_conversion(condition):
-    then = Literal(0, t_i)
-    otherwise = Literal(1, t_i)
-    return If(cond, then, otherwise)
+    then = Literal(0.0, t_f)
+    otherwise = Literal(1.0, t_f)
+    return If(condition, then, otherwise)
 
 
 # ========================================== Auxiliary functions for conversion
 # normalize
 def normalize(value):
     norm = Application(Application(Var('pow'), Literal(0.99, t_f)), value)
-    return Application(Application(Var('-'), Literal(1, t_i)), norm)
+    return Application(Application(Var('-'), Literal(1.0, t_f)), norm)
 
 # ReLU
 def relu(condition):
-    return Application(Application(Var('max'), Literal(0, t_i)), condition)
+    return Application(Application(Var('max'), Literal(0.0, t_f)), condition)
 
 
 # =============================================================================
 # ================================================ Fitness functions conversion
-def interpret_expressions(eval_ctx, abstractions, expressions):
-
-    abstraction, last_abstraction = abstractions
+def interpret_expressions(eval_ctx, definition, expressions):
 
     optimizers = {
         '@maximize': maximize,
@@ -175,6 +175,9 @@ def interpret_expressions(eval_ctx, abstractions, expressions):
             function = optimizers[condition.target.name]
             result.append(function(condition.argument))
         else:
+            # Get function parameters
+            abstraction, last_abstraction = generate_abstractions(definition) 
+        
             # Englobe the expressions with the parameters and return
             last_abstraction.body = condition
             function = run(abstraction, eval_ctx)

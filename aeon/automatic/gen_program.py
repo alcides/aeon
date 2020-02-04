@@ -1,5 +1,5 @@
-from aeon.synthesis import se
 from aeon.types import TypingContext, BasicType
+from aeon.typechecker import check_program
 
 from aeon.interpreter import run
 from aeon.automatic.utils import replace_holes, generate_abstractions
@@ -7,27 +7,24 @@ from aeon.automatic.individual import Individual
 
 from aeon.automatic.operators.evaluate import generate_inputs
 from aeon.automatic.operators.initialize import initialize
+from aeon.automatic.operators.crossover import crossover
+from aeon.automatic.operators.selection import select
 from aeon.automatic.operators.mutation import mutate
-from copy import deepcopy
-
-from aeon.typechecker import check_program
 
 import random
+from copy import deepcopy
 
 class GenProg(object):
 
     MAX_DEPTH = 5
-    MAX_GENERATIONS = 100
-    POPULATION_SIZE = 2
+    MAX_GENERATIONS = 15
+    POPULATION_SIZE = 10
 
     ELITISM = 1
     NOVELTY = 10
     MUTATION_RATE = 0.1
-    CROSSOVER_RATE = 0.8
 
     AMOUNT_TESTS = 100
-
-    TIMES = 5
 
     def __init__(self, declaration, holes, eval_ctx, context, fitness_functions):
         self.declaration = declaration
@@ -36,79 +33,82 @@ class GenProg(object):
         self.type_context = context
         self.fitness_functions = fitness_functions
 
-        self.select = None
+        self.select = select
         self.evaluate = None
         self.mutate = mutate
-        self.crossover = None
+        self.crossover = crossover
         self.initialize = initialize
         
         
     def evaluate_fitness(self, population):
-
+        
         # The abstractions of the declaration
         abstractions, _ = generate_abstractions(self.declaration)
 
         # Generate inputs and interpret them
-        inputs = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
+        tests = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
 
         for individual in population:
             
             # Fill the holes and interpret the individual
             synthesized = deepcopy(self.declaration)
             replace_holes(synthesized, deepcopy(individual.synthesized))
-
+            
             # Interpret the individual
             interpreted = run(synthesized, self.eval_ctx)
             
             # Get the output from running the function
-            tests = []
-            for function_input in inputs:
+            out_tests = []
+            for test in tests:
                 res = interpreted
-                for param in function_input:
+                for param in test:
                     res = res(param)
-                tests.append(function_input + (res,))
-
+                out_tests.append(test + (res,))
+                
             # Codigo feio, depois melhoro
             # Run the fitness functions and obtain results
             individual_fitness = list()
             for fitness in self.fitness_functions:
                 total = 0
-                for test in tests:
+                for test in out_tests:
                     result = fitness
                     for param in test:
                         result = result(param)
                     total += result
                 individual_fitness.append(total)
-            
+                
             # Add the fitness to the individual
             individual.add_fitness(individual_fitness)
 
 
     def evolve(self):
         
+        amount_fitness_functions = len(self.fitness_functions)
+        
         # Generate and evaluate the initial population
+        print("Generation 0")
         population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
         self.evaluate_fitness(population)
 
-        # print(population)
-
         # Run every generation until an individual is found
-        for _ in range(self.MAX_GENERATIONS):
-            '''
-            new_population = []
+        for gen in range(self.MAX_GENERATIONS):
             
-            # Select
-            new_population = self.select(...)
+            print("\nGeneration", gen + 1)
+
+            # Select the best individuals from the population
+            new_population = []
 
             for _ in range(self.POPULATION_SIZE):
                 # Crossover
-                parent1 = select1
-                parent2 = select2
-                individual = self.crossover(self.type_context, self.MAX_DEPTH, parent1, parent2)
-                
+                parent1 = self.select(population, amount_fitness_functions)
+                parent2 = self.select(population, amount_fitness_functions)
+                individual = self.crossover(self.MAX_DEPTH, parent1, parent2)
+                print("mutated")
                 # Mutate
                 if random.random() < self.MUTATION_RATE:
-                    individual = self.mutate(self.type_context, self.MAX_DEPTH, individual) # TODO: set individual
+                    self.mutate(self.MAX_DEPTH, individual)
+
+                print(individual.synthesized)
 
                 new_population.append(individual)
             
@@ -116,16 +116,14 @@ class GenProg(object):
             self.evaluate_fitness(new_population)
             
             # Sort the individuals
-            population = sorted(self.population, key=lambda x : x.fitness)
+            new_population = sorted(new_population, key=lambda x : x.fitness)
 
             population = new_population
 
             # TODO: nao gosto de breaks, == cuidado, erro virgula
             if population[0].fitness == 0.0:
-                break
-            '''
-            pass
-        
-        mutation = self.mutate(self.type_context, self.MAX_DEPTH, population[0])
-        print(mutation)
+                break 
+            
+            print("Best fitness at generation", i, "is", population[0].fitness)
+            
         return population[0]

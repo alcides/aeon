@@ -4,19 +4,19 @@ from aeon.automatic.individual import Individual
 
 from aeon.types import TypingContext
 from aeon.ast import *
-from aeon.synthesis import se, set_genetics, reset_genetics
+from aeon.synthesis import se_safe, set_genetics, reset_genetics
 
-def mutate(context: TypingContext, depth: int, individual: Individual):
-
+def mutate(depth: int, individual: Individual):
 
     # Choose a hole to be mutated
-    hole = random.choice(individual.synthesized)
+    chosen_hole = random.choice(range(len(individual.synthesized)))
+    hole = individual.synthesized[chosen_hole]
     
     # Annotate the tree with height and size useful for prob. control
     calculate_height_depth(hole, 0)
 
     # Choose what parent node will have one of its son mutated, typee is son type
-    context = context.copy()
+    context = individual.contexts[chosen_hole].copy()
     parent_node, son_node = choose_node(hole, context)
 
     # Split the remaining tree into subtrees array, filter then and set their height
@@ -26,13 +26,15 @@ def mutate(context: TypingContext, depth: int, individual: Individual):
     # Add the genetic material to the synthesis procedure
     # Synthesize the mutation
     set_genetics(subtrees)
-    mutation = se(context, son_node.type, depth)
+    mutation = se_safe(context, son_node.type, depth)
     reset_genetics()
 
     # Replace the previous code. Careful: This changes the tree
-    mutate = replace_son(parent_node, mutation, son_node)
+    mutated = replace_son(parent_node, mutation, son_node)
 
-    return mutate
+    # Set the new mutation
+    individual.synthesized[chosen_hole] = mutated
+
 
 def calculate_height_depth(node: TypedNode, height: int):
     node.height = height
@@ -140,7 +142,7 @@ def filter_trees(trees, context):
             return True
         
         elif isinstance(node, Var):
-            return node.name in context.variables
+            return node.name in ctx.variables
         
         elif isinstance(node, If):
             return filter_tree(node.cond, ctx) and filter_tree(node.then, ctx) and\
