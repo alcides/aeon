@@ -112,6 +112,8 @@ class Kind(object):
     def __eq__(self, o):
         if type(o) != Kind:
             return False
+        if type(o) == AnyKind:
+            return True
         if self.is_star() and o.is_star():
             return True
         return self.k1 == o.k1 and self.k2 == o.k2
@@ -126,6 +128,9 @@ class Kind(object):
 
 
 class AnyKind(Kind):
+    def __init__(self):
+        pass
+
     def __eq__(self, o):
         return type(o) == Kind
 
