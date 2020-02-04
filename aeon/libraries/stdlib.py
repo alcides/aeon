@@ -61,6 +61,7 @@ initial_uninterpreted_functions = {
 
 initial_context = {
     'native': (ty2("Bottom"), None),
+    'uninterpreted': (ty2("Bottom"), None),
     '==': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtEq a) b))}"
     ), lambda x: lambda y: x == y),
@@ -161,9 +162,11 @@ string_context = {
     'string_length': (ty2("(x:String) -> Integer"), lambda x: len(x)),
 }
 
+
 def r_print(x):
     print(x)
     x
+
 
 io_context = {
     'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),

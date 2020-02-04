@@ -99,11 +99,12 @@ def resolveImports(path, program):
     from ..libraries.stdlib import add_function
     for node in program.declarations:
         if isinstance(node, Import):
-
             # Get the os path for the ae file
-            importPath = node.name + '.ae'
-            joinedPath = os.path.join(os.path.dirname(path), importPath)
-            realPath = os.path.normpath(joinedPath)
+
+            importPath = node.name
+            absolutePath = os.path.normpath(
+                os.path.join(os.getcwd(), os.path.dirname(path), importPath))
+            realPath = absolutePath + ".ae"
 
             # It is a regular .ae import
             if os.path.exists(realPath):
@@ -115,12 +116,14 @@ def resolveImports(path, program):
                                                 importedProgram.declarations))
             # It is a .py import
             else:
+                moduleName = absolutePath.split(os.path.sep)[-1]
+                modulePath = absolutePath[:-len(moduleName)]
+                sys.path.append(modulePath)
+
                 importedProgram = Program([])
-                realPath = realPath.replace('.ae', '')
-                realPath = realPath.replace('/', '.')
-                # TODO: realPath not working?
                 natives = importNative(
-                    realPath, '*' if node.function is None else node.function)
+                    moduleName,
+                    '*' if node.function is None else node.function)
 
                 for native in natives.keys():
                     aetype, function = natives[native]
@@ -130,6 +133,7 @@ def resolveImports(path, program):
                     else:
                         # TODO: should add to the context the class itself?
                         importedProgram.declarations.append(aetype)
+                        print(aetype, "aetype")
 
             result = importedProgram.declarations + result
         else:

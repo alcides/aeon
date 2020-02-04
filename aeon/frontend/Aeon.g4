@@ -19,7 +19,7 @@ regular_import
     ;
 
 function_import
-    : IMPORT functionName=IDENTIFIER FROM path=import_path SEMICOLON 
+    : IMPORT functionName=IDENTIFIER FROM path=import_path SEMICOLON
     ;
 
 import_path
@@ -36,7 +36,7 @@ typee_alias
 // ----------------------------- TypeeDeclaration -----------------------------
 typee_declaration
     : regular_typee_declaration
-    | parameterized_typee_declaration 
+    | parameterized_typee_declaration
     ;
 
 regular_typee_declaration
@@ -62,7 +62,7 @@ typee
     ;
 
 typee_refined
-    : LBRACE typeeRefined=typee PIPE condition=expression RBRACE 
+    : LBRACE typeeRefined=typee PIPE condition=expression RBRACE
     ;
 
 typee_abstraction_type
@@ -81,7 +81,7 @@ typee_basic_type
 typee_type_abstract
     : abstractType=TYPEE_IDENTIFIER LT abstractParams=typee_abstract_parameters GT
     ;
-    
+
 typee_abstract_parameters
     : abstractParam=typee (COMMA restAbstractParams=typee)*
     ;
@@ -89,7 +89,7 @@ typee_abstract_parameters
 // ----------------------------------------------------------------------------
 // --------------------------------- Function ---------------------------------
 function
-    : name=function_identifier COLON LPARENS params=function_parameters? RPARENS RARROW returnType=typee where=function_where? body=function_body 
+    : name=function_identifier COLON LPARENS params=function_parameters? RPARENS RARROW returnType=typee where=function_where? body=function_body
     ;
 
 function_identifier
@@ -108,6 +108,7 @@ function_where
 // ------------------------------ Function Body -------------------------------
 function_body
     : ASSIGN native=NATIVE SEMICOLON                    # NativeBody
+    | ASSIGN uninterpreted=UNINTERPRETED SEMICOLON      # UninterpretedBody
     | LBRACE (statement SEMICOLON)* RBRACE              # RegularBody
     ;
 
@@ -215,10 +216,11 @@ RBRACKET: ']'   ;
 TYPEE: 'type'   ;
 AS: 'as'        ;
 
-// Dependent, Refined and Native 
+// Dependent, Refined and Native
 AND: 'and'          ;
 WHERE: 'where'      ;
 NATIVE: 'native'    ;
+UNINTERPRETED: 'uninterpreted'    ;
 ABSTRACTION: '\\'   ;
 
 // Special Characters

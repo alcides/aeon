@@ -15,6 +15,7 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
+
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
         nctx = ctx.with_var(T.name, T.type)
@@ -59,6 +60,7 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
 
 def t_var(ctx: TypingContext, e: Var) -> Type:
     if e.name not in ctx.variables:
+        print(ctx.variables)
         raise TypeCheckingError("Variable {} not in context".format(e))
     return ctx.variables[e.name]
 
@@ -110,7 +112,9 @@ def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
 
+
 holes = []
+
 
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
     holes.append((ctx.copy(), e.type))
@@ -157,21 +161,24 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 
 def check_program(ast):
     holed = []
+
     def internal_check(ctx: TypingContext, e: TypedNode):
         if isinstance(e, Program):
             for decl in e.declarations:
-                holes.clear() # Reset to add holes of curr decl.
+                holes.clear()  # Reset to add holes of curr decl.
                 internal_check(ctx, decl)
                 if holes:
-                    holed.append((decl,  holes.copy())) # Append the holes
+                    holed.append((decl, holes.copy()))  # Append the holes
 
         elif isinstance(e, Definition):
-            # Troquei, ja da funcoes recursivas!
+            ctx.variables[e.name] = e.type  # supports recursion
             check_type(ctx, e.body, e.type)
-            ctx.variables[e.name] = e.type
-        # TODO: Still WIP
+            ctx.variables[e.name] = e.type  # refines type
+            check_kind(ctx, e.type, AnyKind())
         elif isinstance(e, TypeAlias):
             ctx.type_aliases[e.name.name] = e.type
+        elif isinstance(e, TypeDeclaration):
+            ctx.add_type_var(e.name.name, e.kind)
         else:
             print("TypeChecking ignoring:", e, type(e))
 

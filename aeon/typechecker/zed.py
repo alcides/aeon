@@ -115,7 +115,6 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name, v.type)
             return ztx[v.name]
         elif type(v.type) is AbstractionType:
-            # TODO: confirmar que esta arranjado?
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
             return ztx[v.name]
@@ -123,7 +122,8 @@ def zed_translate_var(ztx, v: Var):
             ztx[v.name] = zed_mk_variable(v.name,
                                           flatten_refined_types(v.type))
             return ztx[v.name]
-        print("ooops", v, v.type)
+        print("Warning: ignoring variable", v, "of type", v.type,
+              "in Z3 translation")
         raise NoZ3TranslationException("Var not in scope: {} : {}".format(
             v, v.type))
     return ztx[v.name]
@@ -287,10 +287,10 @@ def zed_verify_entailment(ctx, cond):
     #s.add(z3.And(z3_context, z3.Implies(z3_context, z3_cond)))
     s.add(z3.And(z3_context, z3.Not(z3_cond)))
     #print("zed_ver_entails", cond, "..", s)
-    
+
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
-        
+
         #print("R:", r)
         if r == z3.unsat:
             return True

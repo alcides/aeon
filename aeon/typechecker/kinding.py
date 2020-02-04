@@ -22,7 +22,7 @@ def k_base(ctx: TypingContext, t: BasicType):
 
 def k_where(ctx: TypingContext, t: RefinedType):
     # TODO: check expression for boolean
-    #ctx.with_var(t.name, t.type)
+    ctx.with_var(t.name, t.type)
     k = synth_kind(ctx, t.type)
     return k
 
