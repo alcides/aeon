@@ -3,6 +3,7 @@ from ..types import TypingContext, Kind, star, Type, BasicType, RefinedType, \
 
 from .exceptions import TypingException
 
+# from .typing import checktype
 
 class KindingError(TypingException):
     pass
@@ -21,9 +22,9 @@ def k_base(ctx: TypingContext, t: BasicType):
 
 
 def k_where(ctx: TypingContext, t: RefinedType):
-    # TODO: check expression for boolean
-    ctx.with_var(t.name, t.type)
     k = synth_kind(ctx, t.type)
+    # TODO: problem with imports
+    # checktype(ctx.with_var(t.name, t.type), t.cond, t_b)
     return k
 
 

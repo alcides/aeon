@@ -15,7 +15,6 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
-
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
         nctx = ctx.with_var(T.name, T.type)

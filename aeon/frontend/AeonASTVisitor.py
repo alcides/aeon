@@ -156,6 +156,7 @@ class AeonASTVisitor(AeonVisitor):
         typee = reduce(
             lambda abst, retType: TypeAbstraction(retType, star, abst),
             abstractions, typee)
+            
         return typee
 
     # ([X, Y, Z], [T1, T2, ..., Tn])
@@ -246,6 +247,21 @@ class AeonASTVisitor(AeonVisitor):
 
     # -------------------------------------------------------------------------
     # ---------------------------------------------------------------- Function
+
+    def remove_tabstractions(self, typee):
+        if isinstance(typee, BasicType):
+            typee = typee # Do nothing
+        elif isinstance(typee, AbstractionType):
+            typee.arg_type = self.remove_tabstractions(typee.arg_type)
+            typee.return_type = self.remove_tabstractions(typee.return_type)
+        elif isinstance(typee, RefinedType):
+            typee.type = self.remove_tabstractions(typee.type) 
+        elif isinstance(typee, TypeAbstraction):
+            typee = self.remove_tabstractions(typee.type)
+        elif isinstance(typee, TApplication):
+            typee.target = self.remove_tabstractions(typee.target)
+        return typee
+
     # Visit a parse tree produced by AeonParser#function.
     def visitFunction(self, ctx: AeonParser.FunctionContext):
 
@@ -261,9 +277,14 @@ class AeonASTVisitor(AeonVisitor):
         if ctx.params:
             typee, lastTypee = self.visit(ctx.params)
             return_type = self.visit(ctx.returnType)
+
+            typee = self.remove_tabstractions(typee)
+            return_type = self.remove_tabstractions(return_type)
+
             lastTypee.return_type = return_type
         else:
             return_type = self.visit(ctx.returnType)
+            return_type = self.remove_tabstractions(return_type)
             typee = AbstractionType('_', t_v, return_type)
 
         # Re-distribute the where statements
@@ -321,6 +342,7 @@ class AeonASTVisitor(AeonVisitor):
         self.basic_typee_stack = []
 
         return Definition(name, typee, body, return_type)
+
 
     # f<T, Integer>
     def visitFunction_identifier(self,

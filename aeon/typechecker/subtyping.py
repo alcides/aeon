@@ -53,7 +53,6 @@ def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction) -> bool:
         nctx, substitution_type_in_type(sub.type, BasicType(sup.name),
                                         sub.name), sup.type)
 
-
 def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
     """ S-TappL """
     abst = type_conversion(sub.target)
@@ -66,7 +65,7 @@ def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
 
 
 def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
-    """ S-TappL """
+    """ S-TappR """
     abst = type_conversion(sup.target)
     if not isinstance(abst, TypeAbstraction):
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
