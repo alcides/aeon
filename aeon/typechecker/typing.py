@@ -178,7 +178,9 @@ def check_program(ast):
         elif isinstance(e, TypeAlias):
             ctx.type_aliases[e.name.name] = e.type
         elif isinstance(e, TypeDeclaration):
-            ctx.add_type_var(e.name.name, e.kind)
+            name = get_type_declaration_name(e.name)
+            kind = e.kind
+            ctx.add_type_var(name, kind)     # Fixed
         else:
             print("TypeChecking ignoring:", e, type(e))
 
@@ -186,3 +188,12 @@ def check_program(ast):
     ctx.setup()
     internal_check(ctx, ast)
     return ast, ctx, holed
+
+# Auxiliary to check_program
+def get_type_declaration_name(e: TypedNode):
+    if isinstance(e, TypeApplication):
+        return get_type_declaration_name(e.target)
+    if isinstance(e, TypeAbstraction):
+        return get_type_declaration_name(e.type)
+    # Assuming we only have BasicType typedeclarations
+    return e.name

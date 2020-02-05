@@ -159,38 +159,36 @@ def serializedATN():
         return buf.getvalue()
 
 
-class AeonParser(Parser):
+class AeonParser ( Parser ):
 
     grammarFileName = "Aeon.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
+    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [
-        "<INVALID>", "'import'", "'from'", "'if'", "'else'", "'?'",
-        "'@maximize'", "'@minimize'", "'@evaluate'", "'+'", "'-'", "'*'",
-        "'/'", "'%'", "'^'", "'&&'", "'||'", "'!'", "'|'", "'<'", "'<='",
-        "'>'", "'>='", "'=='", "'!='", "'='", "'->'", "'=>'", "'-->'", "'{'",
-        "'}'", "'('", "')'", "'['", "']'", "'type'", "'as'", "'and'",
-        "'where'", "'native'", "'uninterpreted'", "'\\'", "'..'", "'.'", "':'",
-        "','", "';'"
-    ]
+    literalNames = [ "<INVALID>", "'import'", "'from'", "'if'", "'else'", 
+                     "'?'", "'@maximize'", "'@minimize'", "'@evaluate'", 
+                     "'+'", "'-'", "'*'", "'/'", "'%'", "'^'", "'&&'", "'||'", 
+                     "'!'", "'|'", "'<'", "'<='", "'>'", "'>='", "'=='", 
+                     "'!='", "'='", "'->'", "'=>'", "'-->'", "'{'", "'}'", 
+                     "'('", "')'", "'['", "']'", "'type'", "'as'", "'and'", 
+                     "'where'", "'native'", "'uninterpreted'", "'\\'", "'..'", 
+                     "'.'", "':'", "','", "';'" ]
 
-    symbolicNames = [
-        "<INVALID>", "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE",
-        "MINIMIZE", "EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE",
-        "POWER", "CONJUNCTION", "DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT",
-        "GE", "EQUAL", "DIFF", "ASSIGN", "RARROW", "FATARROW", "IMPLIE",
-        "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", "RBRACKET",
-        "TYPEE", "AS", "AND", "WHERE", "NATIVE", "UNINTERPRETED",
-        "ABSTRACTION", "DOTDOT", "DOT", "COLON", "COMMA", "SEMICOLON",
-        "BOOLEAN", "INTEGER", "FLOAT", "STRING", "IDENTIFIER",
-        "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", "LINE_COMMENT",
-        "BLOCK_COMMENT", "WS"
-    ]
+    symbolicNames = [ "<INVALID>", "IMPORT", "FROM", "IF", "ELSE", "QUESTION", 
+                      "MAXIMIZE", "MINIMIZE", "EVALUATE", "PLUS", "MINUS", 
+                      "MULT", "QUOT", "MODULE", "POWER", "CONJUNCTION", 
+                      "DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT", "GE", 
+                      "EQUAL", "DIFF", "ASSIGN", "RARROW", "FATARROW", "IMPLIE", 
+                      "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", 
+                      "RBRACKET", "TYPEE", "AS", "AND", "WHERE", "NATIVE", 
+                      "UNINTERPRETED", "ABSTRACTION", "DOTDOT", "DOT", "COLON", 
+                      "COMMA", "SEMICOLON", "BOOLEAN", "INTEGER", "FLOAT", 
+                      "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", 
+                      "LINE_COMMENT", "BLOCK_COMMENT", "WS" ]
 
     RULE_aeon = 0
     RULE_imprt = 1
@@ -222,168 +220,160 @@ class AeonParser(Parser):
     RULE_function_abstraction = 27
     RULE_call_parameters = 28
 
-    ruleNames = [
-        "aeon", "imprt", "regular_import", "function_import", "import_path",
-        "typee_alias", "typee_declaration", "regular_typee_declaration",
-        "parameterized_typee_declaration", "parameters_typee_declaration",
-        "typee", "typee_refined", "typee_abstraction_type", "typee_definition",
-        "typee_basic_type", "typee_type_abstract", "typee_abstract_parameters",
-        "function", "function_identifier", "function_parameters",
-        "function_where", "function_body", "statement", "variable_definition",
-        "variable_assignment", "if_statement", "expression",
-        "function_abstraction", "call_parameters"
-    ]
+    ruleNames =  [ "aeon", "imprt", "regular_import", "function_import", 
+                   "import_path", "typee_alias", "typee_declaration", "regular_typee_declaration", 
+                   "parameterized_typee_declaration", "parameters_typee_declaration", 
+                   "typee", "typee_refined", "typee_abstraction_type", "typee_definition", 
+                   "typee_basic_type", "typee_type_abstract", "typee_abstract_parameters", 
+                   "function", "function_identifier", "function_parameters", 
+                   "function_where", "function_body", "statement", "variable_definition", 
+                   "variable_assignment", "if_statement", "expression", 
+                   "function_abstraction", "call_parameters" ]
 
     EOF = Token.EOF
-    IMPORT = 1
-    FROM = 2
-    IF = 3
-    ELSE = 4
-    QUESTION = 5
-    MAXIMIZE = 6
-    MINIMIZE = 7
-    EVALUATE = 8
-    PLUS = 9
-    MINUS = 10
-    MULT = 11
-    QUOT = 12
-    MODULE = 13
-    POWER = 14
-    CONJUNCTION = 15
-    DISJUNCTION = 16
-    NOT = 17
-    PIPE = 18
-    LT = 19
-    LE = 20
-    GT = 21
-    GE = 22
-    EQUAL = 23
-    DIFF = 24
-    ASSIGN = 25
-    RARROW = 26
-    FATARROW = 27
-    IMPLIE = 28
-    LBRACE = 29
-    RBRACE = 30
-    LPARENS = 31
-    RPARENS = 32
-    LBRACKET = 33
-    RBRACKET = 34
-    TYPEE = 35
-    AS = 36
-    AND = 37
-    WHERE = 38
-    NATIVE = 39
-    UNINTERPRETED = 40
-    ABSTRACTION = 41
-    DOTDOT = 42
-    DOT = 43
-    COLON = 44
-    COMMA = 45
-    SEMICOLON = 46
-    BOOLEAN = 47
-    INTEGER = 48
-    FLOAT = 49
-    STRING = 50
-    IDENTIFIER = 51
-    TYPEE_IDENTIFIER = 52
-    ABSTRACT_TYPEE_IDENTIFIER = 53
-    LINE_COMMENT = 54
-    BLOCK_COMMENT = 55
-    WS = 56
+    IMPORT=1
+    FROM=2
+    IF=3
+    ELSE=4
+    QUESTION=5
+    MAXIMIZE=6
+    MINIMIZE=7
+    EVALUATE=8
+    PLUS=9
+    MINUS=10
+    MULT=11
+    QUOT=12
+    MODULE=13
+    POWER=14
+    CONJUNCTION=15
+    DISJUNCTION=16
+    NOT=17
+    PIPE=18
+    LT=19
+    LE=20
+    GT=21
+    GE=22
+    EQUAL=23
+    DIFF=24
+    ASSIGN=25
+    RARROW=26
+    FATARROW=27
+    IMPLIE=28
+    LBRACE=29
+    RBRACE=30
+    LPARENS=31
+    RPARENS=32
+    LBRACKET=33
+    RBRACKET=34
+    TYPEE=35
+    AS=36
+    AND=37
+    WHERE=38
+    NATIVE=39
+    UNINTERPRETED=40
+    ABSTRACTION=41
+    DOTDOT=42
+    DOT=43
+    COLON=44
+    COMMA=45
+    SEMICOLON=46
+    BOOLEAN=47
+    INTEGER=48
+    FLOAT=49
+    STRING=50
+    IDENTIFIER=51
+    TYPEE_IDENTIFIER=52
+    ABSTRACT_TYPEE_IDENTIFIER=53
+    LINE_COMMENT=54
+    BLOCK_COMMENT=55
+    WS=56
 
-    def __init__(self, input: TokenStream, output: TextIO = sys.stdout):
+    def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
         super().__init__(input, output)
         self.checkVersion("4.7.2")
-        self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA,
-                                          self.sharedContextCache)
+        self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
+
+
+
     class AeonContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def EOF(self):
             return self.getToken(AeonParser.EOF, 0)
 
-        def imprt(self, i: int = None):
+        def imprt(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ImprtContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ImprtContext, i)
+                return self.getTypedRuleContext(AeonParser.ImprtContext,i)
 
-        def typee_alias(self, i: int = None):
+
+        def typee_alias(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.Typee_aliasContext)
             else:
-                return self.getTypedRuleContext(AeonParser.Typee_aliasContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.Typee_aliasContext,i)
 
-        def typee_declaration(self, i: int = None):
+
+        def typee_declaration(self, i:int=None):
             if i is None:
-                return self.getTypedRuleContexts(
-                    AeonParser.Typee_declarationContext)
+                return self.getTypedRuleContexts(AeonParser.Typee_declarationContext)
             else:
-                return self.getTypedRuleContext(
-                    AeonParser.Typee_declarationContext, i)
+                return self.getTypedRuleContext(AeonParser.Typee_declarationContext,i)
 
-        def function(self, i: int = None):
+
+        def function(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.FunctionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.FunctionContext, i)
+                return self.getTypedRuleContext(AeonParser.FunctionContext,i)
 
-        def statement(self, i: int = None):
+
+        def statement(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.StatementContext)
             else:
-                return self.getTypedRuleContext(AeonParser.StatementContext, i)
+                return self.getTypedRuleContext(AeonParser.StatementContext,i)
 
-        def typee(self, i: int = None):
+
+        def typee(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.TypeeContext)
             else:
-                return self.getTypedRuleContext(AeonParser.TypeeContext, i)
+                return self.getTypedRuleContext(AeonParser.TypeeContext,i)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_aeon
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitAeon"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitAeon" ):
                 return visitor.visitAeon(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def aeon(self):
 
         localctx = AeonParser.AeonContext(self, self._ctx, self.state)
         self.enterRule(localctx, 0, self.RULE_aeon)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 66
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and
-                   ((1 << _la) &
-                    ((1 << AeonParser.IMPORT) | (1 << AeonParser.IF) |
-                     (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) |
-                     (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) |
-                     (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) |
-                     (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) |
-                     (1 << AeonParser.TYPEE) | (1 << AeonParser.ABSTRACTION) |
-                     (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) |
-                     (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) |
-                     (1 << AeonParser.IDENTIFIER) |
-                     (1 << AeonParser.TYPEE_IDENTIFIER) |
-                     (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IMPORT) | (1 << AeonParser.IF) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.TYPEE) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                 self.state = 64
                 self._errHandler.sync(self)
-                la_ = self._interp.adaptivePredict(self._input, 0, self._ctx)
+                la_ = self._interp.adaptivePredict(self._input,0,self._ctx)
                 if la_ == 1:
                     self.state = 58
                     self.imprt()
@@ -414,6 +404,7 @@ class AeonParser(Parser):
                     self.typee()
                     pass
 
+
                 self.state = 68
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
@@ -428,30 +419,32 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class ImprtContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def regular_import(self):
-            return self.getTypedRuleContext(AeonParser.Regular_importContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Regular_importContext,0)
+
 
         def function_import(self):
-            return self.getTypedRuleContext(AeonParser.Function_importContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Function_importContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_imprt
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitImprt"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitImprt" ):
                 return visitor.visitImprt(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def imprt(self):
 
@@ -460,7 +453,7 @@ class AeonParser(Parser):
         try:
             self.state = 73
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 2, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,2,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 71
@@ -473,6 +466,7 @@ class AeonParser(Parser):
                 self.function_import()
                 pass
 
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -481,14 +475,13 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Regular_importContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.path = None  # Import_pathContext
+            self.path = None # Import_pathContext
 
         def IMPORT(self):
             return self.getToken(AeonParser.IMPORT, 0)
@@ -497,21 +490,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.SEMICOLON, 0)
 
         def import_path(self):
-            return self.getTypedRuleContext(AeonParser.Import_pathContext, 0)
+            return self.getTypedRuleContext(AeonParser.Import_pathContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_regular_import
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitRegular_import"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitRegular_import" ):
                 return visitor.visitRegular_import(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def regular_import(self):
 
-        localctx = AeonParser.Regular_importContext(self, self._ctx,
-                                                    self.state)
+        localctx = AeonParser.Regular_importContext(self, self._ctx, self.state)
         self.enterRule(localctx, 4, self.RULE_regular_import)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -529,15 +525,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Function_importContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.functionName = None  # Token
-            self.path = None  # Import_pathContext
+            self.functionName = None # Token
+            self.path = None # Import_pathContext
 
         def IMPORT(self):
             return self.getToken(AeonParser.IMPORT, 0)
@@ -552,21 +547,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def import_path(self):
-            return self.getTypedRuleContext(AeonParser.Import_pathContext, 0)
+            return self.getTypedRuleContext(AeonParser.Import_pathContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_function_import
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction_import"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction_import" ):
                 return visitor.visitFunction_import(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def function_import(self):
 
-        localctx = AeonParser.Function_importContext(self, self._ctx,
-                                                     self.state)
+        localctx = AeonParser.Function_importContext(self, self._ctx, self.state)
         self.enterRule(localctx, 6, self.RULE_function_import)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -588,29 +586,28 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Import_pathContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.directory = None  # Token
-            self.name = None  # Token
+            self.directory = None # Token
+            self.name = None # Token
 
-        def IDENTIFIER(self, i: int = None):
+        def IDENTIFIER(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.IDENTIFIER)
             else:
                 return self.getToken(AeonParser.IDENTIFIER, i)
 
-        def QUOT(self, i: int = None):
+        def QUOT(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.QUOT)
             else:
                 return self.getToken(AeonParser.QUOT, i)
 
-        def DOTDOT(self, i: int = None):
+        def DOTDOT(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.DOTDOT)
             else:
@@ -619,39 +616,40 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_import_path
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitImport_path"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitImport_path" ):
                 return visitor.visitImport_path(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def import_path(self):
 
         localctx = AeonParser.Import_pathContext(self, self._ctx, self.state)
         self.enterRule(localctx, 8, self.RULE_import_path)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 89
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input, 3, self._ctx)
-            while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
-                if _alt == 1:
+            _alt = self._interp.adaptivePredict(self._input,3,self._ctx)
+            while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
+                if _alt==1:
                     self.state = 85
                     localctx.directory = self._input.LT(1)
                     _la = self._input.LA(1)
-                    if not (_la == AeonParser.DOTDOT
-                            or _la == AeonParser.IDENTIFIER):
-                        localctx.directory = self._errHandler.recoverInline(
-                            self)
+                    if not(_la==AeonParser.DOTDOT or _la==AeonParser.IDENTIFIER):
+                        localctx.directory = self._errHandler.recoverInline(self)
                     else:
                         self._errHandler.reportMatch(self)
                         self.consume()
                     self.state = 86
-                    self.match(AeonParser.QUOT)
+                    self.match(AeonParser.QUOT) 
                 self.state = 91
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input, 3, self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,3,self._ctx)
 
             self.state = 92
             localctx.name = self.match(AeonParser.IDENTIFIER)
@@ -663,15 +661,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_aliasContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.name = None  # TypeeContext
-            self.alias = None  # TypeeContext
+            self.name = None # TypeeContext
+            self.alias = None # TypeeContext
 
         def TYPEE(self):
             return self.getToken(AeonParser.TYPEE, 0)
@@ -682,20 +679,24 @@ class AeonParser(Parser):
         def SEMICOLON(self):
             return self.getToken(AeonParser.SEMICOLON, 0)
 
-        def typee(self, i: int = None):
+        def typee(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.TypeeContext)
             else:
-                return self.getTypedRuleContext(AeonParser.TypeeContext, i)
+                return self.getTypedRuleContext(AeonParser.TypeeContext,i)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_alias
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_alias"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_alias" ):
                 return visitor.visitTypee_alias(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def typee_alias(self):
 
@@ -721,40 +722,41 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_declarationContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def regular_typee_declaration(self):
-            return self.getTypedRuleContext(
-                AeonParser.Regular_typee_declarationContext, 0)
+            return self.getTypedRuleContext(AeonParser.Regular_typee_declarationContext,0)
+
 
         def parameterized_typee_declaration(self):
-            return self.getTypedRuleContext(
-                AeonParser.Parameterized_typee_declarationContext, 0)
+            return self.getTypedRuleContext(AeonParser.Parameterized_typee_declarationContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_declaration
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_declaration"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_declaration" ):
                 return visitor.visitTypee_declaration(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_declaration(self):
 
-        localctx = AeonParser.Typee_declarationContext(self, self._ctx,
-                                                       self.state)
+        localctx = AeonParser.Typee_declarationContext(self, self._ctx, self.state)
         self.enterRule(localctx, 12, self.RULE_typee_declaration)
         try:
             self.state = 102
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 4, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,4,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 100
@@ -767,6 +769,7 @@ class AeonParser(Parser):
                 self.parameterized_typee_declaration()
                 pass
 
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -775,14 +778,13 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Regular_typee_declarationContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.name = None  # TypeeContext
+            self.name = None # TypeeContext
 
         def TYPEE(self):
             return self.getToken(AeonParser.TYPEE, 0)
@@ -791,21 +793,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.SEMICOLON, 0)
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_regular_typee_declaration
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitRegular_typee_declaration"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitRegular_typee_declaration" ):
                 return visitor.visitRegular_typee_declaration(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def regular_typee_declaration(self):
 
-        localctx = AeonParser.Regular_typee_declarationContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Regular_typee_declarationContext(self, self._ctx, self.state)
         self.enterRule(localctx, 14, self.RULE_regular_typee_declaration)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -823,15 +828,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Parameterized_typee_declarationContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.name = None  # TypeeContext
-            self.params = None  # Parameters_typee_declarationContext
+            self.name = None # TypeeContext
+            self.params = None # Parameters_typee_declarationContext
 
         def TYPEE(self):
             return self.getToken(AeonParser.TYPEE, 0)
@@ -843,25 +847,28 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.RBRACE, 0)
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def parameters_typee_declaration(self):
-            return self.getTypedRuleContext(
-                AeonParser.Parameters_typee_declarationContext, 0)
+            return self.getTypedRuleContext(AeonParser.Parameters_typee_declarationContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_parameterized_typee_declaration
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitParameterized_typee_declaration"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitParameterized_typee_declaration" ):
                 return visitor.visitParameterized_typee_declaration(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def parameterized_typee_declaration(self):
 
-        localctx = AeonParser.Parameterized_typee_declarationContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Parameterized_typee_declarationContext(self, self._ctx, self.state)
         self.enterRule(localctx, 16, self.RULE_parameterized_typee_declaration)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -883,23 +890,21 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Parameters_typee_declarationContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def typee_definition(self, i: int = None):
+        def typee_definition(self, i:int=None):
             if i is None:
-                return self.getTypedRuleContexts(
-                    AeonParser.Typee_definitionContext)
+                return self.getTypedRuleContexts(AeonParser.Typee_definitionContext)
             else:
-                return self.getTypedRuleContext(
-                    AeonParser.Typee_definitionContext, i)
+                return self.getTypedRuleContext(AeonParser.Typee_definitionContext,i)
 
-        def SEMICOLON(self, i: int = None):
+
+        def SEMICOLON(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.SEMICOLON)
             else:
@@ -908,21 +913,23 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_parameters_typee_declaration
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitParameters_typee_declaration"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitParameters_typee_declaration" ):
                 return visitor.visitParameters_typee_declaration(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def parameters_typee_declaration(self):
 
-        localctx = AeonParser.Parameters_typee_declarationContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Parameters_typee_declarationContext(self, self._ctx, self.state)
         self.enterRule(localctx, 18, self.RULE_parameters_typee_declaration)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 117
+            self.state = 117 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
@@ -930,10 +937,10 @@ class AeonParser(Parser):
                 self.typee_definition()
                 self.state = 115
                 self.match(AeonParser.SEMICOLON)
-                self.state = 119
+                self.state = 119 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la == AeonParser.IDENTIFIER):
+                if not (_la==AeonParser.IDENTIFIER):
                     break
 
         except RecognitionException as re:
@@ -944,41 +951,44 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class TypeeContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def typee_refined(self):
-            return self.getTypedRuleContext(AeonParser.Typee_refinedContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_refinedContext,0)
+
 
         def typee_abstraction_type(self):
-            return self.getTypedRuleContext(
-                AeonParser.Typee_abstraction_typeContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_abstraction_typeContext,0)
+
 
         def typee_definition(self):
-            return self.getTypedRuleContext(AeonParser.Typee_definitionContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Typee_definitionContext,0)
+
 
         def typee_basic_type(self):
-            return self.getTypedRuleContext(AeonParser.Typee_basic_typeContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Typee_basic_typeContext,0)
+
 
         def typee_type_abstract(self):
-            return self.getTypedRuleContext(
-                AeonParser.Typee_type_abstractContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_type_abstractContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee" ):
                 return visitor.visitTypee(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def typee(self):
 
@@ -987,7 +997,7 @@ class AeonParser(Parser):
         try:
             self.state = 126
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 6, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,6,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 121
@@ -1018,6 +1028,7 @@ class AeonParser(Parser):
                 self.typee_type_abstract()
                 pass
 
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1026,15 +1037,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_refinedContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.typeeRefined = None  # TypeeContext
-            self.condition = None  # ExpressionContext
+            self.typeeRefined = None # TypeeContext
+            self.condition = None # ExpressionContext
 
         def LBRACE(self):
             return self.getToken(AeonParser.LBRACE, 0)
@@ -1046,19 +1056,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.RBRACE, 0)
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_refined
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_refined"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_refined" ):
                 return visitor.visitTypee_refined(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def typee_refined(self):
 
@@ -1084,15 +1099,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_abstraction_typeContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.argTypee = None  # TypeeContext
-            self.returnTypee = None  # TypeeContext
+            self.argTypee = None # TypeeContext
+            self.returnTypee = None # TypeeContext
 
         def LPARENS(self):
             return self.getToken(AeonParser.LPARENS, 0)
@@ -1103,25 +1117,28 @@ class AeonParser(Parser):
         def RPARENS(self):
             return self.getToken(AeonParser.RPARENS, 0)
 
-        def typee(self, i: int = None):
+        def typee(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.TypeeContext)
             else:
-                return self.getTypedRuleContext(AeonParser.TypeeContext, i)
+                return self.getTypedRuleContext(AeonParser.TypeeContext,i)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_abstraction_type
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_abstraction_type"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_abstraction_type" ):
                 return visitor.visitTypee_abstraction_type(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_abstraction_type(self):
 
-        localctx = AeonParser.Typee_abstraction_typeContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Typee_abstraction_typeContext(self, self._ctx, self.state)
         self.enterRule(localctx, 24, self.RULE_typee_abstraction_type)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -1143,15 +1160,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_definitionContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.varName = None  # Token
-            self.varTypee = None  # TypeeContext
+            self.varName = None # Token
+            self.varTypee = None # TypeeContext
 
         def COLON(self):
             return self.getToken(AeonParser.COLON, 0)
@@ -1160,21 +1176,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_definition
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_definition"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_definition" ):
                 return visitor.visitTypee_definition(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_definition(self):
 
-        localctx = AeonParser.Typee_definitionContext(self, self._ctx,
-                                                      self.state)
+        localctx = AeonParser.Typee_definitionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 26, self.RULE_typee_definition)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -1192,14 +1211,13 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_basic_typeContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.basicType = None  # Token
+            self.basicType = None # Token
 
         def TYPEE_IDENTIFIER(self):
             return self.getToken(AeonParser.TYPEE_IDENTIFIER, 0)
@@ -1210,16 +1228,18 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_typee_basic_type
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_basic_type"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_basic_type" ):
                 return visitor.visitTypee_basic_type(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_basic_type(self):
 
-        localctx = AeonParser.Typee_basic_typeContext(self, self._ctx,
-                                                      self.state)
+        localctx = AeonParser.Typee_basic_typeContext(self, self._ctx, self.state)
         self.enterRule(localctx, 28, self.RULE_typee_basic_type)
         try:
             self.state = 146
@@ -1233,8 +1253,7 @@ class AeonParser(Parser):
             elif token in [AeonParser.ABSTRACT_TYPEE_IDENTIFIER]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 145
-                localctx.basicType = self.match(
-                    AeonParser.ABSTRACT_TYPEE_IDENTIFIER)
+                localctx.basicType = self.match(AeonParser.ABSTRACT_TYPEE_IDENTIFIER)
                 pass
             else:
                 raise NoViableAltException(self)
@@ -1247,15 +1266,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_type_abstractContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.abstractType = None  # Token
-            self.abstractParams = None  # Typee_abstract_parametersContext
+            self.abstractType = None # Token
+            self.abstractParams = None # Typee_abstract_parametersContext
 
         def LT(self):
             return self.getToken(AeonParser.LT, 0)
@@ -1267,22 +1285,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.TYPEE_IDENTIFIER, 0)
 
         def typee_abstract_parameters(self):
-            return self.getTypedRuleContext(
-                AeonParser.Typee_abstract_parametersContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_abstract_parametersContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_typee_type_abstract
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_type_abstract"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_type_abstract" ):
                 return visitor.visitTypee_type_abstract(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_type_abstract(self):
 
-        localctx = AeonParser.Typee_type_abstractContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Typee_type_abstractContext(self, self._ctx, self.state)
         self.enterRule(localctx, 30, self.RULE_typee_type_abstract)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -1302,23 +1322,23 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Typee_abstract_parametersContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.abstractParam = None  # TypeeContext
-            self.restAbstractParams = None  # TypeeContext
+            self.abstractParam = None # TypeeContext
+            self.restAbstractParams = None # TypeeContext
 
-        def typee(self, i: int = None):
+        def typee(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.TypeeContext)
             else:
-                return self.getTypedRuleContext(AeonParser.TypeeContext, i)
+                return self.getTypedRuleContext(AeonParser.TypeeContext,i)
 
-        def COMMA(self, i: int = None):
+
+        def COMMA(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.COMMA)
             else:
@@ -1327,18 +1347,20 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_typee_abstract_parameters
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypee_abstract_parameters"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypee_abstract_parameters" ):
                 return visitor.visitTypee_abstract_parameters(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def typee_abstract_parameters(self):
 
-        localctx = AeonParser.Typee_abstract_parametersContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Typee_abstract_parametersContext(self, self._ctx, self.state)
         self.enterRule(localctx, 32, self.RULE_typee_abstract_parameters)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 153
@@ -1346,7 +1368,7 @@ class AeonParser(Parser):
             self.state = 158
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la == AeonParser.COMMA:
+            while _la==AeonParser.COMMA:
                 self.state = 154
                 self.match(AeonParser.COMMA)
                 self.state = 155
@@ -1363,18 +1385,17 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class FunctionContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.name = None  # Function_identifierContext
-            self.params = None  # Function_parametersContext
-            self.returnType = None  # TypeeContext
-            self.where = None  # Function_whereContext
-            self.body = None  # Function_bodyContext
+            self.name = None # Function_identifierContext
+            self.params = None # Function_parametersContext
+            self.returnType = None # TypeeContext
+            self.where = None # Function_whereContext
+            self.body = None # Function_bodyContext
 
         def COLON(self):
             return self.getToken(AeonParser.COLON, 0)
@@ -1389,37 +1410,42 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.RARROW, 0)
 
         def function_identifier(self):
-            return self.getTypedRuleContext(
-                AeonParser.Function_identifierContext, 0)
+            return self.getTypedRuleContext(AeonParser.Function_identifierContext,0)
+
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def function_body(self):
-            return self.getTypedRuleContext(AeonParser.Function_bodyContext, 0)
+            return self.getTypedRuleContext(AeonParser.Function_bodyContext,0)
+
 
         def function_parameters(self):
-            return self.getTypedRuleContext(
-                AeonParser.Function_parametersContext, 0)
+            return self.getTypedRuleContext(AeonParser.Function_parametersContext,0)
+
 
         def function_where(self):
-            return self.getTypedRuleContext(AeonParser.Function_whereContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Function_whereContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_function
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction" ):
                 return visitor.visitFunction(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def function(self):
 
         localctx = AeonParser.FunctionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 34, self.RULE_function)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 161
@@ -1431,14 +1457,10 @@ class AeonParser(Parser):
             self.state = 165
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if (((_la) & ~0x3f) == 0 and
-                ((1 << _la) &
-                 ((1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) |
-                  (1 << AeonParser.IDENTIFIER) |
-                  (1 << AeonParser.TYPEE_IDENTIFIER) |
-                  (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                 self.state = 164
                 localctx.params = self.function_parameters()
+
 
             self.state = 167
             self.match(AeonParser.RPARENS)
@@ -1449,9 +1471,10 @@ class AeonParser(Parser):
             self.state = 171
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if _la == AeonParser.WHERE:
+            if _la==AeonParser.WHERE:
                 self.state = 170
                 localctx.where = self.function_where()
+
 
             self.state = 173
             localctx.body = self.function_body()
@@ -1463,15 +1486,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Function_identifierContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.name = None  # Token
-            self.abstractParams = None  # Typee_abstract_parametersContext
+            self.name = None # Token
+            self.abstractParams = None # Typee_abstract_parametersContext
 
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
@@ -1483,24 +1505,26 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.GT, 0)
 
         def typee_abstract_parameters(self):
-            return self.getTypedRuleContext(
-                AeonParser.Typee_abstract_parametersContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_abstract_parametersContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_function_identifier
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction_identifier"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction_identifier" ):
                 return visitor.visitFunction_identifier(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def function_identifier(self):
 
-        localctx = AeonParser.Function_identifierContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Function_identifierContext(self, self._ctx, self.state)
         self.enterRule(localctx, 36, self.RULE_function_identifier)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 175
@@ -1508,13 +1532,14 @@ class AeonParser(Parser):
             self.state = 180
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if _la == AeonParser.LT:
+            if _la==AeonParser.LT:
                 self.state = 176
                 self.match(AeonParser.LT)
                 self.state = 177
                 localctx.abstractParams = self.typee_abstract_parameters()
                 self.state = 178
                 self.match(AeonParser.GT)
+
 
         except RecognitionException as re:
             localctx.exception = re
@@ -1524,21 +1549,21 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Function_parametersContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def typee(self, i: int = None):
+        def typee(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.TypeeContext)
             else:
-                return self.getTypedRuleContext(AeonParser.TypeeContext, i)
+                return self.getTypedRuleContext(AeonParser.TypeeContext,i)
 
-        def COMMA(self, i: int = None):
+
+        def COMMA(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.COMMA)
             else:
@@ -1547,18 +1572,20 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_function_parameters
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction_parameters"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction_parameters" ):
                 return visitor.visitFunction_parameters(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def function_parameters(self):
 
-        localctx = AeonParser.Function_parametersContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Function_parametersContext(self, self._ctx, self.state)
         self.enterRule(localctx, 38, self.RULE_function_parameters)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 182
@@ -1566,7 +1593,7 @@ class AeonParser(Parser):
             self.state = 187
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la == AeonParser.COMMA:
+            while _la==AeonParser.COMMA:
                 self.state = 183
                 self.match(AeonParser.COMMA)
                 self.state = 184
@@ -1583,11 +1610,10 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Function_whereContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
@@ -1597,17 +1623,17 @@ class AeonParser(Parser):
         def LBRACE(self):
             return self.getToken(AeonParser.LBRACE, 0)
 
-        def expression(self, i: int = None):
+        def expression(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ExpressionContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
+
 
         def RBRACE(self):
             return self.getToken(AeonParser.RBRACE, 0)
 
-        def AND(self, i: int = None):
+        def AND(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.AND)
             else:
@@ -1616,18 +1642,20 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_function_where
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction_where"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction_where" ):
                 return visitor.visitFunction_where(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def function_where(self):
 
-        localctx = AeonParser.Function_whereContext(self, self._ctx,
-                                                    self.state)
+        localctx = AeonParser.Function_whereContext(self, self._ctx, self.state)
         self.enterRule(localctx, 40, self.RULE_function_where)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 190
@@ -1639,7 +1667,7 @@ class AeonParser(Parser):
             self.state = 197
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la == AeonParser.AND:
+            while _la==AeonParser.AND:
                 self.state = 193
                 self.match(AeonParser.AND)
                 self.state = 194
@@ -1658,103 +1686,104 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Function_bodyContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_function_body
 
-        def copyFrom(self, ctx: ParserRuleContext):
+     
+        def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
+
+
     class RegularBodyContext(Function_bodyContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.Function_bodyContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.Function_bodyContext
             super().__init__(parser)
             self.copyFrom(ctx)
 
         def LBRACE(self):
             return self.getToken(AeonParser.LBRACE, 0)
-
         def RBRACE(self):
             return self.getToken(AeonParser.RBRACE, 0)
-
-        def statement(self, i: int = None):
+        def statement(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.StatementContext)
             else:
-                return self.getTypedRuleContext(AeonParser.StatementContext, i)
+                return self.getTypedRuleContext(AeonParser.StatementContext,i)
 
-        def SEMICOLON(self, i: int = None):
+        def SEMICOLON(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.SEMICOLON)
             else:
                 return self.getToken(AeonParser.SEMICOLON, i)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitRegularBody"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitRegularBody" ):
                 return visitor.visitRegularBody(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class NativeBodyContext(Function_bodyContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.Function_bodyContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.Function_bodyContext
             super().__init__(parser)
-            self.native = None  # Token
+            self.native = None # Token
             self.copyFrom(ctx)
 
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
-
         def SEMICOLON(self):
             return self.getToken(AeonParser.SEMICOLON, 0)
-
         def NATIVE(self):
             return self.getToken(AeonParser.NATIVE, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitNativeBody"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitNativeBody" ):
                 return visitor.visitNativeBody(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class UninterpretedBodyContext(Function_bodyContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.Function_bodyContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.Function_bodyContext
             super().__init__(parser)
-            self.uninterpreted = None  # Token
+            self.uninterpreted = None # Token
             self.copyFrom(ctx)
 
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
-
         def SEMICOLON(self):
             return self.getToken(AeonParser.SEMICOLON, 0)
-
         def UNINTERPRETED(self):
             return self.getToken(AeonParser.UNINTERPRETED, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitUninterpretedBody"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitUninterpretedBody" ):
                 return visitor.visitUninterpretedBody(self)
             else:
                 return visitor.visitChildren(self)
+
+
 
     def function_body(self):
 
         localctx = AeonParser.Function_bodyContext(self, self._ctx, self.state)
         self.enterRule(localctx, 42, self.RULE_function_body)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.state = 218
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 15, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,15,self._ctx)
             if la_ == 1:
                 localctx = AeonParser.NativeBodyContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
@@ -1785,17 +1814,7 @@ class AeonParser(Parser):
                 self.state = 214
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while (((_la) & ~0x3f) == 0 and ((1 << _la) & (
-                    (1 << AeonParser.IF) | (1 << AeonParser.MAXIMIZE) |
-                    (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) |
-                    (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) |
-                    (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) |
-                    (1 << AeonParser.LBRACKET) |
-                    (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) |
-                    (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) |
-                    (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) |
-                    (1 << AeonParser.TYPEE_IDENTIFIER) |
-                    (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+                while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                     self.state = 209
                     self.statement()
                     self.state = 210
@@ -1808,6 +1827,7 @@ class AeonParser(Parser):
                 self.match(AeonParser.RBRACE)
                 pass
 
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1816,36 +1836,40 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class StatementContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def variable_definition(self):
-            return self.getTypedRuleContext(
-                AeonParser.Variable_definitionContext, 0)
+            return self.getTypedRuleContext(AeonParser.Variable_definitionContext,0)
+
 
         def variable_assignment(self):
-            return self.getTypedRuleContext(
-                AeonParser.Variable_assignmentContext, 0)
+            return self.getTypedRuleContext(AeonParser.Variable_assignmentContext,0)
+
 
         def if_statement(self):
-            return self.getTypedRuleContext(AeonParser.If_statementContext, 0)
+            return self.getTypedRuleContext(AeonParser.If_statementContext,0)
+
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_statement
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitStatement"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitStatement" ):
                 return visitor.visitStatement(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def statement(self):
 
@@ -1854,7 +1878,7 @@ class AeonParser(Parser):
         try:
             self.state = 224
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 16, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,16,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 220
@@ -1879,6 +1903,7 @@ class AeonParser(Parser):
                 self.expression(0)
                 pass
 
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1887,38 +1912,41 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Variable_definitionContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.variable = None  # TypeeContext
-            self.exp = None  # ExpressionContext
+            self.variable = None # TypeeContext
+            self.exp = None # ExpressionContext
 
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
 
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
+
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_variable_definition
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitVariable_definition"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitVariable_definition" ):
                 return visitor.visitVariable_definition(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def variable_definition(self):
 
-        localctx = AeonParser.Variable_definitionContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Variable_definitionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 46, self.RULE_variable_definition)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -1936,15 +1964,14 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Variable_assignmentContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.variable = None  # Token
-            self.exp = None  # ExpressionContext
+            self.variable = None # Token
+            self.exp = None # ExpressionContext
 
         def ASSIGN(self):
             return self.getToken(AeonParser.ASSIGN, 0)
@@ -1953,21 +1980,24 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.IDENTIFIER, 0)
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_variable_assignment
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitVariable_assignment"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitVariable_assignment" ):
                 return visitor.visitVariable_assignment(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def variable_assignment(self):
 
-        localctx = AeonParser.Variable_assignmentContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Variable_assignmentContext(self, self._ctx, self.state)
         self.enterRule(localctx, 48, self.RULE_variable_assignment)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -1985,16 +2015,15 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class If_statementContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.cond = None  # ExpressionContext
-            self.then = None  # Function_bodyContext
-            self.otherwise = None  # Function_bodyContext
+            self.cond = None # ExpressionContext
+            self.then = None # Function_bodyContext
+            self.otherwise = None # Function_bodyContext
 
         def IF(self):
             return self.getToken(AeonParser.IF, 0)
@@ -2003,24 +2032,27 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.ELSE, 0)
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
-        def function_body(self, i: int = None):
+
+        def function_body(self, i:int=None):
             if i is None:
-                return self.getTypedRuleContexts(
-                    AeonParser.Function_bodyContext)
+                return self.getTypedRuleContexts(AeonParser.Function_bodyContext)
             else:
-                return self.getTypedRuleContext(
-                    AeonParser.Function_bodyContext, i)
+                return self.getTypedRuleContext(AeonParser.Function_bodyContext,i)
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_if_statement
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitIf_statement"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitIf_statement" ):
                 return visitor.visitIf_statement(self)
             else:
                 return visitor.visitChildren(self)
+
+
+
 
     def if_statement(self):
 
@@ -2046,369 +2078,352 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class ExpressionContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
+
 
         def getRuleIndex(self):
             return AeonParser.RULE_expression
 
-        def copyFrom(self, ctx: ParserRuleContext):
+     
+        def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
+
     class FitnessImprovementContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.improvement = None  # Token
-            self.param = None  # ExpressionContext
+            self.improvement = None # Token
+            self.param = None # ExpressionContext
             self.copyFrom(ctx)
 
         def LPARENS(self):
             return self.getToken(AeonParser.LPARENS, 0)
-
         def RPARENS(self):
             return self.getToken(AeonParser.RPARENS, 0)
-
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
         def MAXIMIZE(self):
             return self.getToken(AeonParser.MAXIMIZE, 0)
-
         def MINIMIZE(self):
             return self.getToken(AeonParser.MINIMIZE, 0)
-
         def EVALUATE(self):
             return self.getToken(AeonParser.EVALUATE, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFitnessImprovement"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFitnessImprovement" ):
                 return visitor.visitFitnessImprovement(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class LogicalExpressionContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.left = None  # ExpressionContext
-            self.op = None  # Token
-            self.right = None  # ExpressionContext
+            self.left = None # ExpressionContext
+            self.op = None # Token
+            self.right = None # ExpressionContext
             self.copyFrom(ctx)
 
-        def expression(self, i: int = None):
+        def expression(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ExpressionContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
 
         def IMPLIE(self):
             return self.getToken(AeonParser.IMPLIE, 0)
-
         def LT(self):
             return self.getToken(AeonParser.LT, 0)
-
         def LE(self):
             return self.getToken(AeonParser.LE, 0)
-
         def GT(self):
             return self.getToken(AeonParser.GT, 0)
-
         def GE(self):
             return self.getToken(AeonParser.GE, 0)
-
         def EQUAL(self):
             return self.getToken(AeonParser.EQUAL, 0)
-
         def DIFF(self):
             return self.getToken(AeonParser.DIFF, 0)
-
         def CONJUNCTION(self):
             return self.getToken(AeonParser.CONJUNCTION, 0)
-
         def DISJUNCTION(self):
             return self.getToken(AeonParser.DISJUNCTION, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitLogicalExpression"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitLogicalExpression" ):
                 return visitor.visitLogicalExpression(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class IfExpressionContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.cond = None  # ExpressionContext
-            self.then = None  # ExpressionContext
-            self.otherwise = None  # ExpressionContext
+            self.cond = None # ExpressionContext
+            self.then = None # ExpressionContext
+            self.otherwise = None # ExpressionContext
             self.copyFrom(ctx)
 
         def QUESTION(self):
             return self.getToken(AeonParser.QUESTION, 0)
-
         def COLON(self):
             return self.getToken(AeonParser.COLON, 0)
-
-        def expression(self, i: int = None):
+        def expression(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ExpressionContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitIfExpression"):
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitIfExpression" ):
                 return visitor.visitIfExpression(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class ParenthesisContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
             self.copyFrom(ctx)
 
         def LPARENS(self):
             return self.getToken(AeonParser.LPARENS, 0)
-
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
         def RPARENS(self):
             return self.getToken(AeonParser.RPARENS, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitParenthesis"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitParenthesis" ):
                 return visitor.visitParenthesis(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class HoleContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
             self.copyFrom(ctx)
 
         def LBRACKET(self):
             return self.getToken(AeonParser.LBRACKET, 0)
-
         def RBRACKET(self):
             return self.getToken(AeonParser.RBRACKET, 0)
-
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitHole"):
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitHole" ):
                 return visitor.visitHole(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class UnaryOperationContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.op = None  # Token
-            self.right = None  # ExpressionContext
+            self.op = None # Token
+            self.right = None # ExpressionContext
             self.copyFrom(ctx)
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
         def NOT(self):
             return self.getToken(AeonParser.NOT, 0)
-
         def MINUS(self):
             return self.getToken(AeonParser.MINUS, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitUnaryOperation"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitUnaryOperation" ):
                 return visitor.visitUnaryOperation(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class VariableContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.variable = None  # Token
+            self.variable = None # Token
             self.copyFrom(ctx)
 
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitVariable"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitVariable" ):
                 return visitor.visitVariable(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class AbstractionExpressionContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.variable = None  # TypeeContext
-            self.exp = None  # ExpressionContext
+            self.variable = None # TypeeContext
+            self.exp = None # ExpressionContext
             self.copyFrom(ctx)
 
         def ABSTRACTION(self):
             return self.getToken(AeonParser.ABSTRACTION, 0)
-
         def RARROW(self):
             return self.getToken(AeonParser.RARROW, 0)
-
         def typee(self):
-            return self.getTypedRuleContext(AeonParser.TypeeContext, 0)
+            return self.getTypedRuleContext(AeonParser.TypeeContext,0)
 
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitAbstractionExpression"):
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitAbstractionExpression" ):
                 return visitor.visitAbstractionExpression(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class LiteralContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.value = None  # Token
+            self.value = None # Token
             self.copyFrom(ctx)
 
         def INTEGER(self):
             return self.getToken(AeonParser.INTEGER, 0)
-
         def FLOAT(self):
             return self.getToken(AeonParser.FLOAT, 0)
-
         def BOOLEAN(self):
             return self.getToken(AeonParser.BOOLEAN, 0)
-
         def STRING(self):
             return self.getToken(AeonParser.STRING, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitLiteral"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitLiteral" ):
                 return visitor.visitLiteral(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class NumberExpressionContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.left = None  # ExpressionContext
-            self.op = None  # Token
-            self.right = None  # ExpressionContext
+            self.left = None # ExpressionContext
+            self.op = None # Token
+            self.right = None # ExpressionContext
             self.copyFrom(ctx)
 
-        def expression(self, i: int = None):
+        def expression(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ExpressionContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
 
         def POWER(self):
             return self.getToken(AeonParser.POWER, 0)
-
         def MULT(self):
             return self.getToken(AeonParser.MULT, 0)
-
         def QUOT(self):
             return self.getToken(AeonParser.QUOT, 0)
-
         def MODULE(self):
             return self.getToken(AeonParser.MODULE, 0)
-
         def PLUS(self):
             return self.getToken(AeonParser.PLUS, 0)
-
         def MINUS(self):
             return self.getToken(AeonParser.MINUS, 0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitNumberExpression"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitNumberExpression" ):
                 return visitor.visitNumberExpression(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class FunctionCallContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.target = None  # ExpressionContext
-            self.app = None  # Function_abstractionContext
-            self.params = None  # Call_parametersContext
+            self.target = None # ExpressionContext
+            self.app = None # Function_abstractionContext
+            self.params = None # Call_parametersContext
             self.copyFrom(ctx)
 
         def LPARENS(self):
             return self.getToken(AeonParser.LPARENS, 0)
-
         def RPARENS(self):
             return self.getToken(AeonParser.RPARENS, 0)
-
         def expression(self):
-            return self.getTypedRuleContext(AeonParser.ExpressionContext, 0)
+            return self.getTypedRuleContext(AeonParser.ExpressionContext,0)
 
         def function_abstraction(self):
-            return self.getTypedRuleContext(
-                AeonParser.Function_abstractionContext, 0)
+            return self.getTypedRuleContext(AeonParser.Function_abstractionContext,0)
 
         def call_parameters(self):
-            return self.getTypedRuleContext(AeonParser.Call_parametersContext,
-                                            0)
+            return self.getTypedRuleContext(AeonParser.Call_parametersContext,0)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunctionCall"):
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunctionCall" ):
                 return visitor.visitFunctionCall(self)
             else:
                 return visitor.visitChildren(self)
 
+
     class TypeeAttributeCallContext(ExpressionContext):
-        def __init__(self, parser, ctx: ParserRuleContext
-                     ):  # actually a AeonParser.ExpressionContext
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.ExpressionContext
             super().__init__(parser)
-            self.variable = None  # Token
-            self.attribute = None  # Token
+            self.variable = None # Token
+            self.attribute = None # Token
             self.copyFrom(ctx)
 
         def DOT(self):
             return self.getToken(AeonParser.DOT, 0)
-
-        def IDENTIFIER(self, i: int = None):
+        def IDENTIFIER(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.IDENTIFIER)
             else:
                 return self.getToken(AeonParser.IDENTIFIER, i)
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitTypeeAttributeCall"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTypeeAttributeCall" ):
                 return visitor.visitTypeeAttributeCall(self)
             else:
                 return visitor.visitChildren(self)
 
-    def expression(self, _p: int = 0):
+
+
+    def expression(self, _p:int=0):
         _parentctx = self._ctx
         _parentState = self.state
         localctx = AeonParser.ExpressionContext(self, self._ctx, _parentState)
         _prevctx = localctx
         _startState = 52
         self.enterRecursionRule(localctx, 52, self.RULE_expression, _p)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 267
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input, 18, self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,18,self._ctx)
             if la_ == 1:
                 localctx = AeonParser.ParenthesisContext(self, localctx)
                 self._ctx = localctx
@@ -2429,7 +2444,7 @@ class AeonParser(Parser):
                 self.state = 245
                 localctx.op = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not (_la == AeonParser.MINUS or _la == AeonParser.NOT):
+                if not(_la==AeonParser.MINUS or _la==AeonParser.NOT):
                     localctx.op = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -2439,8 +2454,7 @@ class AeonParser(Parser):
                 pass
 
             elif la_ == 3:
-                localctx = AeonParser.AbstractionExpressionContext(
-                    self, localctx)
+                localctx = AeonParser.AbstractionExpressionContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 247
@@ -2474,14 +2488,10 @@ class AeonParser(Parser):
                 self.state = 257
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and
-                    ((1 << _la) &
-                     ((1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) |
-                      (1 << AeonParser.IDENTIFIER) |
-                      (1 << AeonParser.TYPEE_IDENTIFIER) |
-                      (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                     self.state = 256
                     self.typee()
+
 
                 self.state = 259
                 self.match(AeonParser.RBRACKET)
@@ -2502,11 +2512,7 @@ class AeonParser(Parser):
                 self.state = 261
                 localctx.value = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not ((((_la) & ~0x3f) == 0 and
-                         ((1 << _la) & ((1 << AeonParser.BOOLEAN) |
-                                        (1 << AeonParser.INTEGER) |
-                                        (1 << AeonParser.FLOAT) |
-                                        (1 << AeonParser.STRING))) != 0)):
+                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING))) != 0)):
                     localctx.value = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -2520,10 +2526,7 @@ class AeonParser(Parser):
                 self.state = 262
                 localctx.improvement = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not ((((_la) & ~0x3f) == 0 and
-                         ((1 << _la) & ((1 << AeonParser.MAXIMIZE) |
-                                        (1 << AeonParser.MINIMIZE) |
-                                        (1 << AeonParser.EVALUATE))) != 0)):
+                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE))) != 0)):
                     localctx.improvement = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -2536,32 +2539,27 @@ class AeonParser(Parser):
                 self.match(AeonParser.RPARENS)
                 pass
 
+
             self._ctx.stop = self._input.LT(-1)
             self.state = 310
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input, 22, self._ctx)
-            while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
-                if _alt == 1:
+            _alt = self._interp.adaptivePredict(self._input,22,self._ctx)
+            while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
+                if _alt==1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
                     self.state = 308
                     self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input, 21,
-                                                       self._ctx)
+                    la_ = self._interp.adaptivePredict(self._input,21,self._ctx)
                     if la_ == 1:
-                        localctx = AeonParser.NumberExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.NumberExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 269
                         if not self.precpred(self._ctx, 16):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 16)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 16)")
                         self.state = 270
                         localctx.op = self.match(AeonParser.POWER)
                         self.state = 271
@@ -2569,18 +2567,13 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 2:
-                        localctx = AeonParser.LogicalExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.LogicalExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 272
                         if not self.precpred(self._ctx, 15):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 15)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 15)")
                         self.state = 273
                         localctx.op = self.match(AeonParser.IMPLIE)
                         self.state = 274
@@ -2588,27 +2581,17 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 3:
-                        localctx = AeonParser.NumberExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.NumberExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 275
                         if not self.precpred(self._ctx, 13):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 13)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 13)")
                         self.state = 276
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not ((((_la) & ~0x3f) == 0 and
-                                 ((1 << _la) &
-                                  ((1 << AeonParser.MULT) |
-                                   (1 << AeonParser.QUOT) |
-                                   (1 << AeonParser.MODULE) |
-                                   (1 << AeonParser.POWER))) != 0)):
+                        if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.MULT) | (1 << AeonParser.QUOT) | (1 << AeonParser.MODULE) | (1 << AeonParser.POWER))) != 0)):
                             localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -2618,23 +2601,17 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 4:
-                        localctx = AeonParser.NumberExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.NumberExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 278
                         if not self.precpred(self._ctx, 12):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 12)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 12)")
                         self.state = 279
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not (_la == AeonParser.PLUS
-                                or _la == AeonParser.MINUS):
+                        if not(_la==AeonParser.PLUS or _la==AeonParser.MINUS):
                             localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -2644,26 +2621,17 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 5:
-                        localctx = AeonParser.LogicalExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.LogicalExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 281
                         if not self.precpred(self._ctx, 11):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 11)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 11)")
                         self.state = 282
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not ((((_la) & ~0x3f) == 0 and
-                                 ((1 << _la) & ((1 << AeonParser.LT) |
-                                                (1 << AeonParser.LE) |
-                                                (1 << AeonParser.GT) |
-                                                (1 << AeonParser.GE))) != 0)):
+                        if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.LT) | (1 << AeonParser.LE) | (1 << AeonParser.GT) | (1 << AeonParser.GE))) != 0)):
                             localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -2673,23 +2641,17 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 6:
-                        localctx = AeonParser.LogicalExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.LogicalExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 284
                         if not self.precpred(self._ctx, 10):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 10)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 10)")
                         self.state = 285
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not (_la == AeonParser.EQUAL
-                                or _la == AeonParser.DIFF):
+                        if not(_la==AeonParser.EQUAL or _la==AeonParser.DIFF):
                             localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -2699,18 +2661,13 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 7:
-                        localctx = AeonParser.LogicalExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.LogicalExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 287
                         if not self.precpred(self._ctx, 9):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 9)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 9)")
                         self.state = 288
                         localctx.op = self.match(AeonParser.CONJUNCTION)
                         self.state = 289
@@ -2718,18 +2675,13 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 8:
-                        localctx = AeonParser.LogicalExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.LogicalExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.left = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 290
                         if not self.precpred(self._ctx, 8):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 8)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 8)")
                         self.state = 291
                         localctx.op = self.match(AeonParser.DISJUNCTION)
                         self.state = 292
@@ -2737,18 +2689,13 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 9:
-                        localctx = AeonParser.IfExpressionContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.IfExpressionContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.cond = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 293
                         if not self.precpred(self._ctx, 6):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 6)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
                         self.state = 294
                         self.match(AeonParser.QUESTION)
                         self.state = 295
@@ -2760,54 +2707,39 @@ class AeonParser(Parser):
                         pass
 
                     elif la_ == 10:
-                        localctx = AeonParser.FunctionCallContext(
-                            self,
-                            AeonParser.ExpressionContext(
-                                self, _parentctx, _parentState))
+                        localctx = AeonParser.FunctionCallContext(self, AeonParser.ExpressionContext(self, _parentctx, _parentState))
                         localctx.target = _prevctx
-                        self.pushNewRecursionContext(localctx, _startState,
-                                                     self.RULE_expression)
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 299
                         if not self.precpred(self._ctx, 17):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(
-                                self, "self.precpred(self._ctx, 17)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 17)")
                         self.state = 301
                         self._errHandler.sync(self)
                         _la = self._input.LA(1)
-                        if _la == AeonParser.LT:
+                        if _la==AeonParser.LT:
                             self.state = 300
                             localctx.app = self.function_abstraction()
+
 
                         self.state = 303
                         self.match(AeonParser.LPARENS)
                         self.state = 305
                         self._errHandler.sync(self)
                         _la = self._input.LA(1)
-                        if (((_la) & ~0x3f) == 0 and
-                            ((1 << _la) &
-                             ((1 << AeonParser.MAXIMIZE) |
-                              (1 << AeonParser.MINIMIZE) |
-                              (1 << AeonParser.EVALUATE) |
-                              (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) |
-                              (1 << AeonParser.LPARENS) |
-                              (1 << AeonParser.LBRACKET) |
-                              (1 << AeonParser.ABSTRACTION) |
-                              (1 << AeonParser.BOOLEAN) |
-                              (1 << AeonParser.INTEGER) |
-                              (1 << AeonParser.FLOAT) |
-                              (1 << AeonParser.STRING) |
-                              (1 << AeonParser.IDENTIFIER))) != 0):
+                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
                             self.state = 304
                             localctx.params = self.call_parameters()
+
 
                         self.state = 307
                         self.match(AeonParser.RPARENS)
                         pass
 
+             
                 self.state = 312
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input, 22, self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,22,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -2817,11 +2749,10 @@ class AeonParser(Parser):
             self.unrollRecursionContexts(_parentctx)
         return localctx
 
+
     class Function_abstractionContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
@@ -2829,8 +2760,8 @@ class AeonParser(Parser):
             return self.getToken(AeonParser.LT, 0)
 
         def typee_abstract_parameters(self):
-            return self.getTypedRuleContext(
-                AeonParser.Typee_abstract_parametersContext, 0)
+            return self.getTypedRuleContext(AeonParser.Typee_abstract_parametersContext,0)
+
 
         def GT(self):
             return self.getToken(AeonParser.GT, 0)
@@ -2838,16 +2769,18 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_function_abstraction
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitFunction_abstraction"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunction_abstraction" ):
                 return visitor.visitFunction_abstraction(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def function_abstraction(self):
 
-        localctx = AeonParser.Function_abstractionContext(
-            self, self._ctx, self.state)
+        localctx = AeonParser.Function_abstractionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 54, self.RULE_function_abstraction)
         try:
             self.enterOuterAlt(localctx, 1)
@@ -2865,22 +2798,21 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
+
     class Call_parametersContext(ParserRuleContext):
-        def __init__(self,
-                     parser,
-                     parent: ParserRuleContext = None,
-                     invokingState: int = -1):
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def expression(self, i: int = None):
+        def expression(self, i:int=None):
             if i is None:
                 return self.getTypedRuleContexts(AeonParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(AeonParser.ExpressionContext,
-                                                i)
+                return self.getTypedRuleContext(AeonParser.ExpressionContext,i)
 
-        def COMMA(self, i: int = None):
+
+        def COMMA(self, i:int=None):
             if i is None:
                 return self.getTokens(AeonParser.COMMA)
             else:
@@ -2889,18 +2821,20 @@ class AeonParser(Parser):
         def getRuleIndex(self):
             return AeonParser.RULE_call_parameters
 
-        def accept(self, visitor: ParseTreeVisitor):
-            if hasattr(visitor, "visitCall_parameters"):
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitCall_parameters" ):
                 return visitor.visitCall_parameters(self)
             else:
                 return visitor.visitChildren(self)
 
+
+
+
     def call_parameters(self):
 
-        localctx = AeonParser.Call_parametersContext(self, self._ctx,
-                                                     self.state)
+        localctx = AeonParser.Call_parametersContext(self, self._ctx, self.state)
         self.enterRule(localctx, 56, self.RULE_call_parameters)
-        self._la = 0  # Token type
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 317
@@ -2908,7 +2842,7 @@ class AeonParser(Parser):
             self.state = 322
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la == AeonParser.COMMA:
+            while _la==AeonParser.COMMA:
                 self.state = 318
                 self.match(AeonParser.COMMA)
                 self.state = 319
@@ -2925,7 +2859,9 @@ class AeonParser(Parser):
             self.exitRule()
         return localctx
 
-    def sempred(self, localctx: RuleContext, ruleIndex: int, predIndex: int):
+
+
+    def sempred(self, localctx:RuleContext, ruleIndex:int, predIndex:int):
         if self._predicates == None:
             self._predicates = dict()
         self._predicates[26] = self.expression_sempred
@@ -2935,33 +2871,47 @@ class AeonParser(Parser):
         else:
             return pred(localctx, predIndex)
 
-    def expression_sempred(self, localctx: ExpressionContext, predIndex: int):
-        if predIndex == 0:
-            return self.precpred(self._ctx, 16)
+    def expression_sempred(self, localctx:ExpressionContext, predIndex:int):
+            if predIndex == 0:
+                return self.precpred(self._ctx, 16)
+         
 
-        if predIndex == 1:
-            return self.precpred(self._ctx, 15)
+            if predIndex == 1:
+                return self.precpred(self._ctx, 15)
+         
 
-        if predIndex == 2:
-            return self.precpred(self._ctx, 13)
+            if predIndex == 2:
+                return self.precpred(self._ctx, 13)
+         
 
-        if predIndex == 3:
-            return self.precpred(self._ctx, 12)
+            if predIndex == 3:
+                return self.precpred(self._ctx, 12)
+         
 
-        if predIndex == 4:
-            return self.precpred(self._ctx, 11)
+            if predIndex == 4:
+                return self.precpred(self._ctx, 11)
+         
 
-        if predIndex == 5:
-            return self.precpred(self._ctx, 10)
+            if predIndex == 5:
+                return self.precpred(self._ctx, 10)
+         
 
-        if predIndex == 6:
-            return self.precpred(self._ctx, 9)
+            if predIndex == 6:
+                return self.precpred(self._ctx, 9)
+         
 
-        if predIndex == 7:
-            return self.precpred(self._ctx, 8)
+            if predIndex == 7:
+                return self.precpred(self._ctx, 8)
+         
 
-        if predIndex == 8:
-            return self.precpred(self._ctx, 6)
+            if predIndex == 8:
+                return self.precpred(self._ctx, 6)
+         
 
-        if predIndex == 9:
-            return self.precpred(self._ctx, 17)
+            if predIndex == 9:
+                return self.precpred(self._ctx, 17)
+         
+
+
+
+

@@ -2,7 +2,8 @@ import ../../aeon/libraries/list;
 
 // type List;
 
-f : () -> List = native;
+// TODO: Not working for some strange reason????
+// f<T> : () -> List<T> = native;
 
 is_safe_int : (x:Integer) -> Boolean = uninterpreted;
 

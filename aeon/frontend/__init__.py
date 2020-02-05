@@ -127,15 +127,14 @@ def resolveImports(path, program):
 
                 for native in natives.keys():
                     aetype, function = natives[native]
-                    aetype = parse_strict(aetype)
+                    aetype = parse_strict(aetype).declarations[0] # Fixed
                     if isinstance(aetype, Definition):
                         add_function(aetype.name, (aetype, function))
                     else:
-                        # TODO: should add to the context the class itself?
                         importedProgram.declarations.append(aetype)
-                        print(aetype, "aetype")
 
             result = importedProgram.declarations + result
         else:
             result.append(node)
+
     return Program(result)

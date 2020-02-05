@@ -74,7 +74,9 @@ class AeonASTVisitor(AeonVisitor):
     # type Person
     def visitRegular_typee_declaration(
             self, ctx: AeonParser.Regular_typee_declarationContext):
-        return TypeDeclaration(self.visit(ctx.name), star)
+        typee = self.visit(ctx.name)
+        kind = self.getTypeeKind(typee)
+        return TypeDeclaration(typee, kind)
 
     # type Person<T> { ... }
     def visitParameterized_typee_declaration(
@@ -239,7 +241,7 @@ class AeonASTVisitor(AeonVisitor):
         elif isinstance(typee, TypeApplication):
             return Kind(self.getTypeeKind(typee.target), star)
         elif isinstance(typee, TypeAbstraction):
-            return Kind(self.getTypeeKind(typee.type), star)
+            return self.getTypeeKind(typee.type)
 
     # -------------------------------------------------------------------------
     # ---------------------------------------------------------------- Function
