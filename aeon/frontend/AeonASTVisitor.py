@@ -76,7 +76,7 @@ class AeonASTVisitor(AeonVisitor):
             self, ctx: AeonParser.Regular_typee_declarationContext):
         typee = self.visit(ctx.name)
         kind = self.getTypeeKind(typee)
-        return TypeDeclaration(typee, kind)
+        return TypeDeclaration(self.returnBasicTypee(typee).name, kind)
 
     # type Person<T> { ... }
     def visitParameterized_typee_declaration(
@@ -90,7 +90,8 @@ class AeonASTVisitor(AeonVisitor):
 
         # Guardar a declaracao do tipo
         self.declarations.append(
-            TypeDeclaration(typee, self.getTypeeKind(typee)))
+            TypeDeclaration(self.returnBasicTypee(typee).name,
+                self.getTypeeKind(typee)))
 
         # Create the uninterpreted functions
         for name, param in zip(names, parameters):
