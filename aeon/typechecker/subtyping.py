@@ -53,10 +53,22 @@ def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction) -> bool:
         nctx, substitution_type_in_type(sub.type, BasicType(sup.name),
                                         sub.name), sup.type)
 
+
+def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication) -> bool:
+    if sub.target != sup.target:
+        raise SubtypingException(
+            "Type constructor is not the same: {} and {} in {} <?: {}".format(
+                sub.target, sup.target, sub, sup))
+    # TODO: Substitute kind
+    return is_subtype(ctx, sub.argument, sup.argument)
+
+
 def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
     """ S-TappL """
     abst = type_conversion(sub.target)
     if not isinstance(abst, TypeAbstraction):
+        print(abst, type(abst))
+        print(sub, type(sub))
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))
     check_kind(ctx, sub.argument, abst.kind)
@@ -91,6 +103,8 @@ def is_subtype(ctx, sub, sup) -> bool:
         return sub_abs(ctx, sub, sup)
     elif isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
         return sub_tabs(ctx, sub, sup)
+    elif isinstance(sub, TypeApplication) and isinstance(sup, TypeApplication):
+        return sub_tapp(ctx, sub, sup)
     elif isinstance(sub, TypeApplication):
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):

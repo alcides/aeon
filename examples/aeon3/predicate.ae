@@ -1,11 +1,3 @@
-import ../../aeon/libraries/list;
-
-// type List;
-
-// TODO: Not working for some strange reason????
-f<T> : () -> List<T> = native;
-
-
 is_safe_int : (x:Integer) -> Boolean = uninterpreted;
 
 produce : (x:Integer) -> {x:Integer | is_safe_int(x)} {
@@ -16,27 +8,10 @@ consume : (x:{x:Integer | is_safe_int(x)}) -> Integer {
     1;
 }
 
-// TODO
-
-is_image : (x:Integer) -> Boolean = uninterpreted;
-
-type Image as {x:Integer | is_image(x) };
-
-height : (x:Integer) -> Integer = uninterpreted;
-width : (x:Integer) -> Integer = uninterpreted;
-
-load_image : (name:String) -> {i:Image | height(i) == 75 } = native;
-
-
-
-
 main : () -> Top {
 
     a : {a:Integer | is_safe_int(a)} = produce(1);
     b : Integer = consume(a);
     // b : Integer = consume(2); # would fail
     print<Integer>(b);
-
-    //i : Image = load_image("hello");
-
 }
