@@ -98,14 +98,14 @@ def less_than_conversion(condition):
     result = Application(Application(Var('+'), result), Literal(1.0, t_f))
     return normalize(relu(result))
 
-# a >= b ~> norm(ReLU(a - b))
+# a >= b ~> norm(ReLU(y - x))
 def greater_or_equal_conversion(condition):
     result = Application(Var('-'), condition.argument)
     result = Application(result, condition.target.argument)
     return normalize(relu(result))
 
 
-# a <= b ~> norm(ReLU(b - a))
+# a <= b ~> norm(ReLU(x - y))
 def less_or_equal_conversion(conditon):
     result = Application(Var('-'), condition.target.argument)
     result = Application(result, condition.argument)

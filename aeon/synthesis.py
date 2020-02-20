@@ -80,7 +80,7 @@ weights = {
     'ssup_bottom': 1,
     'ssup_abs': 1,
     'ssup_whereL': 1,
-    'ssup_whereL': 1,
+    'ssup_whereR': 1,
     'ssup_tabs': 1,
     'ssup_tapp': 1,
     'ssup_tappL': 1,
