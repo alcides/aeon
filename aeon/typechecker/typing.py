@@ -15,6 +15,7 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
+
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
         nctx = ctx.with_var(T.name, T.type)
@@ -140,7 +141,8 @@ def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
         t = t_hole(ctx, e)
     else:
         raise TypeCheckingError(
-            "{} does not have a type synthesis rule".format(e))
+            "{} (of node type {}) does not have a type synthesis rule".format(
+                e, type(e)))
     e.type = t
     return t
 
@@ -165,6 +167,7 @@ def check_program(ast):
         if isinstance(e, Program):
             for decl in e.declarations:
                 holes.clear()  # Reset to add holes of curr decl.
+                print("decl", decl)
                 internal_check(ctx, decl)
                 if holes:
                     holed.append((decl, holes.copy()))  # Append the holes
@@ -179,7 +182,7 @@ def check_program(ast):
         elif isinstance(e, TypeDeclaration):
             name = e.name
             kind = e.kind
-            ctx.add_type_var(name, kind)     # Fixed
+            ctx.add_type_var(name, kind)  # Fixed
         else:
             print("TypeChecking ignoring:", e, type(e))
 

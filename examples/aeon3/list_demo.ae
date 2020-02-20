@@ -1,0 +1,8 @@
+import aeon/libraries/list;
+
+
+main : () -> Top {
+    b : List<Integer> = empty_list<Integer>();
+    //print<List<Integer>>(b);
+    1;
+}

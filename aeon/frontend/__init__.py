@@ -116,25 +116,24 @@ def resolveImports(path, program):
                                                 importedProgram.declarations))
             # It is a .py import
             else:
-                moduleName = absolutePath.split(os.path.sep)[-1]
-                modulePath = absolutePath[:-len(moduleName)]
-                sys.path.append(modulePath)
-
+                moduleName = node.name.replace("/", ".")
                 importedProgram = Program([])
                 natives = importNative(
                     moduleName,
                     '*' if node.function is None else node.function)
 
                 for native in natives.keys():
-                    aetype, function = natives[native]
-                    aetype = parse_strict(aetype).declarations[0] # Fixed
-                    if isinstance(aetype, Definition):
-                        add_function(aetype.name, (aetype, function))
-                    else:
-                        importedProgram.declarations.append(aetype)
+                    aetype_code, function = natives[native]
 
+                    imported_declarations = parse_strict(
+                        aetype_code).declarations
+                    aetype = imported_declarations[0]  # Fixed
+                    if isinstance(aetype, Definition):
+                        add_function(aetype.name, aetype.type, function)
+                    importedProgram.declarations.append(aetype)
+                    importedProgram.declarations.extend(
+                        imported_declarations[1:])
             result = importedProgram.declarations + result
         else:
             result.append(node)
-
     return Program(result)

@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     try:
         ast, context, holed = check_program(ast)
-        
+
         # If there are holes, lets fill them
         if holed:
             ast = automatic(ast, context, holed)

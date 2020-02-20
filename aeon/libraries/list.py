@@ -14,12 +14,14 @@ def cons(list):
 '''
 
 
-@aetype('type List<T>;')
+@aetype("""type List<T> {
+    size : Integer;
+}""")
 class List(object):
     def __init__(self, next):
         self.next = next
 
 
-@aetype('empty_list : () -> l:List /* where {l.size == 0} */ = native;')
-def empty_list():
+@aetype('empty_list<T> : () -> { l:List<T> | l.size == 0} = native;')
+def empty_list(ignored):
     return []

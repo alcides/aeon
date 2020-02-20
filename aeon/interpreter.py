@@ -6,14 +6,18 @@ from multipledispatch import dispatch
 
 from copy import deepcopy
 
+
 class EvaluationContext(object):
     def __init__(self):
         # Builds the context with the native functions
         self.ctx = {}
         for name, _, value in get_builtin_variables():
             self.ctx[name] = value
-    
-def run(node, ctx=EvaluationContext()):
+
+
+def run(node, ctx=None):
+    if ctx is None:
+        ctx = EvaluationContext()
     return evaluate(ctx.ctx, node)
 
 
@@ -24,7 +28,8 @@ def evaluate(ctx, node):
 
 @dispatch(dict, Var)
 def evaluate(ctx, node):
-    # CUIDADO: retorna None para native functions e non-existing functions
+    if node.name not in ctx:
+        raise Exception("{} not in context".format(node.name))
     return ctx.get(node.name)
 
 
@@ -75,8 +80,8 @@ def evaluate(ctx, node):
         argument = 0  # TODO:
     else:
         argument = evaluate(ctx, node.argument)
-    #print("Target: ", node.target, target)
-    #print("Argument: ", argument, node.argument)
+    # print("Target: ", node.target, target)
+    # print("Argument: ", argument, node.argument)
     return target(argument)
 
 
@@ -116,4 +121,3 @@ def ctxPut(ctx, varName, var):
     if not varName.startswith('_'):
         ctx[varName] = var
     return ctx
-

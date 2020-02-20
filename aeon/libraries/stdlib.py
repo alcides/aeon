@@ -24,8 +24,8 @@ def get_builtin_variables():
         yield (k, v[0], v[1])
 
 
-def add_function(key, value):
-    initial_context[key] = value
+def add_function(key, type, implementation):
+    initial_context[key] = (type, implementation)
 
 
 def ty(operation, typee):
@@ -165,7 +165,7 @@ string_context = {
 
 def r_print(x):
     print(x)
-    x
+    return x
 
 
 io_context = {
@@ -174,20 +174,20 @@ io_context = {
 
 for expression in math_context.keys():
     ntype, implementation = math_context[expression]
-    add_function(expression, (ntype, implementation))
+    add_function(expression, ntype, implementation)
 
 for expression in string_context.keys():
     ntype, implementation = string_context[expression]
-    add_function(expression, (ntype, implementation))
+    add_function(expression, ntype, implementation)
 
 for expression in io_context.keys():
     ntype, implementation = io_context[expression]
-    add_function(expression, (ntype, implementation))
+    add_function(expression, ntype, implementation)
 """
 native_implementations = importNative('aeon.libraries.native', '*')
 
 for expr_name in native_implementations.keys():
     ntype, implementation = native_implementations[expr_name]
     node = Definition(expr_name, ntype, Var("native"))
-    add_function(expr_name, (ntype, implementation))
+    add_function(expr_name, ntype, implementation)
 """

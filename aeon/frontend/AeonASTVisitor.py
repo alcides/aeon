@@ -3,10 +3,12 @@ from typing import List
 from .generated.AeonParser import AeonParser
 from .generated.AeonVisitor import AeonVisitor
 
-from aeon.ast import Var, Literal, Definition, TypeAlias, TypeDeclaration, Program, Import, Abstraction, Application, If, Hole, TAbstraction, TApplication
+from aeon.ast import TypedNode, Var, Literal, Definition, TypeAlias, TypeDeclaration, Program, Import, Abstraction, Application, If, Hole, TAbstraction, TApplication
 from aeon.types import Type, BasicType, AbstractionType, RefinedType, TypeApplication, TypeAbstraction, Kind, star, bottom, t_v, t_i, t_f, t_b, t_s, top, t_delegate
 
 from functools import reduce
+
+from .helpers import *
 
 
 class AeonASTVisitor(AeonVisitor):
@@ -90,15 +92,19 @@ class AeonASTVisitor(AeonVisitor):
 
         # Guardar a declaracao do tipo
         self.declarations.append(
-            TypeDeclaration(self.returnBasicTypee(typee).name,
-                self.getTypeeKind(typee)))
-
+            TypeDeclaration(
+                self.returnBasicTypee(typee).name, self.getTypeeKind(typee)))
+        type_abstraction = extract_refinements(typee)[0]
         # Create the uninterpreted functions
         for name, param in zip(names, parameters):
+
             function_name = '_{}_{}'.format(typee_name, name)
-            function_type = AbstractionType('_', typee, param)
-            definition = Definition(function_name, function_type, param,
-                                    Var('uninterpreted').with_type(bottom))
+            function_type = AbstractionType('_', type_abstraction, param)
+            function_type = wrap_typeabstractions(function_type, typee)
+
+            definition = Definition(function_name, function_type,
+                                    Var('uninterpreted').with_type(bottom),
+                                    param)
             self.declarations.append(definition)
             self.general_context[function_name] = function_type
 
@@ -156,7 +162,7 @@ class AeonASTVisitor(AeonVisitor):
         typee = reduce(
             lambda abst, retType: TypeAbstraction(retType, star, abst),
             abstractions, typee)
-            
+
         return typee
 
     # ([X, Y, Z], [T1, T2, ..., Tn])
@@ -250,12 +256,12 @@ class AeonASTVisitor(AeonVisitor):
 
     def remove_tabstractions(self, typee):
         if isinstance(typee, BasicType):
-            typee = typee # Do nothing
+            typee = typee  # Do nothing
         elif isinstance(typee, AbstractionType):
             typee.arg_type = self.remove_tabstractions(typee.arg_type)
             typee.return_type = self.remove_tabstractions(typee.return_type)
         elif isinstance(typee, RefinedType):
-            typee.type = self.remove_tabstractions(typee.type) 
+            typee.type = self.remove_tabstractions(typee.type)
         elif isinstance(typee, TypeAbstraction):
             typee = self.remove_tabstractions(typee.type)
         elif isinstance(typee, TApplication):
@@ -342,7 +348,6 @@ class AeonASTVisitor(AeonVisitor):
         self.basic_typee_stack = []
 
         return Definition(name, typee, body, return_type)
-
 
     # f<T, Integer>
     def visitFunction_identifier(self,
@@ -513,7 +518,6 @@ class AeonASTVisitor(AeonVisitor):
         return If(condition, then, otherwise)
 
     # variavel.atributo
-    # TODO: small complication with tabstractions and tapplications
     def visitTypeeAttributeCall(self,
                                 ctx: AeonParser.TypeeAttributeCallContext):
         variable = ctx.variable.text
@@ -523,9 +527,14 @@ class AeonASTVisitor(AeonVisitor):
         target_name = '_{}_{}'.format(
             self.returnBasicTypee(arg_typee).name, attribute)
 
-        target = Var(target_name)
+        target: TypedNode = Var(target_name)
         argument = Var(variable)
 
+        # This part handles tapplications
+        ttype = arg_typee
+        while isinstance(ttype, TypeAbstraction):
+            target = TApplication(target, BasicType(ttype.name))
+            ttype = ttype.type
         return Application(target, argument)
 
     # \\x:T -> expression
@@ -552,7 +561,9 @@ class AeonASTVisitor(AeonVisitor):
     def visitFunctionCall(self, ctx: AeonParser.FunctionCallContext):
         expression = self.visit(ctx.target)
         applications = self.visit(ctx.app) if ctx.app else []
-        parameters = self.visit(ctx.params) if ctx.params else [Var('_')]
+        parameters = self.visit(ctx.params) if ctx.params else [
+            Var('native')
+        ]  # Native is of type bottom
 
         for application in applications:
             expression = TApplication(expression, application)
