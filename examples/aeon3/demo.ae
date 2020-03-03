@@ -1,5 +1,9 @@
 // import ../libraries/list;
 
+type Person<T, V> {
+    age:Person<T, V>;
+}
+
 test : (x:Integer) -> Integer {
     x+1;
     2;

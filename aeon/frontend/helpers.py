@@ -19,8 +19,7 @@ def wrap_typeabstractions(funty: AbstractionType, typee: Type):
     """
     (_, type_abstractions_to_add_to_function) = extract_refinements(typee)
 
-    # TODO: Check order
     function_type: Type = funty
-    for (t, k) in type_abstractions_to_add_to_function:
+    for (t, k) in reversed(type_abstractions_to_add_to_function):
         function_type = TypeAbstraction(t, k, function_type)
     return function_type

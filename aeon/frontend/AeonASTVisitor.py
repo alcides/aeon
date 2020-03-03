@@ -13,8 +13,6 @@ from .helpers import *
 
 class AeonASTVisitor(AeonVisitor):
     def __init__(self, context):
-        self.counter = 0
-        self.type_aliases = {}
 
         self.declarations = []
         self.general_context = {}
@@ -22,9 +20,7 @@ class AeonASTVisitor(AeonVisitor):
 
         for x in list(context.keys()):
             curr = context[x][0]
-            if isinstance(curr, TypeAlias):
-                self.type_aliases[curr.name] = curr
-            elif isinstance(curr, TypeDeclaration):
+            if isinstance(curr, TypeDeclaration):
                 self.general_context[x] = curr
             else:
                 self.general_context[x] = curr
@@ -33,7 +29,6 @@ class AeonASTVisitor(AeonVisitor):
     # ----------------------------------------------------------------- Program
     def visitAeon(self, ctx: AeonParser.AeonContext):
         for child in ctx.children:
-            self.counter = 0
             self.basic_typee_stack = []
             child = self.visit(child)
             if child is not None:
@@ -65,7 +60,6 @@ class AeonASTVisitor(AeonVisitor):
     def visitTypee_alias(self, ctx: AeonParser.Typee_aliasContext):
         name = self.visit(ctx.name)
         alias = self.visit(ctx.alias)
-        self.type_aliases[name] = alias
         return TypeAlias(name, alias)
 
     # -------------------------------------------------------------------------
@@ -95,13 +89,13 @@ class AeonASTVisitor(AeonVisitor):
             TypeDeclaration(
                 self.returnBasicTypee(typee).name, self.getTypeeKind(typee)))
         type_abstraction = extract_refinements(typee)[0]
+        
         # Create the uninterpreted functions
         for name, param in zip(names, parameters):
 
             function_name = '_{}_{}'.format(typee_name, name)
-            function_type = AbstractionType('_', type_abstraction, param)
+            function_type = AbstractionType('_', type_abstraction, self.treatTypee(param))
             function_type = wrap_typeabstractions(function_type, typee)
-
             definition = Definition(function_name, function_type,
                                     Var('uninterpreted').with_type(bottom),
                                     param)
@@ -145,10 +139,7 @@ class AeonASTVisitor(AeonVisitor):
 
     # T, V, Integer, String, Boolean
     def visitTypee_basic_type(self, ctx: AeonParser.Typee_basic_typeContext):
-        typee = BasicType(ctx.basicType.text)
-        #if typee in self.type_aliases:
-        #return self.type_aliases[typee]
-        return typee
+        return BasicType(ctx.basicType.text)
 
     # Map<K, V> : (* => *) => *
     def visitTypee_type_abstract(self,
@@ -247,7 +238,7 @@ class AeonASTVisitor(AeonVisitor):
         elif isinstance(typee, AbstractionType):
             return star
         elif isinstance(typee, TypeApplication):
-            return Kind(self.getTypeeKind(typee.target), star)
+            return Kind(star, self.getTypeeKind(typee.target))
         elif isinstance(typee, TypeAbstraction):
             return self.getTypeeKind(typee.type)
 
@@ -344,7 +335,6 @@ class AeonASTVisitor(AeonVisitor):
         self.general_context = old_context
         self.general_context[name] = typee
 
-        self.counter = 0
         self.basic_typee_stack = []
 
         return Definition(name, typee, body, return_type)

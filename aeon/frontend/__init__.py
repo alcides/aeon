@@ -3,7 +3,7 @@ from .AeonASTVisitor import AeonASTVisitor
 from .generated.AeonParser import AeonParser
 from .generated.AeonLexer import AeonLexer
 
-from ..libraries.standard import importNative
+from aeon.libraries.standard import importNative
 
 # from .frontend_module.verifiers.ContextVerifier import ContextVerifier
 from .verifiers.AeonSyntaxErrorListener import AeonSyntaxErrorListener
@@ -13,11 +13,7 @@ import sys
 import os.path
 
 from antlr4 import *
-from ..ast import Var
-from ..ast import Import
-from ..ast import Program
-from ..ast import Definition
-
+from aeon.ast import Var, Import, Definition, Program
 
 # Given a file, parses the file and imports the program
 def parse(path):
