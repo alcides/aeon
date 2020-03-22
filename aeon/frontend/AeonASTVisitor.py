@@ -9,6 +9,7 @@ from aeon.types import Type, BasicType, AbstractionType, RefinedType, TypeApplic
 from functools import reduce
 
 from .helpers import *
+from aeon.typechecker.utils import flatten_refined_type
 
 
 class AeonASTVisitor(AeonVisitor):
@@ -17,6 +18,8 @@ class AeonASTVisitor(AeonVisitor):
         self.declarations = []
         self.general_context = {}
         self.basic_typee_stack = []
+
+        self.type_aliases = {}
 
         for x in list(context.keys()):
             curr = context[x][0]
@@ -60,6 +63,7 @@ class AeonASTVisitor(AeonVisitor):
     def visitTypee_alias(self, ctx: AeonParser.Typee_aliasContext):
         name = self.visit(ctx.name)
         alias = self.visit(ctx.alias)
+        self.type_aliases[name.name] = alias 
         return TypeAlias(name, alias)
 
     # -------------------------------------------------------------------------
@@ -113,7 +117,10 @@ class AeonASTVisitor(AeonVisitor):
     # -------------------------------------------------------------------------
     # ------------------------------------------------------------------- Typee
     def visitTypee(self, ctx: AeonParser.TypeeContext):
-        return self.visitChildren(ctx)
+        typee = self.visitChildren(ctx)
+        if isinstance(typee, BasicType) and typee.name in self.type_aliases:
+            typee = self.type_aliases[typee.name]
+        return typee
 
     # {T | condition}
     def visitTypee_refined(self, ctx: AeonParser.Typee_refinedContext):
@@ -141,7 +148,7 @@ class AeonASTVisitor(AeonVisitor):
     def visitTypee_basic_type(self, ctx: AeonParser.Typee_basic_typeContext):
         return BasicType(ctx.basicType.text)
 
-    # Map<K, V> : (* => *) => *
+    # Map<K, V> : * => (* => *)
     def visitTypee_type_abstract(self,
                                  ctx: AeonParser.Typee_type_abstractContext):
         typee: Type = BasicType(ctx.abstractType.text)
@@ -427,7 +434,6 @@ class AeonASTVisitor(AeonVisitor):
         condition = self.visit(ctx.cond)
         then = self.visit(ctx.then)
         otherwise = self.visit(ctx.otherwise)
-        typee = self.leastUpperBound(then.type, otherwise.type)
         return If(condition, then, otherwise)
 
     # -------------------------------------------------------------------------
@@ -468,16 +474,17 @@ class AeonASTVisitor(AeonVisitor):
         operator = Var(ctx.op.text)
 
         if operator.name not in ['||', '&&']:
-            operator = TApplication(operator, t_delegate)
-
+            typee = flatten_refined_type(right.type)
+            operator = TApplication(operator, typee) 
+            
         return Application(Application(operator, left), right)
 
     # x + y, x - y, x * y, x ^ y, ...
     def visitNumberExpression(self, ctx: AeonParser.NumberExpressionContext):
         left = self.visit(ctx.left)
         right = self.visit(ctx.right)
-        operator = TApplication(Var(ctx.op.text), t_delegate)
-        return Application(Application(operator, left), right)
+        tapplication = TApplication(Var(ctx.op.text), t_delegate)
+        return Application(Application(tapplication, left), right)
 
     # !expression or -expression
     def visitUnaryOperation(self, ctx: AeonParser.UnaryOperationContext):

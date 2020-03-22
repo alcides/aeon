@@ -6,7 +6,7 @@ import shutil
 from .frontend import parse, parse_strict
 from .frontend2 import parse as parse2
 from .typechecker import check_program
-from .type_inferer import inferTypes
+from .hole_inferer import infer_hole
 from .interpreter import run
 from .automatic import automatic
 from .translate import Translator
@@ -36,6 +36,8 @@ if __name__ == '__main__':
         print(ast)
 
     try:
+        # Infer the holes
+        # infer_hole(ast)
         ast, context, holed = check_program(ast)
 
         # If there are holes, lets fill them

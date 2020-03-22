@@ -29,7 +29,7 @@ import_path
 // ----------------------------------------------------------------------------
 // -------------------------------- TypeeAlias --------------------------------
 typee_alias
-    : TYPEE name=typee AS alias=typee SEMICOLON
+    : TYPEE name=typee_basic_type AS alias=typee SEMICOLON
     ;
 
 // ----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ typee_abstract_parameters
 // ----------------------------------------------------------------------------
 // --------------------------------- Function ---------------------------------
 function
-    : name=function_identifier COLON LPARENS params=function_parameters? RPARENS RARROW returnType=typee where=function_where? body=function_body
+    : name=function_identifier LPARENS params=function_parameters? RPARENS RARROW returnType=typee where=function_where? body=function_body
     ;
 
 function_identifier

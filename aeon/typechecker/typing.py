@@ -117,8 +117,9 @@ holes = []
 
 
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
+    e.type = bottom if e.type is None  else e.type
     holes.append((ctx.copy(), e.type))
-    return e.type
+    return None
 
 
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
