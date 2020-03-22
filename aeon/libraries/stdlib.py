@@ -6,7 +6,7 @@ import aeon.frontend2 as frontend2
 
 import aeon.frontend
 from aeon.ast import Var, Definition
-from aeon.libraries.standard import importNative
+from aeon.libraries.helper import importNative
 
 
 def is_builtin(name):
@@ -144,24 +144,9 @@ initial_context = {
     ), lambda x: lambda y: x >= y),
 }
 
-math_context = {
-    'min':
-    (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: min(x, y)),
-    'max':
-    (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: max(x, y)),
-    'abs': (ty2('(T:*) => (a:T) -> {x:T where (x >= 0)}'), lambda x: abs(x)),
-    'ceil': (ty2('(T:*) => (a:T) -> Integer'), lambda x: math.ceil(x)),
-    'floor': (ty2('(T:*) => (a:T) -> Integer'), lambda x: math.floor(x)),
-    'pow':
-    (ty2('(T:*) => (a:T) -> (b:T) -> T'), lambda x: lambda y: pow(x, y)),
-    'sqrt': (ty2('(T:*) => (a:T) -> (b:T) -> {x:T where (x >= 0)}'),
-             lambda x: math.sqrt(x))
-}
-
 string_context = {
     'string_length': (ty2("(x:String) -> Integer"), lambda x: len(x)),
 }
-
 
 def r_print(x):
     print(x)
@@ -169,12 +154,8 @@ def r_print(x):
 
 
 io_context = {
-    'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),
+    'print': (ty2("(x:Void) -> Bottom"), lambda x: r_print(x)),
 }
-
-for expression in math_context.keys():
-    ntype, implementation = math_context[expression]
-    add_function(expression, ntype, implementation)
 
 for expression in string_context.keys():
     ntype, implementation = string_context[expression]

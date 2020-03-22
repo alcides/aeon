@@ -464,7 +464,7 @@ class AeonASTVisitor(AeonVisitor):
             value = value == 'true' and True or False
             return Literal(value, type=self.refined_value(value, t_b, '_b'))
         elif ctx.value.type == AeonParser.STRING:
-            return Literal(value, type=self.refined_value(value, t_s, '_s'))
+            return Literal(value[1:-1], type=self.refined_value(value, t_s, '_s'))
         return None
 
     # x -> y, x == y, x || y, x && y, x > y, x < y, ...

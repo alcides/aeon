@@ -1,13 +1,3 @@
-r1 : (x:Integer) -> y:Integer {
-    print<Integer>(x);
-    x > 0 ? r2(x-1) : 0;
-}
-
-r2 : (x:Integer) -> y:Integer {
-    print<Integer>(x);
-    r1(x-1);
-}
-
-main : () -> Void {
-    r1(10);
+fibonacci : (x:Integer) -> Integer {
+    x == 0 || x == 1 ? x : fibonacci(x - 1) + fibonacci(x - 2);
 }

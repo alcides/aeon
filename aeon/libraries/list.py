@@ -1,6 +1,6 @@
-from aeon.libraries.standard import aetype
+from .helper import aefunction
 '''
-@aetype("type List<T>")
+@aetype("type List<T>", lambda x: x)
 class List(object):
     def __init__(self, next):
         self.next = next

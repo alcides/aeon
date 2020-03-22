@@ -6,11 +6,15 @@ isValid : (z:Integer) -> Boolean {
     z > 0 ? true : false;
 }
 
-cipher : ({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and 
-                                                                x == decipher(z, key) and 
+cipher : ({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and
+                                                                x == decipher(z, key) and
                                                                 isValid(z)} {
     // x + key;
-    [Integer];
+    if true {
+      [];
+    } else {
+      x - key;
+    };
 }
 
 //outraFuncaoComBuraco : () -> z:Integer {

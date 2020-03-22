@@ -2,14 +2,15 @@
 type Nat as {x:Integer | x > 0};
 type BigNat as {x:Integer | x > 1000};
 
-f: (a:Nat) -> y:Nat {
+f(a:Nat) -> y:Nat {
     10091;
 }
 
 // ---------------------------------------------- TAbstraction and TApplication
-/*type List<T>;
+type List<T> {
+    size : Integer;
+}
 
-f2: (x:List<Integer>) -> y:Nat {
+f2(x:List<Integer>) -> y:Nat {
     1;
 }
-*/

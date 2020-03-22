@@ -60,7 +60,6 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
 
 def t_var(ctx: TypingContext, e: Var) -> Type:
     if e.name not in ctx.variables:
-        print(ctx.variables)
         raise TypeCheckingError("Variable {} not in context".format(e))
     return ctx.variables[e.name]
 
@@ -163,7 +162,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 
 def check_program(ast):
     holed = []
-
+    
     def internal_check(ctx: TypingContext, e: TypedNode):
         if isinstance(e, Program):
             for decl in e.declarations:

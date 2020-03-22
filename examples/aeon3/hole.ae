@@ -51,7 +51,7 @@ hole35 : (y:Integer) -> Integer {
 
 
  hole5 : (y:Integer) -> Double {
-    \x : String -> [];
+    (\x : String -> [])("oi");
 }
 
 
@@ -67,7 +67,7 @@ hole35 : (y:Integer) -> Integer {
 
 
  hole7 : (y:Integer) -> Integer {
-    y > 0 ? [] : true;
+    y > 0 ? [] : 1; // TODO:
 }
 
  hole8 : (y:Integer) -> Integer {
@@ -85,7 +85,7 @@ hole35 : (y:Integer) -> Integer {
 
 
  h2 : (y:Integer) -> Integer {
-    f([](2));
+    f<Integer>([](2)); // TODO:
     1;
 }
 
@@ -98,7 +98,7 @@ hole35 : (y:Integer) -> Integer {
 
 
 
- hole11 : (y:Integer) -> {x:Integer | x > 10} {
+hole11 : (y:Integer) -> {x:Integer | x > 10} {
     [](10);
 }
 

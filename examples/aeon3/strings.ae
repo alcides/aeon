@@ -1,0 +1,20 @@
+import aeon/libraries/strings;
+
+main() -> Top {
+    
+    print("Testing string operations");
+    print("=======================");
+
+    print("Equals:");
+    print(equals("ola", "ola"));
+    print(equals("ola", "adeus"));
+
+    print("Concat:");
+    print(concat("ola", "adeus"));
+
+    print("Size:");
+    print(size("ola"));
+    
+    print("Replace:");
+    print(replace("ola", "adeus", "olatudobem"));
+}
