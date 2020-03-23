@@ -1,7 +1,7 @@
 import copy
 
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom, t_s, t_f
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
 
@@ -55,6 +55,20 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
                                Application(TApplication(Var("=="), t_i),
                                            Var(name)),
                                Literal(value=v, type=t_i, ensured=True)))
+    elif isinstance(e.value, float) and not e.type:
+        return RefinedType(name=name,
+                           type=t_f,
+                           cond=Application(
+                               Application(TApplication(Var("=="), t_f),
+                                           Var(name)),
+                               Literal(value=v, type=t_f, ensured=True)))
+    elif isinstance(e.value, str) and not e.type:
+        return RefinedType(name=name,
+                           type=t_s,
+                           cond=Application(
+                               Application(TApplication(Var("=="), t_s),
+                                           Var(name)),
+                               Literal(value=v, type=t_s, ensured=True)))
     return e.type
 
 
@@ -118,7 +132,7 @@ holes = []
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
     e.type = bottom if e.type is None  else e.type
     holes.append((ctx.copy(), e.type))
-    return None
+    return e.type
 
 
 def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
