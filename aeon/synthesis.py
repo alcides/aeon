@@ -14,8 +14,8 @@ from .typechecker.substitutions import substitution_expr_in_type, substitution_t
 from .typechecker.typing import TypeCheckingError
 from . import typechecker as tc
 
-MAX_TRIES = 10
-MAX_TRIES_WHERE = 20
+MAX_TRIES = 1
+MAX_TRIES_WHERE = 1
 
 forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
 
@@ -166,7 +166,7 @@ def random_chooser(f):
                     weights[r] *= 100
         #print(args, "#", kwargs, "#", list(f(*args, *kwargs)))
         valid_alternatives = list(f(*args, *kwargs))
-        
+
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
             raise Unsynthesizable("No valid alternatives for", f.__name__,
@@ -200,7 +200,7 @@ def get_valid_genetics(ctx: TypingContext, T: Type, d: int):
 
     for tree in genetic_material:
         has_valid_size = d - tree.height >= 0
-        has_valid_type = tc.is_subtype(ctx, tree.type, T) 
+        has_valid_type = tc.is_subtype(ctx, tree.type, T)
 
         if has_valid_size and has_valid_type:
             result.append(tree)
@@ -337,7 +337,7 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
 def is_compatible(ctx, v, T):
     try:
         # TODO: Paulo: troquei a ordem, confirmar depois
-        return v not in forbidden_vars and tc.is_subtype(ctx, ctx.variables[v], T) 
+        return v not in forbidden_vars and tc.is_subtype(ctx, ctx.variables[v], T)
     except Exception as e:
         print(">>>", e)  #TODO
         return False
@@ -468,7 +468,7 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
                             Application(TApplication(Var("=="), t_i),
                                         Var(name)),
                             Literal(value=v, type=t_i, ensured=True))))
-    
+
     raise Unsynthesizable(
         "Unable to generate a refinement example: {}".format(T))
 
@@ -519,7 +519,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_double", se_double)
     if isinstance(T, RefinedType):
         yield ("se_where", se_where)
-    
+
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
@@ -529,9 +529,9 @@ def se(ctx: TypingContext, T: Type, d: int):
         if isinstance(T, TypeAbstraction):
             yield ("se_tabs", se_tabs)
         yield ("se_tapp", se_tapp)
-        yield ("se_app", se_app) 
+        yield ("se_app", se_app)
         yield ("se_subtype", se_subtype)
-    
+
     if get_valid_genetics(ctx, T, d):
         yield ("se_genetics", se_genetics)
 
@@ -541,6 +541,10 @@ def se_safe(ctx: TypingContext, T: Type, d: int):
         return se(ctx, T, d)
     except TypeCheckingError:
         print("Se-safe in action...")
+        # Try until we get one that works
+        return se_safe(ctx, T, d)
+    except Unsynthesizable:
+        print("Se-safe in action: it can't synthesize...")
         # Try until we get one that works
         return se_safe(ctx, T, d)
 
@@ -867,7 +871,7 @@ def ssub_whereL(ctx: TypingContext, T: RefinedType, d: int) -> Type:
     if tc.entails(nctx, T.cond):
         return U
     raise Unsynthesizable("Subtype where condition is not valid: {}".format(T))
-    
+
 
 def ssub_tabs(ctx: TypingContext, T: TypeAbstraction, d: int) -> Type:
     """ SSub-TAbs """
@@ -1016,3 +1020,69 @@ def ssup(ctx: TypingContext, T: Type, d: int) -> Type:
                 T.argument, TypeAbstraction):
             yield ('ssup_tappL', ssup_tappL)
         yield ('ssup_tappR', ssup_tappR)
+
+
+
+# =============================================================================
+# ============================================= From Refinement to random value
+# TODO: FORGOT LAMBDA EXPRESSIONS IN REFINEMENTS
+def refined_random(variable, typee : Type, expression : TypedNode):
+
+    # Transform the expression, so the variable is on the right side 
+    expression = transform_expression(variable, expression)
+
+    max, min = get_max_min(expression)
+
+    # Just for integers for now
+    return random.randrange(min, max, 1)
+
+
+def transform_expression(variable, expression):
+    target = expression.target
+
+    # Just in case it is the !
+    if isinstance(target, Application):
+        target = target.target
+
+    if target.name in ['&&', '||', '-->']:
+        expression.argument = transform_expression(variable, expression.argument)
+        expression.target.argument = transform_expression(variable, expression.target.argument)
+    elif target.name in ['!']:
+        expression.argument = transform_expression(variable, expression.argument)
+    elif target.name in ['>', '>=', '<', '<=', '==', '!=']:
+        expression = invert_expression(variable, expression)
+    else:
+        # Invocation of functions
+        pass
+
+    return expression
+
+
+def invert_expression(variable, expression):
+    application = expression.target.target
+
+    # x, 1 + 3 + x > 43
+    while not isinstance(expression.target.argument, Var) and expression.target.argument.name == variable:
+        pass    
+
+    return expression
+
+
+
+
+# TODO:
+def get_max_min(expression : TypedNode):
+    application = expression.target
+
+    # To prevent statements such as !true
+    if isinstance(application, Application):
+        application = application.target
+    
+    # Choose the argument
+    if application.name == '||':
+        argument = random.choice(expression.argument, expression.target.argument)
+    elif application.name == '!':
+        argument = expresison.argument
+    elif application.name == '':
+        pass
+    pass
