@@ -1,3 +1,0 @@
-fibonacci : (x:Integer) -> Integer {
-    x == 0 || x == 1 ? x : fibonacci(x - 1) + fibonacci(x - 2);
-}

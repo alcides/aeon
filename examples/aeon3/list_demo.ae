@@ -1,8 +1,33 @@
-import aeon/libraries/list;
+import aeon/libraries/linkedlist;
 
 
-main : () -> Top {
-    b : List<Integer> = empty_list<Integer>();
-    //print<List<Integer>>(b);
-    1;
+main() -> Top {
+
+    // Create an empty list
+    print("Empty list");
+    l1 : LList<Integer> = empty_list<Integer>();
+    print(l1);
+
+    // Append to the list
+    print("Apppend to list");
+    l2 : LList<Integer> = append<Integer>(1, l1);
+    print(l2);
+    l2 = append<Integer>(2, l2);
+    print(l2);
+    l2 = append<Integer>(3, l2);
+    print(l2);
+
+    // Extend a list with another list
+    print("Extend a list with another list");
+    l4 : LList<Integer> = append<Integer>(1, empty_list<Integer>());
+    l5 : LList<Integer> = append<Integer>(2, empty_list<Integer>());
+    print(extend<Integer>(l1, l2)); // 0 items with + items
+    print(extend<Integer>(l2, l1)); // + items with 0 items
+    print(extend<Integer>(l4, l5)); // 1 item with 1 item
+    print(extend<Integer>(l5, l4)); // 1 item with 1 item
+    print(extend<Integer>(l2, l4)); // + items with 1 item
+    print(extend<Integer>(l4, l2)); // 1 item with + items
+
+    // TODO: Not working???? Should give error
+    // {l3 : List<Integer> | l3.size == 1} = empty_list<Integer>();
 }

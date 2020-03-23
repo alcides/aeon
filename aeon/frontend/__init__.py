@@ -3,7 +3,7 @@ from .AeonASTVisitor import AeonASTVisitor
 from .generated.AeonParser import AeonParser
 from .generated.AeonLexer import AeonLexer
 
-from aeon.libraries.standard import importNative
+from aeon.libraries.helper import importNative
 
 # from .frontend_module.verifiers.ContextVerifier import ContextVerifier
 from .verifiers.AeonSyntaxErrorListener import AeonSyntaxErrorListener
@@ -117,7 +117,6 @@ def resolveImports(path, program):
                 natives = importNative(
                     moduleName,
                     '*' if node.function is None else node.function)
-
                 for native in natives.keys():
                     aetype_code, function = natives[native]
 

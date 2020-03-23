@@ -420,12 +420,12 @@ class AeonASTVisitor(AeonVisitor):
     def visitVariable_assignment(self,
                                  ctx: AeonParser.Variable_assignmentContext):
         typee = self.general_context.get(ctx.variable.text)
-        variable = Var(ctx.variable.text).with_type(typee)
+        variable = ctx.variable.text
         expression = self.visit(ctx.exp)
 
-        if variable.name not in self.general_context:
+        if variable not in self.general_context:
             typee = expression.type
-            self.general_context[variable.name] = typee
+            self.general_context[variable] = typee
 
         return Definition(variable, typee, expression, typee)
 
@@ -474,8 +474,7 @@ class AeonASTVisitor(AeonVisitor):
         operator = Var(ctx.op.text)
 
         if operator.name not in ['||', '&&']:
-            typee = flatten_refined_type(right.type)
-            operator = TApplication(operator, typee) 
+            operator = TApplication(operator, t_delegate) 
             
         return Application(Application(operator, left), right)
 
@@ -567,6 +566,11 @@ class AeonASTVisitor(AeonVisitor):
             #expression.type = TypeApplication(expression.target.type,
             #                                  application)
 
+        # TODO: Automatically introduce the TApplcations:
+        if not applications and isinstance(expression, Var):
+            pass
+            self.deduce_tapplications(expression, parameters)
+
         for param in parameters:
             expression = Application(expression, param)
             expression.type = self.getReturnType(
@@ -574,6 +578,10 @@ class AeonASTVisitor(AeonVisitor):
             # TODO: isto nao esta bem?? Confirmar, parece-me bem
 
         return expression
+
+    # Automatically deduces the applications of the type of a function
+    def deduce_tapplications(self, variable : Var, parameters):
+        pass
 
     # @maximize(...), @minimze(...) and @evaluate(...)
     def visitFitnessImprovement(self,

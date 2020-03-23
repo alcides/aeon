@@ -144,10 +144,6 @@ initial_context = {
     ), lambda x: lambda y: x >= y),
 }
 
-string_context = {
-    'string_length': (ty2("(x:String) -> Integer"), lambda x: len(x)),
-}
-
 def r_print(x):
     print(x)
     return x
@@ -157,18 +153,6 @@ io_context = {
     'print': (ty2("(x:Void) -> Bottom"), lambda x: r_print(x)),
 }
 
-for expression in string_context.keys():
-    ntype, implementation = string_context[expression]
-    add_function(expression, ntype, implementation)
-
 for expression in io_context.keys():
     ntype, implementation = io_context[expression]
     add_function(expression, ntype, implementation)
-"""
-native_implementations = importNative('aeon.libraries.native', '*')
-
-for expr_name in native_implementations.keys():
-    ntype, implementation = native_implementations[expr_name]
-    node = Definition(expr_name, ntype, Var("native"))
-    add_function(expr_name, ntype, implementation)
-"""
