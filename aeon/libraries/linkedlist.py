@@ -53,7 +53,7 @@ def append(x, l):
     return result
 
 
-@aefunction('extend<T>(l1:LList<T>, l2:LList<T>) -> {l3:LList<T> | l3.size == l1.size + l2.size} = native;', lambda l1: lambda l2: extend(clone(l1), clone(l2)))
+@aefunction('extend<T>(l1:LList<T>, l2:LList<T>) -> {l3:LList<T> | l3.size == l1.size + l2.size} = native;', lambda l1: lambda l2: extend(l1, l2))
 def extend(l1, l2):
     result = List(None, None)
     current = result
@@ -117,12 +117,12 @@ def contains(x, l):
 
 # Index of the first occurence of the element
 @aefunction('index<T>(x:T, l:LList<T>) -> {i:Integer | -1 <= i && i < l.size} = native;', lambda x: lambda l: index(x, l, 0))
-def index(x, l, index):
+def index(x, l, i):
     if x == l.head:
-        return index
+        return i
     else:
         if l.next:
-            return index(x, l.next, index + 1)
+            return index(x, l.next, i + 1)
         else:
             return -1
 
