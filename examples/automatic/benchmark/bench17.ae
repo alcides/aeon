@@ -1,0 +1,7 @@
+// Sum of Squares:
+// ---------------
+// Given integer n, return the sum of squaring each integer in
+// the range [1, n]
+sum_squares(l:List<Integer>) -> out:Integer where {out == reduce(\x:Integer -> \y:Integer -> x+y, map(\x:Integer -> x * x, l))} {
+    reduce(\x:Integer -> \y:Integer -> x+y, map(\x:Integer -> x * x, l));
+}
