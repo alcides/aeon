@@ -145,7 +145,7 @@ initial_context = {
 }
 
 def r_print(x):
-    print(x)
+    print("PRINT: ", x)
     return x
 
 

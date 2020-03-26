@@ -17,6 +17,11 @@ class List(object):
 def empty_list(ignore):
     return []
 
+# Range: returns a list of Integers
+@aefunction('range<T>(min:Integer, max:Integer) -> {l:List<Integer> | l.size == (max - min)} = native;', lambda min: lambda max: range_list(min, max))
+def range_list(minimum, maximum):
+    return list(bultins.range(minimum, maximum))
+
 # Append an element to the list
 @aefunction('append<T>(x:T, l:List<T>) -> {l2:List<T> | l2.size == l.size + 1} = native;', lambda x: lambda l: append(x, l))
 def append(x, l):
@@ -75,9 +80,14 @@ def filter(f, l):
     return list(builtins.filter(f, l))
     
 # Map each element
-@aefunction('map<T>(f:(x:T -> T), l:List<T>) -> {l2:List<T> | l.size == l2.size} = native;', lambda f: lambda l: map(f, l))
+@aefunction('map<T, K>(f:(x:T -> K), l:List<T>) -> {l2:List<K> | l.size == l2.size} = native;', lambda f: lambda l: map(f, l))
 def map(f, l):
     return list(builtins.map(f, l))
+
+# Append an element to the list
+@aefunction('elemAt<T>(i:Integer, l:List<T>) -> T = native;', lambda i: lambda l: elemAt(i, l))
+def elemAt(i, l):
+    return l[i]
 
 # Size of the list 
 @aefunction('length<T>(l:List<T>) -> {i:Integer | i == l.size} = native;', lambda l: length(l))

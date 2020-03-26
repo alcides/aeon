@@ -36,7 +36,7 @@ class Z3Evaluator(Evaluator):
             axis = ('Typee', metric)
             labels = ('Types', metric)
             f_name = '{}'.format(metric)
-            print(res.columns)
+            print("Z3 Evaluator:", res.columns)
             res = res.sort_values(by=['Typee'])
 
             split = metric == "Individual"

@@ -12,7 +12,6 @@ def grow(holes, size: int, depth: int):
         expressions = [se_safe(ctx, hole, depth) for ctx, hole in holes]
         contexts = [ctx for ctx, hole in holes]    
         population.append(Individual(expressions, contexts))
-        print(expressions)
     
     return population
 
@@ -25,13 +24,11 @@ def full(holes, size: int, depth: int):
         for j in range(size_per_depth):
             expressions = [se_safe(ctx, hole, i) for ctx, hole in holes]
             contexts = [ctx for ctx, hole in holes]
-            print(expressions)
             population.append(Individual(expressions, contexts))
     
     for i in range(size % depth):
         expressions = [se_safe(ctx, hole, depth) for ctx, hole in holes]
         contexts = [ctx for ctx, hole in holes]
-        print(expressions)
         population.append(Individual(expressions, contexts))
 
     return population

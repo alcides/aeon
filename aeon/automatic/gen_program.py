@@ -38,10 +38,10 @@ class GenProg(object):
         self.mutate = mutate
         self.crossover = crossover
         self.initialize = initialize
-        
-        
+
+
     def evaluate_fitness(self, population):
-        
+
         # The abstractions of the declaration
         abstractions, _ = generate_abstractions(self.declaration)
 
@@ -49,14 +49,14 @@ class GenProg(object):
         tests = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
 
         for individual in population:
-            
+
             # Fill the holes and interpret the individual
             synthesized = deepcopy(self.declaration)
             replace_holes(synthesized, deepcopy(individual.synthesized))
-            
+
             # Interpret the individual
             interpreted = run(synthesized, self.eval_ctx)
-            
+
             # Get the output from running the function
             out_tests = []
             for test in tests:
@@ -64,7 +64,7 @@ class GenProg(object):
                 for param in test:
                     res = res(param)
                 out_tests.append(test + (res,))
-                
+
             # Codigo feio, depois melhoro
             # Run the fitness functions and obtain results
             individual_fitness = list()
@@ -76,24 +76,27 @@ class GenProg(object):
                         result = result(param)
                     total += result
                 individual_fitness.append(total)
-                
+
             # Add the fitness to the individual
             individual.add_fitness(individual_fitness)
 
 
     def evolve(self):
-        
+
         amount_fitness_functions = len(self.fitness_functions)
-        
+
+        # Safe the best fitnesses and individuals
+        best_individuals = list()
+
         # Generate and evaluate the initial population
-        print("Generation 0")
+        print("Generation 0\n")
         population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
         self.evaluate_fitness(population)
-
+    
         # Run every generation until an individual is found
         for gen in range(self.MAX_GENERATIONS):
-            
-            print("\nGeneration", gen + 1)
+
+            print("Generation", gen + 1, "\n")
 
             # Select the best individuals from the population
             new_population = []
@@ -103,27 +106,27 @@ class GenProg(object):
                 parent1 = self.select(population, amount_fitness_functions)
                 parent2 = self.select(population, amount_fitness_functions)
                 individual = self.crossover(self.MAX_DEPTH, parent1, parent2)
-                print("mutated")
+
                 # Mutate
                 if random.random() < self.MUTATION_RATE:
                     self.mutate(self.MAX_DEPTH, individual)
 
-                print(individual.synthesized)
-
                 new_population.append(individual)
-            
+
             # Evaluate
             self.evaluate_fitness(new_population)
-            
-            # Sort the individuals
-            new_population = sorted(new_population, key=lambda x : x.fitness)
 
+            # Set the offsprings to the current population
             population = new_population
 
             # TODO: nao gosto de breaks, == cuidado, erro virgula
-            if population[0].fitness == 0.0:
-                break 
-            
-            print("Best fitness at generation", i, "is", population[0].fitness)
-            
-        return population[0]
+            best_fitness = min([sum(indiv.fitness) for indiv in population])
+            best_individuals = [indiv for indiv in population if sum(indiv.fitness) == 0.0]
+
+            if best_individuals:
+                break
+
+            best_individuals = population
+            print("Best fitness at generation", i, "is", best_fitness, "\n")
+
+        return random.choice(best_individuals)

@@ -737,10 +737,10 @@ class AeonASTVisitor(AeonVisitor):
                 self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
         elif isinstance(typee, TypeApplication):
-            typee.target = self.refine_expression(typee.target, expression)
+            typee.target = self.refine_expression(name, typee.target, expression)
             result = typee
         elif isinstance(typee, TypeAbstraction):
-            typee.type = self.refine_expression(typee.type, expression)
+            typee.type = self.refine_expression(name, typee.type, expression)
             result = typee
         else:
             result = None
