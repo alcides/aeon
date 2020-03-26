@@ -1,0 +1,14 @@
+import aeon/libraries/list;
+
+// Even Squares:
+// -------------
+// Given an integer n, print all of the positive even squares less
+// than n on separate lines.
+even_squares({n:Integer | n > 0}) -> l:List<Integer> where {l == filter(\x:Integer -> x * x % 2 == 0 && x * x < n, range(0, n / 2))} {
+    filter(\x:Integer -> x * x % 2 == 0 && x * x < n, range(0, n / 2));
+    // [List<Integer>]
+}
+
+main() -> Top {
+    print(even_squares(20));
+}

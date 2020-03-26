@@ -1,0 +1,17 @@
+import aeon/libraries/strings;
+
+// Compare String Sizes:
+// -----------------------
+// Given three strings n1, n2, and n3, return true if size(n1) < size(n2)
+// and size(n2) < size(n3)
+compare_strings(s1 : String, s2 : String, s3 : String) -> out:Boolean where {size(s1) < size(s2) && size(s2) < size(s3)} {
+    size(s1) < size(s2) && size(s2) < size(s3);
+    // [Boolean];
+}
+
+main() -> Top {
+    s1 : String = "ola";
+    s2 : String = "adeus";
+    s3 : String = "tudo bem";
+    print(compare_strings(s1, s2, s3));
+}

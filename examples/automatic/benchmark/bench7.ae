@@ -1,0 +1,29 @@
+import aeon/libraries/strings;
+
+// Replace space with Newline
+// --------------------------
+// Given a string input, print the string, replacing the spaces
+// with newlines. Also, return the integer count of the non-
+// whitespace characters. The input string will not have tabs or
+// newlines
+replace_spaces(in:String) -> out:String where {out.size == in.size and 
+                                               count(" ", out) == 0 and
+                                               count("\n", out) == count(" ", in)} {
+    if equals(" ", head(in)) {
+        concat("\n", tail(out));
+    }
+    else {
+        concat(head(in), tail(out));
+    };
+    // [String]
+}
+
+main() -> Top {
+    s : String = "ola tudo bem?";
+
+    print("String original:");
+    print(s);
+
+    print("String com espacos substituidos:");
+    print(replace_spaces(s));
+}

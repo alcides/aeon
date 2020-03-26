@@ -1,0 +1,13 @@
+import aeon/libraries/strings;
+
+// String difference:
+// ------------------
+// Given 2 strings (without whitespace) as input, find the indices
+// at which the strings have different characters, stopping at the
+// end of the shorter one. For each such index, print a line con-
+// taining the index as well as the character in each string. For
+// example, if the strings are "dealer" and "dollars", the program
+// should print:
+// 1 e o
+// 2 a l
+// 4 e a
