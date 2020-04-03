@@ -1,22 +1,13 @@
-decipher : (x:Integer, k:Integer) -> out:Integer {
+decipher(x:Integer, k:Integer) -> out:Integer {
     (x - k);
 }
 
-isValid : (z:Integer) -> Boolean {
+isValid(z:Integer) -> Boolean {
     z > 0 ? true : false;
 }
 
-cipher : ({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and
-                                                                x == decipher(z, key) and
-                                                                isValid(z)} {
-    // x + key;
-    if true {
-      [];
-    } else {
-      x - key;
-    };
+cipher({x:Integer | x > 0}, key:Integer) -> z:Integer where {z > 0 and
+                                                            x == decipher(z, key) and
+                                                            isValid(z)} {
+    [Integer];
 }
-
-//outraFuncaoComBuraco : () -> z:Integer {
-//    [(x:Integer -> Integer)]([Integer]);
-//}

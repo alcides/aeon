@@ -17,7 +17,7 @@ from . import typechecker as tc
 MAX_TRIES = 1
 MAX_TRIES_WHERE = 1
 
-forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else']
+forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else', 'print']
 
 weights = {
     "sk_star": 1,  # Kinding
@@ -339,7 +339,7 @@ def is_compatible(ctx, v, T):
         # TODO: Paulo: troquei a ordem, confirmar depois
         return v not in forbidden_vars and tc.is_subtype(ctx, ctx.variables[v], T)
     except Exception as e:
-        print(">>>", e)  #TODO
+        # print(">>>", e)  #TODO
         return False
 
 
@@ -544,7 +544,7 @@ def se_safe(ctx: TypingContext, T: Type, d: int):
         # Try until we get one that works
         return se_safe(ctx, T, d)
     except Unsynthesizable:
-        print("Se-safe in action: it can't synthesize...")
+        # print("Se-safe in action: it can't synthesize...")
         # Try until we get one that works
         return se_safe(ctx, T, d)
 

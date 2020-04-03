@@ -1,7 +1,9 @@
 from functools import reduce
 
 import z3
+import math
 import random
+import builtins
 
 from ..ast import Var, Literal, Application, Abstraction, TApplication, TAbstraction, Node
 from ..types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
@@ -243,6 +245,8 @@ def zed_initial_context():
         "/": lambda x: lambda y: x / y,
         "^": lambda x: lambda y: x ^ y,
         "%": lambda x: lambda y: x % y,
+        "smtPow": lambda x: lambda y: math.pow(x, y),
+        "smtAbs": lambda x: builtins.abs(x),
         "smtEq": lambda x: lambda y: x == y,
         "smtIneq": lambda x: lambda y: x != y,
         "smtLt": lambda x: lambda y: x < y,

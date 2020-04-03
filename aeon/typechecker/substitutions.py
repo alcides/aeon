@@ -111,7 +111,7 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
 def substitution_expr_in_type(n: Type, replacement: TypedNode,
                               replaced: str) -> Type:
     """ T[e/x] """
-
+    
     assert (isinstance(n, Type))
     assert (isinstance(replaced, str))
 

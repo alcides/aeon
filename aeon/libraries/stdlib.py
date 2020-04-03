@@ -1,6 +1,7 @@
 """ This file describes the standard library of Aeon """
 
 import math
+import builtins
 
 import aeon.frontend2 as frontend2
 
@@ -80,6 +81,12 @@ initial_context = {
     '>=': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
     ), lambda x: lambda y: x >= y),
+    'pow': (ty2(
+        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtPow a) b))}"
+    ), lambda x: lambda y: math.pow(x, y)),    
+    'abs': (ty2(
+        "(T:*) => (a:T) -> {b:Boolean where ((smtEq c) (smtAbs a))}"
+    ), lambda x: builtins.abs(x)),
     '&&': (ty2(
         "(a:Boolean) -> (b:Boolean) -> {c:Boolean where ((smtEq c) ((smtAnd a) b))}"
     ), lambda x: lambda y: x and y),

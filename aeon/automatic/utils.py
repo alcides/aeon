@@ -3,14 +3,15 @@ from aeon.types import *
 
 # Generate the and expressions for the typee
 def generate_expressions(condition):
+    '''
     if isinstance(condition, Application) and isinstance(condition.target, Application):
         if isinstance(condition.target.target, Var) and condition.target.target.name == 'And':
             return generate_expressions(condition.argument) + generate_expressions(condition.target.argument)
                 
     return [condition]
 
-
     '''
+
 
 
     if isinstance(condition.target, Var):
@@ -34,7 +35,6 @@ def generate_expressions(condition):
         raise Exception("Unknown during and expression generation: ",
                         type(condition), condition)
         return None
-    '''
 
 # Generate the abstractions so I can englobe the and expressions
 def generate_abstractions(definition):

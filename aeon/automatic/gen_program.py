@@ -47,7 +47,7 @@ class GenProg(object):
 
         # Generate inputs and interpret them
         tests = generate_inputs(abstractions, self.type_context, self.AMOUNT_TESTS)
-
+      
         for individual in population:
 
             # Fill the holes and interpret the individual
@@ -56,7 +56,7 @@ class GenProg(object):
 
             # Interpret the individual
             interpreted = run(synthesized, self.eval_ctx)
-
+            
             # Get the output from running the function
             out_tests = []
             for test in tests:
@@ -91,7 +91,11 @@ class GenProg(object):
         # Generate and evaluate the initial population
         print("Generation 0\n")
         population = self.initialize(self.holes, self.POPULATION_SIZE, self.MAX_DEPTH)
+
         self.evaluate_fitness(population)
+        
+        print("Initial population:")
+        print(population, "\n")
     
         # Run every generation until an individual is found
         for gen in range(self.MAX_GENERATIONS):
@@ -127,6 +131,6 @@ class GenProg(object):
                 break
 
             best_individuals = population
-            print("Best fitness at generation", i, "is", best_fitness, "\n")
+            print("Best fitness at generation", gen, "is", best_fitness, "\n")
 
         return random.choice(best_individuals)

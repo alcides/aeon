@@ -84,12 +84,29 @@ def filter(f, l):
 def map(f, l):
     return list(builtins.map(f, l))
 
-# Append an element to the list
+# Element at a certain position
 @aefunction('elemAt<T>(i:Integer, l:List<T>) -> T = native;', lambda i: lambda l: elemAt(i, l))
 def elemAt(i, l):
     return l[i]
+
+# Reduce
+@aefunction('reduce<X, Y>(f:(x:X -> (Y -> Y)), {l:List<X> | l.size > 0}) -> X = native;', lambda l: reduce(l))
+def reduce(l):
+    return l[1:]
 
 # Size of the list 
 @aefunction('length<T>(l:List<T>) -> {i:Integer | i == l.size} = native;', lambda l: length(l))
 def length(l):
     return len(l)
+
+# Head of the list
+@aefunction('head<T>({l:List<T> | l.size > 0}) -> T = native;', lambda l: head(i, l))
+def head(l):
+    return l[0]
+
+# Tail of the list 
+@aefunction('tail<T>({l:List<T> | l.size > 0}) -> {l2:List<T> | l2.size == l.size - 1} = native;', lambda l: tail(l))
+def tail(l):
+    return l[1:]
+
+
