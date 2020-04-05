@@ -6,7 +6,7 @@ from typing import Union, Sequence
 
 from .ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
-from typing import List
+from typing import List, Generator, Tuple, Any
 from .types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from .typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
@@ -90,6 +90,7 @@ weights = {
 }
 
 genetic_material = []
+
 
 class WeightManager(object):
     def __init__(self, **nw):
@@ -195,6 +196,8 @@ def random_chooser(f):
 
 
 """ Genetic synthesis """
+
+
 def get_valid_genetics(ctx: TypingContext, T: Type, d: int):
     result = []
 
@@ -218,6 +221,7 @@ def se_genetics(ctx: TypingContext, T: Type, d: int):
 
 """ Kind synthesis """
 
+
 @random_chooser
 def sk(d=5):
     """ ~> k """
@@ -239,17 +243,21 @@ def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Int"
     return t_i
 
+
 def st_bool(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Bool"
     return t_b
+
 
 def st_double(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Double"
     return t_f
 
+
 def st_string(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-String"
     return t_s
+
 
 def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Var"
@@ -337,7 +345,8 @@ def scfv(T: Union[Type, TypingContext], upper: bool = False):
 def is_compatible(ctx, v, T):
     try:
         # TODO: Paulo: troquei a ordem, confirmar depois
-        return v not in forbidden_vars and tc.is_subtype(ctx, ctx.variables[v], T)
+        return v not in forbidden_vars and tc.is_subtype(
+            ctx, ctx.variables[v], T)
     except Exception as e:
         # print(">>>", e)  #TODO
         return False
@@ -357,6 +366,7 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 
 """ Expression Synthesis """
+
 
 def se_bool(ctx: TypingContext, T: BasicType, d: int):
     """ SE-Bool """
@@ -495,15 +505,18 @@ def se_subtype(ctx: TypingContext, T: Type, d: int):
     U = ssub(ctx, T, d - 1)
     return se(ctx, U, d - 1)
 
+
 def has_applications_return(ctx, T: Type):
     for name, typee in ctx.variables.items():
         new_ctx = ctx.copy()
-        while isinstance(typee, AbstractionType) :
+        while isinstance(typee, AbstractionType):
             new_ctx.add_var(typee.arg_name, typee.arg_type)
-            if tc.is_subtype(new_ctx, typee, T) or tc.is_subtype(new_ctx, T, typee.arg_type): # TODO: CHECK
+            if tc.is_subtype(new_ctx, typee, T) or tc.is_subtype(
+                    new_ctx, T, typee.arg_type):  # TODO: CHECK
                 return True
             typee = typee.return_type
     return False
+
 
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
@@ -548,6 +561,7 @@ def se_safe(ctx: TypingContext, T: Type, d: int):
         # Try until we get one that works
         return se_safe(ctx, T, d)
 
+
 """ Expression Synthesis parameterized with x:T """
 
 
@@ -580,7 +594,7 @@ def iet_where(ctx: TypingContext, e: TypedNode, x: str, RT: RefinedType,
 
 
 def iet_tapp(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
-            d: int):
+             d: int):
     """ IET-app """
     T = TA.target
     U = TA.argument
@@ -590,7 +604,7 @@ def iet_tapp(ctx: TypingContext, e: TypedNode, x: str, TA: TypeApplication,
 
 
 def iet_tabs(ctx: TypingContext, e: TypedNode, x: str, TB: TypeAbstraction,
-            d: int):
+             d: int):
     """ IET-Tabs """
     t = TB.name
     k = TB.kind
@@ -614,6 +628,7 @@ def iet(ctx: TypingContext, e: TypedNode, x: str, T: Type, d: int):
 
 
 """ Inverse exp-subs in expression """
+
 
 def iee_var(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
     """ IEE-Var """
@@ -908,7 +923,8 @@ def ssub_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
 
 
 @random_chooser
-def ssub(ctx: TypingContext, T: Type, d: int) -> Type:
+def ssub(ctx: TypingContext, T: Type,
+         d: int) -> Generator[Tuple[str, Any], None, None]:
     #if isinstance(T, BasicType):
     yield ('ssub_base', ssub_base)
     if isinstance(T, BasicType) and T.name == 'Top':
@@ -1001,7 +1017,8 @@ def ssup_tappR(ctx: TypingContext, T: Type, d: int) -> TypeApplication:
 
 
 @random_chooser
-def ssup(ctx: TypingContext, T: Type, d: int) -> Type:
+def ssup(ctx: TypingContext, T: Type,
+         d: int) -> Generator[Tuple[str, Any], None, None]:
     yield ('ssup_base', ssup_base)
     if isinstance(T, BasicType) and T.name == 'Bottom':
         yield ('ssup_bottom', ssup_bottom)
@@ -1022,13 +1039,12 @@ def ssup(ctx: TypingContext, T: Type, d: int) -> Type:
         yield ('ssup_tappR', ssup_tappR)
 
 
-
 # =============================================================================
 # ============================================= From Refinement to random value
 # TODO: FORGOT LAMBDA EXPRESSIONS IN REFINEMENTS
-def refined_random(variable, typee : Type, expression : TypedNode):
+def refined_random(variable, typee: Type, expression: TypedNode):
 
-    # Transform the expression, so the variable is on the right side 
+    # Transform the expression, so the variable is on the right side
     expression = transform_expression(variable, expression)
 
     max, min = get_max_min(expression)
@@ -1045,10 +1061,13 @@ def transform_expression(variable, expression):
         target = target.target
 
     if target.name in ['&&', '||', '-->']:
-        expression.argument = transform_expression(variable, expression.argument)
-        expression.target.argument = transform_expression(variable, expression.target.argument)
+        expression.argument = transform_expression(variable,
+                                                   expression.argument)
+        expression.target.argument = transform_expression(
+            variable, expression.target.argument)
     elif target.name in ['!']:
-        expression.argument = transform_expression(variable, expression.argument)
+        expression.argument = transform_expression(variable,
+                                                   expression.argument)
     elif target.name in ['>', '>=', '<', '<=', '==', '!=']:
         expression = invert_expression(variable, expression)
     else:
@@ -1062,27 +1081,27 @@ def invert_expression(variable, expression):
     application = expression.target.target
 
     # x, 1 + 3 + x > 43
-    while not isinstance(expression.target.argument, Var) and expression.target.argument.name == variable:
-        pass    
+    while not isinstance(expression.target.argument,
+                         Var) and expression.target.argument.name == variable:
+        pass
 
     return expression
 
 
-
-
 # TODO:
-def get_max_min(expression : TypedNode):
+def get_max_min(expression: TypedNode):
     application = expression.target
 
     # To prevent statements such as !true
     if isinstance(application, Application):
         application = application.target
-    
+
     # Choose the argument
     if application.name == '||':
-        argument = random.choice(expression.argument, expression.target.argument)
+        argument = random.choice(expression.argument,
+                                 expression.target.argument)
     elif application.name == '!':
-        argument = expresison.argument
+        argument = expression.argument
     elif application.name == '':
         pass
     pass

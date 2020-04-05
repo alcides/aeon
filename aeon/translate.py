@@ -1,3 +1,5 @@
+# type: ignore[no-redef]
+
 from .ast import *
 from .types import *
 
@@ -59,7 +61,8 @@ class Translator():
             is_native_var = lambda node, lista: isinstance(
                 node.target, Application) and isinstance(
                     node.target.target, TApplication) and isinstance(
-                        node.target.target.target, Var) and node.target.target.target.name in lista
+                        node.target.target.target, Var
+                    ) and node.target.target.target.name in lista
 
             if is_native_var(node, [
                     '+', '-', '*', '/', '%', '^', '>', '<', '>=', '<=', '==',
@@ -166,8 +169,7 @@ class Translator():
 
     @dispatch(RefinedType)
     def translate(self, node):
-        return '{{{}:{} | {}}}'.format(node.name,
-                                       self.translate(node.type),
+        return '{{{}:{} | {}}}'.format(node.name, self.translate(node.type),
                                        self.translate(node.cond))
 
     @dispatch(TypeAbstraction)

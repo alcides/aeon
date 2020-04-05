@@ -1,3 +1,5 @@
+# type: ignore[no-redef]
+
 from .types import *
 from .ast import *
 from .libraries.stdlib import get_builtin_variables
