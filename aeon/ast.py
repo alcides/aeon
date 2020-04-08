@@ -1,10 +1,13 @@
+import copy
+
 from typing import Optional, List
 
 from .types import Type, Kind
 
 
 class Node(object):
-    pass
+    def copy(self):
+        return copy.deepcopy(self)
 
 
 class Program(Node):
@@ -18,6 +21,9 @@ class Program(Node):
 class TypedNode(Node):
     def __init__(self):
         self.type = None
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def __repr__(self):
         return str(self)
