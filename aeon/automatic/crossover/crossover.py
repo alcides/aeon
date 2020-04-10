@@ -2,8 +2,9 @@ import copy
 import random
 
 from aeon.typechecker.subtyping import is_subtype
-
 from aeon.synthesis import se_safe, set_genetics, reset_genetics
+
+from aeon.automatic.individual import Individual
 from aeon.automatic.utils.tree_utils import annotate_tree, random_subtree, replace_tree, all_valid_subtrees
 
 # Chooses a specific hole whose tree is going to be crossed with
@@ -19,20 +20,15 @@ def regular_crossover(depth, parent1, parent2):
     hole2 = parent2.synthesized[index_hole].copy()
     context2 = parent2.contexts[index_hole]
 
-    ## If not annotated, annotate the height to ensure the maximum tree depth
-    ## and 100% random node selection probability 
-    annotate_tree(hole1)
-    annotate_tree(hole2)
-
     # Choose the subtree that is getting replaced
-    parent1, subtree1 = random_subtree(hole1)
+    father1, subtree1 = random_subtree(hole1)
 
     # Obtain all valid subtrees from the second parent
     subtrees2 = all_valid_subtrees(context2, hole2)
 
     # Filter for those that respect the maximum depth and type of subtree1
-    subtrees2 = filter(lambda x: x.depth <= depth - subtree1.height, subtrees2)
-    subtree_selections = filter(lambda x: is_subtype(context1, x.type, subtree1.type), subtrees2)
+    subtrees2 = list(filter(lambda x: x.depth <= depth - subtree1.height, subtrees2))
+    subtree_selections = list(filter(lambda x: is_subtype(context1, x.type, subtree1.type), subtrees2))
     
     if not subtree_selections:
         # If no valid subtree is available to cross, synthesize an expression
@@ -43,7 +39,7 @@ def regular_crossover(depth, parent1, parent2):
         subtree2 = random.choice(subtree_selections)
     
     # Create the offspring by crossing the two trees
-    offspring = replace_tree(hole1, parent1, subtree1, subtree2) 
+    offspring = replace_tree(hole1, father1, subtree1, subtree2) 
 
     # Update the offspring height, depth and size
     annotate_tree(offspring)

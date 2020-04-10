@@ -1,8 +1,38 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TAbstraction, TApplication
 from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction, TypeApplication
 
+from aeon.automatic.fitness.conversor import convert
+
 from aeon.interpreter import run
-from aeon.synthesizer import se_safe
+from aeon.synthesis import se_safe
+
+
+# =============================================================================
+# Auxiliary: Given a definition, generate its fitness functions
+def generate_fitness_functions(eval_ctx, definition):
+
+    fitness_functions = list()
+
+    # Check if there are conditions for the fitness function
+    if isinstance(definition.return_type, RefinedType):
+
+        # 0. Obtain the condition from the return type
+        conditions = definition.return_type.cond
+        
+        # 1. Get each 'And' expression
+        and_expressions = generate_expressions(conditions)
+        
+        # 2. Filter expressions to obtain the dependent types only
+        and_expressions = filter_typees(definition.return_type.name, and_expressions)
+        
+        # 3. Convert each expression
+        and_expressions = convert(and_expressions)
+
+        # 4. Translate the ast into fitness functions
+        fitness_functions = interpret_expressions(eval_ctx, definition, and_expressions)
+
+    return fitness_functions
+
 
 # =============================================================================
 # Obtain the types of the input parameters
@@ -14,6 +44,7 @@ def generate_typees(declaration):
 
     while typee != declaration.return_type:
         result.append(typee.arg_type)
+        typee = typee.return_type
 
     return result
 
@@ -55,7 +86,7 @@ def generate_expressions(condition):
 
 # =============================================================================
 # Filter the restrict types from the and expressions
-def filter_typees(expressions):
+def filter_typees(output_name, expressions):
 
     def is_dependent(node):
             
@@ -64,9 +95,7 @@ def filter_typees(expressions):
             
         elif isinstance(node, Var):
             import aeon.libraries.stdlib as stdlib
-            if not stdlib.is_builtin(node.name):
-                return True
-            return False
+            return not stdlib.is_builtin(node.name) and node.name != output_name
         
         elif isinstance(node, Hole):
             return False

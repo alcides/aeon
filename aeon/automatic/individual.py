@@ -32,4 +32,4 @@ class Individual(object):
         return str(self)
 
     def __str__(self):
-        return "Fitness: {}\r\nSynthesized expressions: {}".format(self.fitness, self.synthesized)
+        return "\nFitness: {}\r\nSynthesized expressions: {}".format(self.fitness, self.synthesized)

@@ -2,10 +2,10 @@ import random
 
 from aeon.automatic.parameters import *
 
+from aeon.automatic.mutation import mutate
 from aeon.automatic.fitness import evaluate
-from aeon.automatic.mutation import mutation
+from aeon.automatic.selection import select
 from aeon.automatic.crossover import crossover
-from aeon.automatic.selection import selection
 from aeon.automatic.initialization import initialize_population
 
 class Genetics(object):
@@ -19,9 +19,10 @@ class Genetics(object):
 
     def evolve(self):
 
-        # Initialize, evaluate and sort the population
-        population = initialize_population()
-
+        # Initialize and evaluate the population
+        population = initialize_population(self)
+        population = evaluate(population, self)
+        
         for generation in range(1, MAX_GENERATIONS):
 
             print("Generation", generation)
@@ -31,7 +32,7 @@ class Genetics(object):
 
             # Crossover the parents and obtain the offspring
             offspring = crossover(population, self)
-
+            
             # Mutate the individuals and obtain the offspring
             offspring = mutate(offspring, self)
 
@@ -47,5 +48,7 @@ class Genetics(object):
             if best_individuals:
                 population = best_individuals
                 break
+
+            print(population, "\n")
 
         return random.choice(population)

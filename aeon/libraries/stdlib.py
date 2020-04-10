@@ -157,7 +157,7 @@ def r_print(x):
 
 
 io_context = {
-    'print': (ty2("(x:Void) -> Bottom"), lambda x: r_print(x)),
+    'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),
 }
 
 for expression in io_context.keys():

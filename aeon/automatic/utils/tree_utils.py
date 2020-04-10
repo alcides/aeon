@@ -1,14 +1,11 @@
 import random 
 
-from aeon.ast import Hole, Var, Literal, If, Application, Abstraction, TApplication, TAbstraction
+from aeon.ast import Hole, Var, Literal, If, Application, Abstraction, TApplication, TAbstraction, Definition
 
 # =============================================================================
 # Given a tree, annotate it with its maximum depth, size and height
 def annotate_tree(tree, height = 0):
-    # If the tree already is annotated, no need to re-annotate it
-    if hasattr(tree, 'depth') and hasattr(tree, 'size') and hasattr(tree, 'height'):
-        return
-
+ 
     tree.height = height
 
     if isinstance(tree, Literal) or isinstance(tree, Var) or isinstance(tree, Hole):
@@ -119,34 +116,34 @@ def all_valid_subtrees(context, tree):
         result = list()
 
     elif isinstance(tree, Var):
-        is_valid = node.name in ctx.variables
+        is_valid = tree.name in context.variables
         result = list()
 
     elif isinstance(tree, Hole):
         result = list()
     
     elif isinstance(tree, If):
-        cond = split_trees(context, tree.cond)
-        then = split_trees(context, tree.then)
-        otherwise = split_trees(context, tree.otherwise)
+        cond = all_valid_subtrees(context, tree.cond)
+        then = all_valid_subtrees(context, tree.then)
+        otherwise = all_valid_subtrees(context, tree.otherwise)
         result = cond + then + otherwise
     
     elif isinstance(tree, Application):
-        target = split_trees(context, tree.target)
-        argument = split_trees(context, tree.argument)
+        target = all_valid_subtrees(context, tree.target)
+        argument = all_valid_subtrees(context, tree.argument)
         result = target + argument
     
     elif isinstance(tree, Abstraction):
         new_context = context.with_var(tree.arg_name, tree.arg_type)
-        result = split_trees(new_context, tree.body)
+        result = all_valid_subtrees(new_context, tree.body)
     
     elif isinstance(tree, TAbstraction):
         new_context = context.with_type_var(tree.typevar, tree.kind)
-        result = split_trees(new_context, tree.body)
+        result = all_valid_subtrees(new_context, tree.body)
     
     elif isinstance(tree, TApplication):
         is_valid = tree.argument in context.type_variables 
-        result = split_trees(context, tree.target)
+        result = all_valid_subtrees(context, tree.target)
     
     else:
         raise Exception("Unknown tree when generating valid trees", tree)
@@ -243,4 +240,4 @@ def replace_holes(node, holes):
     else:
         raise Exception("Accessing unknown node:", node)
     
-    return None # Never happen
+    return node

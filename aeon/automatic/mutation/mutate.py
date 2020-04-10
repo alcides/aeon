@@ -2,6 +2,8 @@ import copy
 import random
 
 from aeon.synthesis import se_safe
+
+from aeon.automatic.individual import Individual
 from aeon.automatic.utils.tree_utils import annotate_tree, random_subtree, replace_tree
 
 # Chooses a specific hole that is going to be mutated

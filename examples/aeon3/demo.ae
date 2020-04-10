@@ -16,8 +16,8 @@ asd() -> Integer {
 
 
 aplicaFuncao(f:(Integer -> Integer)) -> z:Integer {
-    print(f(9));
-    print(10);
+    print<Integer>(f(9));
+    print<Integer>(10);
 }
 
 
@@ -41,33 +41,33 @@ returns_function() -> f:(Integer -> Integer) {
 
 main() -> Top {
     
-    print(1);
+    print<Integer>(1);
     
-    print("Result of applying lambda function:");
+    print<String>("Result of applying lambda function:");
     aplicaFuncao(\x:Integer -> x + 1);
 
    
-    print("Result of applying a function:");
+    print<String>("Result of applying a function:");
     aplicaFuncao(test);
 
-    print("Result of function returning function:");
-    print(returns_function()(9));
+    print<String>("Result of function returning function:");
+    print<Integer>(returns_function()(9));
     
-    print("Result of fatorial:");
-    print(fatorial(5));
+    print<String>("Result of fatorial:");
+    print<Integer>(fatorial(5));
 
-    print("Result of applying fibonacci:");
-    print(fibonacci(3));
+    print<String>("Result of applying fibonacci:");
+    print<Integer>(fibonacci(3));
 
 
-    print("Result of Application and Abstraction:");
-    print((\x : Integer -> x + 1)(4));
+    print<String>("Result of Application and Abstraction:");
+    print<Integer>((\x : Integer -> x + 1)(4));
 
-    print("Local function f:");
+    print<String>("Local function f:");
     f : (Integer -> Integer) = \x : Integer -> x + 1;
-    print(f(3));
+    print<Integer>(f(3));
     
-    print("Abstraction with TypeAbstraction and TypeApplication");
+    print<String>("Abstraction with TypeAbstraction and TypeApplication");
 
-    (\x:T -> \y:U -> print(x))<Integer>(10)<Double>(5.0);    
+    (\x:T -> \y:U -> print<T>(x))<Integer>(10)<Double>(5.0);    
 }

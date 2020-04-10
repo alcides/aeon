@@ -1,4 +1,4 @@
-from aeon.ast import Definition
+from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TApplication, TAbstraction, Definition
 from aeon.interpreter import EvaluationContext, run
 
 # =============================================================================

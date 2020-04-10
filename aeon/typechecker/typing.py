@@ -181,7 +181,7 @@ def check_program(ast):
         if isinstance(e, Program):
             for decl in e.declarations:
                 holes.clear()  # Reset to add holes of curr decl.
-                print("decl", decl)
+                # print("decl", decl)
                 internal_check(ctx, decl)
                 if holes:
                     holed.append((decl, holes.copy()))  # Append the holes
