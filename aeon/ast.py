@@ -2,12 +2,15 @@ import copy
 
 from typing import Optional, List
 
-from .types import Type, Kind
+from .types import RefinedType, Type, Kind
 
 
 class Node(object):
     def copy(self):
         return copy.deepcopy(self)
+
+    def __repr__(self):
+        return str(self)
 
 
 class Program(Node):
@@ -35,7 +38,6 @@ class TypedNode(Node):
 
 class Hole(TypedNode):
     """ \hole """
-
     def __init__(self, type: Type):
         super(Hole, self).__init__()
         self.type = type
@@ -50,7 +52,6 @@ class Hole(TypedNode):
 
 class Literal(TypedNode):
     """ true | false | 0 | 0.0 """
-
     def __init__(self, value, type: Type, ensured=False):
         super(Literal, self).__init__()
         self.value = value
@@ -69,7 +70,6 @@ class Literal(TypedNode):
 
 class Var(TypedNode):
     """ x """
-
     def __init__(self, name: str):
         super(Var, self).__init__()
         self.name = name
@@ -107,7 +107,6 @@ class If(TypedNode):
 
 class Application(TypedNode):
     """  e(e) """
-
     def __init__(self, target: TypedNode, argument: TypedNode):
         super(Application, self).__init__()
         self.target = target
@@ -124,7 +123,6 @@ class Application(TypedNode):
 
 class Abstraction(TypedNode):
     """ \\x:T -> e """
-
     def __init__(self, arg_name: str, arg_type: Type, body: TypedNode):
         super(Abstraction, self).__init__()
         self.arg_name = arg_name
@@ -142,8 +140,7 @@ class Abstraction(TypedNode):
 
 
 class TAbstraction(TypedNode):
-    """ T:k => e """
-
+    """ \\T:k => e """
     def __init__(self, typevar: str, kind: Kind, body: TypedNode):
         super(TAbstraction, self).__init__()
         self.typevar = typevar
@@ -162,7 +159,6 @@ class TAbstraction(TypedNode):
 
 class TApplication(TypedNode):
     """ e[T] """
-
     def __init__(self, target: TypedNode, argument: Type):
         super(TApplication, self).__init__()
         self.target = target
@@ -178,6 +174,7 @@ class TApplication(TypedNode):
 
 
 # Other Structure
+
 
 class Definition(Node):
     def __init__(self,
@@ -204,9 +201,10 @@ class TypeAlias(Node):
 
 
 class TypeDeclaration(Node):
-    def __init__(self, name: Type, kind: Kind):
+    def __init__(self, name: Type, kind: Kind, ghost_variables):
         self.name = name
         self.kind = kind
+        self.ghost_variables = ghost_variables
 
     def __str__(self):
         return "type {} : {}".format(self.name, self.kind)
@@ -222,3 +220,10 @@ class Import(Node):
         if self.function is not None:
             result = 'import {} from {}'.format(self.function, self.name)
         return result
+
+
+def refined_value(v, t, label="_v"):
+    tapp = TApplication(Var("=="), t)
+    app1 = Application(tapp, Var(label))
+    app2 = Application(app1, Literal(v, type=t))
+    return RefinedType(label, t, app2)

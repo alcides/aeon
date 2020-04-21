@@ -1,0 +1,95 @@
+
+start : decl_or_def*              -> program
+
+decl_or_def : type_alias         -> same
+            | type_declaration   -> same
+            | definition         -> same
+            | import             -> same
+
+import : "import" ID "from" PATH ";"     -> path_import
+       | "import" PATH ";"               -> regular_import
+
+type_alias : "type" ID "=" type ";"       -> type_alias
+
+type_declaration : "type" type ("{" ( ID ":" type ";" )+ "}")? ":" kind ";"    -> type_declaration
+
+definition : ID ":" type "=" expression ";" ->  definition
+
+kind : "*"               -> star
+     | "(" kind "=>" kind ")"    -> rec_star
+
+
+type : "{" ID ":" type _PIPE expression "}"                 -> refined_t
+     | "(" ID ":" type ")" "->" type                         -> abstraction_t
+     | "(" ID ":" kind ")" "=>" type                        -> tabstraction_t
+     | ID                                                  -> simple_t
+     | type type                                           -> tapplication_t
+     | "(" type ")"                                        -> same
+
+expression : "-" expression_i                           -> minus
+           | expression_i                              -> same
+
+
+expression_i : "let" ID ":" type "=" expression "in" expression     -> let_e
+          | "if" expression "then" expression "else" expression -> if_e
+          | expression_un                                -> same
+
+
+expression_un : expression_bool                               -> same
+           | "!" expression_un                               -> nnot
+           | expression_bool "==" expression_un               -> binop_eq
+           | expression_bool "!=" expression_un               -> binop_neq
+           | expression_bool "&&" expression_un               -> binop_and
+           | expression_bool _DOUBLEPIPE expression_un               -> binop_or
+
+
+expression_bool : expression_plus                                -> same
+                | expression_plus "<" expression_bool             -> binop_lt
+                | expression_plus "<=" expression_bool             -> binop_le
+                | expression_plus ">" expression_bool             -> binop_gt
+                | expression_plus ">=" expression_bool             -> binop_ge
+                | expression_plus "-->" expression_bool             -> binop_imp
+
+expression_plus : expression_fact                           -> same
+                | expression_fact "+" expression_plus       -> binop_plus
+                | expression_fact "-" expression_plus       -> binop_minus
+
+expression_fact : expression_b                           -> same
+                | expression_b "*" expression_fact       -> binop_mult
+                | expression_b "/" expression_fact       -> binop_div
+                | expression_b "%" expression_fact       -> binop_mod
+
+
+expression_b : "(" expression ")"                           -> same
+             | expression_b "[" type "]"                    -> tapplication_e
+             | expression_b expression_i                      -> application_e
+             | "\\" ID ":" type "->" expression             -> abstraction_e
+             | "\\" ID ":" kind "=>" expression             -> tabstraction_e
+             | expression_b "." ID                          -> attribute
+             | "[[" type?  "]]"                                 -> hole
+             | INTLIT                                           -> int_lit
+             | FLOATLIT                                        -> float_lit
+             | BOOLLIT                                         -> bool_lit
+             | STRINGLIT                                      -> string_lit
+             | "@" ID                                         -> fitness_annotation
+             | ID                                             -> var
+
+BOOLLIT.5 : "true" | "false"
+INTLIT : /[0-9][0-9]*/
+FLOATLIT : /[0-9]*'.'?[0-9]+/
+STRINGLIT : ESCAPED_STRING
+
+ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
+PATH : (".." | ID )* "/" ID
+
+_PIPE.10 : "where" | "|"
+_DOUBLEPIPE.11 : "||"
+
+COMMENT: /\s*/ "#" /[^\n]/*
+
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.CNAME
+
+%ignore WS
+%ignore COMMENT

@@ -1,12 +1,12 @@
 import unittest
 
-from ..frontend2 import expr, typee, kind
+from ..frontend_core import expr, typee, kind
 from ..types import TypingContext, star, top, bottom
 from ..typechecker.bounds import glb, lub
 
-ex = expr.parse_strict
-ty = typee.parse_strict
-ki = kind.parse_strict
+ex = expr.parse
+ty = typee.parse
+ki = kind.parse
 
 
 class TestLUB(unittest.TestCase):

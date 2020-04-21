@@ -1,13 +1,13 @@
 import unittest
 
-from ..frontend2 import expr, typee, kind
+from ..frontend_core import expr, typee, kind
 from ..types import TypingContext, star
 from ..typechecker.conversions import *
 from ..simplification import cnf_simplify
 
-ex = expr.parse_strict
-ty = typee.parse_strict
-ki = kind.parse_strict
+ex = expr.parse
+ty = typee.parse
+ki = kind.parse
 
 conversions = [
     ("! (! a)", "a"),

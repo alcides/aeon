@@ -1,3 +1,0 @@
-f : (_:Integer) -> {x:Integer where (x==2)} = (\x:Integer -> ((6 / 2) - 2) );
-
-main : (_:Top) -> Void = (\_:Top -> print(f(3)));

@@ -2,13 +2,13 @@ import unittest
 import random
 
 from ..types import TypingContext, Kind, star, Type
-from ..frontend2 import expr, typee
+from ..frontend_core import expr, typee
 from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
     se_where, iet
 from ..typechecker import check_type, is_subtype
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 
 class TestSynthesis(unittest.TestCase):

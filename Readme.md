@@ -32,7 +32,7 @@ python3.7 -m pip install -r requirements.pip
  
 ## Libraries
 
-To more easily allow the interaction of the user with the language, **Æon** provides different kinds of implemented [**libraries**](aeon/libraries). The specification of each function for each library can be found in the proper markdown.
+To more easily allow the interaction of the user with the language, **Æon** provides different kinds of implemented [**libraries**](aeon/libraries). The specification of each function for each library can be found in the [**proper markdown**](aeon/libraries/Documentation.md).
 
 
 ## Examples

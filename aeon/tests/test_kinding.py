@@ -1,13 +1,13 @@
 import unittest
 
-from ..frontend2 import expr, typee, kind
+from ..frontend_core import expr, typee, kind
 from ..types import star, TypingContext, Kind
 from ..typechecker.kinding import check_kind
 from ..typechecker.exceptions import TypingException
 
-ex = expr.parse_strict
-ty = typee.parse_strict
-ki = kind.parse_strict
+ex = expr.parse
+ty = typee.parse
+ki = kind.parse
 
 
 class Testcheck_kind(unittest.TestCase):
