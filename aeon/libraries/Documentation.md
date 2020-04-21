@@ -30,7 +30,7 @@ squareroot[T](x:T) -> {y:Double | x - y * y < 0.0001};
 equals(String, String) -> Boolean;
 ```
 ```haskell 
-concat[T](String, String) -> String;
+concat(String, String) -> String;
 ```
 ```haskell 
 ascii_code({s:String | s.size == 1}) -> Integer; 
