@@ -3,7 +3,7 @@
 import math
 import builtins
 
-import aeon.frontend2 as frontend2
+import aeon.frontend_core as frontend_core
 
 import aeon.frontend
 from aeon.ast import Var, Definition
@@ -36,7 +36,7 @@ def ty(operation, typee):
     return result
 
 
-ty2 = frontend2.typee.parse_strict
+ty2 = frontend_core.typee.parse
 
 initial_uninterpreted_functions = {
     '@maximize': ty2("(T:*) => (a:T) -> Boolean"),
@@ -83,10 +83,9 @@ initial_context = {
     ), lambda x: lambda y: x >= y),
     'pow': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtPow a) b))}"
-    ), lambda x: lambda y: math.pow(x, y)),    
-    'abs': (ty2(
-        "(T:*) => (a:T) -> {b:Boolean where ((smtEq c) (smtAbs a))}"
-    ), lambda x: builtins.abs(x)),
+    ), lambda x: lambda y: math.pow(x, y)),
+    'abs': (ty2("(T:*) => (a:T) -> {b:Boolean where ((smtEq c) (smtAbs a))}"),
+            lambda x: builtins.abs(x)),
     '&&': (ty2(
         "(a:Boolean) -> (b:Boolean) -> {c:Boolean where ((smtEq c) ((smtAnd a) b))}"
     ), lambda x: lambda y: x and y),
@@ -150,6 +149,7 @@ initial_context = {
         "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
     ), lambda x: lambda y: x >= y),
 }
+
 
 def r_print(x):
     print("PRINT: ", x)

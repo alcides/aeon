@@ -122,7 +122,7 @@ def cnf_simplify(n: TypedNode) -> TypedNode:
 
 
 if __name__ == "__main__":
-    from .frontend2 import expr
+    from .frontend_core import expr
     x = expr.parse("((a < 1) --> ((b < 3) && (! ((c > 3) || (d > 3 ) ) )))")
     y = cnf_simplify(x)
     print(y)
