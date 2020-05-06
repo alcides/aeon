@@ -152,11 +152,12 @@ class TreeToCore(Transformer):
 
 
 def mk_parser(rule="start"):
-    return Lark.open("aeon/aeon_core.lark",
-                     parser='lalr',
-                     lexer='standard',
-                     start=rule,
-                     transformer=TreeToCore())
+    return Lark.open(
+        "aeon/aeon_core.lark",
+        parser='lalr',
+        #lexer='standard',
+        start=rule,
+        transformer=TreeToCore())
 
 
 cached_imports = []

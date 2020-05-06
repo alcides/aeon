@@ -141,11 +141,11 @@ class TestSynthesis(unittest.TestCase):
         ctx.setup()
 
         T = ty("{v:Integer where (v == 1)}")
-        self.assert_iet(ctx.with_var("x", T), expr.parse_strict("1"), "x", T)
+        self.assert_iet(ctx.with_var("x", T), expr.parse("1"), "x", T)
 
         T = ty("(v:{a:Integer where (a > 1)}) -> {k:Boolean where (k)}")
         self.assert_iet(ctx.with_var("x", ty("{x:Integer where (x==1)}")),
-                        expr.parse_strict("1"), "x", T)
+                        expr.parse("1"), "x", T)
 
 
 if __name__ == '__main__':
