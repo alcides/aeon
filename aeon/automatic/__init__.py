@@ -20,6 +20,8 @@ def automatic(program, context, holed):
         # Run the genetic approach and get generated expressions
         individual = genetics.evolve()
 
+        print("Individual:", individual)
+
         # Fill the holes with the synthesized individual 
         declaration = replace_holes(declaration, individual.synthesized)
 

@@ -16,7 +16,7 @@ doubleLetters(in:String) -> out:String where {out.size >= in.size and
     }
     else {
         if current == "!" {
-            concat(current, concat(current, concat(current, doubleLetters(tail(x)))));
+            concat<String>(current, concat(current, concat(current, doubleLetters(tail(x)))));
         }
         else {
             concat(current, doubleLetters(tail(x)));

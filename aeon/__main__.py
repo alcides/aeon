@@ -9,7 +9,7 @@ from .typechecker import check_program
 from .hole_inferer import infer_hole
 from .interpreter import run
 from .automatic import automatic
-from .translate import Translator
+#from .translate import Translator
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 

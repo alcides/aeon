@@ -7,12 +7,12 @@ small : String = "small"
 large : String = "large"
 none : String = ""
 
-smaller_or_greater(x:Integer) -> out:String where {out == x < 1000 ? ("small") : (x > 2000 ? "large" : "")} {
+smaller_or_greater(x:Integer) -> out:String where {out == (x < 1000 ? ("small") : (x > 2000 ? "large" : ""))} {
     // x < 1000 ? (small) : (x > 2000 ? large : none);
-    [String];
+    [{y:String | y == (x < 1000 ? ("small") : (x > 2000 ? "large" : ""))}];
 }
 
 
 main() -> Top {
-    print(smaller_or_greater(1200));
+    print<String>(smaller_or_greater(1200));
 }

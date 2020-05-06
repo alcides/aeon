@@ -15,7 +15,7 @@ def ascii_code(s):
     return ord(s)
 
 @aefunction('ascii_letters() -> {s:String | s.size == 52} = native;', lambda x: ascii_letters(x))
-def ascii_code(ignored):
+def ascii_letters(ignored):
     return string.ascii_letters
 
 @aefunction('charAt(a:String, {i:Integer | i >= 0 && i < size(s)}) -> Integer = native;', lambda x: charAt(x, i))

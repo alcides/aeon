@@ -1,3 +1,5 @@
+import aeon/libraries/list;
+
 // Mirror Image:
 // -------------
 // Given two vectors of integers, return true if one vector is the
@@ -5,15 +7,15 @@
 mirror_image(l1:List<Integer>, l2:List<Integer>) -> out:Boolean where {out == equals(l1, reverse(l2))} {
     equals(l1, reverse(l2));
     /*
-    if length(l1) == 0 and length(l2) == 0 {
-        true;
-    } else {
-        if length(l1) == 0 or length(l2) == 0 {
-            false;
+        if length(l1) == 0 and length(l2) == 0 {
+            true;
         } else {
-            head(l1) == elemAt(length(l1) - 1) && mirror_image(tail(l1), reverse(head(reverse(l1)));
+            if length(l1) == 0 or length(l2) == 0 {
+                false;
+            } else {
+                head(l1) == elemAt(length(l1) - 1) && mirror_image(tail(l1), reverse(head(reverse(l1)));
+            };
         };
-    };
     */
     // [Boolean];
 }
