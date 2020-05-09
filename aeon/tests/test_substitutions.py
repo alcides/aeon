@@ -1,11 +1,11 @@
 import unittest
 
-from ..frontend2 import expr, typee
+from ..frontend_core import expr, typee
 from ..typechecker.substitutions import substitution_type_in_type, substitution_expr_in_type, substitution_expr_in_expr,\
      rename_abs, rename_tabs
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 t_t = lambda t1, t2, name: substitution_type_in_type(ty(t1), ty(t2), name)
 t_v = lambda t1, t2, name: substitution_expr_in_type(ty(t1), ex(t2), name)
@@ -179,7 +179,7 @@ class TestSubstitutions(unittest.TestCase):
                         "2",
                         "y",
                         expects="\\a:Integer -> 2")
-        self.assert_sve("T:* => y", "2", "y", expects="T:* => 2")
+        self.assert_sve("\\ T : * => y", "2", "y", expects="\\T:* => 2")
         self.assert_sve("y[Boolean]", "2", "y", expects="2[Boolean]")
         self.assert_sve("a b c", "c", "b", expects="a c c")
 
@@ -196,10 +196,10 @@ class TestSubstitutions(unittest.TestCase):
                          ex("\\y:Integer -> 1"))
 
     def test_renaming_tabs(self):
-        self.assertEqual(rename_tabs(ex("t:* => 1[t]"), "v"),
-                         ex("v:* => 1[v]"))
-        self.assertEqual(rename_tabs(ex("t:* => 1[z]"), "v"),
-                         ex("v:* => 1[z]"))
+        self.assertEqual(rename_tabs(ex("\\t:* => 1[t]"), "v"),
+                         ex("\\v:* => 1[v]"))
+        self.assertEqual(rename_tabs(ex("\\t:* => 1[z]"), "v"),
+                         ex("\\v:* => 1[z]"))
 
 
 if __name__ == '__main__':

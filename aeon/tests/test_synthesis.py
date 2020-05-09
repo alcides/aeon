@@ -2,13 +2,13 @@ import unittest
 import random
 
 from ..types import TypingContext, Kind, star, Type
-from ..frontend2 import expr, typee
+from ..frontend_core import expr, typee
 from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
     se_where, iet
 from ..typechecker import check_type, is_subtype
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 
 class TestSynthesis(unittest.TestCase):
@@ -141,11 +141,11 @@ class TestSynthesis(unittest.TestCase):
         ctx.setup()
 
         T = ty("{v:Integer where (v == 1)}")
-        self.assert_iet(ctx.with_var("x", T), expr.parse_strict("1"), "x", T)
+        self.assert_iet(ctx.with_var("x", T), expr.parse("1"), "x", T)
 
         T = ty("(v:{a:Integer where (a > 1)}) -> {k:Boolean where (k)}")
         self.assert_iet(ctx.with_var("x", ty("{x:Integer where (x==1)}")),
-                        expr.parse_strict("1"), "x", T)
+                        expr.parse("1"), "x", T)
 
 
 if __name__ == '__main__':

@@ -1,11 +1,11 @@
 import unittest
 
 from ..types import *
-from ..frontend2 import expr, typee
+from ..frontend_core import expr, typee
 from ..typechecker import check_type, TypeCheckingError, TypingException, synth_type
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 
 class TestTypeChecking(unittest.TestCase):
@@ -28,10 +28,10 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("false", "Boolean")
 
     def test_basic_1(self):
-        self.generic_test("1", "{x:Integer where (x == 1)}")
+        self.generic_test("1", "{x:Integer | (x == 1)}")
 
     def test_basic_11(self):
-        self.generic_test("11", "{x:Integer where (x == 11)}")
+        self.generic_test("11", "{x:Integer | (x == 11)}")
 
     def test_var_1(self):
         self.generic_test("x", "Integer", extra_ctx=[("x", "Integer")])
@@ -54,38 +54,42 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("(1+1)", "Integer")
 
     def test_app_plus2(self):
-        self.generic_test("(1+2)", "{x:Integer where (x == 3)}")
+        self.generic_test("(1+2)", "{x:Integer | (x == 3)}")
 
     def test_divide(self):
         self.generic_test("(1/3)", "Integer")
+
+    def test_true_or_true(self):
+        self.generic_test("true || true", "Boolean")
+        self.generic_test("true && true", "Boolean")
 
     def test_divide_by_zero(self):
         with self.assertRaises(TypeCheckingError):
             self.generic_test("(1/0)", "Integer")
 
     def test_tabs(self):
-        self.generic_test("t:* => 1", "(t:*) => Integer")
+        self.generic_test("\\t:* => 1", "(t:*) => Integer")
 
     def test_polymorphism_1(self):
-        self.generic_test("(T:* => 1)[Integer]", "Integer")
+        self.generic_test("(\\T:* => 1)[Integer]", "Integer")
 
     def test_refined_1(self):
-        self.generic_test("false", "{ x:Boolean where (x == false) }")
+        self.generic_test("false", "{ x:Boolean | (x == false) }")
 
     def test_refined_2(self):
-        self.generic_test("false", "{ x:Boolean where (x == !true) }")
+        self.generic_test("false", "{ x:Boolean | (x == !true) }")
 
     def test_refined_3(self):
-        self.generic_test("1", "{ x:Integer where (x == 1) }")
+        self.generic_test("1", "{ x:Integer | (x == 1) }")
 
     def test_refined_4(self):
-        self.generic_test("1", "{ x:Integer where (x >= 1) }")
+        self.generic_test("1", "{ x:Integer | (x >= 1) }")
 
     def test_refined_5(self):
-        self.generic_test("1", "{ x:Integer where (x >= 0) }")
+        self.generic_test("1", "{ x:Integer | (x >= 0) }")
 
     def test_refined_6(self):
-        self.generic_test("6", "{ x:Integer where ( (x % 2) == 0) }")
+        self.generic_test("6", "{ x:Integer | ( (x % 2) == 0) }")
 
     def test_refined_7(self):
         self.generic_test("1", "{ x:Integer where (x == (2-1)) }")

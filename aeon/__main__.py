@@ -4,7 +4,7 @@ import random
 import shutil
 
 from .frontend import parse, parse_strict
-from .frontend2 import parse as parse2
+from .frontend_core import parse as parse2
 from .typechecker import check_program
 from .hole_inferer import infer_hole
 from .interpreter import run

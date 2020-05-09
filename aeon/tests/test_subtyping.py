@@ -1,11 +1,11 @@
 import unittest
 
 from ..types import *
-from ..frontend2 import expr, typee
+from ..frontend_core import expr, typee
 from ..typechecker import SubtypingException, is_subtype
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 
 class TestSubtyping(unittest.TestCase):

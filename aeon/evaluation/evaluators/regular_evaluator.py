@@ -5,7 +5,7 @@ from os import listdir
 
 from .evaluator import Evaluator
 from aeon.evaluation import OUTPUT_PATH
-from aeon.frontend2 import expr, typee
+from aeon.frontend_core import expr, typee
 
 import aeon.evaluation.plots.boxplot as boxplot
 import aeon.evaluation.plots.violinplot as violinplot

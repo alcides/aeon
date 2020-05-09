@@ -1,16 +1,8 @@
-type List : (* => *)
-type String : *
-
-# forall T:* => (Inteiro)
-
-# \x:Inteiro -> 1
-
-# sum : List Integer -> Integer = \xs:(List Integer) -> if (length xs == 0) then 0 else (head xs) + sum (tail xs )
-
-#   b : (x:Integer) -> Integer = \x:Integer -> 1;
+type List : (* => *);
+type String : *;
 
 
-type IntToInt = (a:Integer) -> Integer
+type IntToInt = (a:Integer) -> Integer;
 
 emptyList : (a:*) => (List a) = native;
 
@@ -18,14 +10,14 @@ fix : (a:*) => (f:(x:a) -> a) -> a = native;
 
 
 
-(+) : (a:Integer) -> (b:Integer) -> (c:Integer) = native;
-(-) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = native;
-(*) : (a:Integer) -> (b:Integer) -> {c:Integer where ((a*b) == c)} = native;
+(+) : (a:Integer) -> (b:Integer) -> Integer = native;
+(-) : (a:Integer) -> (b:Integer) -> {c:Integer | ((a-b) == c)} = native;
+(*) : (a:Integer) -> (b:Integer) -> {c:Integer | ((a*b) == c)} = native;
 
-minus : (a:Integer) -> (b:Integer) -> {c:Integer where ((a-b) == c)} = \a:Integer -> \b:Integer -> (a-b);
+minus : (a:Integer) -> (b:Integer) -> {c:Integer | ((a-b) == c)} = \a:Integer -> \b:Integer -> (a-b);
 
 # TODO: Doesnt give error but never ends
-#complexOperation : (a:Integer) -> (b:Integer) -> (d:Integer) -> {c:Integer where ((((2 * (a+b)) - b) - d) == c)} = \a:Integer -> \b:Integer -> \d:Integer -> (((2 * (a+b)) - b) - d);
+#complexOperation : (a:Integer) -> (b:Integer) -> (d:Integer) -> {c:Integer | ((((2 * (a+b)) - b) - d) == c)} = \a:Integer -> \b:Integer -> \d:Integer -> (((2 * (a+b)) - b) - d);
 
 l1 : Void = null;
 l2 : Integer = 1;
@@ -35,19 +27,19 @@ v1 : Integer = l2;
 i1 : Integer = if true then 1 else 0;
 
 
-w1 : {x:Integer where (x > 0) } = 1;
-w2 : {x:Integer where (x > 4) } = (minus (8)) (2);
+w1 : {x:Integer | (x > 0) } = 1;
+w2 : {x:Integer | (x > 4) } = (minus (8)) (2);
 # w3 : Integer = ((complexOperation (8)) (3)) (4);
 
-f1 : (x:Integer) -> {y:Integer where (y == 1)} = \x:Integer -> 1;
+f1 : (x:Integer) -> {y:Integer | (y == 1)} = \x:Integer -> 1;
 f2 : (x:Boolean) -> Integer = \x:Boolean -> 2;
-f3 : (y:Integer) -> {z:Integer where (z == 1)} = f1;
+f3 : (y:Integer) -> {z:Integer | (z == 1)} = f1;
 
 # TODO: Zed translation error
 w4 : Integer = (2 * (f1 (2)));
 
 
-f4 : (T:*) => Integer = (T:* => 1);
+f4 : (T:*) => Integer = \T:* => 1;
 f5 : (List Integer) = emptyList[Integer];
 f6 : (T:*) => (List T) = emptyList;
 
@@ -55,7 +47,7 @@ a : Integer = if true then 1 else 0;
 b : (x:Integer) -> Integer = \x:Integer -> 1;
 c : Integer = b(1);
 d : Integer = (\x:Integer -> x)(2);
-e : (T:*) => Integer = (T:* => 1);
+e : (T:*) => Integer = \T:* => 1;
 f : Integer = e[Boolean];
 
 

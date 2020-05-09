@@ -1,11 +1,11 @@
 from .evaluators.evaluator import Evaluator
 
-from aeon.frontend2 import expr, typee
+from aeon.frontend_core import expr, typee
 from aeon.ast import Application, Var, If, Literal, TApplication
 from aeon.types import t_i
 
-ex = expr.parse_strict
-ty = typee.parse_strict
+ex = expr.parse
+ty = typee.parse
 
 RUNS = 1
 MIN_TREE_DEPTH = 2
