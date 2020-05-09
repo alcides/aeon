@@ -1,0 +1,7 @@
+isValid(z:Integer) -> Boolean {
+    z > 0;
+}
+
+test() -> z:Integer where {isValid(z)} {
+    [Integer];
+}

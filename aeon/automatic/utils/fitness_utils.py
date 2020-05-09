@@ -1,7 +1,7 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TAbstraction, TApplication
 from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction, TypeApplication
 
-from aeon.automatic.fitness.conversor import convert
+from aeon.automatic.evaluation.conversor import convert
 
 from aeon.interpreter import run
 from aeon.synthesis import se_safe
@@ -51,13 +51,13 @@ def generate_typees(declaration):
 
 # =============================================================================
 # Generates random inputs for the functions
-def generate_inputs(typees, context, size):
+def generate_inputs(typees, context, eval_ctx, size):
     
     result = list()
 
     for _ in range(size):
         # Synthesize leafs only trees
-        inputs = [run(se_safe(context, typee, 0)) for typee in typees]
+        inputs = [run(se_safe(context, typee, 0), eval_ctx) for typee in typees]
         result.append(inputs)
 
     return result

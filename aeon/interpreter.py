@@ -16,7 +16,18 @@ class EvaluationContext(object):
         for name, _, value in get_builtin_variables():
             self.ctx[name] = value
 
+    def copy(self):
+        t = EvaluationContext()
+        t.ctx = self.ctx.copy()
+        return t
 
+    def with_interpreted(self, name, interpreted):
+        new_ctx = self.copy()
+        new_ctx[name] = interpreted
+        return new_ctx
+
+# =============================================================================
+# Runs the interpreter
 def run(node, ctx=None):
     if ctx is None:
         ctx = EvaluationContext()

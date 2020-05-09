@@ -3,9 +3,9 @@ import random
 from aeon.automatic.parameters import *
 
 from aeon.automatic.mutation import mutate
-from aeon.automatic.fitness import evaluate
 from aeon.automatic.selection import select
 from aeon.automatic.crossover import crossover
+from aeon.automatic.evaluation import evaluate
 from aeon.automatic.initialization import initialize_population
 
 class Genetics(object):

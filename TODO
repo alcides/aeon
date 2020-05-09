@@ -1,9 +1,15 @@
 automatic:
-    ☐ error when generating a program with no input method parameters
-    ☐ restrict the genetic information in the genetic pool
+    ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
+    ☐ restrict the genetic information in the genetic pool @low
         we add to much information to the genetic pool. Perhaps restricting the
         information and only allowing subtrees that do not exist will improve the 
         evolution
+    ✔ make tests stop after 5 seconds @started(20-05-09 19:21) @done(20-05-09 19:33) @lasted(12m22s)
+        way to do this
+        @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
+    ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
+        sometimes a random error raises in the interpreter when evaluating the program
+        Exception: function not in context
 
 synthesis:
     ☐ change synthesis refinements based on trials to continuous synthesis @critical
@@ -11,6 +17,8 @@ synthesis:
         this can be problematic when generating expressions from really restrictive
         types. Using interval arithmetic will allow us to continuously synthesize
         the programs
+    ☐ sometimes generates expressions that do not typecheck
+        error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
 
 typechecker:
@@ -18,10 +26,15 @@ typechecker:
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
         Check the @file aeon/examples/benchmark/bench3.ae
+    ☐ update zed interface using pysmt 
+        This might be a slower solution since it introduces a new layer, but allows us
+        to expriment different SMT's 
+        @link(https://github.com/pysmt/pysmt)
 
 libraries:
     ☐ add function conversion from int to float
-    ☐ uninterpreted function for `String` size 
+    ☐ uninterpreted function for `String` size
+    ☐ default function for `Void` that is `None`    
     ☐ bug in the power[X, Y]
     ☐ improve refinements of String methods
     ☐ `String` and `List` have the same method names.
