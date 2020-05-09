@@ -1,0 +1,59 @@
+automatic:
+    ☐ error when generating a program with no input method parameters
+    ☐ restrict the genetic information in the genetic pool
+        we add to much information to the genetic pool. Perhaps restricting the
+        information and only allowing subtrees that do not exist will improve the 
+        evolution
+
+synthesis:
+    ☐ change synthesis refinements based on trials to continuous synthesis @critical
+        currently the synthesis is based on trials in order to synthesize programs
+        this can be problematic when generating expressions from really restrictive
+        types. Using interval arithmetic will allow us to continuously synthesize
+        the programs
+    ☐ probabilities of the synthesis configurations
+
+typechecker:
+    ☐ if restrictions are not properly propagated 
+        in some situations the conditions are not taken into consideration in 
+        the refinements (e.g. function call with input restricted on if condition)
+        Check the @file aeon/examples/benchmark/bench3.ae
+
+libraries:
+    ☐ add function conversion from int to float
+    ☐ uninterpreted function for `String` size 
+    ☐ bug in the power[X, Y]
+    ☐ improve refinements of String methods
+    ☐ `String` and `List` have the same method names.
+        We should either add module that renames method names and allows overloading,
+        or, allow shadowing, or, raise exception when this happens
+    ☐ include the libraries: `Map`, `Tree`, `IO` and `Text`
+    ☐ automatically generate the documentation
+    ☐ create the annotation for documentation
+    
+
+frontend:
+    ☐ refine strings in frontend
+    ☐ update hole notation to `??` and `?Integer?`
+    ☐ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]`
+    
+    language verifiers: 
+        ☐ import cycles
+        ☐ undeclared variables and functions
+        ☐ undeclared types
+        ☐ integer and double bounds
+    
+    ☐ migrate to Lark
+
+others:
+    ☐ inference of the hole @high 
+    ☐ inference of type applications
+    ☐ update syntax highlighter (create a new git)
+
+bugs:
+    ☐ typechecker is not checking uninterpreted refinements (@file aeon/examples/aeon3/list_demo.ae)
+    ☐ not properly generating restricted type values for uninterpreted functions
+
+
+===============================================================================
+Done:

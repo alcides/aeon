@@ -8,10 +8,10 @@ It is important to make notice that while the **Æon** language does not make an
 
 **Non-Restricted refinements** are those that SMT solvers are not able to reason about, thus being checked at runtime.
 
+
 ## Requirements
 
-
-**Aeon** basic requirements for running are  Python3.7 and a ll dependencies that can be found in [**requirements.pip**](/requirements.pip)
+**Æon** basic requirements for running are  Python3.7 and a ll dependencies that can be found in [**requirements.pip**](/requirements.pip)
 ```
 pip install -r requirements.pip
 ```
@@ -19,6 +19,9 @@ or
 ```
 python3.7 -m pip install -r requirements.pip
 ```
+
+I am currently using [**Visual Studio Code**](https://code.visualstudio.com/) and the **Æon** syntax highlighter. I find it very useful to use the [**Todo+**](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-todo-plus) to keep track of the Todo list. Give it a try :)
+
 
 ## Modules
 
