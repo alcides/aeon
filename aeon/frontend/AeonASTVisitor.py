@@ -76,7 +76,7 @@ class AeonASTVisitor(AeonVisitor):
             self, ctx: AeonParser.Regular_typee_declarationContext):
         typee = self.visit(ctx.name)
         kind = self.getTypeeKind(typee)
-        return TypeDeclaration(self.returnBasicTypee(typee).name, kind)
+        return TypeDeclaration(self.returnBasicTypee(typee).name, kind, None)
 
     # type Person<T> { ... }
     def visitParameterized_typee_declaration(
@@ -91,7 +91,7 @@ class AeonASTVisitor(AeonVisitor):
         # Guardar a declaracao do tipo
         self.declarations.append(
             TypeDeclaration(
-                self.returnBasicTypee(typee).name, self.getTypeeKind(typee)))
+                self.returnBasicTypee(typee).name, self.getTypeeKind(typee), None))
         type_abstraction = extract_refinements(typee)[0]
         
         # Create the uninterpreted functions
@@ -376,7 +376,7 @@ class AeonASTVisitor(AeonVisitor):
     # ----------------------------------------------------------- Function Body
     # function : () -> T = native
     def visitNativeBody(self, ctx: AeonParser.NativeBodyContext):
-        return Var(ctx.native.text)
+        return Var(ctx.nativee.text)
 
     def visitUninterpretedBody(self, ctx: AeonParser.UninterpretedBodyContext):
         return Var(ctx.uninterpreted.text)
@@ -464,8 +464,28 @@ class AeonASTVisitor(AeonVisitor):
             value = value == 'true' and True or False
             return Literal(value, type=self.refined_value(value, t_b, '_b'))
         elif ctx.value.type == AeonParser.STRING:
-            return Literal(value[1:-1], type=self.refined_value(value, t_s, '_s'))
+            # Value and its typee
+            value = value[1:-1]
+            typee = self.refined_value(value, t_s, '_s')
+
+            # Get the second and condition for the size 
+            operator = TApplication(Var('=='), t_delegate)
+            left = Application(Var('_String_size'), Var('_s'))
+            right = Literal(len(value), t_i, ensured=True)
+            cond = Application(Application(operator, left), right)
+            typee.cond = Application(Application(Var('&&'), typee.cond), cond)
+            print(typee.cond)
+            return Literal(value, type=typee)
         return None
+
+
+        operator = Var('==')
+        left = Literal(v, t, ensured=True)
+        right = Var(label)
+
+        operator = TApplication(operator, t_delegate)
+        expression = Application(Application(operator, left), right)
+
 
     # x -> y, x == y, x || y, x && y, x > y, x < y, ...
     def visitLogicalExpression(self, ctx: AeonParser.LogicalExpressionContext):
@@ -473,7 +493,7 @@ class AeonASTVisitor(AeonVisitor):
         right = self.visit(ctx.right)
         operator = Var(ctx.op.text)
 
-        if operator.name not in ['||', '&&']:
+        if operator.name not in ['||', '&&', '-->']:
             operator = TApplication(operator, t_delegate) 
             
         return Application(Application(operator, left), right)

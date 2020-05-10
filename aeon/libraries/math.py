@@ -30,3 +30,7 @@ def power(x, y):
 @aefunction('sqrt<T>(x:T) -> {y:Double | x - y * y < 0.0001} = native;', lambda x: squareroot(x))
 def squareroot(x):
     return math.sqrt(x)
+
+@aefunction('intToDouble(x:Integer) -> {y:Double} = native;', lambda x: intToDouble(x))
+def intToDouble(x):
+    return int(x)

@@ -4,12 +4,17 @@ automatic:
         we add to much information to the genetic pool. Perhaps restricting the
         information and only allowing subtrees that do not exist will improve the 
         evolution
+    ☐ edge case tests in individuals evaluation
+    ☐ try energy consumption optimization
+    ☐ evaluate the continuous fitness functions
+    ☐ change forall and exists to sum and minimum, respectively
     ✔ make tests stop after 5 seconds @started(20-05-09 19:21) @done(20-05-09 19:33) @lasted(12m22s)
         way to do this
         @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
     ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
         sometimes a random error raises in the interpreter when evaluating the program
         Exception: function not in context
+    ☐ optimization of the synthesized code
 
 synthesis:
     ☐ change synthesis refinements based on trials to continuous synthesis @critical
@@ -30,13 +35,17 @@ typechecker:
         This might be a slower solution since it introduces a new layer, but allows us
         to expriment different SMT's 
         @link(https://github.com/pysmt/pysmt)
+    ☐ the uninterpreted functions are not being updated
+        for some reason, the uninterpret function restrictions are not checked
+        by the SMT
+        @file examples/aeon3/strings.ae
 
 libraries:
-    ☐ add function conversion from int to float
-    ☐ uninterpreted function for `String` size
-    ☐ default function for `Void` that is `None`    
-    ☐ bug in the power[X, Y]
-    ☐ improve refinements of String methods
+    ✔ add function conversion from int to float @done(20-05-10 19:06)
+    ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
+    ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
+    ☐ bug in the power[X, Y] 
+    ✔ improve refinements of String methods @done(20-05-10 19:35)
     ☐ `String` and `List` have the same method names.
         We should either add module that renames method names and allows overloading,
         or, allow shadowing, or, raise exception when this happens
@@ -46,8 +55,11 @@ libraries:
     
 
 frontend:
-    ☐ refine strings in frontend
+    ✔ refine strings in frontend @done(20-05-10 22:59)
     ☐ update hole notation to `??` and `?Integer?`
+    ☐ problem with `-->` priority
+    ☐ ghost_variables new parameter in TypeDeclaration
+        the ghost_variables was introduced, no information about what to do with it...
     ☐ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]`
     
     language verifiers: 
@@ -55,12 +67,18 @@ frontend:
         ☐ undeclared variables and functions
         ☐ undeclared types
         ☐ integer and double bounds
-    
+        ☐ raise warning when conditions are always true/false
+
     ☐ migrate to Lark
+
+compiler:
+    ☐ compile the code to Java
 
 others:
     ☐ inference of the hole @high 
+        this can be done after typechecking
     ☐ inference of type applications
+    ☐ Translator from AeonCore to Aeon
     ☐ update syntax highlighter (create a new git)
 
 bugs:

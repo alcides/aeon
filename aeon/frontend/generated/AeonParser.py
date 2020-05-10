@@ -1732,7 +1732,7 @@ class AeonParser ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a AeonParser.Function_bodyContext
             super().__init__(parser)
-            self.native = None # Token
+            self.nativee = None # Token
             self.copyFrom(ctx)
 
         def ASSIGN(self):
@@ -1786,7 +1786,7 @@ class AeonParser ( Parser ):
                 self.state = 201
                 self.match(AeonParser.ASSIGN)
                 self.state = 202
-                localctx.native = self.match(AeonParser.NATIVE)
+                localctx.nativee = self.match(AeonParser.NATIVE)
                 self.state = 203
                 self.match(AeonParser.SEMICOLON)
                 pass

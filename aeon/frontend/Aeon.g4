@@ -107,7 +107,7 @@ function_where
 // ----------------------------------------------------------------------------
 // ------------------------------ Function Body -------------------------------
 function_body
-    : ASSIGN native=NATIVE SEMICOLON                    # NativeBody
+    : ASSIGN nativee=NATIVE SEMICOLON                    # NativeBody
     | ASSIGN uninterpreted=UNINTERPRETED SEMICOLON      # UninterpretedBody
     | LBRACE (statement SEMICOLON)* RBRACE              # RegularBody
     ;

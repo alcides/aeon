@@ -58,6 +58,7 @@ initial_uninterpreted_functions = {
     'smtDiv': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtCaret': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtMod': ty2("(a:Top) -> (b:Top) -> Bottom"),
+    '_String_size': ty2("(a:String) -> Integer"),
 }
 
 initial_context = {
