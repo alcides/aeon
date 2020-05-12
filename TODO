@@ -8,6 +8,7 @@ automatic:
     ☐ try energy consumption optimization
     ☐ evaluate the continuous fitness functions
     ☐ change forall and exists to sum and minimum, respectively
+    ☐ changed the [(context, holes)] in typing, should change the invocations over genetics 
     ✔ make tests stop after 5 seconds @started(20-05-09 19:21) @done(20-05-09 19:33) @lasted(12m22s)
         way to do this
         @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
@@ -75,8 +76,9 @@ compiler:
     ☐ compile the code to Java
 
 others:
-    ☐ inference of the hole @high 
+    ☐ inference of the hole @high @started(20-05-11 11:38)
         this can be done after typechecking
+    ✔ python logger @done(20-05-12 10:05)
     ☐ inference of type applications
     ☐ Translator from AeonCore to Aeon
     ☐ update syntax highlighter (create a new git)

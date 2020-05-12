@@ -1,4 +1,5 @@
 import random
+import logging
 
 from aeon.automatic.parameters import *
 
@@ -25,18 +26,21 @@ class Genetics(object):
         
         for generation in range(1, MAX_GENERATIONS):
 
-            print("Generation", generation)
+            logging.debug("Generation {generation}")
 
             # Create the new population
             offspring = list()
 
             # Crossover the parents and obtain the offspring
+            logging.debug("Crossing the population...")
             offspring = crossover(population, self)
             
             # Mutate the individuals and obtain the offspring
+            logging.debug("Mutating the population...")
             offspring = mutate(offspring, self)
 
             # Evaluate the offspring
+            logging.debug("Evaluating the population...")
             offspring = evaluate(offspring, self)
 
             # Transition to the new population
@@ -48,7 +52,5 @@ class Genetics(object):
             if best_individuals:
                 population = best_individuals
                 break
-
-            print(population, "\n")
 
         return random.choice(population)

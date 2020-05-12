@@ -474,7 +474,6 @@ class AeonASTVisitor(AeonVisitor):
             right = Literal(len(value), t_i, ensured=True)
             cond = Application(Application(operator, left), right)
             typee.cond = Application(Application(Var('&&'), typee.cond), cond)
-            print(typee.cond)
             return Literal(value, type=typee)
         return None
 
