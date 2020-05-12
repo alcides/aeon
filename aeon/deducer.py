@@ -98,3 +98,15 @@ class HoleDeducer():
             self.visitTApplication(node)
         else:
             raise Exception("Unknown type of node: ", type(node))
+
+
+'''
+
+program(x : Integer, y : Double) :: String {
+    ??   ~~~~~> T1 : * => ?T1?;
+    ??(??) ~~~> T1 : * => T2 : * => ?T1?(?T2?)
+    ??[String](??) ~~~> T1 : * -> * => T2 : * => ?T1?(?T2?)
+    
+}
+
+'''

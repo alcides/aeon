@@ -10,7 +10,7 @@ from .typechecker import check_program
 from .deducer import deduce
 from .interpreter import run
 from .automatic import automatic
-#from .translate import Translator
+from .translate import translate
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
