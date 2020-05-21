@@ -79,7 +79,7 @@ typee_basic_type
     ;
 
 typee_type_abstract
-    : abstractType=TYPEE_IDENTIFIER LT abstractParams=typee_abstract_parameters GT
+    : abstractType=TYPEE_IDENTIFIER LBRACKET abstractParams=typee_abstract_parameters RBRACKET
     ;
 
 typee_abstract_parameters
@@ -93,7 +93,7 @@ function
     ;
 
 function_identifier
-    : name=IDENTIFIER (LT abstractParams=typee_abstract_parameters GT)?
+    : name=IDENTIFIER (LBRACKET abstractParams=typee_abstract_parameters RBRACKET)?
     ;
 
 function_parameters
@@ -147,14 +147,14 @@ expression
     | ABSTRACTION variable=typee RARROW exp=expression                                          # AbstractionExpression
     | cond=expression QUESTION then=expression COLON otherwise=expression                       # IfExpression
     | variable=IDENTIFIER DOT attribute=IDENTIFIER                                              # TypeeAttributeCall
-    | LBRACKET typee? RBRACKET                                                                  # Hole
+    | '?' typee? '?'                                                                            # Hole
     | variable=IDENTIFIER                                                                       # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING)                                                # Literal
     | improvement=(MAXIMIZE | MINIMIZE | EVALUATE) LPARENS param=expression RPARENS             # FitnessImprovement
     ;
 
 function_abstraction
-    : LT typee_abstract_parameters GT
+    : LBRACKET typee_abstract_parameters RBRACKET
     ;
 
 call_parameters
