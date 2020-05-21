@@ -1,5 +1,5 @@
 import copy
-from .helper import aefunction
+from .annotation import aefunction, aedocumentation
 
 ''' LinkedList binds in Aeon to Python '''
 

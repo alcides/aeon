@@ -1,5 +1,5 @@
 import builtins
-from .helper import aefunction
+from .annotation import aefunction, aedocumentation
 
 @aefunction('print<T>: (a:T) -> {b:T | a == b} = native;', lambda x: print(x))
 def print(x):

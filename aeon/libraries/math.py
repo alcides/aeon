@@ -1,6 +1,6 @@
 import math
 import builtins
-from .helper import aefunction
+from .annotation import aefunction, aedocumentation
 
 
 @aefunction('min<T>(a:T, b:T) -> T = native;', lambda x: lambda y: minimum(x, y))

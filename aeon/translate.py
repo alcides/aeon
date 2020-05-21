@@ -17,7 +17,7 @@ def translate(node):
     result = ''
     
     for declaration in node.declarations:
-        tab_size = 0
+        reset_tab()
         translated = translate(declaration)
         if len(translated) > 0:
             result = '{}{}\r\n\r\n'.format(result, translated)
@@ -109,15 +109,21 @@ def translate(node):
             return '!{}'.format(translate(node.argument))
         
         else:
-            arguments = '' if type(
-                node.argument) is Var and node.argument.name.startswith(
-                    '_') else translate(node.argument)
-            tempNode = node.target
-            while isinstance(tempNode, Application):
-                arguments = '{}, {}'.format(
-                    translate(tempNode.argument), arguments)
-                tempNode = tempNode.target
-            return '{}({})'.format(translate(tempNode), arguments)
+            # Convert uninterpreted functions into ghost variables access
+            if isinstance(node.target, Var) and node.target.name.startswith('_'):
+                variable = node.argument.name
+                ghost = node.target.name.split("_")[1:][1]
+                return '{}.{}'.format(variable, ghost)
+            else:
+                arguments = '' if type(
+                    node.argument) is Var and node.argument.name.startswith(
+                        '_') else translate(node.argument)
+                tempNode = node.target
+                while isinstance(tempNode, Application):
+                    arguments = '{}, {}'.format(
+                        translate(tempNode.argument), arguments)
+                    tempNode = tempNode.target
+                return '{}({})'.format(translate(tempNode), arguments)
 
 ''' \\x:Typee -> expr '''
 @dispatch(Abstraction)
@@ -150,7 +156,7 @@ def translate(node):
 
     while isinstance(tempTypee, TypeAbstraction):
         abstractions = '{}, {}'.format(abstractions,
-                                        translate(tempTypee.name))
+                                        tempTypee.name)
         tempTypee = tempTypee.type
     abstractions = '<' + abstractions[2:] + '>' if len(
         abstractions) > 0 else abstractions
@@ -158,7 +164,7 @@ def translate(node):
     # Get the typee
     typee = '{}:{}'.format(tempTypee.arg_name,
                             translate(tempTypee.arg_type))
-    tempTypee = tempTypee.return_type
+    
     while tempTypee != node.return_type:
         typee = '{}, {}:{}'.format(typee, tempTypee.arg_name,
                                     translate(tempTypee.arg_type))
@@ -235,9 +241,13 @@ def decrease_tab():
     global tab_size
     tab_size -= 1
 
+def reset_tab():
+    global tab_size
+    tab_size = 0
+
 def tab():
     global tab_size
-    return '\t' * tab_size
+    return ' ' * 4 * tab_size
 
 def add_buffer(key, value):
     global buffer

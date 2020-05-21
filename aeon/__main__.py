@@ -7,7 +7,7 @@ import logging
 from .frontend import parse, parse_strict
 from .frontend_core import parse as parse2
 from .typechecker import check_program
-from .deducer import deduce
+from .deducer import deducer
 from .interpreter import run
 from .automatic import automatic
 from .translate import translate
@@ -47,20 +47,20 @@ if __name__ == '__main__':
         logging.debug("Typechecking the program")   
         
         ast, context, holed = check_program(ast)
-        
+        print(translate(ast))
+            
         # Infer the holes
         if holed:
             logging.debug("Deducing the type of the holes")
             logging.debug(f"Before deducing: {holed}")
             
-            ast, context, holed = deduce(ast, context, holed)
-            
+            ast, context, holed = deducer(ast, context, holed)
             logging.debug(f"After deducing: {holed}")
 
             # If there are holes, lets fill them
-            loggin.debug("="*80)
-            loggin.debug("Evolutionary synthesis of the program")
-            ast = automatic(ast, context, holed)
+            logging.debug("="*80)
+            logging.debug("Evolutionary synthesis of the program")
+            #ast = automatic(ast, context, holed)
 
     except Exception as t:
         raise t

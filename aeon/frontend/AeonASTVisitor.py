@@ -102,7 +102,7 @@ class AeonASTVisitor(AeonVisitor):
             function_type = wrap_typeabstractions(function_type, typee)
             definition = Definition(function_name, function_type,
                                     Var('uninterpreted').with_type(bottom),
-                                    param)
+                                    self.remove_tabstractions(param))
             self.declarations.append(definition)
             self.general_context[function_name] = function_type
 

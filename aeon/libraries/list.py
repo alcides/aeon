@@ -1,6 +1,6 @@
 import copy
 import builtins
-from .helper import aefunction
+from .annotation import aefunction, aedocumentation
 
 ''' List binds in Aeon to Python '''
 
