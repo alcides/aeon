@@ -35,6 +35,11 @@ class TypedNode(Node):
         self.type = t
         return self
 
+    def get_height(self):
+        if hasattr(self, "height"):
+            return self.height
+        return None
+
 
 class Hole(TypedNode):
     """ \hole """

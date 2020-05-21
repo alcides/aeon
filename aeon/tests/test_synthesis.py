@@ -4,7 +4,7 @@ import random
 from ..types import TypingContext, Kind, star, Type
 from ..frontend_core import expr, typee
 from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
-    se_where, iet
+    se_where, iet, se_app_in_context
 from ..typechecker import check_type, is_subtype
 
 ex = expr.parse
@@ -63,7 +63,19 @@ class TestSynthesis(unittest.TestCase):
         self.generic_test("Integer", fun=se_int, d=1)
 
     def test_big_int(self):
-        self.generic_test("Integer", fun=se_app, d=7, times=10)
+        self.generic_test("Integer",
+                          fun=se_app_in_context,
+                          d=7,
+                          times=1,
+                          extra_ctx=[("f", "(i:Integer) -> Integer")])
+
+        self.generic_test("{x:Integer | x > 0}",
+                          fun=se_app_in_context,
+                          d=7,
+                          times=1,
+                          extra_ctx=[
+                              ("f", "(i:Integer) -> {z:Integer | z == i + 1}")
+                          ])
 
     def test_var(self):
         self.generic_test("Integer",
@@ -111,7 +123,7 @@ class TestSynthesis(unittest.TestCase):
         self.generic_test("{x:Integer where (((x % 4) == 0) && (x > 2))}")
 
     def test_g_abs(self):
-        self.generic_test("(x:Boolean) -> Integer")
+        self.generic_test("(x:Boolean) -> Integer", d=10)
 
     def test_g_abs_with_var(self):
         self.generic_test("(x:Boolean) -> Integer",
