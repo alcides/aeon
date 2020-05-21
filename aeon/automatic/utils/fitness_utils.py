@@ -4,7 +4,7 @@ from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction,
 from aeon.automatic.evaluation.conversor import convert
 
 from aeon.interpreter import run
-from aeon.synthesis import se_safe
+from aeon.synthesis.synthesis import se_safe
 
 
 # =============================================================================

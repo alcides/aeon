@@ -1,7 +1,7 @@
 import copy
 import random
 
-from aeon.synthesis import se_safe
+from aeon.synthesis.synthesis import se_safe
 
 from aeon.automatic.individual import Individual
 from aeon.automatic.utils.tree_utils import annotate_tree, random_subtree, replace_tree

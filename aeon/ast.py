@@ -2,7 +2,7 @@ import copy
 
 from typing import Optional, List
 
-from .types import RefinedType, Type, Kind
+from aeon.types import RefinedType, Type, Kind
 
 
 class Node(object):

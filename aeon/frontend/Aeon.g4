@@ -1,6 +1,6 @@
 /**
  * Grammar for the Aeon language
- * To compile the grammar: java -jar ../../tools/antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4
+ * To compile the grammar: java -jar ../../lib/antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4
  */
 grammar Aeon;
 

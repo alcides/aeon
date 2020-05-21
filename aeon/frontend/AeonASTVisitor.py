@@ -8,7 +8,7 @@ from aeon.types import Type, BasicType, AbstractionType, RefinedType, TypeApplic
 
 from functools import reduce
 
-from .helpers import *
+from .utils import *
 from aeon.typechecker.utils import flatten_refined_type
 
 

@@ -1,0 +1,20 @@
+// Word Stats:
+// -----------
+// Given a file, print the number of words containing n characters
+// for n from 1 to the length of the longest word in the format:
+// words of length 1: 12
+// words of length 2: 3
+// words of length 3: 0
+// words of length 4: 5
+// ...
+//
+// At the end of the output, print a line that gives the number of
+// setences and line that gives the average setence length using the
+// form:
+// number of setences: 4
+// average setence length: 7.452423455
+// A word in any string of consecutive non-whitespace characters
+// (including setence terminators). Every file will contain at
+// least one setence terminator (., !, ?). The average setence length
+// is the number of words in the file divided by the number of 
+// setences terminator characters

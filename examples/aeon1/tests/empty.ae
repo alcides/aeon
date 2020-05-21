@@ -1,3 +1,0 @@
-main : (args:Array<String>) -> _:Void {
-	0
-}

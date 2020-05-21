@@ -1,3 +1,0 @@
-native R.randomInts : (size : Integer) -> res:A.Array<Integer> where [ size > 0 and res.size == size ]
-
-native R.randoms : (size : Integer) -> res:A.Array<Double> where [ size > 0 and res.size == size ]

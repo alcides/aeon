@@ -3,7 +3,7 @@ import random
 
 from ..types import TypingContext, Kind, star, Type
 from ..frontend_core import expr, typee
-from ..synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
+from ..synthesis.synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
     se_where, iet, se_app_in_context
 from ..typechecker import check_type, is_subtype
 

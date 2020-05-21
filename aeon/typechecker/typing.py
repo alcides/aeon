@@ -15,7 +15,7 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
-from aeon.translate import translate
+from aeon.translator import translate
 
 import logging
 
@@ -184,8 +184,6 @@ def check_program(ast):
         
         if isinstance(e, Program):
             for decl in e.declarations:
-                
-                logging.debug(f"Checking the declaration: {decl}")
         
                 holes.clear()  # Reset to add holes of curr decl.
                 # print("decl", decl)
@@ -193,14 +191,17 @@ def check_program(ast):
                 if holes:
                     holed.append((decl, holes.copy()))  # Append the holes
         
-        elif isinstance(e, Definition):
+        elif isinstance(e, Definition):        
+            logging.debug(f"Checking the Definition: {e.name}")
             ctx.variables[e.name] = e.type  # supports recursion
             check_type(ctx, e.body, e.type)
             ctx.variables[e.name] = e.type  # refines type
             check_kind(ctx, e.type, AnyKind())
-        elif isinstance(e, TypeAlias):
+        elif isinstance(e, TypeAlias):        
+            logging.debug(f"Checking the TypeAlias: {e}")
             ctx.type_aliases[e.name.name] = e.type
-        elif isinstance(e, TypeDeclaration):
+        elif isinstance(e, TypeDeclaration):        
+            logging.debug(f"Checking the TypeDeclaration: {e}")
             name = e.name
             kind = e.kind
             ctx.add_type_var(name, kind)  # Fixed

@@ -1,0 +1,5 @@
+// X-Word Lines:
+// -------------
+// Given an integer X and a string that can contains spaces and
+// newlines, print the string with exactly X words per line.
+// The last line may have fewer than X words.

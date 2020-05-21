@@ -4,13 +4,13 @@ import random
 import shutil
 import logging
 
-from .frontend import parse, parse_strict
-from .frontend_core import parse as parse2
-from .typechecker import check_program
-from .deducer import deducer
-from .interpreter import run
-from .automatic import automatic
-from .translate import translate
+from aeon.frontend import parse, parse_strict
+from aeon.frontend_core import parse as parse2
+from aeon.typechecker import check_program
+from aeon.deducer import deducer
+from aeon.interpreter import run
+from aeon.automatic import automatic
+from aeon.translator import translate
 
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
@@ -47,7 +47,6 @@ if __name__ == '__main__':
         logging.debug("Typechecking the program")   
         
         ast, context, holed = check_program(ast)
-        print(translate(ast))
             
         # Infer the holes
         if holed:

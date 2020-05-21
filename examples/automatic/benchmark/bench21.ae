@@ -1,0 +1,11 @@
+import aeon/libraries/list;
+
+// Negative To Zero:
+// -----------------
+// Given a vector of integers, return the vector where all negative
+// integers have been replaced by 0.
+negative_to_zero(l1:List<Integer>) -> l2:List<Integer> where {l1.size == l2.size 
+                                                                /* and quantidade de zeros == quantidade negativos and quantidade negativos == 0 */ } {
+
+
+}

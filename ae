@@ -1,5 +1,5 @@
 #!/bin/bash
 # export PATH="$PATH:/usr/bin/z3-4.8.5.9c9cd5ebf791-x86-ubuntu-14.04/bin/"
-cd aeon/frontend; java -jar ../../tools/antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4; cd ../../
+cd aeon/frontend; java -jar ../../lib/antlr-4.7.2-complete.jar -Dlanguage=Python3 -visitor -no-listener -o generated Aeon.g4; cd ../../
 export PYTHONPATH=".:$PYTHONPATH:/usr/bin/"
 python3.7 -m aeon $@

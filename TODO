@@ -5,6 +5,7 @@ automatic:
         evolution
     ☐ edge case tests in individuals evaluation
     ☐ try energy consumption optimization
+        @link(https://pypi.org/project/energyusage/) only works in linux
     ☐ evaluate the continuous fitness functions
     ☐ change forall and exists to sum and minimum, respectively
     ☐ changed the [(context, holes)] in typing, should change the invocations over genetics  @high
@@ -26,10 +27,11 @@ typechecker:
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
         Check the @file aeon/examples/benchmark/bench3.ae
-    ☐ update zed interface using pysmt 
+    ☐ update zed interface using pysmt
         This might be a slower solution since it introduces a new layer, but allows us
         to expriment different SMT's 
-        @link(https://github.com/pysmt/pysmt)
+        @link(https://github.com/pysmt/pysmt) <--- Only CVC4 handles strings, z3 doesn't: ASK
+        Strings can be converted to an array of integers though...
     ☐ the uninterpreted functions are not being checked
         for some reason, the uninterpret function restrictions are not checked
         by the SMT
@@ -52,12 +54,10 @@ libraries:
     ☐ automatically generate the documentation
     ✔ create the annotation for documentation @done(20-05-21 10:05)
     
-
 frontend:
     ✔ update hole notation to `??` and `?Integer?` @done(20-05-21 10:07)
     ☐ problem with `-->` priority
-    ☐ ghost_variables new parameter in TypeDeclaration
-        --> Remove
+    ✔ ghost_variables new parameter in TypeDeclaration @done(20-05-21 11:05)
         the ghost_variables was introduced, no information about what to do with it...
     ✔ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]` @done(20-05-21 10:08)
     ☐ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly
@@ -82,13 +82,12 @@ translator:
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
 
-examples:
-    ☐ add unit tests
-    ☐ Update all the examples from changing the grammar
-
 interpreter:
     ☐ check non-restricted refined types in interpreter
 
+examples:
+    ☐ add unit tests
+    ☐ Update all the examples from changing the grammar
 
 others:
     ☐ inference of the hole @high

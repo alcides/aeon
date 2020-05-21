@@ -1,6 +1,0 @@
-main : (args:Array<String>) -> _:Void {
-	b1:Boolean = 1
-	b2:Boolean = false
-	i1:Integer = 1
-	d1:Double = 3.0
-}

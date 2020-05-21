@@ -2,7 +2,7 @@ import copy
 import random
 
 from aeon.typechecker.subtyping import is_subtype
-from aeon.synthesis import se_safe, set_genetics, reset_genetics
+from aeon.synthesis.synthesis import se_safe, set_genetics, reset_genetics
 
 from aeon.automatic.individual import Individual
 from aeon.automatic.utils.tree_utils import annotate_tree, random_subtree, replace_tree, all_valid_subtrees
