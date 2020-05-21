@@ -1,6 +1,6 @@
 import string
 import builtins
-from .helper import aefunction
+from .annotation import aefunction, aedocumentation
 
 ''' String binds in Aeon to Python '''
 
@@ -10,6 +10,7 @@ class String(object):
         pass
 
 @aefunction('equals(a:String, b:String) -> {s:Boolean | s --> (a.size == b.size)} = native;', lambda x: lambda y: equals(x, y))
+@aedocumentation("Teste")
 def equals(x, y):
     return x == y
 

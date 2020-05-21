@@ -1,0 +1,84 @@
+start : aeon*            -> program
+
+aeon 
+    : import            -> import 
+    | type_alias        -> type_alias
+    | type_declaration  -> type_declaration
+    | definition        -> definition
+    | type             -> type
+
+import 
+    : "import" ID from PATH ";" -> function_import
+    | "import" PATH ";"         -> regular_import
+
+type_alias 
+    : "type" ID "=" type ";"   -> type_alias
+
+type_declaration 
+    : "type" type ";"          -> type_declaration
+    | "type" type "{" ( ID : type";")+ "}"
+
+type 
+    : TYPE_ID                               -> basic_type
+    | "(" type ")"                          -> parens_type
+    | "{" ID ":" type "|" expression "}"    -> refined_type
+    | "(" "\\" ID ":" type "->" type ")"    -> abstraction_type
+    | type "[" TYPE_ID "]"                  -> type_abstraction
+    | type "[" type "]"                     -> type_application
+
+definition 
+    : ID ("[" type_params? "]")? "(" definition_params? ")" "->" type ";"                  -> native_definition
+    | ID ("[" type_params? "]")? "(" definition_params? ")" "->" type "{" statement+ "}"   -> regular_definition
+
+type_params
+    : TYPE_ID ("," TYPE_ID)*
+
+definition_params
+    : ID ":" type ("," ID ":" type)*
+
+statement
+    : "if" expression "{" statement+ "}" "else" "{" statement+ "}"      -> if_statement
+    | ID ":" type "=" expression ";"                                    -> let_statement
+    | ID "=" expression ";"                                             -> assign_statement
+    | expression ";"                                                    -> expression
+
+expression 
+    : "(" expression ")"                                -> parenthesis
+    | expression "(" parameters ")"                     -> function_call
+    | expression "-->" expression                       -> boolean_expression
+    | "!" expression                                    -> not_expression
+    | "-" expression                                    -> minus_expression
+    | expression ("*" | "/" | "%") expression           -> arithmetic_expression
+    | expression ("-" | "+") expression                 -> arithmetic_expression
+    | expression ("<" | ">" | "<=" | ">=") expression   -> arithmetic_expression
+    | 
+    | 
+    | 
+    | 
+
+
+
+BOOLLIT.5 : "true" | "false"
+INTLIT : /[0-9][0-9]*/
+FLOATLIT : /[0-9]*'.'?[0-9]+/
+STRINGLIT : ESCAPED_STRING
+
+ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
+TYPE_ID : ["A".."Z"] CNAME
+
+PATH : (".." | ID )* "/" ID
+
+_PIPE.10 : "where" | "|"
+_DOUBLEPIPE.11 : "||"
+
+LINE_COMMENT: /\s*/ "//" /[^\n]/*
+BLOCK_COMMENT: "?"
+
+
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.CNAME
+
+%ignore WS
+%ignore LINE_COMMENT
+%ignore BLOCK_COMMENT

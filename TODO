@@ -1,5 +1,4 @@
 automatic:
-    ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
     ☐ restrict the genetic information in the genetic pool @low
         we add to much information to the genetic pool. Perhaps restricting the
         information and only allowing subtrees that do not exist will improve the 
@@ -8,12 +7,7 @@ automatic:
     ☐ try energy consumption optimization
     ☐ evaluate the continuous fitness functions
     ☐ change forall and exists to sum and minimum, respectively
-    ✔ make tests stop after 5 seconds @started(20-05-09 19:21) @done(20-05-09 19:33) @lasted(12m22s)
-        way to do this
-        @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
-    ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
-        sometimes a random error raises in the interpreter when evaluating the program
-        Exception: function not in context
+    ☐ changed the [(context, holes)] in typing, should change the invocations over genetics  @high
     ☐ optimization of the synthesized code
 
 synthesis:
@@ -27,6 +21,7 @@ synthesis:
     ☐ probabilities of the synthesis configurations
 
 typechecker:
+    ☐ include assertions in rules to ensure implementation correctness
     ☐ if restrictions are not properly propagated 
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
@@ -35,56 +30,106 @@ typechecker:
         This might be a slower solution since it introduces a new layer, but allows us
         to expriment different SMT's 
         @link(https://github.com/pysmt/pysmt)
-    ☐ the uninterpreted functions are not being updated
+    ☐ the uninterpreted functions are not being checked
         for some reason, the uninterpret function restrictions are not checked
         by the SMT
+        check kinding
         @file examples/aeon3/strings.ae
+        @file aeon/examples/aeon3/list_demo.ae
+
+    improve error messages:
+        ☐ improve node and error messages readability
+            already added the translator to improve the messages. Need to improve it further
+            by adding more explicit information about the kind of error 
+        ☐ add line number and line where the error occurs
 
 libraries:
-    ✔ add function conversion from int to float @done(20-05-10 19:06)
-    ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
-    ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
-    ☐ bug in the power[X, Y] 
-    ✔ improve refinements of String methods @done(20-05-10 19:35)
+    ✔ bug in the power[X, Y] @done(20-05-21 10:49)
     ☐ `String` and `List` have the same method names.
         We should either add module that renames method names and allows overloading,
         or, allow shadowing, or, raise exception when this happens
     ☐ include the libraries: `Map`, `Tree`, `IO` and `Text`
     ☐ automatically generate the documentation
-    ☐ create the annotation for documentation
+    ✔ create the annotation for documentation @done(20-05-21 10:05)
     
 
 frontend:
-    ✔ refine strings in frontend @done(20-05-10 22:59)
-    ☐ update hole notation to `??` and `?Integer?`
+    ✔ update hole notation to `??` and `?Integer?` @done(20-05-21 10:07)
     ☐ problem with `-->` priority
     ☐ ghost_variables new parameter in TypeDeclaration
+        --> Remove
         the ghost_variables was introduced, no information about what to do with it...
-    ☐ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]`
-    
+    ✔ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]` @done(20-05-21 10:08)
+    ☐ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly
+        if the last instruction is of the kind: x:Integer = true; the frontend
+        only takes the body and ignores the rest of the assignment. We cannot
+        ensure type correctness in this case
+
     language verifiers: 
         ☐ import cycles
         ☐ undeclared variables and functions
         ☐ undeclared types
         ☐ integer and double bounds
-        ☐ raise warning when conditions are always true/false
 
     ☐ migrate to Lark
 
 compiler:
     ☐ compile the code to Java
 
-others:
-    ☐ inference of the hole @high 
-        this can be done after typechecking
-    ☐ inference of type applications
-    ☐ Translator from AeonCore to Aeon
-    ☐ update syntax highlighter (create a new git)
+translator:
+    ☐ doesnt work when the last instruction is the application of an abstraction
+        if the functions ends with: (\x : T -> x + 1)(1) then the translation
+        doesnt work properly 
+    ☐ missing typeabstractions in the type in TypeDeclaration
 
-bugs:
-    ☐ typechecker is not checking uninterpreted refinements (@file aeon/examples/aeon3/list_demo.ae)
-    ☐ not properly generating restricted type values for uninterpreted functions
+examples:
+    ☐ add unit tests
+    ☐ Update all the examples from changing the grammar
+
+interpreter:
+    ☐ check non-restricted refined types in interpreter
+
+
+others:
+    ☐ inference of the hole @high
+        this can be done after typechecking
+    ☐ reorganize program modules
+    ☐ inference of type applications
+        can be done during typechecking, but need to be careful not to mess up
+        everything else
+    ☐ update syntax highlighter (create a new git)
 
 
 ===============================================================================
 Done:
+    automatic:
+        ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
+        ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
+            sometimes a random error raises in the interpreter when evaluating the program
+            Exception: function not in context
+        ✔ make tests stop after 5 seconds @done(20-05-09 19:33)
+            way to do this
+            @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
+        
+    synthesis:
+
+    typechecker:
+
+    libraries:
+        ✔ add function conversion from int to float @done(20-05-10 19:06)
+        ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
+        ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
+        ✔ improve refinements of String methods @done(20-05-10 19:35)
+
+    frontend:
+        ✔ refine strings in frontend @done(20-05-10 22:59)
+        ✘ raise warning when conditions are always true/false @cancelled(20-05-13 09:24)
+            should actually be check in the typechecker and not frontend
+
+    compiler:
+
+    translator:
+
+    others:
+        ✔ python logger @done(20-05-12 10:05)
+        ✔ Translator from AeonCore to Aeon @done(20-05-13 12:06)

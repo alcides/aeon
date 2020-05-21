@@ -2,23 +2,23 @@ import aeon/libraries/strings;
 
 main() -> Top {
     
-    print<String>("Testing string operations");
-    print<String>("=======================");
+    print[String]("Testing string operations");
+    print[String]("=======================");
 
-    print<String>("Concat:");
-    print<String>(concat("ola", "adeus"));
+    print[String]("Concat:");
+    print[String](concat("ola", "adeus"));
 
-    print<String>("Size:");
-    print<Integer>(size("ola"));
+    print[String]("Size:");
+    print[Integer](size("ola"));
 
-    print<String>("Equals:");
-    print<Boolean>(equals("ola", "ola"));
-    print<Boolean>(equals("ola", "adeus"));
+    print[String]("Equals:");
+    print[Boolean](equals("ola", "ola"));
+    print[Boolean](equals("ola", "adeus"));
     
-    print<String>("Replace:");
-    print<String>(replace("ola", "adeus", "olatudobem"));
+    print[String]("Replace:");
+    print[String](replace("ola", "adeus", "olatudobem"));
 
     // TODO: Bug here
-    // print<String>("ASCII:");
-    // print<Integer>(ascii("ola"));
+    // print[String]("ASCII:");
+    // print[Integer](ascii("ola"));
 }

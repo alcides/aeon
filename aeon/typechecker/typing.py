@@ -15,6 +15,9 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
+from aeon.translate import translate
+
+import logging
 
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
@@ -130,8 +133,8 @@ holes = []
 
 
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
-    e.type = bottom if e.type is None  else e.type
-    holes.append((ctx.copy(), e.type))
+    e.type = bottom if e.type is None else e.type
+    holes.append((ctx.copy(), e))
     return e.type
 
 
@@ -166,7 +169,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     t = synth_type(ctx, e)
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
-            e, t, expected))
+            translate(e), translate(t), translate(expected)))
     e.type = t if e.type != None else e.type
     return t
 
@@ -178,14 +181,18 @@ def check_program(ast):
     holed = []
     
     def internal_check(ctx: TypingContext, e: TypedNode):
+        
         if isinstance(e, Program):
             for decl in e.declarations:
+                
+                logging.debug(f"Checking the declaration: {decl}")
+        
                 holes.clear()  # Reset to add holes of curr decl.
                 # print("decl", decl)
                 internal_check(ctx, decl)
                 if holes:
                     holed.append((decl, holes.copy()))  # Append the holes
-
+        
         elif isinstance(e, Definition):
             ctx.variables[e.name] = e.type  # supports recursion
             check_type(ctx, e.body, e.type)
@@ -198,9 +205,10 @@ def check_program(ast):
             kind = e.kind
             ctx.add_type_var(name, kind)  # Fixed
         else:
-            print("TypeChecking ignoring:", e, type(e))
+            logging.error(f"TypeChecking ignoring:{e} of type {type(e)}")
 
     ctx = TypingContext()
     ctx.setup()
     internal_check(ctx, ast)
+
     return ast, ctx, holed

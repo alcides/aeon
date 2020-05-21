@@ -77,9 +77,9 @@ def serializedATN():
         buf.write("\7.\2\2\u0090\u0091\5\26\f\2\u0091\35\3\2\2\2\u0092\u0095")
         buf.write("\7\66\2\2\u0093\u0095\7\67\2\2\u0094\u0092\3\2\2\2\u0094")
         buf.write("\u0093\3\2\2\2\u0095\37\3\2\2\2\u0096\u0097\7\66\2\2\u0097")
-        buf.write("\u0098\7\25\2\2\u0098\u0099\5\"\22\2\u0099\u009a\7\27")
-        buf.write("\2\2\u009a!\3\2\2\2\u009b\u00a0\5\26\f\2\u009c\u009d\7")
-        buf.write("/\2\2\u009d\u009f\5\26\f\2\u009e\u009c\3\2\2\2\u009f\u00a2")
+        buf.write("\u0098\7#\2\2\u0098\u0099\5\"\22\2\u0099\u009a\7$\2\2")
+        buf.write("\u009a!\3\2\2\2\u009b\u00a0\5\26\f\2\u009c\u009d\7/\2")
+        buf.write("\2\u009d\u009f\5\26\f\2\u009e\u009c\3\2\2\2\u009f\u00a2")
         buf.write("\3\2\2\2\u00a0\u009e\3\2\2\2\u00a0\u00a1\3\2\2\2\u00a1")
         buf.write("#\3\2\2\2\u00a2\u00a0\3\2\2\2\u00a3\u00a4\5&\24\2\u00a4")
         buf.write("\u00a6\7!\2\2\u00a5\u00a7\5(\25\2\u00a6\u00a5\3\2\2\2")
@@ -87,8 +87,8 @@ def serializedATN():
         buf.write("\"\2\2\u00a9\u00aa\7\34\2\2\u00aa\u00ac\5\26\f\2\u00ab")
         buf.write("\u00ad\5*\26\2\u00ac\u00ab\3\2\2\2\u00ac\u00ad\3\2\2\2")
         buf.write("\u00ad\u00ae\3\2\2\2\u00ae\u00af\5,\27\2\u00af%\3\2\2")
-        buf.write("\2\u00b0\u00b5\7\65\2\2\u00b1\u00b2\7\25\2\2\u00b2\u00b3")
-        buf.write("\5\"\22\2\u00b3\u00b4\7\27\2\2\u00b4\u00b6\3\2\2\2\u00b5")
+        buf.write("\2\u00b0\u00b5\7\65\2\2\u00b1\u00b2\7#\2\2\u00b2\u00b3")
+        buf.write("\5\"\22\2\u00b3\u00b4\7$\2\2\u00b4\u00b6\3\2\2\2\u00b5")
         buf.write("\u00b1\3\2\2\2\u00b5\u00b6\3\2\2\2\u00b6\'\3\2\2\2\u00b7")
         buf.write("\u00bc\5\26\f\2\u00b8\u00b9\7/\2\2\u00b9\u00bb\5\26\f")
         buf.write("\2\u00ba\u00b8\3\2\2\2\u00bb\u00be\3\2\2\2\u00bc\u00ba")
@@ -119,9 +119,9 @@ def serializedATN():
         buf.write("\u00f7\t\3\2\2\u00f7\u010d\5\66\34\20\u00f8\u00f9\7+\2")
         buf.write("\2\u00f9\u00fa\5\26\f\2\u00fa\u00fb\7\34\2\2\u00fb\u00fc")
         buf.write("\5\66\34\t\u00fc\u010d\3\2\2\2\u00fd\u00fe\7\65\2\2\u00fe")
-        buf.write("\u00ff\7-\2\2\u00ff\u010d\7\65\2\2\u0100\u0102\7#\2\2")
+        buf.write("\u00ff\7-\2\2\u00ff\u010d\7\65\2\2\u0100\u0102\7\7\2\2")
         buf.write("\u0101\u0103\5\26\f\2\u0102\u0101\3\2\2\2\u0102\u0103")
-        buf.write("\3\2\2\2\u0103\u0104\3\2\2\2\u0104\u010d\7$\2\2\u0105")
+        buf.write("\3\2\2\2\u0103\u0104\3\2\2\2\u0104\u010d\7\7\2\2\u0105")
         buf.write("\u010d\7\65\2\2\u0106\u010d\t\4\2\2\u0107\u0108\t\5\2")
         buf.write("\2\u0108\u0109\7!\2\2\u0109\u010a\5\66\34\2\u010a\u010b")
         buf.write("\7\"\2\2\u010b\u010d\3\2\2\2\u010c\u00f1\3\2\2\2\u010c")
@@ -149,7 +149,7 @@ def serializedATN():
         buf.write("\u0123\3\2\2\2\u0135\u0126\3\2\2\2\u0135\u012c\3\2\2\2")
         buf.write("\u0136\u0139\3\2\2\2\u0137\u0135\3\2\2\2\u0137\u0138\3")
         buf.write("\2\2\2\u0138\67\3\2\2\2\u0139\u0137\3\2\2\2\u013a\u013b")
-        buf.write("\7\25\2\2\u013b\u013c\5\"\22\2\u013c\u013d\7\27\2\2\u013d")
+        buf.write("\7#\2\2\u013b\u013c\5\"\22\2\u013c\u013d\7$\2\2\u013d")
         buf.write("9\3\2\2\2\u013e\u0143\5\66\34\2\u013f\u0140\7/\2\2\u0140")
         buf.write("\u0142\5\66\34\2\u0141\u013f\3\2\2\2\u0142\u0145\3\2\2")
         buf.write("\2\u0143\u0141\3\2\2\2\u0143\u0144\3\2\2\2\u0144;\3\2")
@@ -370,7 +370,7 @@ class AeonParser ( Parser ):
             self.state = 66
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IMPORT) | (1 << AeonParser.IF) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.TYPEE) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IMPORT) | (1 << AeonParser.IF) | (1 << AeonParser.QUESTION) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.TYPEE) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                 self.state = 64
                 self._errHandler.sync(self)
                 la_ = self._interp.adaptivePredict(self._input,0,self._ctx)
@@ -1276,11 +1276,11 @@ class AeonParser ( Parser ):
             self.abstractType = None # Token
             self.abstractParams = None # Typee_abstract_parametersContext
 
-        def LT(self):
-            return self.getToken(AeonParser.LT, 0)
+        def LBRACKET(self):
+            return self.getToken(AeonParser.LBRACKET, 0)
 
-        def GT(self):
-            return self.getToken(AeonParser.GT, 0)
+        def RBRACKET(self):
+            return self.getToken(AeonParser.RBRACKET, 0)
 
         def TYPEE_IDENTIFIER(self):
             return self.getToken(AeonParser.TYPEE_IDENTIFIER, 0)
@@ -1310,11 +1310,11 @@ class AeonParser ( Parser ):
             self.state = 148
             localctx.abstractType = self.match(AeonParser.TYPEE_IDENTIFIER)
             self.state = 149
-            self.match(AeonParser.LT)
+            self.match(AeonParser.LBRACKET)
             self.state = 150
             localctx.abstractParams = self.typee_abstract_parameters()
             self.state = 151
-            self.match(AeonParser.GT)
+            self.match(AeonParser.RBRACKET)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1494,11 +1494,11 @@ class AeonParser ( Parser ):
         def IDENTIFIER(self):
             return self.getToken(AeonParser.IDENTIFIER, 0)
 
-        def LT(self):
-            return self.getToken(AeonParser.LT, 0)
+        def LBRACKET(self):
+            return self.getToken(AeonParser.LBRACKET, 0)
 
-        def GT(self):
-            return self.getToken(AeonParser.GT, 0)
+        def RBRACKET(self):
+            return self.getToken(AeonParser.RBRACKET, 0)
 
         def typee_abstract_parameters(self):
             return self.getTypedRuleContext(AeonParser.Typee_abstract_parametersContext,0)
@@ -1528,13 +1528,13 @@ class AeonParser ( Parser ):
             self.state = 179
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if _la==AeonParser.LT:
+            if _la==AeonParser.LBRACKET:
                 self.state = 175
-                self.match(AeonParser.LT)
+                self.match(AeonParser.LBRACKET)
                 self.state = 176
                 localctx.abstractParams = self.typee_abstract_parameters()
                 self.state = 177
-                self.match(AeonParser.GT)
+                self.match(AeonParser.RBRACKET)
 
 
         except RecognitionException as re:
@@ -1810,7 +1810,7 @@ class AeonParser ( Parser ):
                 self.state = 213
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
+                while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.IF) | (1 << AeonParser.QUESTION) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LBRACE) | (1 << AeonParser.LPARENS) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER) | (1 << AeonParser.TYPEE_IDENTIFIER) | (1 << AeonParser.ABSTRACT_TYPEE_IDENTIFIER))) != 0):
                     self.state = 208
                     self.statement()
                     self.state = 209
@@ -2214,10 +2214,11 @@ class AeonParser ( Parser ):
             super().__init__(parser)
             self.copyFrom(ctx)
 
-        def LBRACKET(self):
-            return self.getToken(AeonParser.LBRACKET, 0)
-        def RBRACKET(self):
-            return self.getToken(AeonParser.RBRACKET, 0)
+        def QUESTION(self, i:int=None):
+            if i is None:
+                return self.getTokens(AeonParser.QUESTION)
+            else:
+                return self.getToken(AeonParser.QUESTION, i)
         def typee(self):
             return self.getTypedRuleContext(AeonParser.TypeeContext,0)
 
@@ -2480,7 +2481,7 @@ class AeonParser ( Parser ):
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 254
-                self.match(AeonParser.LBRACKET)
+                self.match(AeonParser.QUESTION)
                 self.state = 256
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
@@ -2490,7 +2491,7 @@ class AeonParser ( Parser ):
 
 
                 self.state = 258
-                self.match(AeonParser.RBRACKET)
+                self.match(AeonParser.QUESTION)
                 pass
 
             elif la_ == 6:
@@ -2713,7 +2714,7 @@ class AeonParser ( Parser ):
                         self.state = 300
                         self._errHandler.sync(self)
                         _la = self._input.LA(1)
-                        if _la==AeonParser.LT:
+                        if _la==AeonParser.LBRACKET:
                             self.state = 299
                             localctx.app = self.function_abstraction()
 
@@ -2723,7 +2724,7 @@ class AeonParser ( Parser ):
                         self.state = 304
                         self._errHandler.sync(self)
                         _la = self._input.LA(1)
-                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LPARENS) | (1 << AeonParser.LBRACKET) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
+                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << AeonParser.QUESTION) | (1 << AeonParser.MAXIMIZE) | (1 << AeonParser.MINIMIZE) | (1 << AeonParser.EVALUATE) | (1 << AeonParser.MINUS) | (1 << AeonParser.NOT) | (1 << AeonParser.LPARENS) | (1 << AeonParser.ABSTRACTION) | (1 << AeonParser.BOOLEAN) | (1 << AeonParser.INTEGER) | (1 << AeonParser.FLOAT) | (1 << AeonParser.STRING) | (1 << AeonParser.IDENTIFIER))) != 0):
                             self.state = 303
                             localctx.params = self.call_parameters()
 
@@ -2752,15 +2753,15 @@ class AeonParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def LT(self):
-            return self.getToken(AeonParser.LT, 0)
+        def LBRACKET(self):
+            return self.getToken(AeonParser.LBRACKET, 0)
 
         def typee_abstract_parameters(self):
             return self.getTypedRuleContext(AeonParser.Typee_abstract_parametersContext,0)
 
 
-        def GT(self):
-            return self.getToken(AeonParser.GT, 0)
+        def RBRACKET(self):
+            return self.getToken(AeonParser.RBRACKET, 0)
 
         def getRuleIndex(self):
             return AeonParser.RULE_function_abstraction
@@ -2781,11 +2782,11 @@ class AeonParser ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 312
-            self.match(AeonParser.LT)
+            self.match(AeonParser.LBRACKET)
             self.state = 313
             self.typee_abstract_parameters()
             self.state = 314
-            self.match(AeonParser.GT)
+            self.match(AeonParser.RBRACKET)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)

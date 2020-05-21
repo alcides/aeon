@@ -102,7 +102,7 @@ class AeonASTVisitor(AeonVisitor):
             function_type = wrap_typeabstractions(function_type, typee)
             definition = Definition(function_name, function_type,
                                     Var('uninterpreted').with_type(bottom),
-                                    param)
+                                    self.remove_tabstractions(param))
             self.declarations.append(definition)
             self.general_context[function_name] = function_type
 
@@ -474,7 +474,6 @@ class AeonASTVisitor(AeonVisitor):
             right = Literal(len(value), t_i, ensured=True)
             cond = Application(Application(operator, left), right)
             typee.cond = Application(Application(Var('&&'), typee.cond), cond)
-            print(typee.cond)
             return Literal(value, type=typee)
         return None
 

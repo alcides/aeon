@@ -1,82 +1,83 @@
 import aeon/libraries/list;
 
+// TODO: Bug, unable to check uninterpreted functions
 
 main() -> Top {
 
     // Create an empty list
-    print("Empty list");
-    l1 : List<Integer> = empty_list<Integer>();
-    print(l1);
+    print[String]("Empty list");
+    l1 : List[Integer] = empty_list[Integer]();
+    print[Integer](l1);
 
     // Append to the list
-    print("Apppend to list");
-    l2 : List<Integer> = append<Integer>(1, l1);
-    print(l2);
-    l2 = append<Integer>(2, l2);
-    print(l2);
-    l2 = append<Integer>(3, l2);
-    print(l2);
+    print[String]("Apppend to list");
+    l2 : List[Integer] = append[Integer](1, l1);
+    print[Integer](l2);
+    l2 = append[Integer](2, l2);
+    print[Integer](l2);
+    l2 = append[Integer](3, l2);
+    print[Integer](l2);
 
     // Extend a list with another list
-    print("Extend a list with another list");
-    l4 : List<Integer> = append<Integer>(1, empty_list<Integer>());
-    l5 : List<Integer> = append<Integer>(2, empty_list<Integer>());
-    print(extend<Integer>(l1, l2)); // 0 items with + items
-    print(extend<Integer>(l2, l1)); // + items with 0 items
-    print(extend<Integer>(l4, l5)); // 1 item with 1 item
-    print(extend<Integer>(l5, l4)); // 1 item with 1 item
-    print(extend<Integer>(l2, l4)); // + items with 1 item
-    print(extend<Integer>(l4, l2)); // 1 item with + items
+    print[String]("Extend a list with another list");
+    l4 : List[Integer] = append[Integer](1, empty_list[Integer]());
+    l5 : List[Integer] = append[Integer](2, empty_list[Integer]());
+    print[Integer](extend[Integer](l1, l2)); // 0 items with + items
+    print[Integer](extend[Integer](l2, l1)); // + items with 0 items
+    print[Integer](extend[Integer](l4, l5)); // 1 item with 1 item
+    print[Integer](extend[Integer](l5, l4)); // 1 item with 1 item
+    print[Integer](extend[Integer](l2, l4)); // + items with 1 item
+    print[Integer](extend[Integer](l4, l2)); // 1 item with + items
 
     // Insert at a specific place
-    print("Insert in a list");
-    print(insert<Integer>(0, l2, 0));
-    print(insert<Integer>(4, l2, 3));
-    // print(insert<Integer>(5000, l2, 5000)); // TODO: Should give error
+    print[String]("Insert in a list");
+    print[Integer](insert[Integer](0, l2, 0));
+    print[Integer](insert[Integer](4, l2, 3));
+    // print[Integer](insert[Integer](5000, l2, 5000)); // TODO: Should give error
 
     // Remove the first occurence
-    print("Remove an occurence");
-    print(remove<Integer>(-1, l2));
-    print(remove<Integer>(1, l2));
-    print(remove<Integer>(2, l2));
-    print(remove<Integer>(3, l2));
+    print[String]("Remove an occurence");
+    print[Integer](remove[Integer](-1, l2));
+    print[Integer](remove[Integer](1, l2));
+    print[Integer](remove[Integer](2, l2));
+    print[Integer](remove[Integer](3, l2));
 
     // Check if list contains element
-    print("Contains an element");
-    print(contains<Integer>(-1, l2));
-    print(contains<Integer>(2, l2));
+    print[String]("Contains an element");
+    print[Integer](contains[Integer](-1, l2));
+    print[Integer](contains[Integer](2, l2));
 
     // Count the amount of times an element occur
-    print("Count the times of element");
-    print(count<Integer>(-1, l2));
-    print(count<Integer>(1, l2));
+    print[String]("Count the times of element");
+    print[Integer](count[Integer](-1, l2));
+    print[Integer](count[Integer](1, l2));
 
     // Reverse a list
-    print("Reversing lists");
-    print(reverse<Integer>(empty_list<Integer>()));
-    print(reverse<Integer>(l2));
+    print[String]("Reversing lists");
+    print[Integer](reverse[Integer](empty_list[Integer]()));
+    print[Integer](reverse[Integer](l2));
 
     // Exists
-    print("Exists in lists");
+    print[String]("Exists in lists");
     f : (Integer -> Boolean) = \x: Integer -> x > 2;
-    print(exists<Integer>(f, l2));
+    print[Integer](exists[Integer](f, l2));
 
     // Forall    
-    print("Forall in lists");
+    print[String]("Forall in lists");
     f : (Integer -> Boolean) = \x: Integer -> x > 2;
-    print(forall<Integer>(f, l2));
+    print[Integer](forall[Integer](f, l2));
 
     // Filter to get non-empty and empty list
-    print("Filter in lists");
+    print[String]("Filter in lists");
     f : (Integer -> Boolean) = \x: Integer -> x > 2;
     f2 : (Integer -> Boolean) = \x: Integer -> x > 10;
-    print(filter<Integer>(f, l2));
-    print(filter<Integer>(f2, l2));
+    print[Integer](filter[Integer](f, l2));
+    print[Integer](filter[Integer](f2, l2));
 
     // Map
-    print("Map in lists");
+    print[String]("Map in lists");
     f : (Integer -> Integer) = \x: Integer -> x * 2;
     f2 : (Integer -> Integer) = \x: Integer -> -x;
-    print(map<Integer>(f, l2));
-    print(map<Integer>(f2, l2));
+    print[Integer](map[Integer](f, l2));
+    print[Integer](map[Integer](f2, l2));
 }

@@ -1,5 +1,5 @@
 
-f<K> : (x:Integer) -> Integer {
+f[K] : (x:Integer) -> Integer {
     x + 1;
 }
 
@@ -21,7 +21,7 @@ hole2 : (y:Integer) -> Integer {
 
 hole35 : (y:Integer) -> Integer {
     // [TypeApp(Integer String)]
-    f<Integer>([]);
+    f[Integer]([]);
     1;
 }
 
@@ -85,7 +85,7 @@ hole35 : (y:Integer) -> Integer {
 
 
  h2 : (y:Integer) -> Integer {
-    f<Integer>([](2)); // TODO:
+    f[Integer]([](2)); // TODO:
     1;
 }
 
@@ -144,5 +144,5 @@ hole11 : (y:Integer) -> {x:Integer | x > 10} {
     abc = 10;
     3;
     a = [];
-    print((\x:T -> x + 1)<Integer>(3));
+    print[Integer]((\x:T -> x + 1)[Integer](3));
 }

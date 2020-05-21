@@ -1,0 +1,23 @@
+bug2() -> Integer {
+  
+    x : Integer = 1;
+    f : ({y: Integer | y > 0} -> Integer) = \{y:Integer | y > 0} -> y + 1;
+    2;
+    f(x);
+}
+
+/*
+bug1(start : Integer, {end : Integer | start < end}, {step : Integer | step > 0}) -> Integer {
+    if start + step < end {
+        f(start + step, end, step);
+    } else {
+        end;
+    };
+    
+    //[List<Integer>];
+}
+*/
+main() -> Top {
+    // bug1(10, 20, 1);
+    bug2();
+}
