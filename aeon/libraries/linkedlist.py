@@ -3,7 +3,7 @@ from .annotation import aefunction, aedocumentation
 
 ''' LinkedList binds in Aeon to Python '''
 
-@aefunction("""type LList<T> {
+@aefunction("""type LList[T] {
     size : Integer;
 }""", None)
 
@@ -32,12 +32,12 @@ class List(object):
             itering = itering.next
         return result
 
-@aefunction('empty_list<T>() -> {l:LList<T> | l.size == 0} = native;', lambda x : empty_list(x))
+@aefunction('empty_list[T]() -> {l:LList[T] | l.size == 0} = native;', lambda x : empty_list(x))
 def empty_list(ignore):
     return List(None, None)
 
 
-@aefunction('append<T>(x:T, l:LList<T>) -> {l2:LList<T> | l2.size == l.size + 1} = native;', lambda x: lambda l: append(x, l))
+@aefunction('append[T](x:T, l:LList[T]) -> {l2:LList[T] | l2.size == l.size + 1} = native;', lambda x: lambda l: append(x, l))
 def append(x, l):
     result = List(None, None)
 
@@ -53,7 +53,7 @@ def append(x, l):
     return result
 
 
-@aefunction('extend<T>(l1:LList<T>, l2:LList<T>) -> {l3:LList<T> | l3.size == l1.size + l2.size} = native;', lambda l1: lambda l2: extend(l1, l2))
+@aefunction('extend[T](l1:LList[T], l2:LList[T]) -> {l3:LList[T] | l3.size == l1.size + l2.size} = native;', lambda l1: lambda l2: extend(l1, l2))
 def extend(l1, l2):
     result = List(None, None)
     current = result
@@ -76,7 +76,7 @@ def extend(l1, l2):
     return result 
 
 
-@aefunction('insert<T>(x:T, l:LList<T>, {i:Integer | i <= l.size}) -> {l2:LList<T> | l2.size == l.size + 1} = native;', lambda x: lambda l: lambda i: insert(x, l, i))
+@aefunction('insert[T](x:T, l:LList[T], {i:Integer | i <= l.size}) -> {l2:LList[T] | l2.size == l.size + 1} = native;', lambda x: lambda l: lambda i: insert(x, l, i))
 def insert(x, l, i):
     if i == 0:
         return extend(List(copy.deepcopy(x), None), l)
@@ -87,7 +87,7 @@ def insert(x, l, i):
 
 
 # Removes the first occurence of the element
-@aefunction('remove<T>(x:T, l:LList<T>) -> {l2:LList<T> | l2.size <= l.size} = native;', lambda x: lambda l: remove(x, l))
+@aefunction('remove[T](x:T, l:LList[T]) -> {l2:LList[T] | l2.size <= l.size} = native;', lambda x: lambda l: remove(x, l))
 def remove(x, l):
     if not l:
         return None
@@ -107,7 +107,7 @@ def remove(x, l):
 
 
 # Contains a certain element
-@aefunction('contains<T>(x:T, l:LList<T>) -> Boolean = native;', lambda x: lambda l: contains(x, l))
+@aefunction('contains[T](x:T, l:LList[T]) -> Boolean = native;', lambda x: lambda l: contains(x, l))
 def contains(x, l):
     result = l.head == x
     if result and l.next:
@@ -116,7 +116,7 @@ def contains(x, l):
 
 
 # Index of the first occurence of the element
-@aefunction('index<T>(x:T, l:LList<T>) -> {i:Integer | -1 <= i && i < l.size} = native;', lambda x: lambda l: index(x, l, 0))
+@aefunction('index[T](x:T, l:LList[T]) -> {i:Integer | -1 <= i && i < l.size} = native;', lambda x: lambda l: index(x, l, 0))
 def index(x, l, i):
     if x == l.head:
         return i
@@ -128,7 +128,7 @@ def index(x, l, i):
 
 
 # Amount of times an element occurs 
-@aefunction('count<T>(x:T, l:LList<T>) -> Integer = native;', lambda x: lambda l: count(x, l))
+@aefunction('count[T](x:T, l:LList[T]) -> Integer = native;', lambda x: lambda l: count(x, l))
 def count(x, l):
     result = (int) (x == l.head)
     if l.next:
@@ -137,13 +137,13 @@ def count(x, l):
 
 '''
 # Reverses a list 
-@aefunction('reverse<T>(l:LList<T>) -> LList<T> = native;', lambda l: reverse(l))
+@aefunction('reverse[T](l:LList[T]) -> LList[T] = native;', lambda l: reverse(l))
 def reverse(l):
     pass
 '''
 
 # Check if any element of the list respects a predicate 
-@aefunction('exists<T>(f:(x:T -> Boolean), l:LList<T>) -> Boolean = native;', lambda f: lambda l: exists(f, l))
+@aefunction('exists[T](f:(x:T -> Boolean), l:LList[T]) -> Boolean = native;', lambda f: lambda l: exists(f, l))
 def exists(f, l):
     if not l.head:
         return False
@@ -154,7 +154,7 @@ def exists(f, l):
 
 
 # Check if all element of the list respects a predicate 
-@aefunction('forall<T>(f:(x:T -> Boolean), l:LList<T>) -> Boolean = native;', lambda f: lambda l: forall(f, l))
+@aefunction('forall[T](f:(x:T -> Boolean), l:LList[T]) -> Boolean = native;', lambda f: lambda l: forall(f, l))
 def forall(f, l):
     if not l.head:
         return False
@@ -164,7 +164,7 @@ def forall(f, l):
     return result
 
 # Check if any element of the list respects a predicate 
-@aefunction('filter<T>(f:(x:T -> Boolean), l:LList<T>) -> LList<T> = native;', lambda f: lambda l: filter(f, l))
+@aefunction('filter[T](f:(x:T -> Boolean), l:LList[T]) -> LList[T] = native;', lambda f: lambda l: filter(f, l))
 def filter(f, l):
     if not l.head:
         return List(None, None)
@@ -190,7 +190,7 @@ def filter(f, l):
 
 
 # Map each element
-@aefunction('map<T>(f:(x:T -> T), l:LList<T>) -> {l2:LList<T> | l.size == l2.size} = native;', lambda f: lambda l: map(f, l))
+@aefunction('map[T](f:(x:T -> T), l:LList[T]) -> {l2:LList[T] | l.size == l2.size} = native;', lambda f: lambda l: map(f, l))
 def map(f, l):
     if not l.head:
         return List(None, None)
@@ -204,7 +204,7 @@ def map(f, l):
 
 
 # Size of the list 
-@aefunction('length<T>(l:LList<T>) -> {i:Integer | i == l.size} = native;', lambda l: length(l))
+@aefunction('length[T](l:LList[T]) -> {i:Integer | i == l.size} = native;', lambda l: length(l))
 def length(l):
     if not l or not l.head:
         return 0

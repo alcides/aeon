@@ -21,6 +21,7 @@ synthesis:
     ☐ probabilities of the synthesis configurations
 
 typechecker:
+    ☐ include assertions in rules to ensure implementation correctness
     ☐ if restrictions are not properly propagated 
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
@@ -36,23 +37,29 @@ typechecker:
         @file examples/aeon3/strings.ae
         @file aeon/examples/aeon3/list_demo.ae
 
+    improve error messages:
+        ☐ improve node and error messages readability
+            already added the translator to improve the messages. Need to improve it further
+            by adding more explicit information about the kind of error 
+        ☐ add line number and line where the error occurs
+
 libraries:
-    ☐ bug in the power[X, Y] 
+    ✔ bug in the power[X, Y] @done(20-05-21 10:49)
     ☐ `String` and `List` have the same method names.
         We should either add module that renames method names and allows overloading,
         or, allow shadowing, or, raise exception when this happens
     ☐ include the libraries: `Map`, `Tree`, `IO` and `Text`
     ☐ automatically generate the documentation
-    ☐ create the annotation for documentation
+    ✔ create the annotation for documentation @done(20-05-21 10:05)
     
 
 frontend:
-    ☐ update hole notation to `??` and `?Integer?`
+    ✔ update hole notation to `??` and `?Integer?` @done(20-05-21 10:07)
     ☐ problem with `-->` priority
     ☐ ghost_variables new parameter in TypeDeclaration
         --> Remove
         the ghost_variables was introduced, no information about what to do with it...
-    ☐ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]`
+    ✔ update the notation of TypeApplications and TypeAbstractions to `Type[T]` and `Type[Type]` @done(20-05-21 10:08)
     ☐ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly
         if the last instruction is of the kind: x:Integer = true; the frontend
         only takes the body and ignores the rest of the assignment. We cannot
@@ -75,6 +82,14 @@ translator:
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
 
+examples:
+    ☐ add unit tests
+    ☐ Update all the examples from changing the grammar
+
+interpreter:
+    ☐ check non-restricted refined types in interpreter
+
+
 others:
     ☐ inference of the hole @high
         this can be done after typechecking
@@ -83,7 +98,6 @@ others:
         can be done during typechecking, but need to be careful not to mess up
         everything else
     ☐ update syntax highlighter (create a new git)
-    ☐ check non-restricted refined types in interpreter
 
 
 ===============================================================================

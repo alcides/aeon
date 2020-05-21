@@ -7,10 +7,10 @@ f(a:Nat) -> y:Nat {
 }
 
 // ---------------------------------------------- TAbstraction and TApplication
-type List<T> {
+type List[T] {
     size : Integer;
 }
 
-f2(x:List<Integer>) -> y:Nat {
+f2(x:List[Integer]) -> y:Nat {
     1;
 }

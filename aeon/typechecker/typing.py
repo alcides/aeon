@@ -15,6 +15,8 @@ from .utils import flatten_refined_type
 from .bounds import lub
 from .zed import is_satisfiable
 
+from aeon.translate import translate
+
 import logging
 
 def is_not_inhabited(ctx: TypingContext, T: Type):
@@ -132,7 +134,7 @@ holes = []
 
 def t_hole(ctx: TypingContext, e: Hole) -> Type:
     e.type = bottom if e.type is None else e.type
-    holes.append((ctx.copy(), e.copy()))
+    holes.append((ctx.copy(), e))
     return e.type
 
 
@@ -167,7 +169,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     t = synth_type(ctx, e)
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
-            e, t, expected))
+            translate(e), translate(t), translate(expected)))
     e.type = t if e.type != None else e.type
     return t
 
