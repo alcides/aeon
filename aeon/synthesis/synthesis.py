@@ -3,17 +3,18 @@ import string
 import sys
 import logging
 
-from typing import Union, Sequence, Optional
+from typing import Union, Sequence, Optional, List, Generator, Tuple, Any
 
 from aeon.ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition
-from typing import List, Generator, Tuple, Any
 from aeon.types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from aeon.typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from aeon.typechecker.typing import TypeCheckingError
 from aeon import typechecker as tc
+
+from aeon.synthesis.ranges import ranged
 
 MAX_TRIES = 3
 MAX_TRIES_WHERE = 100
@@ -249,7 +250,7 @@ def has_type_vars(ctx: TypingContext, k: Kind):
 
 def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Int"
-    logging.info("st_info")
+    logging.info("st_int")
     return t_i
 
 
@@ -293,12 +294,13 @@ def st_where(ctx: TypingContext, k: Kind, d: int) -> RefinedType:
     logging.info("st_where/{}: {} ".format(d, k))
     x = ctx.fresh_var()
     T = st(ctx, k, d - 1)
-    e = se(ctx, BasicType('Boolean'), d - 1)
+    e = se(ctx.with_var(x, T), BasicType('Boolean'), d - 1)
     return RefinedType(x, T, e)
 
 
 def st_tabs(ctx: TypingContext, k: Kind, d: int) -> TypeAbstraction:
     "ST-Tabs"
+    assert(k != star)
     logging.info("st_tabs/{}: {} ".format(d, k))
     t = ctx.fresh_var()
     T = st(ctx.with_type_var(t, k.k1), k.k2, d - 1)
@@ -333,46 +335,16 @@ def st(ctx: TypingContext, k: Kind, d: int):
         yield ("st_tapp", st_tapp)
 
 
-def fv(T: Union[Type, TypingContext, TypedNode]):
-    if isinstance(T, TypedNode):
-        return []  # TODO
-    if isinstance(T, TypingContext):
-        ctx = T
-        return list(ctx.variables.keys()) + list(ctx.type_variables.keys()) + \
-                                                 list(ctx.type_aliases.keys())
-    if isinstance(T, RefinedType):
-        return [T.name] + fv(T.type)
-    if isinstance(T, AbstractionType):
-        return [T.arg_name] + fv(T.arg_type) + fv(T.return_type)
-    return []
-
-
-def scfv(T: Union[Type, TypingContext], upper: bool = False):
-    """ ~fv(T) ~> t """
-    # TODO: refactor this with context.freshvar()
-    options = upper and string.ascii_uppercase or string.ascii_lowercase
-    freevars = fv(T)
-    w = ""
-    for i in range(1000):
-        w += random.choice(options)
-        if w not in freevars:
-            return w
-    return "_qwerty"
-
-
-def is_compatible(ctx, v, T):
+def is_compatible(ctx: TypingContext, v: str, T: Type):
     try:
-        # TODO: Paulo: troquei a ordem, confirmar depois
         return v not in forbidden_vars and tc.is_subtype(
             ctx, ctx.variables[v], T)
     except Exception as e:
-        # print(">>>", e)  #TODO
         return False
 
 
 def get_variables_of_type(ctx: TypingContext, T: Type):
-    ls = [v for v in ctx.variables if is_compatible(ctx, v, T)]
-    return ls
+    return [v for v in ctx.variables if is_compatible(ctx, v, T)]
 
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
@@ -385,55 +357,58 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 """ Expression Synthesis """
 
+# Refines a literal expression
+def refine_literal(value, typee: Type, label):
+
+    operator = TApplication(Var('=='), typee)
+    left = Literal(value, typee, ensured=True)
+    right = Var(label)
+
+    condition = Application(Application(operator, right), left)
+
+    return RefinedType(name=label, type=typee, cond=condition)
+
 
 def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-Bool """
-    v = random.random() < 0.5
-    logging.info("se_bool/{}: {}:{} ".format(d, v, T))
-    name = "lit_{}".format(v)
-    return Literal(v,
-                   type=RefinedType(name=name,
-                                    type=t_b,
-                                    cond=Application(
-                                        Application(
-                                            TApplication(Var("=="), t_b),
-                                            Var(name)),
-                                        Literal(value=v,
-                                                type=t_b,
-                                                ensured=True))))
-
+    assert(isinstance(T, BasicType))
+    value = ranged(ctx, T)
+    logging.info("se_bool/{}: {}:{} ".format(d, value, T))
+    return Literal(value, refine_literal(value, T, '_b'))
 
 def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-Int """
-    v = round(random.gauss(0, 0.05) * 7500)
-    name = "lit_{}".format(v)
-    logging.info("se_int/{}: {}:{} ".format(d, v, T))
-    return Literal(v,
-                   type=RefinedType(name=name,
-                                    type=t_i,
-                                    cond=Application(
-                                        Application(
-                                            TApplication(Var("=="), t_i),
-                                            Var(name)),
-                                        Literal(value=v,
-                                                type=t_i,
-                                                ensured=True))))
-
+    assert(isinstance(T, BasicType))
+    value = ranged(ctx, T) # round(random.gauss(0, 0.05) * 7500)
+    logging.info("se_int/{}: {}:{} ".format(d, value, T))
+    return Literal(value, refine_literal(value, T, '_i'))
 
 def se_double(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-Double """
-    v = random.gauss(0, 0.05) * 7500
-    logging.info("se_double/{}: {}:{} ".format(d, v, T))
-    return Literal(v, type=T)
+    assert(isinstance(T, BasicType))
+    value = ranged(ctx, T) # random.gauss(0, 0.05) * 7500
+    logging.info("se_double/{}: {}:{} ".format(d, value, T))
+    return Literal(value, refine_literal(value, T, '_f'))
 
 
 def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-String """
-    # TODO: alterar distribuicao do tamanho das strings
-    length = round(abs(random.gauss(0, 0.1) * 10))
-    v = ''.join(random.choice(string.ascii_letters) for i in range(length))
-    logging.info("se_string/{}: {}:{} ".format(d, v, T))
-    return Literal(v, type=T)
+    assert(isinstance(T, BasicType))
+    # length = max(1, round(abs(random.gauss(0, 1) * 10)))
+    value = ranged(ctx, T) # ''.join(random.choice(string.ascii_letters) for i in range(length))
+    logging.info("se_string/{}: {}:{} ".format(d, value, T))
+    
+    # First refinement:
+    typee = refine_literal(value, T, '_s')
+
+    # Second refinement (size):
+    operator = TApplication(Var('=='), T)
+    left = Application(Var('_String_size'), Var('_s'))
+    right = Literal(len(value), t_i, ensured=True)
+    cond = Application(Application(operator, left), right)
+    typee.cond = Application(Application(Var('&&'), typee.cond), cond)
+    
+    return Literal(value, typee)
 
 
 def se_if(ctx: TypingContext, T: Type, d: int) -> TypedNode:
@@ -450,7 +425,7 @@ def se_var(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     """ SE-Var """
     options = get_variables_of_type(ctx, T)
     if options:
-        n = random.choice(options)
+        n = ranged(ctx, T) # random.choice(options)
         logging.info("se_var/{}: {}:{} ".format(d, n, T))
         return Var(n).with_type(T)
     raise Unsynthesizable("No var of type {}".format(T))
@@ -537,32 +512,21 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
     logging.info("se_where/{}: {} ".format(d, T))
-    for i in range(MAX_TRIES_WHERE):
-        e2 = se(ctx, T.type, d - 1)
-        try:
-            tc.check_type(ctx, e2, T)
-            #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
-            return e2  #.with_type(T)
-        except:
-            logging.info("se_where: failed restriction: {}", T)
-            continue
+    # TODO: Apagar depois o .with_var(T.name, T.type)
 
-    if T.type == t_i:
-        print("HERE")
-        v = tc.get_integer_where(
-            ctx.with_var(T.name, T).with_uninterpreted(), T.name, T.cond)
-        name = "lit_{}".format(v)
-        return Literal(
-            v,
-            RefinedType(name=name,
-                        type=t_i,
-                        cond=Application(
-                            Application(TApplication(Var("=="), t_i),
-                                        Var(name)),
-                            Literal(value=v, type=t_i, ensured=True))))
-
-    raise Unsynthesizable(
-        "Unable to generate a refinement example: {}".format(T))
+    new_ctx = ctx.with_cond(T.cond).with_var(T.name, T.type)
+    
+    forbidden_vars.append(T.name) # Required so we do not synthesize what we are looking for
+    e2 = se(new_ctx, T.type, d - 1)
+    forbidden_vars.remove(T.name)
+    
+    try:
+        tc.check_type(ctx, e2, T)
+        #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
+        return e2  #.with_type(T)
+    except:
+        logging.info("se_where: failed restriction: {}", T)
+        raise Unsynthesizable("Unable to generate a refinement example: {}".format(T))
 
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
@@ -580,7 +544,6 @@ def se_tapp(ctx: TypingContext, T: Type, d: int):
     U = st(ctx, k, d - 1)
     t = ctx.fresh_var()  #scfv(ctx, upper=True)
     V = itt(ctx.with_type_var(t, k), U, t, T, d - 1)
-    #V = T
     e = se(ctx, TypeAbstraction(t, k, V), d - 1)
     return TApplication(e, U)
 
@@ -790,13 +753,6 @@ def iee(ctx: TypingContext, ex: TypedNode, x: str, e: TypedNode, d: int):
         yield ("iee_tapp", iee_tapp)
     if isinstance(e, TAbstraction):
         yield ("iee_tabs", iee_tabs)
-
-
-def check_itt(ctx: TypingContext, T: Type, t: str, U: Type):
-    return T == U and \
-        t in ctx.type_variables and \
-        tc.check_kind(ctx, T, ctx.type_variables[t]) and \
-        t not in fv(T)
 
 
 def itt_id(ctx: TypingContext, T: Type, t: str, U: Type, d: int):
@@ -1172,26 +1128,3 @@ def invert_expression(variable, expression):
 
     return expression
 
-
-# TODO:q
-
-
-def get_max_min(expression: TypedNode):
-    """
-    application = expression.target
-
-    # To prevent statements such as !true
-    if isinstance(application, Application):
-        application = application.target
-
-    # Choose the argument
-    if application.name == '||':
-        argument = random.choice(expression.argument,
-                                 expression.target.argument)
-    elif application.name == '!':
-        argument = expression.argument
-    elif application.name == '':
-        pass
-    pass
-    """
-    return (0, 100)

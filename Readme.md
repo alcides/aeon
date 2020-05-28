@@ -28,7 +28,7 @@ I am currently using [**Visual Studio Code**](https://code.visualstudio.com/) an
 **Æon** is composed by different modules to essential for the parsing, typechecking and synthesis of the language. A brief description may help you to understand the role of each package.
  - [**frontend**](aeon/frontend): responsible for parsing the *.ae* file into **Æon** abstract syntax tree and convert it to **Æoncore** tree representation.
  - [**typechecker**](aeon/typechecker): in charge of checking the program and annotating the nodes. If any hole is found during typechecking, its type and contexts are saved for synthesis.
-  - [**synthesis.py**](aeon/synthesis.py): contains the non-deterministic synthesizer responsible for generating  random expressions from a given type. 
+  - [**synthesis.py**](aeon/synthesis): contains the non-deterministic synthesizer responsible for generating  random expressions from a given type. 
  - [**automatic**](aeon/automatic): in control of the evolutionary approach for generating a valid and correct solution. It also contains the rules for conversion of refinements into fitness functions.
   - [**interpreter.py**](aeon/interpreter.py): executes an **Æon** program. 
 

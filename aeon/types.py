@@ -93,11 +93,9 @@ class TypingContext(object):
 
     def fresh_var(self):
         global fresh_var_counter
-        while True:
-            fresh_var_counter += 1
-            k = "fresh_{}".format(fresh_var_counter)
-            if k not in self:
-                break
+        fresh_var_counter += 1
+        k = "_fresh_{}".format(fresh_var_counter)
+        assert(k not in self)
         return k
 
 

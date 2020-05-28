@@ -17,12 +17,28 @@ synthesis:
         this can be problematic when generating expressions from really restrictive
         types. Using interval arithmetic will allow us to continuously synthesize
         the programs
+    ☐ se_string change the probability distribution of string sizes
     ☐ sometimes generates expressions that do not typecheck
         error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
+    
+    ranges:
+        ☐ need a better way of obtaining the se_where variable name we are trying to synthesize 
+        ☐ filter non-restricted refinements from the context.refinements
+        ☐ convert each condition to force the variable on the right side
+            Restrictions should suffer a conversion: x + x > 2    =>    2 * x > 2    =>    x > 1 
+        ☐ interpret and replace uninterpreted values on conditions
+            call the SMT and replace the invocations to uninterpreted functions with the values
+        ☐ implement the vars and strings
+        ☐ `&&` and `||` not working with bools
+        ☐ need semantic analysis to obtain the values for the variables?
+            The only information currently available is obtained from restrictions. The following
+            example would not work since we have no information 
+                y : Integer = 0
+                ?{x : Integer | x > y}?
 
 typechecker:
-    ☐ include assertions in rules to ensure implementation correctness
+    ✔ include assertions in rules to ensure implementation correctness @done(20-05-24 19:40)
     ☐ if restrictions are not properly propagated 
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
@@ -30,7 +46,7 @@ typechecker:
     ☐ update zed interface using pysmt
         This might be a slower solution since it introduces a new layer, but allows us
         to expriment different SMT's 
-        @link(https://github.com/pysmt/pysmt) <--- Only CVC4 handles strings, z3 doesn't: ASK
+        @link(https://github.com/pysmt/pysmt): Only CVC4 handles strings, z3 doesn't ()
         Strings can be converted to an array of integers though...
     ☐ the uninterpreted functions are not being checked
         for some reason, the uninterpret function restrictions are not checked
@@ -92,11 +108,11 @@ examples:
 others:
     ☐ inference of the hole @high
         this can be done after typechecking
-    ☐ reorganize program modules
+    ✔ reorganize program modules @done(20-05-21 18:20)
     ☐ inference of type applications
         can be done during typechecking, but need to be careful not to mess up
         everything else
-    ☐ update syntax highlighter (create a new git)
+    ✔ update syntax highlighter (create a new git) @done(20-05-21 18:20)
 
 
 ===============================================================================
