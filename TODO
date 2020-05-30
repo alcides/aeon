@@ -25,17 +25,23 @@ synthesis:
     ranges:
         ☐ need a better way of obtaining the se_where variable name we are trying to synthesize 
         ☐ filter non-restricted refinements from the context.refinements
+        ☐ convert expression to the CNF form
         ☐ convert each condition to force the variable on the right side
             Restrictions should suffer a conversion: x + x > 2    =>    2 * x > 2    =>    x > 1 
         ☐ interpret and replace uninterpreted values on conditions
             call the SMT and replace the invocations to uninterpreted functions with the values
         ☐ implement the vars and strings
         ☐ `&&` and `||` not working with bools
-        ☐ need semantic analysis to obtain the values for the variables?
+            or have different probabilities
+        ☐ flatten refinements
+        ☐ Deal with non-continuous ranges
+        ☐ Call SMT-Solve in case we are not able to synthesize the 
+        ✘ need semantic analysis to obtain the values for the variables? @cancelled(20-05-30 10:47)
             The only information currently available is obtained from restrictions. The following
-            example would not work since we have no information 
-                y : Integer = 0
-                ?{x : Integer | x > y}?
+            example would not work since we have no information...
+            No need: Just get the variable type from the context.variables and extract the ranges
+        ☐ interesting examples of literal refinements synthesis against the SMT Solver
+            compare with ranges and without ranges
 
 typechecker:
     ✔ include assertions in rules to ensure implementation correctness @done(20-05-24 19:40)
@@ -86,6 +92,10 @@ frontend:
         ☐ undeclared variables and functions
         ☐ undeclared types
         ☐ integer and double bounds
+    
+    aeoncore:
+        ☐ wrong precendence of the boolean operators
+        example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
 
     ☐ migrate to Lark
 
