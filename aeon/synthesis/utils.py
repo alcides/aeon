@@ -1,5 +1,5 @@
 from aeon.ast import *
-
+from aeon.types import TypingContext
 from aeon.typechecker.zed import flatten_refined_types
 from aeon.synthesis.ranges import RangedException, RangedContext
 
@@ -9,20 +9,20 @@ from multipledispatch import dispatch
 
 # =============================================================================
 # Filter the non-restricted refinements
-@dispatch(Var)
+@dispatch(TypingContext, Var)
 def filter_refinements(ctx, condition):
 
     name = condition.name
-    is_restricted = is_builtin(name) or name == RangedContext.Variable or\ 
+    is_restricted = is_builtin(name) or name == RangedContext.Variable or\
                                         name in ctx.uninterpreted_functions
 
-    return condition if is_restricted(condition) else None
+    return condition if is_restricted else None
 
-@dispatch(Literal)
+@dispatch(TypingContext, Literal)
 def filter_refinements(ctx, condition):
     return condition
 
-@dispatch(If)
+@dispatch(TypingContext, If)
 def filter_refinements(ctx, condition):
     
     cond = filter_refinements(ctx, condition.cond)
@@ -35,12 +35,12 @@ def filter_refinements(ctx, condition):
 
     return condition
 
-@dispatch(Abstraction)
+@dispatch(TypingContext, Abstraction)
 def filter_refinements(ctx, condition):
     body = filter_refinements(ctx, condition.body)
     return condition if body else None
 
-@dispatch(Application)
+@dispatch(TypingContext, Application)
 def filter_refinements(ctx, condition):
     
     # If it is the App(App(...))
@@ -79,17 +79,17 @@ def filter_refinements(ctx, condition):
         
     return condition
 
-@dispatch(TAbstraction)
+@dispatch(TypingContext, TAbstraction)
 def filter_refinements(ctx, condition):
     body = filter_refinements(ctx, condition.body)
     return condition if body else None
 
-@dispatch(TApplication)
+@dispatch(TypingContext, TApplication)
 def filter_refinements(ctx, condition):
     target = filter_refinements(ctx, condition.target)
     return condition if target else None
 
-@dispatch(object)
+@dispatch(TypingContext, object)
 def filter_refinements(ctx, condition):
     raise RangedException("Unknown node of type {} when filtering refinement: {}".format(type(condition), condition))
 
