@@ -51,6 +51,8 @@ class Ranged(object):
 # Ranged context
 class RangedContext(object):
 
+    Variable = None
+
     def __init__(self):
         self.rangeds = dict()
     
@@ -106,7 +108,7 @@ def ranged_let(rctx, ctx, t_name, cond):
 
 ''' expr1 == expr2 '''
 def ranged_eq(rctx, ctx, t_name, cond):
-    print(">>", type(cond.argument))
+    print(">>", type(cond.argument), cond.argument)
     value = interpreter.run(cond.argument)
 
     minimum = value 
@@ -212,9 +214,7 @@ def ranged_int(rctx: RangedContext, ctx: TypingContext, T: BasicType):
     maximum = sys.maxsize
     minimum = -sys.maxsize
 
-    # Put variable the variable we want on the right side
-    # TODO: This is bad, temporary 
-    variable = list(ctx.variables.keys())[-1]
+    variable = RangedContext.Variable
 
     # Set the initial ranged
     ranged = Ranged(variable, t_i)
@@ -239,9 +239,7 @@ def ranged_double(rctx: RangedContext, ctx: TypingContext, T: BasicType):
     maximum = sys.maxsize
     minimum = -sys.maxsize
 
-    # Put variable the variable we want on the right side
-    # TODO: This is bad, temporary 
-    variable = list(ctx.variables.keys())[-1]
+    variable = RangedContext.Variable
 
     # Set the initial ranged
     ranged = Ranged(variable, ctx.variables[variable])
@@ -264,9 +262,7 @@ def ranged_boolean(rctx: RangedContext, ctx: TypingContext, T: BasicType):
     maximum = 1
     minimum = 0
 
-    # Put variable the variable we want on the right side
-    # TODO: This is bad, temporary 
-    variable = list(ctx.variables.keys())[-1]
+    variable = RangedContext.Variable
 
     # Set the initial ranged
     ranged = Ranged(variable, ctx.variables[variable])

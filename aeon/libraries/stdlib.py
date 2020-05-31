@@ -9,6 +9,8 @@ import aeon.frontend
 from aeon.ast import Var, Definition
 from aeon.libraries.helper import importNative
 
+def is_uninterpreted(name):
+    return name in initial_uninterpreted_functions
 
 def is_builtin(name):
     return name in initial_context.keys()

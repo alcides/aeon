@@ -14,7 +14,7 @@ from aeon.typechecker.substitutions import substitution_expr_in_type, substituti
 from aeon.typechecker.typing import TypeCheckingError
 from aeon import typechecker as tc
 
-from aeon.synthesis.ranges import ranged
+from aeon.synthesis.ranges import ranged, RangedContext
 
 MAX_TRIES = 3
 MAX_TRIES_WHERE = 100
@@ -512,16 +512,19 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
     logging.info("se_where/{}: {} ".format(d, T))
-    # TODO: Apagar depois o .with_var(T.name, T.type)
-
-    new_ctx = ctx.with_cond(T.cond).with_var(T.name, T.type)
     
-    forbidden_vars.append(T.name) # Required so we do not synthesize what we are looking for
+    # TODO: flatten the refinement
+    #if isinstance(T.type, RefinedType):
+    #    T = flatten_refinement(ctx, T)
+    
+    new_ctx = ctx.with_cond(T.cond)
+
+    RangedContext.Variable = T.name
+
     e2 = se(new_ctx, T.type, d - 1)
-    forbidden_vars.remove(T.name)
     
     try:
-        tc.check_type(ctx, e2, T)
+        tc.check_type(new_ctx, e2, T)
         #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
         return e2  #.with_type(T)
     except:

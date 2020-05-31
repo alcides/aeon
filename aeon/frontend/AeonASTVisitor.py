@@ -9,7 +9,6 @@ from aeon.types import Type, BasicType, AbstractionType, RefinedType, TypeApplic
 from functools import reduce
 
 from .utils import *
-from aeon.typechecker.utils import flatten_refined_type
 
 
 class AeonASTVisitor(AeonVisitor):

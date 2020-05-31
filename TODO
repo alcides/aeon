@@ -23,8 +23,10 @@ synthesis:
     ☐ probabilities of the synthesis configurations
     
     ranges:
-        ☐ need a better way of obtaining the se_where variable name we are trying to synthesize 
-        ☐ filter non-restricted refinements from the context.refinements
+        ✔ need a better way of obtaining the se_where variable name we are trying to synthesize @done(20-05-30 11:25)
+            added static member to RangedContext
+        ✔ filter non-restricted refinements from the context.refinements @done(20-05-31 17:27)
+            be careful: we dont want to filter the uninterpreted functions
         ☐ convert expression to the CNF form
         ☐ convert each condition to force the variable on the right side
             Restrictions should suffer a conversion: x + x > 2    =>    2 * x > 2    =>    x > 1 
@@ -33,9 +35,9 @@ synthesis:
         ☐ implement the vars and strings
         ☐ `&&` and `||` not working with bools
             or have different probabilities
-        ☐ flatten refinements
+        ✔ flatten refinements @done(20-05-31 17:47)
         ☐ Deal with non-continuous ranges
-        ☐ Call SMT-Solve in case we are not able to synthesize the 
+        ☐ Call SMT-Solver in case we are not able to synthesize the 
         ✘ need semantic analysis to obtain the values for the variables? @cancelled(20-05-30 10:47)
             The only information currently available is obtained from restrictions. The following
             example would not work since we have no information...
@@ -96,6 +98,7 @@ frontend:
     aeoncore:
         ☐ wrong precendence of the boolean operators
         example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
+        ☐ problem with parenthesis
 
     ☐ migrate to Lark
 
@@ -103,7 +106,7 @@ compiler:
     ☐ compile the code to Java
 
 translator:
-    ☐ doesnt work when the last instruction is the application of an abstraction
+    ☐ doesnt work properly when the last instruction is the application of an abstraction
         if the functions ends with: (\x : T -> x + 1)(1) then the translation
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
@@ -122,6 +125,7 @@ others:
     ☐ inference of type applications
         can be done during typechecking, but need to be careful not to mess up
         everything else
+    ☐ change all the hardcoded instances of `-->`, `&&`, `||`, `==` and `And` 
     ✔ update syntax highlighter (create a new git) @done(20-05-21 18:20)
 
 
