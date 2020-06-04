@@ -182,6 +182,7 @@ def zed_convert_var_to_cond(solver, ztx, ctx, name):
 
 
 def zed_translate_context(solver, ztx, ctx):
+
     ctx_var = z3.Bool("#context")
 
     ctx_vars = []
@@ -234,7 +235,7 @@ def zed_initial_context():
         ">": lambda x: lambda y: x > y,
         "<=": lambda x: lambda y: x <= y,
         ">=": lambda x: lambda y: x >= y,
-        "!": z3.Not,
+        "!": lambda x: z3.Not(x),
         "-->": lambda x: lambda y: z3.Implies(x, y),
         "And": lambda x: lambda y: z3.And(x, y),
         "&&": lambda x: lambda y: z3.And(x, y),
@@ -263,6 +264,7 @@ def zed_initial_context():
         "smtDiv": lambda x: lambda y: x / y,
         "smtCaret": lambda x: lambda y: x ^ y,
         "smtMod": lambda x: lambda y: x % y,
+        # TODO: delete when everything is working
         "==Int": lambda x: lambda y: x == y,
         "!=Int": lambda x: lambda y: x != y,
         "<Int": lambda x: lambda y: x < y,
@@ -325,7 +327,7 @@ def zed_verify_satisfiability(ctx, cond):
     raise NotDecidableException(
         "{} could not be evaluated for satisfiability".format(cond))
 
-
+# TODO: Remove when everything is working
 def zed_get_integer_where(ctx, name, cond):
     ztx = zed_initial_context()
     s = z3.Solver()

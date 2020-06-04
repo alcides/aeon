@@ -38,7 +38,7 @@ def translate(node):
 ''' [Typee] '''
 @dispatch(Hole)
 def translate(node):
-    return '[{}]'.format('' if node.type is bottom else translate(node.type))
+    return '?{}?'.format('' if node.type is bottom else translate(node.type))
 
 ''' true | false | 0 | 0.0 '''
 @dispatch(Literal)
@@ -89,18 +89,18 @@ def translate(node):
                                         node.target.target.target.name in lista)
 
         if is_native(node, [
-                '+', '-', '*', '/', '%', '^', '>', '<', '>=', '<=', '==',
+                '+', '-', '*', '/', '%', '^', '>', '<', '>=', '<=', '==', '%',
                 '!=', '&&', '||', '-->'
         ]):
-            return '{} {} {}'.format(
+            return '({} {} {})'.format(
                 translate(node.target.argument),
                 translate(node.target.target.target),
                 translate(node.argument))
         elif isinstance(node.target, Application) and \
              isinstance(node.target.target, Var) and \
-             node.target.target.name in ['&&', '||', '-->']:
+             node.target.target.name in ['&&', '||', '-->', '%']:
              
-            return '{} {} {}'.format(
+            return '({} {} {})'.format(
                 translate(node.target.argument),
                 translate(node.target.target),
                 translate(node.argument))
@@ -137,13 +137,13 @@ def translate(node):
 ''' expr<T> '''
 @dispatch(TAbstraction)
 def translate(node):
-    return '{}<{}>'.format(translate(node.body), translate(node.type))
+    return '{}[{}]'.format(translate(node.body), translate(node.type))
 
 
 ''' expr<Typee> '''
 @dispatch(TApplication)
 def translate(node):
-    return '{}<{}>'.format(translate(node.target), translate(node.argument))
+    return '{}[{}]'.format(translate(node.target), translate(node.argument))
 
 
 ''' name(param) -> out {statements} '''
@@ -158,7 +158,7 @@ def translate(node):
         abstractions = '{}, {}'.format(abstractions,
                                         tempTypee.name)
         tempTypee = tempTypee.type
-    abstractions = '<' + abstractions[2:] + '>' if len(
+    abstractions = '[' + abstractions[2:] + ']' if len(
         abstractions) > 0 else abstractions
 
     # Get the typee

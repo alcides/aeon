@@ -1,5 +1,5 @@
 from aeon.ast import *
-from aeon.types import TypingContext
+from aeon.types import TypingContext, BasicType
 from aeon.typechecker.zed import flatten_refined_types
 from aeon.synthesis.ranges import RangedException, RangedContext
 
@@ -14,7 +14,8 @@ def filter_refinements(ctx, condition):
 
     name = condition.name
     is_restricted = is_builtin(name) or name == RangedContext.Variable or\
-                                        name in ctx.uninterpreted_functions
+                                        name in ctx.uninterpreted_functions or\
+                                        isinstance(ctx.variables[name], BasicType)
 
     return condition if is_restricted else None
 
@@ -64,20 +65,14 @@ def filter_refinements(ctx, condition):
             # Only right is restricted 
             elif not target and argument:
                 return condition.argument
-            
-        if not argument or not target:
-            return None
-
+        
     # Anything else than the App(App(...))
     else:
         
         target = filter_refinements(ctx, condition.target)
         argument = filter_refinements(ctx, condition.argument)
 
-        if not argument or not target:
-            return None
-        
-    return condition
+    return condition if target and argument else None
 
 @dispatch(TypingContext, TAbstraction)
 def filter_refinements(ctx, condition):
@@ -97,4 +92,4 @@ def filter_refinements(ctx, condition):
 # =============================================================================
 # Flattens the refinement
 def flatten_refined_type(t):
-    return flatten_refined_types(t)    
+    return flatten_refined_types(t)

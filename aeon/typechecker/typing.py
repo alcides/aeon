@@ -76,9 +76,13 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
 
 
 def t_var(ctx: TypingContext, e: Var) -> Type:
-    if e.name not in ctx.variables:
-        raise TypeCheckingError("Variable {} not in context".format(e))
-    return ctx.variables[e.name]
+    if e.name in ctx.variables:
+        return ctx.variables[e.name]
+    
+    if e.name in ctx.uninterpreted_functions:
+        return ctx.uninterpreted_functions[e.name]
+
+    raise TypeCheckingError("Variable {} not in context".format(e))
 
 
 def t_if(ctx: TypingContext, e: If) -> Type:

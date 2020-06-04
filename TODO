@@ -10,6 +10,13 @@ automatic:
     ☐ change forall and exists to sum and minimum, respectively
     ☐ changed the [(context, holes)] in typing, should change the invocations over genetics  @high
     ☐ optimization of the synthesized code
+    ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
+    ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
+        sometimes a random error raises in the interpreter when evaluating the program
+        Exception: function not in context
+    ✔ make tests stop after 5 seconds @done(20-05-09 19:33)
+        way to do this
+        @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
 
 synthesis:
     ☐ change synthesis refinements based on trials to continuous synthesis @critical
@@ -27,23 +34,52 @@ synthesis:
             added static member to RangedContext
         ✔ filter non-restricted refinements from the context.refinements @done(20-05-31 17:27)
             be careful: we dont want to filter the uninterpreted functions
-        ☐ convert expression to the CNF form
-        ☐ convert each condition to force the variable on the right side
-            Restrictions should suffer a conversion: x + x > 2    =>    2 * x > 2    =>    x > 1 
-        ☐ interpret and replace uninterpreted values on conditions
+        ✔ convert expression to the CNF form @done(20-06-01 19:59)
+            ☐ Bug with function calls
+                Using sympy.to_cnf allows us not to use our own simplification, but should be something
+                to look into
+        ✔ convert each condition to force the variable on the right side @done(20-06-01 17:32)
+            Restrictions should suffer a conversion: x + x > 2    =>    2 * x > 2    =>    x > 1
+            Used sympy, does this for me 
+        ☐ interpret and replace uninterpreted values on conditions during ranging
             call the SMT and replace the invocations to uninterpreted functions with the values
         ☐ implement the vars and strings
-        ☐ `&&` and `||` not working with bools
+        ✔ `&&` and `||` not working with bools @done(20-06-01 17:45)
             or have different probabilities
         ✔ flatten refinements @done(20-05-31 17:47)
         ☐ Deal with non-continuous ranges
-        ☐ Call SMT-Solver in case we are not able to synthesize the 
+        ☐ Call SMT-Solver in case we are not able to synthesize the refinement
         ✘ need semantic analysis to obtain the values for the variables? @cancelled(20-05-30 10:47)
             The only information currently available is obtained from restrictions. The following
             example would not work since we have no information...
             No need: Just get the variable type from the context.variables and extract the ranges
-        ☐ interesting examples of literal refinements synthesis against the SMT Solver
-            compare with ranges and without ranges
+            then, we call the ranges to obtain a value and replace the value in the expression
+        ☐ interesting examples of literal refinements synthesis against the SMT Solver:
+            Examples ordered by complexity...
+            {x:Integer where x >= 0 && x <= 10}             ~~> [0, 10]
+            {x:Integer where x >= 0 && x <= 10 && x != 5}  ~~> [0, 5[ U ]5, 10]
+            {x:Integer where x % 2 == 0}                    ~~> Even values
+            {x:Integer where !(x % 2 == 0)}                 ~~> Odd values
+            {x:Integer where (x % 2 == 0) --> (x > 0)}      ~~> Odd values U (Even Value && ]0, 00[)
+            {x:Integer where (\y:Integer -> x > y)(10)}     ~~> ]10, 00[
+
+            {x:Boolean where x == True}                     ~~> {True}
+            {x:Boolean where x || True}                     ~~> {True, False}
+            {x:Boolean where (x || True) --> x}             ~~> {True}
+            
+            {x:String where x.size == 0}                     ~~> ''
+            {x:String where x.size > 0 && x.size < 10}       ~~> words with size between 0 and 10
+            {x:String where x.size % 2 == 0}                 ~~> words with even size
+
+            type Person {
+                {age:Integer where age >= 0 && age < 150};
+                {height:Double where height > 0.0 && height < 2.50};
+                {name:String where name.size > 0};
+            }
+
+            {p:Person}                                          ~~> Generates a person
+            {p:Person where p.age >= 18 --> p.height > 1.20}    ~~> {age:[0, 18[ height:]0.0, 2.50[}   U   {age:[18, 150[, height:]1.20, 2.50[}   
+            {p:Person where (p.name).size == 3 }                ~~> Generates a person whose name has 3 letters 
 
 typechecker:
     ✔ include assertions in rules to ensure implementation correctness @done(20-05-24 19:40)
@@ -51,12 +87,12 @@ typechecker:
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
         Check the @file aeon/examples/benchmark/bench3.ae
-    ☐ update zed interface using pysmt
+    ✘ update zed interface using pysmt @cancelled(20-06-03 17:31)
         This might be a slower solution since it introduces a new layer, but allows us
         to expriment different SMT's 
-        @link(https://github.com/pysmt/pysmt): Only CVC4 handles strings, z3 doesn't ()
+        @link(https://github.com/pysmt/pysmt): Only CVC4 handles strings, z3 doesn't 
         Strings can be converted to an array of integers though...
-    ☐ the uninterpreted functions are not being checked
+    ☐ the uninterpreted functions are not being checked 
         for some reason, the uninterpret function restrictions are not checked
         by the SMT
         check kinding
@@ -77,6 +113,10 @@ libraries:
     ☐ include the libraries: `Map`, `Tree`, `IO` and `Text`
     ☐ automatically generate the documentation
     ✔ create the annotation for documentation @done(20-05-21 10:05)
+    ✔ add function conversion from int to float @done(20-05-10 19:06)
+    ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
+    ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
+    ✔ improve refinements of String methods @done(20-05-10 19:35)
     
 frontend:
     ✔ update hole notation to `??` and `?Integer?` @done(20-05-21 10:07)
@@ -88,6 +128,8 @@ frontend:
         if the last instruction is of the kind: x:Integer = true; the frontend
         only takes the body and ignores the rest of the assignment. We cannot
         ensure type correctness in this case
+    ☐ support nested ghost variables
+        e.g. {p : Person | p.name.size == 3}, the conversion occur: p.name.size ~~~~> _String_size(_Person_name(p)) == 3
 
     language verifiers: 
         ☐ import cycles
@@ -96,11 +138,16 @@ frontend:
         ☐ integer and double bounds
     
     aeoncore:
-        ☐ wrong precendence of the boolean operators
+        ☐ wrong precendence of boolean operators (equality too)
         example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
         ☐ problem with parenthesis
+        ☐ aeoncore still doesnt deal with name.ghost_variable
+        ✔ Doubles not working @done(20-06-04 11:40)
 
     ☐ migrate to Lark
+    ✔ refine strings in frontend @done(20-05-10 22:59)
+    ✘ raise warning when conditions are always true/false @cancelled(20-05-13 09:24)
+        should actually be check in the typechecker and not frontend
 
 compiler:
     ☐ compile the code to Java
@@ -127,38 +174,11 @@ others:
         everything else
     ☐ change all the hardcoded instances of `-->`, `&&`, `||`, `==` and `And` 
     ✔ update syntax highlighter (create a new git) @done(20-05-21 18:20)
+    ✔ python logger @done(20-05-12 10:05)
+    ✔ Translator from AeonCore to Aeon @done(20-05-13 12:06)
 
 
 ===============================================================================
-Done:
-    automatic:
-        ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
-        ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
-            sometimes a random error raises in the interpreter when evaluating the program
-            Exception: function not in context
-        ✔ make tests stop after 5 seconds @done(20-05-09 19:33)
-            way to do this
-            @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
-        
-    synthesis:
-
-    typechecker:
-
-    libraries:
-        ✔ add function conversion from int to float @done(20-05-10 19:06)
-        ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
-        ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
-        ✔ improve refinements of String methods @done(20-05-10 19:35)
-
-    frontend:
-        ✔ refine strings in frontend @done(20-05-10 22:59)
-        ✘ raise warning when conditions are always true/false @cancelled(20-05-13 09:24)
-            should actually be check in the typechecker and not frontend
-
-    compiler:
-
-    translator:
-
-    others:
-        ✔ python logger @done(20-05-12 10:05)
-        ✔ Translator from AeonCore to Aeon @done(20-05-13 12:06)
+program:
+    {x : Int where x >= 0 && x <= y} = 0
+    ? {y : Integer | y > x} ?
