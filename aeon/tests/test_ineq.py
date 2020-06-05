@@ -33,13 +33,12 @@ class TestInequalities(unittest.TestCase):
         self.ctx.restrictions = list()
         self.ctx.restrictions.append(T.cond)
 
-        expression = Literal(ranged(self.ctx, T.type, T.name, [T.cond]), T)
+        value = ranged(self.ctx, T.type, T.name, [T.cond])
 
-        print("Type", translate(T), " ~> ", expression)
+        self.assertIsNotNone(value)
 
-        print(expression is None)
+        expression = Literal(value, T)
 
-        self.assertIsNotNone(expression)
         self.assertIsNotNone(check_type(self.ctx, expression, T))
 
     "Integer"
