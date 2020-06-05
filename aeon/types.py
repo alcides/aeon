@@ -48,6 +48,17 @@ class TypingContext(object):
             top.name: star
         }
 
+    def __str__(self):
+        wrap = lambda d: ", ".join(
+            [str(k) + "=" + str(d[k]) for k in d.keys()])
+        return "[type_vars:{}, vars:{}, restrictions:{}, aliases={}]".format(
+            wrap(self.type_variables),
+            wrap(self.variables),
+            ", ".join([str(r) for r in self.restrictions]),
+            # wrap(self.uninterpreted_functions),   uninterpreted_functions:{},
+            wrap(self.type_aliases),
+        )
+
     def copy(self):
         t = TypingContext()
         t.type_aliases = self.type_aliases.copy()
@@ -95,7 +106,7 @@ class TypingContext(object):
         global fresh_var_counter
         fresh_var_counter += 1
         k = "_fresh_{}".format(fresh_var_counter)
-        assert(k not in self)
+        assert (k not in self)
         return k
 
 
@@ -149,7 +160,6 @@ class Type(object):
 
 class BasicType(Type):
     """ Integer | Boolean | B """
-
     def __init__(self, name: str):
         self.name = name
 
@@ -166,7 +176,6 @@ class BasicType(Type):
 
 class AbstractionType(Type):
     """ x:T -> U """
-
     def __init__(self, arg_name: str, arg_type: Type, return_type: Type):
         self.arg_name = arg_name
         self.arg_type = arg_type
@@ -185,7 +194,6 @@ class AbstractionType(Type):
 
 class RefinedType(Type):
     """ x:T where U """
-
     def __init__(self, name: str, type: Type, cond):  # : Node
         self.name = name
         self.type = type
@@ -203,7 +211,6 @@ class RefinedType(Type):
 
 class TypeAbstraction(Type):
     """t:k => T"""
-
     def __init__(self, name: str, kind: Kind, type: Type):
         self.name = name
         self.kind = kind
@@ -221,7 +228,6 @@ class TypeAbstraction(Type):
 
 class TypeApplication(Type):
     """ T U """
-
     def __init__(self, target: Type, argument: Type):
         if target == None:
             raise Exception("First none!")
