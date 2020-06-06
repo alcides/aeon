@@ -90,7 +90,7 @@ def elemAt(i, l):
     return l[i]
 
 # Reduce
-@aefunction('reduce[X, Y](f:(x:X -> [Y -> Y]), {l:List[X] | l.size > 0}) -> X = native;', lambda l: reduce(l))
+@aefunction('reduce[X, Y](f:(x:X -> (Y -> Y)), {l:List[X] | l.size > 0}) -> X = native;', lambda l: reduce(l))
 def reduce(l):
     return l[1:]
 

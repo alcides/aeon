@@ -96,7 +96,7 @@ class AeonASTVisitor(AeonVisitor):
         # Create the uninterpreted functions
         for name, param in zip(names, parameters):
 
-            function_name = '_{}_{}'.format(typee_name, name)
+            function_name = '{}_{}'.format(typee_name, name)
             function_type = AbstractionType('_', type_abstraction, self.treatTypee(param))
             function_type = wrap_typeabstractions(function_type, typee)
             definition = Definition(function_name, function_type,
@@ -469,7 +469,7 @@ class AeonASTVisitor(AeonVisitor):
 
             # Get the second and condition for the size 
             operator = TApplication(Var('=='), t_delegate)
-            left = Application(Var('_String_size'), Var('_s'))
+            left = Application(Var('String_size'), Var('_s'))
             right = Literal(len(value), t_i, ensured=True)
             cond = Application(Application(operator, left), right)
             typee.cond = Application(Application(Var('&&'), typee.cond), cond)
@@ -538,7 +538,7 @@ class AeonASTVisitor(AeonVisitor):
         attribute = ctx.attribute.text
 
         arg_typee = self.general_context[variable]
-        target_name = '_{}_{}'.format(
+        target_name = '{}_{}'.format(
             self.returnBasicTypee(arg_typee).name, attribute)
 
         target: TypedNode = Var(target_name)

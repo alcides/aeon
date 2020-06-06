@@ -77,15 +77,15 @@ class TestRanged(unittest.TestCase):
 
     def test_ranged_string_empty(self):
         self.support_synthesis_with_ineq(
-            '{x:String where (_String_size(x)) == 0}')
+            '{x:String where (String_size(x)) == 0}')
 
     def test_ranged_string_non_empty_up_to_10(self):
         self.support_synthesis_with_ineq(
-            '{x:String where (_String_size(x)) > 0 && (_String_size(x)) < 10}')
+            '{x:String where (String_size(x)) > 0 && (String_size(x)) < 10}')
 
     def test_ranged_string_even_length(self):
         self.support_synthesis_with_ineq(
-            '{x:String where (_String_size(x)) % 2 == 0}')
+            '{x:String where (String_size(x)) % 2 == 0}')
 
     # TODO: Consider attributes:
 

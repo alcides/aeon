@@ -413,7 +413,7 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
 
     # Second refinement (size):
     operator = TApplication(Var('=='), T)
-    left = Application(Var('_String_size'), Var('_s'))
+    left = Application(Var('String_size'), Var('_s'))
     right = Literal(len(value), t_i, ensured=True)
     cond = Application(Application(operator, left), right)
     typee.cond = Application(Application(Var('&&'), typee.cond), cond)
