@@ -722,7 +722,7 @@ class AeonASTVisitor(AeonVisitor):
                                                     cond)
             else:
                 if functions:
-                    variaveis.add(return_name.name)
+                    variaveis.add(return_name)
                     return_type = self.apply_expression(
                         variaveis, typee, return_name, return_type, cond)
                 else:
@@ -771,8 +771,7 @@ class AeonASTVisitor(AeonVisitor):
                 self.getReturnType(application1))
             result = RefinedType(typee.name, typee.type, application2)
         elif isinstance(typee, TypeApplication):
-            typee.target = self.refine_expression(name, typee.target, expression)
-            result = typee
+            result = RefinedType(name, typee, expression)
         elif isinstance(typee, TypeAbstraction):
             typee.type = self.refine_expression(name, typee.type, expression)
             result = typee
