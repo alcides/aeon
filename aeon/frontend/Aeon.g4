@@ -146,7 +146,7 @@ expression
     | left=expression op=IMPLIE right=expression                                                # LogicalExpression
     | ABSTRACTION variable=typee RARROW exp=expression                                          # AbstractionExpression
     | cond=expression QUESTION then=expression COLON otherwise=expression                       # IfExpression
-    | variable=IDENTIFIER DOT attribute=IDENTIFIER                                              # TypeeAttributeCall
+    | variable=IDENTIFIER (DOT attribute=IDENTIFIER)+                                           # TypeeAttributeCall
     | '?' typee? '?'                                                                            # Hole
     | variable=IDENTIFIER                                                                       # Variable
     | value=(INTEGER | FLOAT | BOOLEAN | STRING)                                                # Literal

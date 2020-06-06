@@ -473,6 +473,7 @@ class AeonASTVisitor(AeonVisitor):
             right = Literal(len(value), t_i, ensured=True)
             cond = Application(Application(operator, left), right)
             typee.cond = Application(Application(Var('&&'), typee.cond), cond)
+
             return Literal(value, type=typee)
         return None
 
@@ -534,22 +535,37 @@ class AeonASTVisitor(AeonVisitor):
     # variavel.atributo
     def visitTypeeAttributeCall(self,
                                 ctx: AeonParser.TypeeAttributeCallContext):
+      
         variable = ctx.variable.text
-        attribute = ctx.attribute.text
+        
+        # We remove the first one since the first is the variable
+        attributes = [x.getSymbol().text for x in ctx.getChildren() if x.getSymbol().text != '.'][1:]
 
         arg_typee = self.general_context[variable]
         target_name = '{}_{}'.format(
-            self.returnBasicTypee(arg_typee).name, attribute)
+            self.returnBasicTypee(arg_typee).name, attributes[0])
 
-        target: TypedNode = Var(target_name)
-        argument = Var(variable)
+        target = self.wrap_tapplications(Var(target_name), arg_typee)
 
-        # This part handles tapplications
-        ttype = arg_typee
-        while isinstance(ttype, TypeAbstraction):
-            target = TApplication(target, BasicType(ttype.name))
-            ttype = ttype.type
-        return Application(target, argument)
+        result = Application(target, Var(variable))
+
+        # Progress the attributes variable
+        attributes = attributes[1:]
+
+        for attr in attributes:
+            ttype = self.returnBasicTypee(self.general_context[target_name]).name
+            target_name = '{}_{}'.format(ttype, attr)
+            target = self.wrap_tapplications(Var(target_name), arg_typee)
+            result = Application(target, result) 
+
+        return result
+
+    def wrap_tapplications(self, target, typee):
+        while isinstance(typee, TypeAbstraction):
+            target = TApplication(target, BasicType(typee.name))
+            typee = typee.type
+        return target
+
 
     # \\x:T -> expression
     def visitAbstractionExpression(

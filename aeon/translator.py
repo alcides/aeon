@@ -128,7 +128,7 @@ def translate(node):
             if isinstance(node.target,
                           Var) and node.target.name.startswith('_'):
                 variable = node.argument.name
-                ghost = node.target.name.split("_")[1:][1]
+                ghost = node.target.name.split("_")[1]
                 return '{}.{}'.format(variable, ghost)
             else:
                 arguments = '' if type(
@@ -203,7 +203,7 @@ def translate(node):
 
     elif isinstance(node.body, Var) and node.body.name == 'uninterpreted':
         # splitted[0] has type name, splitted[1] has ghost variable name
-        splitted = node.name.split('_')[1:]
+        splitted = node.name.split('_')
         result = '{}:{}'.format(splitted[1], return_type)
         get_buffer_value(splitted[0]).append(result)
         return ''
