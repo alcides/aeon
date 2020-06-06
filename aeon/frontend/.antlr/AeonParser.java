@@ -1612,7 +1612,6 @@ public class AeonParser extends Parser {
 		public ExpressionContext expression(int i) {
 			return getRuleContext(ExpressionContext.class,i);
 		}
-		public TerminalNode IMPLIE() { return getToken(AeonParser.IMPLIE, 0); }
 		public TerminalNode LT() { return getToken(AeonParser.LT, 0); }
 		public TerminalNode LE() { return getToken(AeonParser.LE, 0); }
 		public TerminalNode GT() { return getToken(AeonParser.GT, 0); }
@@ -1621,6 +1620,7 @@ public class AeonParser extends Parser {
 		public TerminalNode DIFF() { return getToken(AeonParser.DIFF, 0); }
 		public TerminalNode CONJUNCTION() { return getToken(AeonParser.CONJUNCTION, 0); }
 		public TerminalNode DISJUNCTION() { return getToken(AeonParser.DISJUNCTION, 0); }
+		public TerminalNode IMPLIE() { return getToken(AeonParser.IMPLIE, 0); }
 		public LogicalExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
 	}
 	public static class IfExpressionContext extends ExpressionContext {
@@ -1783,7 +1783,7 @@ public class AeonParser extends Parser {
 					consume();
 				}
 				setState(245);
-				((UnaryOperationContext)_localctx).right = expression(14);
+				((UnaryOperationContext)_localctx).right = expression(15);
 				}
 				break;
 			case 3:
@@ -1914,15 +1914,24 @@ public class AeonParser extends Parser {
 						break;
 					case 2:
 						{
-						_localctx = new LogicalExpressionContext(new ExpressionContext(_parentctx, _parentState));
-						((LogicalExpressionContext)_localctx).left = _prevctx;
+						_localctx = new NumberExpressionContext(new ExpressionContext(_parentctx, _parentState));
+						((NumberExpressionContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(271);
-						if (!(precpred(_ctx, 15))) throw new FailedPredicateException(this, "precpred(_ctx, 15)");
+						if (!(precpred(_ctx, 14))) throw new FailedPredicateException(this, "precpred(_ctx, 14)");
 						setState(272);
-						((LogicalExpressionContext)_localctx).op = match(IMPLIE);
+						((NumberExpressionContext)_localctx).op = _input.LT(1);
+						_la = _input.LA(1);
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << MULT) | (1L << QUOT) | (1L << MODULE) | (1L << POWER))) != 0)) ) {
+							((NumberExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						}
+						else {
+							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+							_errHandler.reportMatch(this);
+							consume();
+						}
 						setState(273);
-						((LogicalExpressionContext)_localctx).right = expression(16);
+						((NumberExpressionContext)_localctx).right = expression(15);
 						}
 						break;
 					case 3:
@@ -1935,7 +1944,7 @@ public class AeonParser extends Parser {
 						setState(275);
 						((NumberExpressionContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << MULT) | (1L << QUOT) | (1L << MODULE) | (1L << POWER))) != 0)) ) {
+						if ( !(_la==PLUS || _la==MINUS) ) {
 							((NumberExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
@@ -1949,16 +1958,16 @@ public class AeonParser extends Parser {
 						break;
 					case 4:
 						{
-						_localctx = new NumberExpressionContext(new ExpressionContext(_parentctx, _parentState));
-						((NumberExpressionContext)_localctx).left = _prevctx;
+						_localctx = new LogicalExpressionContext(new ExpressionContext(_parentctx, _parentState));
+						((LogicalExpressionContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(277);
 						if (!(precpred(_ctx, 12))) throw new FailedPredicateException(this, "precpred(_ctx, 12)");
 						setState(278);
-						((NumberExpressionContext)_localctx).op = _input.LT(1);
+						((LogicalExpressionContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !(_la==PLUS || _la==MINUS) ) {
-							((NumberExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << LT) | (1L << LE) | (1L << GT) | (1L << GE))) != 0)) ) {
+							((LogicalExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
 							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
@@ -1966,7 +1975,7 @@ public class AeonParser extends Parser {
 							consume();
 						}
 						setState(279);
-						((NumberExpressionContext)_localctx).right = expression(13);
+						((LogicalExpressionContext)_localctx).right = expression(13);
 						}
 						break;
 					case 5:
@@ -1979,7 +1988,7 @@ public class AeonParser extends Parser {
 						setState(281);
 						((LogicalExpressionContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << LT) | (1L << LE) | (1L << GT) | (1L << GE))) != 0)) ) {
+						if ( !(_la==EQUAL || _la==DIFF) ) {
 							((LogicalExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
@@ -1999,16 +2008,7 @@ public class AeonParser extends Parser {
 						setState(283);
 						if (!(precpred(_ctx, 10))) throw new FailedPredicateException(this, "precpred(_ctx, 10)");
 						setState(284);
-						((LogicalExpressionContext)_localctx).op = _input.LT(1);
-						_la = _input.LA(1);
-						if ( !(_la==EQUAL || _la==DIFF) ) {
-							((LogicalExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
-						}
-						else {
-							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
-							_errHandler.reportMatch(this);
-							consume();
-						}
+						((LogicalExpressionContext)_localctx).op = match(CONJUNCTION);
 						setState(285);
 						((LogicalExpressionContext)_localctx).right = expression(11);
 						}
@@ -2021,7 +2021,7 @@ public class AeonParser extends Parser {
 						setState(286);
 						if (!(precpred(_ctx, 9))) throw new FailedPredicateException(this, "precpred(_ctx, 9)");
 						setState(287);
-						((LogicalExpressionContext)_localctx).op = match(CONJUNCTION);
+						((LogicalExpressionContext)_localctx).op = match(DISJUNCTION);
 						setState(288);
 						((LogicalExpressionContext)_localctx).right = expression(10);
 						}
@@ -2034,7 +2034,7 @@ public class AeonParser extends Parser {
 						setState(289);
 						if (!(precpred(_ctx, 8))) throw new FailedPredicateException(this, "precpred(_ctx, 8)");
 						setState(290);
-						((LogicalExpressionContext)_localctx).op = match(DISJUNCTION);
+						((LogicalExpressionContext)_localctx).op = match(IMPLIE);
 						setState(291);
 						((LogicalExpressionContext)_localctx).right = expression(9);
 						}
@@ -2213,7 +2213,7 @@ public class AeonParser extends Parser {
 		case 0:
 			return precpred(_ctx, 16);
 		case 1:
-			return precpred(_ctx, 15);
+			return precpred(_ctx, 14);
 		case 2:
 			return precpred(_ctx, 13);
 		case 3:
@@ -2318,7 +2318,7 @@ public class AeonParser extends Parser {
 		"\7\5\2\2\u00ec\u00ed\5\66\34\2\u00ed\u00ee\5,\27\2\u00ee\u00ef\7\6\2\2"+
 		"\u00ef\u00f0\5,\27\2\u00f0\65\3\2\2\2\u00f1\u00f2\b\34\1\2\u00f2\u00f3"+
 		"\7!\2\2\u00f3\u00f4\5\66\34\2\u00f4\u00f5\7\"\2\2\u00f5\u010d\3\2\2\2"+
-		"\u00f6\u00f7\t\3\2\2\u00f7\u010d\5\66\34\20\u00f8\u00f9\7+\2\2\u00f9\u00fa"+
+		"\u00f6\u00f7\t\3\2\2\u00f7\u010d\5\66\34\21\u00f8\u00f9\7+\2\2\u00f9\u00fa"+
 		"\5\26\f\2\u00fa\u00fb\7\34\2\2\u00fb\u00fc\5\66\34\t\u00fc\u010d\3\2\2"+
 		"\2\u00fd\u00fe\7\65\2\2\u00fe\u00ff\7-\2\2\u00ff\u010d\7\65\2\2\u0100"+
 		"\u0102\7\7\2\2\u0101\u0103\5\26\f\2\u0102\u0101\3\2\2\2\u0102\u0103\3"+
@@ -2328,13 +2328,13 @@ public class AeonParser extends Parser {
 		"\u00f6\3\2\2\2\u010c\u00f8\3\2\2\2\u010c\u00fd\3\2\2\2\u010c\u0100\3\2"+
 		"\2\2\u010c\u0105\3\2\2\2\u010c\u0106\3\2\2\2\u010c\u0107\3\2\2\2\u010d"+
 		"\u0137\3\2\2\2\u010e\u010f\f\22\2\2\u010f\u0110\7\20\2\2\u0110\u0136\5"+
-		"\66\34\23\u0111\u0112\f\21\2\2\u0112\u0113\7\36\2\2\u0113\u0136\5\66\34"+
-		"\22\u0114\u0115\f\17\2\2\u0115\u0116\t\6\2\2\u0116\u0136\5\66\34\20\u0117"+
-		"\u0118\f\16\2\2\u0118\u0119\t\7\2\2\u0119\u0136\5\66\34\17\u011a\u011b"+
-		"\f\r\2\2\u011b\u011c\t\b\2\2\u011c\u0136\5\66\34\16\u011d\u011e\f\f\2"+
-		"\2\u011e\u011f\t\t\2\2\u011f\u0136\5\66\34\r\u0120\u0121\f\13\2\2\u0121"+
-		"\u0122\7\21\2\2\u0122\u0136\5\66\34\f\u0123\u0124\f\n\2\2\u0124\u0125"+
-		"\7\22\2\2\u0125\u0136\5\66\34\13\u0126\u0127\f\b\2\2\u0127\u0128\7\7\2"+
+		"\66\34\23\u0111\u0112\f\20\2\2\u0112\u0113\t\6\2\2\u0113\u0136\5\66\34"+
+		"\21\u0114\u0115\f\17\2\2\u0115\u0116\t\7\2\2\u0116\u0136\5\66\34\20\u0117"+
+		"\u0118\f\16\2\2\u0118\u0119\t\b\2\2\u0119\u0136\5\66\34\17\u011a\u011b"+
+		"\f\r\2\2\u011b\u011c\t\t\2\2\u011c\u0136\5\66\34\16\u011d\u011e\f\f\2"+
+		"\2\u011e\u011f\7\21\2\2\u011f\u0136\5\66\34\r\u0120\u0121\f\13\2\2\u0121"+
+		"\u0122\7\22\2\2\u0122\u0136\5\66\34\f\u0123\u0124\f\n\2\2\u0124\u0125"+
+		"\7\36\2\2\u0125\u0136\5\66\34\13\u0126\u0127\f\b\2\2\u0127\u0128\7\7\2"+
 		"\2\u0128\u0129\5\66\34\2\u0129\u012a\7.\2\2\u012a\u012b\5\66\34\t\u012b"+
 		"\u0136\3\2\2\2\u012c\u012e\f\23\2\2\u012d\u012f\58\35\2\u012e\u012d\3"+
 		"\2\2\2\u012e\u012f\3\2\2\2\u012f\u0130\3\2\2\2\u0130\u0132\7!\2\2\u0131"+

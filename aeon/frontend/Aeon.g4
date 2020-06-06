@@ -136,7 +136,6 @@ expression
     : LPARENS expression RPARENS                                                                # Parenthesis
     | target=expression app=function_abstraction? LPARENS params=call_parameters? RPARENS       # FunctionCall
     | left=expression op=POWER right=expression                                                 # NumberExpression
-    | left=expression op=IMPLIE right=expression                                                # LogicalExpression
     | op=(NOT | MINUS) right=expression                                                         # UnaryOperation
     | left=expression op=(MULT | QUOT | MODULE | POWER) right=expression                        # NumberExpression
     | left=expression op=(PLUS | MINUS) right=expression                                        # NumberExpression
@@ -144,6 +143,7 @@ expression
     | left=expression op=(EQUAL | DIFF) right=expression                                        # LogicalExpression
     | left=expression op=CONJUNCTION right=expression                                           # LogicalExpression
     | left=expression op=DISJUNCTION right=expression                                           # LogicalExpression
+    | left=expression op=IMPLIE right=expression                                                # LogicalExpression
     | ABSTRACTION variable=typee RARROW exp=expression                                          # AbstractionExpression
     | cond=expression QUESTION then=expression COLON otherwise=expression                       # IfExpression
     | variable=IDENTIFIER DOT attribute=IDENTIFIER                                              # TypeeAttributeCall
