@@ -182,6 +182,7 @@ def random_chooser(f):
                 logging.info("Chosen: {}".format(fun.__name__))
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
+                    print("checking", args[0], v, args[1])
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
