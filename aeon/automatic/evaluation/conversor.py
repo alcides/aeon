@@ -9,11 +9,8 @@ def convert(and_expressions):
 def apply_conversion(condition):
 
     variable = obtain_application_var(condition)
-    
+
     if isinstance(variable, Literal):
-        return boolean_conversion(condition)
-    
-    elif isinstance(variable, Var):
         return boolean_conversion(condition)
     
     elif isinstance(variable, Hole):
@@ -30,6 +27,9 @@ def apply_conversion(condition):
 
     # Else it is surely a Var
     elif variable.name.startswith('@'):
+        return condition
+    elif variable.name in ['forall', 'exists']:
+        condition.target.argument = apply_conversion(condition.target.argument)
         return condition
     elif variable.name == '==':
         return abs_conversion(condition)

@@ -1,5 +1,11 @@
 import aeon/libraries/strings;
 
+type Person {
+    name:String;
+}
+
+buildPerson(x:String) -> Person = native;
+
 main() -> Top {
     
     print[String]("Testing string operations");
@@ -17,6 +23,9 @@ main() -> Top {
     
     print[String]("Replace:");
     print[String](replace("ola", "adeus", "olatudobem"));
+
+    // It works, but we would have to implement the buildPerson function
+    // {p : Person | p.name.size == 5} = buildPerson("Paulo");
 
     // TODO: Bug here
     // print[String]("ASCII:");

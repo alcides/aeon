@@ -53,13 +53,14 @@ if __name__ == '__main__':
             logging.debug("Deducing the type of the holes")
             logging.debug(f"Before deducing: {holed}")
             
-            ast, context, holed = deducer(ast, context, holed)
+            # TODO: complete deducer later
+            #ast, context, holed = deducer(ast, context, holed)
             logging.debug(f"After deducing: {holed}")
 
             # If there are holes, lets fill them
             logging.debug("="*80)
             logging.debug("Evolutionary synthesis of the program")
-            #ast = automatic(ast, context, holed)
+            ast = automatic(ast, context, holed)
 
     except Exception as t:
         raise t

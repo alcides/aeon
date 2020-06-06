@@ -1,7 +1,16 @@
-isValid(z:Integer) -> Boolean {
-    z > 0;
+import aeon/libraries/math;
+import aeon/libraries/list;
+
+make_list() -> List[Integer] {
+    l : List[Integer] = empty_list[Integer]();
+
+    l = append[Integer](1, l);
+    l = append[Integer](2, l);
+    l = append[Integer](3, l);
+
+    l;    
 }
 
-test() -> z:Integer where {isValid(z)} {
-    [Integer];
+test() -> z:List[Integer] where {exists[Integer](\x: Integer -> x > 2, z)} {
+    ? {z:List[Integer] | forall[Integer](\x: Integer -> x > 2, z)} ?;
 }

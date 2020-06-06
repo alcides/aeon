@@ -1,11 +1,12 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TAbstraction, TApplication
 from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction, TypeApplication
 
-from aeon.automatic.evaluation.conversor import convert
+from aeon.automatic.evaluation.conversor import convert, obtain_application_var
 
 from aeon.interpreter import run
 from aeon.synthesis.synthesis import se_safe
 
+from aeon.typechecker.substitutions import substitution_expr_in_expr
 
 # =============================================================================
 # Auxiliary: Given a definition, generate its fitness functions
@@ -132,18 +133,20 @@ def interpret_expressions(eval_ctx, definition, expressions):
         '@maximize': lambda x: maximize(eval_ctx, definition, x),
         '@minimize': lambda x: minimize(eval_ctx, definition, x),
         '@evaluate': lambda x: evaluate(eval_ctx, definition, x),
+        'forall': lambda x: forall(eval_ctx, definition, x),
+        'exists': lambda x: exists(eval_ctx, definition, x),
     }
 
     result = list()
-
+    
     for condition in expressions:
+
+        name = obtain_application_var(condition).name
+
         # If it is one of the optimizers functions
-        if isinstance(condition, Application) and \
-            isinstance(condition.target, Var) and \
-            condition.target.name.startswith('@'):
-            
-            function = optimizers[condition.target.name]
-            result.append(function(condition.argument))
+        if name in optimizers:
+            function = optimizers[name]
+            result.append(function(condition))
 
         # If it is a regular function
         else:
@@ -213,17 +216,17 @@ def generate_abstractions(definition):
 
 # ----------------------------------------------------------- Special functions
 # @maximize
-def maximize(eval_ctx, definition, argument):
-    argument = Application(Application(Var('-'), Literal(1.0, t_f)), argument)
+def maximize(eval_ctx, definition, condition):
+    argument = Application(Application(Var('-'), Literal(1.0, t_f)), condition.argument)
     return generate_fitness(eval_ctx, definition, argument)
 
 # @minimze
-def minimize(eval_ctx, definition, argument):
-    return generate_fitness(eval_ctx, definition, argument)
+def minimize(eval_ctx, definition, condition):
+    return generate_fitness(eval_ctx, definition, condition.argument)
 
 # @evaluate('path')
-def evaluate(eval_ctx, definition, argument):
-    path = argument.name
+def evaluate(eval_ctx, definition, condition):
+    path = condition.argument.name
 
     # Gaussian normalization of a value between 0.0 and 1.0
     def normalize(value):
@@ -238,3 +241,16 @@ def evaluate(eval_ctx, definition, argument):
         return lambda f: sum([apply(f, row) for row in csv_reader[1:]])
 
     raise Exception('The csv file', path, 'is invalid.')
+
+# forall
+def forall(eval_ctx, definition, condition):
+    definition.name = '_forall_fitness'
+    condition = substitution_expr_in_expr(condition, Var('_forall_fitness'), 'forall')
+    return generate_fitness(eval_ctx, definition, condition)
+    
+# exists
+def exists(eval_ctx, definition, condition):
+    definition.name = '_exists_fitness'
+    condition = substitution_expr_in_expr(condition, Var('_exists_fitness'), 'forall')
+    return generate_fitness(eval_ctx, definition, condition)
+    

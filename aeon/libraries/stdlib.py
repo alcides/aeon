@@ -151,6 +151,12 @@ initial_context = {
     '>=Int': (ty2(
         "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
     ), lambda x: lambda y: x >= y),
+    '_forall_fitness': (ty2(
+        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"
+    ), lambda f: lambda iterable: sum(map(f, iterable))),
+    '_exists_fitness': (ty2(
+        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"
+    ), lambda f: lambda iterable: min(map(f, iterable))),
 }
 
 
