@@ -29,6 +29,12 @@ def c_tabs(t: TypeAbstraction):
     return TypeAbstraction(t.name, t.kind, ntype)
 
 
+def c_abs(t: AbstractionType):
+    T = type_conversion(t.arg_type)
+    U = type_conversion(T.return_type)
+    return AbstractionType(t.arg_name, T, U)
+
+
 def c_twhere(t: RefinedType):
     ntype = type_conversion(t.type)
     return RefinedType(t.name, ntype, t.cond)
@@ -53,4 +59,6 @@ def type_conversion(t: Type):
         return c_tabs(t)
     elif isinstance(t, RefinedType):
         return c_twhere(t)
+    elif isinstance(t, AbstractionType):
+        return c_abs(t)
     return t
