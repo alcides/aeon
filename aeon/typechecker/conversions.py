@@ -1,6 +1,6 @@
 from typing import cast
 
-from ..types import TypingContext, Type, BasicType, RefinedType, TypeApplication, TypeAbstraction
+from ..types import TypingContext, Type, BasicType, RefinedType, TypeApplication, TypeAbstraction, AbstractionType
 
 from .substitutions import substitution_type_in_type
 
@@ -31,7 +31,7 @@ def c_tabs(t: TypeAbstraction):
 
 def c_abs(t: AbstractionType):
     T = type_conversion(t.arg_type)
-    U = type_conversion(T.return_type)
+    U = type_conversion(t.return_type)
     return AbstractionType(t.arg_name, T, U)
 
 
