@@ -8,6 +8,8 @@ from aeon.synthesis.synthesis import se_safe
 
 from aeon.typechecker.substitutions import substitution_expr_in_expr
 
+import timeit
+
 # =============================================================================
 # Auxiliary: Given a definition, generate its fitness functions
 def generate_fitness_functions(eval_ctx, definition):
