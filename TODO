@@ -1,34 +1,41 @@
 automatic:
-    ☐ restrict the genetic information in the genetic pool @low
+    ☐ restrict the genetic information in the genetic pool
         we add to much information to the genetic pool. Perhaps restricting the
         information and only allowing subtrees that do not exist will improve the 
         evolution
     ☐ edge case tests in individuals evaluation
-    ☐ try energy consumption optimization
-        @link(https://pypi.org/project/energyusage/) only works in linux
-    ☐ evaluate the continuous fitness functions
-    ✔ change forall and exists to sum and minimum, respectively @done(20-06-06 04:26)
-    ☐ changed the [(context, holes)] in typing, should change the invocations over genetics  @high
+    ☐ energy consumption, memory and runtime optimization of the automatic synthesis
+        A bit hard to find proper libraries for the energy consumption. We can't get 
+        these values from the fitness_utils, must be added when running the candidate program
+    ☐ ensure that the continuous fitness function conversion rules are correct
+    ☐ implement the previous continuous fitness function
+        @link(http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.67.2132&rep=rep1&type=pdf) (page 123)
+        @link(https://ieeexplore.ieee.org/document/4630793)
+    ☐ evaluate the continuous fitness functions against the step counter and previous rules
+    ☐ changed the [(context, holes)] in typing, should change the invocations over genetics 
     ☐ optimization of the synthesized code
-    ☐ I need the maximum function for the evaluation conversor, but can't be added to the initial_context
+        after the final solution is generated, remove dead branches and un-used variables.
+    ☐ Maximum function for the evaluation conversor, can't be added to the initial_context
+    ☐ add a way to provide genetic control parameters to the program.
 
 synthesis:
-    ☐ change synthesis refinements based on trials to continuous synthesis @critical
+    ☐ change synthesis refinements based on trials to continuous synthesis
         currently the synthesis is based on trials in order to synthesize programs
         this can be problematic when generating expressions from really restrictive
-        types. Using interval arithmetic will allow us to continuously synthesize
-        the programs
-    ☐ se_string change the probability distribution of string sizes
+        types. 
+    ☐ se_string should have a gaussian distribution of the string sizes
     ☐ sometimes generates expressions that do not typecheck
         error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
 
     ranges:
         ☐ interpret and replace uninterpreted values on conditions during ranging
-            call the SMT and replace the invocations to uninterpreted functions with the values
-        ☐ Deal with non-continuous ranges
+            call z3 and replace the invocations to uninterpreted functions with the values
+        ☐ Deal with discontinuous ranges
+            expressions such as, x % 3 == 0 or x % 5 < 3, must be converted into continuous values
         ☐ Call SMT-Solver in case we are not able to synthesize the refinement
-        ☐ interesting examples of literal refinements synthesis against the SMT Solver:
+        ☐ interesting examples of literal refinements synthesis against the SMT Solver
+        ☐ equalize the probability of choosing certain `Or` ranges based on weights
         
 typechecker:
     ☐ if restrictions are not properly propagated 
@@ -36,10 +43,7 @@ typechecker:
         the refinements (e.g. function call with input restricted on if condition)
     ☐ the uninterpreted functions are not being checked 
         for some reason, the uninterpret function restrictions are not checked
-        by the SMT
-        check kinding
-        @file examples/aeon3/strings.ae
-        @file aeon/examples/aeon3/list_demo.ae
+        by the SMT, @file(examples/aeon3/strings.ae) and @file(aeon/examples/aeon3/list_demo.ae)
 
     improve error messages:
         ☐ improve node and error messages readability
@@ -54,7 +58,7 @@ libraries:
     ☐ include the libraries: `Map`, `Tree`, `IO` and `Text`
     ☐ automatically generate the documentation
 
-    frontend:
+frontend:
     ☐ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly
         if the last instruction is of the kind: x:Integer = true; the frontend
         only takes the body and ignores the rest of the assignment. We cannot
@@ -91,9 +95,10 @@ examples:
     ☐ Update all the examples from changing the grammar
 
 others:
-    ☐ deduce of the hole @high
+    ☐ test units to all modules to ensure that the code is correct
+    ☐ deduce of the hole
         this can be done after typechecking
-    ☐ simplification with function calls
+    ☐ simplification is buggy on function calls
     ☐ inference of type applications
         can be done during typechecking, but need to be careful not to mess up
         everything else
@@ -110,6 +115,7 @@ Done:
         ✔ make tests stop after 5 seconds @done(20-05-09 19:33)
             way to do this
             @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
+        ✔ change forall and exists to sum and minimum, respectively @done(20-06-06 04:26)
 
     synthesis:    
         ranges:
@@ -161,8 +167,6 @@ Done:
             ✔ Doubles not working @done(20-06-04 11:40)
             ✘ aeoncore still doesnt deal with name.ghost_variable @cancelled(20-06-06 02:34)
                 aeoncore is not expected to support this behaviour
-
-
 
     translator:
         ✔ must update the hole notation here @done(20-06-06 02:36)
