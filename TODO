@@ -92,10 +92,7 @@ translator:
         if the functions ends with: (\x : T -> x + 1)(1) then the translation
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
-    ☐ Definitions in funtion body not appearing
-    ☐ Duplicated parameters in function
-    ☐ problem with tabs at if with body
-
+    
 interpreter:
     ☐ check non-restricted refined types in interpreter
 

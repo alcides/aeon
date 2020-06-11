@@ -73,12 +73,12 @@ def translate(node):
     result = ''
 
     if is_statement(node.then) or is_statement(node.otherwise):
+        old_tab = tab()
         raise_tab()
         result = 'if {} {}\r\n{}{};\r\n{}{} else {}\r\n{}{};\r\n{}{}'.format(
-            '{}', '{{', tab(),'{}', tab(), '}}', '{{', tab(), '{}', tab(), '}}')
-        raise_tab()
+            '{}', '{{', tab(),'{}', old_tab, '}}', '{{', tab(), '{}', old_tab, '}}')
     else:
-        result = '{} ? {} : {};'
+        result = '{} ? {} : {}'
 
     cond = translate(node.cond)
     then = translate(node.then)
@@ -97,8 +97,12 @@ def translate(node):
     if is_statement(node):
         statements = translate(node.target.body)
         expression = translate(node.argument)
-        return '{};\r\n{}{}'.format(expression, tab(), statements)
 
+        if node.target.arg_name != '_':
+            expression = '{} : {} = {}'.format(node.target.arg_name, node.target.arg_type, expression)
+        
+        return '{};\r\n{}{}'.format(expression, tab(), statements)
+         
     else:
         is_native = lambda node, lista: (isinstance(node.target, Application) and \
                                         isinstance(node.target.target, TApplication) and \
@@ -187,7 +191,9 @@ def translate(node):
 
     # Get the typee
     typee = '{}:{}'.format(tempTypee.arg_name, translate(tempTypee.arg_type))
-
+    
+    tempTypee = tempTypee.return_type
+    
     while tempTypee != node.return_type:
         typee = '{}, {}:{}'.format(typee, tempTypee.arg_name,
                                    translate(tempTypee.arg_type))
@@ -197,7 +203,7 @@ def translate(node):
     return_type = translate(node.return_type)
 
     if isinstance(node.body, Var) and node.body.name == 'native':
-        return '{}{} : ({}) -> {} = {};'.format(node.name, abstractions, typee,
+        return '{}{}({}) -> {} = {};'.format(node.name, abstractions, typee,
                                                 return_type,
                                                 translate(node.body))
 
@@ -214,7 +220,7 @@ def translate(node):
         while isinstance(tempBody,
                          Abstraction) or type(tempBody) is TAbstraction:
             tempBody = tempBody.body
-        return '{}{} : ({}) -> {} {{\r\n{}{};\r\n}}'.format(
+        return '{}{}({}) -> {} {{\r\n{}{};\r\n}}'.format(
             node.name, abstractions, typee, return_type, tab(),
             translate(tempBody))
 
