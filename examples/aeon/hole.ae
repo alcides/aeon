@@ -1,148 +1,144 @@
-
-f[K] : (x:Integer) -> Integer {
-    x + 1;
+f1(x:Integer) -> Integer {
+    1;
 }
 
-f2 : (x:Integer) -> Integer {
-    x + x;
+f2[T](x:T) -> T {
+    x;
 }
 
-// Done - [{x:Integer | x > 0} -> Integer]
-hole1 : (y:Integer) -> ({x:Integer | x > 0} -> Integer) {
-    [];
+
+// Done - ? Integer ?
+hole0(x:Integer) -> Integer {
+    ? ?;
 }
 
+// Done - ? ({x:Integer | x > 0} -> Integer) ?
+hole1(y:Integer) -> ({x:Integer | x > 0} -> Integer) {
+    ? ?;
+}
+
+// Done - ? Top ?
+hole2(y:Integer) -> Integer {
+    1;
+}
+
+// Done - ? Integer ?
+hole3(y:Integer) -> Integer {
+    f1(??);
+    1;
+}
+
+// Done - ? Integer ?
+hole4(y:Integer) -> Integer {
+    f2[Integer](??);
+    1;
+}
 
 // Done - [Top]
-hole2 : (y:Integer) -> Integer {
-    [];
+hole5(y:Integer) -> Integer {
     1;
-}
-
-hole35 : (y:Integer) -> Integer {
-    // [TypeApp(Integer String)]
-    f[Integer]([]);
-    1;
-}
-
-
-// Done - [Top]
-  hole3 : (y:Integer) -> Integer {
-    1;
-    [];
+    ??;
     2;
 }
-
-
- h : () -> Integer {
-    1;
-    x : Boolean = [];
-    2;
-}
-
-
 
 // Done - [Boolean]
- hole4 : (y:Integer) -> Boolean {
+hole6() -> Integer {
+    1;
+    x : Boolean = ??;
+    2;
+}
+
+// Done - [Boolean]
+hole7(y:Integer) -> Boolean {
     1;
     2;
-    [];
+    ??;
 }
 
-
- hole5 : (y:Integer) -> Double {
-    (\x : String -> [])("oi");
+// Done - [Double]
+hole8(y:Integer) -> Double {
+    (\x : String -> ??)("oi");
 }
 
-
- hole6 : (y:Integer) -> Double {
+// Done - [Top], [Top], [Top]
+hole9(y:Integer) -> Double {
     // Top
-    \z : String -> [];
+    \z : String -> ??;
     1;
-    \a : String -> \b : Integer -> [];
+    // Top
+    \a : String -> \b : Integer -> ??;
     2;
-    \c : String -> \d : Integer -> [];
+    // Top
+    \c : String -> \d : Integer -> ??;
     3.0;
 }
 
-
- hole7 : (y:Integer) -> Integer {
-    y > 0 ? [] : 1; // TODO:
+// Done - [Integer]
+hole10(y:Integer) -> Integer {
+    y > 0 ? ?? : 1; 
 }
 
- hole8 : (y:Integer) -> Integer {
-    y > 0 ? [] : y;
+// Done - [Integer]
+hole11(y:Integer) -> Integer {
+    y > 0 ? ?? : y;
     1;
 }
 
- hole9 : (y:Integer) -> Integer {
-    [] ? 3 : 10;
+// Done - [Boolean]
+hole12(y:Integer) -> Integer {
+    ?? ? 3 : 10;
 }
 
- hole10 : (y:Integer) -> Integer {
-    f2([]);
+// Done - [__T1:* => (_:__T1 -> (Integer)))]
+hole13(y:Integer) -> Double {
+    f2[Integer](??(2));
+    1.0;
 }
-
-
- h2 : (y:Integer) -> Integer {
-    f[Integer]([](2)); // TODO:
+/*
+// TODO: Bug in typechecker
+hole14(y:Integer) -> Integer {
+    (\x:Integer -> x + 1)(??);
     1;
 }
+*/
+// Done - [(Integer -> {x:Integer | x > 10})]
+hole15(y:Integer) -> {x:Integer | x > 10} {
+    ??(10);
+}
 
- h3 : (y:Integer) -> Integer {
-    (\x:Integer -> x + 1)([]);
-    1;
+// Done
+// [_T1 : * => T1 -> Double]
+// [_T1 : * => T1]
+hole15(y:Integer) -> Double {
+    ??(??);
+}
+/*
+// TODO: Bug in typechecker
+hole16(y:Integer) -> Double {
+    ??(??(??));
+}
+*/
+// Done
+// [Boolean]
+// [{x:Double | x > 0.0}]
+// [{x:Double | x > 0.0}]
+hole17(y:Integer) -> {x:Double | x > 0.0} {
+    ?? ? ?? : ??;
 }
 
 
+// Done
+// [Top]
+// [Integer]
+hole18(x:Integer) -> Double {
 
-
-
-hole11 : (y:Integer) -> {x:Integer | x > 10} {
-    [](10);
-}
-
-
-
-
-
-
- hole12 : (y:Integer) -> Double {
-    []([]);
-}
-
- hole13 : (y:Integer) -> Double {
-    []([]([]));
-}
-
- hole14 : (y:Integer) -> {x:Double | x > 0.0} {
-    [] ? [] : [];
-}
-
- funcao : (x:Integer) -> Integer {
-	1;
-	if x > 9 {
-		3;
-		5;
-		[];
-        6;
-	} else {
-		4;
-	};
-    2;
-}
-
- hole15 : (x:Integer) -> Integer {
-    2;
-}
-
- main : () -> Void {
-
-    2 + 3;
-    1;
-    {x : {y : Integer | y < 20} | x > 10} = 10;
-    abc = 10;
-    3;
-    a = [];
-    print[Integer]((\x:T -> x + 1)[Integer](3));
+    if (x > 0) {
+        1;
+        ??;
+        x;
+    } else {
+        1;
+        ??;
+    };
+    2.0;
 }

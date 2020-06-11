@@ -31,13 +31,6 @@ def add_function(key, type, implementation):
     initial_context[key] = (type, implementation)
 
 
-def ty(operation, typee):
-    program = aeon.frontend.parse_strict(typee)
-    result = program.declarations[0]
-    result.name = operation
-    return result
-
-
 ty2 = frontend_core.typee.parse
 
 initial_uninterpreted_functions = {

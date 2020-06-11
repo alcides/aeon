@@ -8,15 +8,15 @@ automatic:
         A bit hard to find proper libraries for the energy consumption. We can't get 
         these values from the fitness_utils, must be added when running the candidate program
     ☐ ensure that the continuous fitness function conversion rules are correct
-    ☐ implement the previous continuous fitness function
-        @link(http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.67.2132&rep=rep1&type=pdf) (page 123)
-        @link(https://ieeexplore.ieee.org/document/4630793)
     ☐ evaluate the continuous fitness functions against the step counter and previous rules
     ☐ changed the [(context, holes)] in typing, should change the invocations over genetics 
     ☐ optimization of the synthesized code
         after the final solution is generated, remove dead branches and un-used variables.
     ☐ Maximum function for the evaluation conversor, can't be added to the initial_context
     ☐ add a way to provide genetic control parameters to the program.
+    ☐ The phd continuous function does not support forall and exists
+        since arrays are not implemented natively, we cannot statically support the continuous
+        transformations for the forall and exists fitness functions of the phd 
 
 synthesis:
     ☐ change synthesis refinements based on trials to continuous synthesis
@@ -44,6 +44,9 @@ typechecker:
     ☐ the uninterpreted functions are not being checked 
         for some reason, the uninterpret function restrictions are not checked
         by the SMT, @file(examples/aeon3/strings.ae) and @file(aeon/examples/aeon3/list_demo.ae)
+    ☐ Not checking applications properly when they are holes
+        if there is a hole as argument, the typechecker is unable to check its type. Some times
+        it even replaces its type with None. Check the @file(examples/aeon3/holes.ae), hole15
 
     improve error messages:
         ☐ improve node and error messages readability
@@ -74,6 +77,9 @@ frontend:
         ☐ wrong precendence of boolean operators (equality too)
             example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
         ☐ problem with parenthesis
+    
+    ☐ change the notation of the ternary operator
+        currently: cond ? then : otherwise ~~~~> if cond then then else otherwise
 
     ☐ migrate to Lark
         should actually be check in the typechecker and not frontend
@@ -86,6 +92,9 @@ translator:
         if the functions ends with: (\x : T -> x + 1)(1) then the translation
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
+    ☐ Definitions in funtion body not appearing
+    ☐ Duplicated parameters in function
+    ☐ problem with tabs at if with body
 
 interpreter:
     ☐ check non-restricted refined types in interpreter
@@ -98,7 +107,9 @@ others:
     ☐ test units to all modules to ensure that the code is correct
     ☐ deduce of the hole
         this can be done after typechecking
-    ☐ simplification is buggy on function calls
+    simplification:
+        ☐ simplification buggy on function calls
+        ☐ add not progragation function
     ☐ inference of type applications
         can be done during typechecking, but need to be careful not to mess up
         everything else
@@ -116,6 +127,9 @@ Done:
             way to do this
             @link(https://stackoverflow.com/questions/492519/timeout-on-a-function-call)
         ✔ change forall and exists to sum and minimum, respectively @done(20-06-06 04:26)
+        ✔ implement the previous continuous fitness function @done(20-06-10 16:45)
+            @link(http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.67.2132&rep=rep1&type=pdf) (page 123)
+            @link(https://ieeexplore.ieee.org/document/4630793)
 
     synthesis:    
         ranges:

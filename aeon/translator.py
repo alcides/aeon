@@ -74,9 +74,9 @@ def translate(node):
 
     if is_statement(node.then) or is_statement(node.otherwise):
         raise_tab()
-        result = 'if {} {{\r\n{};\r\n{}}} else {{\r\n{};\r\n{}}};'.format(
-            '{}', '{}', tab(), {}, tab())
-
+        result = 'if {} {}\r\n{}{};\r\n{}{} else {}\r\n{}{};\r\n{}{}'.format(
+            '{}', '{{', tab(),'{}', tab(), '}}', '{{', tab(), '{}', tab(), '}}')
+        raise_tab()
     else:
         result = '{} ? {} : {};'
 
@@ -250,12 +250,12 @@ def translate(node):
 
 @dispatch(TypeAbstraction)
 def translate(node):
-    return '{}<{}>'.format(translate(node.type), node.name)
+    return '{}[{}]'.format(translate(node.type), node.name)
 
 
 @dispatch(TypeApplication)
 def translate(node):
-    return '{}<{}>'.format(translate(node.target), translate(node.argument))
+    return '{}[{}]'.format(translate(node.target), translate(node.argument))
 
 
 @dispatch(object)
