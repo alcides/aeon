@@ -10,14 +10,14 @@ import aeon/libraries/list;
 // TODO: se colocarmos {end : Integer | start < end}, nao funciona porque o refinamento nao tem em consideraçao a condicao do if
 for_loop_index(start : Integer, end : Integer, {step : Integer | step > 0}) -> out:List<Integer> where {out.size == (end - 1 - start) / step and
                                                                                                                           forall<Integer>(\x:Integer -> x % step == 0, out)} {
-    
+    /*
     if start + step < end {
         insert<Integer>(start + step, for_loop_index(start + step, end, step), 0);
     } else {
         empty_list<Integer>();
     };
-    
-    //[List<Integer>];
+    */
+    ??;
 }
 
 

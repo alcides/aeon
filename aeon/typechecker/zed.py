@@ -152,7 +152,7 @@ def get_sort(t: Type):
         elif t.name in ['Top', 'Void', 'Object']:
             return z3.BoolSort()
         else:
-            return DeclareSort(t)
+            return z3.DeclareSort(t.name)
     elif isinstance(t, RefinedType):
         return get_sort(t.type)
     elif isinstance(t, AbstractionType):
@@ -261,13 +261,13 @@ def zed_translate_type(solver, ztx, name, t):
     elif isinstance(t, TypeAbstraction):
         return zed_translate_type(solver, ztx, name, t.type)
     else:
-        print(">"*10, "Should have a translation for z3", t, type(t)) # TODO
+        #print(">"*10, "Should have a translation for z3", t, type(t)) # TODO
         return None
 
 
 def zed_convert_var_to_cond(solver, ztx, ctx, name):
     try:
-        return zed_translate_type(solver, ztx, name, ctx.variables[name])
+        return zed_translate_type(solver, ztx, name, ctx.variables.get(name))
     except NoZ3TranslationException:
         return None
 
@@ -283,7 +283,7 @@ def zed_translate_context(solver, ztx, ctx):
         ctx_vars.append(r_var)
 
     for name in ctx.uninterpreted_functions.keys():
-        print("Converting:", name)
+        #print("Converting:", name)
         r_var = z3.Bool("#var_{}".format(name))
         #print("v:", name, ctx.variables[name])
         var_cond = zed_convert_var_to_cond(solver, ztx, ctx, name)
@@ -295,7 +295,7 @@ def zed_translate_context(solver, ztx, ctx):
 
 
 def zed_translate(ztx, cond: Node):
-    print(cond)
+    #print(cond)
     if isinstance(cond, Application):
         return zed_translate_app(ztx, cond)
     elif isinstance(cond, Var):
@@ -324,15 +324,16 @@ def zed_translate_wrapped(ztx, cond):
 
 
 def zed_verify_entailment(ctx, cond):
-    print(ctx.uninterpreted_functions)
+    #print(ctx.uninterpreted_functions)
     ztx = zed_initial_context()
     s = z3.Solver()
     z3_context = zed_translate_context(s, ztx, ctx)
-    print("========\n", ztx)
+    #print("========\n", ztx)
     z3_cond = zed_translate_wrapped(ztx, cond)
 
     s.push()
     s.add(z3_context)
+    print(s)
     if s.check() == z3.unsat:
         return True
     s.pop()

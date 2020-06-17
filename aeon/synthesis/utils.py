@@ -1,7 +1,7 @@
 from aeon.ast import *
 from aeon.types import TypingContext, BasicType
 from aeon.typechecker.zed import flatten_refined_types
-from aeon.synthesis.ranges import RangedException, RangedContext
+#from aeon.synthesis.ranges import RangedException, RangedContext
 
 from aeon.libraries.stdlib import is_builtin
 
@@ -68,7 +68,6 @@ def filter_refinements(ctx, condition):
         
     # Anything else than the App(App(...))
     else:
-        
         target = filter_refinements(ctx, condition.target)
         argument = filter_refinements(ctx, condition.argument)
 

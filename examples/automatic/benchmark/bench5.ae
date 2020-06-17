@@ -10,6 +10,7 @@ import forall from aeon/libraries/list;
 doubleLetters(in:String) -> out:String where {out.size >= in.size and 
                                               3 * count("!", in) == count("!", out) and
                             forall(\{x:String | x.size == 1} -> substring(x, ascii_letters()) ? 2 * count(x, in) == count(x, out) : count(x, in) == count(x, out), in)}
+    /*
     {current : String | x.size == 1} = head(x);
     if substring(current, ascii_letters()) {
         concat(current, concat(current, doubleLetters(tail(x))));
@@ -22,7 +23,8 @@ doubleLetters(in:String) -> out:String where {out.size >= in.size and
             concat(current, doubleLetters(tail(x)));
         };
     };
-    // [String]
+    */
+    ??;
 }
 
 main() -> Top {

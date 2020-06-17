@@ -45,8 +45,8 @@ def sympy_translate(rctx, literal):
 @dispatch(object, Var)
 def sympy_translate(rctx, var):
     # If there is a value for the Var in the context, return the value
-    if var.name in rctx.evalctx:
-        return rctx.evalctx[var.name]
+    #if var.name in rctx.evalctx:
+    #    return rctx.evalctx[var.name]
 
     if not var.name in sympy_context:
         sympy_context[var.name] = Symbol(var.name)

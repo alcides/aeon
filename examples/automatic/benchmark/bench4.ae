@@ -6,7 +6,7 @@ import aeon/libraries/strings;
 // and size(n2) < size(n3)
 compare_strings(s1 : String, s2 : String, s3 : String) -> out:Boolean where {out == (size(s1) < size(s2) && size(s2) < size(s3))} {
     //size(s1) < size(s2) && size(s2) < size(s3);
-    [{x:Boolean | x == (size(s1) < size(s2) && size(s2) < size(s3))}];
+    ??;
 }
 
 main() -> Top {

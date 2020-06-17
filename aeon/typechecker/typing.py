@@ -110,10 +110,14 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
             e.target.argument = T
     # end hack
     F = type_conversion(synth_type(ctx, e.target))
-    if not isinstance(F, AbstractionType):
+    if not isinstance(F, AbstractionType) and F != bottom:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
-                e.target, F, e))
+                e.target, F, e)) 
+    # TODO: somethings wrong over here, need to check it out
+    if F is bottom:
+        e.argument.type = F
+        return F
     T = check_type(ctx, e.argument, F.arg_type)
     return substitution_expr_in_type(F.return_type, e.argument, F.arg_name)
 
