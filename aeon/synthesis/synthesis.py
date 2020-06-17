@@ -14,6 +14,7 @@ from aeon.typechecker.substitutions import substitution_expr_in_type, substituti
 from aeon.typechecker.typing import TypeCheckingError
 from aeon import typechecker as tc
 
+from aeon.synthesis.utils import flatten_refined_type
 from aeon.synthesis.ranges import try_ranged, RangedContext, RangedException
 
 MAX_TRIES = 3
@@ -358,7 +359,6 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 """ Expression Synthesis """
 
-
 # Refines a literal expression
 def refine_literal(value, typee: Type, label):
 
@@ -524,9 +524,8 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
     logging.info("se_where/{}: {} ".format(d, T))
 
-    # TODO: flatten the refinement
-    #if isinstance(T.type, RefinedType):
-    #    T = flatten_refinement(ctx, T)
+    if isinstance(T.type, RefinedType):
+        T = flatten_refined_type(T)
 
     try:
         value = try_ranged(ctx, T)

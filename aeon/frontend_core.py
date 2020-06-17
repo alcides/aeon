@@ -52,7 +52,7 @@ class TreeToCore(Transformer):
     # Expressions
 
     def minus(self, args):
-        return Application(Application(Var("-"), Literal(0, t_f)), args[0])
+        return Application(Application(Var("-"), Literal(0.0, t_f)), args[0])
 
     def let_e(self, args):
         abst = Abstraction(str(args[0]), args[1], args[3])

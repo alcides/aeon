@@ -53,9 +53,10 @@ if __name__ == '__main__':
             logging.debug("Deducing the type of the holes")
             logging.debug(f"Before deducing: {holed}")
             
-            # TODO: complete deducer later
-            #ast, context, holed = deducer(ast, context, holed)
+            ast, context, holed = deducer(ast, context, holed)
             logging.debug(f"After deducing: {holed}")
+
+            print(translate(ast))
 
             # If there are holes, lets fill them
             logging.debug("="*80)

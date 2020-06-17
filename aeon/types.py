@@ -78,7 +78,8 @@ class TypingContext(object):
         n = self.copy()
         for k in n.uninterpreted_functions:
             n.variables[k] = n.uninterpreted_functions[k]
-        n.uninterpreted_functions = {}
+        # I feel like this is a needed change
+            n.uninterpreted_functions[k] = n.uninterpreted_functions[k]
         return n
 
     def add_type_var(self, n, k):

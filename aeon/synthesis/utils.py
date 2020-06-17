@@ -68,7 +68,6 @@ def filter_refinements(ctx, condition):
         
     # Anything else than the App(App(...))
     else:
-        
         target = filter_refinements(ctx, condition.target)
         argument = filter_refinements(ctx, condition.argument)
 
