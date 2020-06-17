@@ -20,6 +20,8 @@ from aeon.typechecker.substitutions import substitution_expr_in_expr
 
 from multipledispatch import dispatch
 
+from aeon.synthesis.utils import flatten_refined_type
+
 
 # =============================================================================
 # Exception in case we are unable to generate a ranged literal
@@ -30,14 +32,23 @@ class RangedException(Exception):
 
 # Ranged context
 class RangedContext(object):
-    def __init__(self, ctx):
-        self.ctx = ctx  # Context of the program
-        self.evalctx = dict()  # Has the values for each variable
+    def __init__(self):
+        '''
+            e.g.
+            {
+                'w': {'_native': [0, 10]},
+                'x': {'_native': [[0.0, 10.5], [11.3, 22.1]]},
+                'y': {'_native': [True, False]},
+                'z': {'size': [3, 10]},
+                'k': {'name': {size: [4, 4]}, 'age':[0, 100]},
+            }
+        '''
         self.intervals = dict()  # Has the ranges for each variable
 
-    def add_ranged(self, name, ghost_name, condition):
+    def add_ranged(self, name, ghost_name, interval):
         if name not in self.rangeds:
-            self.intervals[name] = condition
+            self.intervals[name] = dict()
+            self.intervals[name][ghost_name] = interval
         else:
             ranged = self.intervals[name]  # Returns a dict
             ranged[ghost_name] = And(condition, ranged[ghost_name])
@@ -55,7 +66,6 @@ def interval(or_expr):
     return random.choice([interval(x) for x in or_expr.args])
 
 
-# TODO: Should never happen
 @dispatch(Implies)
 def interval(implies_expr):
     left = Not(implies_expr.args[0])
@@ -88,103 +98,17 @@ def flatten_conditions(lista):
 
 
 # =============================================================================
+# Generate a random restricted int
 def ranged_int(rctx: RangedContext, T: BasicType, name: str,
                conds: List[TypedNode]):
-
-    translated = list()
-
-    for restriction in rctx.ctx.restrictions + conds:
-        restriction = sympy_translate(rctx, restriction)
-        restriction = to_cnf(restriction)
-        translated.append(restriction)
-
-    for cond in translated:
-        cond = interval(cond)
-        cond = flatten_conditions(cond)
-
-        try:
-            intervals = reduce_rational_inequalities([cond],
-                                                     Symbol(name),
-                                                     relational=False)
-
-            if isinstance(intervals, FiniteSet):
-                return intervals.args[0]
-
-            # Is of type Interval
-            else:
-                if isinstance(intervals, Union):
-                    intervals = random.choice(intervals.args)
-                minimum, maximum, is_lopen, is_ropen = intervals.args
-
-                if isinstance(maximum, Infinity):
-                    maximum = sys.maxsize
-
-                if isinstance(minimum, NegativeInfinity):
-                    minimum = -sys.maxsize
-
-                if is_lopen:
-                    minimum += 1
-
-                if is_ropen:
-                    maximum -= 1
-
-                # TODO: otimizar
-                return random.randint(minimum, maximum)
-
-        except PolynomialError as err:
-            logging.info("Failed to do ranged analysis due to: {}".format(err))
-
-
-#
+    pass
+    
+# Generate a random restricted double
 def ranged_double(rctx: RangedContext, T: BasicType, name: str,
                   conds: List[TypedNode]):
-    translated = list()
+    pass
 
-    for restriction in rctx.ctx.restrictions:
-        restriction = sympy_translate(rctx, restriction)
-        restriction = to_cnf(restriction)
-        translated.append(restriction)
-
-    for cond in translated:
-
-        cond = interval(cond)
-        cond = flatten_conditions(cond)
-
-        try:
-
-            intervals = reduce_rational_inequalities([cond],
-                                                     Symbol(name),
-                                                     relational=False)
-
-            if isinstance(intervals, FiniteSet):
-                return intervals.args[0]
-
-            else:
-
-                if isinstance(intervals, Union):
-                    intervals = random.choice(intervals.args)
-
-                minimum, maximum, is_lopen, is_ropen = intervals.args
-
-                if isinstance(maximum, Infinity):
-                    maximum = sys.maxsize
-
-                if isinstance(minimum, NegativeInfinity):
-                    minimum = -sys.maxsize
-
-                if is_lopen:
-                    minimum += 1
-
-                if is_ropen:
-                    maximum -= 1
-
-                return random.uniform(minimum, maximum)
-
-        except PolynomialError as err:
-            logging.info("Failed to do ranged analysis due to: {}".format(err))
-
-
-# TODO: try to implement this later with the rctx
+# Generate a random restricted boolean
 def ranged_boolean(rctx: RangedContext, T: BasicType, name: str,
                    conds: List[TypedNode]):
 
@@ -215,7 +139,7 @@ def ranged_boolean(rctx: RangedContext, T: BasicType, name: str,
     return random.choice(possibilities)
 
 
-#
+# Generate a random restricted string
 def ranged_string(rctx: RangedContext, T: BasicType, name: str,
                   conds: List[TypedNode]):
     pass
@@ -225,36 +149,30 @@ def ranged_string(rctx: RangedContext, T: BasicType, name: str,
 def ranged(ctx: TypingContext, T: BasicType, name: str,
            conds: List[TypedNode]):
 
-    assert (isinstance(T, BasicType))
+    switcher = {
+        t_i : ranged_int,
+        t_f : ranged_double,
+        t_b : ranged_boolean,
+        t_s : ranged_string
+    }
 
-    rctx: RangedContext = RangedContext(ctx)
+    rctx = generate_ranged_context(ctx, name, conds)
+    ranged_option = switcher.get(T)
 
-    # If it is an Integer
-    if T == t_i:
-        return ranged_int(rctx, T, name, conds)
-
-    # If it is a Double
-    elif T == t_f:
-        return ranged_double(rctx, T, name, conds)
-
-    # If it is a Boolean
-    elif T == t_b:
-        return ranged_boolean(rctx, T, name, conds)
-
-    # If it is a String
-    elif T == t_s:
-        return ranged_string(rctx, T, name, conds)
-
-    else:
+    if not ranged_option:
         raise RangedException("Type not supported by range analysis")
+
+    return ranged_option(name, T, conds)
 
 
 def try_ranged(ctx, T: RefinedType):
-    if not isinstance(T.type, BasicType):
-        raise RangedException(
-            "Not a basic type. Please flatten nested refinements first")
 
-    v = ranged(ctx, T.type, name=T.name, conds=[T.cond])
-    if v is None:
+    if not isinstance(T.type, BasicType):
+        T = flatten_refined_type(T)
+
+    value = ranged(ctx, name = T.name, T.type, conds=[T.cond])
+    
+    if not value:
         raise RangedException("Failed to produce range of type {}".format(T))
-    return v
+    
+    return value
