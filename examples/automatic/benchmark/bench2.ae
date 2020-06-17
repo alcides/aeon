@@ -9,9 +9,8 @@ none : String = ""
 
 smaller_or_greater(x:Integer) -> out:String where {out == (x < 1000 ? ("small") : (x > 2000 ? "large" : ""))} {
     // x < 1000 ? (small) : (x > 2000 ? large : none);
-    [{y:String | y == (x < 1000 ? ("small") : (x > 2000 ? "large" : ""))}];
+    ??;
 }
-
 
 main() -> Top {
     print<String>(smaller_or_greater(1200));

@@ -1,3 +1,6 @@
 // Number IO: 
 // ----------
 // Given an Integer and a Float, print their sum
+sum(x:Integer, y:Double) -> z:Double where {z == intToFloat(x) + y} {
+    ??;
+}

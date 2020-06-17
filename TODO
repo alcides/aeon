@@ -23,7 +23,7 @@ synthesis:
         currently the synthesis is based on trials in order to synthesize programs
         this can be problematic when generating expressions from really restrictive
         types. 
-    ☐ se_string should have a gaussian distribution of the string sizes
+    ☐ se_natives should have a gaussian distributions
     ☐ sometimes generates expressions that do not typecheck
         error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
@@ -47,6 +47,7 @@ typechecker:
     ☐ Not checking applications properly when they are holes
         if there is a hole as argument, the typechecker is unable to check its type. Some times
         it even replaces its type with None. Check the @file(examples/aeon3/holes.ae), hole15
+    ☐ zed context contains a Token(id, a)
 
     improve error messages:
         ☐ improve node and error messages readability
@@ -92,21 +93,24 @@ translator:
         if the functions ends with: (\x : T -> x + 1)(1) then the translation
         doesnt work properly 
     ☐ missing typeabstractions in the type in TypeDeclaration
-    
+
 interpreter:
     ☐ check non-restricted refined types in interpreter
 
 examples:
-    ☐ add unit tests
+    ☐ add unit tests for all the modules
+    ☐ complete the benchmark synthesis problems.
     ☐ Update all the examples from changing the grammar
 
 others:
     ☐ test units to all modules to ensure that the code is correct
     ☐ deduce of the hole
         this can be done after typechecking
+
     simplification:
         ☐ simplification buggy on function calls
         ☐ add not progragation function
+
     ☐ inference of type applications
         can be done during typechecking, but need to be careful not to mess up
         everything else
@@ -114,7 +118,7 @@ others:
 
 
 ===============================================================================
-Done:
+Archive:
     automatic:
         ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
         ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
@@ -181,6 +185,9 @@ Done:
 
     translator:
         ✔ must update the hole notation here @done(20-06-06 02:36)
+        ✔ Definitions in funtion body not appearing @done(20-06-11 14:41)
+        ✔ Duplicated parameters in function @done(20-06-11 14:45)
+        ✔ problem with tabs at if with body @done(20-06-11 14:51)
 
     others:
         ✔ python logger @done(20-05-12 10:05)

@@ -5,7 +5,7 @@ import aeon/libraries/list;
 // Given two vectors of integers, return true if one vector is the
 // reverse of the other, and false otherwise
 mirror_image(l1:List<Integer>, l2:List<Integer>) -> out:Boolean where {out == equals(l1, reverse(l2))} {
-    equals(l1, reverse(l2));
+    // equals(l1, reverse(l2));
     /*
         if length(l1) == 0 and length(l2) == 0 {
             true;
@@ -17,5 +17,5 @@ mirror_image(l1:List<Integer>, l2:List<Integer>) -> out:Boolean where {out == eq
             };
         };
     */
-    // [Boolean];
+    ??;
 }

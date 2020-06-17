@@ -6,6 +6,6 @@ import aeon/libraries/list;
 // are odd, without use of a specific even or odd instruction
 count_odds(l:List<Integer>) -> out:Integer where {out >= 0 && out < l.size and
                                                   out == length(filter(\x:Integer -> x % 2 == 0, l)}) {
-    length(filter(\x:Integer -> x % 2 == 0, l));
-    // [{x:Integer | x >= 0 && x < l.size}];
+    // length(filter(\x:Integer -> x % 2 == 0, l));
+    ??;
 } 
