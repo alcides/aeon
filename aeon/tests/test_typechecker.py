@@ -115,6 +115,22 @@ class TestTypeChecking(unittest.TestCase):
         with self.assertRaises(TypeCheckingError):
             self.generic_test("(5 % 0)", "Integer")
 
+    def test_refined_string_simple(self):
+        self.generic_test("\"abc\"", "String")
+
+    def test_refined_string_refined(self):
+        self.generic_test("\"abc\"", "{x:String | String_size(x) >= 0 }")
+
+    def test_refined_string_empty(self):
+        self.generic_test("\"\"", "{x:String | String_size(x) == 0 }")
+
+    def test_refined_string_3(self):
+        self.generic_test("\"abc\"", "{x:String | String_size(x) == 3 }")
+
+    def test_refined_string_wrong_size(self):
+        with self.assertRaises(TypingException):
+            self.generic_test("\"ac\"", "{x:String | String_size(x) == 3 }")
+
     def test_if_1(self):
         self.generic_test("if true then 1 else 0",
                           "{ x:Integer where ((x == 1) || (x == 0)) }")
