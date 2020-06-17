@@ -19,6 +19,7 @@ from aeon.translator import translate
 
 import logging
 
+
 def is_not_inhabited(ctx: TypingContext, T: Type):
     if isinstance(T, RefinedType):
         nctx = ctx.with_var(T.name, T.type)
@@ -43,6 +44,16 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
     v = e.value
     name = "lit_b_{}".format(v)
+    if ctx.inside_refinement:
+        if isinstance(e.value, bool):
+            return t_b
+        if isinstance(e.value, int):
+            return t_i
+        if isinstance(e.value, float):
+            return t_f
+        if isinstance(e.value, str):
+            return t_s
+
     if isinstance(e.value,
                   bool) and not e.type and not isinstance(e.type, RefinedType):
         return RefinedType(name=name,
@@ -78,7 +89,7 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
 def t_var(ctx: TypingContext, e: Var) -> Type:
     if e.name in ctx.variables:
         return ctx.variables[e.name]
-    
+
     if e.name in ctx.uninterpreted_functions:
         return ctx.uninterpreted_functions[e.name]
 
@@ -110,10 +121,11 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
             e.target.argument = T
     # end hack
     F = type_conversion(synth_type(ctx, e.target))
+
     if not isinstance(F, AbstractionType) and F != bottom:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
-                e.target, F, e)) 
+                e.target, F, e))
     # TODO: somethings wrong over here, need to check it out
     if F is bottom:
         e.argument.type = F
@@ -129,7 +141,8 @@ def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
             "TypeApplication requires a Type abstraction: {} : {} in {}".
             format(e.target, V, e))
     check_kind(ctx, e.argument, V.kind)
-    return substitution_type_in_type(V.type, e.argument, V.name)
+    k = substitution_type_in_type(V.type, e.argument, V.name)
+    return k
 
 
 def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
@@ -187,28 +200,28 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 
 def check_program(ast):
     holed = []
-    
+
     def internal_check(ctx: TypingContext, e: TypedNode):
-        
+
         if isinstance(e, Program):
             for decl in e.declarations:
-        
+
                 holes.clear()  # Reset to add holes of curr decl.
                 # print("decl", decl)
                 internal_check(ctx, decl)
                 if holes:
                     holed.append((decl, holes.copy()))  # Append the holes
-        
-        elif isinstance(e, Definition):        
+
+        elif isinstance(e, Definition):
             logging.debug(f"Checking the Definition: {e.name}")
             ctx.variables[e.name] = e.type  # supports recursion
             check_type(ctx, e.body, e.type)
             ctx.variables[e.name] = e.type  # refines type
             check_kind(ctx, e.type, AnyKind())
-        elif isinstance(e, TypeAlias):        
+        elif isinstance(e, TypeAlias):
             logging.debug(f"Checking the TypeAlias: {e}")
             ctx.type_aliases[e.name.name] = e.type
-        elif isinstance(e, TypeDeclaration):        
+        elif isinstance(e, TypeDeclaration):
             logging.debug(f"Checking the TypeDeclaration: {e}")
             name = e.name
             kind = e.kind

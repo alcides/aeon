@@ -8,7 +8,7 @@ import builtins
 
 from ..ast import Var, Literal, Application, Abstraction, TApplication, TAbstraction, Node
 from ..types import Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, TypingContext
 from ..libraries.stdlib import *
 from .substitutions import *
 from .zed_utils import *
@@ -96,7 +96,7 @@ def flatten_refined_types(t):
     elif isinstance(t, TAbstraction):
         t.target = flatten_refined_types(t.target)
         t.argument = flatten_refined_types(t.argument)
-        return t 
+        return t
     elif isinstance(t, RefinedType):
         if type(t.type) is RefinedType:
             inner = t.type
@@ -134,10 +134,10 @@ def zed_mk_variable(name, ty: Type):
     elif isinstance(ty, TApplication):
         return zed_mk_variable(name, ty.target)
     elif isinstance(ty, TAbstraction):
-        return zed_mk_variable(name, ty.body)  
-    logging.error("No constructor for {name} of type {ty}")
+        return zed_mk_variable(name, ty.body)
     raise NoZ3TranslationException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
+
 
 def get_sort(t: Type):
     if isinstance(t, BasicType):
@@ -169,177 +169,164 @@ def get_sort(t: Type):
 # =============================================================================
 # Translation of Aeon AST to Z3
 
-def zed_translate_literal(ztx, literal: Literal):
+
+def zed_translate_literal(ctx, ztx, literal: Literal):
     return literal.value
 
-def zed_translate_var(ztx, v: Var):
-    
-    assert(isinstance(v, Var))
 
-    if not v.name in ztx:
-        if isinstance(v.type, BasicType):
-            ztx[v.name] = zed_mk_variable(v.name, v.type)
-            return ztx[v.name]
+def zed_translate_type_var(name, ty):
+    if isinstance(ty, BasicType):
+        return zed_mk_variable(name, ty)
+    elif isinstance(ty, AbstractionType):
+        return zed_mk_variable(name, flatten_refined_types(ty))
+    elif isinstance(ty, RefinedType):
+        return zed_mk_variable(name, flatten_refined_types(ty))
+    raise NoZ3TranslationException("Type not translatable: {} : {}".format(
+        name, ty))
 
-        elif isinstance(v.type, AbstractionType):
-            ztx[v.name] = zed_mk_variable(v.name,
-                                          flatten_refined_types(v.type))
-            return ztx[v.name]
 
-        elif isinstance(v.type, RefinedType):
-            ztx[v.name] = zed_mk_variable(v.name,
-                                          flatten_refined_types(v.type))
-            return ztx[v.name]
+def zed_translate_var(ctx, ztx, v: Var):
+    assert (isinstance(v, Var))
 
-        logging.error("Warning: ignoring variable {v} in Z3 translation")
-        raise NoZ3TranslationException("Var not in scope: {} : {}".format(
-            v, v.type))
-    
+    if not v.name in ztx and v.name in ctx.variables:
+        try:
+            ztx[v.name] = zed_translate_type_var(v.name, ctx.variables[v.name])
+        except Exception as e:
+            raise e
+            logging.warning("Warning: ignoring variable {v} in Z3 translation")
+            raise NoZ3TranslationException("Var not in scope: {} : {}".format(
+                v, v.type))
     return ztx[v.name]
 
 
-def zed_translate_app(ztx, app: Application):
-    
-    assert(isinstance(app, Application))
+def zed_translate_app(ctx, ztx, app: Application):
 
-    target = zed_translate(ztx, app.target)
-    argument = zed_translate(ztx, app.argument)
-    
+    assert (isinstance(app, Application))
+    target = zed_translate(ctx, ztx, app.target)
+    argument = zed_translate(ctx, ztx, app.argument)
     return target(argument)
 
 
-def zed_translate_abs(ztx, ab: Abstraction):
+def zed_translate_abs(ctx, ztx, ab: Abstraction):
 
-    assert(isinstance(ab, Abstraction))
+    assert (isinstance(ab, Abstraction))
 
     i_sort = get_sort(ab.arg_type)
     o_sort = get_sort(ab.body.type)
     f = z3.Function(random_name(), i_sort, o_sort)
     x = zed_mk_variable(ab.arg_name, ab.arg_type)
     ztx[ab.arg_name] = x
-    b = zed_translate(ztx, ab.body)
+    b = zed_translate(ctx, ztx, ab.body)
     del ztx[ab.arg_name]
     g = z3.ForAll([x], b)
     # Add to context
     return f
 
 
-def zed_translate_tabs(ztx, tabs: TAbstraction):
-    
-    assert(isinstance(tabs, TAbstraction))
-    return zed_translate(ztx, tabs.body)
+def zed_translate_tabs(ctx, ztx, tabs: TAbstraction):
+
+    assert (isinstance(tabs, TAbstraction))
+    return zed_translate(ctx, ztx, tabs.body)
 
 
-def zed_translate_tapp(ztx, tapp: TApplication):
+def zed_translate_tapp(ctx, ztx, tapp: TApplication):
 
-    assert(isinstance(tapp, TApplication))
-    return zed_translate(ztx, tapp.target) 
-    
+    assert (isinstance(tapp, TApplication))
+    return zed_translate(ctx, ztx, tapp.target)
+
 
 # =============================================================================
 # Translation from Aeon Types to Z3
 
-def zed_translate_type(solver, ztx, name, t):
-    if isinstance(t, BasicType):
-        ztx[name] = zed_mk_variable(name, t)
-        return ztx[name]
-    elif isinstance(t, RefinedType):
-        ztx[name] = zed_mk_variable(name, flatten_refined_types(t))
-        return zed_translate(
-            ztx, substitution_expr_in_expr(t.cond, Var(name), t.name))
-    elif isinstance(t, AbstractionType):
-        i_sort = get_sort(t.arg_type)
-        o_sort = get_sort(t.return_type)
-        f = z3.Function(random_name(), i_sort, o_sort)
-        x = zed_mk_variable(t.arg_name, t.arg_type)
-        ztx[t.arg_name] = x
-        b = zed_translate(ztx, t.return_type)
-        del ztx[t.arg_name]
-        return f
-    elif isinstance(t, TypeApplication):
-        return zed_translate_type(solver, ztx, name, t.target)
-    elif isinstance(t, TypeAbstraction):
-        return zed_translate_type(solver, ztx, name, t.type)
-    else:
-        #print(">"*10, "Should have a translation for z3", t, type(t)) # TODO
-        return None
 
-
-def zed_convert_var_to_cond(solver, ztx, ctx, name):
-    try:
-        return zed_translate_type(solver, ztx, name, ctx.variables.get(name))
-    except NoZ3TranslationException:
-        return None
-
-
-def zed_translate_context(solver, ztx, ctx):
-
-    ctx_var = z3.Bool("#context")
-
-    ctx_vars = []
-    for i, restriction in enumerate(ctx.restrictions):
-        r_var = z3.Bool("#restriction_{}".format(i))
-        solver.add(r_var == zed_translate_wrapped(ztx, restriction))
-        ctx_vars.append(r_var)
-
-    for name in ctx.uninterpreted_functions.keys():
-        #print("Converting:", name)
-        r_var = z3.Bool("#var_{}".format(name))
-        #print("v:", name, ctx.variables[name])
-        var_cond = zed_convert_var_to_cond(solver, ztx, ctx, name)
-        if var_cond != None:
-            solver.add(r_var == var_cond)
-            ctx_vars.append(r_var)
-    solver.add(ctx_var == reduce(z3.And, ctx_vars, True))
-    return ctx_var
-
-
-def zed_translate(ztx, cond: Node):
-    #print(cond)
+def zed_translate(ctx, ztx, cond: Node):
     if isinstance(cond, Application):
-        return zed_translate_app(ztx, cond)
+        return zed_translate_app(ctx, ztx, cond)
     elif isinstance(cond, Var):
-        return zed_translate_var(ztx, cond)
+        return zed_translate_var(ctx, ztx, cond)
     elif isinstance(cond, Literal):
-        return zed_translate_literal(ztx, cond)
+        return zed_translate_literal(ctx, ztx, cond)
     elif isinstance(cond, Abstraction):
-        return zed_translate_abs(ztx, cond)
+        return zed_translate_abs(ctx, ztx, cond)
     elif isinstance(cond, TApplication):
-        return zed_translate_tapp(ztx, cond)
+        return zed_translate_tapp(ctx, ztx, cond)
     elif isinstance(cond, TAbstraction):
-        return zed_translate_tabs(ztx, cond)
+        return zed_translate_tabs(ctx, ztx, cond)
     else:
         raise NoZ3TranslationException(
             "{} could not be translated".format(cond))
 
 
-def zed_translate_wrapped(ztx, cond):
+def zed_translate_wrapped(ctx, ztx, cond):
     try:
-        return zed_translate(ztx, cond)
+        return zed_translate(ctx, ztx, cond)
     except NoZ3TranslationException as err:
         print("No z3 translation:", err)
         return True
 
 
+def extract_from_type(ty):
+    if isinstance(ty, BasicType):
+        return random_name(), ty, True
+    elif isinstance(ty, AbstractionType):
+        return random_name(), flatten_refined_types(ty), True
+    elif isinstance(ty, RefinedType):
+        t = flatten_refined_types(ty)
+        return t.name, t.type, t.cond
+    elif isinstance(ty, TApplication):
+        return extract_from_type(ty.target)
+    elif isinstance(ty, TAbstraction):
+        return extract_from_type(ty.body)
+    raise NoZ3TranslationException("Type not translatable: {}".format(ty))
 
 
-def zed_verify_entailment(ctx, cond):
-    #print(ctx.uninterpreted_functions)
-    ztx = zed_initial_context()
+def zed_compile_var(ctx: TypingContext, ztx, var_name, type):
+    if var_name in ztx:
+        return True
+    try:
+        name, typee, cond = extract_from_type(type)
+        z3_name = zed_mk_variable(var_name, typee)
+        ztx[var_name] = z3_name
+        new_cond = substitution_expr_in_expr(cond, Var(var_name), name)
+        if cond is not True:
+            return zed_translate_wrapped(ctx, ztx, new_cond)
+    except:
+        pass
+    return True
+
+
+def zed_generate_context(ctx: TypingContext, ztx, solver):
+    ctx_vars = []
+
+    for var in ctx.variables:
+        r_restrictions = zed_compile_var(ctx, ztx, var, ctx.variables[var])
+        if r_restrictions is not True:
+            ctx_vars.append(r_restrictions)
+
+    for i, restriction in enumerate(ctx.restrictions):
+        r_var = z3.Bool("#restriction_{}".format(i))
+        solver.add(r_var == zed_translate_wrapped(ctx, ztx, restriction))
+        ctx_vars.append(r_var)
+
+    return reduce(z3.And, ctx_vars, True)
+
+
+def zed_verify_entailment(ctx: TypingContext, cond: TypedNode):
+    assert (ctx.inside_refinement)
+
     s = z3.Solver()
-    z3_context = zed_translate_context(s, ztx, ctx)
-    #print("========\n", ztx)
-    z3_cond = zed_translate_wrapped(ztx, cond)
 
+    ztx = zed_initial_context()
+    z3_context_restriction = zed_generate_context(ctx, ztx, s)
+    z3_cond = zed_translate_wrapped(ctx, ztx, cond)
+
+    z3_context = z3.Bool("#context")
+    s.add(z3_context == z3_context_restriction)
     s.push()
-    s.add(z3_context)
-    print(s)
     if s.check() == z3.unsat:
         return True
     s.pop()
-    #s.add(z3.And(z3_context, z3.Implies(z3_context, z3_cond)))
     s.add(z3.And(z3_context, z3.Not(z3_cond)))
-    #print("zed_ver_entails", cond, "..", s)
 
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
@@ -350,12 +337,13 @@ def zed_verify_entailment(ctx, cond):
         if r == z3.sat:
             return False
         z3.set_option("smt.random_seed", i)
-    print("S:", s, cond, r)
+    #print("S:", s, cond, r)
     # S: [x == u%o, ForAll(x, Or(Not(x == u%o), And(x%4 == 0, Not(x <= 2))))]
     #
 
     raise NotDecidableException(
         "{} could not be evaluated for entailment".format(cond))
+
 
 def entails(ctx, cond):
     return zed_verify_entailment(ctx, cond)
@@ -375,8 +363,8 @@ def zed_verify_satisfiability(ctx, cond):
     ztx = zed_initial_context()
     s = z3.Solver()
 
-    z3_context = zed_translate_context(s, ztx, ctx)
-    z3_cond = zed_translate_wrapped(ztx, cond)
+    z3_context = zed_generate_context(ctx, ztx, s)
+    z3_cond = zed_translate_wrapped(ctx, ztx, cond)
 
     s.add(z3.And(z3_context, z3_cond))
     r = s.check()
@@ -388,15 +376,13 @@ def zed_verify_satisfiability(ctx, cond):
     raise NotDecidableException(
         "{} could not be evaluated for satisfiability".format(cond))
 
+
 def is_satisfiable(ctx, cond):
     try:
         return zed_verify_satisfiability(ctx, cond)
     except NotDecidableException:
-        print(">"*5, "Not Decidable Exception", cond)
+        print(">" * 5, "Not Decidable Exception", cond)
         return True
-
-
-
 
 
 # TODO: Remove when everything is working
@@ -404,8 +390,8 @@ def zed_get_integer_where(ctx, name, cond):
     ztx = zed_initial_context()
     s = z3.Solver()
 
-    z3_context = zed_translate_context(s, ztx, ctx)
-    z3_cond = zed_translate_wrapped(ztx, cond)
+    z3_context = zed_generate_context(ctx, ztx, s)
+    z3_cond = zed_translate_wrapped(ctx, ztx, cond)
     s.add(z3.And(z3_context, z3_cond))
     #print("Solver:", s)
     r = s.check()

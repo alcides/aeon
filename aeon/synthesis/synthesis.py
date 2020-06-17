@@ -359,8 +359,9 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 """ Expression Synthesis """
 
+
 # Refines a literal expression
-def refine_literal(value, typee: Type, label):
+def refine_literal(value, typee: Type, label) -> RefinedType:
 
     operator = TApplication(Var('=='), typee)
     left = Literal(value, typee, ensured=True)
@@ -386,9 +387,10 @@ def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     assert (isinstance(T, BasicType))
 
     value = round(random.gauss(0, 0.05) * 7500)
+    t = T if ctx.inside_refinement else refine_literal(value, T, '_i')
 
-    logging.info("se_int/{}: {}:{} ".format(d, value, T))
-    return Literal(value, refine_literal(value, T, '_i'))
+    logging.info("se_int/{}: {}:{} ".format(d, value, t))
+    return Literal(value, t)
 
 
 def se_double(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
@@ -396,8 +398,10 @@ def se_double(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     assert (isinstance(T, BasicType))
 
     value = random.gauss(0, 0.05) * 7500
-    logging.info("se_double/{}: {}:{} ".format(d, value, T))
-    return Literal(value, refine_literal(value, T, '_f'))
+    t = T if ctx.inside_refinement else refine_literal(value, T, '_f')
+
+    logging.info("se_double/{}: {}:{} ".format(d, value, t))
+    return Literal(value, t)
 
 
 def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
@@ -410,14 +414,17 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     logging.info("se_string/{}: {}:{} ".format(d, value, T))
 
     # First refinement:
-    typee = refine_literal(value, T, '_s')
+    if ctx.inside_refinement:
+        typee = T
+    else:
+        typee = refine_literal(value, T, '_s')
 
-    # Second refinement (size):
-    operator = TApplication(Var('=='), T)
-    left = Application(Var('String_size'), Var('_s'))
-    right = Literal(len(value), t_i, ensured=True)
-    cond = Application(Application(operator, left), right)
-    typee.cond = Application(Application(Var('&&'), typee.cond), cond)
+        # Second refinement (size):
+        operator = TApplication(Var('=='), T)
+        left = Application(Var('String_size'), Var('_s'))
+        right = Literal(len(value), t_i, ensured=True)
+        cond = Application(Application(operator, left), right)
+        typee.cond = Application(Application(Var('&&'), typee.cond), cond)
 
     return Literal(value, typee)
 

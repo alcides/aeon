@@ -29,6 +29,7 @@ class TypingContext(object):
         self.type_variables: Dict[str, Kind] = {}
         self.restrictions: List[Any] = []
         self.uninterpreted_functions: Dict[str, Type] = {}
+        self.inside_refinement = False
 
     def setup(self):
         from .libraries.stdlib import get_builtin_variables, get_all_uninterpreted_functions
@@ -59,6 +60,22 @@ class TypingContext(object):
             wrap(self.type_aliases),
         )
 
+    def print_ctx(self):
+        print("Context")
+        print(" Aliases:")
+        for al in self.type_aliases:
+            print(al, self.type_aliases[al])
+        print(" TypeVars:")
+        for al in self.type_variables:
+            print(al, self.type_variables[al])
+        print(" Vars:")
+        for al in self.variables:
+            print(al, self.variables[al])
+        print(" Restrictions:")
+        for al in self.restrictions:
+            print(al)
+        print(".....")
+
     def copy(self):
         t = TypingContext()
         t.type_aliases = self.type_aliases.copy()
@@ -74,11 +91,16 @@ class TypingContext(object):
                 t = self.type_aliases[t.name]
         self.variables[n] = t
 
-    def with_uninterpreted(self):
+    def enter_refinement(self):
         n = self.copy()
+        n.inside_refinement = True
+        return n
+
+    def with_uninterpreted(self):
+        n = self.enter_refinement()
         for k in n.uninterpreted_functions:
             n.variables[k] = n.uninterpreted_functions[k]
-        # I feel like this is a needed change
+            # I feel like this is a needed change
             n.uninterpreted_functions[k] = n.uninterpreted_functions[k]
         return n
 

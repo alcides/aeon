@@ -49,7 +49,7 @@ class TestSynthesis(unittest.TestCase):
     def test_synthesis_kind_2(self):
         ctx = TypingContext()
         ctx.setup()
-        self.assertIn(sk(2), [star, Kind(star, star)])
+        self.assertIn(sk(1), [star, Kind(star, star)])
 
     def test_synthesis_kind_3(self):
         ctx = TypingContext()
