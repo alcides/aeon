@@ -23,6 +23,7 @@ def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
     """ S-WhereL """
     from .typing import check_type
     nctx = ctx.with_var(sub.name, sub.type)
+    check_type(nctx.with_uninterpreted(), sub.cond, t_b)
     return check_type(nctx.with_uninterpreted(), sub.cond, t_b) and \
         is_subtype(ctx, sub.type, sup)
 
