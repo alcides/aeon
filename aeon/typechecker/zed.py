@@ -324,11 +324,11 @@ def zed_translate_wrapped(ztx, cond):
 
 
 def zed_verify_entailment(ctx, cond):
-    print(ctx.uninterpreted_functions)
+    #print(ctx.uninterpreted_functions)
     ztx = zed_initial_context()
     s = z3.Solver()
     z3_context = zed_translate_context(s, ztx, ctx)
-    print("========\n", ztx)
+    #print("========\n", ztx)
     z3_cond = zed_translate_wrapped(ztx, cond)
 
     s.push()

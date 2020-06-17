@@ -1,7 +1,7 @@
 from aeon.ast import *
 from aeon.types import TypingContext, BasicType
 from aeon.typechecker.zed import flatten_refined_types
-from aeon.synthesis.ranges import RangedException, RangedContext
+#from aeon.synthesis.ranges import RangedException, RangedContext
 
 from aeon.libraries.stdlib import is_builtin
 
