@@ -1,8 +1,8 @@
 import unittest
 import random
 
-from ..frontend import parse_strict
-from ..evaluation.metrics.distance import compare_trees
+from aeon.frontend import parse_strict
+from aeon.evaluation.metrics.distance import compare_trees
 
 
 class TestSynthesis(unittest.TestCase):

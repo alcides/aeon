@@ -21,12 +21,13 @@ class TestRanged(unittest.TestCase):
         self.ctx = TypingContext()
         self.ctx.setup()
 
-    def support_synthesis_with_ineq(self, typee):
+    def support_synthesis_with_ineq(self, typee, times=10):
         T = ty2(typee)
-        value = try_ranged(self.ctx, T)
-        self.assertIsNotNone(value)
-        e = Literal(value, T)
-        self.assertIsNotNone(check_type(self.ctx, e, T))
+        for i in range(times):
+            value = try_ranged(self.ctx, T)
+            self.assertIsNotNone(value)
+            e = Literal(value, T)
+            self.assertIsNotNone(check_type(self.ctx, e, T))
 
     "Integer"
 
