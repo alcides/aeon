@@ -51,7 +51,7 @@ typechecker:
     ☐ zed bug with Application of Abstractions 
         {x : Integer where (\y:Integer -> x > y )(10)}
     ☐ Error in kinding during automatic synthesis
-        (_fresh_35:* => * => * => Top):* => * => * => *
+        (_fresh_35:* => * => * => Top):* => * => * => * does not have expected kind *
 
     improve error messages:
         ☐ improve node and error messages readability
@@ -79,6 +79,8 @@ frontend:
         ☐ integer and double bounds
 
     aeoncore:
+        ☐ Add value refinement to string literals
+            ensure that a string s is of type: x :: {_s : String where _s == x && String_size(_s) == 1}
         ☐ wrong precendence of boolean operators (equality too)
             example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
         ☐ problem with parenthesis

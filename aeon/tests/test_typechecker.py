@@ -20,7 +20,7 @@ class TestTypeChecking(unittest.TestCase):
             for (k, v) in extra_ctx:
                 ctx = ctx.with_var(k, ty(v))
         self.assert_tc(ctx, e, t)
-
+    
     def test_basic_true(self):
         self.generic_test("true", "Boolean")
 
@@ -75,10 +75,10 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_refined_1(self):
         self.generic_test("false", "{ x:Boolean | (x == false) }")
-
+    
     def test_refined_2(self):
-        self.generic_test("false", "{ x:Boolean | (x == !true) }")
-
+        self.generic_test("false", "{ x:Boolean | (x == (!true)) }")
+    
     def test_refined_3(self):
         self.generic_test("1", "{ x:Integer | (x == 1) }")
 
@@ -117,20 +117,21 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_refined_string_simple(self):
         self.generic_test("\"abc\"", "String")
-
+    
     def test_refined_string_refined(self):
-        self.generic_test("\"abc\"", "{x:String | String_size(x) >= 0 }")
-
+        self.generic_test("\"abc\"", "{x:String | (String_size(x)) >= 0 }")
+    
     def test_refined_string_empty(self):
-        self.generic_test("\"\"", "{x:String | String_size(x) == 0 }")
+        self.generic_test("\"\"", "{x:String | (String_size(x)) == 0 }")
 
     def test_refined_string_3(self):
-        self.generic_test("\"abc\"", "{x:String | String_size(x) == 3 }")
-
+        self.generic_test("\"abc\"", "{x:String | (String_size(x)) == 3 }")
+    
     def test_refined_string_wrong_size(self):
+        
         with self.assertRaises(TypingException):
-            self.generic_test("\"ac\"", "{x:String | String_size(x) == 3 }")
-
+            self.generic_test("\"ac\"", "{x:String | (String_size(x)) == 3 }")
+    
     def test_if_1(self):
         self.generic_test("if true then 1 else 0",
                           "{ x:Integer where ((x == 1) || (x == 0)) }")
@@ -167,7 +168,7 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test(
             "if false then true else (if false then true else false)",
             "{ x:Boolean where (x == false) }")
-
+     
 
 if __name__ == '__main__':
     unittest.main()

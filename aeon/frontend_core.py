@@ -143,12 +143,23 @@ class TreeToCore(Transformer):
                        type=refined_value(float(args[0]), t_f, "_v"))
 
     def bool_lit(self, args):
-        if str(args[0]) == "true":
-            return Literal(True, type=refined_value(True, t_b, "_v"))
-        return Literal(False, type=refined_value(False, t_b, "_v"))
+        value = str(args[0]) == "true"
+        return Literal(value, type=refined_value(value, t_b, "_v"))
 
     def string_lit(self, args):
-        return Literal(str(args[0]), type=t_s)  #TODO lenght?
+        value = str(args[0])[1:-1]
+        typee = refined_value(value, t_s, '_s')
+
+        # Get the second and condition for the size 
+        operator = TApplication(Var('=='), t_delegate)
+        left = Application(Var('String_size'), Var('_s'))
+        right = Literal(len(value), t_i, ensured=True)
+        cond = Application(Application(operator, left), right)
+        # Should be this but is giving errors in the test_typechecker
+        # typee.cond = Application(Application(Var('&&'), typee.cond), cond) 
+        typee.cond = cond
+
+        return Literal(value, typee) 
 
 
 def mk_parser(rule="start"):
