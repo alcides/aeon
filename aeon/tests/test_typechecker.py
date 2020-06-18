@@ -77,7 +77,7 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("false", "{ x:Boolean | (x == false) }")
 
     def test_refined_2(self):
-        self.generic_test("false", "{ x:Boolean | (x == !true) }")
+        self.generic_test("false", "{ x:Boolean | (x == (!true)) }")
 
     def test_refined_3(self):
         self.generic_test("1", "{ x:Integer | (x == 1) }")
@@ -128,6 +128,7 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("\"abc\"", "{x:String | (String_size x) == 3 }")
 
     def test_refined_string_wrong_size(self):
+
         with self.assertRaises(TypingException):
             self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }")
 

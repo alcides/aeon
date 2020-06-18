@@ -1,9 +1,11 @@
 from aeon.types import t_i, t_f
 from aeon.ast import Var, Literal, Hole, Abstraction, Application, If, TAbstraction, TApplication
 
+
 # Given a list of expressions, convert them into numeric discrete values
 def convert(and_expressions):
     return [apply_conversion(condition) for condition in and_expressions]
+
 
 # Apply the conversion to an expression
 def apply_conversion(condition):
@@ -12,15 +14,15 @@ def apply_conversion(condition):
 
     if isinstance(variable, Literal):
         return boolean_conversion(condition)
-    
+
     elif isinstance(variable, Hole):
-        return condition # Never happens
+        return condition  # Never happens
 
     elif isinstance(variable, If):
         variable.then = apply_conversion(variable.then)
         variable.otherwise = apply_conversion(variable.otherwise)
         return condition
-    
+
     elif isinstance(variable, Abstraction):
         variable.body = apply_conversion(variable.body)
         return condition
@@ -29,7 +31,7 @@ def apply_conversion(condition):
     elif variable.name.startswith('@'):
         return condition
     elif variable.name in ['forall', 'exists']:
-        condition.target.argument = apply_conversion(condition.target.argument)
+        #condition.target.argument = apply_conversion(condition.target.argument)
         return condition
     elif variable.name == '==':
         return abs_conversion(condition)
@@ -55,9 +57,10 @@ def apply_conversion(condition):
     else:
         return boolean_conversion(condition)
 
+
 # Obtains the most left var name of the application
 def obtain_application_var(condition):
-    
+
     if isinstance(condition, Literal):
         return condition
 
@@ -69,26 +72,26 @@ def obtain_application_var(condition):
 
     elif isinstance(condition, If):
         return condition
-    
+
     elif isinstance(condition, Abstraction):
         return condition
 
     elif isinstance(condition, Application):
         return obtain_application_var(condition.target)
-    
+
     elif isinstance(condition, TAbstraction):
         return obtain_application_var(condition.body)
-    
+
     elif isinstance(condition, TApplication):
         return obtain_application_var(condition.target)
-    
+
     else:
         raise Exception("Unknown node while obtaining application", condition)
 
 
 # =============================================================================
 # ============================================================ Conversion rules
-# a == b ~> norm(|a - b|) 
+# a == b ~> norm(|a - b|)
 def abs_conversion(condition):
     result = Application(Var('-'), condition.target.argument)
     result = Application(result, condition.argument)
@@ -116,6 +119,7 @@ def greater_than_conversion(condition):
     result = Application(Application(Var('+'), result), Literal(1.0, t_f))
     return normalize(relu(result))
 
+
 # a < b ~> norm(relu(x - y + offset))
 def less_than_conversion(condition):
     result = Application(Var('-'), condition.target.argument)
@@ -136,6 +140,7 @@ def less_or_equal_conversion(conditon):
     result = Application(Var('-'), condition.target.argument)
     result = Application(result, condition.argument)
     return normalize(relu(result))
+
 
 # a && b ~> (convert(a) + convert(b)) / 2
 def and_conversion(condition):
@@ -177,6 +182,7 @@ def boolean_conversion(condition):
 def normalize(value):
     norm = Application(Application(Var('pow'), Literal(0.99, t_f)), value)
     return Application(Application(Var('-'), Literal(1.0, t_f)), norm)
+
 
 # ReLU
 def relu(condition):

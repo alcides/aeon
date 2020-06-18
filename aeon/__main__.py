@@ -23,16 +23,16 @@ if __name__ == '__main__':
     # Set the logging configuration
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:' \
     '%(lineno)d]\t%(message)s', datefmt='%Y-%m-%d:%H:%M:%S', level=level)
-    
-    logging.debug("="*80)
+
+    logging.debug("=" * 80)
     logging.debug("Starting the debugger...")
-    
+
     for arg in sys.argv:
         if arg.startswith("--seed="):
             seed = int(arg[7:])
             random.seed(seed)
             logging.debug(f"Random seed set to {seed}")
-    
+
     fname = sys.argv[-1]
 
     if fname.endswith(".ae2"):
@@ -43,23 +43,21 @@ if __name__ == '__main__':
         ast = parse(fname)
 
     try:
-        logging.debug("="*80)
-        logging.debug("Typechecking the program")   
-        
+        logging.debug("=" * 80)
+        logging.debug("Typechecking the program")
+
         ast, context, holed = check_program(ast)
-            
+
         # Infer the holes
         if holed:
             logging.debug("Deducing the type of the holes")
             logging.debug(f"Before deducing: {holed}")
-            
+
             ast, context, holed = deducer(ast, context, holed)
             logging.debug(f"After deducing: {holed}")
 
-            print(translate(ast))
-
             # If there are holes, lets fill them
-            logging.debug("="*80)
+            logging.debug("=" * 80)
             logging.debug("Evolutionary synthesis of the program")
             ast = automatic(ast, context, holed)
 
@@ -67,7 +65,7 @@ if __name__ == '__main__':
         raise t
         sys.exit(-1)
 
-    logging.info("="*80)
+    logging.info("=" * 80)
     logging.info(f"Running the program {sys.argv[-1]}")
 
     run(ast)

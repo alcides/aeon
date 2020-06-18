@@ -143,9 +143,8 @@ class TreeToCore(Transformer):
                        type=refined_value(float(args[0]), t_f, "_v"))
 
     def bool_lit(self, args):
-        if str(args[0]) == "true":
-            return Literal(True, type=refined_value(True, t_b, "_v"))
-        return Literal(False, type=refined_value(False, t_b, "_v"))
+        value = str(args[0]) == "true"
+        return Literal(value, type=refined_value(value, t_b, "_v"))
 
     def string_lit(self, args):
         return Literal(str(args[0]),

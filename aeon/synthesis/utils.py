@@ -7,28 +7,31 @@ from aeon.libraries.stdlib import is_builtin
 
 from multipledispatch import dispatch
 
+
 # =============================================================================
 # Filter the non-restricted refinements
-@dispatch(TypingContext, Var)
-def filter_refinements(ctx, condition):
+@dispatch(TypingContext, str, Var)
+def filter_refinements(ctx, name, condition):
 
-    name = condition.name
-    is_restricted = is_builtin(name) or name == RangedContext.Variable or\
-                                        name in ctx.uninterpreted_functions or\
-                                        isinstance(ctx.variables[name], BasicType)
+    var = condition.name
+    is_restricted = is_builtin(var) or var == name or \
+                                        var in ctx.uninterpreted_functions or \
+                                        isinstance(ctx.variables[var], BasicType)
 
     return condition if is_restricted else None
 
-@dispatch(TypingContext, Literal)
-def filter_refinements(ctx, condition):
+
+@dispatch(TypingContext, str, Literal)
+def filter_refinements(ctx, name, condition):
     return condition
 
-@dispatch(TypingContext, If)
-def filter_refinements(ctx, condition):
-    
-    cond = filter_refinements(ctx, condition.cond)
-    then = filter_refinements(ctx, condition.then)
-    otherwise = filter_refinements(ctx, condition.otherwise)
+
+@dispatch(TypingContext, str, If)
+def filter_refinements(ctx, name, condition):
+
+    cond = filter_refinements(ctx, name, condition.cond)
+    then = filter_refinements(ctx, name, condition.then)
+    otherwise = filter_refinements(ctx, name, condition.otherwise)
 
     # If any of the conditions was removed, then this is removed
     if not cond or not then or not otherwise:
@@ -36,56 +39,62 @@ def filter_refinements(ctx, condition):
 
     return condition
 
-@dispatch(TypingContext, Abstraction)
-def filter_refinements(ctx, condition):
-    body = filter_refinements(ctx, condition.body)
+
+@dispatch(TypingContext, str, Abstraction)
+def filter_refinements(ctx, name, condition):
+    body = filter_refinements(ctx, name, condition.body)
     return condition if body else None
 
-@dispatch(TypingContext, Application)
-def filter_refinements(ctx, condition):
-    
+
+@dispatch(TypingContext, str, Application)
+def filter_refinements(ctx, name, condition):
+
     # If it is the App(App(...))
     if isinstance(condition.target, Application):
 
         left = condition.target.target
 
-        target = filter_refinements(ctx, condition.target)
-        argument = filter_refinements(ctx, condition.argument)
+        target = filter_refinements(ctx, name, condition.target)
+        argument = filter_refinements(ctx, name, condition.argument)
 
         # If it is an expression like: -->, ||, &&, ==
-        if (isinstance(left, Var) and left.name in ['-->', '||', '&&']) or\
-        (isinstance(left, TApplication) and isinstance(left.target, Var) and left.target.name == '=='):
-            
+        if (isinstance(left, Var) and left.name in ['-->', '||', '&&']):
+
             # Both left and right are restricted refinements
             if target and argument:
                 return condition
             # Only left is restricted
             if target and not argument:
                 return condition.target.argument
-            # Only right is restricted 
+            # Only right is restricted
             elif not target and argument:
                 return condition.argument
-        
+
     # Anything else than the App(App(...))
     else:
-        target = filter_refinements(ctx, condition.target)
-        argument = filter_refinements(ctx, condition.argument)
+        target = filter_refinements(ctx, name, condition.target)
+        argument = filter_refinements(ctx, name, condition.argument)
 
     return condition if target and argument else None
 
-@dispatch(TypingContext, TAbstraction)
-def filter_refinements(ctx, condition):
-    body = filter_refinements(ctx, condition.body)
+
+@dispatch(TypingContext, str, TAbstraction)
+def filter_refinements(ctx, name, condition):
+    body = filter_refinements(ctx, name, condition.body)
     return condition if body else None
 
-@dispatch(TypingContext, TApplication)
-def filter_refinements(ctx, condition):
-    target = filter_refinements(ctx, condition.target)
+
+@dispatch(TypingContext, str, TApplication)
+def filter_refinements(ctx, name, condition):
+    target = filter_refinements(ctx, name, condition.target)
     return condition if target else None
 
-@dispatch(TypingContext, object)
-def filter_refinements(ctx, condition):
-    raise RangedException("Unknown node of type {} when filtering refinement: {}".format(type(condition), condition))
+
+@dispatch(TypingContext, str, object)
+def filter_refinements(ctx, name, condition):
+    raise RangedException(
+        "Unknown node of type {} when filtering refinement: {}".format(
+            type(condition), condition))
 
 
 # =============================================================================

@@ -1,6 +1,8 @@
+import aeon/libraries/math;
+
 // Number IO: 
 // ----------
 // Given an Integer and a Float, print their sum
-sum(x:Integer, y:Double) -> z:Double where {z == intToFloat(x) + y} {
+sum(x:Integer, y:Double) -> z:Double where {z == intToDouble(x) + y} {
     ??;
 }

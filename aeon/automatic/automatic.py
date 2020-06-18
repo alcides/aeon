@@ -9,8 +9,8 @@ from aeon.automatic.crossover import crossover
 from aeon.automatic.evaluation import evaluate
 from aeon.automatic.initialization import initialize_population
 
-class Genetics(object):
 
+class Genetics(object):
     def __init__(self, declaration, holes, eval_ctx, ctx, fitness_functions):
         self.declaration = declaration
         self.holes = holes
@@ -23,7 +23,8 @@ class Genetics(object):
         # Initialize and evaluate the population
         population = initialize_population(self)
         population = evaluate(population, self)
-        
+        print(population)
+        '''
         for generation in range(1, MAX_GENERATIONS):
 
             logging.debug("Generation {generation}")
@@ -52,5 +53,5 @@ class Genetics(object):
             if best_individuals:
                 population = best_individuals
                 break
-
+        '''
         return random.choice(population)

@@ -9,8 +9,10 @@ import aeon.frontend
 from aeon.ast import Var, Definition
 from aeon.libraries.helper import importNative
 
+
 def is_uninterpreted(name):
     return name in initial_uninterpreted_functions
+
 
 def is_builtin(name):
     return name in initial_context.keys()
@@ -27,8 +29,14 @@ def get_builtin_variables():
         yield (k, v[0], v[1])
 
 
+def get_variables():
+    for k in context:
+        v = context[k]
+        yield (k, v[0], v[1])
+
+
 def add_function(key, type, implementation):
-    initial_context[key] = (type, implementation)
+    context[key] = (type, implementation)
 
 
 ty2 = frontend_core.typee.parse
@@ -145,23 +153,17 @@ initial_context = {
         "(a:Integer) -> (b:Integer) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
     ), lambda x: lambda y: x >= y),
     '_forall_fitness': (ty2(
-        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"
-    ), lambda f: lambda iterable: sum(map(f, iterable))),
+        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"),
+                        lambda f: lambda iterable: sum(map(f, iterable))),
     '_exists_fitness': (ty2(
-        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"
-    ), lambda f: lambda iterable: min(map(f, iterable))),
+        "(T:*) => (K:(* => *)) => (f:(f:T) -> Double) -> (b:(K T)) -> Double"),
+                        lambda f: lambda iterable: min(map(f, iterable))),
+    'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),
 }
+
+context = {}
 
 
 def r_print(x):
     print("PRINT: ", x)
     return x
-
-
-io_context = {
-    'print': (ty2("(T:*) => (x:T) -> T"), lambda x: r_print(x)),
-}
-
-for expression in io_context.keys():
-    ntype, implementation = io_context[expression]
-    add_function(expression, ntype, implementation)

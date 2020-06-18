@@ -2,7 +2,7 @@
 
 from .types import *
 from .ast import *
-from .libraries.stdlib import get_builtin_variables
+from .libraries.stdlib import get_builtin_variables, get_variables
 
 from multipledispatch import dispatch
 
@@ -15,6 +15,8 @@ class EvaluationContext(object):
         self.ctx = {}
         for name, _, value in get_builtin_variables():
             self.ctx[name] = value
+        for name, _, value in get_variables():
+            self.ctx[name] = value
 
     def copy(self):
         t = EvaluationContext()
@@ -25,6 +27,7 @@ class EvaluationContext(object):
         new_ctx = self.copy()
         new_ctx[name] = interpreted
         return new_ctx
+
 
 # =============================================================================
 # Runs the interpreter
