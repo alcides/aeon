@@ -199,6 +199,15 @@ def zed_translate_var(ctx, ztx, v: Var):
     return ztx[v.name]
 
 
+def zed_translate_if(ctx, ztx, iff: If):
+
+    assert (isinstance(iff, If))
+    cond = zed_translate(ctx, ztx, iff.cond)
+    then = zed_translate(ctx, ztx, iff.then)
+    otherwise = zed_translate(ctx, ztx, iff.otherwise)
+    return z3.If(cond, then, otherwise)
+
+
 def zed_translate_app(ctx, ztx, app: Application):
 
     assert (isinstance(app, Application))
@@ -246,6 +255,9 @@ def zed_translate(ctx, ztx, cond: Node):
         return zed_translate_var(ctx, ztx, cond)
     elif isinstance(cond, Literal):
         return zed_translate_literal(ctx, ztx, cond)
+    # Not working atm
+    #elif isinstance(cond, If):
+    #    return zed_translate_if(ctx, ztx, cond)
     elif isinstance(cond, Abstraction):
         return zed_translate_abs(ctx, ztx, cond)
     elif isinstance(cond, TApplication):
