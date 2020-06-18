@@ -9,7 +9,6 @@ automatic:
         these values from the fitness_utils, must be added when running the candidate program
     ☐ ensure that the continuous fitness function conversion rules are correct
     ☐ evaluate the continuous fitness functions against the step counter and previous rules
-    ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51)
     ☐ optimization of the synthesized code
         after the final solution is generated, remove dead branches and un-used variables.
     ☐ Maximum function for the evaluation conversor, can't be added to the initial_context
@@ -18,7 +17,7 @@ automatic:
         since arrays are not implemented natively, we cannot statically support the continuous
         transformations for the forall and exists fitness functions of the phd 
 
-synthesis:
+synthesis: @critical 
     ☐ change synthesis refinements based on trials to continuous synthesis
         currently the synthesis is based on trials in order to synthesize programs
         this can be problematic when generating expressions from really restrictive
@@ -37,7 +36,7 @@ synthesis:
         ☐ interesting examples of literal refinements synthesis against the SMT Solver
         ☐ equalize the probability of choosing certain `Or` ranges based on weights
         
-typechecker:
+typechecker: @critical 
     ☐ if restrictions are not properly propagated 
         in some situations the conditions are not taken into consideration in 
         the refinements (e.g. function call with input restricted on if condition)
@@ -47,7 +46,6 @@ typechecker:
     ☐ Not checking applications properly when they are holes
         if there is a hole as argument, the typechecker is unable to check its type. Some times
         it even replaces its type with None. Check the @file(examples/aeon3/holes.ae), hole15
-    ✔ zed context contains a Token(id, a) @done(20-06-18 08:32)
     ☐ zed bug with Application of Abstractions 
         {x : Integer where (\y:Integer -> x > y )(10)}
     ☐ Error in kinding during automatic synthesis
@@ -71,7 +69,9 @@ frontend:
         if the last instruction is of the kind: x:Integer = true; the frontend
         only takes the body and ignores the rest of the assignment. We cannot
         ensure type correctness in this case
-
+    ☐ delete the refined_value and use the one from the @file(aeon/ast.py)
+    ☐ change special functions with @ to @ID
+    
     language verifiers: 
         ☐ import cycles
         ☐ undeclared variables and functions
@@ -79,8 +79,6 @@ frontend:
         ☐ integer and double bounds
 
     aeoncore:
-        ☐ Add value refinement to string literals
-            ensure that a string s is of type: x :: {_s : String where _s == x && String_size(_s) == 1}
         ☐ wrong precendence of boolean operators (equality too)
             example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
         ☐ problem with parenthesis
@@ -122,9 +120,12 @@ others:
         everything else
     ☐ change all the hardcoded instances of `-->`, `&&`, `||`, `==` and `And` 
 
-
 ===============================================================================
 Archive:
+  ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51) @project(automatic)
+  ✔ zed context contains a Token(id, a) @done(20-06-18 08:32) @project(typechecker)
+  ✘ Add value refinement to string literals @cancelled(20-06-18 13:08) @project(frontend.aeoncore)
+    ensure that a string s is of type: x :: {_s : String where _s == x && String_size(_s) == 1}
     automatic:
         ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
         ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
@@ -170,7 +171,6 @@ Archive:
         ✔ uninterpreted function for `String` size @done(20-05-10 19:09)
         ✔ default function for `Void` that is `None` @done(20-05-10 19:18)
         ✔ improve refinements of String methods @done(20-05-10 19:35)
-
 
     frontend:
         ✔ update hole notation to `??` and `? Integer ?` @done(20-05-21 10:07)
