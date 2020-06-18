@@ -54,7 +54,7 @@ class RangedContext(object):
         else:
             ranged = self.intervals[name]  # Returns a dict
             ranged[ghost_name] = ranged[ghost_name].union(interval)
-    
+
     def get_ranged(self, name, ghost_name):
         return self.intervals[name][ghost_name]
 
@@ -105,9 +105,9 @@ def flatten_conditions(lista):
 # =============================================================================
 # Generate a random restricted int
 def ranged_int(rctx: RangedContext, name: str):
-    
+
     intervals = rctx.get_ranged(name, '_native')
-    
+
     if isinstance(intervals, FiniteSet):
         return intervals.args[0]
 
@@ -127,14 +127,15 @@ def ranged_int(rctx: RangedContext, name: str):
 
     if is_ropen:
         maximum -= 1
-    
+
     return random.randint(minimum, maximum)
-    
+
+
 # Generate a random restricted double
 def ranged_double(rctx: RangedContext, name: str):
 
     intervals = rctx.get_ranged(name, '_native')
-    
+
     if isinstance(intervals, FiniteSet):
         return intervals.args[0]
 
@@ -154,8 +155,9 @@ def ranged_double(rctx: RangedContext, name: str):
 
     if is_ropen:
         maximum -= 1
-    
+
     return random.uniform(minimum, maximum)
+
 
 # Generate a random restricted boolean
 def ranged_boolean(rctx: RangedContext, name: str):
@@ -165,11 +167,11 @@ def ranged_boolean(rctx: RangedContext, name: str):
     for restriction in rctx.ctx.restrictions:
         for poss in possibilities:
             # Try by replacing with true
-            new_restr = substitution_expr_in_expr(restriction, Literal(poss, t_b),
-                                                name)
+            new_restr = substitution_expr_in_expr(restriction,
+                                                  Literal(poss, t_b), name)
 
-            if not zed_verify_satisfiability(rctx.ctx,
-                                            new_restr) and poss in possibilities:
+            if not zed_verify_satisfiability(
+                    rctx.ctx, new_restr) and poss in possibilities:
                 possibilities.remove(poss)
 
     if not possibilities:
@@ -182,6 +184,7 @@ def ranged_boolean(rctx: RangedContext, name: str):
 # Generate a random restricted string
 def ranged_string(rctx: RangedContext, name: str):
     pass
+
 
 # =============================================================================
 # TODO: Only works with native types \ {Strings}, and with the name, name
@@ -198,16 +201,16 @@ def generate_ranged_context(ctx, name, T, conds):
         restriction = sympy_translate(rctx, restriction)
         restriction = to_cnf(restriction)
         translated.append(restriction)
-    
+
     for cond in translated:
         cond = interval(cond)
         cond = flatten_conditions(cond)
 
         try:
             interv = reduce_rational_inequalities([cond],
-                                                     Symbol(name),
-                                                     relational=False)
-            
+                                                  Symbol(name),
+                                                  relational=False)
+
             rctx.add_ranged(name, '_native', interv)
 
         except PolynomialError as err:
@@ -221,24 +224,26 @@ def generate_ranged_context(ctx, name, T, conds):
 def ranged(ctx: TypingContext, name: str, T: BasicType, conds: TypedNode):
 
     switcher = {
-        t_i : ranged_int,
-        t_f : ranged_double,
-        t_b : ranged_boolean,
-        t_s : ranged_string
+        t_i: ranged_int,
+        t_f: ranged_double,
+        t_b: ranged_boolean,
+        t_s: ranged_string
     }
 
     ranged_option = switcher.get(T)
-    
+
     if T != t_b:
         rctx = generate_ranged_context(ctx, name, T, conds)
     else:
         ctx.restrictions.append(conds)
         rctx = RangedContext(ctx)
-    
+
     if not ranged_option:
-        raise RangedException("Type {} not supported by range analysis".format(T))
+        raise RangedException(
+            "Type {} not supported by range analysis".format(T))
 
     return ranged_option(rctx, name)
+
 
 # =============================================================================
 def try_ranged(ctx, T: RefinedType):
@@ -248,10 +253,13 @@ def try_ranged(ctx, T: RefinedType):
 
     if not isinstance(T.type, BasicType):
         T = flatten_refined_type(T)
+    try:
+        value = ranged(ctx, T.name, T.type, T.cond)
+    except Exception as e:
+        logging.warning("Failed to find value in ranged for {}".format(T))
+        value = None
 
-    value = ranged(ctx, T.name, T.type, T.cond)
-    
     if value is None:
         raise RangedException("Failed to produce range of type {}".format(T))
-    
-    return value
+
+    return Literal(value, T)

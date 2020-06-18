@@ -108,7 +108,7 @@ class TestSynthesis(unittest.TestCase):
         self.generic_test("Boolean")
 
     def test_g_bool_false(self):
-        self.generic_test("{x:Boolean where (x == false)}")
+        self.generic_test("{x:Boolean where (x == false)}", fun=se_where)
 
     def test_g_int(self):
         self.generic_test("Integer")

@@ -382,10 +382,6 @@ def zed_verify_satisfiability(ctx, cond):
     s = z3.Solver()
 
     z3_context = zed_generate_context(ctx, ztx, s)
-    print("ZZZZZ")
-    ctx.print_ctx()
-    print(cond)
-    print("ZZZZZ1")
     z3_cond = zed_translate_wrapped(ctx, ztx, cond)
 
     s.add(z3.And(z3_context, z3_cond))

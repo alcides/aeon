@@ -535,14 +535,14 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
         T.cond = new_condition
         try:
             e2 = try_ranged(ctx, T)
-        except RangedException:
+        except RangedException as e:
             e2 = se(ctx, T.type, d - 1)
 
     try:
         tc.check_type(ctx, e2, T)
         #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
         return e2  #.with_type(T)
-    except:
+    except Exception as e:
         logging.info("se_where: failed restriction: {}", T)
         raise Unsynthesizable(
             "Unable to generate a refinement example: {}".format(T))
