@@ -147,8 +147,8 @@ class TreeToCore(Transformer):
         return Literal(value, type=refined_value(value, t_b, "_v"))
 
     def string_lit(self, args):
-        return Literal(str(args[0]),
-                       type=refined_value(str(args[0]), t_s, "_v"))
+        v = str(args[0])[1:-1]
+        return Literal(str(v), type=refined_value(str(v), t_s, "_v"))
 
 
 def mk_parser(rule="start"):

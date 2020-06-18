@@ -209,28 +209,9 @@ def zed_translate_if(ctx, ztx, iff: If):
 
 
 def zed_translate_app(ctx, ztx, app: Application):
-
-    if type(app.target) == Var and 'tring' in app.target.name:
-        print("HERE!", app)
-
     assert (isinstance(app, Application))
-    print(type(app.target))
-    if type(app.target) == Application and type(
-            app.target.target) == TApplication:
-        print("GOt")
-        a = zed_translate(ctx, ztx, app.target.argument)
-        print("a:", a, type(a))
-        b = zed_translate(ctx, ztx, app.argument)
-        print("b:", b, type(b))
-        print("Eq")
-        print(a == b)
-
     target = zed_translate(ctx, ztx, app.target)
     argument = zed_translate(ctx, ztx, app.argument)
-    print("T:", target, type(target))
-    print("A:", argument, type(argument))
-
-    print("App", target(argument))
     return target(argument)
 
 
@@ -315,7 +296,6 @@ def zed_compile_var(ctx: TypingContext, ztx, var_name, type):
         return True
     try:
         name, typee, cond = extract_from_type(type)
-        print("loading", var_name, typee, cond)
         z3_name = zed_mk_variable(var_name, typee)
         ztx[var_name] = z3_name
         if cond is not True:
@@ -358,11 +338,11 @@ def zed_verify_entailment(ctx: TypingContext, cond: TypedNode):
         return True
     s.pop()
     s.add(z3.And(z3_context, z3.Not(z3_cond)))
-    print(s)
+    #print(s)
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
 
-        print("R:", r)
+        #print("R:", r)
         if r == z3.unsat:
             return True
         if r == z3.sat:

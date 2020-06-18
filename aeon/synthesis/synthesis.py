@@ -419,13 +419,6 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     else:
         typee = refine_literal(value, T, '_s')
 
-        # Second refinement (size):
-        operator = TApplication(Var('=='), T)
-        left = Application(Var('String_size'), Var('_s'))
-        right = Literal(len(value), t_i, ensured=True)
-        cond = Application(Application(operator, left), right)
-        typee.cond = Application(Application(Var('&&'), typee.cond), cond)
-
     return Literal(value, typee)
 
 

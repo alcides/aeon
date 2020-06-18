@@ -227,7 +227,7 @@ class Import(Node):
 
 def refined_value(v, t, label="_v"):
     if type(v) == str:
-        tapp = TApplication(Var("=="), t)
+        tapp = TApplication(Var("=="), t_i)
         app1 = Application(tapp, Application(Var("String_size"), Var(label)))
         app2 = Application(app1, Literal(len(v), t_i, ensured=True))
         return RefinedType(label, t, app2)
