@@ -171,6 +171,8 @@ def get_sort(t: Type):
 
 
 def zed_translate_literal(ctx, ztx, literal: Literal):
+    if type(literal.value) == str:
+        return z3.StringVal(literal.value)
     return literal.value
 
 
@@ -200,12 +202,18 @@ def zed_translate_var(ctx, ztx, v: Var):
 
 
 def zed_translate_if(ctx, ztx, iff: If):
-
     assert (isinstance(iff, If))
-    cond = zed_translate(ctx, ztx, iff.cond)
-    then = zed_translate(ctx, ztx, iff.then)
-    otherwise = zed_translate(ctx, ztx, iff.otherwise)
-    return z3.If(cond, then, otherwise)
+    if type(iff.cond) == Literal:
+        if iff.cond.value:
+            return zed_translate(ctx, ztx, iff.then)
+        else:
+            return zed_translate(ctx, ztx, iff.otherwise)
+
+    else:
+        cond = zed_translate(ctx, ztx, iff.cond)
+        then = zed_translate(ctx, ztx, iff.then)
+        otherwise = zed_translate(ctx, ztx, iff.otherwise)
+        return z3.If(cond, then, otherwise)
 
 
 def zed_translate_app(ctx, ztx, app: Application):
@@ -254,9 +262,8 @@ def zed_translate(ctx, ztx, cond: Node):
         return zed_translate_var(ctx, ztx, cond)
     elif isinstance(cond, Literal):
         return zed_translate_literal(ctx, ztx, cond)
-    # Not working atm
-    #elif isinstance(cond, If):
-    #    return zed_translate_if(ctx, ztx, cond)
+    elif isinstance(cond, If):
+        return zed_translate_if(ctx, ztx, cond)
     elif isinstance(cond, Abstraction):
         return zed_translate_abs(ctx, ztx, cond)
     elif isinstance(cond, TApplication):
@@ -375,6 +382,10 @@ def zed_verify_satisfiability(ctx, cond):
     s = z3.Solver()
 
     z3_context = zed_generate_context(ctx, ztx, s)
+    print("ZZZZZ")
+    ctx.print_ctx()
+    print(cond)
+    print("ZZZZZ1")
     z3_cond = zed_translate_wrapped(ctx, ztx, cond)
 
     s.add(z3.And(z3_context, z3_cond))
