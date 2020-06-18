@@ -6,7 +6,7 @@ import logging
 from typing import Union, Sequence, Optional, List, Generator, Tuple, Any
 
 from aeon.ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
-    TypeDeclaration, TypeAlias, Definition
+    TypeDeclaration, TypeAlias, Definition, refined_value
 from aeon.types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from aeon.typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
@@ -360,18 +360,6 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 """ Expression Synthesis """
 
 
-# Refines a literal expression
-def refine_literal(value, typee: Type, label) -> RefinedType:
-
-    operator = TApplication(Var('=='), typee)
-    left = Literal(value, typee, ensured=True)
-    right = Var(label)
-
-    condition = Application(Application(operator, right), left)
-
-    return RefinedType(name=label, type=typee, cond=condition)
-
-
 def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-Bool """
     assert (isinstance(T, BasicType))
@@ -379,7 +367,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     value = random.choice([True, False])
 
     logging.info("se_bool/{}: {}:{} ".format(d, value, T))
-    return Literal(value, refine_literal(value, T, '_b'))
+    return Literal(value, refined_value(value, T, '_b'))
 
 
 def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
@@ -387,7 +375,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     assert (isinstance(T, BasicType))
 
     value = round(random.gauss(0, 0.05) * 7500)
-    t = T if ctx.inside_refinement else refine_literal(value, T, '_i')
+    t = T if ctx.inside_refinement else refined_value(value, T, '_i')
 
     logging.info("se_int/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
@@ -398,7 +386,7 @@ def se_double(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     assert (isinstance(T, BasicType))
 
     value = random.gauss(0, 0.05) * 7500
-    t = T if ctx.inside_refinement else refine_literal(value, T, '_f')
+    t = T if ctx.inside_refinement else refined_value(value, T, '_f')
 
     logging.info("se_double/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
@@ -417,7 +405,7 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     if ctx.inside_refinement:
         typee = T
     else:
-        typee = refine_literal(value, T, '_s')
+        typee = refined_value(value, T, '_s')
 
     return Literal(value, typee)
 
