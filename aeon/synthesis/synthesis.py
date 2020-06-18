@@ -365,9 +365,10 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     assert (isinstance(T, BasicType))
 
     value = random.choice([True, False])
+    t = T if not ctx.inside_refinement else refined_value(value, T, '_b')
 
-    logging.info("se_bool/{}: {}:{} ".format(d, value, T))
-    return Literal(value, refined_value(value, T, '_b'))
+    logging.info("se_bool/{}: {}:{} ".format(d, value, t))
+    return Literal(value, t)
 
 
 def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
@@ -402,12 +403,8 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     logging.info("se_string/{}: {}:{} ".format(d, value, T))
 
     # First refinement:
-    if ctx.inside_refinement:
-        typee = T
-    else:
-        typee = refined_value(value, T, '_s')
-
-    return Literal(value, typee)
+    t = T if not ctx.inside_refinement else refined_value(value, T, '_s')
+    return Literal(value, t)
 
 
 def se_if(ctx: TypingContext, T: Type, d: int) -> TypedNode:
