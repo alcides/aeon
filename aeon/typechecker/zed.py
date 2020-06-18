@@ -377,6 +377,8 @@ def entails(ctx, cond):
 
 
 def zed_verify_satisfiability(ctx, cond):
+    if type(cond) == Literal:
+        return cond.value
 
     ztx = zed_initial_context()
     s = z3.Solver()
