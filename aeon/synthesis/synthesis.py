@@ -399,11 +399,9 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
 
     length = max(1, round(abs(random.gauss(0, 1) * 10)))
     value = ''.join(random.choice(string.ascii_letters) for i in range(length))
-
-    logging.info("se_string/{}: {}:{} ".format(d, value, T))
-
-    # First refinement:
     t = T if not ctx.inside_refinement else refined_value(value, T, '_s')
+
+    logging.info("se_string/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
 
 
