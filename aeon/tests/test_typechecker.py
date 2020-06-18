@@ -119,17 +119,17 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("\"abc\"", "String")
 
     def test_refined_string_refined(self):
-        self.generic_test("\"abc\"", "{x:String | String_size(x) >= 0 }")
+        self.generic_test("\"abc\"", "{x:String | (String_size x) >= 0 }")
 
     def test_refined_string_empty(self):
-        self.generic_test("\"\"", "{x:String | String_size(x) == 0 }")
+        self.generic_test("\"\"", "{y:String | (String_size y) == 0 }")
 
     def test_refined_string_3(self):
-        self.generic_test("\"abc\"", "{x:String | String_size(x) == 3 }")
+        self.generic_test("\"abc\"", "{x:String | (String_size x) == 3 }")
 
     def test_refined_string_wrong_size(self):
         with self.assertRaises(TypingException):
-            self.generic_test("\"ac\"", "{x:String | String_size(x) == 3 }")
+            self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }")
 
     def test_if_1(self):
         self.generic_test("if true then 1 else 0",

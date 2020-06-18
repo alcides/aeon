@@ -148,7 +148,8 @@ class TreeToCore(Transformer):
         return Literal(False, type=refined_value(False, t_b, "_v"))
 
     def string_lit(self, args):
-        return Literal(str(args[0]), type=t_s)  #TODO lenght?
+        return Literal(str(args[0]),
+                       type=refined_value(str(args[0]), t_s, "_v"))
 
 
 def mk_parser(rule="start"):

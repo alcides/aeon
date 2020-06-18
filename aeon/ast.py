@@ -2,7 +2,7 @@ import copy
 
 from typing import Optional, List
 
-from aeon.types import RefinedType, Type, Kind
+from aeon.types import RefinedType, Type, Kind, t_i
 
 
 class Node(object):
@@ -226,7 +226,13 @@ class Import(Node):
 
 
 def refined_value(v, t, label="_v"):
-    tapp = TApplication(Var("=="), t)
-    app1 = Application(tapp, Var(label))
-    app2 = Application(app1, Literal(v, type=t))
-    return RefinedType(label, t, app2)
+    if type(v) == str:
+        tapp = TApplication(Var("=="), t)
+        app1 = Application(tapp, Application(Var("String_size"), Var(label)))
+        app2 = Application(app1, Literal(len(v), type=t_i))
+        return RefinedType(label, t, app2)
+    else:
+        tapp = TApplication(Var("=="), t)
+        app1 = Application(tapp, Var(label))
+        app2 = Application(app1, Literal(v, type=t))
+        return RefinedType(label, t, app2)
