@@ -9,7 +9,7 @@ automatic:
         these values from the fitness_utils, must be added when running the candidate program
     ☐ ensure that the continuous fitness function conversion rules are correct
     ☐ evaluate the continuous fitness functions against the step counter and previous rules
-    ☐ changed the [(context, holes)] in typing, should change the invocations over genetics 
+    ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51)
     ☐ optimization of the synthesized code
         after the final solution is generated, remove dead branches and un-used variables.
     ☐ Maximum function for the evaluation conversor, can't be added to the initial_context
@@ -47,7 +47,11 @@ typechecker:
     ☐ Not checking applications properly when they are holes
         if there is a hole as argument, the typechecker is unable to check its type. Some times
         it even replaces its type with None. Check the @file(examples/aeon3/holes.ae), hole15
-    ☐ zed context contains a Token(id, a)
+    ✔ zed context contains a Token(id, a) @done(20-06-18 08:32)
+    ☐ zed bug with Application of Abstractions 
+        {x : Integer where (\y:Integer -> x > y )(10)}
+    ☐ Error in kinding during automatic synthesis
+        (_fresh_35:* => * => * => Top):* => * => * => *
 
     improve error messages:
         ☐ improve node and error messages readability

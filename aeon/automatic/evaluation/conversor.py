@@ -29,7 +29,7 @@ def apply_conversion(condition):
     elif variable.name.startswith('@'):
         return condition
     elif variable.name in ['forall', 'exists']:
-        condition.target.argument = apply_conversion(condition.target.argument)
+        #condition.target.argument = apply_conversion(condition.target.argument)
         return condition
     elif variable.name == '==':
         return abs_conversion(condition)

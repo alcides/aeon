@@ -23,7 +23,8 @@ class Genetics(object):
         # Initialize and evaluate the population
         population = initialize_population(self)
         population = evaluate(population, self)
-        
+        print(population)
+        '''
         for generation in range(1, MAX_GENERATIONS):
 
             logging.debug("Generation {generation}")
@@ -52,5 +53,5 @@ class Genetics(object):
             if best_individuals:
                 population = best_individuals
                 break
-
+        '''
         return random.choice(population)

@@ -14,7 +14,7 @@ from aeon.typechecker.substitutions import substitution_expr_in_type, substituti
 from aeon.typechecker.typing import TypeCheckingError
 from aeon import typechecker as tc
 
-from aeon.synthesis.utils import flatten_refined_type
+from aeon.synthesis.utils import flatten_refined_type, filter_refinements
 from aeon.synthesis.ranges import try_ranged, RangedContext, RangedException
 
 MAX_TRIES = 3
@@ -183,7 +183,7 @@ def random_chooser(f):
                 logging.info("Chosen: {}".format(fun.__name__))
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
-                    print("checking", args[0], v, args[1])
+                    #print("checking", args[0], v, args[1])
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
@@ -533,11 +533,17 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
 
     if isinstance(T.type, RefinedType):
         T = flatten_refined_type(T)
+    
+    new_condition = filter_refinements(ctx, T.name, T.cond)
 
-    try:
-        value = try_ranged(ctx, T)
-    except RangedException:
+    if new_condition is None:
         e2 = se(ctx, T.type, d - 1)
+    else:
+        T.cond = new_condition
+        try:
+            e2 = try_ranged(ctx, T)
+        except RangedException:
+            e2 = se(ctx, T.type, d - 1)
 
     try:
         tc.check_type(ctx, e2, T)

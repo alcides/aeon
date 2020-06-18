@@ -1,6 +1,19 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TApplication, TAbstraction, Definition
 from aeon.interpreter import EvaluationContext, run
 
+#==============================================================================
+# Preprocess the holes to only obtain their types
+def preprocess_holed(holed):
+
+    result = list()
+
+    for declaration, holes in holed:
+        new_holes = [(T, hole.type) for T, hole in holes]
+        result.append((declaration, new_holes))
+
+    return result
+
+
 # =============================================================================
 # Builds the evaluation context from the unholed programs
 def build_evaluation_context(program):

@@ -56,8 +56,6 @@ if __name__ == '__main__':
             ast, context, holed = deducer(ast, context, holed)
             logging.debug(f"After deducing: {holed}")
 
-            print(translate(ast))
-
             # If there are holes, lets fill them
             logging.debug("="*80)
             logging.debug("Evolutionary synthesis of the program")
