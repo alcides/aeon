@@ -23,6 +23,8 @@ class Testcheck_kind(unittest.TestCase):
         ctx.setup()
         self.assert_kind(ctx, ty("Integer"), star)
         self.assert_kind(ctx, ty("Boolean"), star)
+        self.assert_kind(ctx, ty("Double"), star)
+        self.assert_kind(ctx, ty("String"), star)
         self.assert_kind(ctx, ty("Object"), star)
 
         self.assert_kind(ctx, ty("{x:Boolean where true}"), star)
@@ -33,9 +35,6 @@ class Testcheck_kind(unittest.TestCase):
         self.assert_not_kind(ctx, ty("Integer"), Kind(k1=star, k2=star))
 
         self.assert_kind(ctx, ty("(T:*) => Integer"), Kind(k1=star, k2=star))
-        self.assert_kind(ctx, ty("(T:*) => (U:*) => Integer"),
-                         Kind(k1=star, k2=Kind(star, star)))
-
         self.assert_kind(ctx, ty("(T:*) => (U:*) => Integer"),
                          Kind(k1=star, k2=Kind(star, star)))
 

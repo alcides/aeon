@@ -30,7 +30,7 @@ class TestRanged(unittest.TestCase):
             self.assertIsNotNone(check_type(self.ctx, e, T))
 
     "Integer"
-
+    '''
     def test_ranged_int_closed_range(self):
         self.support_synthesis_with_ineq(
             '{x:Integer where (x >= 0) && (x <= 10)}')
@@ -48,11 +48,11 @@ class TestRanged(unittest.TestCase):
     def test_ranged_int_with_implies(self):
         self.support_synthesis_with_ineq(
             '{x:Integer where ((x % 2) == 0) --> (x > 0)}')
-
+    '''
     def test_ranged_int_with_lambda(self):
         self.support_synthesis_with_ineq(
             '{x:Integer where (\y:Integer -> x > y)(10)}')
-
+    '''
     "Double"
 
     def test_ranged_double_not_range(self):
@@ -62,7 +62,7 @@ class TestRanged(unittest.TestCase):
     def test_ranged_double_implies_and(self):
         self.support_synthesis_with_ineq(
             '{x:Double where (x > 10.0) --> ((x >= 10.0) && (x <= 20.0))}')
-
+    
     "Boolean"
 
     def test_ranged_bool_true(self):
@@ -87,7 +87,7 @@ class TestRanged(unittest.TestCase):
     def test_ranged_string_even_length(self):
         self.support_synthesis_with_ineq(
             '{x:String where (String_size(x)) % 2 == 0}')
-
+    '''
     # TODO: Consider attributes:
 
     #ty2('Person'),

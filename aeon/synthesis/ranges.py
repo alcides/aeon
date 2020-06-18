@@ -132,6 +132,7 @@ def ranged_int(rctx: RangedContext, name: str):
     
 # Generate a random restricted double
 def ranged_double(rctx: RangedContext, name: str):
+
     intervals = rctx.get_ranged(name, '_native')
     
     if isinstance(intervals, FiniteSet):
@@ -228,22 +229,29 @@ def ranged(ctx: TypingContext, name: str, T: BasicType, conds: TypedNode):
 
     ranged_option = switcher.get(T)
     
-    rctx = generate_ranged_context(ctx, name, T, conds)
+    if T != t_b:
+        rctx = generate_ranged_context(ctx, name, T, conds)
+    else:
+        ctx.restrictions.append(conds)
+        rctx = RangedContext(ctx)
     
     if not ranged_option:
-        raise RangedException("Type not supported by range analysis")
+        raise RangedException("Type {} not supported by range analysis".format(T))
 
     return ranged_option(rctx, name)
 
 # =============================================================================
 def try_ranged(ctx, T: RefinedType):
 
+    # Ensure that the context has the type
+    ctx = ctx.with_var(T.name, T)
+
     if not isinstance(T.type, BasicType):
         T = flatten_refined_type(T)
 
     value = ranged(ctx, T.name, T.type, T.cond)
     
-    if not value:
+    if value is None:
         raise RangedException("Failed to produce range of type {}".format(T))
     
     return value

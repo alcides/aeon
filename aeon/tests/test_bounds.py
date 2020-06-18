@@ -16,6 +16,10 @@ class TestLUB(unittest.TestCase):
     def test_lub_basic(self):
         self.assert_lub("Integer", "Boolean", expected="Top")
         self.assert_lub("Integer", "Integer", expected="Integer")
+        self.assert_lub("Integer", "Top", expected="Integer")
+        self.assert_lub("Top", "Integer", expected="Integer")
+        self.assert_lub("Integer", "Bottom", expected="Bottom")
+        self.assert_lub("Bottom", "Integer", expected="Bottom")
 
     def test_lub_where(self):
         self.assert_lub("Integer",
