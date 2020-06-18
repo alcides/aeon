@@ -35,10 +35,10 @@ class TreeToCore(Transformer):
 
     # Types
     def refined_t(self, args):
-        return RefinedType(*args)
+        return RefinedType(str(args[0]), args[1], args[2])
 
     def abstraction_t(self, args):
-        return AbstractionType(*args)
+        return AbstractionType(str(args[0]), args[1], args[2])
 
     def tabstraction_t(self, args):
         return TypeAbstraction(*args)
