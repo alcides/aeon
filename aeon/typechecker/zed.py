@@ -218,6 +218,13 @@ def zed_translate_if(ctx, ztx, iff: If):
 
 def zed_translate_app(ctx, ztx, app: Application):
     assert (isinstance(app, Application))
+
+    if isinstance(app.target, Abstraction):
+        return zed_translate(
+            ctx, ztx,
+            substitution_expr_in_expr(app.target.body, app.argument,
+                                      app.target.arg_name))
+
     target = zed_translate(ctx, ztx, app.target)
     argument = zed_translate(ctx, ztx, app.argument)
     return target(argument)
@@ -379,6 +386,9 @@ def entails(ctx, cond):
 def zed_verify_satisfiability(ctx, cond):
     if type(cond) == Literal:
         return cond.value
+
+    #print(">>>>", cond)
+    #ctx.print_ctx()
 
     ztx = zed_initial_context()
     s = z3.Solver()

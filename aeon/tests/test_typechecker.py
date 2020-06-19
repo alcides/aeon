@@ -117,7 +117,8 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_refined_14(self):
         with self.assertRaises(TypeCheckingError):
-            self.generic_test("5", "{x:Integer where ((\\y:Integer -> x > y) 10)}")
+            self.generic_test("5",
+                              "{x:Integer where ((\\y:Integer -> x > y) 10)}")
 
     def test_refined_string_simple(self):
         self.generic_test("\"abc\"", "String")
@@ -155,9 +156,8 @@ class TestTypeChecking(unittest.TestCase):
                           "{ x:Integer where (x == 1) }")
 
     def test_if_5(self):
-        self.generic_test(
-            "(if false then ((\\u:Integer -> u) 9) else (if true then 3 else 1))",
-            "{ x:Integer where (x == 3) }")
+        self.generic_test("if false then 3 else (if true then 2 else 1)",
+                          "{ x:Integer where (x == 2) }")
 
     def test_abs_wrong(self):
         with self.assertRaises(TypingException):
