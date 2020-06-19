@@ -137,7 +137,7 @@ def ranged_int(rctx: RangedContext, name: str):
 
     if is_ropen:
         maximum -= 1
-    
+
     return random.randint(minimum, maximum)
 
 
@@ -211,12 +211,12 @@ def generate_ranged_context(ctx, name, T, conds):
         restriction = sympy_translate(rctx, restriction)
         # TODO:
         # restriction = to_cnf(restriction)
-        translated.append(restriction)
+        if restriction is not True:
+            translated.append(restriction)
 
     for cond in translated:
         cond = interval(cond)
         cond = flatten_conditions(cond)
-
         try:
             interv = reduce_rational_inequalities([cond],
                                                   Symbol(name),
@@ -267,7 +267,6 @@ def try_ranged(ctx, T: RefinedType):
     try:
         value = ranged(ctx, T.name, T.type, T.cond)
     except Exception as e:
-        print(e)
         logging.warning("Failed to find value in ranged for {}".format(T))
         value = None
 
