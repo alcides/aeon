@@ -1,4 +1,5 @@
 import sys
+import math
 import random
 import itertools
 import logging
@@ -9,6 +10,8 @@ from aeon.types import BasicType, RefinedType, TypingContext, t_i, t_f, t_b, t_s
 from aeon.ast import TypedNode
 
 from aeon.synthesis.inequalities import *
+
+import sympy
 
 from sympy import Symbol, to_cnf, And, Or, Interval, FiniteSet, Union
 from sympy.core.numbers import Infinity, NegativeInfinity
@@ -78,9 +81,10 @@ def interval(implies_expr):
     return interval(random.choice([left, right]))
 
 
-# TODO: Fix
 @dispatch(Not)
 def interval(not_expr):
+    # Propagate the not
+    not_expr = to_cnf(not_expr)
     return [interval(not_expr)]
 
 
@@ -107,7 +111,7 @@ def flatten_conditions(lista):
 def ranged_int(rctx: RangedContext, name: str):
 
     intervals = rctx.get_ranged(name, '_native')
-
+    #print(intervals)
     if isinstance(intervals, FiniteSet):
         return intervals.args[0]
 
@@ -122,12 +126,18 @@ def ranged_int(rctx: RangedContext, name: str):
     if isinstance(minimum, NegativeInfinity):
         minimum = -sys.maxsize
 
+    if not isinstance(minimum, int):
+        minimum = int(minimum) + 1
+
+    if not isinstance(maximum, int):
+        maximum = int(maximum)
+
     if is_lopen:
         minimum += 1
 
     if is_ropen:
         maximum -= 1
-
+    
     return random.randint(minimum, maximum)
 
 
@@ -199,7 +209,8 @@ def generate_ranged_context(ctx, name, T, conds):
 
     for restriction in restrictions:
         restriction = sympy_translate(rctx, restriction)
-        restriction = to_cnf(restriction)
+        # TODO:
+        # restriction = to_cnf(restriction)
         translated.append(restriction)
 
     for cond in translated:
@@ -256,6 +267,7 @@ def try_ranged(ctx, T: RefinedType):
     try:
         value = ranged(ctx, T.name, T.type, T.cond)
     except Exception as e:
+        print(e)
         logging.warning("Failed to find value in ranged for {}".format(T))
         value = None
 

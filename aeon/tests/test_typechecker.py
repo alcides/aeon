@@ -115,6 +115,10 @@ class TestTypeChecking(unittest.TestCase):
         with self.assertRaises(TypeCheckingError):
             self.generic_test("(5 % 0)", "Integer")
 
+    def test_refined_14(self):
+        with self.assertRaises(TypeCheckingError):
+            self.generic_test("5", "{x:Integer where ((\\y:Integer -> x > y) 10)}")
+
     def test_refined_string_simple(self):
         self.generic_test("\"abc\"", "String")
 

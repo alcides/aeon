@@ -28,7 +28,7 @@ class TestConversion(unittest.TestCase):
         self.assertEqual(type_conversion(T), T)
 
     def test_tapp(self):
-        T = ty("(Integer Boolean)")
+        T = ty("(List Boolean)")
         self.assertEqual(type_conversion(T), T)
 
         T = ty("(((T:*) => Boolean) Integer)")
@@ -51,6 +51,10 @@ class TestConversion(unittest.TestCase):
         T = ty(
             "(((((T1:*) => (T2:*) => (T3:*) => T1) Integer) Boolean) Float)")
         self.assertEqual(type_conversion(T), ty("Integer"))
+
+        T = ty(
+            "(((((T1:*) => (T2:*) => (T3:*) => (x:T1) -> T3) Integer) Boolean) Float)")
+        self.assertEqual(type_conversion(T), ty("(x:Integer) -> Float"))
 
         T = ty(
             "(((((T1:*) => (T2:*) => (T3:*) => T1) ((T:*) => J)) Boolean) Float)"

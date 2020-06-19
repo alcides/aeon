@@ -31,7 +31,19 @@ class TestLUB(unittest.TestCase):
         self.assert_lub("{x:Integer where (x>0)}",
                         "{x:Integer where (x<0)}",
                         expected="{x:Integer where ((x>0) || (x<0))}")
-
+        self.assert_lub("Bottom",
+                        "{x:Integer where (x>0)}",
+                        expected="Bottom")
+        self.assert_lub("{x:Integer where (x>0)}",
+                        "Bottom",
+                        expected="Bottom")
+        self.assert_lub("Top",
+                        "{x:Integer where (x>0)}",
+                        expected="{x:Integer where (x>0)}")
+        self.assert_lub("{x:Integer where (x>0)}",
+                        "Top",
+                        expected="{x:Integer where (x>0)}")
+        
     def test_lub_abs(self):
         self.assert_lub("(x:Boolean) -> Integer",
                         "(x:Boolean) -> Integer",
@@ -65,6 +77,10 @@ class TestGLS(unittest.TestCase):
     def test_glb_basic(self):
         self.assert_glb("Integer", "Boolean", expected="Bottom")
         self.assert_glb("Integer", "Integer", expected="Integer")
+        self.assert_glb("Integer", "Bottom", expected="Integer")
+        self.assert_glb("Bottom", "Integer", expected="Integer")
+        self.assert_glb("Integer", "Top", expected="Top")
+        self.assert_glb("Top", "Integer", expected="Top")
 
     def test_glb_where(self):
         self.assert_glb("Integer",
@@ -76,6 +92,18 @@ class TestGLS(unittest.TestCase):
         self.assert_glb("{x:Integer where (x>0)}",
                         "{x:Integer where (x<0)}",
                         expected="{x:Integer where ((x>0) && (x<0))}")
+        self.assert_glb("Bottom",
+                        "{x:Integer where (x>0)}",
+                        expected="{x:Integer where (x>0)}")
+        self.assert_glb("{x:Integer where (x>0)}",
+                        "Bottom",
+                        expected="{x:Integer where (x>0)}")
+        self.assert_glb("Top",
+                        "{x:Integer where (x>0)}",
+                        expected="Top")
+        self.assert_glb("{x:Integer where (x>0)}",
+                        "Top",
+                        expected="Top")
 
     def test_glb_abs(self):
         self.assert_glb("(x:Boolean) -> Integer",

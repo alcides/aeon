@@ -35,6 +35,12 @@ synthesis: @critical
         ☐ Call SMT-Solver in case we are not able to synthesize the refinement
         ☐ interesting examples of literal refinements synthesis against the SMT Solver
         ☐ equalize the probability of choosing certain `Or` ranges based on weights
+        ☐ check if the to_cnf is really not needed
+            removed because some tests were failing because of it. Check if everything works fine
+        ☐ change the way the intervals are done
+            change it so, the And concatenates the lists, the Or inserts lists inside lists. Then the
+            flatten_refinements only randomly needs to choose one of the lists inside each list, until
+            we have a single list of conditions.
         
 typechecker: @critical 
     ☐ if restrictions are not properly propagated 
