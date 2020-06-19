@@ -267,7 +267,8 @@ def try_ranged(ctx, T: RefinedType):
     try:
         value = ranged(ctx, T.name, T.type, T.cond)
     except Exception as e:
-        logging.warning("Failed to find value in ranged for {}".format(T))
+        logging.warning(
+            "Failed to find value in ranged for {} (Reason: {})".format(T, e))
         value = None
 
     if value is None:

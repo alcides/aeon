@@ -5,10 +5,6 @@ from .substitutions import substitution_expr_in_type, substitution_expr_in_expr
 from .conversions import type_conversion
 
 
-def is_inhabitable(T: RefinedType):
-    pass
-
-
 def lub(T: Type, U: Type) -> Type:
     """ T ⊔ U  """
     T = type_conversion(T)
@@ -19,9 +15,9 @@ def lub(T: Type, U: Type) -> Type:
         return U
     elif U == top:
         return T
-    elif isinstance(T, BasicType) and isinstance(U, BasicType): 
+    elif isinstance(T, BasicType) and isinstance(U, BasicType):
         if T.name == U.name:
-            return T        
+            return T
     elif isinstance(T, BasicType) and isinstance(U, RefinedType):
         return lub(T, U.type)
     elif isinstance(T, RefinedType) and isinstance(U, BasicType):
@@ -75,8 +71,8 @@ def glb(T: Type, U: Type) -> Type:
         return U
     elif U == bottom:
         return T
-    elif isinstance(T, BasicType) and isinstance(U,
-                                               BasicType) and T.name == U.name:
+    elif isinstance(T, BasicType) and isinstance(
+            U, BasicType) and T.name == U.name:
         return T
     elif isinstance(T, BasicType) and isinstance(U, RefinedType):
         return RefinedType(U.name, glb(T, U.type), U.cond)

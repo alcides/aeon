@@ -156,6 +156,11 @@ class TestTypeChecking(unittest.TestCase):
                           "{ x:Integer where (x == 1) }")
 
     def test_if_5(self):
+        self.generic_test("if false then x else 32",
+                          "{ k:Integer where (k > 2) }",
+                          extra_ctx=[('x', 'Integer')])
+
+    def test_if_6(self):
         self.generic_test("if false then 3 else (if true then 2 else 1)",
                           "{ x:Integer where (x == 2) }")
 

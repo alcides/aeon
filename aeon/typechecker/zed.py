@@ -352,7 +352,8 @@ def zed_verify_entailment(ctx: TypingContext, cond: TypedNode):
         return True
     s.pop()
     s.add(z3.And(z3_context, z3.Not(z3_cond)))
-    #print(s)
+    #print("----")
+    #print("s:", s)
     for i in range(MAX_Z3_SEEDS):
         r = s.check()
 
@@ -384,8 +385,6 @@ def entails(ctx, cond):
 
 
 def zed_verify_satisfiability(ctx, cond):
-    if type(cond) == Literal:
-        return cond.value
 
     #print(">>>>", cond)
     #ctx.print_ctx()
@@ -410,7 +409,7 @@ def zed_verify_satisfiability(ctx, cond):
 def is_satisfiable(ctx, cond):
     try:
         return zed_verify_satisfiability(ctx, cond)
-    except NotDecidableException:
+    except NotDecidableException as e:
         print(">" * 5, "Not Decidable Exception", cond)
         return True
 
