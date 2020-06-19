@@ -69,7 +69,13 @@ def glb(T: Type, U: Type) -> Type:
     """ T ⊓ U  """
     T = type_conversion(T)
     U = type_conversion(U)
-    if isinstance(T, BasicType) and isinstance(U,
+    if T == top or U == top:
+        return top
+    elif T == bottom:
+        return U
+    elif U == bottom:
+        return T
+    elif isinstance(T, BasicType) and isinstance(U,
                                                BasicType) and T.name == U.name:
         return T
     elif isinstance(T, BasicType) and isinstance(U, RefinedType):
