@@ -218,6 +218,7 @@ def generate_ranged_context(ctx, name, T, conds):
         cond = interval(cond)
         cond = flatten_conditions(cond)
         try:
+            print("Ineq: ", cond)
             interv = reduce_rational_inequalities([cond],
                                                   Symbol(name),
                                                   relational=False)

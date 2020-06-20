@@ -69,6 +69,7 @@ class TestSynthesis(unittest.TestCase):
                           times=1,
                           extra_ctx=[("f", "(i:Integer) -> Integer")])
 
+    def test_big_int2(self):
         self.generic_test("{x:Integer | x > 0}",
                           fun=se_app_in_context,
                           d=7,

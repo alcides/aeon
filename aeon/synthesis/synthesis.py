@@ -436,7 +436,7 @@ def se_abs(ctx: TypingContext, T: AbstractionType, d: int) -> TypedNode:
 def se_app(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     """ SE-App """
     logging.info("se_app/{}: {} ".format(d, T))
-    k = sk(d - 1)
+    k = star  #sk(d - 1)
     U = st(ctx, k, d - 1)
     x = ctx.fresh_var()  #scfv(T)
     e2 = se(ctx, U, d - 1)
