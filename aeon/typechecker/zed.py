@@ -123,7 +123,7 @@ def zed_mk_variable(name, ty: Type):
         elif ty.name == 'String':
             return z3.String(name)
         elif ty.name in ["Top", "Bottom", "Object", "Void"]:
-            return z3.Bool(name)
+            pass
     elif isinstance(ty, RefinedType):
         return zed_mk_variable(name, ty.type)
     elif isinstance(ty, AbstractionType):
@@ -203,14 +203,15 @@ def zed_translate_var(ctx, ztx, v: Var):
 
 def zed_translate_if(ctx, ztx, iff: If):
     assert (isinstance(iff, If))
-    if type(iff.cond) == Literal:
-        if iff.cond.value:
+
+    cond = zed_translate(ctx, ztx, iff.cond)
+
+    if isinstance(cond, bool):
+        if cond:
             return zed_translate(ctx, ztx, iff.then)
         else:
             return zed_translate(ctx, ztx, iff.otherwise)
-
     else:
-        cond = zed_translate(ctx, ztx, iff.cond)
         then = zed_translate(ctx, ztx, iff.then)
         otherwise = zed_translate(ctx, ztx, iff.otherwise)
         return z3.If(cond, then, otherwise)
@@ -225,13 +226,25 @@ def zed_translate_app(ctx, ztx, app: Application):
             substitution_expr_in_expr(app.target.body, app.argument,
                                       app.target.arg_name))
 
+    elif isinstance(app.target, If):
+        iif = app.target
+        return zed_translate(
+            ctx, ztx,
+            If(iif.cond, Application(iif.then, app.argument),
+               Application(iif.otherwise, app.argument)))
+    elif isinstance(app.argument, If):
+        iif = app.argument
+        return zed_translate(
+            ctx, ztx,
+            If(iif.cond, Application(app.target, iif.then),
+               Application(app.target, iif.otherwise)))
+
     target = zed_translate(ctx, ztx, app.target)
     argument = zed_translate(ctx, ztx, app.argument)
     return target(argument)
 
 
 def zed_translate_abs(ctx, ztx, ab: Abstraction):
-
     assert (isinstance(ab, Abstraction))
 
     i_sort = get_sort(ab.arg_type)
@@ -241,9 +254,13 @@ def zed_translate_abs(ctx, ztx, ab: Abstraction):
     ztx[ab.arg_name] = x
     b = zed_translate(ctx, ztx, ab.body)
     del ztx[ab.arg_name]
-    g = z3.ForAll([x], b)
-    # Add to context
-    return f
+    try:
+        g = z3.ForAll([x], b)
+        return f
+    except Exception as e:
+        raise NoZ3TranslationException(
+            "\{} could not be translated because it is higher order".format(
+                ab))
 
 
 def zed_translate_tabs(ctx, ztx, tabs: TAbstraction):
@@ -385,7 +402,6 @@ def entails(ctx, cond):
 
 
 def zed_verify_satisfiability(ctx, cond):
-
     #print(">>>>", cond)
     #ctx.print_ctx()
 
