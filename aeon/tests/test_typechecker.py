@@ -31,13 +31,8 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("1", "{x:Integer | (x == 1)}")
 
     def test_synthesized_literal(self):
-        ctx = TypingContext()
-        ctx.setup()
-        e = ex("20")
-        t = ty('{x:Integer | x > (10 / 2)}')
-        e.type = t
-        check_type(ctx, e, t)
-        
+        self.generic_test("20", "{x:Integer | x > (10 / 2)}")
+
     def test_basic_11(self):
         self.generic_test("11", "{x:Integer | (x == 11)}")
 
