@@ -160,8 +160,9 @@ def ranged_double(rctx: RangedContext, name: str):
         intervals = random.choice(intervals.args)
 
     minimum, maximum = boundify(intervals, 0)
+    x = random.uniform(minimum, maximum)
 
-    return random.uniform(minimum, maximum)
+    return float(random.uniform(minimum, maximum))
 
 
 # Generate a random restricted boolean
