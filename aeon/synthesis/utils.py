@@ -101,3 +101,50 @@ def filter_refinements(ctx, name, condition):
 # Flattens the refinement
 def flatten_refined_type(t):
     return flatten_refined_types(t)
+
+# =============================================================================
+def substitute_uninterpreted(node, uninterp, replacement):
+
+    assert (isinstance(node, TypedNode))
+    assert (isinstance(uninterp, str))
+    assert (isinstance(uninterp, str))
+
+    subs = lambda x: substitute_uninterpreted(x, uninterp, replacement)
+
+    if isinstance(node, Literal):
+        return node
+    
+    elif isinstance(node, Var):
+        return None if node.name == uninterp else node
+    
+    elif isinstance(node, Application):
+        target = subs(node.target)
+        argument = subs(node.argument)
+        
+        if target == None or argument == None:
+            return Var(replacement)
+        
+        return Application(target, argument)
+    
+    elif isinstance(node, Abstraction):
+        name = node.arg_name
+        T = node.arg_type
+
+        if isinstance(T, RefinedType):
+            T.cond = subs(T.cond)
+        
+        body = subs(node.body)
+        
+        if body == None:
+            return None
+    
+        return Abstraction(name, T, body)
+    
+    elif isinstance(node, TApplication):
+        return subs(node.target)
+    
+    elif isinstance(node, TAbstraction):
+        return subs(node.body)
+
+    else:
+        raise TypeException("Substitution in uninterp unknown:", n, type(n))

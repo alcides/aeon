@@ -66,6 +66,7 @@ class TestRanged(unittest.TestCase):
         # Generates the intervals [0, 10], [5, 10], [0, 20], [5, 12]
         self.assert_ranged('{x:Integer where ((x >= 0) || ((x <= 12) && '
                               '(x >= 5))) && ((x <= 10) || (x <= 20))}')
+    
     '''
     def test_ranged_int_even(self):
         self.assert_ranged('{x:Integer where (x % 2) == 0}')
@@ -76,6 +77,7 @@ class TestRanged(unittest.TestCase):
     def test_ranged_int_even_positive(self):
         self.assert_ranged('{x:Integer where ((x % 2) == 0) --> (x > 0)}')
     '''
+    
     def test_ranged_int_with_lambda(self):
         self.assert_ranged('{x:Integer where ((\\y:Integer -> x > y) 10)}')
     
@@ -149,22 +151,30 @@ class TestRanged(unittest.TestCase):
 
     def test_ranged_bool_not_x(self):
         self.assert_ranged('{x:Boolean where (x || true) --> x}')
-
-    '''
+    
     "String"
 
     def test_ranged_string_empty(self):
         self.assert_ranged('{x:String where (String_size(x)) == 0}')
-
+    
+    def test_ranged_string_set_length(self):
+        self.assert_ranged('{x:String where (String_size(x)) == 5}')
+    
     def test_ranged_string_non_empty_up_to_10(self):
         self.assert_ranged('{x:String where (String_size(x)) > 0 && (String_size(x)) < 10}')
 
+    def test_ranged_string_negative_size(self):        
+        with self.assertRaises(RangedException):
+            self.assert_ranged('{x:String where (String_size(x)) == (0-5)}')
+    
+    '''
     def test_ranged_string_even_length(self):
         self.assert_ranged('{x:String where (String_size(x)) % 2 == 0}')
+    '''
 
     # TODO: Consider attributes:
 
     #ty2('Person'),
     #ty2('{p:Person where (_Person_age(p)) >= 18 --> (_Person_height(p)) > 120}'),
     #ty2('{p:Person where (_Person_size(_Person_name(p))) == 3 }'),
-    '''
+    

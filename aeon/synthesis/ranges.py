@@ -1,5 +1,6 @@
 import sys
 import math
+import string
 import random
 import itertools
 import logging
@@ -14,7 +15,7 @@ from aeon.synthesis.inequalities import *
 import sympy
 
 from sympy import Symbol, to_cnf, And, Or, Interval, FiniteSet, Union
-from sympy.core.numbers import Infinity, NegativeInfinity
+from sympy.core.numbers import Infinity, NegativeInfinity, Integer
 from sympy.solvers.inequalities import reduce_rational_inequalities
 from sympy.polys.polyerrors import PolynomialError
 
@@ -24,7 +25,7 @@ from aeon.typechecker.substitutions import substitution_expr_in_expr
 from functools import lru_cache
 from multipledispatch import dispatch
 
-from aeon.synthesis.utils import flatten_refined_type
+from aeon.synthesis.utils import flatten_refined_type, substitute_uninterpreted
 
 
 # =============================================================================
@@ -115,13 +116,13 @@ def boundify(intervals, offset):
     if isinstance(minimum, NegativeInfinity):
         minimum = -sys.maxsize
 
-    if not isinstance(minimum, int):
+    if not isinstance(minimum, Integer) and not isinstance(minimum, int):
         minimum = int(minimum) + offset
 
-    if not isinstance(maximum, int):
+    if not isinstance(maximum, Integer) and not isinstance(maximum, int):
         # TODO: Confirm this int(maximum) - offset
         maximum = int(maximum) - offset
-
+    
     if is_lopen:
         minimum += 1
 
@@ -187,7 +188,26 @@ def ranged_boolean(rctx: RangedContext, name: str):
 
 # Generate a random restricted string
 def ranged_string(rctx: RangedContext, name: str):
-    pass
+    
+    size_options = list()
+
+    # Hack: to delete the string restriction from context added in the ranged function
+    restrictions = rctx.ctx.restrictions
+    rctx.ctx.restrictions = rctx.ctx.restrictions[:-1]
+
+    for restriction in restrictions:
+        t_name = f'String_size_{name}' 
+        restriction = substitute_uninterpreted(restriction, 'String_size', t_name)
+        T = RefinedType(t_name, t_i, restriction)
+        size_options.append(try_ranged(rctx.ctx, T).value)
+    
+    size = random.choice(size_options)
+    
+    if size < 0:
+        raise RangedException(
+            f'Not able to generate String from negative size {size}')
+    
+    return ''.join(random.choice(string.ascii_letters) for i in range(size))
 
 
 # =============================================================================
@@ -238,12 +258,12 @@ def ranged(ctx: TypingContext, name: str, T: BasicType, conds: TypedNode):
 
     ranged_option = switcher.get(T)
 
-    if T != t_b:
-        rctx = generate_ranged_context(ctx, name, T, conds)
-    else:
+    if T == t_b or T == t_s:   
         ctx.restrictions.append(conds)
         rctx = RangedContext(ctx)
-
+    else:
+        rctx = generate_ranged_context(ctx, name, T, conds)
+    
     if not ranged_option:
         raise RangedException(
             "Type {} not supported by range analysis".format(T))
@@ -262,8 +282,8 @@ def try_ranged(ctx, T: RefinedType):
     try:
         value = ranged(ctx, T.name, T.type, T.cond)
     except Exception as e:
-        logging.warning(
-            "Failed to find value in ranged for {} (Reason: {})".format(T, e))
+        #logging.warning(
+        #    "Failed to find value in ranged for {} (Reason: {})".format(T, e))
         raise RangedException("Failed to produce range of type {}".format(T))
 
     return Literal(value, refined_value(value, T.type))
