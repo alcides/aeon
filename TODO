@@ -33,7 +33,6 @@ synthesis: @critical
         ☐ Deal with discontinuous ranges
             expressions such as, x % 3 == 0 or x % 5 < 3, must be converted into continuous values
         ☐ Call SMT-Solver in case we are not able to synthesize the refinement
-        ☐ interesting examples of literal refinements synthesis against the SMT Solver
         ☐ equalize the probability of choosing certain `Or` ranges based on weights
         ☐ check if the to_cnf is really not needed
             removed because some tests were failing because of it. Check if everything works fine
@@ -128,6 +127,7 @@ others:
 
 ===============================================================================
 Archive:
+  ✔ interesting examples of literal refinements synthesis against the SMT Solver @done(20-06-21 09:24) @project(synthesis.ranges)
   ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51) @project(automatic)
   ✔ zed context contains a Token(id, a) @done(20-06-18 08:32) @project(typechecker)
   ✘ Add value refinement to string literals @cancelled(20-06-18 13:08) @project(frontend.aeoncore)

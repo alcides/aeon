@@ -7,7 +7,7 @@ import logging
 from typing import List
 
 from aeon.types import BasicType, RefinedType, TypingContext, t_i, t_f, t_b, t_s
-from aeon.ast import TypedNode
+from aeon.ast import TypedNode, refined_value
 
 from aeon.synthesis.inequalities import *
 
@@ -105,19 +105,8 @@ def flatten_conditions(lista):
 
     return result
 
-
-# =============================================================================
-# Generate a random restricted int
-def ranged_int(rctx: RangedContext, name: str):
-
-    intervals = rctx.get_ranged(name, '_native')
-    #print(intervals)
-    if isinstance(intervals, FiniteSet):
-        return intervals.args[0]
-
-    elif isinstance(intervals, Union):
-        intervals = random.choice(intervals.args)
-
+def boundify(intervals, offset):
+    
     minimum, maximum, is_lopen, is_ropen = intervals.args
 
     if isinstance(maximum, Infinity):
@@ -127,16 +116,33 @@ def ranged_int(rctx: RangedContext, name: str):
         minimum = -sys.maxsize
 
     if not isinstance(minimum, int):
-        minimum = int(minimum) + 1
+        minimum = int(minimum) + offset
 
     if not isinstance(maximum, int):
-        maximum = int(maximum)
+        # TODO: Confirm this int(maximum) - offset
+        maximum = int(maximum) - offset
 
     if is_lopen:
         minimum += 1
 
     if is_ropen:
         maximum -= 1
+
+    return minimum, maximum
+
+# =============================================================================
+# Generate a random restricted int
+def ranged_int(rctx: RangedContext, name: str):
+
+    intervals = rctx.get_ranged(name, '_native')
+
+    if isinstance(intervals, FiniteSet):
+        return int(intervals.args[0])
+
+    while isinstance(intervals, Union):
+        intervals = random.choice(intervals.args)
+
+    minimum, maximum = boundify(intervals, 1)
 
     return random.randint(minimum, maximum)
 
@@ -149,22 +155,10 @@ def ranged_double(rctx: RangedContext, name: str):
     if isinstance(intervals, FiniteSet):
         return intervals.args[0]
 
-    elif isinstance(intervals, Union):
+    while isinstance(intervals, Union):
         intervals = random.choice(intervals.args)
 
-    minimum, maximum, is_lopen, is_ropen = intervals.args
-
-    if isinstance(maximum, Infinity):
-        maximum = sys.maxsize
-
-    if isinstance(minimum, NegativeInfinity):
-        minimum = -sys.maxsize
-
-    if is_lopen:
-        minimum += 1
-
-    if is_ropen:
-        maximum -= 1
+    minimum, maximum = boundify(intervals, 0)
 
     return random.uniform(minimum, maximum)
 
@@ -218,7 +212,7 @@ def generate_ranged_context(ctx, name, T, conds):
         cond = interval(cond)
         cond = flatten_conditions(cond)
         try:
-            print("Ineq: ", cond)
+            #print("Ineq: ", cond)
             interv = reduce_rational_inequalities([cond],
                                                   Symbol(name),
                                                   relational=False)
@@ -270,9 +264,6 @@ def try_ranged(ctx, T: RefinedType):
     except Exception as e:
         logging.warning(
             "Failed to find value in ranged for {} (Reason: {})".format(T, e))
-        value = None
-
-    if value is None:
         raise RangedException("Failed to produce range of type {}".format(T))
 
-    return Literal(value, T)
+    return Literal(value, refined_value(value, T.type))

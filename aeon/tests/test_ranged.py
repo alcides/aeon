@@ -3,6 +3,7 @@ import unittest
 from aeon.synthesis.inequalities import *
 from aeon.libraries.stdlib import ty2
 
+from aeon.ast import refined_value
 from aeon.synthesis.ranges import *
 from aeon.types import TypingContext, t_i
 
@@ -24,9 +25,8 @@ class TestRanged(unittest.TestCase):
     def assert_ranged(self, typee, times=10):
         T = ty2(typee)
         for _ in range(times):
-            value = try_ranged(self.ctx, T)
-            self.assertIsNotNone(value)
-            e = Literal(value, T)
+            e = try_ranged(self.ctx, T)
+            self.assertIsNotNone(e.value)
             check_type(self.ctx, e, T)
 
     "Integer"
@@ -36,13 +36,13 @@ class TestRanged(unittest.TestCase):
 
     def test_upper_bounded_int(self):
         self.assert_ranged('{x:Integer where (x <= 0)}')
-
+    
     def test_ranged_int_closed_range(self):
         self.assert_ranged('{x:Integer where (x >= 0) && (x <= 10)}')
     
     def test_ranged_int_restricted_range(self):
         self.assert_ranged('{x:Integer where (x >= 0) && (x <= 0)}')
-
+    
     def test_ranged_int_closed_range_with_hole(self):
         self.assert_ranged(
             '{x:Integer where ((x >= 0) && (x <= 10)) && (x != 5)}')
@@ -66,7 +66,7 @@ class TestRanged(unittest.TestCase):
         # Generates the intervals [0, 10], [5, 10], [0, 20], [5, 12]
         self.assert_ranged('{x:Integer where ((x >= 0) || ((x <= 12) && '
                               '(x >= 5))) && ((x <= 10) || (x <= 20))}')
-
+    '''
     def test_ranged_int_even(self):
         self.assert_ranged('{x:Integer where (x % 2) == 0}')
 
@@ -75,7 +75,7 @@ class TestRanged(unittest.TestCase):
     
     def test_ranged_int_even_positive(self):
         self.assert_ranged('{x:Integer where ((x % 2) == 0) --> (x > 0)}')
-    
+    '''
     def test_ranged_int_with_lambda(self):
         self.assert_ranged('{x:Integer where ((\\y:Integer -> x > y) 10)}')
     
@@ -127,8 +127,6 @@ class TestRanged(unittest.TestCase):
 
     def test_ranged_int_not_with_hole(self):
         self.assert_ranged('{x:Integer where (x > 0) --> ((x > 0) && (x < 10) && (!(x == 5)))}')
-    '''
-    
     
     "Double"
 
@@ -137,6 +135,9 @@ class TestRanged(unittest.TestCase):
 
     def test_ranged_double_implies_and(self):
         self.assert_ranged('{x:Double where (x > 10.0) --> ((x >= 10.0) && (x <= 20.0))}')
+
+    def test_ranged_double_div_by_x(self):
+        self.assert_ranged('{x:{x:Double where (x != 0)} where (10 / x) > 2}')
 
     "Boolean"
 
@@ -149,6 +150,7 @@ class TestRanged(unittest.TestCase):
     def test_ranged_bool_not_x(self):
         self.assert_ranged('{x:Boolean where (x || true) --> x}')
 
+    '''
     "String"
 
     def test_ranged_string_empty(self):

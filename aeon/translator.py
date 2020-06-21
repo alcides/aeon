@@ -1,5 +1,7 @@
 # type: ignore[no-redef]
 
+import logging
+
 from aeon.ast import *
 from aeon.types import *
 
@@ -266,8 +268,8 @@ def translate(node):
 
 @dispatch(object)
 def translate(node):
-    raise Exception('Unknown node during translation:', type(node), node)
-
+    logging.error('Unknown node during translation: {} {}'.format(type(node), node))
+    return None
 
 # =================================================================== Auxiliary
 def raise_tab():
