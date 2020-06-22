@@ -359,6 +359,14 @@ def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
 
 """ Expression Synthesis """
 
+# TODO:
+"""
+x:U \in G
+G |- (x:U ~> T) ~> e1
+------------------------- app_operand_in_context
+G |- T ~> e1 x
+"""
+
 
 def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     """ SE-Bool """
