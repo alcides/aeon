@@ -59,8 +59,8 @@ def assert_restriction(ctx, inputs, output, typees, return_type):
 def provide(*args, **kwargs):
     def wrapper(function):
         
-        passed = 0
-
+        failed = list()
+        
         # SetUp the refined input generator
         context = setUp()
         typees = [ty(param) for param in args]
@@ -75,11 +75,29 @@ def provide(*args, **kwargs):
             # Run the function with the values
             result = function(*values)
 
-            passed += assert_restriction(context, values, result, typees, return_type)
+            if not assert_restriction(context, values, result, typees, return_type):
+                failed.append(values)
                 
+
         print()
-        print("-"*80)
+
+        v_failed = len(failed)
+        percent_failed = round(v_failed / repeat * 78)
+        percent_passed = 78 - percent_failed
+        
+        print("[{}{}]".format('█' * percent_passed, '-' * percent_failed))
+
         print("Report:")
-        print("Tests failed: {} / {}".format(repeat - passed, repeat))
+        print('Tests passed: {} / {} \n'.format(repeat - v_failed, repeat))
+        print("Function failed for the following random generated input tests")
+
+        for vals in failed:
+            test = '('
+            for T, value in zip(typees, vals):
+                test = '{}{} = {}, '.format(test, T.name, value)
+            test = test[:-2] + ')'
+            print(test)
+
         return function
+
     return wrapper
