@@ -21,6 +21,10 @@ class TestSubtyping(unittest.TestCase):
         if not is_subtype(self.ctx, sub, sup):
             raise SubtypingException(sub, "is not subtype of", sup)
 
+    def assert_error(self, sub, sup):
+        with self.assertRaises(SubtypingException):
+            self.assert_st(sub, sup)
+
     def test_bottom_top(self):
         self.assert_st(ty("Bottom"), ty("Boolean"))
         self.assert_st(ty("Boolean"), ty("Top"))
@@ -76,12 +80,12 @@ class TestSubtyping(unittest.TestCase):
         self.assert_st(ty("{x:{y:Integer where (y < 5)} where (x == 0)}"),
                        ty("{x:Integer where (x==0)}"))
 
-        with self.assertRaises(SubtypingException):
-            self.assert_st(ty("{x:Integer where (x > 5)}"),
-                           ty("{k:Integer where (k > 6)}"))
+        # Errors
+        self.assert_error(ty("{x:Integer where (x > 5)}"),
+                          ty("{k:Integer where (k > 6)}"))
 
-            self.assert_st(ty("{x:Integer where (x < 5)}"),
-                           ty("{k:Integer where (k > (4-6))}"))
+        self.assert_error(ty("{x:Integer where (x < 5)}"),
+                       ty("{k:Integer where (k > (4-6))}"))
 
     def test_abs(self):
         self.assert_st(ty("(z:Integer) -> {y:Boolean where y}"),
@@ -93,12 +97,13 @@ class TestSubtyping(unittest.TestCase):
             ty("(a:{v:Integer where (v > 0) }) -> {b:Integer where (b > 1)}"),
             ty("(k:{z:Integer where (z > 5) }) -> {x:Integer where (x > 0)}"))
 
-        with self.assertRaises(SubtypingException):
-            self.assert_st(ty("(a:Integer) -> {r:Integer where (r == a)}"),
-                           ty("(a:Integer) -> (b:Integer) -> Boolean"))
+        # Errors
+        self.assert_error(ty("(a:Integer) -> {r:Integer where (r == a)}"),
+                          ty("(a:Integer) -> (b:Integer) -> Boolean"))
 
     def test_app(self):
         self.assert_st(ty("(((T:*) => T) Integer)"), ty("Integer"))
+        self.assert_st(ty("Integer"), ty("(((T:*) => T) Integer)"))
         self.assert_st(ty("(((T:*) => T) Integer)"),
                        ty("(((T:*) => T) Integer)"))
         self.assert_st(ty("(((T:*) => (Y:*) => T) Integer)"),
@@ -109,10 +114,13 @@ class TestSubtyping(unittest.TestCase):
         self.assert_st("(((T:*) => T) Integer)", "Integer")
         self.assert_st("((((T:*) => ((S:*) => T)) Integer) Void)", "Integer")
 
-        with self.assertRaises(SubtypingException):
-            self.assert_st(ty("(((T:*) => T) Integer)"), ty("Boolean"))
+        # Errors 
+        self.assert_error(ty("(((T:*) => T) Integer)"), ty("Boolean"))
+        self.assert_error(ty("((T:*) => T)"), ty("Boolean"))
 
-            self.assert_st(ty("((T:*) => T)"), ty("Boolean"))
+        self.assert_error(ty("(((T:*) => T) Boolean)"),
+                          ty("(((T:*) => T) Integer)"))
 
-            self.assert_st(ty("(((T:*) => T) Boolean)"),
-                           ty("(((T:*) => T) Integer)"))
+        self.assert_error(ty("(Integer Boolean)"), ty('(String Double)'))
+        self.assert_error(ty("Integer"), ty('(String Double)'))
+        self.assert_error(ty("(String Double)"), ty('Integer'))

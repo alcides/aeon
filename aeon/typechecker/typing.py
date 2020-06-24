@@ -198,7 +198,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 """Wrapper structures"""
 
 
-def check_program(ast):
+def check_program(ast): # pragma: no cover
     holed = []
 
     def internal_check(ctx: TypingContext, e: TypedNode):

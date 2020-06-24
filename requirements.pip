@@ -8,3 +8,4 @@ matplotlib
 seaborn
 python-Levenshtein
 sympy
+coverage

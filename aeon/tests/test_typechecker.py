@@ -136,7 +136,6 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("\"abc\"", "{x:String | (String_size x) == 3 }")
 
     def test_refined_string_wrong_size(self):
-
         with self.assertRaises(TypingException):
             self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }")
 

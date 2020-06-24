@@ -70,8 +70,6 @@ def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
     """ S-TappL """
     abst = type_conversion(sub.target)
     if not isinstance(abst, TypeAbstraction):
-        print(abst, type(abst))
-        print(sub, type(sub))
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))
     check_kind(ctx, sub.argument, abst.kind)
