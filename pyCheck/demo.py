@@ -5,16 +5,14 @@ from pyCheck.pyCheck import provide
 # Alternative representation
 #@test('({x:Integer where x >= 0 && x <= 10}, {y:Integer where y < 0}) -> {z:Integer where z == x - y}', repeat = 100)
 def abs_sum(x, y) :
-    if y < 0: 
-        y = abs(y)
     # Bug here, remove this if
-    if x == 5:
-        x = 0
+    if x > 7 or y > 7:
+        x = x * y
     return x + y
 
     
 
-@provide('{x:Integer | x >= 0 && x <= 10}', '{y:Integer | y < 0}', expected='{z:Integer | z == x - y}', repeat=100)
+@provide('{x:Integer | (x >= 0) && (x <= 10)}', '{y:Integer | (y >= 0) && (y <= 10)}', expected='{z:Integer | z == x + y}', repeat=100)
 def test_restricted_x(x, y):
     result = abs_sum(x, y)
     return result
