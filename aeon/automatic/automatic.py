@@ -23,8 +23,10 @@ class Genetics(object):
         # Initialize and evaluate the population
         population = initialize_population(self)
         population = evaluate(population, self)
+
         print(population)
-        '''
+        print('-'*80)
+
         for generation in range(1, MAX_GENERATIONS):
 
             logging.debug("Generation {generation}")
@@ -46,12 +48,13 @@ class Genetics(object):
 
             # Transition to the new population
             population = offspring
-
+            print(population)
+            print('-'*80)
             # Hold condition
             best_individuals = [x for x in population if sum(x.fitness) == 0.0]
 
             if best_individuals:
                 population = best_individuals
                 break
-        '''
+
         return random.choice(population)

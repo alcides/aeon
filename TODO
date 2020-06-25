@@ -23,7 +23,7 @@ synthesis: @critical
         this can be problematic when generating expressions from really restrictive
         types. 
     ☐ se_natives should have a gaussian distributions
-    ☐ sometimes generates expressions that do not typecheck
+    ✔ sometimes generates expressions that do not typecheck @done(20-06-25 10:25)
         error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
 
@@ -32,9 +32,9 @@ synthesis: @critical
             call z3 and replace the invocations to uninterpreted functions with the values
         ☐ Deal with discontinuous ranges
             expressions such as, x % 3 == 0 or x % 5 < 3, must be converted into continuous values
-        ☐ Call SMT-Solver in case we are not able to synthesize the refinement
+        ✔ Call SMT-Solver in case we are not able to synthesize the refinement @done(20-06-25 10:10)
         ☐ equalize the probability of choosing certain `Or` ranges based on weights
-        ☐ check if the to_cnf is really not needed
+        ✔ check if the to_cnf is really not needed @done(20-06-25 10:10)
             removed because some tests were failing because of it. Check if everything works fine
         ☐ change the way the intervals are done
             change it so, the And concatenates the lists, the Or inserts lists inside lists. Then the

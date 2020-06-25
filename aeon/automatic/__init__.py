@@ -11,20 +11,20 @@ def automatic(program, context, holed):
 
     holed = preprocess_holed(holed)
 
-    logging.debug("Building the evaluation context...")
+    logging.info("Building the evaluation context...")
 
     # Build the context for the fitness functions
     eval_ctx = build_evaluation_context(program)
 
     for declaration, holes in holed:
 
-        logging.debug("Synthesising the declaration: {declaration}")
+        logging.info(f"Synthesising the declaration: {declaration}")
 
         # Get the fitness functions
         fitness_functions = generate_fitness_functions(eval_ctx, declaration)
 
-        logging.debug(
-            "Evaluating with the fitness functions: {fitness_functions}")
+        logging.info(
+            f"Evaluating with the fitness functions: {fitness_functions}")
 
         # Prepare the evolution
         genetics = Genetics(declaration, holes, eval_ctx, context,
@@ -33,14 +33,14 @@ def automatic(program, context, holed):
         # Run the genetic approach and get generated expressions
         individual = genetics.evolve()
 
-        logging.debug("Generated the individual: {individual}")
+        logging.info(f"Generated the individual: {individual}")
 
         # Fill the holes with the synthesized individual
-        #declaration = replace_holes(declaration, individual.synthesized)
+        declaration = replace_holes(declaration, individual.synthesized)
 
-        logging.debug("Declaration synthesised: {declaration}")
+        logging.info(f"Declaration synthesised: {declaration}")
 
         # Now that the hole has been filled, run, so it is available to add to ctx
-        #add_evaluation_context(declaration, eval_ctx)
+        add_evaluation_context(declaration, eval_ctx)
 
     return program

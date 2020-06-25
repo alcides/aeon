@@ -59,20 +59,11 @@ def evaluate(population, genetics):
 # =============================================================================
 # Auxiliary function
 def run_test(test, interpreted):
-
-    # Set the signal
-    signal.signal(signal.SIGALRM, handler)  
-
-    # Set the timer to 5 seconds
-    signal.alarm(5)
     
     try:        
         result = reduce(lambda f, x: f(x), test, interpreted)
-    except Exception: 
+    except Exception:
+        print("Function exceeded time...")
         result = MAX_FITNESS
 
     return result
-
-def handler(signum, frame):
-    print("Function exceeded time...")
-    raise Exception("End of time...")
