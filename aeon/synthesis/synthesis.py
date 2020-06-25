@@ -170,9 +170,9 @@ def random_chooser(f):
                     weights[r] *= 100
         #print(args, "#", kwargs, "#", list(f(*args, *kwargs)))
         valid_alternatives = list(f(*args, *kwargs))
-        logging.info("args: {}".format(", ".join([str(x) for x in args])))
-        logging.info("options in random_chooser: {}".format(", ".join(
-            [x[0] for x in valid_alternatives])))
+        #logging.debug("args: {}".format(", ".join([str(x) for x in args])))
+        #logging.debug("options in random_chooser: {}".format(", ".join(
+        #    [x[0] for x in valid_alternatives])))
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
             raise Unsynthesizable("No valid alternatives for", f.__name__,
@@ -180,14 +180,14 @@ def random_chooser(f):
         for i in range(actual_max_tries):
             fun = pick_one_of(valid_alternatives)
             try:
-                logging.info("Chosen: {}".format(fun.__name__))
+                logging.debug("Chosen: {}".format(fun.__name__))
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
                     #print("checking", args[0], v, args[1])
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
-                logging.info(
+                logging.debug(
                     "random_chooser/d: failed restriction: {}".format(e))
                 for r in rules:
                     weights[r] *= 100
@@ -221,7 +221,7 @@ def get_valid_genetics(ctx: TypingContext, T: Type, d: int):
 
 
 def se_genetics(ctx: TypingContext, T: Type, d: int):
-    logging.info("se_genetics/{}: {} ".format(d, T))
+    logging.debug("se_genetics/{}: {} ".format(d, T))
     valid_alternatives = get_valid_genetics(ctx, T, d)
     choice = random.choice(valid_alternatives)
     genetic_material.remove(choice)
@@ -233,7 +233,7 @@ def se_genetics(ctx: TypingContext, T: Type, d: int):
 
 
 def sk(d=5):
-    logging.info("sk")
+    logging.debug("sk")
     """ ~> k """
     if d == 0 or random.random() < 0.7:
         return star
@@ -252,39 +252,39 @@ def has_type_vars(ctx: TypingContext, k: Kind):
 
 def st_int(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Int"
-    logging.info("st_int")
+    logging.debug("st_int")
     return t_i
 
 
 def st_bool(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Bool"
-    logging.info("st_bool")
+    logging.debug("st_bool")
     return t_b
 
 
 def st_double(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Double"
-    logging.info("st_double")
+    logging.debug("st_double")
     return t_f
 
 
 def st_string(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-String"
-    logging.info("st_string")
+    logging.debug("st_string")
     return t_s
 
 
 def st_var(ctx: TypingContext, k: Kind, d: int) -> Type:
     "ST-Var"
     options = get_type_variables_of_kind(ctx, k)
-    logging.info("st_var")
-    logging.info("options:" + str(options))
+    logging.debug("st_var")
+    logging.debug("options:" + str(options))
     return random.choice(options)
 
 
 def st_abs(ctx: TypingContext, k: Kind, d: int) -> AbstractionType:
     "ST-Abs"
-    logging.info("st_abs/{}: {} ".format(d, k))
+    logging.debug("st_abs/{}: {} ".format(d, k))
     x = ctx.fresh_var()
     T = st(ctx, k, d - 1)
     U = st(ctx.with_var(x, T), k, d - 1)
@@ -293,7 +293,7 @@ def st_abs(ctx: TypingContext, k: Kind, d: int) -> AbstractionType:
 
 def st_where(ctx: TypingContext, k: Kind, d: int) -> RefinedType:
     "ST-Where"
-    logging.info("st_where/{}: {} ".format(d, k))
+    logging.debug("st_where/{}: {} ".format(d, k))
     x = ctx.fresh_var()
     T = st(ctx, k, d - 1)
     e = se(ctx.with_var(x, T), BasicType('Boolean'), d - 1)
@@ -303,7 +303,7 @@ def st_where(ctx: TypingContext, k: Kind, d: int) -> RefinedType:
 def st_tabs(ctx: TypingContext, k: Kind, d: int) -> TypeAbstraction:
     "ST-Tabs"
     assert (k != star)
-    logging.info("st_tabs/{}: {} ".format(d, k))
+    logging.debug("st_tabs/{}: {} ".format(d, k))
     t = ctx.fresh_var()
     T = st(ctx.with_type_var(t, k.k1), k.k2, d - 1)
     return TypeAbstraction(t, k, T)
@@ -311,7 +311,7 @@ def st_tabs(ctx: TypingContext, k: Kind, d: int) -> TypeAbstraction:
 
 def st_tapp(ctx: TypingContext, k: Kind, d: int) -> TypeApplication:
     "ST-Tapp"
-    logging.info("st_tapp/{}: {} ".format(d, k))
+    logging.debug("st_tapp/{}: {} ".format(d, k))
     kp = sk(d - 1)
     T = st(ctx, Kind(kp, k), d - 1)
     U = st(ctx, kp, d - 1)
@@ -375,7 +375,7 @@ def se_bool(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     value = random.choice([True, False])
     t = T if not ctx.inside_refinement else refined_value(value, T, '_b')
 
-    logging.info("se_bool/{}: {}:{} ".format(d, value, t))
+    logging.debug("se_bool/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
 
 
@@ -386,7 +386,7 @@ def se_int(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     value = round(random.gauss(0, 0.05) * 7500)
     t = T if ctx.inside_refinement else refined_value(value, T, '_i')
 
-    logging.info("se_int/{}: {}:{} ".format(d, value, t))
+    logging.debug("se_int/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
 
 
@@ -397,7 +397,7 @@ def se_double(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     value = random.gauss(0, 0.05) * 7500
     t = T if ctx.inside_refinement else refined_value(value, T, '_f')
 
-    logging.info("se_double/{}: {}:{} ".format(d, value, t))
+    logging.debug("se_double/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
 
 
@@ -409,7 +409,7 @@ def se_string(ctx: TypingContext, T: BasicType, d: int) -> TypedNode:
     value = ''.join(random.choice(string.ascii_letters) for i in range(length))
     t = T if not ctx.inside_refinement else refined_value(value, T, '_s')
 
-    logging.info("se_string/{}: {}:{} ".format(d, value, t))
+    logging.debug("se_string/{}: {}:{} ".format(d, value, t))
     return Literal(value, t)
 
 
@@ -418,7 +418,7 @@ def se_if(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     e1 = se(ctx, t_b, d - 1)
     e2 = se(ctx.with_cond(e1), T, d - 1)
     e3 = se(ctx.with_cond(Application(Var("!"), e1)), T, d - 1)
-    logging.info("se_if/{}: if {} then {} else {} :{} ".format(
+    logging.debug("se_if/{}: if {} then {} else {} :{} ".format(
         d, e1, e2, e3, T))
     return If(e1, e2, e3).with_type(T)
 
@@ -428,14 +428,14 @@ def se_var(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     options = get_variables_of_type(ctx, T)
     if options:
         n = random.choice(options)
-        logging.info("se_var/{}: {}:{} ".format(d, n, T))
+        logging.debug("se_var/{}: {}:{} ".format(d, n, T))
         return Var(n).with_type(T)
     raise Unsynthesizable("No var of type {}".format(T))
 
 
 def se_abs(ctx: TypingContext, T: AbstractionType, d: int) -> TypedNode:
     """ SE-Abs """
-    logging.info("se_abs/{}: {} ".format(d, T))
+    logging.debug("se_abs/{}: {} ".format(d, T))
     nctx = ctx.with_var(T.arg_name, T.arg_type)
     body = se(nctx, T.return_type, d - 1)
     return Abstraction(T.arg_name, T.arg_type, body).with_type(T)
@@ -443,7 +443,7 @@ def se_abs(ctx: TypingContext, T: AbstractionType, d: int) -> TypedNode:
 
 def se_app(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     """ SE-App """
-    logging.info("se_app/{}: {} ".format(d, T))
+    logging.debug("se_app/{}: {} ".format(d, T))
     k = star  #sk(d - 1)
     U = st(ctx, k, d - 1)
     x = ctx.fresh_var()  #scfv(T)
@@ -458,7 +458,7 @@ def se_app(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 
 
 def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
-    logging.info("se_app_in_context/{}: {} ".format(d, T))
+    logging.debug("se_app_in_context/{}: {} ".format(d, T))
 
     refinement: Optional[TypedNode] = None
     if isinstance(T, RefinedType):
@@ -488,7 +488,7 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 
     (name, arg_name, arg_type, ret_name, retT,
      refinement) = random.choice(options)
-    logging.info(
+    logging.debug(
         "chosen name:{}, arg_name:{}, arg_type:{}, ret:{}, refine:{}".format(
             name, arg_name, arg_type, retT, refinement))
     if ret_name and refinement:
@@ -496,24 +496,24 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
         if isinstance(T, RefinedType):
             r2 = substitution_expr_in_expr(T.cond, Var(ret_name), T.name)
             ncond = Application(Application(Var("&&"), ncond), r2)
-        logging.info("Requiring type: {}".format(
+        logging.debug("Requiring type: {}".format(
             RefinedType(arg_name, arg_type, ncond)))
         e2 = se_where(ctx.with_var(ret_name, retT),
                       RefinedType(arg_name, arg_type, ncond), d - 1)
     else:
-        logging.info("Requiring only: {}".format(arg_type))
+        logging.debug("Requiring only: {}".format(arg_type))
         e2 = se(ctx, arg_type, d - 1)
     e1 = Var(name)
     e = Application(e1, e2)
     if not tc.check_type(ctx, e, T):
-        logging.info("se_app_in_context: failed restriction")
+        logging.debug("se_app_in_context: failed restriction")
         raise Unsynthesizable("Failed restriction")
     return e
 
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
-    logging.info("se_where/{}: {} ".format(d, T))
+    logging.debug("se_where/{}: {} ".format(d, T))
 
     if isinstance(T.type, RefinedType):
         T = flatten_refined_type(T)
@@ -521,7 +521,8 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
     new_condition = filter_refinements(ctx, T.name, T.cond)
 
     if new_condition is None:
-        e2 = se(ctx, T.type, d - 1)
+        T = T.type
+        e2 = se(ctx, T, d - 1)
     else:
         T.cond = new_condition
         try:
@@ -534,14 +535,14 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
         #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
         return e2  #.with_type(T)
     except Exception as e:
-        logging.info("se_where: failed restriction: {}", T)
+        logging.debug("se_where: failed restriction: {}", T)
         raise Unsynthesizable(
             "Unable to generate a refinement example: {}".format(T))
 
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
     """ SE-TAbs """
-    logging.info("se_tabs/{}: {} ".format(d, T))
+    logging.debug("se_tabs/{}: {} ".format(d, T))
     nctx = ctx.with_type_var(T.name, T.kind)
     e = se(nctx, T.type, d - 1)
     return TAbstraction(T.name, T.kind, e).with_type(T)
@@ -549,7 +550,7 @@ def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):
 
 def se_tapp(ctx: TypingContext, T: Type, d: int):
     """ SE-TApp """
-    logging.info("se_tapp/{}: {} ".format(d, T))
+    logging.debug("se_tapp/{}: {} ".format(d, T))
     k = sk(d - 1)
     U = st(ctx, k, d - 1)
     t = ctx.fresh_var()  #scfv(ctx, upper=True)
@@ -559,7 +560,7 @@ def se_tapp(ctx: TypingContext, T: Type, d: int):
 
 
 def se_subtype(ctx: TypingContext, T: Type, d: int):
-    logging.info("se_subtype/{}: {} ".format(d, T))
+    logging.debug("se_subtype/{}: {} ".format(d, T))
     U = ssub(ctx, T, d - 1)
     return se(ctx, U, d - 1)
 
@@ -608,17 +609,14 @@ def se(ctx: TypingContext, T: Type, d: int):
 
 
 def se_safe(ctx: TypingContext, T: Type, d: int):
-    try:
-        return se(ctx, T, d)
-    except TypeCheckingError:
-        print("Se-safe in action...")
-        # Try until we get one that works
-        return se_safe(ctx, T, d)
-    except Unsynthesizable:
-        # print("Se-safe in action: it can't synthesize...")
-        # Try until we get one that works
-        return se_safe(ctx, T, d)
-
+    while True:
+        try:
+            return se(ctx, T, d)
+        except TypeCheckingError:
+            print("Se-safe in action...")
+        except Unsynthesizable:
+            # print("Se-safe in action...")
+            pass
 
 """ Expression Synthesis parameterized with x:T """
 

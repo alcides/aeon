@@ -145,7 +145,7 @@ def ranged_int(rctx: RangedContext, name: str):
 
     minimum, maximum = boundify(intervals, 1)
 
-    return random.randint(minimum, maximum)
+    return int(random.randint(minimum, maximum))
 
 
 # Generate a random restricted double
@@ -154,7 +154,7 @@ def ranged_double(rctx: RangedContext, name: str):
     intervals = rctx.get_ranged(name, '_native')
 
     if isinstance(intervals, FiniteSet):
-        return intervals.args[0]
+        return float(intervals.args[0])
 
     while isinstance(intervals, Union):
         intervals = random.choice(intervals.args)
