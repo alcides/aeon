@@ -2,7 +2,7 @@ from functools import total_ordering
 
 # Represents an individual with fitness
 class Individual(object):
-    def __init__(self, contexts = list(), synthesized = list()):
+    def __init__(self, contexts, synthesized):
         self.fitness = list()
         self.contexts = contexts
         self.synthesized = synthesized
@@ -32,4 +32,4 @@ class Individual(object):
         return str(self)
 
     def __str__(self):
-        return "\nFitness: {}\r\nSynthesized expressions: {}".format(self.fitness, self.synthesized)
+        return "\r\nSynthesized expressions: {}".format(self.synthesized)

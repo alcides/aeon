@@ -303,7 +303,7 @@ def zed_translate_wrapped(ctx, ztx, cond):
     try:
         return zed_translate(ctx, ztx, cond)
     except NoZ3TranslationException as err:
-        print("No z3 translation:", err)
+        print("No z3 translation:", err, "for the cond:", cond)
         return True
 
 
@@ -427,6 +427,10 @@ def is_satisfiable(ctx, cond):
         return zed_verify_satisfiability(ctx, cond)
     except NotDecidableException as e:
         print(">" * 5, "Not Decidable Exception", cond)
+        return True
+    except z3.Z3Exception as e:
+        print('>' * 5, "Error when translating the condition", cond)
+        print(e)
         return True
 
 

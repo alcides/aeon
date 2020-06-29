@@ -124,7 +124,7 @@ class TestTypeChecking(unittest.TestCase):
                               "{x:Integer where ((\\y:Integer -> x > y) 10)}")
 
     def test_refined_15(self):
-        self.generic_test('5.0', '{x:Double where x == intToDouble(5)}',
+        self.generic_test('5.0', '{x:Double where true}',
                       extra_ctx=[("intToDouble", "(x:Integer) -> Double")])
     
     def test_refined_string_simple(self):
