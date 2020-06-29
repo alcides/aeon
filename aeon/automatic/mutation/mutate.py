@@ -4,10 +4,11 @@ import random
 from aeon.synthesis.synthesis import se_safe
 
 from aeon.automatic.individual import Individual
+from aeon.automatic.utils.utils import treattype
 from aeon.automatic.utils.tree_utils import annotate_tree, random_subtree, replace_tree
 
 # Chooses a specific hole that is going to be mutated
-def regular_mutation(depth, individual):
+def regular_mutation(depth, individual, hole_types):
     
     # Randomly choose the hole
     index_hole = random.choice(range(len(individual.synthesized)))
@@ -23,7 +24,8 @@ def regular_mutation(depth, individual):
     parent, subtree = random_subtree(hole)
 
     # Synthesize an expression for the mutation
-    mutation = se_safe(context, subtree.type, depth - subtree.height)
+    T = treattype(hole_types[index_hole], parent, subtree)
+    mutation = se_safe(context, T, depth - subtree.height)
     
     # Create the offspring by replacing with mutation
     offspring = replace_tree(hole, parent, subtree, mutation) 

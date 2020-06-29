@@ -15,7 +15,7 @@ def e_lexicase(population):
             
             elite = min(individual.fitness[test] for individual in pop)
             error = median_absolute_deviation(population, test)
-            
+
             # Filter the individuals whose fitness on the test is to high
             pop = list(filter(lambda x: x.fitness[test] <= elite + error, pop))
 
@@ -35,5 +35,4 @@ def median_absolute_deviation(population, test):
     # Obtain the test case results
     errors = [individual.fitness[test] for individual in population]
     median_errors = statistics.median(errors)
-
     return statistics.median([abs(et - median_errors) for et in errors])

@@ -16,6 +16,10 @@ automatic:
     ☐ The phd continuous function does not support forall and exists
         since arrays are not implemented natively, we cannot statically support the continuous
         transformations for the forall and exists fitness functions of the phd 
+    ✔ in mutation and crossover, update the subtype filtering because of literals refinements @done(20-06-29 16:55)
+        literal refinements force the program to produce the exact same value. We need to 
+        obtain the most generalized refinement, taking into consideration the type of the hole
+        and the height 
 
 synthesis: @critical 
     ☐ change synthesis refinements based on trials to continuous synthesis
@@ -110,6 +114,7 @@ examples:
     ☐ add unit tests for all the modules
     ☐ complete the benchmark synthesis problems.
     ☐ Update all the examples from changing the grammar
+    ☐ trailing ones for synthesis
 
 others:
     ☐ test units to all modules to ensure that the code is correct

@@ -9,10 +9,12 @@ def mutate(population, genetics):
 
     offspring = list()
 
+    hole_types = [hole for ctx, hole in genetics.holes]
+
     for individual in population:
         # Mutate individuals according to the mutation rate
         if random.random() < MUTATION_RATE:
-            individual = regular_mutation(MAX_DEPTH, individual)
+            individual = regular_mutation(MAX_DEPTH, individual, hole_types)
         
         offspring.append(individual)
 

@@ -1,5 +1,5 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TApplication, TAbstraction, Definition
-from aeon.types import RefinedType
+from aeon.types import RefinedType, t_b
 from aeon.synthesis.utils import filter_refinements
 from aeon.interpreter import EvaluationContext, run
 
@@ -54,7 +54,7 @@ def add_evaluation_context(declaration, eval_ctx):
     run(declaration, eval_ctx)
 
 
-#==============================================================================
+# =============================================================================
 # Checks if a certain program has holes in it
 def has_holes(node):
 
@@ -88,3 +88,41 @@ def has_holes(node):
 
     else:
         raise Exception("Couldnt find the node:", node)
+
+# =============================================================================
+def treattype(hole_type, tree, subtree):
+
+    result = subtree.type
+
+    if isinstance(subtree, Literal):
+        
+        if isinstance(tree, Literal):
+            result = hole_type
+
+        elif isinstance(tree, If):
+            if tree.cond == subtree:
+                result = tree.cond.type
+            elif tree.then == subtree:
+                result = tree.then.type
+            elif tree.otherwise == subtree:
+                result = tree.otherwise.type
+
+        elif isinstance(tree, Application):
+            if tree.target == subtree:
+                result = tree.target.type
+            elif tree.argument == subtree:
+                result = tree.target.type.arg_type
+            
+        elif isinstance(tree, Abstraction):
+            result = tree.body.type
+
+        elif isinstance(tree, TAbstraction):
+            result = tree.body.type
+            
+        elif isinstance(tree, TApplication):
+            result = tree.target.type
+
+        else:            
+            raise Exception("Couldnt find the tree when treating:", tree)
+
+    return result
