@@ -6,4 +6,4 @@ from aeon.automatic.parameters import MAX_DEPTH, POPULATION_SIZE
 
 # Chooses the approach we'll be using for initialization
 def initialize_population(genetics):
-    return ramped(genetics.holes, MAX_DEPTH, POPULATION_SIZE)
+    return ramped(genetics.holes, POPULATION_SIZE, MAX_DEPTH)
