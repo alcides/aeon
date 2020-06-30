@@ -38,7 +38,7 @@ def regular_crossover(depth, parent1, parent2, hole_types):
         
         # TODO: atualizar o context1
 
-        subtree2 = se_safe(context1, subtree1.type, depth - subtree1.height)
+        subtree2 = se_safe(context1, T, depth - subtree1.height)
         reset_genetics()
     else:
         subtree2 = random.choice(subtree_selections)

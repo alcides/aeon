@@ -189,23 +189,17 @@ def implie_conversion(condition):
 
 # ∀ x ∈ X : Q : W   ~> if X : Q is empty then 0 else ...
 def forall_conversion(condition):
-    # TODO: not yet possible, not natively supported
-    condition.target.argument = apply_conversion(condition.target.argument)
-    return condition
+    raise NotImplementedError("To be implemented")
 
 
 # ∃ x ∈ X : Q : W   ~> if X : Q is empty then K else ...
-def exists_conversion(condition):
-    # TODO: not yet possible, not natively supported
-    condition.target.argument = apply_conversion(condition.target.argument)
-    return condition
+def exists_conversion(condition):    
+    raise NotImplementedError("To be implemented")
 
 
 # !condition ~> 1 - convert(condition)
 def not_conversion(condition):
-    # TODO: propagate the not condition interally
-    converted = apply_conversion(condition.argument)
-    return Application(Application(Var('-'), Literal(1.0, t_f)), converted)
+    raise NotImplementedError("To be implemented")
 
 
 # x, f(x) ~> f(x) ? 0 : K

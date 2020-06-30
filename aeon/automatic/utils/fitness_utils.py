@@ -143,11 +143,11 @@ def interpret_expressions(eval_ctx, definition, expressions):
     
     for condition in expressions:
 
-        name = obtain_application_var(condition).name
+        name = obtain_application_var(condition)
 
         # If it is one of the optimizers functions
-        if name in optimizers:
-            function = optimizers[name]
+        if isinstance(name, Var) and name.name in optimizers:
+            function = optimizers[name.name]
             result.append(function(condition))
 
         # If it is a regular function

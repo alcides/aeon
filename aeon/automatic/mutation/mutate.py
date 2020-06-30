@@ -15,7 +15,7 @@ def regular_mutation(depth, individual, hole_types):
 
     # Obtain the hole and context from the individual
     hole = individual.synthesized[index_hole].copy()
-    context = individual.contexts[index_hole]
+    context = individual.contexts[index_hole].copy()
 
     ## If not annotated, annotate the height to ensure the maximum tree depth
     annotate_tree(hole)
