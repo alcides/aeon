@@ -8,6 +8,8 @@ from multipledispatch import dispatch
 
 from copy import deepcopy
 
+class EvaluationException(Exception):
+    pass
 
 class EvaluationContext(object):
     def __init__(self):
@@ -45,7 +47,7 @@ def evaluate(ctx, node):
 @dispatch(dict, Var)
 def evaluate(ctx, node):
     if node.name not in ctx:
-        raise Exception("{} not in context".format(node.name))
+        raise EvaluationException("{} not in context".format(node.name))
     return ctx.get(node.name)
 
 
@@ -128,7 +130,7 @@ def evaluate(ctx, node):
 
 @dispatch(object, object)
 def evaluate(ctx, node):
-    raise Exception('Unknown node during evaluation:', type(node), node)
+    raise EvaluationException('Unknown node during evaluation:', type(node), node)
 
 
 # -----------------------------------------------------------------------------
