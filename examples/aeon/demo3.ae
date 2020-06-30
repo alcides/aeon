@@ -8,7 +8,7 @@ f(a:Nat) -> y:Nat {
 
 // ---------------------------------------------- TAbstraction and TApplication
 type List[T] {
-    size : Integer;
+    size : Float;
 }
 
 f2(x:List[Integer]) -> y:Nat {

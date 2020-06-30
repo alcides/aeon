@@ -89,7 +89,7 @@ hole12(y:Integer) -> Integer {
     ?? ? 3 : 10;
 }
 
-// Done - [__T1:* => (_:__T1 -> (Integer)))]
+// Done - [_T1:* => (_:_T1 -> (Integer)))]
 hole13(y:Integer) -> Double {
     f2[Integer](??(2));
     1.0;
@@ -107,15 +107,20 @@ hole15(y:Integer) -> {x:Integer | x > 10} {
 }
 
 // Done
-// [_T1 : * => T1 -> Double]
-// [_T1 : * => T1]
+// [_T1 : * => _T1 -> Double]
+// [_T1 : * => _T1]
 hole15(y:Integer) -> Double {
     ??(??);
 }
 /*
 // TODO: Bug in typechecker
+// [_T1 : * => _T1 -> Double]
+// [_T1 : * => _T2 : * => _T1 -> _T2]
+// [_T2 : * => _T2]
 hole16(y:Integer) -> Double {
     ??(??(??));
+
+    ((T1:*) => ??(??) )[Integer]
 }
 */
 // Done

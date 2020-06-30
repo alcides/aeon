@@ -12,5 +12,5 @@ make_list() -> List[Integer] {
 }
 
 test() -> z:List[Integer] where {exists[Integer](\x: Integer -> x > 2, z)} {
-    ? {z:List[Integer] | forall[Integer](\x: Integer -> x > 2, z)} ?;
+    ? ?;
 }

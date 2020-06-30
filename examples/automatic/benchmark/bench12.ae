@@ -6,6 +6,6 @@ import aeon/libraries/list;
 // the index of the last occurrence of 0 in the vector
 last_index_zero(l:List<Integer>) -> out:Integer where {out >= 0 && out < l.size and
                                                        out == index(0, reversed(l))} {
-    //index(0, reverse(l));
+    // index(0, reverse(l));
     ??;
 }
