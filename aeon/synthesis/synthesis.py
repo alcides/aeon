@@ -20,7 +20,7 @@ from aeon.synthesis.ranges import try_ranged, RangedContext, RangedException
 MAX_TRIES = 3
 MAX_TRIES_WHERE = 100
 
-forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else', 'print']
+forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else', 'print', '_exists_fitness', '_forall_fitness']
 
 weights = {
     "sk_star": 1,  # Kinding
@@ -34,14 +34,14 @@ weights = {
     "st_abs": 6,
     "st_tabs": 1,
     "st_tapp": 1,
-    "se_int": 100,  # Terminal types
+    "se_int": 1,  # Terminal types
     "se_bool": 1,
     "se_double": 1,
     "se_string": 1,
-    "se_var": 5,
+    "se_var": 100,
     "se_where": 1,
-    "se_abs": 1,
-    "se_app": 1,
+    "se_abs": 50,
+    "se_app": 50,
     "se_tabs": 0,
     "se_tapp": 0,
     "se_if": 1,
