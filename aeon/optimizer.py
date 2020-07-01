@@ -11,7 +11,8 @@ class OptimizeLiteralException(Exception):
 
 
 global op
-op = ['+', '-', '*', '/', '%', '>', '<', '>=', '<=', '!', '||', '&&', '-->']
+op = ['+', '-', '*', '/', '%', '>', '<', '>=', '<=', \
+      '!', '||', '&&', '-->', '==', '!=']
 
 def is_un_op(node):
     return isinstance(node, Application) and isinstance(node.target, Var) and \
@@ -46,13 +47,52 @@ def get_op(node):
 # =============================================================================
 # Special arithmetic rules: (0 / x) = 0, (0 * x) = 0, (0 * (x + 1)) = (x + 1)
 global rules
+
+zero = Literal(0, t_i)
+one = Literal(1, t_i)
+
+# Sum rules
+rule1 = lambda left, right: (left, None) if right == zero else ((None, right) if left == zero else (left, right))
+
+# Minus rules
+rule2 = lambda left, right: (left, None) if right == zero else (left, right)
+
+# Mult rules
+rule3 = lambda left, right: (None, right) if right == zero else ((left, None) if left == zero else (left, right))
+rule4 = lambda left, right: (left, None) if right == one else ((None, right) if left == one else (left, right))
+
+# Mod & Division rules
+rule5 = lambda left, right: (left, None) if left == zero else (left, right)
+
 rules = {
-    '+' : [lambda left, right: left if right == 0 else (right if left == 0 else (left, right))],
-    '-' : [lambda left, right: None]
+    '+' : [rule1],
+    '-' : [rule2],
+    '*' : [rule3, rule4], 
+    '/' : [rule5],
 }
 
-def check_rule(operation, left, right):
-    pass
+def apply_rules(operation, target, argument):
+
+    op_rules = rules.get(operation)
+
+    if isinstance(target, Application):
+        left = target.argument
+    else:
+        left = target
+
+    right = argument
+
+    if operation and op_rules:
+        for rule in op_rules:
+            left, right = rule(left, right)
+
+            if left is None:
+                return right   
+
+            elif right is None:
+                return left
+
+    return Application(target, argument)
 
 
 # =============================================================================
@@ -106,27 +146,24 @@ def optimize(var):
 @dispatch(If)
 def optimize(iff):
 
+    # Optimize each one of the subtrees
     cond = optimize(iff.cond)
     then = optimize(iff.then)
     otherwise = optimize(iff.otherwise)
 
     try:
         evaluated_cond = run(iff.cond)
+        result = then if evaluated_cond else otherwise
 
-        if evaluated_cond:
-            result = then
-        else:
-            result = otherwise
-
+    # This ensures there is a non-native variable in the condition
     except EvaluationException:
-    
+        # If both then and otherwise are the same, this If is useless
         if then == otherwise:
             result = then
         else:
             iff.cond = cond
             iff.then = then
             iff.otherwise = otherwise
-
             result = iff 
 
     return result
@@ -145,8 +182,10 @@ def optimize(app):
     else:
         try:
             result = mk_literal(run(app))
+        # This ensures that there is a non-native variable in context
         except EvaluationException:
-            result = Application(target, argument)
+            result = apply_rules(get_op(app), target, argument)
+        # This means that the current application is a lambda function
         except OptimizeLiteralException:
             result = app
 
@@ -154,10 +193,12 @@ def optimize(app):
 
 @dispatch(Abstraction)
 def optimize(abst):
-    if not exists_var(abst.arg_name, abst.body):
-        return optimize(abst.body)
     
     abst.body = optimize(abst.body)
+
+    # If the variable is not used in the body, then the abstraction is useless
+    if not exists_var(abst.arg_name, abst.body):
+        return optimize(abst.body)
 
     return abst
 
