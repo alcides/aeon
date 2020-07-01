@@ -163,12 +163,13 @@ def optimize(abst):
 
 @dispatch(TApplication)
 def optimize(tapp):
-    target = optimize(tapp.target)
-    return TApplication(target, tapp.argument)
-
+    tapp.target = optimize(tapp.target)
+    return tapp 
+    
 @dispatch(TAbstraction)
 def optimize(tabs):
-    pass
+    tabs.body = optimization(tabs.body) 
+    return tabs
 
 @dispatch(object)
 def optimize(none):
