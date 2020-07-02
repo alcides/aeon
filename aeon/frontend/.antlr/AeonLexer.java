@@ -1,4 +1,4 @@
-// Generated from c:\Users\Paulo Santos\Desktop\git\aeon\aeonlang\aeon\frontend\Aeon.g4 by ANTLR 4.7.1
+// Generated from c:\Users\Paulo Santos\Desktop\git\aeon\aeonlang\aeon\frontend\Aeon.g4 by ANTLR 4.8
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;
@@ -10,7 +10,7 @@ import org.antlr.v4.runtime.misc.*;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class AeonLexer extends Lexer {
-	static { RuntimeMetaData.checkVersion("4.7.1", RuntimeMetaData.VERSION); }
+	static { RuntimeMetaData.checkVersion("4.8", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
 	protected static final PredictionContextCache _sharedContextCache =
@@ -33,35 +33,44 @@ public class AeonLexer extends Lexer {
 		"DEFAULT_MODE"
 	};
 
-	public static final String[] ruleNames = {
-		"IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE", "EVALUATE", 
-		"PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER", "CONJUNCTION", "DISJUNCTION", 
-		"NOT", "PIPE", "LT", "LE", "GT", "GE", "EQUAL", "DIFF", "ASSIGN", "RARROW", 
-		"FATARROW", "IMPLIE", "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", 
-		"RBRACKET", "TYPEE", "AS", "AND", "WHERE", "NATIVE", "UNINTERPRETED", 
-		"ABSTRACTION", "DOTDOT", "DOT", "COLON", "COMMA", "SEMICOLON", "BOOLEAN", 
-		"INTEGER", "FLOAT", "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", 
-		"LINE_COMMENT", "BLOCK_COMMENT", "WS"
-	};
+	private static String[] makeRuleNames() {
+		return new String[] {
+			"IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE", "EVALUATE", 
+			"PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER", "CONJUNCTION", "DISJUNCTION", 
+			"NOT", "PIPE", "LT", "LE", "GT", "GE", "EQUAL", "DIFF", "ASSIGN", "RARROW", 
+			"FATARROW", "IMPLIE", "LBRACE", "RBRACE", "LPARENS", "RPARENS", "LBRACKET", 
+			"RBRACKET", "TYPEE", "AS", "AND", "WHERE", "NATIVE", "UNINTERPRETED", 
+			"ABSTRACTION", "DOTDOT", "DOT", "COLON", "COMMA", "SEMICOLON", "BOOLEAN", 
+			"INTEGER", "FLOAT", "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", "ABSTRACT_TYPEE_IDENTIFIER", 
+			"LINE_COMMENT", "BLOCK_COMMENT", "WS"
+		};
+	}
+	public static final String[] ruleNames = makeRuleNames();
 
-	private static final String[] _LITERAL_NAMES = {
-		null, "'import'", "'from'", "'if'", "'else'", "'?'", "'@maximize'", "'@minimize'", 
-		"'@evaluate'", "'+'", "'-'", "'*'", "'/'", "'%'", "'^'", "'&&'", "'||'", 
-		"'!'", "'|'", "'<'", "'<='", "'>'", "'>='", "'=='", "'!='", "'='", "'->'", 
-		"'=>'", "'-->'", "'{'", "'}'", "'('", "')'", "'['", "']'", "'type'", "'as'", 
-		"'and'", "'where'", "'native'", "'uninterpreted'", "'\\'", "'..'", "'.'", 
-		"':'", "','", "';'"
-	};
-	private static final String[] _SYMBOLIC_NAMES = {
-		null, "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE", 
-		"EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER", "CONJUNCTION", 
-		"DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT", "GE", "EQUAL", "DIFF", 
-		"ASSIGN", "RARROW", "FATARROW", "IMPLIE", "LBRACE", "RBRACE", "LPARENS", 
-		"RPARENS", "LBRACKET", "RBRACKET", "TYPEE", "AS", "AND", "WHERE", "NATIVE", 
-		"UNINTERPRETED", "ABSTRACTION", "DOTDOT", "DOT", "COLON", "COMMA", "SEMICOLON", 
-		"BOOLEAN", "INTEGER", "FLOAT", "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", 
-		"ABSTRACT_TYPEE_IDENTIFIER", "LINE_COMMENT", "BLOCK_COMMENT", "WS"
-	};
+	private static String[] makeLiteralNames() {
+		return new String[] {
+			null, "'import'", "'from'", "'if'", "'else'", "'?'", "'@maximize'", "'@minimize'", 
+			"'@evaluate'", "'+'", "'-'", "'*'", "'/'", "'%'", "'^'", "'&&'", "'||'", 
+			"'!'", "'|'", "'<'", "'<='", "'>'", "'>='", "'=='", "'!='", "'='", "'->'", 
+			"'=>'", "'-->'", "'{'", "'}'", "'('", "')'", "'['", "']'", "'type'", 
+			"'as'", "'and'", "'where'", "'native'", "'uninterpreted'", "'\\'", "'..'", 
+			"'.'", "':'", "','", "';'"
+		};
+	}
+	private static final String[] _LITERAL_NAMES = makeLiteralNames();
+	private static String[] makeSymbolicNames() {
+		return new String[] {
+			null, "IMPORT", "FROM", "IF", "ELSE", "QUESTION", "MAXIMIZE", "MINIMIZE", 
+			"EVALUATE", "PLUS", "MINUS", "MULT", "QUOT", "MODULE", "POWER", "CONJUNCTION", 
+			"DISJUNCTION", "NOT", "PIPE", "LT", "LE", "GT", "GE", "EQUAL", "DIFF", 
+			"ASSIGN", "RARROW", "FATARROW", "IMPLIE", "LBRACE", "RBRACE", "LPARENS", 
+			"RPARENS", "LBRACKET", "RBRACKET", "TYPEE", "AS", "AND", "WHERE", "NATIVE", 
+			"UNINTERPRETED", "ABSTRACTION", "DOTDOT", "DOT", "COLON", "COMMA", "SEMICOLON", 
+			"BOOLEAN", "INTEGER", "FLOAT", "STRING", "IDENTIFIER", "TYPEE_IDENTIFIER", 
+			"ABSTRACT_TYPEE_IDENTIFIER", "LINE_COMMENT", "BLOCK_COMMENT", "WS"
+		};
+	}
+	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
 	public static final Vocabulary VOCABULARY = new VocabularyImpl(_LITERAL_NAMES, _SYMBOLIC_NAMES);
 
 	/**

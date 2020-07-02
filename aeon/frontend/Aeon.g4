@@ -120,7 +120,7 @@ statement
     ;
 
 variable_definition
-    : variable=typee ASSIGN exp=expression
+    : variable=IDENTIFIER COLON tee=typee ASSIGN exp=expression
     ;
 
 variable_assignment

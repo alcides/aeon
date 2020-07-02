@@ -85,14 +85,16 @@ class AeonASTVisitor(AeonVisitor):
         typee_name = self.returnBasicTypee(typee).name
 
         parameters = self.visit(ctx.params)
-        names = [self.getBasicTypeName(param) for param in parameters]
+        
+        names = self.basic_typee_stack[-len(parameters):]
+        self.basic_typee_stack = self.basic_typee_stack[:len(parameters) - 1]
 
         # Guardar a declaracao do tipo
         self.declarations.append(
             TypeDeclaration(
                 self.returnBasicTypee(typee).name, self.getTypeeKind(typee), None))
-        type_abstraction = extract_refinements(typee)[0]
-        
+        type_abstraction, _ = extract_refinements(typee)
+
         # Create the uninterpreted functions
         for name, param in zip(names, parameters):
 
@@ -392,6 +394,7 @@ class AeonASTVisitor(AeonVisitor):
         for statement in statements[1:]:
             if isinstance(statement, Definition):
                 name, typee, body = statement.name, statement.type, statement.body
+                print(statement, name)
             else:
                 name, typee, body = '_', top, statement
 
@@ -407,8 +410,8 @@ class AeonASTVisitor(AeonVisitor):
     # x : T = expression
     def visitVariable_definition(self,
                                  ctx: AeonParser.Variable_definitionContext):
-        typee = self.visit(ctx.variable)
-        variable = self.getBasicTypeName(typee)
+        typee = self.visit(ctx.tee)
+        variable = ctx.variable.text
         expression = self.visit(ctx.exp)
 
         self.general_context[variable] = typee

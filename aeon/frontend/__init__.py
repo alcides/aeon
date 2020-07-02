@@ -128,7 +128,7 @@ def resolveImports(path, program):
                     importedProgram.declarations.append(aetype)
                     importedProgram.declarations.extend(
                         imported_declarations[1:])
-            result = importedProgram.declarations + result
+            result = result + importedProgram.declarations
         else:
             result.append(node)
     return Program(result)
