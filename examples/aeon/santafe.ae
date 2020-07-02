@@ -1,0 +1,82 @@
+import aeon/libraries/list;
+import aeon/libraries/pair;
+
+size : Integer = 10
+
+type RestrictedNat as {x:Integer | x == 0 || x == 1};
+type BoundedInt as {x : Integer | x >= 0 && x <= size};
+
+type Grid {
+    grid : List[List[RestrictedNat]];
+    food : {food:Integer | food >= 0};
+    position : Pair[BoundedInt, BoundedInt];
+}
+
+import create_grid from aeon/libraries/santafe;
+import get_grid from aeon/libraries/santafe;
+import get_food from aeon/libraries/santafe;
+import get_position from aeon/libraries/santafe;
+
+import consume_food from aeon/libraries/santafe;
+import set_grid from aeon/libraries/santafe;
+import set_position from aeon/libraries/santafe;
+
+food_present(grid:Grid) -> {food:Integer | food == grid.food} {
+    get_food(grid);
+}
+
+has_food(grid:Grid) -> {out:Integer | i >= 0 && i <= grid.food} {
+    
+    actual_grid : List[List[RestrictedNat]] = get_grid(grid);
+
+    x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(actual_grid));
+    y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(actual_grid));
+
+    line : List[RestrictedNat] = elemAt[List[RestrictedNat]](y, actual_grid);
+    value : RestrictedNat = elemAt[RestrictedNat](x, line);
+}
+
+
+left({grid:Grid | grid.position.elem1 > 0}) -> {g2:Grid | g2.position.elem1 == (grid.position.elem1 - 1)} {
+
+    actual_grid : List[List[RestrictedNat]] = get_grid(grid);
+    
+    x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(actual_grid));
+    y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(actual_grid));
+    
+    grid = set_position(create_pair(x - 1, y), grid);
+    grid = has_food(grid) == 1 ? consume_food(grid, x - 1, y) : grid;
+}
+
+right({grid:Grid | grid.position.elem1 < grid.grid.size}) -> {g2:Grid | g2.position.elem1 == (grid.position.elem1 + 1)} {
+
+    actual_grid : List[List[RestrictedNat]] = get_grid(grid);
+    
+    x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(actual_grid));
+    y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(actual_grid));
+    
+    grid = set_position(create_pair(x + 1, y), grid);
+    grid = food_present(grid) == 1 ? consume_food(grid, x + 1, y) : grid;
+}
+
+up({grid:Grid | grid.position.elem2 > 0}) -> {g2:Grid | g2.position.elem2 == (grid.position.elem2 - 1)} {
+
+    actual_grid : List[List[RestrictedNat]] = get_grid(grid);
+    
+    x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(actual_grid));
+    y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(actual_grid));
+    
+    grid = set_position(create_pair(x, y - 1), grid);
+    grid = food_present(grid) == 1 ? consume_food(grid, x, y - 1) : grid;
+}
+
+down({grid:Grid | grid.position.elem2 < grid.grid.size}) -> {g2:Grid | g2.position.elem2 == (grid.position.elem2 + 1)} {
+
+    actual_grid : List[List[RestrictedNat]] = get_grid(grid);
+    
+    x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(actual_grid));
+    y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(actual_grid));
+    
+    grid = set_position(create_pair(x, y + 1), grid);
+    grid = food_present(grid) == 1 ? consume_food(grid, x, y + 1) : grid;
+}

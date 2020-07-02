@@ -80,6 +80,8 @@ frontend:
         ensure type correctness in this case
     ☐ delete the refined_value and use the one from the @file(aeon/ast.py)
     ☐ change special functions with @ to @ID
+    ☐ Obtaining the type abstractions for the typedeclarations based on length needs to be changed
+        not the best approach, should be improved @file(aeon/frontend/AeonASTVisitor) (line 188)
     
     language verifiers: 
         ☐ import cycles
@@ -105,6 +107,10 @@ translator:
     ☐ doesnt work properly when the last instruction is the application of an abstraction
         if the functions ends with: (\x : T -> x + 1)(1) then the translation
         doesnt work properly 
+    ☐ bug in the application of !
+    ☐ improve translation of definitions
+        added a small quick fix because of definitions without parameters, the ones generated from 
+        expressions and not statements
     ☐ missing typeabstractions in the type in TypeDeclaration
 
 interpreter:
@@ -122,7 +128,6 @@ others:
         this can be done after typechecking
 
     simplification:
-        ☐ simplification buggy on function calls
         ☐ add not progragation function
 
     ☐ inference of type applications

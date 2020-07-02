@@ -185,12 +185,15 @@ def translate(node):
     abstractions = ''
     tempTypee = node.type
 
+    if isinstance(tempTypee, BasicType):
+        return '{} : {} = {}'.format(node.name, translate(node.type), translate(node.body))
+
     while isinstance(tempTypee, TypeAbstraction):
         abstractions = '{}, {}'.format(abstractions, tempTypee.name)
         tempTypee = tempTypee.type
     abstractions = '[' + abstractions[2:] + ']' if len(
         abstractions) > 0 else abstractions
-
+    
     # Get the typee
     typee = '{}:{}'.format(tempTypee.arg_name, translate(tempTypee.arg_type))
     
