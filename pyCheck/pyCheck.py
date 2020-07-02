@@ -1,3 +1,5 @@
+import importlib
+
 from functools import reduce
 
 from aeon.frontend_core import typee, TypingContext
@@ -20,6 +22,29 @@ ty = typee.parse
 def provide(*args, **kwargs):
     def wrapper(function):
         
+        function.__pyCheck_arguments__ = args
+        function.__pyCheck_return_type__ = kwargs
+        function.__pyCheck_repeat__ = 1 if 'repeat' not in kwargs else kwargs['repeat']
+
+        return function
+
+    return wrapper
+
+def runall(path):
+
+    bib = importlib.import_module(path)
+
+    for name in dir(bib):
+
+        function = getattr(bib, name)
+        
+        if not hasattr(function, '__pyCheck_repeat__'):
+            continue
+        
+        repeat = getattr(function, '__pyCheck_repeat__')
+        args = getattr(function, '__pyCheck_arguments__')
+        kwargs = getattr(function, '__pyCheck_return_type__')
+
         failed = list()
         accuracies = list()
         
@@ -28,9 +53,8 @@ def provide(*args, **kwargs):
         typees = [ty(param) for param in args]
 
         # Obtain the kwargs
-        return_type = ty(kwargs['expected'])
-        repeat = 1 if 'repeat' not in kwargs else kwargs['repeat']
-
+        return_type = ty(kwargs['expected'])  
+        
         # Generate the fitness function in the 
         fitness_functions = generate_fitnesses(typees, return_type)
 
@@ -56,9 +80,7 @@ def provide(*args, **kwargs):
                 
         print_result(repeat, typees, failed, accuracies)
 
-        return function
-
-    return wrapper
+        # TODO: add to global, add runall
 
 
 # =============================================================================
