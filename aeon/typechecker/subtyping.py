@@ -58,7 +58,7 @@ def sub_tabs(ctx, sub: TypeAbstraction, sup: TypeAbstraction) -> bool:
 
 
 def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication) -> bool:
-    if sub.target != sup.target:
+    if not is_subtype(ctx, sub.target, sup.target):
         raise SubtypingException(
             "Type constructor is not the same: {} and {} in {} <?: {}".format(
                 sub.target, sup.target, sub, sup))
@@ -90,6 +90,15 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
 
 def is_subtype(ctx, sub, sup) -> bool:
     """ Subtyping Rules """
+    
+    # ===
+    # Small hack because of type_aliases that are not replaced
+    if isinstance(sub, BasicType) and sub.name in ctx.type_aliases:
+        return is_subtype(ctx, ctx.type_aliases[sub.name], sup)
+    if isinstance(sup, BasicType) and sup.name in ctx.type_aliases:
+        return is_subtype(ctx, sub, ctx.type_aliases[sup.name])
+    # ===
+
     if isinstance(sub, BasicType) and sub.name == 'Bottom':
         return True
     elif isinstance(sup, BasicType) and sup.name in ['Top', 'Object', 'Void']:
