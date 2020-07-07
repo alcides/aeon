@@ -155,7 +155,7 @@ def down(grid):
         grid.grid[grid.position[1]][grid.position[0]] = 0
     return grid
 
-@aefunction('get_grid(g:Grid) -> List[Pair[BoundedInt, BoundedInt]] = native;', lambda grid: get_grid(grid))
+@aefunction('get_grid(g:Grid) -> List[List[RestrictedNat]] = native;', lambda grid: get_grid(grid))
 def get_grid(grid):
     return grid.grid
 
