@@ -142,8 +142,8 @@ def interpret_expressions(eval_ctx, definition, expressions):
     result = list()
     
     for condition in expressions:
-
-        name = obtain_application_var(condition)
+        
+        name = format_name(obtain_application_var(condition))
 
         # If it is one of the optimizers functions
         if isinstance(name, Var) and name.name in optimizers:
@@ -157,6 +157,14 @@ def interpret_expressions(eval_ctx, definition, expressions):
         result.append(function)
 
     return result
+
+def format_name(node):
+    if isinstance(node, Var):
+        if node.name.startswith('forall'):
+            node.name = 'forall'
+        if node.name.startswith('exists'):
+            node.name = 'exists'
+    return node
 
 
 def generate_fitness(eval_ctx, definition, condition):

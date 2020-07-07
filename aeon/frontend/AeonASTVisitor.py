@@ -394,7 +394,6 @@ class AeonASTVisitor(AeonVisitor):
         for statement in statements[1:]:
             if isinstance(statement, Definition):
                 name, typee, body = statement.name, statement.type, statement.body
-                print(statement, name)
             else:
                 name, typee, body = '_', top, statement
 
