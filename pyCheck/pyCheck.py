@@ -12,7 +12,7 @@ from aeon.interpreter import run
 from aeon.synthesis.synthesis import se
 from aeon.typechecker.typing import check_type
 
-from aeon.typechecker.substitutions import substitution_expr_in_type
+from aeon.typechecker.substitutions import substitution_expr_in_type, substitution_expr_in_expr
 
 from aeon.automatic.utils.fitness_utils import generate_expressions, convert
 
@@ -59,8 +59,13 @@ def runall(path):
         fitness_functions = generate_fitnesses(typees, return_type)
 
         for _ in range(repeat):
-            values = [se(context, T, 0).value for T in typees]
-            
+
+            values = list()
+
+            for T in typees:
+                T = substitute_dependent_types(values.copy(), typees, T.copy())
+                values.append(se(context, T, 0).value)
+
             # Run the function with the values
             result = function(*values)
 
@@ -82,6 +87,19 @@ def runall(path):
 
         # TODO: add to global, add runall
 
+def substitute_dependent_types(values, typees, T):
+    original_T = T.copy()
+    if isinstance(T, RefinedType):
+        for tee in typees:
+
+            if tee == original_T:
+                break
+            if isinstance(tee, RefinedType):
+                value = values.pop()
+                T.cond = substitution_expr_in_expr(T.cond, Literal(value,
+                        get_T(value)), tee.name)
+
+    return T
 
 # =============================================================================
 def print_result(repeat, typees, failed, accuracies):
