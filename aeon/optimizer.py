@@ -209,9 +209,9 @@ def optimize(tapp):
     
 @dispatch(TAbstraction)
 def optimize(tabs):
-    tabs.body = optimization(tabs.body) 
+    tabs.body = optimize(tabs.body) 
     return tabs
 
 @dispatch(object)
-def optimize(none):
+def optimize(node):
     raise Exception("Unknown node type during optimization: ", type(node))

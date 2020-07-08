@@ -6,7 +6,7 @@ def roulette(population):
     objective = random.randint(0, len(population[0].fitness) - 1)
 
     # Sort the population by the random objective fitness
-    sorted_population = sorted(asd, key = lambda x: x.fitness[objective])
+    sorted_population = sorted(population, key = lambda x: x.fitness[objective])
 
     # Apply a gaussian random selection of an individual
     index = round(abs(random.gauss(0, len(population) // 3))) % len(population)

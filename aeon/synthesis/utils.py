@@ -147,4 +147,4 @@ def substitute_uninterpreted(node, uninterp, replacement):
         return subs(node.body)
 
     else:
-        raise TypeException("Substitution in uninterp unknown:", n, type(n))
+        raise TypeException("Substitution in uninterp unknown:", node, type(node))

@@ -1,5 +1,5 @@
 from aeon.ast import Literal, Var, Hole, If, Application, Abstraction, TAbstraction, TApplication
-from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction, TypeApplication
+from aeon.types import BasicType, AbstractionType, RefinedType, TypeAbstraction, TypeApplication, t_f
 
 from aeon.automatic.evaluation.conversor import convert, obtain_application_var
 
@@ -8,7 +8,10 @@ from aeon.synthesis.synthesis import se_safe
 
 from aeon.typechecker.substitutions import substitution_expr_in_expr
 
+import csv
 import timeit
+
+from functools import reduce
 
 # =============================================================================
 # Auxiliary: Given a definition, generate its fitness functions

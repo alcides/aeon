@@ -480,14 +480,6 @@ class AeonASTVisitor(AeonVisitor):
         return None
 
 
-        operator = Var('==')
-        left = Literal(v, t, ensured=True)
-        right = Var(label)
-
-        operator = TApplication(operator, t_delegate)
-        expression = Application(Application(operator, left), right)
-
-
     # x -> y, x == y, x || y, x && y, x > y, x < y, ...
     def visitLogicalExpression(self, ctx: AeonParser.LogicalExpressionContext):
         left = self.visit(ctx.left)
