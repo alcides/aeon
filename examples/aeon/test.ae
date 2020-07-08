@@ -1,4 +1,0 @@
-function() -> {x:Integer | x > 0} {
-    [];
-    [];
-}

@@ -9,12 +9,12 @@ class String(object):
     def __init__(self):
         pass
 
-@aefunction('equals(a:String, b:String) -> {s:Boolean | s --> (a.size == b.size)} = native;', lambda x: lambda y: equals(x, y))
+@aefunction('s_equals(a:String, b:String) -> {s:Boolean | s --> (a.size == b.size)} = native;', lambda x: lambda y: equals(x, y))
 @aedocumentation("Teste")
 def equals(x, y):
     return x == y
 
-@aefunction('concat(a:String, b:String) -> {s:String | s.size == a.size + b.size} = native;', lambda x: lambda y: concat(x, y))
+@aefunction('s_concat(a:String, b:String) -> {s:String | s.size == a.size + b.size} = native;', lambda x: lambda y: concat(x, y))
 def concat(x, y):
     return x + y
 
@@ -26,15 +26,15 @@ def ascii_code(s):
 def ascii_letters(ignored):
     return string.ascii_letters
 
-@aefunction('charAt(a:String, {i:Integer | i >= 0 && i < a.size}) -> Integer = native;', lambda x: charAt(x, i))
+@aefunction('s_charAt(a:String, {i:Integer | i >= 0 && i < a.size}) -> Integer = native;', lambda x: lambda i: charAt(x, i))
 def charAt(x, i):
     return x[i]
 
-@aefunction('size(s:String) -> {i:Integer | i == s.size} = native;', lambda x: size(x))
+@aefunction('s_size(s:String) -> {i:Integer | i == s.size} = native;', lambda x: size(x))
 def size(x):
     return builtins.len(x)
 
-@aefunction('replace(a:String, b:String, c:String) -> String = native;', lambda x: lambda y: lambda z: replace(x, y, z))
+@aefunction('s_replace(a:String, b:String, c:String) -> String = native;', lambda x: lambda y: lambda z: replace(x, y, z))
 def replace(x, y, z):
     return z.replace(x, y)
 
@@ -42,19 +42,19 @@ def replace(x, y, z):
 def substring(x, y):
     return x in y
 
-@aefunction('head({s:String | s.size > 0}) -> {s:String | s.size == 1} = native;', lambda s: head(s))
+@aefunction('s_head({s:String | s.size > 0}) -> {s:String | s.size == 1} = native;', lambda s: head(s))
 def head(s):
     return s[0]
 
-@aefunction('tail({s:String | s.size > 0}) -> {s2:String | s2.size == s.size - 1} = native;', lambda s: tail(s))
+@aefunction('s_tail({s:String | s.size > 0}) -> {s2:String | s2.size == s.size - 1} = native;', lambda s: tail(s))
 def tail(s):
     return s[1:]
 
-@aefunction('count({s:String | s.size == 1}, s2:String) -> {i:Integer | i >= 0 && i <= s2.size} = native;', lambda s: lambda s2: count(s, s2))
+@aefunction('s_count({s:String | s.size == 1}, s2:String) -> {i:Integer | i >= 0 && i <= s2.size} = native;', lambda s: lambda s2: count(s, s2))
 def count(s, s2):
     return s2.count(s)
 
-@aefunction('forall(f:(x:String -> Boolean), s:String) -> Boolean = native;', lambda f: lambda s: forall(f, s))
+@aefunction('s_forall(f:(x:String -> Boolean), s:String) -> Boolean = native;', lambda f: lambda s: forall(f, s))
 def forall(f, s):
-    return all(f(x) for x in l)
+    return all(f(x) for x in s)
     
