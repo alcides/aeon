@@ -1,5 +1,6 @@
 import copy
 import builtins
+import functools
 from .annotation import aefunction, aedocumentation
 
 ''' List binds in Aeon to Python '''
@@ -90,9 +91,9 @@ def elemAt(i, l):
     return l[i]
 
 # Reduce
-@aefunction('reduce_list[X, Y](f:(x:X -> (Y -> Y)), {l:List[X] | l.size > 0}) -> X = native;', lambda l: reduce(l))
-def reduce(l):
-    return l[1:]
+@aefunction('reduce_list[X, Y](f:(x:X -> (Y -> Y)), {l:List[X] | l.size > 0}) -> X = native;', lambda f: lambda l: reduce_list(l))
+def reduce_list(f, l):
+    return functools.reduce(lambda x, y: f(x)(y), l)
 
 # Size of the list 
 @aefunction('length_list[T](l:List[T]) -> {i:Integer | i == l.size} = native;', lambda l: length(l))

@@ -23,7 +23,7 @@ def ceil(value):
 def floor(value):
     return math.floor(value)
 
-@aefunction('pow[X](x:X, y:X) -> X = native;', lambda x: lambda y: power(x, y))
+@aefunction('pow[X, Y](x:X, y:Y) -> Y = native;', lambda x: lambda y: power(x, y))
 def power(x, y):
     return math.pow(x, y)
 
