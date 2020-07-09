@@ -91,9 +91,6 @@ class Var(TypedNode):
 class If(TypedNode):
     """ if cond then e else e """
 
-    # int a = (a > b) ? 1 : 0;
-    #inteiro = True and "ola" or "adeus"
-
     def __init__(self, cond: TypedNode, then: TypedNode, otherwise: TypedNode):
         super(If, self).__init__()
         self.cond = cond
@@ -196,6 +193,12 @@ class Definition(Node):
     def __str__(self):
         return "{} : {} = {}".format(self.name, self.type, self.body)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.type == o.type \
+            and self.body == o.body \
+            and self.return_type == o.return_type
 
 class TypeAlias(Node):
     def __init__(self, name: str, type: Type):
@@ -205,7 +208,11 @@ class TypeAlias(Node):
     def __str__(self):
         return "type {} = {}".format(self.name, self.type)
 
-
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.type == o.type
+            
 class TypeDeclaration(Node):
     def __init__(self, name: Type, kind: Kind, ghost_variables):
         self.name = name
@@ -215,6 +222,10 @@ class TypeDeclaration(Node):
     def __str__(self):
         return "type {} : {}".format(self.name, self.kind)
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.kind == o.kind \
 
 class Import(Node):
     def __init__(self, name: str, function: Optional[str] = None):
@@ -227,6 +238,10 @@ class Import(Node):
             result = 'import {} from {}'.format(self.function, self.name)
         return result
 
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.name == o.name \
+            and self.function == o.function
 
 def refined_value(v, t, label="_v"):
     if type(v) == str:
