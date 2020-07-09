@@ -214,7 +214,7 @@ class TypeAlias(Node):
             and self.type == o.type
             
 class TypeDeclaration(Node):
-    def __init__(self, name: Type, kind: Kind, ghost_variables):
+    def __init__(self, name: str, kind: Kind, ghost_variables):
         self.name = name
         self.kind = kind
         self.ghost_variables = ghost_variables

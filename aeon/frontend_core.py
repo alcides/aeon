@@ -163,9 +163,9 @@ def mk_parser(rule="start"):
 cached_imports = []
 
 
-def resolve_imports(p, base_path=lambda x: x):
+def resolve_imports(p : Program, base_path=lambda x: x):
     n_p = []
-    for n in p:
+    for n in p.declarations:
         if isinstance(n, Import):
             fname = n.name
             path = ""
@@ -191,7 +191,7 @@ kind = mk_parser("kind")
 
 def parse(fname):
     txt = open(fname).read()
-    p = p.parse(txt)
+    p = mk_parser().parse(txt)
     p = resolve_imports(p,
                         base_path=lambda x: os.path.join(
                             os.path.dirname(fname), "{}.{}".format(x, "ae2")))

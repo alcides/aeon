@@ -1,83 +1,104 @@
-start : aeon*            -> program
+start : aeon*           -> program
 
-aeon 
-    : import            -> import 
-    | type_alias        -> type_alias
-    | type_declaration  -> type_declaration
-    | definition        -> definition
-    | type             -> type
-
-import 
-    : "import" ID from PATH ";" -> function_import
-    | "import" PATH ";"         -> regular_import
-
-type_alias 
-    : "type" ID "=" type ";"   -> type_alias
-
-type_declaration 
-    : "type" type ";"          -> type_declaration
-    | "type" type "{" ( ID : type";")+ "}"
-
-type 
-    : TYPE_ID                               -> basic_type
-    | "(" type ")"                          -> parens_type
-    | "{" ID ":" type "|" expression "}"    -> refined_type
-    | "(" "\\" ID ":" type "->" type ")"    -> abstraction_type
-    | type "[" TYPE_ID "]"                  -> type_abstraction
-    | type "[" type "]"                     -> type_application
-
-definition 
-    : ID ("[" type_params? "]")? "(" definition_params? ")" "->" type ";"                  -> native_definition
-    | ID ("[" type_params? "]")? "(" definition_params? ")" "->" type "{" statement+ "}"   -> regular_definition
-
-type_params
-    : TYPE_ID ("," TYPE_ID)*
-
-definition_params
-    : ID ":" type ("," ID ":" type)*
-
-statement
-    : "if" expression "{" statement+ "}" "else" "{" statement+ "}"      -> if_statement
-    | ID ":" type "=" expression ";"                                    -> let_statement
-    | ID "=" expression ";"                                             -> assign_statement
-    | expression ";"                                                    -> expression
-
-expression 
-    : "(" expression ")"                                -> parenthesis
-    | expression "(" parameters ")"                     -> function_call
-    | expression "-->" expression                       -> boolean_expression
-    | "!" expression                                    -> not_expression
-    | "-" expression                                    -> minus_expression
-    | expression ("*" | "/" | "%") expression           -> arithmetic_expression
-    | expression ("-" | "+") expression                 -> arithmetic_expression
-    | expression ("<" | ">" | "<=" | ">=") expression   -> arithmetic_expression
-    | 
-    | 
-    | 
-    | 
+aeon : aeimport         
+    | type_alias        
+    | type_declaration  
+    | definition        
+    | ttype             
+    | statement
 
 
+aeimport : "import" (CNAME | PATH) ";"               -> regular_import
+    | "import" CNAME "from" (CNAME | PATH) ";"       -> function_import
+    
+type_alias : "type" TYPE_CNAME "as" ttype ";"       -> type_alias
 
-BOOLLIT.5 : "true" | "false"
-INTLIT : /[0-9][0-9]*/
-FLOATLIT : /[0-9]*'.'?[0-9]+/
-STRINGLIT : ESCAPED_STRING
+type_declaration : "type" ttype ";"                 -> regular_type_decl
+    | "type" ttype "{" ( CNAME ":" ttype";")+ "}"   -> param_type_decl
 
-ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
-TYPE_ID : ["A".."Z"] CNAME
 
-PATH : (".." | ID )* "/" ID
+ttype : "(" ttype ")"                               -> parens_type
+    | TYPE_CNAME                                    -> basic_type
+    | "{" CNAME ":" ttype "|" expression "}"        -> refined_type
+    | "(" CNAME ":" ttype "->" ttype ")"            -> abstraction_type
+    | ttype tabstractions                           -> type_absapp
 
-_PIPE.10 : "where" | "|"
-_DOUBLEPIPE.11 : "||"
+definition : CNAME tabstractions? "(" definition_params? ")" "->" ttype ";"           -> native_definition
+    | CNAME tabstractions? "(" definition_params? ")" "->" ttype "{" statement+ "}"   -> regular_definition
 
+tabstractions : "[" TYPE_CNAME ("," TYPE_CNAME)* "]"
+
+definition_params : CNAME ":" ttype ("," CNAME ":" ttype)*
+
+statement : "if" expression "{" statement+ "}" "else" "{" statement+ "}"    -> if_statement
+    | CNAME ":" ttype "=" expression ";"                                    -> let_statement
+    | CNAME "=" expression ";"                                              -> assign_statement
+    | expression ";"                                                        -> expression_statement
+
+expression : "(" expression ")"                             -> parens_expr
+    | expression tabstractions                              -> tapplication_expr
+    | expression "(" parameters? ")"                        -> invocation_expr
+    | NOT expression                                        -> not_expr
+    | MINUS expression                                      -> minus_expr
+    | expression (MULT | QUOT | MODULE) expression          -> arithmetic_expr
+    | expression (PLUS | MINUS) expression                  -> arithmetic_expr
+    | expression (LT | GT | LTE | GTE) expression           -> compare_expr
+    | expression (EQUAL | DIFF) expression                  -> compare_expr
+    | expression (CONJUNCTION | AND) expression             -> boolean_expr
+    | expression DISJUNCTION expression                     -> boolean_expr
+    | expression IMPLIE expression                          -> boolean_expr
+    | "\\" CNAME ":" ttype "->" expression                  -> abstraction_expr
+    | "if" expression "then" expression "else" expression   -> if_expr
+    | CNAME ("." CNAME)+                                    -> attribute_expr
+    | "?" ttype? "?"                                        -> hole_expr
+    | (FLOATLIT | INTLIT | BOOLLIT | STRINGLIT)             -> literal_expr
+    | CNAME                                                 -> variable_expr
+    | "@" CNAME "(" parameters? ")"                         -> improvement_expr
+
+parameters : expression ("," expression)*
+
+// Literals
+BOOLLIT.2: "true" | "false"
+INTLIT: INT
+FLOATLIT: FLOAT
+STRINGLIT: ESCAPED_STRING
+
+
+// Number operations
+PLUS: "+"
+MINUS: "-"
+MULT: "*"
+QUOT: "/"
+MODULE: "%"
+
+// Logical Operators
+AND: "and"
+CONJUNCTION: "&&"
+DISJUNCTION: "||"
+NOT: "!"
+
+// Logical Operators
+LT: "<"
+LTE: "<="
+GT: ">"
+GTE: ">="
+EQUAL: "=="
+DIFF: "!="
+IMPLIE: "-->"
+
+CNAME: "a".."z" /[a-zA-Z0-9_]/*    
+TYPE_CNAME: "A".."Z" /[a-zA-Z0-9_]/* 
+
+PATH : ((".." | CNAME ) "/")+ CNAME
+
+// Comments
 LINE_COMMENT: /\s*/ "//" /[^\n]/*
-BLOCK_COMMENT: "?"
-
+BLOCK_COMMENT: "/*" /(.|\n)+/ "*/"
 
 %import common.ESCAPED_STRING
 %import common.WS
-%import common.CNAME
+%import common.INT
+%import common.FLOAT
 
 %ignore WS
 %ignore LINE_COMMENT

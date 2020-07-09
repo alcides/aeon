@@ -10,7 +10,7 @@ class KindingError(TypingException):
 
 
 def k_base(ctx: TypingContext, t: BasicType):
-    if t.name in ['Boolean', 'Integer']:
+    if t.name in ['Boolean', 'Integer', 'Double', 'String', 'Top', 'Bottom']:
         return star
     elif t.name in ctx.type_variables:
         return ctx.type_variables[t.name]

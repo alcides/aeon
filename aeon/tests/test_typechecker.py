@@ -30,8 +30,8 @@ class TestTypeChecking(unittest.TestCase):
     def test_basic_1(self):
         self.generic_test("1", "{x:Integer | (x == 1)}")
 
-    def test_synthesized_literal(self):
-        self.generic_test("20", "{x:Integer | x > (10 / 2)}")
+    def test_basic_negative(self):
+        self.generic_test("-2", "{x:Integer | x == (-2)}")
 
     def test_basic_11(self):
         self.generic_test("11", "{x:Integer | (x == 11)}")
