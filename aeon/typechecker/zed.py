@@ -39,6 +39,7 @@ def zed_initial_context():
         "||": lambda x: lambda y: z3.Or(x, y),
         "+": lambda x: lambda y: x + y,
         "-": lambda x: lambda y: x - y,
+        "(-u)": lambda y: -y,
         "*": lambda x: lambda y: x * y,
         "/": lambda x: lambda y: x / y,
         "^": lambda x: lambda y: x ^ y,

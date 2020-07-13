@@ -52,7 +52,7 @@ class TreeToCore(Transformer):
     # Expressions
 
     def minus(self, args):
-        return Application(Application(Var("-"), Literal(0.0, t_f)), args[0])
+        return Application(TApplication(Var("(-u)"), t_delegate), args[0])
 
     def let_e(self, args):
         abst = Abstraction(str(args[0]), args[1], args[3])
@@ -163,7 +163,7 @@ def mk_parser(rule="start"):
 cached_imports = []
 
 
-def resolve_imports(p : Program, base_path=lambda x: x):
+def resolve_imports(p: Program, base_path=lambda x: x):
     n_p = []
     for n in p.declarations:
         if isinstance(n, Import):

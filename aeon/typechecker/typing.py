@@ -121,7 +121,6 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
             e.target.argument = T
     # end hack
     F = type_conversion(synth_type(ctx, e.target))
-
     if not isinstance(F, AbstractionType) and F != bottom:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
@@ -198,7 +197,7 @@ def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
 """Wrapper structures"""
 
 
-def check_program(ast): # pragma: no cover
+def check_program(ast):  # pragma: no cover
     holed = []
 
     def internal_check(ctx: TypingContext, e: TypedNode):

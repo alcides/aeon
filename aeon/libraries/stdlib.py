@@ -110,6 +110,8 @@ initial_context = {
     '-': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:T where ((smtEq c) ((smtMinus a) b))}"),
           lambda x: lambda y: x - y),
+    '(-u)': (ty2("(T:*) => (b:T) -> {c:T where ((smtEq c) ((smtMinus 0) b))}"),
+             lambda y: 0 - y),
     '*':
     (ty2("(T:*) => (a:T) -> (b:T) -> {c:T where ((smtEq c) ((smtMult a) b))}"),
      lambda x: lambda y: x * y),
