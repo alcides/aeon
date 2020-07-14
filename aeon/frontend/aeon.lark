@@ -21,12 +21,12 @@ ttype : "(" ttype ")"                               -> parens_type
     | TYPE_CNAME                                    -> basic_type
     | "{" CNAME ":" ttype "|" expression "}"        -> refined_type
     | "(" CNAME ":" ttype "->" ttype ")"            -> abstraction_type
-    | ttype tabstractions                           -> type_absapp
+    | ttype tabstractions                           -> type_tabstapp
 
 definition : CNAME tabstractions? "(" definition_params? ")" "->" ttype ";"           -> native_definition
     | CNAME tabstractions? "(" definition_params? ")" "->" ttype "{" statement+ "}"   -> regular_definition
 
-tabstractions : "[" TYPE_CNAME ("," TYPE_CNAME)* "]"
+tabstractions : "[" ttype ("," ttype)* "]"
 
 definition_params : CNAME ":" ttype ("," CNAME ":" ttype)*
 

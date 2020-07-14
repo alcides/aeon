@@ -91,23 +91,104 @@ class TreeToAeon(Transformer):
     def abstraction_type(self, args):
         return AbstractionType(args[0].value, args[1], args[2])
 
-    def type_absapp(self, args):
-        pass
+    def type_tabstapp(self, args):
+        ttype, (tabs, tapps) = args
         
+        ttype = englobe_typeapps(ttype, tapps)
+        ttype = englobe_typeabs(ttype, tabs)
+        
+        return ttype
+
+    def tabstractions(self, args):
+
+        tabs = list()
+        tapps = list()
+
+        for typee in args:
+            tabs += search_tabs(typee)
+            typee = remove_tabs(typee)
+            tapps.append(typee)
+
+        return (list(dict.fromkeys(reversed(tabs))), tapps)
+
     # -------------------------------------------------------------------------
     # Definition
     def native_definition(self, args):
-        pass
+        
+        name, (tabs, tapps), params, rtype, body = preprocess_args(args)
+
+        ttype = create_definition_ttype(params, rtype) if params \
+                else AbstractionType('_'. t_v, rtype)
+
+        # TODO: o kind agora esta star, mas devia ser calculado
+        ttype = englobe_typeabs(remove_tabs(ttype), tabs)
+
+        return Definition(name, ttype, Var('native'), rtype)
+
         
     def regular_definition(self, args):
-        pass
-    
-    def tabstractions(self, args):
-        pass
+                
+        name, (tabs, tapps), params, rtype, body = preprocess_args(args)
+        '''
+        # Update context:
+        old_context = self.context.copy()
+        self.context = self.context.copy()
+
+        if params:
+            ttype = create_definition_ttype(params, rtype)
+        else:
+            rtype = remove_tabs(rtype)
+            ttype = AbstractionType('_'. t_v, rtype)
+
+        # TODO: o kind eh star, mas devia ser calculado
+        ttype = englobe_tabs(ttype, tabs)
+
+        self.general_context[name] = ttype
+
+        body = args[-1]
+
+        if name == 'main':
+            body = Abstraction('_', t_v, body)
+        
+         elif (not isinstance(body, Var)
+              or (isinstance(body, Var) and body.name != 'native')):
+
+            # If there are parameters, englobe the body in them
+            tempTypee = typee
+
+            while isinstance(tempTypee, TypeAbstraction):
+                tempTypee = tempTypee.type
+            listParams = []
+
+            while tempTypee != return_type:
+                listParams.append((tempTypee.arg_name, tempTypee.arg_type))
+                tempTypee = tempTypee.return_type
+            listParams.reverse()
+
+            for param_name, param_typee in listParams:
+                body = Abstraction(param_name, param_typee, body)
+                body.type = AbstractionType(param_name, param_typee,
+                                            body.body.type)
+
+            # If there are abstractions, englobe the body and typee in them
+            for type_abstract in abstractions:
+                body = TAbstraction(type_abstract, star, body)
+                body.type = TypeAbstraction(type_abstract, star,
+                                            body.body.type)
+
+        # Re-update the context
+        self.general_context = old_context
+        self.general_context[name] = typee
+
+        self.basic_typee_stack = []
+
+        return Definition(name, typee, body, return_type)
+    '''
 
     def definition_params(self, args):
-        pass
+        return [(args[i], args[i + 1]) for i in range(0, len(args), 2)]
     
+
     # -------------------------------------------------------------------------
     # Statement
     def statement(self, args):
@@ -139,8 +220,16 @@ class TreeToAeon(Transformer):
         return args[0]
     
     def tapplication_expr(self, args):
-        pass
-    
+        expr, (tabs, tapps) = args
+
+        expr = reduce(lambda target, argument: TApplication(target, argument),
+            tapps, expr)
+
+        expr = reduce(lambda abst, ttype: TAbstraction(ttype, star, abst),
+            tabs, expr)
+        
+        return expression 
+
     def invocation_expr(self, args):
         pass
     
@@ -159,11 +248,8 @@ class TreeToAeon(Transformer):
         return expression
 
     def minus_expr(self, args):
-        # TODO: must properley know the type of the right side
         operator, expression = args
-        left = Literal(0, refined_value(0, t_i))
-        tapp = TApplication(Var(operator.value), t_delegate)
-        expression = Application(Application(tapp, left), expression)
+        return Application(TApplication(Var("(-u)"), t_delegate), expression)
     
     def arithmetic_expr(self, args):
         left, operator, right = args
@@ -188,6 +274,7 @@ class TreeToAeon(Transformer):
         return If(cond, then, otherwise)
     
     def attribute_expr(self, args):
+        names = map(lambda arg: arg.value, args)
         pass
     
     def hole_expr(self, args):
@@ -211,6 +298,12 @@ class TreeToAeon(Transformer):
             raise Exception("Error when parsing literal:", ttype)
 
         return Literal(value, refined_value(value, tee))
+
+    def improvement_expr(self, args):
+        improv, params = f'@{Var(args[0]. value)}', reversed(args[1])
+        return reduce(lambda target, p: Application(target, p), params, improv)
+
+
 
 
 

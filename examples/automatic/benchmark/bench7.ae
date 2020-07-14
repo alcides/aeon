@@ -7,8 +7,8 @@ import aeon/libraries/strings;
 // whitespace characters. The input string will not have tabs or
 // newlines
 replace_spaces(in:String) -> out:String where {out.size == in.size and 
-                                               count(" ", out) == 0 and
-                                               count("\n", out) == count(" ", in)} {
+                                               s_count(" ", out) == 0 and
+                                               s_count("\n", out) == s_count(" ", in)} {
     /*
     if equals(" ", head(in)) {
         concat("\n", tail(out));
@@ -23,9 +23,9 @@ replace_spaces(in:String) -> out:String where {out.size == in.size and
 main() -> Top {
     s : String = "ola tudo bem?";
 
-    print("String original:");
-    print(s);
+    print[String]("String original:");
+    print[String](s);
 
-    print("String com espacos substituidos:");
-    print(replace_spaces(s));
+    print[String]("String com espacos substituidos:");
+    print[String](replace_spaces(s));
 }

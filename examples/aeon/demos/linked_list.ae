@@ -29,5 +29,5 @@ main() -> Top {
     print[LList[Integer]](extend_llist[Integer](l4, l2)); // 1 item with + items
 
     // TODO: Not working???? Should give error
-    // {l3 : LList[Integer] | l3.size == 1} = empty_llist[Integer]();
+    l3 : {l3 : LList[Integer] | l3.size == 1} = empty_llist[Integer]();
 }

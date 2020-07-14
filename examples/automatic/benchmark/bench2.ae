@@ -13,5 +13,5 @@ smaller_or_greater(x:Integer) -> out:String where {out == (x < 1000 ? ("small") 
 }
 
 main() -> Top {
-    print<String>(smaller_or_greater(1200));
+    print[String](smaller_or_greater(1200));
 }

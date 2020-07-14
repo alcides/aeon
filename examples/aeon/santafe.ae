@@ -32,8 +32,8 @@ has_food(grid:Grid) -> {out:Integer | out >= 0 && out <= grid.food} {
     x : BoundedInt = pair_first[BoundedInt, BoundedInt](get_position(grid));
     y : BoundedInt = pair_second[BoundedInt, BoundedInt](get_position(grid));
 
-    line : List[RestrictedNat] = elemAt[List[RestrictedNat]](y, actual_grid);
-    value : RestrictedNat = elemAt[RestrictedNat](x, line);
+    line : List[RestrictedNat] = elemAt_list[List[RestrictedNat]](y, actual_grid);
+    value : RestrictedNat = elemAt_list[RestrictedNat](x, line);
 }
 
 
