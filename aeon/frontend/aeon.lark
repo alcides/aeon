@@ -35,25 +35,47 @@ statement : "if" expression "{" statement+ "}" "else" "{" statement+ "}"    -> i
     | CNAME "=" expression ";"                                              -> assign_statement
     | expression ";"                                                        -> expression_statement
 
-expression : "(" expression ")"                             -> parens_expr
-    | expression tabstractions                              -> tapplication_expr
-    | expression "(" parameters? ")"                        -> invocation_expr
-    | NOT expression                                        -> not_expr
-    | MINUS expression                                      -> minus_expr
-    | expression (MULT | QUOT | MODULE) expression          -> arithmetic_expr
-    | expression (PLUS | MINUS) expression                  -> arithmetic_expr
-    | expression (LT | GT | LTE | GTE) expression           -> compare_expr
-    | expression (EQUAL | DIFF) expression                  -> compare_expr
-    | expression (CONJUNCTION | AND) expression             -> boolean_expr
-    | expression DISJUNCTION expression                     -> boolean_expr
-    | expression IMPLIE expression                          -> boolean_expr
-    | "\\" CNAME ":" ttype "->" expression                  -> abstraction_expr
-    | "if" expression "then" expression "else" expression   -> if_expr
-    | CNAME ("." CNAME)+                                    -> attribute_expr
-    | "?" ttype? "?"                                        -> hole_expr
-    | (FLOATLIT | INTLIT | BOOLLIT | STRINGLIT)             -> literal_expr
-    | CNAME                                                 -> variable_expr
-    | "@" CNAME "(" parameters? ")"                         -> improvement_expr
+expression : expression_dis IMPLIE expression                       -> boolean_expr  
+           | expression_dis                                         -> expr
+
+expression_dis : expression_i                                       -> expr
+               | expression_i DISJUNCTION expression_dis            -> boolean_expr 
+
+expression_i : "if" expression "then" expression "else" expression  -> if_expr
+             | expression_bool (CONJUNCTION | AND) expression_i     -> boolean_expr
+             | expression_bool EQUAL expression_i                   -> compare_expr
+             | expression_bool DIFF expression_i                    -> compare_expr
+             | expression_bool                                      -> expr
+              
+expression_bool : expression_plus                                   -> expr
+                | NOT expression_bool                               -> not_expr  
+                | expression_plus LT expression_bool                -> compare_expr
+                | expression_plus LTE expression_bool               -> compare_expr
+                | expression_plus GT expression_bool                -> compare_expr
+                | expression_plus GTE expression_bool               -> compare_expr
+                
+expression_plus : expression_fact                                   -> expr
+                | expression_fact PLUS expression_plus              -> arithmetic_expr
+                | expression_fact MINUS expression_plus             -> arithmetic_expr
+
+expression_fact : expression_un                                     -> expr
+                | expression_un MULT expression_fact                -> arithmetic_expr
+                | expression_un QUOT expression_fact                -> arithmetic_expr
+                | expression_un MODULE expression_fact              -> arithmetic_expr
+
+expression_un : expression_b                                        -> expr
+              | MINUS expression_un                                 -> minus_expr
+
+expression_b : "(" expression ")"                                   -> parens_expr
+    | expression_b tabstractions                                    -> tapplication_expr
+    | expression_b "(" parameters? ")"                              -> invocation_expr
+    | "\\" CNAME ":" ttype "->" expression                          -> abstraction_expr
+    | CNAME ("." CNAME)+                                            -> attribute_expr
+    | "?" ttype? "?"                                                -> hole_expr
+    | (FLOATLIT | INTLIT | BOOLLIT | STRINGLIT)                     -> literal_expr
+    | CNAME                                                         -> variable_expr
+    | "@" CNAME "(" parameters? ")"                                 -> improvement_expr
+
 
 parameters : expression ("," expression)*
 

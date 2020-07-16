@@ -27,7 +27,9 @@ class TestFrontend(unittest.TestCase):
         r = ex(r)
         return Application(Application(TApplication(Var(op), t_delegate), l), r)
 
-    def mk_bi_op(self, op, l, r):        
+    def mk_bi_op(self, op, l, r):  
+        l = ex(l)
+        r = ex(r)      
         return Application(Application(Var(op), l), r)
     
 
@@ -86,9 +88,12 @@ class TestFrontend(unittest.TestCase):
 
     
     def test_typeabstraction(self):
-        pass
+        self.assert_ty('List[T]', TypeAbstraction('T', star, TypeApplication(ty('List'), ty('T'))))
+        self.assert_ty('Map[X, Y]', TypeAbstraction('X', star,
+                                    TypeAbstraction('Y', star,
+                                    TypeApplication(TypeApplication(
+                                    ty('Map'), ty('X')), ty('Y')))))
     
-
     # Test the statements
     def test_definition(self):
         pass
@@ -127,39 +132,85 @@ class TestFrontend(unittest.TestCase):
     def test_arithmetic_expr(self):
         self.assert_ex('1 + 1', self.mk_bi_top('+', "1", "1"))
         self.assert_ex('1 - 1', self.mk_bi_top('-', "1", "1"))
-        self.assert_ex('1 - 2 * 3', self.mk_bi_top('-', "1", "2 * 3"))
-        from aeon.interpreter import run
-        print(">>", run(ex("2 * 3 - 7")))
-        self.assert_ex('1 * 2 - 3', self.mk_bi_top('-', "1 * 2", "3"))
-        
+        self.assert_ex('2 - 3 * 7', self.mk_bi_top('-', "2", "3 * 7"))
+        self.assert_ex('2 * 3 - 7', self.mk_bi_top('-', "2 * 3", "7"))
+    
         
     def test_tapplication(self):
-        pass
-    
+        self.assert_ex('f[T]', TAbstraction('T', star, TApplication(Var('f'), BasicType('T'))))
+        self.assert_ex('f[Integer]', TApplication(Var('f'), ty('Integer')))
+        self.assert_ex('f[T1, T2]', TApplication(TApplication(Var('f'),
+                                                              ty('T1')),
+                                                              ty('T2')))
+        
     def test_invocation(self):
-        pass
+        self.assert_ex('f(1)', Application(Var('f'), ex('1')))
+        self.assert_ex('f(x)(y)', Application(Application(Var('f'), ex('x')), ex('y')))
+        self.assert_ex('f(x, y)', Application(Application(Var('f'), ex('x')), ex('y')))
+        self.assert_ex('f[Integer](1)', Application(TApplication(Var('f'), ty('Integer')), ex('1')))
     
     def test_not(self):
-        pass
+        self.assert_ex('!true', Application(Var("!"), ex('true')))
+        self.assert_ex('!x', Application(Var("!"), Var('x')))
+        self.assert_ex('!1 > 3', Application(Var("!"), self.mk_bi_top('>', '1', '3')))
+        self.assert_ex('! x > y', Application(Var("!"), self.mk_bi_top('>', 'x', 'y')))
+        self.assert_ex('!false && true', Application(Application(Var("&&"),
+                                                     Application(Var('!'), ex('false'))), 
+                                                     ex('true')))
+        self.assert_ex('true || !1>3', Application(Application(Var("||"),
+                                                     ex('true')), 
+                                                     Application(Var('!'), self.mk_bi_top('>', '1', '3'))))
+        self.assert_ex('!1 > 3 --> true', Application(Application(Var("-->"),
+                                                     Application(Var('!'), self.mk_bi_top('>', '1', '3'))), 
+                                                     ex('true')))
     
     def test_minus(self):
-        pass
-
+        self.assert_ex('-x', Application(TApplication(Var('(-u)'), t_delegate), Var('x')))
+        self.assert_ex('-1', Application(TApplication(Var('(-u)'), t_delegate), ex('1')))
+        self.assert_ex('-x + y', self.mk_bi_top('+', '-x', 'y'))
+            
     def test_compare(self):
         pass
     
     def test_boolean(self):
-        pass
+        self.assert_ex('true && false', Application(Application(Var('&&'),
+                            ex('true')), ex('false')))
+        self.assert_ex('true || 1 > 3', Application(Application(Var('||'),
+                            ex('true')), self.mk_bi_top('>', '1', '3')))
+        self.assert_ex('1 > 3 --> true', Application(Application(Var('-->'),
+                            self.mk_bi_top('>', '1', '3')), ex('true')))
+        self.assert_ex('x || y --> true', Application(Application(Var('-->'),
+                            self.mk_bi_op('||', 'x', 'y')), ex('true')))
+        self.assert_ex('true --> x || y', Application(Application(Var('-->'),
+                            ex('true')), self.mk_bi_op('||', 'x', 'y')))
+        self.assert_ex('(true && false) --> 1 > 3', Application(Application(Var('-->'),
+                            self.mk_bi_op('&&', 'true', 'false')),
+                            self.mk_bi_top('>', '1', '3')))
+        self.assert_ex('x || y && z', Application(Application(Var('||'),
+                            Var('x')), self.mk_bi_op('&&', 'y', 'z')))
+        self.assert_ex('x && y || z', Application(Application(Var('||'),
+                            self.mk_bi_op('&&', 'x', 'y')), Var('z')))
+        self.assert_ex('!a && b || c', Application(Application(Var('||'),
+                            Application(Application(Var('&&'), 
+                                Application(Var("!"), Var('a'))), Var('b'))),
+                            Var('c')))
 
     def test_abstraction(self):
         pass
     
     def test_if(self):
-        pass
+        self.assert_ex('if x then y else z', If(Var('x'), Var('y'), Var('z')))
+        self.assert_ex('if x then y else z + 1', If(Var('x'), Var('y'), 
+                            self.mk_bi_top('+', 'z', '1')))
+        self.assert_ex('if x then y else z || 1', If(Var('x'), Var('y'), 
+                            self.mk_bi_op('||', 'z', '1')))
+        self.assert_ex('1 && if x then y else z', Application((Application(Var('&&'), 
+                            ex('1'))), If(Var('x'), Var('y'), Var('z'))))
+        self.assert_ex('p && if x then y else z || d', Application((Application(Var('&&'), 
+                            Var('p'))), If(Var('x'), Var('y'), self.mk_bi_op('||', 'z', 'd'))))
 
     def test_attribute(self):
         pass
     
     def test_improvement(self):
         pass
-
