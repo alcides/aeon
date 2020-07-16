@@ -10,7 +10,6 @@ class TreeToAeon(Transformer):
     def __init__(self):
         super().__init__()
 
-        self.context = dict()
         self.type_aliases = dict()
         self.declarations = list()
 
@@ -69,7 +68,6 @@ class TreeToAeon(Transformer):
                                     Var('uninterpreted').with_type(bottom),
                                     remove_tabs(ghost_type))
             self.declarations.append(definition)
-            self.context[ghost_name] = function_type
 
         return None
     
@@ -130,10 +128,6 @@ class TreeToAeon(Transformer):
         raise NotImplementedError("REGULAR DEF")
         name, (tabs, tapps), params, rtype, body = preprocess_regular(args)
 
-        # Update context:        
-        old_context = self.context.copy()
-        self.context = self.context.copy()
-
         if params:
             ttype = create_definition_ttype(params, rtype)
         else:
@@ -142,8 +136,6 @@ class TreeToAeon(Transformer):
 
         # TODO: o kind eh star, mas devia ser calculado
         ttype = englobe_typeabs(ttype, tabs)
-
-        self.general_context[name] = ttype
 
         body = args[-1]
 
@@ -162,10 +154,6 @@ class TreeToAeon(Transformer):
             body = reduce(lambda abst, tee: TAbstraction(tee, star, abst),
             tabs, body)
 
-        # Re-update the context
-        self.context = old_context
-        self.context[name] = typee
-
         return Definition(name, typee, body, rtype)
 
     def definition_params(self, args):
@@ -183,7 +171,6 @@ class TreeToAeon(Transformer):
     
     def let_statement(self, args):
         name, typee, body = args[0].value, args[1], args[2]
-        self.context[name] = typee
         return Definition(name, typee, body, typee)
 
     def assign_statement(self, args):
@@ -207,7 +194,10 @@ class TreeToAeon(Transformer):
     
     def tapplication_expr(self, args):
         expr, (tabs, tapps) = args
-
+        
+        tapps = list(filter(lambda tapp: isinstance(tapp, BasicType) and
+                                         tapp.name not in tabs, tapps))
+        
         expr = reduce(lambda target, argument: TApplication(target, argument),
             tapps, expr)
 
@@ -259,7 +249,7 @@ class TreeToAeon(Transformer):
     
     def attribute_expr(self, args):
         names = map(lambda arg: arg.value, args)
-        pass
+        return Var('.'.join(names))
     
     def hole_expr(self, args):
         return Hole(args[0] if args else None)
@@ -284,8 +274,9 @@ class TreeToAeon(Transformer):
         return Literal(value, refined_value(value, tee))
 
     def improvement_expr(self, args):
-        improv, params = f'@{Var(args[0]. value)}', reversed(args[1])
-        return reduce(lambda target, p: Application(target, p), params, improv)
+        name = Var(f'@{args[0].value}')
+        params = args[1] if len(args) > 1 else [Var('native')]
+        return reduce(lambda target, p: Application(target, p), params, name)
 
 
 # =============================================================================

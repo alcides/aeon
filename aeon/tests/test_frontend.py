@@ -16,10 +16,13 @@ class TestFrontend(unittest.TestCase):
         expr = ex(expression)
         self.assertEqual(expr, expected)
 
-    def assert_prog(self, prog, expected):
+    def assert_prog(self, prog, expecteds):
         p = mk_parser().parse
-        decl = p(prog).declarations[0]
-        self.assertEqual(decl, expected)
+        declarations = p(prog).declarations
+        self.assertEqual(len(declarations), len(expecteds),
+                         "Missing declaration / expected...")
+        for decl, expected in zip(declarations, expecteds):
+            self.assertEqual(decl, expected)
 
 
     def mk_bi_top(self, op, l, r):
@@ -35,23 +38,32 @@ class TestFrontend(unittest.TestCase):
 
     # Test the imports
     def test_import(self):
-        self.assert_prog("import library;", Import('library'))
-        self.assert_prog("import path/to/library;", Import('path/to/library'))
+        self.assert_prog("import library;", [Import('library')])
+        self.assert_prog("import path/to/library;", [Import('path/to/library')])
         
-        self.assert_prog("import fun from library;", Import('library', 'fun'))
-        self.assert_prog("import fun from to/lib;", Import('to/lib', 'fun'))
+        self.assert_prog("import fun from library;", [Import('library', 'fun')])
+        self.assert_prog("import fun from to/lib;", [Import('to/lib', 'fun')])
         
-        self.assert_prog("import fun from to/../lib;", Import('to/../lib', 'fun'))
+        self.assert_prog("import fun from to/../lib;", [Import('to/../lib', 'fun')])
         
     
     # Test the Type Alias
     def test_type_alias(self):
-        self.assert_prog("type Test as Bool;", TypeAlias('Test', BasicType('Bool')))
+        self.assert_prog("type Test as Bool;", [TypeAlias('Test', ty('Bool'))])
+        self.assert_prog("type Test as {x:Integer | x > 0};", 
+                         [TypeAlias('Test', ty('{x:Integer | x > 0}'))])
 
 
     # Test the Type Declaration
     def test_type_declaration(self):
-        self.assert_prog("type Integer;", TypeDeclaration("Integer", star, None))
+        self.assert_prog("type Integer;", [TypeDeclaration("Integer", star, None)])
+        self.assert_prog("type List[T];", [TypeDeclaration("List", Kind(star, star), None)])
+        self.assert_prog("type List[Int];", [TypeDeclaration("List", Kind(star, star), None)])
+        self.assert_prog("type List[T, Int];", [TypeDeclaration("List", Kind(star, Kind(star, star)), None)])
+    
+    def test_type_declaration_params(self):
+        self.assert_prog("type List {size:Integer;}", [TypeDeclaration("List", star, None),
+                        Definition('List_size', ty('(_:List -> Integer)'), Var('uninterpreted'), ty('Integer'))])
     
 
     # Test the Types
@@ -137,7 +149,7 @@ class TestFrontend(unittest.TestCase):
     
         
     def test_tapplication(self):
-        self.assert_ex('f[T]', TAbstraction('T', star, TApplication(Var('f'), BasicType('T'))))
+        self.assert_ex('f[T]', TAbstraction('T', star, Var('f')))
         self.assert_ex('f[Integer]', TApplication(Var('f'), ty('Integer')))
         self.assert_ex('f[T1, T2]', TApplication(TApplication(Var('f'),
                                                               ty('T1')),
@@ -194,9 +206,11 @@ class TestFrontend(unittest.TestCase):
                             Application(Application(Var('&&'), 
                                 Application(Var("!"), Var('a'))), Var('b'))),
                             Var('c')))
-
+    
     def test_abstraction(self):
-        pass
+        self.assert_ex('\\x:Integer -> x', Abstraction('x', ty('Integer'), ex('x')))
+        self.assert_ex('(\\x:T -> x)[T][Integer]', TApplication(
+                    TAbstraction('T', star, Abstraction('x', ty('T'), ex('x'))), ty('Integer')))
     
     def test_if(self):
         self.assert_ex('if x then y else z', If(Var('x'), Var('y'), Var('z')))
@@ -210,7 +224,10 @@ class TestFrontend(unittest.TestCase):
                             Var('p'))), If(Var('x'), Var('y'), self.mk_bi_op('||', 'z', 'd'))))
 
     def test_attribute(self):
-        pass
+        self.assert_ex('person.age', Var('person.age'))
+        self.assert_ex('person.name.size', Var('person.name.size'))
     
     def test_improvement(self):
-        pass
+        self.assert_ex('@maximize()', Application(Var('@maximize'), Var('native')))
+        self.assert_ex('@maximize(x)', Application(Var('@maximize'), Var('x')))
+        self.assert_ex('@providecsv(x, y)', Application(Application(Var('@providecsv'), Var('x')), Var('y')))
