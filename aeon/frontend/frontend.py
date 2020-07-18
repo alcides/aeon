@@ -5,18 +5,23 @@ from lark import Lark, Transformer, v_args
 from aeon.ast import *
 from aeon.types import *
 from aeon.frontend.utils import *
+from aeon.frontend.processor import process_aeon
 
 class TreeToAeon(Transformer):
-    def __init__(self):
+    def __init__(self, path):
         super().__init__()
 
         self.type_aliases = dict()
         self.declarations = list()
 
+        self.path = path
+
     # -------------------------------------------------------------------------
     # Aeon Program
     def program(self, args):
         self.declarations += list(filter(None, args)) 
+        self.declarations = resolve_imports(self.path, self.declarations)
+        self.declarations = process_aeon(self.declarations)
         return Program(self.declarations)
 
     def aeon(self, args):
@@ -53,7 +58,7 @@ class TreeToAeon(Transformer):
         self.declarations.append(TypeDeclaration(name, kind, None))
 
         # Now it is time to deal with the uninterpreted functions
-        type_abstraction, _ = extract_refinements(typee)
+        type_abstraction = remove_tabs(typee)
 
         # Set the args to the ghost variables
         args = deque(args[1:])
@@ -62,7 +67,7 @@ class TreeToAeon(Transformer):
             ghost_name = f'{name}_{args.popleft().value}'
             ghost_type = args.popleft()
             function_type = AbstractionType('_', type_abstraction, remove_tabs(ghost_type))
-            function_type = wrap_typeabstractions(function_type, typee)
+            function_type = process_tabs(function_type)
 
             definition = Definition(ghost_name, function_type, 
                                     Var('uninterpreted').with_type(bottom),
@@ -84,15 +89,18 @@ class TreeToAeon(Transformer):
         return BasicType(value)
         
     def refined_type(self, args):
-        return RefinedType(args[0].value, args[1], args[2])
+        result = RefinedType(args[0].value, args[1], args[2])
+        return process_tabs(result)
     
     def abstraction_type(self, args):
-        return AbstractionType(args[0].value, args[1], args[2])
-
+        result = AbstractionType(args[0].value, args[1], args[2])
+        return process_tabs(result)
+    
     def type_tabstapp(self, args):
         ttype, (tabs, tapps) = args
         
         ttype = englobe_typeapps(ttype, tapps)
+        ttype = remove_inner_tabs(ttype, tabs)
         ttype = englobe_typeabs(ttype, tabs)
         
         return ttype
@@ -113,12 +121,13 @@ class TreeToAeon(Transformer):
     # Definition
     def native_definition(self, args):
         
-        name, (tabs, tapps), params, rtype, body = preprocess_native(args)
+        name, (tabs, tapps), params, rtype = preprocess_native(args)
 
         ttype = create_definition_ttype(params, rtype) if params \
-                else AbstractionType('_'. t_v, rtype)
+                else AbstractionType('_', t_v, rtype)
 
         # TODO: o kind agora esta star, mas devia ser calculado
+        ttype = englobe_typeapps(ttype, tapps)
         ttype = englobe_typeabs(remove_tabs(ttype), tabs)
 
         return Definition(name.value, ttype, Var('native'), rtype)
@@ -157,7 +166,7 @@ class TreeToAeon(Transformer):
         return Definition(name, typee, body, rtype)
 
     def definition_params(self, args):
-        return [(args[i], args[i + 1]) for i in range(0, len(args), 2)]
+        return [(args[i].value, args[i + 1]) for i in range(0, len(args), 2)]
     
 
     # -------------------------------------------------------------------------
@@ -175,7 +184,7 @@ class TreeToAeon(Transformer):
 
     def assign_statement(self, args):
         name, body = args[0].value, args[1]
-        return Definition(name, None, body, typee)
+        return Definition(name, None, body, None)
 
     def expression_statement(self, args):
         return args[0]
@@ -252,7 +261,7 @@ class TreeToAeon(Transformer):
         return Var('.'.join(names))
     
     def hole_expr(self, args):
-        return Hole(args[0] if args else None)
+        return Hole(args[0] if args else bottom)
         
     def variable_expr(self, args):
         return Var(args[0].value)
@@ -281,15 +290,16 @@ class TreeToAeon(Transformer):
 
 # =============================================================================
 # Creation of the parser
-def mk_parser(rule="start"):
+def mk_parser(rule="start", path=""):
     return Lark.open(
         "aeon/frontend/aeon.lark",
         parser='lalr',
         #lexer='standard',
         start=rule,
-        transformer=TreeToAeon())
+        transformer=TreeToAeon(path))
 
 p = mk_parser()
 typee = mk_parser("ttype")
 expr = mk_parser("expression")
 stmnt = mk_parser("statement")
+impt = mk_parser("aeimport")
