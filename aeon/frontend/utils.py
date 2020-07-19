@@ -4,35 +4,8 @@ from aeon.types import *
 from functools import reduce
 
 # =============================================================================
-# Wraps the type in type abstractions
-""" 
-    Replaces
-        (T:k => List T) -> Integer
-    into
-        T:k => (List T -> Integer)
-"""
-def wrap_typeabstractions(funty: AbstractionType, typee: Type):
-    (_, type_abstractions_to_add_to_function) = extract_refinements(typee)
-    function_type: Type = funty
-
-    for (t, k) in reversed(type_abstractions_to_add_to_function):
-        function_type = TypeAbstraction(t, k, function_type)
-    
-    return function_type
-
-def extract_refinements(typee: Type):
-    type_abstraction: Type = typee
-    type_abstractions_to_add_to_function = []
-
-    while isinstance(type_abstraction, TypeAbstraction):
-        type_abstractions_to_add_to_function.append(
-            (type_abstraction.name, type_abstraction.kind))
-        type_abstraction = type_abstraction.type
-
-    return (type_abstraction, type_abstractions_to_add_to_function)
-
 # Removes every single TypeAbstraction and returns the type
-def remove_tabs(self, typee):
+def remove_tabs(typee):
     if isinstance(typee, BasicType):
         return typee
     elif isinstance(typee, RefinedType):
@@ -45,6 +18,38 @@ def remove_tabs(self, typee):
         typee.argument = remove_tabs(typee.argument)
     elif isinstance(typee, TypeAbstraction):
         typee = remove_tabs(typee.type)
+    return typee
+
+# Remove the inner tabs that are in the tabs
+def remove_inner_tabs(typee, tabs):
+    def remotion(tee, curr_tabs):
+        if isinstance(tee, BasicType):
+            return tee
+        elif isinstance(tee, RefinedType):
+            tee.type = remotion(tee.type, curr_tabs)
+        elif isinstance(tee, AbstractionType):
+            tee.arg_type = remotion(tee.arg_type, curr_tabs)
+            tee.return_type = remotion(tee.return_type, curr_tabs)
+        elif isinstance(tee, TypeApplication):
+            tee.target = remotion(tee.target, curr_tabs)
+            tee.argument = remotion(tee.argument, curr_tabs)
+        elif isinstance(tee, TypeAbstraction):
+            if tee.name == curr_tabs:
+                tee = remotion(tee.type, curr_tabs)
+            else:
+                tee.type = remotion(tee.type, curr_tabs)
+        return tee
+    
+    for curr_tabs in tabs:
+        typee = remotion(typee, curr_tabs)
+        
+    return typee
+
+# Removes internal TAbstractions and puts them outside
+def process_tabs(typee):
+    tabs = search_tabs(typee)
+    typee = remove_tabs(typee)
+    typee = englobe_typeabs(typee, reversed(tabs))
     return typee
 
 # Search for abstractions in a given type and return the list of them: [X, Y]
@@ -80,7 +85,7 @@ def search_tabs(typee):
             typee = typee.type
         abstractions = abstractions + search_tabs(typee)
     
-    return abstractions
+    return (list(dict.fromkeys(abstractions)))
 
 # Englobe the typee in the tabstractions
 def englobe_typeabs(ttype, tabs):
@@ -92,7 +97,7 @@ def englobe_typeapps(ttype, tapps):
             tapps, ttype)
 
 # =============================================================================
-# Given a type obtain its type name and its type kind
+# Given a type obtain its type name
 def get_type_name(typee : Type):
     if isinstance(typee, BasicType):
         return typee.name
@@ -123,30 +128,130 @@ def get_type_kind(typee : Type):
 
 # =============================================================================
 # Given the arguments of a definition, preprocess it
-def preprocess_args(args):
+def preprocess_native(args):
     
-    name = args[0]
-    (tabs, tapps), params = (None, None), None
+    name = args.pop(0)
+    (tabs, tapps), params = (list(), list()), list()
 
-    # There are no tabstractions nor parameters
-    if len(args) == 2:
-        ttype = args[1]
-
-    elif len(args) == 3:
-        # There are tabs and/or tapps
-        if isinstance(args[1], list):
-            (tabs, tapps) = args[1]
-        # There are params
-        else:
-            params = args[1]
-
-        ttype = args[2]
-
-    elif len(args) == 4:
-        (tabs, tapps), params, ttype = args[1:]
+    if isinstance(args[0], tuple):
+        (tabs, tapps) = args.pop(0)
     
+    if isinstance(args[0], list):
+        params = args.pop(0)
+    
+    ttype = args.pop(0)
+
     return name, (tabs, tapps), params, ttype
 
+def preprocess_regular(args):
+
+    name = args.pop(0)
+    (tabs, tapps), params, body = (list(), list()), list(), None
+
+    if isinstance(args[0], tuple):
+        (tabs, tapps) = args.pop(0)
+
+    if isinstance(args[0], list) and isinstance(args[0][0], tuple):
+        params = args.pop(0)
+    
+    ttype = args.pop(0)
+
+    body = convert_body(args)
+
+    return name, (tabs, tapps), params, ttype, body
+
+def convert_body(statements):
+    statements.reverse()
+    node = statements[0]
+
+    if isinstance(node, Definition):
+        node = Application(Abstraction(node.name, node.type, Var(node.name)) , node.body)
+
+    for statement in statements[1:]:
+        if isinstance(statement, Definition):
+            name, typee, body = statement.name, statement.type, statement.body
+        else:
+            name, typee, body = '_', top, statement
+
+        # Create the abstraction and application
+        node = Application(Abstraction(name, typee, node), body)
+
+    return node
+    
 def create_definition_ttype(params, rtype):
+    params = reversed(params)
     return reduce(lambda ttype, p: AbstractionType(p[0], p[1], ttype),
             params, rtype)
+
+# =============================================================================
+# Generates the uninterpreted function from a name.ghost
+def generate_uninterpreted(ctx, name):
+    
+    attributes = name.split('.')
+    
+    # Variable, its type and the ghost attributes over the variable
+    variable = attributes[0]
+    typee = ctx.vars[variable]
+    attributes = attributes[1:]
+
+    target_name = f'{get_type_name(typee)}_{attributes[0]}'
+
+    result = Application(Var(target_name), Var(variable))
+
+    # Progress the attributes variable
+    for attr in attributes[1:]:
+        ttype = get_type_name(ctx.vars[target_name])
+        result = Application(Var(f'{ttype}_{attr}'), result) 
+
+    return wrap_tapplications(result, typee)
+
+def wrap_tapplications(target, typee):
+    while isinstance(typee, TypeApplication):
+        target = TApplication(target, typee.argument)
+        typee = typee.target
+    return target
+    
+# =============================================================================
+# Resolve the imports
+def resolve_imports(path, program):
+    result = []
+    from ..libraries.stdlib import add_function
+    for node in program:
+        if isinstance(node, Import):
+            # Get the os path for the ae file
+
+            importPath = node.name
+            absolutePath = os.path.normpath(
+                os.path.join(os.getcwd(), os.path.dirname(path), importPath))
+            realPath = absolutePath + ".ae"
+
+            # It is a regular .ae import
+            if os.path.exists(realPath):
+                importedProgram = parse(realPath)
+                # If we only want a specific function from the program
+                if node.function is not None:
+                    importedProgram.declarations = list(filter(lambda x : isinstance(x, Definition) \
+                                                and x.name == node.function, \
+                                                importedProgram.declarations))
+            # It is a .py import
+            else:
+                moduleName = node.name.replace("/", ".")
+                importedProgram = Program([])
+                natives = importNative(
+                    moduleName,
+                    '*' if node.function is None else node.function)
+                for native in natives.keys():
+                    aetype_code, function = natives[native]
+
+                    imported_declarations = parse_strict(
+                        aetype_code).declarations
+                    aetype = imported_declarations[0]  # Fixed
+                    if isinstance(aetype, Definition):
+                        add_function(aetype.name, aetype.type, function)
+                    importedProgram.declarations.append(aetype)
+                    importedProgram.declarations.extend(
+                        imported_declarations[1:])
+            result = result + importedProgram.declarations
+        else:
+            result.append(node)
+    return result

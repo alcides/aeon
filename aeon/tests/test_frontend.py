@@ -107,7 +107,12 @@ class TestFrontend(unittest.TestCase):
 
         self.assert_ty('{_:List[T] | true}', TypeAbstraction('T', star, 
                                 RefinedType('_', TypeApplication(ty('List'), ty('T')), ex('true'))))
-    
+        
+        self.assert_ty('(x:X -> (y:Y -> Double))', TypeAbstraction('X', star,
+                                                   TypeAbstraction('Y', star,
+                                                   AbstractionType('x', ty('X'),
+                                                   AbstractionType('y', ty('Y'), ty('Double'))))))
+
         self.assert_ty('(x:(y:Integer -> Boolean) -> Double)', AbstractionType('x',
                                             AbstractionType('y', t_i, t_b) , t_f))
 
@@ -134,17 +139,17 @@ class TestFrontend(unittest.TestCase):
         self.assert_prog("f() -> Integer;", [Definition('f', ty('(_:Void -> Integer)'), ex('native'), ty('Integer'))])
         self.assert_prog("f(x:Bool) -> Double;", [Definition('f', ty('(x:Bool -> Double)'), ex('native'), ty('Double'))])
         self.assert_prog("f(x:Bool, y:Int) -> Double;", [Definition('f', ty('(x:Bool -> (y:Int -> Double))'), ex('native'), ty('Double'))])
-        self.assert_prog("f[Integer](x:Bool, y:Int) -> Double;", [Definition('f', ty('(x:Bool -> (y:Int -> Double))[Integer]'), ex('native'), ty('Double'))])
-        self.assert_prog("f[T](x:Bool, y:Int) -> Double;", [Definition('f', ty('(x:Bool -> (y:Int -> Double))[T]'), ex('native'), ty('Double'))])
-        self.assert_prog("f[X, Y](x:X, y:Y) -> Double;", [Definition('f', ty('(x:X -> (y:Y -> Double))[X, Y]'), ex('native'), ty('Double'))])
-        self.assert_prog("f[X](x:X) -> X;", [Definition('f', ty('(x:X ->  X)[X]'), ex('native'), ty('X'))])
-        self.assert_prog("f[X, Integer](x:X, y:Integer) -> Double;", [Definition('f', ty('(x:X -> (y:Integer -> Double))[X, Integer]'), ex('native'), ty('Double'))])
+        self.assert_prog("f[Integer](x:Bool, y:Int) -> Double;", [Definition('f', ty('(x:Bool -> (y:Int -> Double))'), ex('native'), ty('Double'))])
+        self.assert_prog("f[T](x:Bool, y:Int) -> Double;", [Definition('f', TypeAbstraction('T', star, ty('(x:Bool -> (y:Int -> Double))')), ex('native'), ty('Double'))])
+        self.assert_prog("f[X, Y](x:X, y:Y) -> Double;", [Definition('f', ty('(x:X -> (y:Y -> Double))'), ex('native'), ty('Double'))])
+        self.assert_prog("f[X](x:X) -> X;", [Definition('f', ty('(x:X ->  X)'), ex('native'), ty('X'))])
+        self.assert_prog("f[X, Integer](x:X, y:Integer) -> Double;", [Definition('f', ty('(x:X -> (y:Integer -> Double))'), ex('native'), ty('Double'))])
 
     def test_definition_regular(self):
         self.assert_prog('''f() -> Integer {
-            1;
-        }''', [Definition('f', ty('(_:Void -> Integer)'), Abstraction('_', ty('Void'), ex("1")), ty('Integer')) ])
-
+            x;
+        }''', [Definition('f', ty('(_:Void -> Integer)'), Abstraction('_', ty('Void'), ex("x")), ty('Integer'))])
+        
     def test_if_stmnt(self):
         pass
 
@@ -293,17 +298,21 @@ class TestFrontend(unittest.TestCase):
                  Definition("List_size", ty('(_:List[T] -> Integer)'), ex('uninterpreted'), ty('Integer')),
                  Definition("l", ty("List[Integer]"), ex("1"), ty("List[Integer]")),
                  TApplication(Application(Var('List_size'), Var('l')), ty('Integer'))])
-        '''
+
         self.assert_prog(
+                '''
                 type List[T] {size:Integer;}
-                empty[T]() -> {l:List[T] | l.size > 0};
+                empty[T]() -> {l:List[T] | l.size};
                 l : List[Integer] = emptylist[Integer]();
-                , 
+                ''', 
                 [TypeDeclaration("List", Kind(star, star), None),
                  Definition("List_size", ty('(_:List[T] -> Integer)'), ex('uninterpreted'), ty('Integer')),
-                 Definition("empty", ty("(_:Void -> {l:List[T] | l.size > 0})"), ex("native"), ty("{l:List[T] | l.size > 0}")),
+                 Definition("empty", AbstractionType('_', ty('Void'),
+                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(Var('List_size'), Var('l')))),
+                    ex("native"),
+                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(Var('List_size'), Var('l')))),
                  Definition("l", ty("List[Integer]"), ex("1"), ty("List[Integer]"))])
-        '''
+        
     def test_improvement(self):
         self.assert_ex('@maximize()', Application(Var('@maximize'), Var('native')))
         self.assert_ex('@maximize(x)', Application(Var('@maximize'), Var('x')))

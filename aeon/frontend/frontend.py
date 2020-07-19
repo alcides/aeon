@@ -120,50 +120,37 @@ class TreeToAeon(Transformer):
     # -------------------------------------------------------------------------
     # Definition
     def native_definition(self, args):
-        
         name, (tabs, tapps), params, rtype = preprocess_native(args)
 
         ttype = create_definition_ttype(params, rtype) if params \
                 else AbstractionType('_', t_v, rtype)
 
         # TODO: o kind agora esta star, mas devia ser calculado
-        ttype = englobe_typeapps(ttype, tapps)
         ttype = englobe_typeabs(remove_tabs(ttype), tabs)
 
         return Definition(name.value, ttype, Var('native'), rtype)
 
         
     def regular_definition(self, args):
-        raise NotImplementedError("REGULAR DEF")
         name, (tabs, tapps), params, rtype, body = preprocess_regular(args)
-
-        if params:
-            ttype = create_definition_ttype(params, rtype)
-        else:
-            rtype = remove_tabs(rtype)
-            ttype = AbstractionType('_'. t_v, rtype)
-
-        # TODO: o kind eh star, mas devia ser calculado
-        ttype = englobe_typeabs(ttype, tabs)
-
-        body = args[-1]
-
-        if name == 'main':
-            body = Abstraction('_', t_v, body)
         
-        else:
-            if not params:
-                params = [('_', t_v)]
+        if not params:
+            params = [('_', t_v)]
+        
+        ttype = create_definition_ttype(params, rtype)
+        
+        # TODO: o kind eh star, mas devia ser calculado
+        ttype = englobe_typeabs(remove_tabs(ttype), tabs)
 
-            rev_params = reversed(params)
+        # Apply the params to the body
+        body = reduce(lambda abs_body, p: Abstraction(p[0], p[1], abs_body),
+        reversed(params), body)
 
-            body = reduce(lambda abs_body, p: Abstraction(p[0], p[1], abs_body),
-            rev_params, body)
-
-            body = reduce(lambda abst, tee: TAbstraction(tee, star, abst),
-            tabs, body)
-
-        return Definition(name, typee, body, rtype)
+        # Apply the tabstractions to the body
+        body = reduce(lambda abst, tee: TAbstraction(tee, star, abst),
+        reversed(tabs), body)
+        
+        return Definition(name, ttype, body, rtype)
 
     def definition_params(self, args):
         return [(args[i].value, args[i + 1]) for i in range(0, len(args), 2)]
