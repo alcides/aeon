@@ -6,7 +6,7 @@ def importNative(path, function_name):
     bib = importlib.import_module(path)
     # Imports everything
     if function_name == '*':
-        for name in dir(bib):
+        for name in bib.__dir__():
             result = {**result, **importNative(path, name)}
     else:
         function = getattr(bib, function_name)
