@@ -12,16 +12,15 @@ class TreeToAeon(Transformer):
 
         self.context = context.copy()
         self.type_aliases = dict()
-        self.declarations = list()
 
         self.path = path
 
     # -------------------------------------------------------------------------
     # Aeon Program
     def program(self, args):
-        self.declarations += list(filter(None, args)) 
-        self.declarations = resolve_imports(self.path, self.declarations)
-        return Program(self.declarations)
+        declarations = map(lambda x: x if isinstance(x, list) else [x], args)
+        declarations = [item for sublist in declarations for item in sublist]
+        return Program(declarations)
 
     def aeon(self, args):
         return args[0]
@@ -29,10 +28,26 @@ class TreeToAeon(Transformer):
     # -------------------------------------------------------------------------
     # Import statements        
     def function_import(self, args):
-        return Import(args[1].value, args[0].value)
+        declarations = resolve_imports(self.path, Import(args[1].value, args[0].value))
+
+        for decl in declarations:
+            if isinstance(decl, Definition):
+                self.context[decl.name] = decl.type
+            if isinstance(decl, TypeAlias):
+                self.type_aliases[decl.name] = decl.type
+
+        return declarations
 
     def regular_import(self, args):
-        return Import(args[0])
+        declarations = resolve_imports(self.path, Import(args[0].value))
+
+        for decl in declarations:
+            if isinstance(decl, Definition):
+                self.context[decl.name] = decl.type
+            if isinstance(decl, TypeAlias):
+                self.type_aliases[decl.name] = decl.type
+
+        return declarations
 
     # -------------------------------------------------------------------------
     # Type Alias
@@ -54,7 +69,7 @@ class TreeToAeon(Transformer):
         name = get_type_name(typee)
         kind = get_type_kind(typee)
 
-        self.declarations.append(TypeDeclaration(name, kind, None))
+        declarations = [TypeDeclaration(name, kind, None)]
 
         # Now it is time to deal with the uninterpreted functions
         type_abstraction = remove_typeabs(typee)
@@ -71,9 +86,9 @@ class TreeToAeon(Transformer):
                                     Var('uninterpreted').with_type(bottom),
                                     remove_typeabs(ghost_type))
             self.context[ghost_name] = function_type
-            self.declarations.append(definition)
+            declarations.append(definition)
 
-        return None
+        return declarations
     
         
     # -------------------------------------------------------------------------

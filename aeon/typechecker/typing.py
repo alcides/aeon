@@ -219,7 +219,7 @@ def check_program(ast):  # pragma: no cover
             check_kind(ctx, e.type, AnyKind())
         elif isinstance(e, TypeAlias):
             logging.debug(f"Checking the TypeAlias: {e}")
-            ctx.type_aliases[e.name.name] = e.type
+            ctx.type_aliases[e.name] = e.type
         elif isinstance(e, TypeDeclaration):
             logging.debug(f"Checking the TypeDeclaration: {e}")
             name = e.name

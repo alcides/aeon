@@ -45,17 +45,17 @@ class TestFrontend(unittest.TestCase):
         return Application(Application(Var(op), l), r)
     
     
-    # Test the imports
+    # Test the imports: No longer makes sense as imports are automatically done
     def test_import(self):
-        self.assert_import("import library;", Import('library'))
-        self.assert_import("import path/to/library;", Import('path/to/library'))
+        # self.assert_import("import library;", Import('library'))
+        # self.assert_import("import path/to/library;", Import('path/to/library'))
         
-        self.assert_import("import fun from library;", Import('library', 'fun'))
-        self.assert_import("import fun from to/lib;", Import('to/lib', 'fun'))
+        # self.assert_import("import fun from library;", Import('library', 'fun'))
+        # self.assert_import("import fun from to/lib;", Import('to/lib', 'fun'))
         
-        self.assert_import("import fun from to/../lib;", Import('to/../lib', 'fun'))
-        
-    
+        # self.assert_import("import fun from to/../lib;", Import('to/../lib', 'fun'))
+        pass
+
     # Test the Type Alias
     def test_type_alias(self):
         self.assert_prog("type Test as Bool;", [TypeAlias('Test', ty('Bool'))])

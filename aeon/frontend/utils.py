@@ -260,46 +260,49 @@ def wrap_tapplications(target, typee):
     
 # =============================================================================
 # Resolve the imports
-def resolve_imports(path, program):
-    result = []
+def resolve_imports(path, node):
+    
+    result = list()
+
     from ..libraries.stdlib import add_function
     from aeon.frontend import parse_strict
-    for node in program:
-        if isinstance(node, Import):
-            # Get the os path for the ae file
+    
+    # Get the os path for the ae file
+    abs_path = os.path.normpath(
+        os.path.join(os.getcwd(), os.path.dirname(path), node.name))
+    real_path = abs_path + ".ae"
 
-            importPath = node.name
-            absolutePath = os.path.normpath(
-                os.path.join(os.getcwd(), os.path.dirname(path), importPath))
-            realPath = absolutePath + ".ae"
+    # It is a regular .ae import
+    if os.path.exists(real_path):
+        declarations = parse(real_path).declarations
+        # If we only want a specific function from the program
+        if node.function is not None:
+            declarations = list(filter(lambda x : isinstance(x, Definition) \
+                                    and x.name == node.function, declarations))
 
-            # It is a regular .ae import
-            if os.path.exists(realPath):
-                importedProgram = parse(realPath)
-                # If we only want a specific function from the program
-                if node.function is not None:
-                    importedProgram.declarations = list(filter(lambda x : isinstance(x, Definition) \
-                                                and x.name == node.function, \
-                                                importedProgram.declarations))
-            # It is a .py import
-            else:
-                moduleName = node.name.replace("/", ".")
-                importedProgram = Program([])
-                natives = importNative(
-                    moduleName,
-                    '*' if node.function is None else node.function)
-                for native in natives.keys():
-                    aetype_code, function = natives[native]
+    # It is a .py import
+    else:
+        module_name = node.name.replace("/", ".")
+        
+        context = dict()
+        declarations = list() 
+        
+        natives = importNative(module_name,
+            '*' if node.function is None else node.function)
 
-                    imported_declarations = parse_strict(
-                        aetype_code).declarations
-                    aetype = imported_declarations[0]  # Fixed
-                    if isinstance(aetype, Definition):
-                        add_function(aetype.name, aetype.type, function)
-                    importedProgram.declarations.append(aetype)
-                    importedProgram.declarations.extend(
-                        imported_declarations[1:])
-            result = result + importedProgram.declarations
-        else:
-            result.append(node)
+        for native in natives.keys():
+
+            aetype, function = natives[native]
+            
+            native_declarations = parse_strict(aetype, context).declarations
+
+            for declaration in native_declarations:
+                if isinstance(declaration, Definition):
+                    context[declaration.name] = declaration.type
+                    add_function(declaration.name, declaration.type, function)
+            
+            declarations.extend(native_declarations)
+
+    result = result + declarations
+    
     return result
