@@ -192,13 +192,15 @@ class TestFrontend(unittest.TestCase):
     
         
     def test_tapplication(self):
-        self.assert_ex('f[T]', TAbstraction('T', star, Var('f')))
+        self.assert_ex('f[T]', TAbstraction('T', star, TApplication(Var('f'), ty('T'))))
         self.assert_ex('f[Integer]', TApplication(Var('f'), t_i))
         self.assert_ex('f[T1, T2]', TApplication(TApplication(Var('f'),
                                                               ty('T1')),
                                                               ty('T2')))
         self.assert_ex('f[Integer]()', Application(TApplication(ex('f'),
                                       ty('Integer')), ex('native')))
+        self.assert_ex('f[List[Integer]](l)', Application(TApplication(ex('f'),
+                         TypeApplication(ty('List'), ty('Integer'))), ex('l')))
 
 
     def test_invocation(self):
@@ -259,8 +261,16 @@ class TestFrontend(unittest.TestCase):
     
     def test_abstraction(self):
         self.assert_ex('\\x:Integer -> x', Abstraction('x', t_i, ex('x')))
-        self.assert_ex('(\\x:T -> x)[T][Integer]', TApplication(
+        self.assert_ex('(\\x:T -> x)[Integer]', TApplication(
                     TAbstraction('T', star, Abstraction('x', ty('T'), ex('x'))), t_i))
+        self.assert_ex('(\\x : T -> f[T])',
+                        TAbstraction('T', star, Abstraction('x', ty('T'), TApplication(ex('f'), ty('T')))))
+        self.assert_ex('(\\x : T -> \\y:Y -> f[T])',
+                        TAbstraction('T', star, TAbstraction('Y', star, Abstraction('x', ty('T'), Abstraction('y', ty('Y'), TApplication(ex('f'), ty('T')))        )   )    ))
+        self.assert_ex('(\\x : T -> f[T](x))[Integer](10)',
+                        Application(TApplication(TAbstraction('T', star,
+                            Abstraction('x', ty('T'), 
+                            Application(TApplication(ex('f'), ty('T')), ex('x')))), ty('Integer')), ex('10')))
     
     def test_if(self):
         self.assert_ex('if x then y else z', If(Var('x'), Var('y'), Var('z')))

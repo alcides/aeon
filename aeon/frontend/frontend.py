@@ -7,10 +7,10 @@ from aeon.types import *
 from aeon.frontend.utils import *
 
 class TreeToAeon(Transformer):
-    def __init__(self, path):
+    def __init__(self, path, context):
         super().__init__()
 
-        self.context = dict()
+        self.context = context.copy()
         self.type_aliases = dict()
         self.declarations = list()
 
@@ -57,19 +57,19 @@ class TreeToAeon(Transformer):
         self.declarations.append(TypeDeclaration(name, kind, None))
 
         # Now it is time to deal with the uninterpreted functions
-        type_abstraction = remove_tabs(typee)
+        type_abstraction = remove_typeabs(typee)
 
         # Set the args to the ghost variables
         args = deque(args[1:])
 
         for ghost_name, ghost_type in args:
             ghost_name = f'{name}_{ghost_name}'
-            function_type = AbstractionType('_', type_abstraction, remove_tabs(ghost_type))
-            function_type = process_tabs(function_type)
+            function_type = AbstractionType('_', type_abstraction, remove_typeabs(ghost_type))
+            function_type = process_typeabs(function_type)
 
             definition = Definition(ghost_name, function_type, 
                                     Var('uninterpreted').with_type(bottom),
-                                    remove_tabs(ghost_type))
+                                    remove_typeabs(ghost_type))
             self.context[ghost_name] = function_type
             self.declarations.append(definition)
 
@@ -90,18 +90,18 @@ class TreeToAeon(Transformer):
     def refined_type(self, args):
         (name, ttype), cond = args
         result = RefinedType(name, ttype, cond)
-        return process_tabs(result)
+        return process_typeabs(result)
     
     def abstraction_type(self, args):
         (name, ttype), rtype = args
         result = AbstractionType(name, ttype, rtype)
-        return process_tabs(result)
+        return process_typeabs(result)
     
     def type_tabstapp(self, args):
         ttype, (tabs, tapps) = args
         
         ttype = englobe_typeapps(ttype, tapps)
-        ttype = remove_inner_tabs(ttype, tabs)
+        ttype = remove_inner_typeabs(ttype, tabs)
         ttype = englobe_typeabs(ttype, tabs)
         
         return ttype
@@ -112,8 +112,8 @@ class TreeToAeon(Transformer):
         tapps = list()
 
         for typee in args:
-            tabs += search_tabs(typee)
-            typee = remove_tabs(typee)
+            tabs += search_typeabs(typee)
+            typee = remove_typeabs(typee)
             tapps.append(typee)
 
         return (list(dict.fromkeys(reversed(tabs))), tapps)
@@ -131,7 +131,7 @@ class TreeToAeon(Transformer):
                 else AbstractionType('_', t_v, rtype)
 
         # TODO: o kind agora esta star, mas devia ser calculado
-        ttype = englobe_typeabs(remove_tabs(ttype), tabs)
+        ttype = englobe_typeabs(remove_typeabs(ttype), tabs)
 
         self.context[name] = ttype
 
@@ -147,7 +147,7 @@ class TreeToAeon(Transformer):
         ttype = create_definition_ttype(params, rtype)
         
         # TODO: o kind eh star, mas devia ser calculado
-        ttype = englobe_typeabs(remove_tabs(ttype), tabs)
+        ttype = englobe_typeabs(remove_typeabs(ttype), tabs)
 
         # Apply the params to the body
         body = reduce(lambda abs_body, p: Abstraction(p[0], p[1], abs_body),
@@ -202,9 +202,9 @@ class TreeToAeon(Transformer):
     def tapplication_expr(self, args):
         expr, (tabs, tapps) = args
         
-        tapps = list(filter(lambda tapp: isinstance(tapp, BasicType) and
-                                         tapp.name not in tabs, tapps))
-        
+        #tapps = list(filter(lambda tapp: True if not isinstance(tapp, BasicType) else
+        #                                 tapp.name not in tabs, tapps))
+    
         expr = reduce(lambda target, argument: TApplication(target, argument),
             tapps, expr)
 
@@ -215,7 +215,7 @@ class TreeToAeon(Transformer):
 
     def invocation_expr(self, args):
         expression, parameters = args[0], args[1] if len(args) > 1 else [Var('native')]
-        
+
         for param in parameters:
             expression = Application(expression, param)
         
@@ -248,7 +248,9 @@ class TreeToAeon(Transformer):
     
     def abstraction_expr(self, args):
         (name, typee), body = args
-        return Abstraction(name, typee, body)
+        tabs = (list(dict.fromkeys(search_typeabs(typee) + search_tabs(body)))) 
+        body = remove_tabs(body)
+        return englobe_tabs(Abstraction(name, typee, body), reversed(tabs))
     
     def if_expr(self, args):
         cond, then, otherwise = args
@@ -288,13 +290,13 @@ class TreeToAeon(Transformer):
 
 # =============================================================================
 # Creation of the parser
-def mk_parser(rule="start", path=""):
+def mk_parser(rule="start", path="", context=dict()):
     return Lark.open(
         "aeon/frontend/aeon.lark",
         parser='lalr',
         #lexer='standard',
         start=rule,
-        transformer=TreeToAeon(path))
+        transformer=TreeToAeon(path, context))
 
 p = mk_parser()
 typee = mk_parser("ttype")

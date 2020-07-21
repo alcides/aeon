@@ -1,27 +1,31 @@
 from aeon.ast import *
 from aeon.types import *
 
+import os
+import os.path
 from functools import reduce
+
+from aeon.libraries.helper import importNative
 
 # =============================================================================
 # Removes every single TypeAbstraction and returns the type
-def remove_tabs(typee):
+def remove_typeabs(typee):
     if isinstance(typee, BasicType):
         return typee
     elif isinstance(typee, RefinedType):
-        typee.type = remove_tabs(typee.type)
+        typee.type = remove_typeabs(typee.type)
     elif isinstance(typee, AbstractionType):
-        typee.arg_type = remove_tabs(typee.arg_type)
-        typee.return_type = remove_tabs(typee.return_type)
+        typee.arg_type = remove_typeabs(typee.arg_type)
+        typee.return_type = remove_typeabs(typee.return_type)
     elif isinstance(typee, TypeApplication):
-        typee.target = remove_tabs(typee.target)
-        typee.argument = remove_tabs(typee.argument)
+        typee.target = remove_typeabs(typee.target)
+        typee.argument = remove_typeabs(typee.argument)
     elif isinstance(typee, TypeAbstraction):
-        typee = remove_tabs(typee.type)
+        typee = remove_typeabs(typee.type)
     return typee
 
 # Remove the inner tabs that are in the tabs
-def remove_inner_tabs(typee, tabs):
+def remove_inner_typeabs(typee, tabs):
     def remotion(tee, curr_tabs):
         if isinstance(tee, BasicType):
             return tee
@@ -45,15 +49,15 @@ def remove_inner_tabs(typee, tabs):
         
     return typee
 
-# Removes internal TAbstractions and puts them outside
-def process_tabs(typee):
-    tabs = search_tabs(typee)
-    typee = remove_tabs(typee)
+# Removes internal TypeAbstractions and puts them outside
+def process_typeabs(typee):
+    tabs = search_typeabs(typee)
+    typee = remove_typeabs(typee)
     typee = englobe_typeabs(typee, reversed(tabs))
     return typee
 
 # Search for abstractions in a given type and return the list of them: [X, Y]
-def search_tabs(typee):
+def search_typeabs(typee):
     abstractions = []
 
     # Check if the BasicType is a TypeeIdentifier
@@ -63,27 +67,26 @@ def search_tabs(typee):
     
     # Check the RefinedType type
     elif isinstance(typee, RefinedType):
-        abstractions = search_tabs(typee.type)
+        abstractions = search_typeabs(typee.type)
     
     # Check the AbstractionType arg_type and return_type
     elif isinstance(typee, AbstractionType):
-        arg_type = search_tabs(typee.arg_type)
-        return_type = search_tabs(typee.return_type)
+        arg_type = search_typeabs(typee.arg_type)
+        return_type = search_typeabs(typee.return_type)
         abstractions = arg_type + return_type
     
     # Check the TypeApplication target and argument
     elif isinstance(typee, TypeApplication):
-        target = search_tabs(typee.target)
-        argument = search_tabs(typee.argument)
+        target = search_typeabs(typee.target)
+        argument = search_typeabs(typee.argument)
         abstractions = target + argument
     
     # Check the name of each TypeAbstraction, progress the typee and return it
     elif isinstance(typee, TypeAbstraction):
         while isinstance(typee, TypeAbstraction):
-            abstractions = abstractions + search_tabs(
-                typee.name)
+            abstractions = abstractions + search_typeabs(typee.name)
             typee = typee.type
-        abstractions = abstractions + search_tabs(typee)
+        abstractions = abstractions + search_typeabs(typee)
     
     return (list(dict.fromkeys(abstractions)))
 
@@ -95,6 +98,49 @@ def englobe_typeabs(ttype, tabs):
 def englobe_typeapps(ttype, tapps):
     return reduce(lambda target, argument: TypeApplication(target, argument),
             tapps, ttype)
+
+# Search for TAbstractions
+def search_tabs(node):
+    abstractions = []
+
+    if isinstance(node, Application):
+        target = search_tabs(node.target)
+        argument = search_tabs(node.argument)
+        abstractions = target + argument
+    
+    elif isinstance(node, Abstraction):
+        abstractions = search_typeabs(node.arg_type)
+        abstractions = abstractions + search_tabs(node.body)
+        
+    elif isinstance(node, TAbstraction):
+        abstractions.append(node.typevar)
+        abstractions = abstractions + search_tabs(node.body)
+
+    elif isinstance(node, TApplication):
+        abstractions = abstractions + search_tabs(node.target)
+
+    return (list(dict.fromkeys(abstractions)))
+
+def remove_tabs(node):
+    
+    if isinstance(node, Application):
+        node.target = remove_tabs(node.target)
+        node.argument = remove_tabs(node.argument)
+    
+    elif isinstance(node, Abstraction):
+        node.body = remove_tabs(node.body)
+        
+    elif isinstance(node, TAbstraction):
+        node = remove_tabs(node.body)
+        
+    elif isinstance(node, TApplication):
+        node.target = remove_tabs(node.target)
+    
+    return node
+
+def englobe_tabs(node, tabs):
+    return reduce(lambda abst, ttype: TAbstraction(ttype, star, abst),
+            tabs, node)
 
 # =============================================================================
 # Given a type obtain its type name
@@ -141,7 +187,7 @@ def preprocess_native(args):
     
     ttype = args.pop(0)
 
-    return name, (tabs, tapps), params, remove_tabs(ttype)
+    return name, (tabs, tapps), params, remove_typeabs(ttype)
 
 def preprocess_regular(args):
 
@@ -158,7 +204,7 @@ def preprocess_regular(args):
 
     body = convert_body(args)
 
-    return name, (tabs, tapps), params, remove_tabs(ttype), body
+    return name, (tabs, tapps), params, remove_typeabs(ttype), body
 
 def convert_body(statements):
     statements.reverse()
@@ -197,7 +243,7 @@ def generate_uninterpreted(ctx, attributes):
     
     target = Var(target_name)
 
-    result = Application(wrap_tapplications(target, remove_tabs(typee)), Var(variable))
+    result = Application(wrap_tapplications(target, remove_typeabs(typee)), Var(variable))
 
     # Progress the attributes variable
     for attr in attributes[1:]:
@@ -217,6 +263,7 @@ def wrap_tapplications(target, typee):
 def resolve_imports(path, program):
     result = []
     from ..libraries.stdlib import add_function
+    from aeon.frontend import parse_strict
     for node in program:
         if isinstance(node, Import):
             # Get the os path for the ae file
