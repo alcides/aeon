@@ -91,10 +91,10 @@ def flatten_refined_types(t):
         return t
     elif isinstance(t, AbstractionType):
         return t
-    elif isinstance(t, TApplication):
-        t.body = flatten_refined_types(t.body)
+    elif isinstance(t, TypeAbstraction):
+        t.body = flatten_refined_types(t.type)
         return t
-    elif isinstance(t, TAbstraction):
+    elif isinstance(t, TypeApplication):
         t.target = flatten_refined_types(t.target)
         t.argument = flatten_refined_types(t.argument)
         return t
@@ -132,10 +132,10 @@ def zed_mk_variable(name, ty: Type):
         rsort = get_sort(ty.return_type)
         f = z3.Function(name, isort, rsort)
         return f
-    elif isinstance(ty, TApplication):
+    elif isinstance(ty, TypeApplication):
         return zed_mk_variable(name, ty.target)
-    elif isinstance(ty, TAbstraction):
-        return zed_mk_variable(name, ty.body)
+    elif isinstance(ty, TypeAbstraction):
+        return zed_mk_variable(name, ty.type)
     raise NoZ3TranslationException("No constructor for {}:{} \n {}".format(
         name, ty, type(ty)))
 
@@ -160,10 +160,10 @@ def get_sort(t: Type):
         isort = get_sort(t.arg_type)
         rsort = get_sort(t.return_type)
         return rsort
-    elif isinstance(t, TApplication):
+    elif isinstance(t, TypeApplication):
         return get_sort(t.target)
-    elif isinstance(t, TAbstraction):
-        return get_sort(t.body)
+    elif isinstance(t, TypeAbstraction):
+        return get_sort(t.type)
     raise NoZ3TranslationException("No sort for type " + str(t))
 
 
@@ -184,6 +184,8 @@ def zed_translate_type_var(name, ty):
         return zed_mk_variable(name, flatten_refined_types(ty))
     elif isinstance(ty, RefinedType):
         return zed_mk_variable(name, flatten_refined_types(ty))
+    elif isinstance(ty, TypeAbstraction):
+        return zed_translate_type_var(name, ty.type)
     raise NoZ3TranslationException("Type not translatable: {} : {}".format(
         name, ty))
 
