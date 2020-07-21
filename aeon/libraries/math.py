@@ -3,34 +3,34 @@ import builtins
 from .annotation import aefunction, aedocumentation
 
 
-@aefunction('min[T](a:T, b:T) -> T = native;', lambda x: lambda y: minimum(x, y))
+@aefunction('min[T](a:T, b:T) -> T;', lambda x: lambda y: minimum(x, y))
 def minimum(x, y):
     return min(x, y)
 
-@aefunction('max[T](a:T, b:T) -> T = native;', lambda x: lambda y: maximum(x, y))
+@aefunction('max[T](a:T, b:T) -> T;', lambda x: lambda y: maximum(x, y))
 def maximum(a, b):
     return max(a, b)
 
-@aefunction('abs[T](value:T) -> T = native;', lambda value: absolute(value))
+@aefunction('abs[T](value:T) -> T;', lambda value: absolute(value))
 def absolute(value):
     return abs(value)
 
-@aefunction('ceil(value:Double) -> Integer = native;', lambda value: ceil(value))
+@aefunction('ceil(value:Double) -> Integer;', lambda value: ceil(value))
 def ceil(value):
     return math.ceil(value)
 
-@aefunction('floor(value:Double) -> Integer = native;', lambda value: floor(value))
+@aefunction('floor(value:Double) -> Integer;', lambda value: floor(value))
 def floor(value):
     return math.floor(value)
 
-@aefunction('pow[X, Y](x:X, y:Y) -> Y = native;', lambda x: lambda y: power(x, y))
+@aefunction('pow[X, Y](x:X, y:Y) -> Y;', lambda x: lambda y: power(x, y))
 def power(x, y):
     return math.pow(x, y)
 
-@aefunction('sqrt[T](x:T) -> {y:Double | x - y * y < 0.0001} = native;', lambda x: squareroot(x))
+@aefunction('sqrt[T](x:T) -> {y:Double | x - y * y < 0.0001};', lambda x: squareroot(x))
 def squareroot(x):
     return math.sqrt(x)
 
-@aefunction('intToDouble(x:Integer) -> Double = native;', lambda x: intToDouble(x))
+@aefunction('intToDouble(x:Integer) -> Double;', lambda x: intToDouble(x))
 def intToDouble(x):
     return int(x)

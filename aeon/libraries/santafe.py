@@ -30,7 +30,7 @@ class Grid(object):
         self.position = position
         
 # Create grid
-@aefunction('create_grid({food:Integer | food >= 0}) -> {g:Grid | g.food == (food - 1)} = native;', lambda food: create_grid(food))
+@aefunction('create_grid(food:{food:Integer | food >= 0}) -> {g:Grid | g.food == (food - 1)};', lambda food: create_grid(food))
 def create_grid(food):
     position = create_pair(0, 0)
     grid = random_grid(food, 10, 10)
@@ -114,12 +114,12 @@ def inside_limites(value, minimum, maximum):
     return value >= minimum and value < maximum
 
 
-@aefunction('food_present(g:Grid) -> {out:Integer | i >= 0 && i <= g.food} = native;', lambda grid: food_present(grid))
+@aefunction('food_present(g:Grid) -> {out:Integer | i >= 0 && i <= g.food};', lambda grid: food_present(grid))
 def food_present(grid):
     grid = grid.copy()
     return grid.grid[grid.position[1]][grid.position[0]]
 
-@aefunction('left({g:Grid | g.position.elem1 > 0}) -> {g2:Grid | g2.position.elem1 == (g.position.elem1 - 1)} = native;', lambda grid: left(grid))
+@aefunction('left(g:{g:Grid | g.position.elem1 > 0}) -> {g2:Grid | g2.position.elem1 == (g.position.elem1 - 1)};', lambda grid: left(grid))
 def left(grid):
     grid = grid.copy()
     grid.position = (grid.position[0] - 1, grid.position[1])
@@ -128,7 +128,7 @@ def left(grid):
         grid.grid[grid.position[1]][grid.position[0]] = 0
     return grid
 
-@aefunction('right({g:Grid | g.position.elem1 < g.grid.size}) -> {g2:Grid | g2.position.elem1 == (g.position.elem1 + 1)} = native;', lambda grid: right(grid))
+@aefunction('right(g:{g:Grid | g.position.elem1 < g.grid.size}) -> {g2:Grid | g2.position.elem1 == (g.position.elem1 + 1)};', lambda grid: right(grid))
 def right(grid):
     grid = grid.copy()
     grid.position = (grid.position[0] + 1, grid.position[1])
@@ -137,7 +137,7 @@ def right(grid):
         grid.grid[grid.position[1]][grid.position[0]] = 0
     return grid
 
-@aefunction('up({g:Grid | g.position.elem2 > 0}) -> {g2:Grid | g2.position.elem2 == (g.position.elem2 - 1)} = native;', lambda grid: up(grid))
+@aefunction('up(g:{g:Grid | g.position.elem2 > 0}) -> {g2:Grid | g2.position.elem2 == (g.position.elem2 - 1)};', lambda grid: up(grid))
 def up(grid):
     grid = grid.copy()
     grid.position = (grid.position[0], grid.position[1] - 1)
@@ -146,7 +146,7 @@ def up(grid):
         grid.grid[grid.position[1]][grid.position[0]] = 0
     return grid
 
-@aefunction('down({g:Grid | g.position.elem2 < g.grid.size}) -> {g2:Grid | g2.position.elem2 == (g.position.elem2 + 1)} = native;', lambda grid: down(grid))
+@aefunction('down(g:{g:Grid | g.position.elem2 < g.grid.size}) -> {g2:Grid | g2.position.elem2 == (g.position.elem2 + 1)};', lambda grid: down(grid))
 def down(grid):
     grid = grid.copy()
     grid.position = (grid.position[0], grid.position[1] + 1)
@@ -155,31 +155,31 @@ def down(grid):
         grid.grid[grid.position[1]][grid.position[0]] = 0
     return grid
 
-@aefunction('get_grid(g:Grid) -> List[List[RestrictedNat]] = native;', lambda grid: get_grid(grid))
+@aefunction('get_grid(g:Grid) -> List[List[RestrictedNat]];', lambda grid: get_grid(grid))
 def get_grid(grid):
     return grid.grid
 
-@aefunction('get_food(g:Grid) -> Integer = native;', lambda grid: get_food(grid))
+@aefunction('get_food(g:Grid) -> Integer;', lambda grid: get_food(grid))
 def get_food(grid):
     return grid.food
 
-@aefunction('get_position(g:Grid) -> Pair[BoundedInt, BoundedInt] = native;', lambda grid: get_position(grid))
+@aefunction('get_position(g:Grid) -> Pair[BoundedInt, BoundedInt];', lambda grid: get_position(grid))
 def get_position(grid):
     return grid.position
 
-@aefunction('set_grid(l:List[List[RestrictedNat]], g:Grid) -> Grid = native;', lambda l: lambda grid: set_grid(l, grid))
+@aefunction('set_grid(l:List[List[RestrictedNat]], g:Grid) -> Grid;', lambda l: lambda grid: set_grid(l, grid))
 def set_grid(l, grid):
     grid = grid.copy()
     grid.grid = l
     return grid
 
-@aefunction('set_position(pos:Pair[BoundedInt, BoundedInt], g:Grid) -> Grid = native;', lambda pos: lambda grid: set_position(pos, grid))
+@aefunction('set_position(pos:Pair[BoundedInt, BoundedInt], g:Grid) -> Grid;', lambda pos: lambda grid: set_position(pos, grid))
 def set_position(pos, grid):
     grid = grid.copy()
     grid.pos = pos
     return grid
 
-@aefunction('consume_food(g:Grid, x:BoundedInt, y:BoundedInt) -> {g2:Grid | g.food - 1 == g2.food} = native;', lambda grid: lambda x: lambda y: consume_food(grid, x, y))
+@aefunction('consume_food(g:Grid, x:BoundedInt, y:BoundedInt) -> {g2:Grid | g.food - 1 == g2.food};', lambda grid: lambda x: lambda y: consume_food(grid, x, y))
 def consume_food(grid, x, y):
     grid = grid.copy()
     grid.food -= 1
