@@ -130,7 +130,7 @@ def get_type_kind(typee : Type):
 # Given the arguments of a definition, preprocess it
 def preprocess_native(args):
     
-    name = args.pop(0)
+    name = args.pop(0).value
     (tabs, tapps), params = (list(), list()), list()
 
     if isinstance(args[0], tuple):
@@ -141,11 +141,11 @@ def preprocess_native(args):
     
     ttype = args.pop(0)
 
-    return name, (tabs, tapps), params, ttype
+    return name, (tabs, tapps), params, remove_tabs(ttype)
 
 def preprocess_regular(args):
 
-    name = args.pop(0)
+    name = args.pop(0).value
     (tabs, tapps), params, body = (list(), list()), list(), None
 
     if isinstance(args[0], tuple):
@@ -158,7 +158,7 @@ def preprocess_regular(args):
 
     body = convert_body(args)
 
-    return name, (tabs, tapps), params, ttype, body
+    return name, (tabs, tapps), params, remove_tabs(ttype), body
 
 def convert_body(statements):
     statements.reverse()
@@ -185,25 +185,26 @@ def create_definition_ttype(params, rtype):
 
 # =============================================================================
 # Generates the uninterpreted function from a name.ghost
-def generate_uninterpreted(ctx, name):
-    
-    attributes = name.split('.')
-    
+def generate_uninterpreted(ctx, attributes):
+
     # Variable, its type and the ghost attributes over the variable
     variable = attributes[0]
-    typee = ctx.vars[variable]
+    typee = ctx[variable]
+
     attributes = attributes[1:]
 
     target_name = f'{get_type_name(typee)}_{attributes[0]}'
+    
+    target = Var(target_name)
 
-    result = Application(Var(target_name), Var(variable))
+    result = Application(wrap_tapplications(target, remove_tabs(typee)), Var(variable))
 
     # Progress the attributes variable
     for attr in attributes[1:]:
-        ttype = get_type_name(ctx.vars[target_name])
+        ttype = get_type_name(ctx[target_name])
         result = Application(Var(f'{ttype}_{attr}'), result) 
 
-    return wrap_tapplications(result, typee)
+    return result
 
 def wrap_tapplications(target, typee):
     while isinstance(typee, TypeApplication):
