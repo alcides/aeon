@@ -20,6 +20,9 @@ class Genetics(object):
 
     def evolve(self):
 
+        print("="*80)
+        print("Started evolution")
+
         # Initialize and evaluate the population
         population = initialize_population(self)
         population = evaluate(population, self)
@@ -48,8 +51,7 @@ class Genetics(object):
 
             # Transition to the new population
             population = offspring
-            print(population)
-            print('-'*80)
+
             # Hold condition
             best_individuals = [x for x in population if sum(x.fitness) == 0.0]
 

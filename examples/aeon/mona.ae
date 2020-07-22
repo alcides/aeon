@@ -1,8 +1,12 @@
 import aeon/libraries/image;
 
-monalisa : {img:Image | img.width == 732 && img.height == 1024} = load_image("examples/aeon/mona.jpg");
+// https://www.pyimagesearch.com/2014/09/15/python-compare-two-images/
 
-generate_mona() -> {img : Image | img.width == monalisa.width && img.height == monalisa.height and
+// monalisa : {img:Image | img.width == 732 && img.height == 1024} = load_image("examples/aeon/mona.jpg");
+
+monalisa : Image = load_image("examples/aeon/mona.jpg");
+
+generate_mona() -> {img : Image | img.width == 732 && img.height == 1024 and
                                   @minimize(image_diff(monalisa, img))} {
     ??;
 }

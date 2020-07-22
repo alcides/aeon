@@ -157,9 +157,8 @@ def interpret_expressions(eval_ctx, definition, expressions):
 
         # If it is a regular function
         else:
-            function = generate_fitness(eval_ctx, definition, condition)            
-        
-        result.append(function)
+            function = generate_fitness(eval_ctx, definition, condition)
+            result.append(function)
 
     return result
 

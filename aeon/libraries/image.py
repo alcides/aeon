@@ -1,6 +1,9 @@
 from .annotation import aefunction, aedocumentation
 
+import math
+import operator
 import numpy as np
+from functools import reduce
 from PIL import Image, ImageDraw
 
 ''' Image binds in Aeon to Python '''
@@ -71,7 +74,9 @@ def draw_rectangle(imgdraw, coord, color):
 
 @aefunction('image_diff(i1 : Image, i2 : Image) -> Double;')
 def image_diff(img1, img2):
-    return np.sum(np.fabs(np.subtract(img2[:], img1[:])))
+    h1 = img1.histogram()
+    h2 = img2.histogram()
+    return math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, h1, h2)) / len(h1)) # np.sum(np.fabs(np.subtract(img2[:], img1[:])))
 
 @aefunction('show_image(i : ImageDraw) -> Image;')
 def show_image(imgdraw):

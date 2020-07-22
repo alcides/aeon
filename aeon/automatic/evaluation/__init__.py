@@ -38,8 +38,8 @@ def evaluate(population, genetics):
 
         # Obtain the value of running the program    
         for test in tests:   
-            result = run_test(test, interpreted)
-            fitness_arguments.append(test + [result])
+            result, failed = run_test(test, interpreted)
+            fitness_arguments.append((test + [result], failed))
 
         # Run the fitness functions and obtain fitness
         for fitness in genetics.fitness_functions:
@@ -47,10 +47,13 @@ def evaluate(population, genetics):
             total = 0.0
 
             # For each test, apply the fitness function
-            for test in fitness_arguments:
-                result = reduce(lambda f, x: f(x), test, fitness)
+            for test, failed in fitness_arguments:
+                if failed:
+                    result = MAX_FITNESS 
+                else:
+                    result = reduce(lambda f, x: f(x), test, fitness)
                 total += result
-            
+
             # Add the fitness result to the individual 
             individual.add_fitness(total)
 
@@ -59,6 +62,9 @@ def evaluate(population, genetics):
 # =============================================================================
 # Auxiliary function
 def run_test(test, interpreted):
+
+    # Flag to check if the program failed during execution
+    failed = False
 
     # Set the signal
     signal.signal(signal.SIGALRM, handler)  
@@ -69,11 +75,12 @@ def run_test(test, interpreted):
     try:        
         result = reduce(lambda f, x: f(x), test, interpreted)
     except Exception:
-        result = MAX_FITNESS
+        result = None
+        failed = True
 
     signal.alarm(0)
     
-    return result
+    return result, failed
 
 def handler(signum, frame):
     print("Function exceeded time...")

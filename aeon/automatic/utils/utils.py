@@ -41,11 +41,11 @@ def build_evaluation_context(program):
     eval_ctx = EvaluationContext()
     unholed_program = []
 
-    for declaration in program.declarations:
-        if isinstance(declaration, Definition):
-            if (not has_holes(declaration)) and declaration.name != 'main' and \
-               (not isinstance(declaration.body, Var)):
-                run(declaration, eval_ctx)
+    for decl in program.declarations:
+        if isinstance(decl, Definition):
+            if (not has_holes(decl)) and decl.name != 'main' and \
+               (not (isinstance(decl.body, Var) and decl.body.name == 'uninterpreted')):
+                run(decl, eval_ctx)
 
     return eval_ctx
 
