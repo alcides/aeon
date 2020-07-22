@@ -43,7 +43,8 @@ def build_evaluation_context(program):
 
     for declaration in program.declarations:
         if isinstance(declaration, Definition):
-            if not has_holes(declaration) and declaration.name != 'main':
+            if (not has_holes(declaration)) and declaration.name != 'main' and \
+               (not isinstance(declaration.body, Var)):
                 run(declaration, eval_ctx)
 
     return eval_ctx

@@ -48,14 +48,17 @@ statement : "if" expression "{" statement+ "}" "else" "{" statement+ "}"    -> i
     | expression ";"                                                        -> expression_statement
 
 // Expression: done like this because of precedence
-expression : expression_dis IMPLIE expression                       -> boolean_expr  
-           | expression_dis                                         -> expr
+expression : expression_imp AND expression                          -> boolean_expr  
+           | expression_imp                                         -> expr
+
+expression_imp : expression_dis                                     -> expr
+               | expression_dis IMPLIE expression_imp               -> boolean_expr
 
 expression_dis : expression_i                                       -> expr
                | expression_i DISJUNCTION expression_dis            -> boolean_expr 
 
 expression_i : "if" expression "then" expression "else" expression  -> if_expr
-             | expression_bool (CONJUNCTION | AND) expression_i     -> boolean_expr
+             | expression_bool CONJUNCTION expression_i             -> boolean_expr
              | expression_bool EQUAL expression_i                   -> compare_expr
              | expression_bool DIFF expression_i                    -> compare_expr
              | expression_bool                                      -> expr

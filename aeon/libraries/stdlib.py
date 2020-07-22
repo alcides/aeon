@@ -101,7 +101,7 @@ initial_context = {
     ), lambda x: lambda y: (not x) or y),
     "!": (ty2("(a:Boolean) -> {c:Boolean where ((smtEq c) (smtNot a))}"),
           lambda x: not x),
-    "And": (ty2(
+    "and": (ty2(
         "(a:Boolean) -> (b:Boolean) -> {c:Boolean where ((smtEq c) ((smtAnd a) b))}"
     ), lambda x: lambda y: x and y),
     '+':

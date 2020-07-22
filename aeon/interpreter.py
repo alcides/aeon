@@ -16,19 +16,16 @@ class EvaluationContext(object):
         # Builds the context with the native functions
         self.ctx = {}
         for name, _, value in get_builtin_variables():
-            self.ctx[name] = value
+            if callable(value):
+                self.ctx[name] = value
         for name, _, value in get_variables():
-            self.ctx[name] = value
+            if callable(value):
+                self.ctx[name] = value
 
     def copy(self):
         t = EvaluationContext()
         t.ctx = self.ctx.copy()
         return t
-
-    def with_interpreted(self, name, interpreted):
-        new_ctx = self.copy()
-        new_ctx[name] = interpreted
-        return new_ctx
 
 
 # =============================================================================
