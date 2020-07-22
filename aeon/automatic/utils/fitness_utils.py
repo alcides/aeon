@@ -25,12 +25,12 @@ def generate_fitness_functions(eval_ctx, definition):
         # 0. Obtain the condition from the return type
         conditions = definition.return_type.cond
         
-        # 1. Get each 'And' expression
+        # 1. Get each 'and' expression
         and_expressions = generate_expressions(conditions)
-        
+
         # 2. Filter expressions to obtain the dependent types only
-        and_expressions = filter_typees(definition.return_type.name, and_expressions)
-        
+        and_expressions = filter_typees(eval_ctx, and_expressions)
+
         # 3. Convert each expression
         and_expressions = convert(and_expressions)
 
@@ -75,11 +75,11 @@ def generate_expressions(condition):
     
     result = list()
 
-    # If it is an expression (('And' condition) condition)
+    # If it is an expression (('and' condition) condition)
     if isinstance(condition, Application) and \
         isinstance(condition.target, Application) and \
         isinstance(condition.target.target, Var) and \
-        condition.target.target.name == 'And':
+        condition.target.target.name == 'and':
 
         result += generate_expressions(condition.argument)
         result += generate_expressions(condition.target.argument)
@@ -92,27 +92,29 @@ def generate_expressions(condition):
 
 # =============================================================================
 # Filter the restrict types from the and expressions
-def filter_typees(output_name, expressions):
+def filter_typees(eval_ctx, expressions):
 
     def is_dependent(node):
             
         if isinstance(node, Literal):
-            return False
+            return True
             
         elif isinstance(node, Var):
-            import aeon.libraries.stdlib as stdlib
-            return not stdlib.is_builtin(node.name) and node.name != output_name
-        
+            return True 
+
         elif isinstance(node, Hole):
-            return False
+            return True
         
         elif isinstance(node, If):
-            return is_dependent(node.cond) or \
-                   is_dependent(node.then) or \
+            return is_dependent(node.cond) and \
+                   is_dependent(node.then) and \
                    is_dependent(node.otherwise)
         
         elif isinstance(node, Application):
-            return is_dependent(node.target) or \
+            extra = (not isinstance(node.target, Var)) or \
+                    ((node.target.name in eval_ctx.ctx or \
+                    node.target.name.startswith('@')))
+            return extra and is_dependent(node.target) and \
                    is_dependent(node.argument)
         
         elif isinstance(node, Abstraction):
@@ -155,9 +157,8 @@ def interpret_expressions(eval_ctx, definition, expressions):
 
         # If it is a regular function
         else:
-            function = generate_fitness(eval_ctx, definition, condition)            
-        
-        result.append(function)
+            function = generate_fitness(eval_ctx, definition, condition)
+            result.append(function)
 
     return result
 

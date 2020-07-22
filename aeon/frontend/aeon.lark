@@ -8,41 +8,57 @@ aeon : aeimport
     | statement
 
 
+// Import
 aeimport : "import" (CNAME | PATH) ";"               -> regular_import
     | "import" CNAME "from" (CNAME | PATH) ";"       -> function_import
-    
+
+
+// Type Alias
 type_alias : "type" TYPE_CNAME "as" ttype ";"       -> type_alias
 
+
+// Type Declaration
 type_declaration : "type" ttype ";"                 -> regular_type_decl
-    | "type" ttype "{" ( CNAME ":" ttype";")+ "}"   -> param_type_decl
+    | "type" ttype "{" (cname_ttype ";")+ "}"       -> param_type_decl
 
 
+// Types in Aeon: BasicType, RefinedType, AbstractionType, TypeAbs and TypeApp
 ttype : "(" ttype ")"                               -> parens_type
     | TYPE_CNAME                                    -> basic_type
-    | "{" CNAME ":" ttype "|" expression "}"        -> refined_type
-    | "(" CNAME ":" ttype "->" ttype ")"            -> abstraction_type
+    | "{" cname_ttype "|" expression "}"            -> refined_type
+    | "(" cname_ttype "->" ttype ")"                -> abstraction_type
     | ttype tabstractions                           -> type_tabstapp
 
+cname_ttype : CNAME ":" ttype
+
+
+// Definition: Defines a function
 definition : CNAME tabstractions? "(" definition_params? ")" "->" ttype ";"           -> native_definition
     | CNAME tabstractions? "(" definition_params? ")" "->" ttype "{" statement+ "}"   -> regular_definition
 
 tabstractions : "[" ttype ("," ttype)* "]"
 
-definition_params : CNAME ":" ttype ("," CNAME ":" ttype)*
+definition_params : cname_ttype ("," cname_ttype)*
 
+
+// Statements: composed by multiples expressions
 statement : "if" expression "{" statement+ "}" "else" "{" statement+ "}"    -> if_statement
-    | CNAME ":" ttype "=" expression ";"                                    -> let_statement
+    | cname_ttype "=" expression ";"                                        -> let_statement
     | CNAME "=" expression ";"                                              -> assign_statement
     | expression ";"                                                        -> expression_statement
 
-expression : expression_dis IMPLIE expression                       -> boolean_expr  
-           | expression_dis                                         -> expr
+// Expression: done like this because of precedence
+expression : expression_imp AND expression                          -> boolean_expr  
+           | expression_imp                                         -> expr
+
+expression_imp : expression_dis                                     -> expr
+               | expression_dis IMPLIE expression_imp               -> boolean_expr
 
 expression_dis : expression_i                                       -> expr
                | expression_i DISJUNCTION expression_dis            -> boolean_expr 
 
 expression_i : "if" expression "then" expression "else" expression  -> if_expr
-             | expression_bool (CONJUNCTION | AND) expression_i     -> boolean_expr
+             | expression_bool CONJUNCTION expression_i             -> boolean_expr
              | expression_bool EQUAL expression_i                   -> compare_expr
              | expression_bool DIFF expression_i                    -> compare_expr
              | expression_bool                                      -> expr
@@ -69,14 +85,14 @@ expression_un : expression_b                                        -> expr
 expression_b : "(" expression ")"                                   -> parens_expr
     | expression_b tabstractions                                    -> tapplication_expr
     | expression_b "(" parameters? ")"                              -> invocation_expr
-    | "\\" CNAME ":" ttype "->" expression                          -> abstraction_expr
+    | "\\" cname_ttype "->" expression                              -> abstraction_expr
     | CNAME ("." CNAME)+                                            -> attribute_expr
     | "?" ttype? "?"                                                -> hole_expr
     | (FLOATLIT | INTLIT | BOOLLIT | STRINGLIT)                     -> literal_expr
     | CNAME                                                         -> variable_expr
     | "@" CNAME "(" parameters? ")"                                 -> improvement_expr
 
-
+// Parameters of an invocation
 parameters : expression ("," expression)*
 
 // Literals

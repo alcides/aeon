@@ -45,17 +45,17 @@ class TestFrontend(unittest.TestCase):
         return Application(Application(Var(op), l), r)
     
     
-    # Test the imports
+    # Test the imports: No longer makes sense as imports are automatically done
     def test_import(self):
-        self.assert_import("import library;", Import('library'))
-        self.assert_import("import path/to/library;", Import('path/to/library'))
+        # self.assert_import("import library;", Import('library'))
+        # self.assert_import("import path/to/library;", Import('path/to/library'))
         
-        self.assert_import("import fun from library;", Import('library', 'fun'))
-        self.assert_import("import fun from to/lib;", Import('to/lib', 'fun'))
+        # self.assert_import("import fun from library;", Import('library', 'fun'))
+        # self.assert_import("import fun from to/lib;", Import('to/lib', 'fun'))
         
-        self.assert_import("import fun from to/../lib;", Import('to/../lib', 'fun'))
-        
-    
+        # self.assert_import("import fun from to/../lib;", Import('to/../lib', 'fun'))
+        pass
+
     # Test the Type Alias
     def test_type_alias(self):
         self.assert_prog("type Test as Bool;", [TypeAlias('Test', ty('Bool'))])
@@ -156,6 +156,8 @@ class TestFrontend(unittest.TestCase):
     def test_let(self):
         self.assert_prog('x : T = 1;', [Definition('x', ty('T'), ex('1'), ty('T'))])
         self.assert_prog('x : Integer = 1;', [Definition('x', ty('Integer'), ex('1'), ty('Integer'))])
+        self.assert_prog('x : Double = 1; x = 2;', [Definition('x', ty('Double'), ex('1'), ty('Double')), 
+                                                    Definition('x', t_f, ex('2'), t_f)])
 
     def test_assign(self):
         pass
@@ -190,12 +192,17 @@ class TestFrontend(unittest.TestCase):
     
         
     def test_tapplication(self):
-        self.assert_ex('f[T]', TAbstraction('T', star, Var('f')))
+        self.assert_ex('f[T]', TAbstraction('T', star, TApplication(Var('f'), ty('T'))))
         self.assert_ex('f[Integer]', TApplication(Var('f'), t_i))
         self.assert_ex('f[T1, T2]', TApplication(TApplication(Var('f'),
                                                               ty('T1')),
                                                               ty('T2')))
-        
+        self.assert_ex('f[Integer]()', Application(TApplication(ex('f'),
+                                      ty('Integer')), ex('native')))
+        self.assert_ex('f[List[Integer]](l)', Application(TApplication(ex('f'),
+                         TypeApplication(ty('List'), ty('Integer'))), ex('l')))
+
+
     def test_invocation(self):
         self.assert_ex('f(1)', Application(Var('f'), ex('1')))
         self.assert_ex('f(x)(y)', Application(Application(Var('f'), ex('x')), ex('y')))
@@ -254,8 +261,16 @@ class TestFrontend(unittest.TestCase):
     
     def test_abstraction(self):
         self.assert_ex('\\x:Integer -> x', Abstraction('x', t_i, ex('x')))
-        self.assert_ex('(\\x:T -> x)[T][Integer]', TApplication(
+        self.assert_ex('(\\x:T -> x)[Integer]', TApplication(
                     TAbstraction('T', star, Abstraction('x', ty('T'), ex('x'))), t_i))
+        self.assert_ex('(\\x : T -> f[T])',
+                        TAbstraction('T', star, Abstraction('x', ty('T'), TApplication(ex('f'), ty('T')))))
+        self.assert_ex('(\\x : T -> \\y:Y -> f[T])',
+                        TAbstraction('T', star, TAbstraction('Y', star, Abstraction('x', ty('T'), Abstraction('y', ty('Y'), TApplication(ex('f'), ty('T')))        )   )    ))
+        self.assert_ex('(\\x : T -> f[T](x))[Integer](10)',
+                        Application(TApplication(TAbstraction('T', star,
+                            Abstraction('x', ty('T'), 
+                            Application(TApplication(ex('f'), ty('T')), ex('x')))), ty('Integer')), ex('10')))
     
     def test_if(self):
         self.assert_ex('if x then y else z', If(Var('x'), Var('y'), Var('z')))
@@ -269,7 +284,7 @@ class TestFrontend(unittest.TestCase):
                             Var('p'))), If(Var('x'), Var('y'), self.mk_bi_op('||', 'z', 'd'))))
 
     def test_attribute(self):
-        self.assert_ex('person.name.size', Var('person.name.size'))
+        #self.assert_ex('person.name.size', Var('person.name.size'))
         
         self.assert_prog('''type Person{age:Integer;}
                             person : Person = 1;
@@ -297,22 +312,22 @@ class TestFrontend(unittest.TestCase):
                 [TypeDeclaration("List", Kind(star, star), None),
                  Definition("List_size", ty('(_:List[T] -> Integer)'), ex('uninterpreted'), ty('Integer')),
                  Definition("l", ty("List[Integer]"), ex("1"), ty("List[Integer]")),
-                 TApplication(Application(Var('List_size'), Var('l')), ty('Integer'))])
-
+                 Application(TApplication(Var('List_size'), ty('Integer')), Var('l'))])
+        
         self.assert_prog(
                 '''
                 type List[T] {size:Integer;}
                 empty[T]() -> {l:List[T] | l.size};
-                l : List[Integer] = emptylist[Integer]();
+                l : List[Integer] = empty[Integer]();
                 ''', 
                 [TypeDeclaration("List", Kind(star, star), None),
                  Definition("List_size", ty('(_:List[T] -> Integer)'), ex('uninterpreted'), ty('Integer')),
-                 Definition("empty", AbstractionType('_', ty('Void'),
-                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(Var('List_size'), Var('l')))),
+                 Definition("empty", TypeAbstraction('T', star, AbstractionType('_', ty('Void'),
+                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(TApplication(Var('List_size'), ty('T')), Var('l'))))),
                     ex("native"),
-                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(Var('List_size'), Var('l')))),
-                 Definition("l", ty("List[Integer]"), ex("1"), ty("List[Integer]"))])
-        
+                    RefinedType('l', TypeApplication(ty('List'), ty('T')), Application(TApplication(Var('List_size'), ty('T')), Var('l')))),
+                 Definition("l", ty("List[Integer]"), ex('empty[Integer]()'), ty("List[Integer]"))])
+    
     def test_improvement(self):
         self.assert_ex('@maximize()', Application(Var('@maximize'), Var('native')))
         self.assert_ex('@maximize(x)', Application(Var('@maximize'), Var('x')))

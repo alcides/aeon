@@ -213,13 +213,17 @@ def check_program(ast):  # pragma: no cover
 
         elif isinstance(e, Definition):
             logging.debug(f"Checking the Definition: {e.name}")
-            ctx.variables[e.name] = e.type  # supports recursion
-            check_type(ctx, e.body, e.type)
-            ctx.variables[e.name] = e.type  # refines type
-            check_kind(ctx, e.type, AnyKind())
+            if isinstance(e.body, Var) and e.body.name == 'uninterpreted':
+                check_type(ctx, e.body, e.type)
+                ctx.uninterpreted_functions[e.name] = e.type
+            else:
+                ctx.variables[e.name] = e.type  # supports recursion
+                check_type(ctx, e.body, e.type)
+                ctx.variables[e.name] = e.type  # refines type
+                check_kind(ctx, e.type, AnyKind())
         elif isinstance(e, TypeAlias):
             logging.debug(f"Checking the TypeAlias: {e}")
-            ctx.type_aliases[e.name.name] = e.type
+            ctx.type_aliases[e.name] = e.type
         elif isinstance(e, TypeDeclaration):
             logging.debug(f"Checking the TypeDeclaration: {e}")
             name = e.name

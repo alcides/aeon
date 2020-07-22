@@ -59,25 +59,25 @@ main() -> Top {
 
     // Exists
     print[String]("Exists in lists");
-    f : (Integer -> Boolean) = \x: Integer -> x > 2;
+    f : (x:Integer -> Boolean) = \x: Integer -> x > 2;
     print[Boolean](exists_list[Integer](f, l2));
 
     // Forall    
     print[String]("Forall in lists");
-    f : (Integer -> Boolean) = \x: Integer -> x > 2;
+    f : (x:Integer -> Boolean) = \x: Integer -> x > 2;
     print[Boolean](forall_list[Integer](f, l2));
 
     // Filter to get non-empty and empty list
     print[String]("Filter in lists");
-    f : (Integer -> Boolean) = \x: Integer -> x > 2;
-    f2 : (Integer -> Boolean) = \x: Integer -> x > 10;
+    f : (x:Integer -> Boolean) = \x: Integer -> x > 2;
+    f2 : (x:Integer -> Boolean) = \x: Integer -> x > 10;
     print[List[Integer]](filter_list[Integer](f, l2));
     print[List[Integer]](filter_list[Integer](f2, l2));
 
     // Map
     print[String]("Map in lists");
-    f : (Integer -> Integer) = \x: Integer -> x * 2;
-    f2 : (Integer -> Integer) = \x: Integer -> -x;
+    f : (x:Integer -> Integer) = \x: Integer -> x * 2;
+    f2 : (x:Integer -> Integer) = \x: Integer -> -x;
     print[List[Integer]](map_list[Integer, Integer](f, l2));
     print[List[Integer]](map_list[Integer, Integer](f2, l2));
 

@@ -4,7 +4,7 @@ type Person {
     name:String;
 }
 
-buildPerson(x:String) -> Person = native;
+buildPerson(x:String) -> Person;
 
 main() -> Top {
     

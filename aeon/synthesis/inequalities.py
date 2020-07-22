@@ -33,7 +33,7 @@ sympy_context = {
     # BoolAlg expressions
     "!": lambda x: Not(x),
     "-->": lambda x: lambda y: Implies(x, y),
-    "And": lambda x: lambda y: And(x, y),
+    "and": lambda x: lambda y: And(x, y),
     "&&": lambda x: lambda y: And(x, y),
     "||": lambda x: lambda y: Or(x, y),
 }

@@ -2,7 +2,7 @@ import aeon/libraries/linkedlist;
 
 
 main() -> Top {
-
+    /*
     // Create an empty list
     print[String]("Empty list");
     l1 : LList[Integer] = empty_llist[Integer]();
@@ -27,7 +27,9 @@ main() -> Top {
     print[LList[Integer]](extend_llist[Integer](l5, l4)); // 1 item with 1 item
     print[LList[Integer]](extend_llist[Integer](l2, l4)); // + items with 1 item
     print[LList[Integer]](extend_llist[Integer](l4, l2)); // 1 item with + items
-
+    */
     // TODO: Not working???? Should give error
     l3 : {l3 : LList[Integer] | l3.size == 1} = empty_llist[Integer]();
+    
+    print[String]("Done!");
 }

@@ -15,27 +15,27 @@ asd() -> Integer {
 }
 
 
-aplicaFuncao(f:(Integer -> Integer)) -> z:Integer {
+aplicaFuncao(f:(x:Integer -> Integer)) -> Integer {
     print[Integer](f(9));
     print[Integer](10);
 }
 
 
 fatorial(x:Integer) -> Integer {
-    x == 0 ? 1 : x * fatorial(x - 1);
+    if x == 0 then 1 else x * fatorial(x - 1);
 }
 
 fibonacci(x:Integer) -> Integer {
-    x == 0 || x == 1 ? x : fibonacci(x - 1) + fibonacci(x - 2);
+    if x == 0 || x == 1 then x else fibonacci(x - 1) + fibonacci(x - 2);
 }
 
 
-f({x:Integer | x > 0}) -> Integer {
-    x + 1 > 1 ? 1 : 0;
+f(x:{x:Integer | x > 0}) -> Integer {
+    if x + 1 > 1 then 1 else 0;
 }
 
 
-returns_function() -> f:(Integer -> Integer) {
+returns_function() -> (f:Integer -> Integer) {
     (\x:Integer -> x + 1);
 }
 
@@ -64,10 +64,10 @@ main() -> Top {
     print[Integer]((\x : Integer -> x + 1)(4));
 
     print[String]("Local function f:");
-    f : (Integer -> Integer) = \x : Integer -> x + 1;
+    f : (x:Integer -> Integer) = \x : Integer -> x + 1;
     print[Integer](f(3));
     
     print[String]("Abstraction with TypeAbstraction and TypeApplication");
 
-    (\x:T -> \y:U -> print[T](x))[Integer](10)[Double](5.0);    
+    (\x:T -> \y:U -> print[T](x))[Integer, Double](10, 5.0);    
 }

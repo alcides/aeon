@@ -1,27 +1,31 @@
 from aeon.ast import *
 from aeon.types import *
 
+import os
+import os.path
 from functools import reduce
+
+from aeon.libraries.helper import importNative
 
 # =============================================================================
 # Removes every single TypeAbstraction and returns the type
-def remove_tabs(typee):
+def remove_typeabs(typee):
     if isinstance(typee, BasicType):
         return typee
     elif isinstance(typee, RefinedType):
-        typee.type = remove_tabs(typee.type)
+        typee.type = remove_typeabs(typee.type)
     elif isinstance(typee, AbstractionType):
-        typee.arg_type = remove_tabs(typee.arg_type)
-        typee.return_type = remove_tabs(typee.return_type)
+        typee.arg_type = remove_typeabs(typee.arg_type)
+        typee.return_type = remove_typeabs(typee.return_type)
     elif isinstance(typee, TypeApplication):
-        typee.target = remove_tabs(typee.target)
-        typee.argument = remove_tabs(typee.argument)
+        typee.target = remove_typeabs(typee.target)
+        typee.argument = remove_typeabs(typee.argument)
     elif isinstance(typee, TypeAbstraction):
-        typee = remove_tabs(typee.type)
+        typee = remove_typeabs(typee.type)
     return typee
 
 # Remove the inner tabs that are in the tabs
-def remove_inner_tabs(typee, tabs):
+def remove_inner_typeabs(typee, tabs):
     def remotion(tee, curr_tabs):
         if isinstance(tee, BasicType):
             return tee
@@ -45,15 +49,15 @@ def remove_inner_tabs(typee, tabs):
         
     return typee
 
-# Removes internal TAbstractions and puts them outside
-def process_tabs(typee):
-    tabs = search_tabs(typee)
-    typee = remove_tabs(typee)
+# Removes internal TypeAbstractions and puts them outside
+def process_typeabs(typee):
+    tabs = search_typeabs(typee)
+    typee = remove_typeabs(typee)
     typee = englobe_typeabs(typee, reversed(tabs))
     return typee
 
 # Search for abstractions in a given type and return the list of them: [X, Y]
-def search_tabs(typee):
+def search_typeabs(typee):
     abstractions = []
 
     # Check if the BasicType is a TypeeIdentifier
@@ -63,27 +67,26 @@ def search_tabs(typee):
     
     # Check the RefinedType type
     elif isinstance(typee, RefinedType):
-        abstractions = search_tabs(typee.type)
+        abstractions = search_typeabs(typee.type)
     
     # Check the AbstractionType arg_type and return_type
     elif isinstance(typee, AbstractionType):
-        arg_type = search_tabs(typee.arg_type)
-        return_type = search_tabs(typee.return_type)
+        arg_type = search_typeabs(typee.arg_type)
+        return_type = search_typeabs(typee.return_type)
         abstractions = arg_type + return_type
     
     # Check the TypeApplication target and argument
     elif isinstance(typee, TypeApplication):
-        target = search_tabs(typee.target)
-        argument = search_tabs(typee.argument)
+        target = search_typeabs(typee.target)
+        argument = search_typeabs(typee.argument)
         abstractions = target + argument
     
     # Check the name of each TypeAbstraction, progress the typee and return it
     elif isinstance(typee, TypeAbstraction):
         while isinstance(typee, TypeAbstraction):
-            abstractions = abstractions + search_tabs(
-                typee.name)
+            abstractions = abstractions + search_typeabs(typee.name)
             typee = typee.type
-        abstractions = abstractions + search_tabs(typee)
+        abstractions = abstractions + search_typeabs(typee)
     
     return (list(dict.fromkeys(abstractions)))
 
@@ -95,6 +98,49 @@ def englobe_typeabs(ttype, tabs):
 def englobe_typeapps(ttype, tapps):
     return reduce(lambda target, argument: TypeApplication(target, argument),
             tapps, ttype)
+
+# Search for TAbstractions
+def search_tabs(node):
+    abstractions = []
+
+    if isinstance(node, Application):
+        target = search_tabs(node.target)
+        argument = search_tabs(node.argument)
+        abstractions = target + argument
+    
+    elif isinstance(node, Abstraction):
+        abstractions = search_typeabs(node.arg_type)
+        abstractions = abstractions + search_tabs(node.body)
+        
+    elif isinstance(node, TAbstraction):
+        abstractions.append(node.typevar)
+        abstractions = abstractions + search_tabs(node.body)
+
+    elif isinstance(node, TApplication):
+        abstractions = abstractions + search_tabs(node.target)
+
+    return (list(dict.fromkeys(abstractions)))
+
+def remove_tabs(node):
+    
+    if isinstance(node, Application):
+        node.target = remove_tabs(node.target)
+        node.argument = remove_tabs(node.argument)
+    
+    elif isinstance(node, Abstraction):
+        node.body = remove_tabs(node.body)
+        
+    elif isinstance(node, TAbstraction):
+        node = remove_tabs(node.body)
+        
+    elif isinstance(node, TApplication):
+        node.target = remove_tabs(node.target)
+    
+    return node
+
+def englobe_tabs(node, tabs):
+    return reduce(lambda abst, ttype: TAbstraction(ttype, star, abst),
+            tabs, node)
 
 # =============================================================================
 # Given a type obtain its type name
@@ -130,7 +176,7 @@ def get_type_kind(typee : Type):
 # Given the arguments of a definition, preprocess it
 def preprocess_native(args):
     
-    name = args.pop(0)
+    name = args.pop(0).value
     (tabs, tapps), params = (list(), list()), list()
 
     if isinstance(args[0], tuple):
@@ -141,11 +187,11 @@ def preprocess_native(args):
     
     ttype = args.pop(0)
 
-    return name, (tabs, tapps), params, ttype
+    return name, (tabs, tapps), params, remove_typeabs(ttype)
 
 def preprocess_regular(args):
 
-    name = args.pop(0)
+    name = args.pop(0).value
     (tabs, tapps), params, body = (list(), list()), list(), None
 
     if isinstance(args[0], tuple):
@@ -158,7 +204,7 @@ def preprocess_regular(args):
 
     body = convert_body(args)
 
-    return name, (tabs, tapps), params, ttype, body
+    return name, (tabs, tapps), params, remove_typeabs(ttype), body
 
 def convert_body(statements):
     statements.reverse()
@@ -185,25 +231,26 @@ def create_definition_ttype(params, rtype):
 
 # =============================================================================
 # Generates the uninterpreted function from a name.ghost
-def generate_uninterpreted(ctx, name):
-    
-    attributes = name.split('.')
-    
+def generate_uninterpreted(ctx, attributes):
+
     # Variable, its type and the ghost attributes over the variable
     variable = attributes[0]
-    typee = ctx.vars[variable]
+    typee = ctx[variable]
+
     attributes = attributes[1:]
 
     target_name = f'{get_type_name(typee)}_{attributes[0]}'
+    
+    target = Var(target_name)
 
-    result = Application(Var(target_name), Var(variable))
+    result = Application(wrap_tapplications(target, remove_typeabs(typee)), Var(variable))
 
     # Progress the attributes variable
     for attr in attributes[1:]:
-        ttype = get_type_name(ctx.vars[target_name])
+        ttype = get_type_name(ctx[target_name])
         result = Application(Var(f'{ttype}_{attr}'), result) 
 
-    return wrap_tapplications(result, typee)
+    return result
 
 def wrap_tapplications(target, typee):
     while isinstance(typee, TypeApplication):
@@ -213,45 +260,49 @@ def wrap_tapplications(target, typee):
     
 # =============================================================================
 # Resolve the imports
-def resolve_imports(path, program):
-    result = []
+def resolve_imports(path, node):
+    
+    result = list()
+
     from ..libraries.stdlib import add_function
-    for node in program:
-        if isinstance(node, Import):
-            # Get the os path for the ae file
+    from aeon.frontend import parse_strict
+    
+    # Get the os path for the ae file
+    abs_path = os.path.normpath(
+        os.path.join(os.getcwd(), os.path.dirname(path), node.name))
+    real_path = abs_path + ".ae"
 
-            importPath = node.name
-            absolutePath = os.path.normpath(
-                os.path.join(os.getcwd(), os.path.dirname(path), importPath))
-            realPath = absolutePath + ".ae"
+    # It is a regular .ae import
+    if os.path.exists(real_path):
+        declarations = parse(real_path).declarations
+        # If we only want a specific function from the program
+        if node.function is not None:
+            declarations = list(filter(lambda x : isinstance(x, Definition) \
+                                    and x.name == node.function, declarations))
 
-            # It is a regular .ae import
-            if os.path.exists(realPath):
-                importedProgram = parse(realPath)
-                # If we only want a specific function from the program
-                if node.function is not None:
-                    importedProgram.declarations = list(filter(lambda x : isinstance(x, Definition) \
-                                                and x.name == node.function, \
-                                                importedProgram.declarations))
-            # It is a .py import
-            else:
-                moduleName = node.name.replace("/", ".")
-                importedProgram = Program([])
-                natives = importNative(
-                    moduleName,
-                    '*' if node.function is None else node.function)
-                for native in natives.keys():
-                    aetype_code, function = natives[native]
+    # It is a .py import
+    else:
+        module_name = node.name.replace("/", ".")
+        
+        context = dict()
+        declarations = list() 
+        
+        natives = importNative(module_name,
+            '*' if node.function is None else node.function)
 
-                    imported_declarations = parse_strict(
-                        aetype_code).declarations
-                    aetype = imported_declarations[0]  # Fixed
-                    if isinstance(aetype, Definition):
-                        add_function(aetype.name, aetype.type, function)
-                    importedProgram.declarations.append(aetype)
-                    importedProgram.declarations.extend(
-                        imported_declarations[1:])
-            result = result + importedProgram.declarations
-        else:
-            result.append(node)
+        for native in natives.keys():
+
+            aetype, function = natives[native]
+            
+            native_declarations = parse_strict(aetype, context).declarations
+
+            for declaration in native_declarations:
+                if isinstance(declaration, Definition):
+                    context[declaration.name] = declaration.type
+                    add_function(declaration.name, declaration.type, function)
+            
+            declarations.extend(native_declarations)
+
+    result = result + declarations
+    
     return result

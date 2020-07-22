@@ -16,10 +16,6 @@ automatic:
     ☐ The phd continuous function does not support forall and exists
         since arrays are not implemented natively, we cannot statically support the continuous
         transformations for the forall and exists fitness functions of the phd 
-    ✔ in mutation and crossover, update the subtype filtering because of literals refinements @done(20-06-29 16:55)
-        literal refinements force the program to produce the exact same value. We need to 
-        obtain the most generalized refinement, taking into consideration the type of the hole
-        and the height 
 
 synthesis: @critical 
     ☐ change synthesis refinements based on trials to continuous synthesis
@@ -27,8 +23,6 @@ synthesis: @critical
         this can be problematic when generating expressions from really restrictive
         types. 
     ☐ se_natives should have a gaussian distributions
-    ✔ sometimes generates expressions that do not typecheck @done(20-06-25 10:25)
-        error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
     ☐ probabilities of the synthesis configurations
 
     ranges:
@@ -36,10 +30,7 @@ synthesis: @critical
             call z3 and replace the invocations to uninterpreted functions with the values
         ☐ Deal with discontinuous ranges
             expressions such as, x % 3 == 0 or x % 5 < 3, must be converted into continuous values
-        ✔ Call SMT-Solver in case we are not able to synthesize the refinement @done(20-06-25 10:10)
         ☐ equalize the probability of choosing certain `Or` ranges based on weights
-        ✔ check if the to_cnf is really not needed @done(20-06-25 10:10)
-            removed because some tests were failing because of it. Check if everything works fine
         ☐ change the way the intervals are done
             change it so, the And concatenates the lists, the Or inserts lists inside lists. Then the
             flatten_refinements only randomly needs to choose one of the lists inside each list, until
@@ -74,12 +65,6 @@ libraries:
     ☐ automatically generate the documentation
 
 frontend:
-    ☐ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly
-        if the last instruction is of the kind: x:Integer = true; the frontend
-        only takes the body and ignores the rest of the assignment. We cannot
-        ensure type correctness in this case
-    ☐ delete the refined_value and use the one from the @file(aeon/ast.py)
-    ☐ change special functions with @ to @ID
     ☐ Obtaining the type abstractions for the typedeclarations based on length needs to be changed
         not the best approach, should be improved @file(aeon/frontend/AeonASTVisitor) (line 188)
     
@@ -92,13 +77,6 @@ frontend:
     aeoncore:
         ☐ wrong precendence of boolean operators (equality too)
             example: {x:Integer where x == 0 || (x > 5 && x <= 30)}  ~~~~~> ((== x) ((|| 0) ....))
-        ☐ problem with parenthesis
-    
-    ☐ change the notation of the ternary operator
-        currently: cond ? then : otherwise ~~~~> if cond then then else otherwise
-
-    ☐ migrate to Lark
-        should actually be check in the typechecker and not frontend
 
 compiler:
     ☐ compile the code to Java
@@ -123,9 +101,6 @@ examples:
     ☐ trailing ones for synthesis
 
 others:
-    ☐ test units to all modules to ensure that the code is correct
-    ☐ deduce of the hole
-        this can be done after typechecking
 
     simplification:
         ☐ add not progragation function
@@ -137,11 +112,29 @@ others:
 
 ===============================================================================
 Archive:
-  ✔ interesting examples of literal refinements synthesis against the SMT Solver @done(20-06-21 09:24) @project(synthesis.ranges)
-  ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51) @project(automatic)
-  ✔ zed context contains a Token(id, a) @done(20-06-18 08:32) @project(typechecker)
-  ✘ Add value refinement to string literals @cancelled(20-06-18 13:08) @project(frontend.aeoncore)
-    ensure that a string s is of type: x :: {_s : String where _s == x && String_size(_s) == 1}
+  ✔ in mutation and crossover, update the subtype filtering because of literals refinements @done(20-06-29 16:55) @project(automatic)
+    literal refinements force the program to produce the exact same value. We need to 
+    obtain the most generalized refinement, taking into consideration the type of the hole
+    and the height 
+  ✔ sometimes generates expressions that do not typecheck @done(20-06-25 10:25) @project(synthesis)
+    error: z3.z3types.Z3Exception: True, False or Z3 Boolean expression expected. Received 260
+  ✔ Call SMT-Solver in case we are not able to synthesize the refinement @done(20-06-25 10:10) @project(synthesis.ranges)
+  ✔ check if the to_cnf is really not needed @done(20-06-25 10:10) @project(synthesis.ranges)
+    removed because some tests were failing because of it. Check if everything works fine
+  ✔ if the last instruction is a definition, it doesnt assign the value and it doesnt typecheck properly @done(20-07-19 14:14) @project(frontend)
+    if the last instruction is of the kind: x:Integer = true; the frontend
+    only takes the body and ignores the rest of the assignment. We cannot
+    ensure type correctness in this case
+  ✔ delete the refined_value and use the one from the @file(aeon/ast.py) @done(20-07-19 14:14) @project(frontend)
+  ✔ change special functions with @ to @ID @done(20-07-19 14:14) @project(frontend)
+  ✘ problem with parenthesis @cancelled(20-07-19 14:14) @project(frontend.aeoncore)
+  ✔ change the notation of the ternary operator @done(20-07-19 14:14) @project(frontend)
+    currently: cond ? then : otherwise ~~~~> if cond then then else otherwise
+  ✔ migrate to Lark @done(20-07-19 14:14) @project(frontend)
+    should actually be check in the typechecker and not frontend
+  ✔ test units to all modules to ensure that the code is correct @done(20-07-19 14:15) @project(others)
+  ✔ deduce of the hole @done(20-07-19 14:15) @project(others)
+    this can be done after typechecking
     automatic:
         ✔ error when generating a program with no input method parameters @done(20-05-09 19:12)
         ✔ I suspect I forgot to update the evaluation context with the program functions @done(20-05-09 19:12)
@@ -153,7 +146,8 @@ Archive:
         ✔ change forall and exists to sum and minimum, respectively @done(20-06-06 04:26)
         ✔ implement the previous continuous fitness function @done(20-06-10 16:45)
             @link(http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.67.2132&rep=rep1&type=pdf) (page 123)
-            @link(https://ieeexplore.ieee.org/document/4630793)
+            @link(https://ieeexplore.ieee.org/document/4630793)        
+        ✔ changed the [(context, holes)] in typing, should change the invocations over genetics @done(20-06-18 09:51)
 
     synthesis:    
         ranges:
@@ -172,6 +166,8 @@ Archive:
                 The only information currently available is obtained from restrictions.
                 No need: Just get the variable type from the context.variables and extract the ranges
                 then, we call the ranges to obtain a value and replace the value in the expression
+                            
+            ✔ interesting examples of literal refinements synthesis against the SMT Solver @done(20-06-21 09:24)
 
     typechecker:
         ✔ include assertions in rules to ensure implementation correctness @done(20-05-24 19:40)
@@ -179,6 +175,7 @@ Archive:
         ✘ update zed interface using pysmt @cancelled(20-06-03 17:31)
             This might be a slower solution since it introduces a new layer, but allows us
             to experiment different SMT's @link(https://github.com/pysmt/pysmt)
+        ✔ zed context contains a Token(id, a) @done(20-06-18 08:32)
 
     libraries:
         ✔ create the annotation for documentation @done(20-05-21 10:05)
@@ -204,6 +201,8 @@ Archive:
             ✔ Doubles not working @done(20-06-04 11:40)
             ✘ aeoncore still doesnt deal with name.ghost_variable @cancelled(20-06-06 02:34)
                 aeoncore is not expected to support this behaviour
+            ✘ Add value refinement to string literals @cancelled(20-06-18 13:08) 
+                ensure that a string s is of type: x :: {_s : String where _s == x && String_size(_s) == 1}
 
     translator:
         ✔ must update the hole notation here @done(20-06-06 02:36)
