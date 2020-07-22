@@ -6,7 +6,7 @@ from .conversions import type_conversion
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .zed import is_satisfiable, entails
-from .kinding import check_kind
+from .kinding import check_kind, KindingError
 from .exceptions import TypingException
 
 
@@ -43,8 +43,11 @@ def sub_abs(ctx, sub: AbstractionType, sup: AbstractionType) -> bool:
     sub_return_type = substitution_expr_in_type(sub.return_type,
                                                 Var(sup.arg_name),
                                                 sub.arg_name)
-    check_kind(ctx, sub.arg_type, star)
-    check_kind(nctx, sup.return_type, star)
+    try:
+        check_kind(ctx, sub.arg_type, star)
+        check_kind(nctx, sup.return_type, star)
+    except KindingError:
+        return False
     return is_subtype(ctx, sup.arg_type, sub.arg_type) and \
         is_subtype(nctx, sub_return_type, sup.return_type)
 
@@ -72,7 +75,10 @@ def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
     if not isinstance(abst, TypeAbstraction):
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))
-    check_kind(ctx, sub.argument, abst.kind)
+    try:
+        check_kind(ctx, sub.argument, abst.kind)
+    except KindingError:
+        return False
     nsub = substitution_type_in_type(abst.type, sub.argument, abst.name)
     return is_subtype(ctx, nsub, sup)
 
@@ -83,14 +89,17 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
     if not isinstance(abst, TypeAbstraction):
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))
-    check_kind(ctx, sup.argument, abst.kind)
+    try:
+        check_kind(ctx, sup.argument, abst.kind)
+    except KindingError:
+        return False
     nsup = substitution_type_in_type(abst.type, sup.argument, abst.name)
     return is_subtype(ctx, sub, nsup)
 
 
 def is_subtype(ctx, sub, sup) -> bool:
     """ Subtyping Rules """
-    
+
     # ===
     # Small hack because of type_aliases that are not replaced
     if isinstance(sub, BasicType) and sub.name in ctx.type_aliases:

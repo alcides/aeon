@@ -185,6 +185,14 @@ class TestTypeChecking(unittest.TestCase):
             "if false then true else (if false then true else false)",
             "{ x:Boolean where (x == false) }")
 
+    def test_complex(self):
+        self.generic_test("f 5",
+                          "{ x:Boolean | (x == true) }",
+                          extra_ctx=[
+                              ("f",
+                               "(x:Integer) -> { b:Boolean | b ==(x > 3) }")
+                          ])
+
 
 if __name__ == '__main__':
     unittest.main()

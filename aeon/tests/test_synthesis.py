@@ -3,9 +3,9 @@ import random
 
 from ..types import TypingContext, Kind, star, Type
 from ..frontend_core import expr, typee
-from ..synthesis.synthesis import WeightManager, sk, se, se_bool, se_int, se_var, se_app, \
-    se_where, iet, se_app_in_context
-from ..typechecker import check_type, is_subtype
+from ..synthesis.synthesis import sk, se, se_bool, se_int, se_var, se_app, \
+    se_where, iet, se_app_in_context, se_abs, Unsynthesizable
+from ..typechecker import check_type, is_subtype, TypeCheckingError
 
 ex = expr.parse
 ty = typee.parse
@@ -25,11 +25,24 @@ class TestSynthesis(unittest.TestCase):
         if d == None:
             d = 5
         print("----")
+        foundCount = 0
         for i in range(times):
-            e = fun(ctx, t, d)
-            print(t, "~>", e)
-            check_type(ctx, e, t)
-            self.assert_st(ctx, e.type, t)
+            try:
+                e = fun(ctx, t, d)
+                print(t, "~>", e)
+                try:
+                    check_type(ctx, e, t)
+                except TypeCheckingError as ex:
+                    self.fail("TypeChecking failed for {} : {} ||| {}".format(
+                        e, t, ex))
+                self.assert_st(ctx, e.type, t)
+                foundCount += 1
+            except Unsynthesizable as e:
+                raise e
+                pass
+        if foundCount < times:
+            self.fail("Failed to find an instance of type {} ({}/{})".format(
+                t, foundCount, times))
 
     def generic_test(self, t, fun=None, extra_ctx=None, d=None, times=10):
         if not fun:
@@ -38,7 +51,10 @@ class TestSynthesis(unittest.TestCase):
         ctx.setup()
         if extra_ctx:
             for (k, v) in extra_ctx:
-                ctx = ctx.with_var(k, ty(v))
+                if v.startswith('type'):
+                    ctx = ctx.with_type_var(v, "*")
+                else:
+                    ctx = ctx.with_var(k, ty(v))
         self.assert_synth(ctx, t, fun=fun, d=d, times=times)
 
     def test_synthesis_kind_1(self):
@@ -124,7 +140,7 @@ class TestSynthesis(unittest.TestCase):
         self.generic_test("{x:Integer where (((x % 4) == 0) && (x > 2))}")
 
     def test_g_abs(self):
-        self.generic_test("(x:Boolean) -> Integer", d=10)
+        self.generic_test("(x:Boolean) -> Integer", d=10, fun=se_abs)
 
     def test_g_abs_with_var(self):
         self.generic_test("(x:Boolean) -> Integer",
@@ -159,6 +175,16 @@ class TestSynthesis(unittest.TestCase):
         T = ty("(v:{a:Integer where (a > 1)}) -> {k:Boolean where (k)}")
         self.assert_iet(ctx.with_var("x", ty("{x:Integer where (x==1)}")),
                         expr.parse("1"), "x", T)
+
+    def test_complex(self):
+        self.generic_test("D",
+                          fun=se_app_in_context,
+                          d=5,
+                          extra_ctx=[("a", "(x:{ k : Integer | k > 3 }) -> A"),
+                                     ("b", "(x:A) -> B"), ("c", "(x:B) -> C"),
+                                     ("d", "(x:C) -> D"), ('A', 'type'),
+                                     ('B', 'type'), ('C', 'type'),
+                                     ('D', 'type')])
 
 
 if __name__ == '__main__':

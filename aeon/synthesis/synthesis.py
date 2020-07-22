@@ -17,10 +17,17 @@ from aeon import typechecker as tc
 from aeon.synthesis.utils import flatten_refined_type, filter_refinements
 from aeon.synthesis.ranges import try_ranged, RangedContext, RangedException
 
-MAX_TRIES = 3
+MAX_TRIES = 5
 MAX_TRIES_WHERE = 100
 
-forbidden_vars = ['native', 'uninterpreted', 'if', 'then', 'else', 'print', '_exists_fitness', '_forall_fitness']
+logging.basicConfig(level=logging.DEBUG)
+
+debug_synth = False
+
+forbidden_vars = [
+    'native', 'uninterpreted', 'if', 'then', 'else', 'print',
+    '_exists_fitness', '_forall_fitness'
+]
 
 weights = {
     "sk_star": 1,  # Kinding
@@ -34,14 +41,15 @@ weights = {
     "st_abs": 6,
     "st_tabs": 1,
     "st_tapp": 1,
+    "se_app_in_context": 50,
     "se_int": 1,  # Terminal types
     "se_bool": 1,
     "se_double": 1,
     "se_string": 1,
-    "se_var": 100,
+    "se_var": 50,
     "se_where": 1,
     "se_abs": 50,
-    "se_app": 50,
+    "se_app": 1,
     "se_tabs": 0,
     "se_tapp": 0,
     "se_if": 1,
@@ -168,11 +176,11 @@ def random_chooser(f):
                 actual_max_tries = MAX_TRIES
                 for r in rules:
                     weights[r] *= 100
-        #print(args, "#", kwargs, "#", list(f(*args, *kwargs)))
+        #logging.debug(args, "#", kwargs, "#", list(f(*args, *kwargs)))
         valid_alternatives = list(f(*args, *kwargs))
         #logging.debug("args: {}".format(", ".join([str(x) for x in args])))
-        #logging.debug("options in random_chooser: {}".format(", ".join(
-        #    [x[0] for x in valid_alternatives])))
+        logging.debug("options in random_chooser: {}".format(", ".join(
+            [x[0] for x in valid_alternatives])))
         if not valid_alternatives or sum_of_alternative_weights(
                 valid_alternatives) <= 0:
             raise Unsynthesizable("No valid alternatives for", f.__name__,
@@ -183,7 +191,7 @@ def random_chooser(f):
                 logging.debug("Chosen: {}".format(fun.__name__))
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
-                    #print("checking", args[0], v, args[1])
+                    #logging.debug("checking", args[0], v, args[1])
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
@@ -191,11 +199,7 @@ def random_chooser(f):
                     "random_chooser/d: failed restriction: {}".format(e))
                 for r in rules:
                     weights[r] *= 100
-                #print("Exception", type(e), str(e))
-                #if i % 10 == 0:
-                #print("Exception:", e) #, type(e))
-                #print("Failed once to pick using", fun)
-                pass
+                #logging.debug("Exception", type(e), str(e))
             finally:
                 for i, r in enumerate(rules):
                     weights[r] = old_values[i]
@@ -457,6 +461,25 @@ def se_app(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     return Application(e1, e2).with_type(T)
 
 
+def head_of_tail(
+        ctx: TypingContext, T: Type, target: Type, args: List[Tuple[str,
+                                                                    Type]],
+        targs: List[Type]) -> Tuple[bool, List[Tuple[str, Type]], List[Type]]:
+    logging.debug("hot: {} ~ {}".format(target, T))
+    if tc.is_subtype(ctx, target, T):
+        return (True, args, targs)
+    if isinstance(target, AbstractionType):
+        return head_of_tail(ctx.with_var(target.arg_name, target.arg_type), T,
+                            target.return_type,
+                            args + [(target.arg_name, target.arg_type)], targs)
+    if isinstance(target, TypeAbstraction):
+        NT = substitution_type_in_type(
+            target.type, T, target.name
+        )  # TODO: this is not complete. Unifcation algorithm is required
+        return head_of_tail(ctx, T, NT, args, targs + [T])
+    return (False, args, targs)
+
+
 def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     logging.debug("se_app_in_context/{}: {} ".format(d, T))
 
@@ -467,30 +490,44 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     else:
         target_type = T
 
-    options: List[Tuple[str, str, Type, Optional[str], Optional[Type],
-                        Optional[TypedNode]]] = []
+    options: List[Tuple[str, List[Tuple[str, Type]], List[Type]]] = []
     for name in ctx.variables:
         t = ctx.variables[name]
-        if isinstance(t, AbstractionType):
-            ret = t.return_type
-            if isinstance(ret, RefinedType):
-                ret_refinement = ret.cond
-                if tc.is_subtype(ctx, ret.type, target_type):
-                    options.append((name, t.arg_name, t.arg_type, ret.name,
-                                    ret.type, ret.cond))
-            else:
-                if tc.is_subtype(ctx, ret, target_type):
-                    options.append(
-                        (name, t.arg_name, t.arg_type, None, ret, None))
+        isTail, args, targs = head_of_tail(ctx, T, t, [], [])
+        if isTail:
+            options.append((name, args, targs))
 
     if not options:
+        logging.debug("se_app_in_context/no options")
         raise Unsynthesizable("No function with that return type")
+    else:
+        logging.debug("se_app_in_context/options: {}".format(options))
 
-    (name, arg_name, arg_type, ret_name, retT,
-     refinement) = random.choice(options)
+    (name, args, targs) = random.choice(options)
     logging.debug(
-        "chosen name:{}, arg_name:{}, arg_type:{}, ret:{}, refine:{}".format(
-            name, arg_name, arg_type, retT, refinement))
+        "se_app_in_context/{} ~> chosen name:{}, args:{}, targs:{}".format(
+            T, name, args, targs))
+
+    inner = ctx.variables[name]
+    f: TypedNode = Var(name)
+    for arg in args:
+        if isinstance(inner, AbstractionType):
+            inner = inner.return_type
+    for targ in targs:
+        f = TApplication(f, targ)
+        if isinstance(inner, TypeAbstraction):
+            inner = inner.type
+
+    # TODO refinement
+
+    nctx = ctx
+    for arg in args:
+        a_n = se(nctx, arg[1], d - 1)
+        f = Application(f, a_n)
+        nctx = nctx.with_var(arg[0], arg[1])
+
+    return f
+
     if ret_name and refinement:
         ncond: TypedNode = refinement
         if isinstance(T, RefinedType):
@@ -506,7 +543,7 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     e1 = Var(name)
     e = Application(e1, e2)
     if not tc.check_type(ctx, e, T):
-        logging.debug("se_app_in_context: failed restriction")
+        logging.debug("se_app_in_context: failed restriction:", e, T)
         raise Unsynthesizable("Failed restriction")
     return e
 
@@ -535,7 +572,7 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
         #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
         return e2  #.with_type(T)
     except Exception as e:
-        logging.debug("se_where: failed restriction: {}", T)
+        logging.debug("se_where: failed restriction: {} ~> {}".format(T, e2))
         raise Unsynthesizable(
             "Unable to generate a refinement example: {}".format(T))
 
@@ -595,6 +632,7 @@ def se(ctx: TypingContext, T: Type, d: int):
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
     if d > 0:
+        yield ("se_app_in_context", se_app_in_context)
         yield ("se_if", se_if)
         if isinstance(T, AbstractionType):
             yield ("se_abs", se_abs)
@@ -617,6 +655,7 @@ def se_safe(ctx: TypingContext, T: Type, d: int):
         except Unsynthesizable:
             # print("Se-safe in action...")
             pass
+
 
 """ Expression Synthesis parameterized with x:T """
 
@@ -1086,4 +1125,3 @@ def ssup(ctx: TypingContext, T: Type,
                 T.argument, TypeAbstraction):
             yield ('ssup_tappL', ssup_tappL)
         yield ('ssup_tappR', ssup_tappR)
-

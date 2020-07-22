@@ -61,6 +61,8 @@ initial_uninterpreted_functions = {
     'smtDiv': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtCaret': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtMod': ty2("(a:Top) -> (b:Top) -> Bottom"),
+    'smtPow': ty2("(a:Top) -> (b:Top) -> Bottom"),
+    'smtAbs': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'String_size': ty2("(a:String) -> Integer"),
 }
 
@@ -88,7 +90,7 @@ initial_context = {
     'pow': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtPow a) b))}"
     ), lambda x: lambda y: math.pow(x, y)),
-    'abs': (ty2("(T:*) => (a:T) -> {b:Boolean where ((smtEq c) (smtAbs a))}"),
+    'abs': (ty2("(T:*) => (a:T) -> {b:Boolean where ((smtEq b) (smtAbs a))}"),
             lambda x: builtins.abs(x)),
     '&&': (ty2(
         "(a:Boolean) -> (b:Boolean) -> {c:Boolean where ((smtEq c) ((smtAnd a) b))}"
