@@ -1,3 +1,4 @@
+import copy
 from typing import Optional
 
 from ..types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, TypeException
@@ -16,6 +17,8 @@ def substitution_expr_in_expr(n, replacement: TypedNode,
     assert (isinstance(replacement, TypedNode))
     assert (n != None)
     assert (isinstance(replaced, str))
+
+    replacement = copy.deepcopy(replacement)
 
     r = lambda x: substitution_expr_in_expr(x, replacement, replaced)
     nty = n.type if n.type == None else substitution_expr_in_type(
@@ -67,6 +70,7 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
     assert (isinstance(n, TypedNode))
     assert (n != None)
     assert (isinstance(replaced, str))
+    replacement = copy.deepcopy(replacement)
 
     r = lambda x: substitution_type_in_expr(x, replacement, replaced)
     nty = n.type if n.type == None else substitution_type_in_type(
@@ -111,9 +115,10 @@ def substitution_type_in_expr(n: TypedNode, replacement: Type,
 def substitution_expr_in_type(n: Type, replacement: TypedNode,
                               replaced: str) -> Type:
     """ T[e/x] """
-    
+
     assert (isinstance(n, Type))
     assert (isinstance(replaced, str))
+    replacement = copy.deepcopy(replacement)
 
     r = lambda x: substitution_expr_in_type(x, replacement, replaced)
     re = lambda x: substitution_expr_in_expr(x, replacement, replaced)
@@ -162,6 +167,7 @@ def substitution_type_in_type(n: Type, replacement: Type,
     """ T[U/t] """
     assert (isinstance(n, Type))
     assert (isinstance(replaced, str))
+    replacement = copy.deepcopy(replacement)
 
     r = lambda x: substitution_type_in_type(x, replacement, replaced)
     re = lambda x: substitution_type_in_expr(x, replacement, replaced)
