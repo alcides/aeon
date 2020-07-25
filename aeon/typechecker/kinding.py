@@ -1,9 +1,10 @@
 from ..types import TypingContext, Kind, star, Type, BasicType, RefinedType, \
-    AbstractionType, TypeAbstraction, TypeApplication
+    AbstractionType, TypeAbstraction, TypeApplication, SumType, IntersectionType
 
 from .exceptions import TypingException
 
 # from .typing import checktype
+
 
 class KindingError(TypingException):
     pass
@@ -52,6 +53,22 @@ def k_tabs(ctx: TypingContext, tabs: TypeAbstraction):
     return Kind(k, kp)
 
 
+def k_sum(ctx: TypingContext, t: SumType):
+    kl = synth_kind(ctx, t.left)
+    kr = synth_kind(ctx, t.right)
+    if kl != kr:
+        raise KindingError("{} does not have consistent kinds".format(t))
+    return kl
+
+
+def k_intersection(ctx: TypingContext, t: IntersectionType):
+    kl = synth_kind(ctx, t.left)
+    kr = synth_kind(ctx, t.right)
+    if kl != kr:
+        raise KindingError("{} does not have consistent kinds".format(t))
+    return kl
+
+
 def synth_kind(ctx: TypingContext, t: Type) -> Kind:
     """ Γ ⸠ T => k """
     if isinstance(t, BasicType):
@@ -64,6 +81,10 @@ def synth_kind(ctx: TypingContext, t: Type) -> Kind:
         return k_tabs(ctx, t)
     elif isinstance(t, TypeApplication):
         return k_tapp(ctx, t)
+    elif isinstance(t, SumType):
+        return k_sum(ctx, t)
+    elif isinstance(t, IntersectionType):
+        return k_intersection(ctx, t)
     raise KindingError("{} does not have a kind synthesis rule".format(t))
 
 

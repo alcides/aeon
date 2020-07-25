@@ -1,13 +1,13 @@
 import unittest
 import random
 
-from aeon.frontend import parse_strict
+from aeon.frontend_core import expr
 from aeon.evaluation.metrics.distance import compare_trees
 
 
-class TestSynthesis(unittest.TestCase):
+class TestDiversity(unittest.TestCase):
     def parse(self, text):
-        return parse_strict(text).declarations[0]
+        return expr.parse(text)
 
     def diff_formula(self, value1, value2):
         return (1 - pow(0.99, abs(value1 - value2)))

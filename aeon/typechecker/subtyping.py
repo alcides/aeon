@@ -1,5 +1,7 @@
+import logging
+
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate
+    TypeApplication, SumType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 
 from .conversions import type_conversion
@@ -8,6 +10,7 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
 from .zed import is_satisfiable, entails
 from .kinding import check_kind, KindingError
 from .exceptions import TypingException
+from .type_simplifier import reduce_type
 
 
 class SubtypingException(TypingException):
@@ -97,8 +100,16 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
     return is_subtype(ctx, sub, nsup)
 
 
-def is_subtype(ctx, sub, sup) -> bool:
+def sub_sum_left(ctx: TypingContext, sub: Type, sup: SumType):
+    """ S-SumR and S-SumL """
+    return is_subtype(ctx, sub, sup.left) or is_subtype(ctx, sub, sup.right)
+
+
+def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
     """ Subtyping Rules """
+
+    sub = reduce_type(ctx, sub)
+    sup = reduce_type(ctx, sup)
 
     # ===
     # Small hack because of type_aliases that are not replaced
@@ -114,6 +125,12 @@ def is_subtype(ctx, sub, sup) -> bool:
         return True
     elif isinstance(sub, BasicType) and isinstance(sup, BasicType):
         return sub_base(ctx, sub, sup)
+    elif isinstance(sup, SumType):
+        return is_subtype(ctx, sub, sup.left) or is_subtype(
+            ctx, sub, sup.right)
+    elif isinstance(sup, IntersectionType):
+        return is_subtype(ctx, sub, sup.left) and is_subtype(
+            ctx, sub, sup.right)
     elif isinstance(sup, RefinedType):
         return sub_whereR(ctx, sub, sup)
     elif isinstance(sub, RefinedType):
@@ -128,5 +145,5 @@ def is_subtype(ctx, sub, sup) -> bool:
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):
         return sub_tappR(ctx, sub, sup)
-    #raise SubtypingException('No subtyping rule for {} <: {}'.format(sub, sup))
+    logging.debug("No subtyping rule for {} <: {}".format(sub, sup))
     return False

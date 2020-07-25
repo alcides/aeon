@@ -193,6 +193,9 @@ class TestTypeChecking(unittest.TestCase):
                                "(x:Integer) -> { b:Boolean | b ==(x > 3) }")
                           ])
 
+    def test_weird_case(self):
+        self.generic_test("-465503093806808577", "{z:Integer | (z != 0)}")
+
 
 if __name__ == '__main__':
     unittest.main()

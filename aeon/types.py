@@ -266,6 +266,53 @@ class TypeApplication(Type):
             and self.argument == o.argument
 
 
+class SumType(Type):
+    """ T + U """
+    def __init__(self, left: Type, right: Type):
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return "({} + {})".format(self.left, self.right)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.left == o.left \
+            and self.right == o.right
+
+
+class IntersectionType(Type):
+    """ T & U """
+    def __init__(self, left: Type, right: Type):
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return "({} & {})".format(self.left, self.right)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.left == o.left \
+            and self.right == o.right
+
+
+class ProductType(Type):
+    """ (x:T, U) """
+    def __init__(self, left_name: str, left: Type, right: Type):
+        self.left_name = left_name
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return "({}:{}, {})".format(self.left_name, self.left, self.right)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.left_name == o.left_name \
+            and self.left == o.left \
+            and self.right == o.right
+
+
 # defaults
 t_v = BasicType('Void')
 t_o = BasicType('Object')

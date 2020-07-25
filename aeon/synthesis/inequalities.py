@@ -19,9 +19,13 @@ intervals from condition restrictions.
 global sympy_context
 sympy_context = {
     "+": lambda x: lambda y: x + y,
+    "smtPlus": lambda x: lambda y: x + y,
     "-": lambda x: lambda y: x - y,
+    "smtMinus": lambda x: lambda y: x - y,
     "*": lambda x: lambda y: x * y,
+    "smtTimes": lambda x: lambda y: x * y,
     "/": lambda x: lambda y: x / y,
+    "smtDiv": lambda x: lambda y: x / y,
     "^": lambda x: lambda y: x ^ y,
     "%": lambda x: lambda y: x % y,
     "==": lambda x: lambda y: Eq(x, y),
@@ -32,10 +36,14 @@ sympy_context = {
     ">=": lambda x: lambda y: Ge(x, y),
     # BoolAlg expressions
     "!": lambda x: Not(x),
+    "smtNot": lambda x: Not(x),
     "-->": lambda x: lambda y: Implies(x, y),
+    "smtImplies": lambda x: lambda y: Implies(x, y),
     "and": lambda x: lambda y: And(x, y),
+    "smtAnd": lambda x: lambda y: And(x, y),
     "&&": lambda x: lambda y: And(x, y),
     "||": lambda x: lambda y: Or(x, y),
+    "smtOr": lambda x: lambda y: Or(x, y),
 }
 
 

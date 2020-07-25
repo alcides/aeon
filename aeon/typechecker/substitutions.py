@@ -1,7 +1,7 @@
 import copy
 from typing import Optional
 
-from ..types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, TypeException
+from ..types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, SumType, IntersectionType, ProductType, TypeException
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 
 from .exceptions import TypingException
@@ -158,6 +158,10 @@ def substitution_expr_in_type(n: Type, replacement: TypedNode,
             new_type = substitution_type_in_type(new_type, BasicType(new_name),
                                                  n.name)
         return TypeAbstraction(name=new_name, kind=n.kind, type=r(new_type))
+    elif isinstance(n, SumType):
+        return SumType(left=r(n.left), right=r(n.right))
+    elif isinstance(n, IntersectionType):
+        return IntersectionType(left=r(n.left), right=r(n.right))
     else:
         raise TypeException("Substitution in type unknown:", n, type(n))
 
@@ -206,6 +210,10 @@ def substitution_type_in_type(n: Type, replacement: Type,
             new_type = substitution_type_in_type(new_type, BasicType(new_name),
                                                  n.name)
         return TypeAbstraction(name=n.name, kind=n.kind, type=r(new_type))
+    elif isinstance(n, SumType):
+        return SumType(left=r(n.left), right=r(n.right))
+    elif isinstance(n, IntersectionType):
+        return IntersectionType(left=r(n.left), right=r(n.right))
     else:
         raise TypeException("Substitution type/type unknown:", n, type(n))
 

@@ -191,7 +191,7 @@ def random_chooser(f):
                 logging.debug("Chosen: {}".format(fun.__name__))
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
-                    #logging.debug("checking", args[0], v, args[1])
+                    #logging.debug("checking {} {} {}".format(args[0], v, args[1]))
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
@@ -350,7 +350,10 @@ def is_compatible(ctx: TypingContext, v: str, T: Type):
 
 
 def get_variables_of_type(ctx: TypingContext, T: Type):
-    return [v for v in ctx.variables if is_compatible(ctx, v, T)]
+    return [
+        v for v in ctx.variables
+        if is_compatible(ctx, v, T) and v not in forbidden_vars
+    ]
 
 
 def get_type_variables_of_kind(ctx: TypingContext, k: Kind) -> Sequence[Type]:
@@ -461,11 +464,14 @@ def se_app(ctx: TypingContext, T: Type, d: int) -> TypedNode:
     return Application(e1, e2).with_type(T)
 
 
+import sys
+sys.setrecursionlimit(300)
+
+
 def head_of_tail(
         ctx: TypingContext, T: Type, target: Type, args: List[Tuple[str,
                                                                     Type]],
         targs: List[Type]) -> Tuple[bool, List[Tuple[str, Type]], List[Type]]:
-    logging.debug("hot: {} ~ {}".format(target, T))
     if tc.is_subtype(ctx, target, T):
         return (True, args, targs)
     if isinstance(target, AbstractionType):
@@ -473,6 +479,8 @@ def head_of_tail(
                             target.return_type,
                             args + [(target.arg_name, target.arg_type)], targs)
     if isinstance(target, TypeAbstraction):
+        if target.kind != star:
+            return (False, [], [])
         NT = substitution_type_in_type(
             target.type, T, target.name
         )  # TODO: this is not complete. Unifcation algorithm is required
@@ -492,10 +500,11 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 
     options: List[Tuple[str, List[Tuple[str, Type]], List[Type]]] = []
     for name in ctx.variables:
-        t = ctx.variables[name]
-        isTail, args, targs = head_of_tail(ctx, T, t, [], [])
-        if isTail:
-            options.append((name, args, targs))
+        if name not in forbidden_vars:
+            t = ctx.variables[name]
+            isTail, args, targs = head_of_tail(ctx, T, t, [], [])
+            if isTail:
+                options.append((name, args, targs))
 
     if not options:
         logging.debug("se_app_in_context/no options")
@@ -522,9 +531,10 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 
     nctx = ctx
     for arg in args:
+        print("generating {} {}".format(nctx, arg))
         a_n = se(nctx, arg[1], d - 1)
         f = Application(f, a_n)
-        nctx = nctx.with_var(arg[0], arg[1])
+        #nctx = nctx.with_var(arg[0], arg[1])
 
     return f
 

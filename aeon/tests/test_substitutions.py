@@ -121,6 +121,38 @@ class TestSubstitutions(unittest.TestCase):
                         "Y",
                         expects="(x:*) => {x:Z where true}")
 
+    def test_type_ref(self):
+        """ type in type, tabs """
+        self.assert_stt(
+            "(y:{x:{z:X | true} | true }) -> {y:Boolean | true}",
+            "{x:Integer | true}",
+            "X",
+            expects=
+            "(y:{x:{z:{x:Integer | true} | true} | true }) -> { y:Boolean | true}"
+        )
+
+        self.assert_stt(
+            "(y:{x:{z:X | true} | true }) -> {y:Boolean | true}",
+            "{x:Integer | true}",
+            "x",
+            expects="(y:{x:{z:X | true} | true }) -> {y:Boolean | true}")
+
+    def test_var_in_type_ref(self):
+        """ var in type """
+        self.assert_svt("{x:{z:Boolean| z} where x}",
+                        "true",
+                        "x",
+                        expects="{x:{z:Boolean| z} where x}")
+        self.assert_svt("{x:{z:Boolean| z} where x}",
+                        "true",
+                        "z",
+                        expects="{x:{z:Boolean| z} where x}")
+        self.assert_svt(
+            "(y:{x:{z:Boolean| z} where x}) -> {k:Boolean | z}",
+            "true",
+            "z",
+            expects="(y:{x:{z:Boolean| z} where x}) -> {k:Boolean | true}")
+
     def test_var_in_type(self):
         """ var in type """
         self.assert_svt("Boolean", "1", "x", expects="Boolean")

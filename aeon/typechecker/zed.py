@@ -60,7 +60,7 @@ def zed_initial_context():
         "smtMinus": lambda x: lambda y: x - y,
         "smtMult": lambda x: lambda y: x * y,
         "smtDiv": lambda x: lambda y: x / y,
-        "smtCaret": lambda x: lambda y: x ^ y,
+        "smtCaret": lambda x: lambda y: x**y,
         "smtMod": lambda x: lambda y: x % y,
         # TODO: delete when everything is working
         "==Int": lambda x: lambda y: x == y,
@@ -73,7 +73,7 @@ def zed_initial_context():
         "-Int": lambda x: lambda y: x - y,
         "*Int": lambda x: lambda y: x * y,
         "/Int": lambda x: lambda y: x / y,
-        "^Int": lambda x: lambda y: x ^ y,
+        "^Int": lambda x: lambda y: x**y,
     }
 
 

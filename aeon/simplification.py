@@ -113,6 +113,9 @@ def cnf_simplify(n: TypedNode) -> TypedNode:
             if is_t_binop(n.argument, r):
                 (a, b, t) = t_binop_args(n.argument)
                 return mk_t_binop(op, t, a, b)
+            elif is_binop(n.argument, r):
+                (a, b) = binop_args(n.argument)
+                return mk_binop(op, a, b)
 
     if isinstance(n, Application):
         return Application(cnf_simplify(n.target), cnf_simplify(n.argument))

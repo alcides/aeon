@@ -10,12 +10,12 @@ ty = typee.parse
 ki = kind.parse
 
 
-class Testcheck_kind(unittest.TestCase):    
+class Testcheck_kind(unittest.TestCase):
     def setUp(self):
         # Set the contexts
         self.ctx = TypingContext()
         self.ctx.setup()
-    
+
     def add_extra_T(self, extra_T):
         ctx = self.ctx
         if extra_T:
@@ -32,6 +32,13 @@ class Testcheck_kind(unittest.TestCase):
         ctx = self.add_extra_T(extra_T)
         self.assertRaises(TypingException, check_kind, ctx, T, expected_kind)
 
+    def test_check_intersection_and_sum(self):
+        self.ctx.add_type_var("W", Kind(star, star))
+        self.assert_kind(ty("Integer + Boolean"), star)
+        self.assert_kind(ty("Integer & Boolean"), star)
+        self.assert_not_kind(ty("Integer + W"), star)
+        self.assert_not_kind(ty("Integer & W"), star)
+
     def test_check_native_kind(self):
         self.assert_kind(ty("Integer"), star)
         self.assert_kind(ty("Boolean"), star)
@@ -45,18 +52,19 @@ class Testcheck_kind(unittest.TestCase):
 
     def test_check_where_kind(self):
         self.assert_kind(ty("{x:Boolean where true}"), star)
-        
-        self.assert_kind(ty("{x:(T:*) => Boolean where true}"), Kind(k1=star,
-                         k2=star))
 
-        self.assert_kind(ty("{x:List where (List_size x) == 0}"), Kind(k1=star,
-                         k2=star), extra_T=[('List', Kind(star, star))])
+        self.assert_kind(ty("{x:(T:*) => Boolean where true}"),
+                         Kind(k1=star, k2=star))
+
+        self.assert_kind(ty("{x:List where (List_size x) == 0}"),
+                         Kind(k1=star, k2=star),
+                         extra_T=[('List', Kind(star, star))])
         self.assert_kind(ty("{x:(List Integer) where (List_size x) == 0}"),
-                         star, extra_T=[('List', Kind(star, star))])
+                         star,
+                         extra_T=[('List', Kind(star, star))])
 
     def test_check_abs_kind(self):
-        self.assert_kind(ty("(y:Integer) -> {x:Boolean where true}"),
-                         star)
+        self.assert_kind(ty("(y:Integer) -> {x:Boolean where true}"), star)
 
     def test_check_tabs_kind(self):
         self.assert_kind(ty("(T:*) => Integer"), Kind(k1=star, k2=star))

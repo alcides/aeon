@@ -76,21 +76,21 @@ initial_context = {
         "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtIneq a) b))}"
     ), lambda x: lambda y: x != y),
     '<': (ty2(
-        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtLt a) b))}"
+        "(a:Integer + Double) -> (b:Integer + Double) -> {c:Boolean where ((smtEq c) ((smtLt a) b))}"
     ), lambda x: lambda y: x < y),
     '>': (ty2(
-        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtGt a) b))}"
+        "(a:Integer + Double) -> (b:Integer + Double) -> {c:Boolean where ((smtEq c) ((smtGt a) b))}"
     ), lambda x: lambda y: x > y),
     '<=': (ty2(
-        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtLte a) b))}"
+        "(a:Integer + Double) -> (b:Integer + Double) -> {c:Boolean where ((smtEq c) ((smtLte a) b))}"
     ), lambda x: lambda y: x <= y),
     '>=': (ty2(
-        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
+        "(a:Integer + Double) -> (b:Integer + Double) -> {c:Boolean where ((smtEq c) ((smtGte a) b))}"
     ), lambda x: lambda y: x >= y),
-    'pow': (ty2(
-        "(T:*) => (a:T) -> (b:T) -> {c:Boolean where ((smtEq c) ((smtPow a) b))}"
-    ), lambda x: lambda y: math.pow(x, y)),
-    'abs': (ty2("(T:*) => (a:T) -> {b:Boolean where ((smtEq b) (smtAbs a))}"),
+    'pow':
+    (ty2("(T:*) => (a:T) -> (b:T) -> {c:T where ((smtEq c) ((smtPow a) b))}"),
+     lambda x: lambda y: math.pow(x, y)),
+    'abs': (ty2("(T:*) => (a:T) -> {b:T where ((smtEq b) (smtAbs a))}"),
             lambda x: builtins.abs(x)),
     '&&': (ty2(
         "(a:Boolean) -> (b:Boolean) -> {c:Boolean where ((smtEq c) ((smtAnd a) b))}"

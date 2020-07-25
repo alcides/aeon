@@ -24,6 +24,9 @@ type : "{" ID ":" type _PIPE expression "}"                 -> refined_t
      | "(" ID ":" kind ")" "=>" type                        -> tabstraction_t
      | ID                                                  -> simple_t
      | type type                                           -> tapplication_t
+     | type "+" type                                       -> sum_t
+     | type "&" type                                       -> intersection_t
+     | "(" ID ":" type "," type ")"                        -> product_t
      | "(" type ")"                                        -> same
 
 expression : "-" expression_i                           -> minus

@@ -132,3 +132,23 @@ class TestSubtyping(unittest.TestCase):
             "{ c: { z:Integer where z != 0 } where ((smtEq c) ((smtPlus a) b)) }",
             "{ z:Integer where z != 0 }",
             extra_ctx=[("a", "{ x:Integer | x > 0 }"), ("b", "Integer")])
+
+    def test_union_type(self):
+        self.assert_st("Integer", "Integer + Boolean")
+        self.assert_st("Boolean", "Integer + Boolean")
+        self.assert_st("{x:Boolean | x == true}", "Integer + Boolean")
+        self.assert_st("{x:Boolean | x == true}",
+                       "{i:Integer | i > 0} + Boolean")
+        self.assert_st("{x:Integer | x == 3}", "{i:Integer | i > 0} + Boolean")
+
+        self.assert_st("{x:Integer | x == 3}",
+                       "{i:Integer | i > 0} + {j:Integer | j < 0}")
+        self.assert_st("{x:Integer | x == (-3)}",
+                       "{i:Integer | i > 0} + {j:Integer | j < 0}")
+        self.assert_error("{x:Integer | x == 0}",
+                          "{i:Integer | i > 0} + {j:Integer | j < 0}")
+
+        self.assert_error("{x:Integer | x == 0}",
+                          "{i:Integer | i > 0} + {j:Integer | j < 0}")
+        self.assert_st("{x:Integer | x > (-3) && x < 3}",
+                       "{i:Integer | i > 0} + {j:Integer | j <= 0}")

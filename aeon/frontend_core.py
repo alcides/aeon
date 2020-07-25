@@ -49,6 +49,15 @@ class TreeToCore(Transformer):
     def tapplication_t(self, args):
         return TypeApplication(*args)
 
+    def sum_t(self, args):
+        return SumType(args[0], args[1])
+
+    def intersection_t(self, args):
+        return IntersectionType(args[0], args[1])
+
+    def product_t(self, args):
+        return ProductType(args[0], args[1], args[2])
+
     # Expressions
 
     def minus(self, args):
@@ -107,7 +116,7 @@ class TreeToCore(Transformer):
         return self.binop(args, "%")
 
     def binop(self, args, op):
-        if op in ["==", "!=", "+", "-", "*", "/", "<", ">", "<=", ">="]:
+        if op in ["==", "!=", "+", "-", "*", "/"]:
             return Application(
                 Application(TApplication(Var(op), t_delegate), args[0]),
                 args[1])

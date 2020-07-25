@@ -1,10 +1,10 @@
 start : aeon*           -> program
 
-aeon : aeimport         
-    | type_alias        
-    | type_declaration  
-    | definition        
-    | ttype             
+aeon : aeimport
+    | type_alias
+    | type_declaration
+    | definition
+    | ttype
     | statement
 
 
@@ -28,6 +28,7 @@ ttype : "(" ttype ")"                               -> parens_type
     | "{" cname_ttype "|" expression "}"            -> refined_type
     | "(" cname_ttype "->" ttype ")"                -> abstraction_type
     | ttype tabstractions                           -> type_tabstapp
+    | "(" ttype "+" ttype ")"                               -> sum_t
 
 cname_ttype : CNAME ":" ttype
 
@@ -48,28 +49,28 @@ statement : "if" expression "{" statement+ "}" "else" "{" statement+ "}"    -> i
     | expression ";"                                                        -> expression_statement
 
 // Expression: done like this because of precedence
-expression : expression_imp AND expression                          -> boolean_expr  
+expression : expression_imp AND expression                          -> boolean_expr
            | expression_imp                                         -> expr
 
 expression_imp : expression_dis                                     -> expr
                | expression_dis IMPLIE expression_imp               -> boolean_expr
 
 expression_dis : expression_i                                       -> expr
-               | expression_i DISJUNCTION expression_dis            -> boolean_expr 
+               | expression_i DISJUNCTION expression_dis            -> boolean_expr
 
 expression_i : "if" expression "then" expression "else" expression  -> if_expr
              | expression_bool CONJUNCTION expression_i             -> boolean_expr
              | expression_bool EQUAL expression_i                   -> compare_expr
              | expression_bool DIFF expression_i                    -> compare_expr
              | expression_bool                                      -> expr
-              
+
 expression_bool : expression_plus                                   -> expr
-                | NOT expression_bool                               -> not_expr  
+                | NOT expression_bool                               -> not_expr
                 | expression_plus LT expression_bool                -> compare_expr
                 | expression_plus LTE expression_bool               -> compare_expr
                 | expression_plus GT expression_bool                -> compare_expr
                 | expression_plus GTE expression_bool               -> compare_expr
-                
+
 expression_plus : expression_fact                                   -> expr
                 | expression_fact PLUS expression_plus              -> arithmetic_expr
                 | expression_fact MINUS expression_plus             -> arithmetic_expr
@@ -124,8 +125,8 @@ EQUAL: "=="
 DIFF: "!="
 IMPLIE: "-->"
 
-CNAME: ("a".."z" /[a-zA-Z0-9_]/*) | "_"    
-TYPE_CNAME: "A".."Z" /[a-zA-Z0-9_]/* 
+CNAME: ("a".."z" /[a-zA-Z0-9_]/*) | "_"
+TYPE_CNAME: "A".."Z" /[a-zA-Z0-9_]/*
 
 PATH : ((".." | CNAME ) "/")+ CNAME
 
