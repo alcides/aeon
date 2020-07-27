@@ -148,42 +148,10 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("if true then 1 else 0",
                           "{ x:Integer where ((x == 1) || (x == 0)) }")
 
-    def test_if_2(self):
-        with self.assertRaises(TypingException):
-            self.generic_test("if true then 1 else 0",
-                              "{ x:Integer where ((x == 2) || (x == 0)) }")
-
-    def test_if_3(self):
-        with self.assertRaises(TypingException):
-            self.generic_test("if true then 1 else 0",
-                              "{ x:Integer where (x == 0) }")
-
-    def test_if_4(self):
-        self.generic_test("if true then 1 else 0",
-                          "{ x:Integer where (x == 1) }")
-
-    def test_if_5(self):
-        self.generic_test("if false then x else 32",
-                          "{ k:Integer where (k > 2) }",
-                          extra_ctx=[('x', 'Integer')])
-
-    def test_if_6(self):
-        self.generic_test("if false then 3 else (if true then 2 else 1)",
-                          "{ x:Integer where (x == 2) }")
-
     def test_abs_wrong(self):
         with self.assertRaises(TypingException):
             self.generic_test("((\\u:Integer -> u) 9)",
                               "{ x:Integer where (x == 9) }")
-
-    def test_if_bool(self):
-        self.generic_test("if false then true else false",
-                          "{ x:Boolean where (x == false) }")
-
-    def test_if_bool_2(self):
-        self.generic_test(
-            "if false then true else (if false then true else false)",
-            "{ x:Boolean where (x == false) }")
 
     def test_complex(self):
         self.generic_test("f 5",
@@ -195,6 +163,18 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_weird_case(self):
         self.generic_test("-465503093806808577", "{z:Integer | (z != 0)}")
+
+    def test_union(self):
+        self.generic_test("1", "Integer + Boolean")
+
+    def test_union2(self):
+        self.generic_test("1", "Integer & {x:Integer | x < 4}")
+
+    def test_exists(self):
+        self.generic_test(
+            "1",
+            "{x:Integer | smtExists( \y:{z:Integer | z == 2} -> (x+1 == y) ) }"
+        )
 
 
 if __name__ == '__main__':

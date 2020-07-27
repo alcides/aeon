@@ -11,7 +11,7 @@ from .subtyping import is_subtype
 from .exceptions import TypingException
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
-from .utils import flatten_refined_type
+from .type_simplifier import reduce_type
 from .bounds import lub
 from .zed import is_satisfiable
 
@@ -117,8 +117,10 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
     # (==[???]) 1 is converted to (==[Integer]) 1
     if isinstance(e.target, TApplication):
         if e.target.argument == t_delegate:
-            T = flatten_refined_type(synth_type(ctx, copy.copy(e.argument)))
-            e.target.argument = T
+            T = reduce_type(ctx, synth_type(ctx, copy.copy(e.argument)))
+            if isinstance(T, RefinedType):
+                T = T.type
+            e.target.argument = T  # TODO: unification required here
     # end hack
     F = type_conversion(synth_type(ctx, e.target))
     if not isinstance(F, AbstractionType) and F != bottom:

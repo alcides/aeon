@@ -4,6 +4,7 @@ from ..frontend_core import expr, typee, kind
 from ..types import star, TypingContext, Kind
 from ..typechecker.liquefaction import liquefy
 from ..typechecker.subtyping import is_subtype
+from ..typechecker.type_simplifier import reduce_type
 
 ex = expr.parse
 ty = typee.parse
@@ -27,7 +28,9 @@ class TestLiquefaction(unittest.TestCase):
         if extra_uninterpreted:
             for (k, v) in extra_uninterpreted:
                 self.ctx = self.ctx.uninterpreted_functions[k] = ty(v)
-        conv = liquefy(self.ctx, ty(ref))
+
+        t = reduce_type(self.ctx, ty(ref))
+        conv = liquefy(self.ctx, t)
         self.assertEqual(ty(expected), conv)
         #self.assertTrue(is_subtype(self.ctx, conv, ty(liq)) )
 

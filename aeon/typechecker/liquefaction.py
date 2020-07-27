@@ -140,6 +140,7 @@ def liquefy(ctx, ty):
         return res.type
     ncond = res.extra_condition
     for (v, t) in remove_name(res.expression.name, res.variables):
-        ncond = Application(Var('smt_exists'), Abstraction(v, t, ncond))
+        if has_var(v, ncond):
+            ncond = Application(Var('smt_exists'), Abstraction(v, t, ncond))
     print("Ncond:", ncond)
     return RefinedType(res.expression.name, res.type, ncond)

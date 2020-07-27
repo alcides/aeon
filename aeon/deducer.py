@@ -1,8 +1,9 @@
 from aeon.ast import *
 from aeon.types import *
 
-from aeon.typechecker.utils import flatten_refined_type
+from aeon.typechecker.type_simplifier import reduce_type
 from aeon.typechecker.bounds import lub
+
 
 def deducer(ast, context, holed):
 
@@ -12,10 +13,10 @@ def deducer(ast, context, holed):
 
     return ast, context, holed
 
+
 # =============================================================================
 # Deduce context
 class DeduceContext(object):
-
     def __init__(self, context):
         self.context = context
         self.stack = list()
@@ -24,12 +25,12 @@ class DeduceContext(object):
         result = DeduceContext(self.context.copy())
         result.stack = self.stack.copy()
         return result
-    
+
     def with_type(self, typee):
         new_ctx = self.copy()
         new_ctx.stack.append(typee)
-        return new_ctx 
-    
+        return new_ctx
+
     def pop_type(self):
         return self.stack.pop()
 
@@ -43,10 +44,10 @@ class DeduceContext(object):
         new_ctx = self.copy()
         new_ctx.context.type_aliases[T] = typee
         return new_ctx
-    
+
     def contains_tapp(self, T):
         return T in self.context.type_aliases
-    
+
     def get_tapp(self, T):
         return self.context.type_aliases[T]
 
@@ -54,10 +55,11 @@ class DeduceContext(object):
         new_ctx = self.copy()
         new_ctx.context.variables[n] = typee
         return new_ctx
-        
+
 
 # =============================================================================
 # Hole Deducer
+
 
 # Hole
 def deduce_hole(context, node):
@@ -68,10 +70,11 @@ def deduce_hole(context, node):
 
     typees = list()
 
-    while not context.is_empty() and isinstance(context.head_stack(), TypeAbstraction):
+    while not context.is_empty() and isinstance(context.head_stack(),
+                                                TypeAbstraction):
         typees.append(context.pop_type())
 
-    assert(not context.is_empty())
+    assert (not context.is_empty())
 
     T = context.pop_type()
 
@@ -87,10 +90,10 @@ def deduce_hole(context, node):
     node.type = T
 
     return node.type
-        
+
 
 # Definition
-def deduce_definition(context, node : Definition):
+def deduce_definition(context, node: Definition):
     return deduce(context.with_type(node.return_type), node.body)
 
 
@@ -122,7 +125,8 @@ def deduce_if(context, node: If):
     # If only the otherwise have a hole at the end
     elif node.otherwise.type == bottom:
         ty_then = deduce(context.copy(), node.then)
-        ty_otherwise = deduce(context.with_type(node.then.type), node.otherwise)
+        ty_otherwise = deduce(context.with_type(node.then.type),
+                              node.otherwise)
 
     # If none of them is a hole
     else:
@@ -144,7 +148,8 @@ def deduce_application(context, node: Application):
     # TODO: need to set the node.type somewhere in here
 
     # Check if it is a statement
-    if isinstance(node.target, Abstraction) and (node.target.arg_type == top or node.target.arg_name == '_'):
+    if isinstance(node.target, Abstraction) and (node.target.arg_type == top or
+                                                 node.target.arg_name == '_'):
 
         new_ctx = context.with_type(top)
         new_ctx = new_ctx.with_var(node.target.arg_name, node.target.arg_type)
@@ -161,24 +166,25 @@ def deduce_application(context, node: Application):
 
             tabs = generate_TAbs()
 
-            new_typee = AbstractionType('_', BasicType(tabs.name), context.head_stack())
-            
+            new_typee = AbstractionType('_', BasicType(tabs.name),
+                                        context.head_stack())
+
             # Create the new context
-            new_ctx = context.copy() 
+            new_ctx = context.copy()
             new_ctx.pop_type()
             new_ctx = new_ctx.with_type(new_typee).with_type(tabs)
-            
+
             ty_target = deduce(new_ctx, node.target)
             ty_argument = deduce(context.with_type(tabs), node.argument)
 
         # If only the target is a hole
         elif node.target.type == bottom:
             arg_type = node.argument.type
-            
+
             # Needed to ensure a generalized function
             if isinstance(node.argument, Literal):
-                arg_type = flatten_refined_type(arg_type)
-            
+                arg_type = reduce_type(context, arg_type)
+
             return_type = context.pop_type()
             new_typee = AbstractionType('_', arg_type, return_type)
 
@@ -190,7 +196,8 @@ def deduce_application(context, node: Application):
         # If only the argument is a hole
         elif node.argument.type == bottom:
             new_ctx = context.with_type(node.target.type.arg_type)
-            new_ctx = new_ctx.with_var(node.target.type.arg_name, node.target.type.arg_type)
+            new_ctx = new_ctx.with_var(node.target.type.arg_name,
+                                       node.target.type.arg_type)
 
             ty_target = deduce(context, node.target)
             ty_argument = deduce(new_ctx, node.argument)
@@ -212,7 +219,7 @@ def deduce_abstraction(context, node: Abstraction):
 
 # TAbstraction
 def deduce_tabstraction(context, node: TAbstraction):
-    ty_tabs = deduce(context, node.body) 
+    ty_tabs = deduce(context, node.body)
     node.type = TypeAbstraction(node.typevar, node.kind, ty_tabs)
     return node.type
 
@@ -221,10 +228,10 @@ def deduce_tabstraction(context, node: TAbstraction):
 def deduce_tapplication(context, node: TApplication):
     T = BasicType(node.target.type.name)
     U = node.argument
-    
+
     ty_tapp = deduce(context.with_tapp(T, U), node.target)
     node.type = TypeApplication(ty_tapp, node.argument)
-    
+
     return node.type
 
 
@@ -236,46 +243,49 @@ def deduce(context, node):
 
     elif isinstance(node, Literal):
         return deduce_literal(context, node)
-    
+
     elif isinstance(node, Var):
         return deduce_var(context, node)
-    
+
     elif isinstance(node, If):
         return deduce_if(context, node)
-    
+
     elif isinstance(node, Application):
         return deduce_application(context, node)
-    
+
     elif isinstance(node, Abstraction):
         return deduce_abstraction(context, node)
-    
+
     elif isinstance(node, Definition):
         return deduce_definition(context, node)
-    
+
     elif isinstance(node, TAbstraction):
         return deduce_tabstraction(context, node)
-    
+
     elif isinstance(node, TApplication):
         return deduce_tapplication(context, node)
-    
+
     else:
         raise Exception("Unknown type of node: ", type(node))
+
 
 # =============================================================================
 # Auxiliary methods
 counter = 0
 
-def generate_TAbs():    
+
+def generate_TAbs():
     global counter
     counter += 1
     name = '_T{}'.format(counter)
     return TypeAbstraction(name, star, None)
 
+
 '''
 inferencia com unificador
 program(x : Integer, y : Double) :: String {
     [T2 : * => (T2 -> Top)]([T2 : * => T2]);
-    
+
     "qualquercoisa";
 }
 

@@ -1,6 +1,6 @@
 from aeon.ast import *
 from aeon.types import TypingContext, BasicType
-from aeon.typechecker.zed import flatten_refined_types
+from aeon.typechecker.type_simplifier import reduce_type
 #from aeon.synthesis.ranges import RangedException, RangedContext
 
 from aeon.libraries.stdlib import is_builtin
@@ -100,7 +100,8 @@ def filter_refinements(ctx, name, condition):
 # =============================================================================
 # Flattens the refinement
 def flatten_refined_type(t):
-    return flatten_refined_types(t)
+    return reduce_type(None, t)
+
 
 # =============================================================================
 def substitute_uninterpreted(node, uninterp, replacement):
@@ -113,38 +114,39 @@ def substitute_uninterpreted(node, uninterp, replacement):
 
     if isinstance(node, Literal):
         return node
-    
+
     elif isinstance(node, Var):
         return None if node.name == uninterp else node
-    
+
     elif isinstance(node, Application):
         target = subs(node.target)
         argument = subs(node.argument)
-        
+
         if target == None or argument == None:
             return Var(replacement)
-        
+
         return Application(target, argument)
-    
+
     elif isinstance(node, Abstraction):
         name = node.arg_name
         T = node.arg_type
 
         if isinstance(T, RefinedType):
             T.cond = subs(T.cond)
-        
+
         body = subs(node.body)
-        
+
         if body == None:
             return None
-    
+
         return Abstraction(name, T, body)
-    
+
     elif isinstance(node, TApplication):
         return subs(node.target)
-    
+
     elif isinstance(node, TAbstraction):
         return subs(node.body)
 
     else:
-        raise TypeException("Substitution in uninterp unknown:", node, type(node))
+        raise TypeException("Substitution in uninterp unknown:", node,
+                            type(node))

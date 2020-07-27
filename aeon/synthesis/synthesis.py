@@ -8,12 +8,13 @@ from typing import Union, Sequence, Optional, List, Generator, Tuple, Any
 from aeon.ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition, refined_value
 from aeon.types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
+    TypeApplication, IntersectionType, SumType, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from aeon.typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from aeon.typechecker.typing import TypeCheckingError
 from aeon import typechecker as tc
 
+from aeon.typechecker.type_simplifier import reduce_type
 from aeon.synthesis.utils import flatten_refined_type, filter_refinements
 from aeon.synthesis.ranges import try_ranged, RangedContext, RangedException
 
@@ -41,6 +42,8 @@ weights = {
     "st_abs": 6,
     "st_tabs": 1,
     "st_tapp": 1,
+    "st_sum": 1,
+    "st_intersection": 1,
     "se_app_in_context": 50,
     "se_int": 1,  # Terminal types
     "se_bool": 1,
@@ -54,6 +57,8 @@ weights = {
     "se_tapp": 0,
     "se_if": 1,
     "se_subtype": 1,
+    "se_sum_right": 1,
+    "se_sum_left": 1,
     "iet_id": 1,
     "iet_abs": 1,
     "iet_where": 1,
@@ -322,6 +327,22 @@ def st_tapp(ctx: TypingContext, k: Kind, d: int) -> TypeApplication:
     return TypeApplication(T, U)
 
 
+def st_sum(ctx, TypingContext, k: Kind, d: int) -> SumType:
+    "ST-Sum"
+    logging.debug("st_sum/{}: {} ".format(d, k))
+    T = st(ctx, k, d - 1)
+    U = st(ctx, k, d - 1)
+    return SumType(T, U)
+
+
+def st_intersection(ctx, TypingContext, k: Kind, d: int) -> IntersectionType:
+    "ST-Intersection"
+    logging.debug("st_intersection/{}: {} ".format(d, k))
+    T = st(ctx, k, d - 1)
+    U = st(ctx, k, d - 1)
+    return IntersectionType(T, U)
+
+
 @random_chooser
 def st(ctx: TypingContext, k: Kind, d: int):
     """ Γ ⸠ k ~>_{d} T """
@@ -333,6 +354,8 @@ def st(ctx: TypingContext, k: Kind, d: int):
         if d > 0:
             yield ("st_abs", st_abs)
             yield ("st_where", st_where)
+            yield ("st_sum", st_sum)
+            yield ("st_intersection", st_intersection)
     if has_type_vars(ctx, k):
         yield ("st_var", st_var)
     if d > 0:
@@ -612,6 +635,14 @@ def se_subtype(ctx: TypingContext, T: Type, d: int):
     return se(ctx, U, d - 1)
 
 
+def se_sum_left(ctx: TypingContext, T: SumType, d: int):
+    return se(ctx, T.left, d)
+
+
+def se_sum_right(ctx: TypingContext, T: SumType, d: int):
+    return se(ctx, T.right, d)
+
+
 def has_applications_return(ctx, T: Type):
     for name, typee in ctx.variables.items():
         new_ctx = ctx.copy()
@@ -627,6 +658,7 @@ def has_applications_return(ctx, T: Type):
 @random_chooser
 def se(ctx: TypingContext, T: Type, d: int):
     """ Γ ⸠ T~>_{d} e """
+    T = reduce_type(ctx, T)
 
     if isinstance(T, BasicType) and T.name in ["Integer", "Top", "Object"]:
         yield ("se_int", se_int)
@@ -638,6 +670,9 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_double", se_double)
     if isinstance(T, RefinedType):
         yield ("se_where", se_where)
+    if isinstance(T, SumType):
+        yield ("se_sum_left", se_sum_left)
+        yield ("se_sum_right", se_sum_right)
 
     if get_variables_of_type(ctx, T):
         yield ("se_var", se_var)
