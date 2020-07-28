@@ -176,6 +176,9 @@ class TestTypeChecking(unittest.TestCase):
             "{x:Integer | smtExists( \y:{z:Integer | z == 2} -> (x+1 == y) ) }"
         )
 
+    def test_from_synth(self):
+        self.generic_test("6724078025571563077", "{z:Integer | (z != 0)}")
+
 
 if __name__ == '__main__':
     unittest.main()

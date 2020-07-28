@@ -197,6 +197,7 @@ def random_chooser(f):
                 v = fun(*args, **kwargs)
                 if f.__name__ == 'se':
                     #logging.debug("checking {} {} {}".format(args[0], v, args[1]))
+
                     tc.check_type(args[0], v, args[1])
                 return v
             except Unsynthesizable as e:
@@ -504,10 +505,13 @@ def head_of_tail(
     if isinstance(target, TypeAbstraction):
         if target.kind != star:
             return (False, [], [])
+        t2 = reduce_type(ctx, T)
+        if isinstance(t2, RefinedType):
+            t2 = t2.type
         NT = substitution_type_in_type(
-            target.type, T, target.name
+            target.type, t2, target.name
         )  # TODO: this is not complete. Unifcation algorithm is required
-        return head_of_tail(ctx, T, NT, args, targs + [T])
+        return head_of_tail(ctx, T, NT, args, targs + [t2])
     return (False, args, targs)
 
 
@@ -561,25 +565,6 @@ def se_app_in_context(ctx: TypingContext, T: Type, d: int) -> TypedNode:
 
     return f
 
-    if ret_name and refinement:
-        ncond: TypedNode = refinement
-        if isinstance(T, RefinedType):
-            r2 = substitution_expr_in_expr(T.cond, Var(ret_name), T.name)
-            ncond = Application(Application(Var("&&"), ncond), r2)
-        logging.debug("Requiring type: {}".format(
-            RefinedType(arg_name, arg_type, ncond)))
-        e2 = se_where(ctx.with_var(ret_name, retT),
-                      RefinedType(arg_name, arg_type, ncond), d - 1)
-    else:
-        logging.debug("Requiring only: {}".format(arg_type))
-        e2 = se(ctx, arg_type, d - 1)
-    e1 = Var(name)
-    e = Application(e1, e2)
-    if not tc.check_type(ctx, e, T):
-        logging.debug("se_app_in_context: failed restriction:", e, T)
-        raise Unsynthesizable("Failed restriction")
-    return e
-
 
 def se_where(ctx: TypingContext, T: RefinedType, d: int):
     """ SE-Where """
@@ -590,24 +575,25 @@ def se_where(ctx: TypingContext, T: RefinedType, d: int):
 
     new_condition = filter_refinements(ctx, T.name, T.cond)
 
+    NT: Type = T
     if new_condition is None:
-        T = T.type
-        e2 = se(ctx, T, d - 1)
+        NT = T.type
+        e2 = se(ctx, NT, d - 1)
     else:
         T.cond = new_condition
         try:
             e2 = try_ranged(ctx, T)
         except RangedException as e:
             e2 = se(ctx, T.type, d - 1)
-
+        NT = T
     try:
-        tc.check_type(ctx, e2, T)
+        tc.check_type(ctx, e2, NT)
         #if tc.entails(ctx.with_var(T.name, T).with_uninterpreted(), ncond):
         return e2  #.with_type(T)
     except Exception as e:
-        logging.debug("se_where: failed restriction: {} ~> {}".format(T, e2))
+        logging.debug("se_where: failed restriction: {} ~> {}".format(NT, e2))
         raise Unsynthesizable(
-            "Unable to generate a refinement example: {}".format(T))
+            "Unable to generate a refinement example: {}".format(NT))
 
 
 def se_tabs(ctx: TypingContext, T: TypeAbstraction, d: int):

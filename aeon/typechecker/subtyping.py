@@ -145,5 +145,5 @@ def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):
         return sub_tappR(ctx, sub, sup)
-    logging.debug("No subtyping rule for {} <: {}".format(sub, sup))
+    #logging.debug("No subtyping rule for {} <: {}".format(sub, sup))
     return False

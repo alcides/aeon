@@ -215,7 +215,9 @@ def substitution_type_in_type(n: Type, replacement: Type,
     elif isinstance(n, IntersectionType):
         return IntersectionType(left=r(n.left), right=r(n.right))
     else:
-        raise TypeException("Substitution type/type unknown:", n, type(n))
+        #raise TypeException("Substitution type/type unknown:", n, type(n))
+        # This is currently being used for Variable in Unification
+        return n
 
 
 def rename_abs(e: Abstraction, new: str):
