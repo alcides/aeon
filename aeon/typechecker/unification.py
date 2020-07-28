@@ -18,6 +18,15 @@ class Variable(Type):
         self.state = state
         self.original_name = original_name
 
+    def __deepcopy__(self, memo):
+        """ Do not deep copy attributes """
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, v)
+        return result
+
     def __str__(self):
         return "var({})".format(self.original_name)
 
@@ -88,7 +97,7 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type):
             constrain(ctx, t1, r2)
     elif isinstance(t2, Variable):
         if get_level_of(t1) <= get_level_of(t2):
-            t2.state.lower_bounds.append(t2)
+            t2.state.lower_bounds.append(t1)
             for t in t2.state.upper_bounds:
                 constrain(ctx, t1, t)
         else:
@@ -117,7 +126,7 @@ def expand_type_helper(t: Type, polarity: bool,
         else:
             bounds = t.state.lower_bounds if polarity else t.state.upper_bounds
             boundTypes: List[Type] = [
-                expand_type_helper(ti, polarity, states + t.state)
+                expand_type_helper(ti, polarity, states + [t.state])
                 for ti in bounds
             ]
             how_to_merge: Callable[
@@ -140,13 +149,16 @@ def unification(ctx: TypingContext,
                 t2: Type,
                 level: int = 0) -> Type:
     debug = None
+    level = 1
     while isinstance(t1, TypeAbstraction):
-        v = freshVar(t1.name, level + 1)
+        level += 1
+        v = freshVar(t1.name, level)
         if debug == None:
             debug = v
         t1 = substitution_type_in_type(t1.type, v, t1.name)
     while isinstance(t2, TypeAbstraction):
-        v = freshVar(t2.name, level + 1)
+        level += 1
+        v = freshVar(t2.name, level)
         t2 = substitution_type_in_type(t2.type, v, t2.name)
 
     constrain(ctx, t1, t2)
