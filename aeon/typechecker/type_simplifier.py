@@ -55,6 +55,10 @@ def reduce_type(ctx: TypingContext, t: Type) -> Type:
             return left
         elif left == top or right == top:
             return top
+        elif isinstance(left, BasicType) and \
+            isinstance(right, BasicType) and \
+                left.name == right.name:
+            return left
         elif isinstance(left, RefinedType) and \
             isinstance(right, BasicType) and \
             left.type == right:
@@ -83,6 +87,10 @@ def reduce_type(ctx: TypingContext, t: Type) -> Type:
             return left
         elif left == bottom or right == bottom:
             return bottom
+        elif isinstance(left, BasicType) and \
+            isinstance(right, BasicType) and \
+                left.name == right.name:
+            return left
         elif isinstance(left, RefinedType) and \
             isinstance(right, BasicType) and \
             left.type == right:
@@ -105,5 +113,4 @@ def reduce_type(ctx: TypingContext, t: Type) -> Type:
         left = reduce_type(ctx, t.left)
         right = reduce_type(ctx, t.right)
         return ProductType(t.left_name, left, right)
-
     raise TypingException("Simplifier missing rule")

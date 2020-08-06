@@ -7,8 +7,7 @@ from aeon.typechecker.type_simplifier import reduce_type
 
 
 class VariableState(object):
-    def __init__(self, level: int):
-        self.level = level
+    def __init__(self):
         self.lower_bounds = []
         self.upper_bounds = []
 
@@ -28,56 +27,11 @@ class Variable(Type):
         return result
 
     def __str__(self):
-        return "var({})".format(self.original_name)
+        return "var({} l={} u={})".format(self.original_name, self.state.lower_bounds, self.state.upper_bounds)
 
 
-def freshVar(name: str, level: int) -> Variable:
-    return Variable(name, VariableState(level))
-
-
-def get_level_of(t: Type) -> int:
-    if isinstance(t, BasicType):
-        return 0
-    elif isinstance(t, RefinedType):
-        return get_level_of(t.type)
-    elif isinstance(t, AbstractionType):
-        return max(get_level_of(t.arg_type), get_level_of(t.return_type))
-    elif isinstance(t, SumType):
-        return max(get_level_of(t.left), get_level_of(t.right))
-    elif isinstance(t, IntersectionType):
-        return max(get_level_of(t.left), get_level_of(t.right))
-    elif isinstance(t, TypeApplication):
-        return get_level_of(t.target)  # TODO
-    elif isinstance(t, TypeAbstraction):
-        return get_level_of(t.type)  # TODO
-    elif isinstance(t, Variable):
-        return t.state.level
-    else:
-        raise TypeException("No get_level function defined for {}".format(t))
-
-
-def extrude(t: Type, level: int) -> Type:
-    if isinstance(t, BasicType):
-        return t
-    elif isinstance(t, RefinedType):
-        return RefinedType(t.name, extrude(t.type, level), t.cond)
-    elif isinstance(t, AbstractionType):
-        return AbstractionType(t.arg_name, extrude(t.arg_type, level),
-                               extrude(t.return_type, level))
-    elif isinstance(t, SumType):
-        return SumType(extrude(t.left, level), extrude(t.right, level))
-    elif isinstance(t, IntersectionType):
-        return IntersectionType(extrude(t.left, level),
-                                extrude(t.right, level))
-    elif isinstance(t, TypeApplication):
-        return TypeApplication(extrude(t.target, level),
-                               extrude(t.argument, level))
-    elif isinstance(t, TypeAbstraction):
-        return TypeAbstraction(t.name, t.kind, extrude(t.type, level))
-    elif isinstance(t, Variable):
-        return freshVar(t.original_name, level)
-    else:
-        return t
+def freshVar(name: str) -> Variable:
+    return Variable(name, VariableState())
 
 
 def constrain(ctx: TypingContext, t1: Type, t2: Type):
@@ -86,24 +40,17 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type):
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         constrain(ctx, t2.arg_type, t1.arg_type)
         constrain(ctx, t1.return_type, t2.return_type)
+    elif isinstance(t1, Variable) and isinstance(t2, Variable):
+        t1.state.upper_bounds.append(t2)
+        t2.state.lower_bounds.append(t1)
     elif isinstance(t1, Variable):
-        if get_level_of(t2) <= get_level_of(t1):
-            t1.state.upper_bounds.append(t2)
-            for t in t1.state.lower_bounds:
-                constrain(ctx, t, t2)
-        else:
-            r2 = extrude(t2, get_level_of(t1))
-            constrain(ctx, r2, t2)
-            constrain(ctx, t1, r2)
+        t1.state.upper_bounds.append(t2)
+        for t in t1.state.lower_bounds:
+            constrain(ctx, t, t2)
     elif isinstance(t2, Variable):
-        if get_level_of(t1) <= get_level_of(t2):
-            t2.state.lower_bounds.append(t1)
-            for t in t2.state.upper_bounds:
-                constrain(ctx, t1, t)
-        else:
-            r1 = extrude(t1, get_level_of(t2))
-            constrain(ctx, t1, r1)
-            constrain(ctx, r1, t2)
+        t2.state.lower_bounds.append(t1)
+        for t in t2.state.upper_bounds:
+            constrain(ctx, t1, t)
     elif isinstance(t1, TypeApplication) and isinstance(t2, TypeApplication):
         constrain(ctx, t1.target, t2.target)
         constrain(ctx, t1.argument, t2.argument)  # TODO: variance?
@@ -144,24 +91,43 @@ def expand_type(ctx: TypingContext, t: Type):
     return expand_type_helper(t, True, [])
 
 
+def collapse(t: Variable, explored: List[Variable], polarity : bool):
+    if polarity:
+        r : Type = top
+        if str(t.original_name) not in explored:
+            for high in t.state.upper_bounds:
+                if isinstance(high, Variable):
+                    high = collapse(high, explored + [str(t.original_name)], not polarity)
+                r = IntersectionType(r, high)
+    else:
+        r : Type = bottom
+        if str(t.original_name) not in explored:
+            for low in t.state.lower_bounds:
+                if isinstance(low, Variable):
+                    low = collapse(low, explored + [str(t.original_name)], not polarity)
+                r = SumType(r, low)
+    print("red", r, explored)
+    #r = reduce_type(None, r)
+    return r
+
+
 def unification(ctx: TypingContext,
                 t1: Type,
-                t2: Type,
-                level: int = 0) -> Type:
-    debug = None
-    level = 1
+                t2: Type) -> Type:
+    type_variables = []
+    original_t1 = t1
     while isinstance(t1, TypeAbstraction):
-        level += 1
-        v = freshVar(t1.name, level)
-        if debug == None:
-            debug = v
+        v = freshVar(t1.name)
+        type_variables.append(v)
         t1 = substitution_type_in_type(t1.type, v, t1.name)
     while isinstance(t2, TypeAbstraction):
-        level += 1
-        v = freshVar(t2.name, level)
+        v = freshVar(t2.name)
         t2 = substitution_type_in_type(t2.type, v, t2.name)
 
     constrain(ctx, t1, t2)
-    r = expand_type(ctx, t1)
-    print("v:", debug.state.upper_bounds, debug.state.lower_bounds)
-    return reduce_type(ctx, r)
+    #r = expand_type(ctx, t1)
+    #print("red:", reduce_type(None, r))
+    l = [ collapse(t, [], True) for t in type_variables ]
+    r = reduce( lambda x, y: TypeApplication(x, y), l, original_t1 )
+    print("result:", r)
+    return r
