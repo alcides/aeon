@@ -11,5 +11,6 @@
     "python.testing.unittestEnabled": false,
     "python.linting.enabled": true,
     "python.linting.mypyEnabled": true,
-    "python.testing.promptToConfigure": false
+    "python.testing.promptToConfigure": false,
+    "python.pythonPath": "/usr/bin/python3"
 }

@@ -6,6 +6,7 @@ from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
 
 from .kinding import check_kind
+from .unification import unification
 from .conversions import type_conversion
 from .subtyping import is_subtype
 from .exceptions import TypingException
@@ -113,15 +114,6 @@ def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
 
 
 def t_app(ctx: TypingContext, e: Application) -> Type:
-    # delegate hack
-    # (==[???]) 1 is converted to (==[Integer]) 1
-    if isinstance(e.target, TApplication):
-        if e.target.argument == t_delegate:
-            T = reduce_type(ctx, synth_type(ctx, copy.copy(e.argument)))
-            if isinstance(T, RefinedType):
-                T = T.type
-            e.target.argument = T  # TODO: unification required here
-    # end hack
     F = type_conversion(synth_type(ctx, e.target))
     if not isinstance(F, AbstractionType) and F != bottom:
         raise TypeCheckingError(
@@ -141,6 +133,7 @@ def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
         raise TypeCheckingError(
             "TypeApplication requires a Type abstraction: {} : {} in {}".
             format(e.target, V, e))
+
     check_kind(ctx, e.argument, V.kind)
     k = substitution_type_in_type(V.type, e.argument, V.name)
     return k

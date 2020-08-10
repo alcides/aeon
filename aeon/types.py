@@ -184,7 +184,7 @@ class Type(object):
 class BasicType(Type):
     """ Integer | Boolean | B """
     def __init__(self, name: str):
-        self.name = name
+        self.name = str(name)
 
     def __str__(self):
         return self.name

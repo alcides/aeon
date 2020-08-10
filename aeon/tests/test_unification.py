@@ -29,6 +29,18 @@ class TestTypeUnification(unittest.TestCase):
                 ctx = ctx.with_var(k, ty(v))
         self.assert_unification(ctx, a, b, t)
 
+    def assert_type_delegate(self, a, b, expected, extra_ctx=None):
+        ctx = TypingContext()
+        ctx.setup()
+        if extra_ctx:
+            for (k, v) in extra_ctx:
+                ctx = ctx.with_var(k, ty(v))
+        t = ty(expected)
+        r = unification(ctx, ty(a), ty(b))
+        self.assertIsInstance(r, TypeApplication)
+        self.assertEqual(t, r.argument)
+
+
     def test_basic_true(self):
         self.generic_test("Boolean", "Boolean", "Boolean")
 
@@ -69,7 +81,18 @@ class TestTypeUnification(unittest.TestCase):
                           "(K:*) => (a:K) -> (b:K) -> K",
                           "((T:*) => (a:T) -> (b:Integer) -> Integer) Top")
 
-    def test_app6(self):
-        self.generic_test("(T:*) => (a:{x:Integer | (smtEquals x) 4 }) -> (b:{y:Integer | (smtEquals x) 4 }) -> T",
-                          "(K:*) => (a:K) -> (b:K) -> {c:K | (smtEquals c) ((smtAdd a) b) }",
-                          "((T:*) => (a:T) -> (b:Integer) -> Integer) Top")
+    def test_app7(self):
+        self.generic_test("(T:*) => {x:T | true}",
+                          "{x:Integer | true}",
+                          "Integer")
+
+    def test_app8(self):
+        self.generic_test("{x:Integer | true}",
+                          "(T:*) => {x:T | true}",
+                          "Integer")
+
+    def test_check(self):
+        mais = "(T :*) => (a:T) -> (b:T) -> {z:T | where (smtEquals c) ((smtPlus a) b) }"
+        site = "(a1: {x : Integer | x == 1}) -> (a2: {y : Integer | y == 2}) -> {z:Integer | z == 3}"
+        self.assert_type_delegate( mais, site, "Integer" )
+
