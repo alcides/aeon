@@ -229,7 +229,7 @@ class TreeToAeon(Transformer):
         return expr 
 
     def invocation_expr(self, args):
-        expression, parameters = args[0], args[1] if len(args) > 1 else [Var('native')]
+        expression, parameters = args[0], args[1] if len(args) > 1 else [Literal(True, t_b)]
 
         for param in parameters:
             expression = Application(expression, param)
@@ -254,8 +254,11 @@ class TreeToAeon(Transformer):
     
     def compare_expr(self, args):
         left, operator, right = args
-        tapp = TApplication(Var(operator.value), t_delegate)
-        return Application(Application(tapp, left), right)
+        if operator.value in ['==', '!=']:
+            operator = TApplication(Var(operator.value), t_delegate)
+        else:
+            operator = Var(operator.value)
+        return Application(Application(operator, left), right)
 
     def boolean_expr(self, args):
         left, operator, right = args
