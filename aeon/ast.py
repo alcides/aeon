@@ -22,8 +22,8 @@ class Program(Node):
 
 
 class TypedNode(Node):
-    def __init__(self):
-        self.type = None
+    def __init__(self, t=None):
+        self.type = t
 
     def copy(self):
         return copy.deepcopy(self)
@@ -58,9 +58,8 @@ class Hole(TypedNode):
 class Literal(TypedNode):
     """ true | false | 0 | 0.0 """
     def __init__(self, value, type: Type, ensured=False):
-        super(Literal, self).__init__()
+        super(Literal, self).__init__(t=type)
         self.value = value
-        self.type = type
         self.ensured = ensured  # Used to track if needs type validation or not
 
     def __str__(self):
@@ -212,7 +211,7 @@ class TypeAlias(Node):
         return type(self) == type(o) \
             and self.name == o.name \
             and self.type == o.type
-            
+
 class TypeDeclaration(Node):
     def __init__(self, name: str, kind: Kind, ghost_variables):
         self.name = name
@@ -244,6 +243,8 @@ class Import(Node):
             and self.function == o.function
 
 def refined_value(v, t, label="_v"):
+    if t == None:
+        raise Expcetion("No Type Defined")
     if type(v) == str:
         tapp = TApplication(Var("=="), t_i)
         app1 = Application(tapp, Application(Var("String_size"), Var(label)))

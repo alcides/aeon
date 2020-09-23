@@ -27,9 +27,9 @@ def substitution_expr_in_expr(n, replacement: TypedNode,
         return n
     elif isinstance(n, Var):
         if n.name == replaced:
-            return replacement.with_type(nty)
+            return replacement#.with_type(nty)
         else:
-            return n.with_type(nty)
+            return n#.with_type(nty)
     elif isinstance(n, If):
         return If(r(n.cond), r(n.then), r(n.otherwise)).with_type(nty)
     elif isinstance(n, Application):

@@ -4,7 +4,6 @@ from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType
     TypeApplication, SumType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 
-from .conversions import type_conversion
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .zed import is_satisfiable, entails
@@ -24,7 +23,7 @@ def sub_base(ctx, sub: BasicType, sup: BasicType) -> bool:
 
 def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
     """ S-WhereL """
-    from .typing import check_type
+    from .inference import check_type
     nctx = ctx.with_var(sub.name, sub.type)
     check_type(nctx.with_uninterpreted(), sub.cond, t_b)
 
@@ -74,7 +73,7 @@ def sub_tapp(ctx, sub: TypeApplication, sup: TypeApplication) -> bool:
 
 def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
     """ S-TappL """
-    abst = type_conversion(sub.target)
+    abst = reduce_type(ctx, sub.target)
     if not isinstance(abst, TypeAbstraction):
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))
@@ -88,7 +87,7 @@ def sub_tappL(ctx, sub: TypeApplication, sup: Type) -> bool:
 
 def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
     """ S-TappR """
-    abst = type_conversion(sup.target)
+    abst = reduce_type(ctx, sup.target)
     if not isinstance(abst, TypeAbstraction):
         raise SubtypingException("{} is not a TypeAbstraction in {}.".format(
             abst, sub))

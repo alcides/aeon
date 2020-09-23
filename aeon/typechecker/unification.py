@@ -66,6 +66,12 @@ def collapse(t: BasicType, explored: List[VariableState], polarity : bool, const
     return r
 
 
+counter = 0
+def fresh_type_inference_var():
+    global counter
+    counter += 1
+    return "fresh_{}".format(counter)
+
 def unification(ctx: TypingContext,
                 t1: Type,
                 t2: Type) -> Type:

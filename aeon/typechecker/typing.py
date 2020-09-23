@@ -6,14 +6,11 @@ from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
 
 from .kinding import check_kind
-from .unification import unification
-from .conversions import type_conversion
 from .subtyping import is_subtype
 from .exceptions import TypingException
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from .type_simplifier import reduce_type
-from .bounds import lub
 from .zed import is_satisfiable
 
 from aeon.translator import translate
@@ -32,13 +29,6 @@ def is_not_inhabited(ctx: TypingContext, T: Type):
 class TypeCheckingError(TypingException):
     pass
 
-
-def w_lub(ctxT: TypingContext, T: Type, ctxU: TypingContext, U: Type) -> Type:
-    if is_not_inhabited(ctxT, T):
-        return U
-    if is_not_inhabited(ctxU, U):
-        return T
-    return lub(T, U)
 
 
 def t_base(ctx: TypingContext, e: Literal) -> Type:
@@ -104,7 +94,7 @@ def t_if(ctx: TypingContext, e: If) -> Type:
 
     T = synth_type(ctxThen, e.then)
     U = synth_type(ctxElse, e.otherwise)
-    return w_lub(ctxThen, T, ctxElse, U)
+    return SumType(T, U)
 
 
 def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
@@ -114,12 +104,11 @@ def t_abs(ctx: TypingContext, e: Abstraction) -> Type:
 
 
 def t_app(ctx: TypingContext, e: Application) -> Type:
-    F = type_conversion(synth_type(ctx, e.target))
+    F = reduce_type(ctx, synth_type(ctx, e.target))
     if not isinstance(F, AbstractionType) and F != bottom:
         raise TypeCheckingError(
             "Application requires a function: {} : {} in {}".format(
                 e.target, F, e))
-    # TODO: somethings wrong over here, need to check it out
     if F is bottom:
         e.argument.type = F
         return F
@@ -128,11 +117,12 @@ def t_app(ctx: TypingContext, e: Application) -> Type:
 
 
 def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
-    V = type_conversion(synth_type(ctx, e.target))
+    V = reduce_type(ctx, synth_type(ctx, e.target))
     if not isinstance(V, TypeAbstraction):
         raise TypeCheckingError(
             "TypeApplication requires a Type abstraction: {} : {} in {}".
             format(e.target, V, e))
+
 
     check_kind(ctx, e.argument, V.kind)
     k = substitution_type_in_type(V.type, e.argument, V.name)
@@ -142,7 +132,6 @@ def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
 def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
-
 
 holes = []
 
@@ -182,10 +171,12 @@ def synth_type(ctx: TypingContext, e: TypedNode) -> Type:
 def check_type(ctx: TypingContext, e: TypedNode, expected: Type):
     """ Γ ⸠ e <= T """
     t = synth_type(ctx, e)
+    print("inferred", t, "for", e, "expected", expected)
     if not is_subtype(ctx, t, expected):
         raise TypeCheckingError("{}:{} does not have expected type {}".format(
             translate(e), translate(t), translate(expected)))
-    e.type = t if e.type != None else e.type
+    elif e.type == None and t != None:
+        e.type = t
     return t
 
 

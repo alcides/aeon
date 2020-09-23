@@ -92,7 +92,7 @@ class TestTypeUnification(unittest.TestCase):
                           "Integer")
 
     def test_check(self):
-        mais = "(T :*) => (a:T) -> (b:T) -> {z:T | where (smtEquals c) ((smtPlus a) b) }"
+        mais = "(T :*) => (a:T) -> (b:T) -> {z:T | where (smtEq c) ((smtPlus a) b) }"
         site = "(a1: {x : Integer | x == 1}) -> (a2: {y : Integer | y == 2}) -> {z:Integer | z == 3}"
         self.assert_type_delegate( mais, site, "Integer" )
 

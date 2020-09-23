@@ -113,4 +113,4 @@ def reduce_type(ctx: TypingContext, t: Type) -> Type:
         left = reduce_type(ctx, t.left)
         right = reduce_type(ctx, t.right)
         return ProductType(t.left_name, left, right)
-    raise TypingException("Simplifier missing rule")
+    raise TypingException("Simplifier missing rule:", type(t))

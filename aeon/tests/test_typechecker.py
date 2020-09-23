@@ -2,24 +2,29 @@ import unittest
 
 from ..types import *
 from ..frontend_core import expr, typee
-from ..typechecker import check_type, TypeCheckingError, TypingException, synth_type
+from ..typechecker import TypeCheckingError, TypingException, synth_type
+from ..typechecker.inference import check_type, TypeCheckingError
 
 ex = expr.parse
 ty = typee.parse
 
 
 class TestTypeChecking(unittest.TestCase):
-    def assert_tc(self, ctx, e, expected):
+    def assert_tc(self, ctx, e, expected, should_fail=False):
         t = ty(expected)
-        check_type(ctx, ex(e), t)
+        type_ok = check_type(ctx, ex(e), t)
+        if should_fail:
+            self.assertFalse(type_ok)
+        else:
+            self.assertTrue(type_ok)
 
-    def generic_test(self, e, t, extra_ctx=None):
+    def generic_test(self, e, t, extra_ctx=None, should_fail=False):
         ctx = TypingContext()
         ctx.setup()
         if extra_ctx:
             for (k, v) in extra_ctx:
                 ctx = ctx.with_var(k, ty(v))
-        self.assert_tc(ctx, e, t)
+        self.assert_tc(ctx, e, t, should_fail)
 
     def test_basic_true(self):
         self.generic_test("true", "Boolean")
@@ -67,8 +72,7 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("true && true", "Boolean")
 
     def test_divide_by_zero(self):
-        with self.assertRaises(TypeCheckingError):
-            self.generic_test("(1/0)", "Integer")
+        self.generic_test("(1/0)", "Integer", should_fail=True)
 
     def test_tabs(self):
         self.generic_test("\\t:* => 1", "(t:*) => Integer")
@@ -111,17 +115,14 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("(5 % 1)", "Integer")
 
     def test_refined_12(self):
-        with self.assertRaises(TypeCheckingError):
-            self.generic_test("1", "{ x:Integer where (x == (3-1)) }")
+        self.generic_test("1", "{ x:Integer where (x == (3-1)) }", should_fail=True)
 
     def test_refined_13(self):
-        with self.assertRaises(TypeCheckingError):
-            self.generic_test("(5 % 0)", "Integer")
+        self.generic_test("(5 % 0)", "Integer", should_fail=True)
 
     def test_refined_14(self):
-        with self.assertRaises(TypeCheckingError):
-            self.generic_test("5",
-                              "{x:Integer where ((\\y:Integer -> x > y) 10)}")
+        self.generic_test("5",
+                              "{x:Integer where ((\\y:Integer -> x > y) 10)}", should_fail=True)
 
     def test_refined_15(self):
         self.generic_test('5.0',
@@ -141,17 +142,15 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("\"abc\"", "{x:String | (String_size x) == 3 }")
 
     def test_refined_string_wrong_size(self):
-        with self.assertRaises(TypingException):
-            self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }")
+        self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }", should_fail=True)
 
     def test_if_1(self):
         self.generic_test("if true then 1 else 0",
                           "{ x:Integer where ((x == 1) || (x == 0)) }")
 
     def test_abs_wrong(self):
-        with self.assertRaises(TypingException):
-            self.generic_test("((\\u:Integer -> u) 9)",
-                              "{ x:Integer where (x == 9) }")
+        self.generic_test("((\\u:Integer -> u) 9)",
+                           "{ x:Integer where (x == 9) }", should_fail=True)
 
     def test_complex(self):
         self.generic_test("f 5",

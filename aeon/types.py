@@ -218,6 +218,7 @@ class AbstractionType(Type):
 class RefinedType(Type):
     """ x:T where U """
     def __init__(self, name: str, type: Type, cond):  # : Node
+        assert(type is not None)
         self.name = name
         self.type = type
         self.cond = cond

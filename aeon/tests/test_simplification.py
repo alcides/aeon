@@ -2,7 +2,6 @@ import unittest
 
 from ..frontend_core import expr, typee, kind
 from ..types import TypingContext, star
-from ..typechecker.conversions import *
 from ..simplification import cnf_simplify
 from ..typechecker.type_simplifier import *
 
