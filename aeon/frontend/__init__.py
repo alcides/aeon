@@ -9,5 +9,5 @@ def parse(path):
     return mk_parser(path=path, context=initial_context).parse(text)
 
 # Given an expression of a program, parse it and imports it
-def parse_strict(text, extra_ctx=list()):
+def parse_strict(text, extra_ctx=dict()):
     return mk_parser(context=extra_ctx).parse(text)
