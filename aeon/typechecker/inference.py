@@ -115,28 +115,20 @@ def infer_if(ctx: TypingContext, e: If) -> Tuple[Type, ConstraintEnv]:
 def infer_app(ctx: TypingContext, e: Application) -> Tuple[Type, ConstraintEnv]:
     F, fic = infer(ctx, e.target)
 
+
     if isinstance(F, AbstractionType):
         T, aic = check_type_local(ctx, e.argument, F.arg_type)
         t = substitution_expr_in_type(F.return_type, e.argument, F.arg_name)
-        print("infer_app", e, t)
         ic = merge_ics(fic, aic)
-    elif isinstance(F, TypeAbstraction):
-        T, aic = infer(ctx, e.argument)
-        print("infer_app2", e, T)
-        ic = merge_ics(fic, aic)
-        b = fresh_term()
-        ic.variables_to_track[b] = VariableState(b)
-        t = BasicType(b)
-        (_, ic) = try_unification(ctx, AbstractionType(fresh_term(), T, t) , F, ic)
-    elif isinstance(F, BasicType) and F.name in fic.variables_to_track:
-        print(e, F, fic.variables_to_track)
-        raise TypeCheckingError("Weird error")
+        return (t, ic) # liquefaction? Manual, maybe?
     else:
-        print(F, type(F))
-        raise TypeCheckingError("Weird error")
+        T, aic = infer(ctx, e.argument)
+        b = fresh_term()
+        aic.variables_to_track[b] = VariableState(b)
+        t = BasicType(b)
+        U, tic = check_type_local(ctx, e.target, AbstractionType(fresh_term(), T, t))
+        return t, merge_ics(aic, tic)
 
-
-    return (t, ic) # liquefaction? Manual, maybe?
 
 
 def infer_tapp(ctx: TypingContext, e: TApplication) -> Tuple[Type, ConstraintEnv]:
@@ -207,11 +199,12 @@ def constrain(t1: Type, t2: Type, constraints: Dict[str, VariableState]):
         constrain(t1.argument, t2.argument, constraints)  # TODO: variance?
 
 def try_unification(ctx:TypingContext, t1:Type, t2:Type, ic:ConstraintEnv) -> Tuple[bool, ConstraintEnv]:
-    print("truing uni", t1, t2, type(t1), type(t2))
     nic = copy.copy(ic)
     constrain(t1, t2, nic.variables_to_track)
-
+    print()
+    print(t1, "!<:", t2)
     for key in nic.variables_to_track:
+        print(">>", reduce_type(ctx, nic.variables_to_track[key].lower_limit()),"<:", key, "<:", reduce_type(ctx, nic.variables_to_track[key].upper_limit()))
         if not nic.variables_to_track[key].is_valid(ctx):
             raise TypeCheckingError("Variable impossible to exist:", key, nic.variables_to_track[key])
     return True, nic
@@ -222,7 +215,7 @@ def check_type_local(ctx:TypingContext, e:TypedNode, expected_t:Type) -> Tuple[b
     if ic.empty():
         return (is_subtype(ctx, t, expected_t), ic)
     else:
-        print(e, "<:?", expected_t, "==>", t, ic, ic.empty())
+        print("checking, ", t, expected_t)
         return try_unification(ctx, t, expected_t, ic)
 
 def check_type(ctx:TypingContext, e:TypedNode, expected_t:Type) -> bool:

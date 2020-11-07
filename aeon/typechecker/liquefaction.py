@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Optional
+
 from ..types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, TypeException, t_b
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 
@@ -9,6 +12,24 @@ smt_and = lambda x, y: x == smt_true and y or (
     y == smt_true and x or Application(Application(Var("smtAnd"), x), y))
 
 remove_name = lambda name, lst: list(filter(lambda y: y[0] != name, lst))
+
+
+"""
+@dataclass
+class LiqExprResult:
+    expr: TypedNode
+    ty: Type
+
+@dataclass
+class LiqTyResult:
+    ty: Type
+
+def lift2( f, t1: Optional[LiqTyResult], t2:Optional[LiqTyResult] ) -> Optional[LiqTyResult]:
+    if t1 and t2:
+        return f(t1, t2)
+    else:
+        return None
+"""
 
 
 class Result(object):
