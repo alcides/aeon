@@ -1,7 +1,7 @@
 import logging
 
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, SumType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate
+    TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 
 from .substitutions import substitution_expr_in_type, substitution_type_in_type, \
@@ -99,7 +99,7 @@ def sub_tappR(ctx, sub: Type, sup: TypeApplication) -> bool:
     return is_subtype(ctx, sub, nsup)
 
 
-def sub_sum_left(ctx: TypingContext, sub: Type, sup: SumType):
+def sub_sum_left(ctx: TypingContext, sub: Type, sup: UnionType):
     """ S-SumR and S-SumL """
     return is_subtype(ctx, sub, sup.left) or is_subtype(ctx, sub, sup.right)
 
@@ -124,7 +124,7 @@ def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
         return True
     elif isinstance(sub, BasicType) and isinstance(sup, BasicType):
         return sub_base(ctx, sub, sup)
-    elif isinstance(sup, SumType):
+    elif isinstance(sup, UnionType):
         return is_subtype(ctx, sub, sup.left) or is_subtype(
             ctx, sub, sup.right)
     elif isinstance(sup, IntersectionType):

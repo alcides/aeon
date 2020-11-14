@@ -8,7 +8,7 @@ from typing import Union, Sequence, Optional, List, Generator, Tuple, Any
 from aeon.ast import TypedNode, Var, TAbstraction, TApplication, Application, Abstraction, Literal, Hole, If, Program, \
     TypeDeclaration, TypeAlias, Definition, refined_value
 from aeon.types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, IntersectionType, SumType, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
+    TypeApplication, IntersectionType, UnionType, Kind, AnyKind, star, TypeException, t_b, t_i, t_f, t_s
 from aeon.typechecker.substitutions import substitution_expr_in_type, substitution_type_in_type, \
     substitution_expr_in_expr, substitution_type_in_expr
 from aeon.typechecker.typing import TypeCheckingError
@@ -328,12 +328,12 @@ def st_tapp(ctx: TypingContext, k: Kind, d: int) -> TypeApplication:
     return TypeApplication(T, U)
 
 
-def st_sum(ctx, TypingContext, k: Kind, d: int) -> SumType:
+def st_sum(ctx, TypingContext, k: Kind, d: int) -> UnionType:
     "ST-Sum"
     logging.debug("st_sum/{}: {} ".format(d, k))
     T = st(ctx, k, d - 1)
     U = st(ctx, k, d - 1)
-    return SumType(T, U)
+    return UnionType(T, U)
 
 
 def st_intersection(ctx, TypingContext, k: Kind, d: int) -> IntersectionType:
@@ -621,11 +621,11 @@ def se_subtype(ctx: TypingContext, T: Type, d: int):
     return se(ctx, U, d - 1)
 
 
-def se_sum_left(ctx: TypingContext, T: SumType, d: int):
+def se_sum_left(ctx: TypingContext, T: UnionType, d: int):
     return se(ctx, T.left, d)
 
 
-def se_sum_right(ctx: TypingContext, T: SumType, d: int):
+def se_sum_right(ctx: TypingContext, T: UnionType, d: int):
     return se(ctx, T.right, d)
 
 
@@ -656,7 +656,7 @@ def se(ctx: TypingContext, T: Type, d: int):
         yield ("se_double", se_double)
     if isinstance(T, RefinedType):
         yield ("se_where", se_where)
-    if isinstance(T, SumType):
+    if isinstance(T, UnionType):
         yield ("se_sum_left", se_sum_left)
         yield ("se_sum_right", se_sum_right)
 

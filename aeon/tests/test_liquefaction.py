@@ -31,8 +31,9 @@ class TestLiquefaction(unittest.TestCase):
 
         t = reduce_type(self.ctx, ty(ref))
         conv = liquefy(self.ctx, t)
+        print("CONV: ", conv, "FROM", ref)
         self.assertEqual(ty(expected), conv)
-        #self.assertTrue(is_subtype(self.ctx, conv, ty(liq)) )
+        #self.assertTrue(is_subtype(self.ctx, conv, ty(expected)) )
 
     # Literals
     def test_simple(self):
@@ -42,22 +43,29 @@ class TestLiquefaction(unittest.TestCase):
         self.assert_liq('{ x:Boolean | ((smtEq 1) 2) }',
                         '{ x:Boolean | ((smtEq 1) 2) }')
 
+    def test_minimal(self):
+        self.assert_liq(
+            '{x:Boolean | not (not true)}',
+            'Boolean',
+            extra_ctx=[('not', "(a:Boolean) -> {y:Boolean | (smtEq y) (smtNot a)}")]
+        )
+
     def test_middle(self):
-        self.assert_liq('{ x:Boolean | f 1 }',
-                        'Boolean',
-                        extra_ctx=[("f", "(x:Integer) -> Boolean")])
+        #self.assert_liq('{ x:Boolean | f 1 }',
+        #                'Boolean',
+        #                extra_ctx=[("f", "(x:Integer) -> Boolean")])
         self.assert_liq(
             '{ x:Boolean | f 1 }',
-            '{ x:Boolean | ((smtEq x) false) }',
+            '{ x:Boolean | false }',
             extra_ctx=[("f",
                         "(x:Integer) -> { y:Boolean | ((smtEq y) false) }")])
 
     def test_middle2(self):
-        self.assert_liq('{ x:Boolean | ((smtGt (f 3)) x) }',
-                        '{ x:Boolean | ((smtEq x) false) }',
+        self.assert_liq('{ x:Integer | ((smtEq (f 3)) x) }',
+                        '{ x:Integer | ((smtGt x) 3) }',
                         extra_ctx=[
                             ("f",
-                             "(x:Integer) -> { y:Integer | ((smtGt y) x) }")
+                             "(k:Integer) -> { y:Integer | ((smtGt y) k) }")
                         ])
 
     def test_complex(self):

@@ -1,167 +1,202 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, replace
+from typing import Optional, Callable
 
-from ..types import Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, TypeException, t_b
+from ..types import ProductType, Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, \
+    UnionType, IntersectionType, ExistentialType, TypeException, t_b, t_i, bottom, TypingContext, type_map
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 
 from .substitutions import substitution_expr_in_expr, substitution_type_in_type, substitution_expr_in_type
 from .exceptions import TypingException
+from .type_simplifier import reduce_type
 
 smt_true = Literal(True, t_b)
 smt_and = lambda x, y: x == smt_true and y or (
     y == smt_true and x or Application(Application(Var("smtAnd"), x), y))
+smt_eq = lambda x, y: Application(Application(Var("smtEq"), x), y)
+
 
 remove_name = lambda name, lst: list(filter(lambda y: y[0] != name, lst))
 
 
-"""
+def selfification(name:str, v, T):
+    return Application(Application(Var("smtEq"), Var(name)), Literal(v, T))
+
+def selfification_var(name:str, other_name:str):
+    return Application(Application(Var("smtEq"), Var(name)), Var(other_name))
+
+def replace_abstraction_type(vname:str, t:Type, arg:Type):
+    if isinstance(t, BasicType):
+        return None
+    if isinstance(t, AbstractionType):
+        return ExistentialType(vname, arg, substitution_expr_in_type(t.return_type, Var(vname), t.arg_name))
+    if isinstance(t, ExistentialType):
+        k = replace_abstraction_type(vname, t.right, arg)
+        if k:
+            return ExistentialType(t.left_name, t.left, k)
+        else:
+            print("oops")
+            return None
+    if isinstance(t, TypeApplication):
+        """ A abstracção pode estar na aplicação ou só depois da substituição """
+        if isinstance(t.target, TypeAbstraction):
+            tr = replace_abstraction_type(vname, t.target.type, arg)
+            if tr:
+                return TypeApplication(TypeAbstraction(t.target.name, t.target.kind, tr), t.argument)
+            else:
+                return None # TODO
+        else:
+            return None
+    if isinstance(t, TypeAbstraction):
+        """ A abstracção pode estar na aplicação ou só depois da substituição """
+        tr = replace_abstraction_type(vname, t.type, arg)
+        if tr:
+            return TypeAbstraction(t.name, t.kind, tr)
+        else:
+            return None # TODO
+
+    raise Exception("Missing pattern in Liquefaction of rep", t)
+
+
 @dataclass
 class LiqExprResult:
-    expr: TypedNode
+    expr: Optional[TypedNode]
     ty: Type
 
-@dataclass
-class LiqTyResult:
-    ty: Type
 
-def lift2( f, t1: Optional[LiqTyResult], t2:Optional[LiqTyResult] ) -> Optional[LiqTyResult]:
-    if t1 and t2:
-        return f(t1, t2)
-    else:
-        return None
-"""
-
-
-class Result(object):
-    def __init__(self,
-                 expression=smt_true,
-                 type=None,
-                 extra_condition=smt_true,
-                 should_abort=False,
-                 variables=None):
-        self.expression = expression
-        self.type = type
-        self.extra_condition = extra_condition
-        self.should_abort = should_abort
-        self.variables = variables or []
-
-    def __repr__(self):
-        return repr(self.expression) + " | " + repr(self.type) + " | " + repr(
-            self.extra_condition) + " | " + repr(self.should_abort)
-
-
-def liquefy_expr(ctx, n):
-    if isinstance(n, Literal):
-        r = liquefy_type(ctx, n.type)
-        return Result(expression=Literal(n.value, r.type), type=r.type)
-    elif isinstance(n, Var):
-        if n.name in ctx.uninterpreted_functions.keys():
-            return Result(expression=n,
-                          type=ctx.uninterpreted_functions[n.name])
+def liquefaction_expr_w(ctx:TypingContext, e:TypedNode) -> LiqExprResult:
+    if isinstance(e, Literal):
+        if type(e.value) == bool:
+            return LiqExprResult(Literal(e.value, t_b), RefinedType("_v", t_b, selfification("_v", e.value, t_b)))
+        elif type(e.value) == int:
+            return LiqExprResult(Literal(e.value, t_i), RefinedType("_v", t_i, selfification("_v", e.value, t_i)))
         else:
-            ty = ctx.variables[n.name]
-            r = liquefy_type(ctx, ty)
-            if isinstance(r.type, BasicType):
-                return Result(expression=n,
-                              type=r.type,
-                              extra_condition=substitution_expr_in_expr(
-                                  r.extra_condition, Var(n.name),
-                                  r.expression.name),
-                              variables=r.variables)
-            elif isinstance(r.type, AbstractionType):
-                return Result(expression=r.expression,
-                              type=r.type,
-                              extra_condition=r.extra_condition,
-                              should_abort=True,
-                              variables=r.variables)
+            return LiqExprResult(Literal(e.value, e.type), e.type) # TODO: String and Double
+    elif isinstance(e, Var):
+        t = ctx.variables[e.name]
+        if isinstance(t, BasicType): # TODO: not a function!
+            return LiqExprResult(Var(e.name), RefinedType("_v", t, selfification_var("_v", e.name)))
+        elif e.name in ctx.uninterpreted_functions: # uninterpreted
+            return LiqExprResult(Var(e.name), t)
+        else:
+            return LiqExprResult(None, t)
+    elif isinstance(e, If):
+        r1 = liquefaction_expr_w(ctx, e.cond)
+        r2 = liquefaction_expr_w(ctx, e.then)
+        r3 = liquefaction_expr_w(ctx, e.otherwise)
+        return LiqExprResult(r1 and r2 and r3 and If(r1.expr, r2.expr, r3.expr), UnionType(r2.ty, r3.ty))
+    elif isinstance(e, Application):
+        e1 = liquefaction_expr_w(ctx, e.target)
+        e2 = liquefaction_expr_w(ctx, e.argument)
+        vname = ctx.fresh_var()
+        if isinstance(e.target, Var):
+            vname += "_" + str(e.target.name)
+            print("YELLOW F:", e.target.name)
+        if isinstance(e.target, Application) and isinstance(e.target.target, Var):
+            vname += "_" + str(e.target.target.name)
+        #if vname.endswith("_fresh_300"):
+        #    raise Exception(e1, e2) # TODO
+        print("will replace in vname", vname)
+        print("FTYPE:", e1.ty)
+        print("ATYPE", e2.ty)
+        nt = replace_abstraction_type(vname, e1.ty, e2.ty)
+        print("RETURN:", nt)
+
+        if not nt:
+            raise Exception("Not implemented yet") # What (T:* -> T) [x:U -> V]
+
+        if e1.expr:
+            if not e2.expr:
+                e2.expr = Var(vname)
+            return LiqExprResult(Application(e1.expr, e2.expr), nt)
+        else:
+            return LiqExprResult(None, nt)
+
+    elif isinstance(e, Abstraction):
+        t = liquefaction_ty_w(ctx, e.arg_type)
+        eb = liquefaction_expr_w(ctx.with_var(e.arg_name, t), e.body)
+        if eb:
+            return LiqExprResult(None, AbstractionType(e.arg_name, t, eb.ty))
+        else:
+            return None
+    elif isinstance(e, TAbstraction):
+        t = liquefaction_expr_w(ctx, e.body)
+        if t:
+            return LiqExprResult(t.expr and TAbstraction(e.typevar, e.kind, t.expr), TypeAbstraction(e.typevar, e.king, t.ty))
+        else:
+            return None
+    elif isinstance(e, TApplication):
+        t = liquefaction_expr_w(ctx, e.target)
+        if t:
+            return LiqExprResult(t.expr and TApplication(t.expr, e.argument), TypeApplication(t.ty, e.argument))
+        else:
+            return None
+    raise Exception("Missing pattern in Liquefaction of Expressions", e)
+
+
+def liquefaction_ty_w(ctx:TypingContext, e:TypedNode) -> Type:
+    if isinstance(e, BasicType):
+        return BasicType(e.name)
+    elif isinstance(e, AbstractionType):
+        t1 = liquefaction_ty_w(ctx, e.arg_type)
+        t2 = liquefaction_ty_w(ctx.with_var(e.arg_name, t1), e.return_type)
+        return AbstractionType(e.arg_name, t1, t2)
+    elif isinstance(e, RefinedType):
+        t = liquefaction_ty_w(ctx, e.type)
+        c = liquefaction_expr_w(ctx.with_var(e.name, t), e.cond)
+
+        ori = c.ty
+        #cty = type_map(lambda x: isinstance(x, RefinedType), lambda rec, rt: RefinedType(rt.name, rec(rt.type), smt_and(rt.cond, smt_eq(Var(rt.name), Var(e.name)))), c.ty)
+        #print(" GO", ori, ">>", cty )
+        if e.name == "x":
+            print("C:", reduce_type(ctx, c.ty))
+        if c:
+            if c.expr:
+                return RefinedType(e.name, IntersectionType(t, c.ty), c.expr)
             else:
-                raise Exception("not implemented yet!")
-    elif isinstance(n, If):
-        raise Exception("not implemented yet: if")
-    elif isinstance(n, Application):
-        t = liquefy_expr(ctx, n.target)
-        a = liquefy_expr(ctx, n.argument)
-        is_unliquid = t.should_abort or a.should_abort
-        print("target,", n, t)
-        new_type = t.type.return_type
-        if not a.should_abort:
-            new_type = substitution_expr_in_type(new_type, a.expression,
-                                                 t.type.arg_name)
-            t.extra_condition = substitution_expr_in_expr(
-                t.extra_condition, a.expression, t.type.arg_name)
-        nvariables = t.variables + a.variables  # TODO
-        print(n, "...")
-        print(t)
-        print(a)
-        return Result(expression=Application(t.expression, a.expression)
-                      if not t.should_abort else t.expression.body,
-                      type=new_type,
-                      should_abort=t.should_abort,
-                      extra_condition=smt_and(t.extra_condition,
-                                              a.extra_condition),
-                      variables=nvariables)
-    elif isinstance(n, Abstraction):
-        raise Exception("not implemented yet: lambda")
-    elif isinstance(n, TApplication):
-        return liquefy_expr(ctx, n.target)
-    elif isinstance(n, TAbstraction):
-        raise Exception("not implemented yet: tabstraction")
-    elif isinstance(n, Hole):
-        raise Exception("not implemented yet: hole")
+                return IntersectionType(t, c.ty)
+        else:
+            return t
+    elif isinstance(e, TypeAbstraction):
+        t = liquefaction_ty_w(ctx, e.type)
+        return TypeAbstraction(e.name, e.kind, t)
+    elif isinstance(e, TypeApplication):
+        t1 = liquefaction_ty_w(ctx, e.target)
+        t2 = liquefaction_ty_w(ctx, e.argument)
+        return TypeApplication(t1, t2)
+    elif isinstance(e, UnionType):
+        t1 = liquefaction_ty_w(ctx, e.left)
+        t2 = liquefaction_ty_w(ctx, e.right)
+        return UnionType(t1, t2)
+    elif isinstance(e, IntersectionType):
+        t1 = liquefaction_ty_w(ctx, e.left)
+        t2 = liquefaction_ty_w(ctx, e.right)
+        return IntersectionType(t1, t2)
+    elif isinstance(e, ProductType):
+        t1 = liquefaction_ty_w(ctx, e.left_type)
+        t2 = liquefaction_ty_w(ctx.with_var(e.left_name, t1), e.right_type)
+        return ProductType(e.left_name, t1, t2)
+    elif isinstance(e, ExistentialType):
+        t1 = liquefaction_ty_w(ctx, e.left_type)
+        t2 = liquefaction_ty_w(ctx.with_var(e.left_name, t1), e.right_type)
+        return ExistentialType(e.left_name, t1, t2)
+    raise Exception("Missing pattern in Liquefaction of Types", e)
 
 
-def liquefy_type(ctx, ty):
-    if isinstance(ty, BasicType):
-        return Result(expression=Var("__useless__"), type=ty)
-    elif isinstance(ty, RefinedType):
-        nctx = ctx.with_var(ty.name, ty.type)
-        rt = liquefy_type(nctx, ty.type)
-        re = liquefy_expr(nctx, ty.cond)
-        rt_cond = substitution_expr_in_expr(rt.extra_condition, Var(ty.name),
-                                            rt.expression.name)
-        re_cond = re.extra_condition
-        nvariables = rt.variables + re.variables + [(ty.name, rt.type)]
-        if re.should_abort:
-            re_cond = substitution_expr_in_expr(re_cond, Var(ty.name),
-                                                re.expression.name)
-        new_condition = smt_and(rt_cond, re_cond)
-        if not re.should_abort:
-            new_condition = smt_and(new_condition, re.expression)
-        return Result(expression=Var(ty.name),
-                      extra_condition=new_condition,
-                      type=rt.type,
-                      variables=nvariables)
+def liquefy_ctx(ctx:TypingContext):
+    nctx = ctx.copy()
+    for name in nctx.variables:
+        nctx.variables[name] = liquefy_type(nctx, ctx.variables[name])
+        #print("rvar", name, liquefy_type(nctx, ctx.variables[name]))
+    for name in nctx.uninterpreted_functions:
+        nctx.uninterpreted_functions[name] = liquefy_type(nctx, ctx.uninterpreted_functions[name])
+        #print("uvar", name, liquefy_type(nctx, ctx.variables[name]))
+    return nctx
 
-    elif isinstance(ty, AbstractionType):
-        b = liquefy_type(ctx.with_var(ty.arg_name, ty.arg_type),
-                         ty.return_type)
-        return Result(
-            expression=Abstraction(ty.arg_name, t_b, b.expression),
-            type=AbstractionType(ty.arg_name, ty.arg_type, b.type),
-            extra_condition=b.extra_condition,
-            variables=b.variables,
-        )
+def liquefy_type(ctx:TypingContext, t) -> Type:
+    tp = liquefaction_ty_w(ctx, t)
+    return reduce_type(ctx, tp)
 
-    elif isinstance(ty, TypeApplication) and isinstance(
-            ty.target, TypeAbstraction):
-        return liquefy_type(
-            substitution_type_in_type(ty.target.body, ty.argument, ty.name))
+def liquefy(ctx:TypingContext, t:Type) -> Type:
+    c = liquefy_ctx(ctx.with_uninterpreted())
+    return liquefy_type(c, t)
 
-    elif isinstance(ty, TypeApplication):
-        return liquefy_type(ctx, ty.target)
-
-    elif isinstance(ty, TypeAbstraction):
-        return liquefy_type(ctx, ty.type)
-
-
-def liquefy(ctx, ty):
-    res = liquefy_type(ctx, ty)
-    print(ty, res)
-    if res.expression.name == '__useless__' or res.extra_condition == smt_true:
-        return res.type
-    ncond = res.extra_condition
-    for (v, t) in remove_name(res.expression.name, res.variables):
-        if has_var(v, ncond):
-            ncond = Application(Var('smt_exists'), Abstraction(v, t, ncond))
-    print("Ncond:", ncond)
-    return RefinedType(res.expression.name, res.type, ncond)

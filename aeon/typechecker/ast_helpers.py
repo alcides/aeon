@@ -13,3 +13,6 @@ def make_equality_str(name:str, v:str):
 
 def make_equality_float(name:str, v:float):
     return Application(Application(Var("smtEq"), Var(name)), Literal(value=v, type=t_f, ensured=True))
+
+def make_equality_vars(name:str, name2:str):
+    return Application(Application(Var("smtEq"), Var(name)), Var(name2))

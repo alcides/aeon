@@ -1,5 +1,5 @@
 from ..types import TypingContext, Kind, star, Type, BasicType, RefinedType, \
-    AbstractionType, TypeAbstraction, TypeApplication, SumType, IntersectionType
+    AbstractionType, TypeAbstraction, TypeApplication, UnionType, IntersectionType
 
 from .exceptions import TypingException
 
@@ -53,7 +53,7 @@ def k_tabs(ctx: TypingContext, tabs: TypeAbstraction):
     return Kind(k, kp)
 
 
-def k_sum(ctx: TypingContext, t: SumType):
+def k_sum(ctx: TypingContext, t: UnionType):
     kl = synth_kind(ctx, t.left)
     kr = synth_kind(ctx, t.right)
     if kl != kr:
@@ -81,7 +81,7 @@ def synth_kind(ctx: TypingContext, t: Type) -> Kind:
         return k_tabs(ctx, t)
     elif isinstance(t, TypeApplication):
         return k_tapp(ctx, t)
-    elif isinstance(t, SumType):
+    elif isinstance(t, UnionType):
         return k_sum(ctx, t)
     elif isinstance(t, IntersectionType):
         return k_intersection(ctx, t)

@@ -1,6 +1,6 @@
 import copy
 
-from typing import Optional, List
+from typing import Any, Optional, List
 
 from aeon.types import RefinedType, Type, Kind, t_i
 
@@ -244,7 +244,7 @@ class Import(Node):
 
 def refined_value(v, t, label="_v"):
     if t == None:
-        raise Expcetion("No Type Defined")
+        raise Exception("No Type Defined")
     if type(v) == str:
         tapp = TApplication(Var("=="), t_i)
         app1 = Application(tapp, Application(Var("String_size"), Var(label)))

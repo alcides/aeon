@@ -1,7 +1,7 @@
 import copy
 
 from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom, t_s, t_f
+    TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom, t_s, t_f, UnionType
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
 
@@ -94,7 +94,7 @@ def t_if(ctx: TypingContext, e: If) -> Type:
 
     T = synth_type(ctxThen, e.then)
     U = synth_type(ctxElse, e.otherwise)
-    return SumType(T, U)
+    return UnionType(T, U)
 
 
 def t_abs(ctx: TypingContext, e: Abstraction) -> Type:

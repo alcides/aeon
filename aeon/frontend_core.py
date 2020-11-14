@@ -50,7 +50,7 @@ class TreeToCore(Transformer):
         return TypeApplication(*args)
 
     def sum_t(self, args):
-        return SumType(args[0], args[1])
+        return UnionType(args[0], args[1])
 
     def intersection_t(self, args):
         return IntersectionType(args[0], args[1])

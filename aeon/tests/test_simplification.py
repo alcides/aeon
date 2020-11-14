@@ -46,3 +46,11 @@ class TestConversion(unittest.TestCase):
         self.assertSimp("{x:Integer | true} + {y:Integer | false}", "Integer")
         self.assertSimp("{x:Integer | true} & {y:Integer | false}",
                         "{y:Integer | false}")
+
+    def test_intersections(self):
+        self.assertSimp("Integer & Boolean", "Bottom")
+        self.assertSimp("Integer & ((T:*) => T)", "Integer")
+        self.assertSimp("((T:*) => T) & Integer", "Integer")
+
+    def test_intersections2(self):
+        self.assertSimp("((T:*) => (x:T) -> T) & ((K:*) => K)", "((T:*) => (x:T) -> T)")

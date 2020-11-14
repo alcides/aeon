@@ -45,7 +45,7 @@ initial_uninterpreted_functions = {
     '@maximize': ty2("(T:*) => (a:T) -> Boolean"),
     '@minimize': ty2("(T:*) => (a:T) -> Boolean"),
     '@evaluate': ty2("(T:*) => (a:String) -> Boolean"),
-    'smtEq': ty2("(a:Top) -> (b:Top) -> Bottom"),
+    'smtEq': ty2("(T:*) => (a:T) -> (b:T) -> T"),
     'smtIneq': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtLt': ty2("(a:Top) -> (b:Top) -> Bottom"),
     'smtGt': ty2("(a:Top) -> (b:Top) -> Bottom"),

@@ -267,7 +267,7 @@ class TypeApplication(Type):
             and self.argument == o.argument
 
 
-class SumType(Type):
+class UnionType(Type):
     """ T + U """
     def __init__(self, left: Type, right: Type):
         self.left = left
@@ -314,6 +314,23 @@ class ProductType(Type):
             and self.right == o.right
 
 
+class ExistentialType(Type):
+    """ (∃x:T, U) """
+    def __init__(self, left_name: str, left: Type, right: Type):
+        self.left_name = left_name
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return "(∃{}:{}.{})".format(self.left_name, self.left, self.right)
+
+    def __eq__(self, o):
+        return type(self) == type(o) \
+            and self.left_name == o.left_name \
+            and self.left == o.left \
+            and self.right == o.right
+
+
 # defaults
 t_v = BasicType('Void')
 t_o = BasicType('Object')
@@ -325,3 +342,50 @@ bottom = BasicType('Bottom')
 top = BasicType('Top')
 
 t_delegate = BasicType("??")
+
+
+
+def type_map(pred, f, n):
+    rec = lambda n1: type_map(pred, f, n1)
+    if pred(n):
+        return f(rec, n)
+    if isinstance(n, AbstractionType):
+        return AbstractionType(n.arg_name, n.arg_type, rec(n.return_type))
+    elif isinstance(n, RefinedType):
+        return RefinedType(n.name, rec(n.type), n.cond)
+    elif isinstance(n, TypeAbstraction):
+        return TypeAbstraction(n.name, n.kind, rec(n.type))
+    elif isinstance(n, TypeApplication):
+        return TypeApplication(rec(n.target), n.argument)
+    elif isinstance(n, UnionType):
+        return UnionType(rec(n.left), rec(n.right))
+    elif isinstance(n, IntersectionType):
+        return IntersectionType(rec(n.left), rec(n.right))
+    elif isinstance(n, ExistentialType):
+        return ExistentialType(n.left_name, n.left, rec(n.left))
+    elif isinstance(n, ProductType):
+        return ProductType(n.left_name, n.left, n.left)
+    return n
+
+
+def find_basic_types(n):
+    rec = lambda n1: find_basic_types(n1)
+    if isinstance(n, BasicType):
+        return [n.name]
+    if isinstance(n, AbstractionType):
+        return rec(n.return_type)
+    elif isinstance(n, RefinedType):
+        return rec(n.type)
+    elif isinstance(n, TypeAbstraction):
+        return [ b for b in rec(n.type) if b != n.name ]
+    elif isinstance(n, TypeApplication):
+        return rec(n.target) + rec(n.argument)
+    elif isinstance(n, UnionType):
+        return rec(n.left) + rec(n.right)
+    elif isinstance(n, IntersectionType):
+        return rec(n.left) + rec(n.right)
+    elif isinstance(n, ExistentialType):
+        return rec(n.left) + rec(n.right)
+    elif isinstance(n, ProductType):
+        return rec(n.left) + rec(n.right)
+    return n

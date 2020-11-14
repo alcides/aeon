@@ -2,7 +2,7 @@ from typing import Tuple, Dict, List, Optional
 from functools import reduce
 import copy
 
-from ..types import TypingContext, Type, BasicType, RefinedType, IntersectionType, SumType, AbstractionType, TypeAbstraction, \
+from ..types import TypingContext, Type, BasicType, RefinedType, IntersectionType, UnionType, AbstractionType, TypeAbstraction, \
     TypeApplication, Kind, AnyKind, star, TypeException, t_b, t_delegate, t_i, bottom, t_s, t_f, top
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, \
     If, Literal, TypedNode, TypeDeclaration, Definition, Program, Hole, TypeAlias
@@ -30,7 +30,7 @@ class VariableState(object):
         return reduce(IntersectionType, self.upper_bounds)
 
     def lower_limit(self):
-        return reduce(SumType, self.lower_bounds)
+        return reduce(UnionType, self.lower_bounds)
 
     def __str__(self):
         return "var({} l={} u={})".format(self.name, self.lower_limit(), self.upper_limit())
@@ -110,7 +110,7 @@ def infer_if(ctx: TypingContext, e: If) -> Tuple[Type, ConstraintEnv]:
 
     T, tic = infer(ctxThen, e.then)
     U, eic = infer(ctxElse, e.otherwise)
-    return (SumType(T, U), merge_ics(ic, merge_ics(tic, eic))  )
+    return (UnionType(T, U), merge_ics(ic, merge_ics(tic, eic))  )
 
 def infer_app(ctx: TypingContext, e: Application) -> Tuple[Type, ConstraintEnv]:
     F, fic = infer(ctx, e.target)

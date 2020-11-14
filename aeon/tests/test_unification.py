@@ -16,7 +16,6 @@ class TestTypeUnification(unittest.TestCase):
             r = unification(ctx, ty(a), ty(b))
             rr = reduce_type(ctx, r)
             tr = reduce_type(ctx, t)
-
             self.assertEqual(tr, rr)
         except TypeException as e:
             self.fail("Cannot unify {} and {}".format(a, b))
@@ -38,7 +37,8 @@ class TestTypeUnification(unittest.TestCase):
         t = ty(expected)
         r = unification(ctx, ty(a), ty(b))
         self.assertIsInstance(r, TypeApplication)
-        self.assertEqual(t, r.argument)
+        rr = reduce_type(ctx, r.argument)
+        self.assertEqual(t, rr)
 
 
     def test_basic_true(self):
@@ -62,7 +62,7 @@ class TestTypeUnification(unittest.TestCase):
     def test_app2(self):
         self.generic_test("(T:*) => (a:T) -> (b:T) -> T",
                           "(K:*) => (a:Integer) -> (b:Integer) -> K",
-                          "((T:*) => (a:T) -> (b:T) -> T) Top")
+                          "((T:*) => (a:T) -> (b:T) -> T)")
 
     def test_app3(self):
         self.generic_test("(a:Integer) -> (b:Integer) -> Integer",
@@ -95,4 +95,3 @@ class TestTypeUnification(unittest.TestCase):
         mais = "(T :*) => (a:T) -> (b:T) -> {z:T | where (smtEq c) ((smtPlus a) b) }"
         site = "(a1: {x : Integer | x == 1}) -> (a2: {y : Integer | y == 2}) -> {z:Integer | z == 3}"
         self.assert_type_delegate( mais, site, "Integer" )
-
