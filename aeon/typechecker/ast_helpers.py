@@ -16,3 +16,12 @@ def make_equality_float(name:str, v:float):
 
 def make_equality_vars(name:str, name2:str):
     return Application(Application(Var("smtEq"), Var(name)), Var(name2))
+
+
+
+smt_true = Literal(True, t_b)
+smt_and = lambda x, y: x == smt_true and y or (
+    y == smt_true and x or Application(Application(Var("smtAnd"), x), y))
+smt_eq = lambda x, y: Application(Application(Var("smtEq"), x), y)
+
+smt_not = lambda x: Application(Var("smtNot"), x)

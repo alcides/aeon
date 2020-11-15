@@ -8,11 +8,8 @@ from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstractio
 from .substitutions import substitution_expr_in_expr, substitution_type_in_type, substitution_expr_in_type
 from .exceptions import TypingException
 from .type_simplifier import reduce_type
+from .ast_helpers import smt_true, smt_and, smt_eq
 
-smt_true = Literal(True, t_b)
-smt_and = lambda x, y: x == smt_true and y or (
-    y == smt_true and x or Application(Application(Var("smtAnd"), x), y))
-smt_eq = lambda x, y: Application(Application(Var("smtEq"), x), y)
 
 
 remove_name = lambda name, lst: list(filter(lambda y: y[0] != name, lst))

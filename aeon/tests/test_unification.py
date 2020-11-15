@@ -2,7 +2,7 @@ import unittest
 
 from ..types import *
 from ..frontend_core import expr, typee
-from ..typechecker.unification import unification
+from ..typechecker.unification import unification, unificationEq
 from ..typechecker.type_simplifier import reduce_type
 
 ex = expr.parse
@@ -91,7 +91,47 @@ class TestTypeUnification(unittest.TestCase):
                           "(T:*) => {x:T | true}",
                           "Integer")
 
+    def test_union(self):
+        self.generic_test("(T:*) => {x:T | x > 0}",
+                          "{y:Integer | smtAnd (y > 5) (y < 10)} + {z:Integer | z > 15}",
+                          "{ x:Integer where ((smtAnd (x > 0)) ((smtAnd ((smtOr (smtNot (x > 0))) (x > 15))) ((smtOr (smtNot (x > 0))) (smtAnd ((x > 5) (x < 10)))))) }"
+            )
+    def test_intersection2(self):
+        self.generic_test("(T:*) => {x:T | x > 0}",
+                          "{y:Integer | y < 30 } & {z:Integer | z > 15}",
+                          "{ x:Integer where ((smtAnd (x > 0)) ((smtOr (smtNot (x > 0))) ((smtAnd (x > 15)) (x < 30)))) }"
+            )
+
+    def test_intersection3(self):
+        self.generic_test("(T:*) => T",
+                          "{y:Integer | y < 30 } & {z:Integer | z > 15}",
+                          "{y:Integer | y < 30 } & {z:Integer | z > 15}"
+            )
+
+    def test_intersection4(self):
+        self.generic_test("(T:*) => T & {x:Integer | x > 10}",
+                          "{y:Integer | smtAnd (y > 10)  (z < 15)}",
+                          " { x:Integer where ((smtAnd (x > 10)) ((smtOr (smtNot (x > 10))) (smtAnd ((x > 10) (z < 15))))) }"
+            )
+
+    def test_intersection5(self):
+        self.generic_test("(T:*) => Integer & {x:T | x > 10}",
+                          "{y:Integer | smtAnd (y > 10)  (z < 15)}",
+                          "{ x:Integer where ((smtAnd (x > 10)) ((smtOr (smtNot (x > 10))) (smtAnd ((x > 10) (z < 15))))) }"
+            )
+
+    def test_refined(self):
+        self.generic_test("(T:*) => {x:T | x > 10}",
+                          "{y:Integer | smtAnd (y > 10) (y < 15)}",
+                          " { x:Integer where ((smtAnd (x > 10)) ((smtOr (smtNot (x > 10))) (smtAnd ((x > 10) (x < 15))))) }"
+            )
+    def test_refined2(self):
+        self.generic_test("(T:*) => {x:T | x > 0}",
+                          "{y:Integer | y > 10}",
+                          "{ x:Integer where ((smtAnd (x > 0)) ((smtOr (smtNot (x > 0))) (x > 10))) }"
+            )
+
     def test_check(self):
-        mais = "(T :*) => (a:T) -> (b:T) -> {z:T | where (smtEq c) ((smtPlus a) b) }"
-        site = "(a1: {x : Integer | x == 1}) -> (a2: {y : Integer | y == 2}) -> {z:Integer | z == 3}"
-        self.assert_type_delegate( mais, site, "Integer" )
+        mais = "(T :*) => (a:T) -> (b:T) -> {c:T | (smtEq c) ((smtPlus a) b) }"
+        site = "(a1: {x : Integer | smtEq x 1}) -> (a2: {y : Integer | smtEq y 2}) -> {z:Integer | smtEq z 3}"
+        self.assert_type_delegate( mais, site, "{ c:Integer where ((smtOr (smtNot ((smtEq c) ((smtPlus a) b)))) (smtEq (c 3))) }" )

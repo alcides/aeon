@@ -55,7 +55,8 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
         arg = reduce_type(ctx, t.argument)
         if isinstance(tar, TypeAbstraction):
             nt = substitution_type_in_type(tar.type, arg, tar.name)
-            return reduce_type(ctx, nt)
+            o = reduce_type(ctx, nt)
+            return o
         else:
             return TypeApplication(tar, arg)
     elif isinstance(t, UnionType):
@@ -116,19 +117,19 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             if left.name == right.name:
                 return left
             else:
-                return bottom
+                IntersectionType(left, right)
         elif isinstance(left, RefinedType) and \
             isinstance(right, BasicType):
             if left.type == right:
                 return left
             else:
-                return bottom
+                return IntersectionType(left, right)
         elif isinstance(right, RefinedType) and \
             isinstance(left, BasicType):
             if left == right.type:
                 return right
             else:
-                return bottom
+                return IntersectionType(left, right)
         elif isinstance(right, RefinedType) and \
             isinstance(left, RefinedType) and \
                 right.type == left.type:
@@ -152,17 +153,16 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
                 return reduce_type(ctx, k)
             except UnificationError as e:
                 raise e
-                return bottom # TODO - check
-            return IntersectionType(left, right)
+                return IntersectionType(left, right)
         elif isinstance(left, TypeAbstraction):
             from aeon.typechecker.unification import unificationEq, UnificationError
             try:
                 k = unificationEq(ctx, right, left)
                 return reduce_type(ctx, k)
 
-            except UnificationError:
-                return bottom # TODO - check
-            return IntersectionType(left, right)
+            except UnificationError as e:
+                raise e
+                return IntersectionType(left, right)
         else:
             return IntersectionType(left, right)
     elif isinstance(t, ProductType):

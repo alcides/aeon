@@ -115,6 +115,12 @@ class Application(TypedNode):
         self.argument = argument
 
     def __str__(self):
+        if isinstance(self.target, Application) and isinstance(self.target.target, Var) \
+            and not self.target.target.name.isalnum():
+            return "({} {} {})".format(self.target.argument, self.target.target, self.argument)
+        if isinstance(self.target, Var) and \
+            not self.target.name.isalnum():
+            return "({} {})".format(self.target.target, self.argument)
         return "({} {})".format(self.target, self.argument)
 
     def __eq__(self, o):

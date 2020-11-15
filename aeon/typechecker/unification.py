@@ -1,8 +1,13 @@
 from typing import List, Callable, Dict
 from functools import reduce
-from aeon.types import TypeException, Type, TypingContext, BasicType, AbstractionType, TypeAbstraction, \
-    IntersectionType, UnionType, TypeApplication, RefinedType, top, bottom, find_basic_types
+from aeon.types import ExistentialType, TypeException, Type, TypingContext, BasicType, AbstractionType, TypeAbstraction, \
+    IntersectionType, UnionType, TypeApplication, RefinedType, top, bottom, find_basic_types, shape
 
+from aeon.typechecker.ast_helpers import smt_not
+
+
+global counter
+counter = 0
 
 class UnificationError(Exception):
     pass
@@ -16,7 +21,6 @@ class VariableState(object):
     def __str__(self):
         return "var({} l={} u={})".format(self.name, self.lower_bounds, self.upper_bounds)
 
-
 def is_var(t:Type, constraints: Dict[str, VariableState]):
     return isinstance(t, BasicType) and t.name in constraints.keys()
 
@@ -24,12 +28,6 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type, constraints: Dict[str, Var
 
     if isinstance(t1, BasicType) and isinstance(t2, BasicType) and t1 == t2:
         pass
-    elif isinstance(t1, RefinedType) or isinstance(t2, RefinedType):
-        if isinstance(t1, RefinedType):
-            constrain(ctx, t1.type, t2, constraints)
-        if isinstance(t2, RefinedType):
-            constrain(ctx, t1, t2.type, constraints)
-
     elif is_var(t1, constraints) and is_var(t2, constraints):
         constraints[t1.name].upper_bounds.append(t2)
         constraints[t2.name].lower_bounds.append(t1)
@@ -43,7 +41,7 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type, constraints: Dict[str, Var
         constraints[t1.name].lower_bounds.append(replacement)
         constraints[t1.name].upper_bounds.append(replacement)
         constrain(ctx, t2.arg_type, k1, constraints)
-        constrain(ctx, k2, t2.return_type, constraints)
+        constrain(ctx.with_var(t2.arg_name, t2.arg_type), k2, t2.return_type, constraints)
 
     elif isinstance(t1, AbstractionType) and is_var(t2, constraints):
         k1 = BasicType(ctx.fresh_var())
@@ -54,7 +52,7 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type, constraints: Dict[str, Var
         constraints[t2.name].lower_bounds.append(replacement)
         constraints[t2.name].upper_bounds.append(replacement)
         constrain(ctx, k1, t1.arg_type, constraints)
-        constrain(ctx, t1.return_type, k2, constraints)
+        constrain(ctx.with_var(t1.arg_name, k1), t1.return_type, k2, constraints)
 
     elif is_var(t1, constraints):
         constraints[t1.name].upper_bounds.append(t2)
@@ -74,6 +72,42 @@ def constrain(ctx: TypingContext, t1: Type, t2: Type, constraints: Dict[str, Var
         constrain(ctx, t1.target, t2.target, constraints)
         constrain(ctx, t1.argument, t2.argument, constraints)  # TODO: variance?
 
+    elif isinstance(t1, ExistentialType):
+        constrain(ctx, t1.right, t2, constraints) #.with_var(t1.left_name, t1.left)
+
+    elif isinstance(t2, ExistentialType):
+        constrain(ctx, t1, t2.right, constraints) # .with_var(t2.left_name, t2.left) # TODO: is this correct?
+
+    elif isinstance(t1, IntersectionType):
+        if isinstance(t1.right, RefinedType):
+            talt = RefinedType(t1.right.name, shape(t2), smt_not(t1.right.cond))
+            constrain(ctx, t1.left, UnionType(t2, talt), constraints)
+        else:
+            constrain(ctx, t1.left, t2, constraints)
+
+        if isinstance(t1.left, RefinedType):
+            talt = RefinedType(t1.left.name, shape(t2), smt_not(t1.left.cond))
+            constrain(ctx, t1.right, UnionType(t2, talt), constraints)
+        else:
+            constrain(ctx, t1.right, t2, constraints)
+
+    elif isinstance(t2, UnionType):
+        constrain(ctx, t1, t2.left, constraints)
+        constrain(ctx, t1, t2.right, constraints)
+
+    elif isinstance(t1, IntersectionType):
+        constrain(ctx, t1.left, t2, constraints)
+        constrain(ctx, t1.right, t2, constraints)
+
+    elif isinstance(t2, UnionType):
+        constrain(ctx, t1, t2.left, constraints)
+        constrain(ctx, t1, t2.right, constraints)
+
+    elif isinstance(t1, RefinedType):
+        talt = RefinedType(t1.name, shape(t2), smt_not(t1.cond))
+        constrain(ctx, t1.type, UnionType(t2, talt), constraints)
+    elif isinstance(t2, RefinedType):
+        constrain(ctx, t1, t2.type, constraints)
     else:
         raise UnificationError("Unification Failed: {} <: {}".format(t1, t2) )
 

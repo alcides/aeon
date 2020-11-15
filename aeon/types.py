@@ -389,3 +389,27 @@ def find_basic_types(n):
     elif isinstance(n, ProductType):
         return rec(n.left) + rec(n.right)
     return n
+
+def shape(n:Type):
+    if isinstance(n, BasicType):
+        return n
+    elif isinstance(n, AbstractionType):
+        return AbstractionType(n.arg_name, shape(n.arg_type), shape(n.return_type))
+    elif isinstance(n, RefinedType):
+        return shape(n.type)
+    elif isinstance(n, TypeApplication) and isinstance(n.target, TypeAbstraction):
+        return shape(n.target.type)
+    elif isinstance(n, TypeApplication):
+        return TypeApplication(shape(n.target), shape(n.argument))
+    elif isinstance(n, TypeAbstraction):
+        return TypeAbstraction(n.name, n.kind, shape(n.type))
+    elif isinstance(n, UnionType):
+        return UnionType(shape(n.left), shape(n.right))
+    elif isinstance(n, IntersectionType):
+        return IntersectionType(shape(n.left), shape(n.right))
+    elif isinstance(n, ProductType):
+        return ProductType(n.left_name, shape(n.left), shape(n.right))
+    elif isinstance(n, ExistentialType):
+        return shape(n.right)
+    else:
+        raise Exception("Missing case in shape")
