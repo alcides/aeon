@@ -63,12 +63,18 @@ expression_fact : expression_b                           -> same
                 | expression_b "%" expression_fact       -> binop_mod
 
 
-expression_b : "(" expression ")"                           -> same
-             | expression_b "[" type "]"                    -> tapplication_e
-             | expression_b expression_i                      -> application_e
+
+expression_b : expression_simple "[" type "]"                    -> tapplication_e
              | "\\" ID ":" type "->" expression             -> abstraction_e
              | "\\" ID ":" kind "=>" expression             -> tabstraction_e
-             | expression_b "." ID                          -> attribute
+             | application                                  -> same
+
+
+application : application expression_simple                      -> application_e
+            | expression_simple                                  -> same
+
+expression_simple : "(" expression ")"                       -> same
+             | expression_simple "." ID                          -> attribute
              | "[[" type?  "]]"                                 -> hole
              | INTLIT                                           -> int_lit
              | FLOATLIT                                        -> float_lit

@@ -1,3 +1,4 @@
+from aeon.typechecker.substitutions import substitution_type_in_type
 from typing import List, Callable, Dict
 from functools import reduce
 from aeon.types import ExistentialType, TypeException, Type, TypingContext, BasicType, AbstractionType, TypeAbstraction, \
@@ -183,11 +184,17 @@ def unificationEq(ctx: TypingContext,
         type_variables1.append(v)
         type_kinds1[t1.name] = t1.kind
         t1 = t1.type
+    #print("t1", t1, variables_to_track)
     while isinstance(t2, TypeAbstraction):
-        v = VariableState(t2.name)
+        t2_new_name = str(t2.name) + "__" + ctx.fresh_type_var()
+        v = VariableState(t2_new_name)
         variables_to_track[v.name] = v
         type_variables2.append(v)
-        t2 = t2.type
+        type_kinds1[v.name] = t2.kind
+        #print("before:", t2.type)
+        #print("after", substitution_type_in_type(t2.type, BasicType(v.name), t2.name))
+
+        t2 = substitution_type_in_type(t2.type, BasicType(v.name), t2.name)
 
     constrain(ctx, t1, t2, variables_to_track)
     constrain(ctx, t2, t1, variables_to_track)

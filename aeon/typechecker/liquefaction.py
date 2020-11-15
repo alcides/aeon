@@ -1,8 +1,9 @@
+from aeon.libraries.stdlib import is_uninterpreted
 from dataclasses import dataclass, replace
 from typing import Optional, Callable
 
 from ..types import ProductType, Type, BasicType, RefinedType, AbstractionType, TypeApplication, TypeAbstraction, \
-    UnionType, IntersectionType, ExistentialType, TypeException, t_b, t_i, bottom, TypingContext, type_map
+    UnionType, IntersectionType, ExistentialType, TypeException, t_b, t_i, bottom, TypingContext, type_map, shape
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 
 from .substitutions import substitution_expr_in_expr, substitution_type_in_type, substitution_expr_in_type
@@ -58,14 +59,15 @@ def replace_abstraction_type(vname:str, t:Type, arg:Type):
 class LiqExprResult:
     expr: Optional[TypedNode]
     ty: Type
+    is_liquid: bool = False
 
 
 def liquefaction_expr_w(ctx:TypingContext, e:TypedNode) -> LiqExprResult:
     if isinstance(e, Literal):
         if type(e.value) == bool:
-            return LiqExprResult(Literal(e.value, t_b), RefinedType("_v", t_b, selfification("_v", e.value, t_b)))
+            return LiqExprResult(Literal(e.value, t_b), RefinedType("_v", t_b, selfification("_v", e.value, t_b)), True)
         elif type(e.value) == int:
-            return LiqExprResult(Literal(e.value, t_i), RefinedType("_v", t_i, selfification("_v", e.value, t_i)))
+            return LiqExprResult(Literal(e.value, t_i), RefinedType("_v", t_i, selfification("_v", e.value, t_i)), True)
         else:
             return LiqExprResult(Literal(e.value, e.type), e.type) # TODO: String and Double
     elif isinstance(e, Var):
@@ -73,7 +75,7 @@ def liquefaction_expr_w(ctx:TypingContext, e:TypedNode) -> LiqExprResult:
         if isinstance(t, BasicType): # TODO: not a function!
             return LiqExprResult(Var(e.name), RefinedType("_v", t, selfification_var("_v", e.name)))
         elif e.name in ctx.uninterpreted_functions: # uninterpreted
-            return LiqExprResult(Var(e.name), t)
+            return LiqExprResult(Var(e.name), t, True)
         else:
             return LiqExprResult(None, t)
     elif isinstance(e, If):
@@ -87,19 +89,22 @@ def liquefaction_expr_w(ctx:TypingContext, e:TypedNode) -> LiqExprResult:
         vname = ctx.fresh_var()
         if isinstance(e.target, Var):
             vname += "_" + str(e.target.name)
-            print("YELLOW F:", e.target.name)
+            #print("YELLOW F:", e.target.name)
         if isinstance(e.target, Application) and isinstance(e.target.target, Var):
             vname += "_" + str(e.target.target.name)
         #if vname.endswith("_fresh_300"):
         #    raise Exception(e1, e2) # TODO
-        print("will replace in vname", vname)
-        print("FTYPE:", e1.ty)
-        print("ATYPE", e2.ty)
+        #print("will replace in vname", vname)
+        #print("FTYPE:", e1.ty)
+        #print("ATYPE", e2.ty)
         nt = replace_abstraction_type(vname, e1.ty, e2.ty)
-        print("RETURN:", nt)
+        #print("RETURN:", nt)
 
         if not nt:
             raise Exception("Not implemented yet") # What (T:* -> T) [x:U -> V]
+
+        if e1.is_liquid and e2.is_liquid:
+            return LiqExprResult(Application(e1.expr, e2.expr), shape(nt), True)
 
         if e1.expr:
             if not e2.expr:

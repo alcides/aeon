@@ -10,15 +10,16 @@ ty = typee.parse
 ki = kind.parse
 
 conversions = [
-    ("! (! a)", "a"),
-    ("! (2 > 1)", "(2 <= 1)"),
-    ("(a --> b)", "((! a) || b)"),
-    ("((a || (b && c)))", "((a || b) && (a || c))"),
-    ("((b && c) || a)", "((b || a) && (c || a))"),
-    ("((a && (b || c)))", "((a && (b || c)))"),
-    ("! (a == b)", "(a != b)"),
-    ("! (a != b)", "(a == b)"),
-    ("((!a) --> b)", "(a || b)"),
+    ("smtGt 2 1", "(smtGt 2) 1"),
+    ("smtNot (smtNot a)", "a"),
+    ("smtNot (smtGt 2 1)", "(smtLte 2 1)"),
+    ("(a --> b)", "(smtOr (smtNot a) b)"),
+    ("smtOr a (smtAnd b c)", "smtAnd (smtOr a b) (smtOr a c)"),
+    ("smtOr (smtAnd b c) a", "smtAnd (smtOr b a) (smtOr c a)"),
+    ("smtAnd a (smtOr b c)", "smtAnd a (smtOr b c)"),
+    ("smtNot (smtEq a b)", "(smtIneq a b)"),
+    ("smtNot (smtIneq a b)", "(smtEq a b)"),
+    ("(smtNot a) --> b", "(smtOr a b)"),
     ("a", "a"),
 ]
 

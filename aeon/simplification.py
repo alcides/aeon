@@ -1,126 +1,133 @@
-from typing import Tuple
+from aeon.typechecker.substitutions import substitution_expr_in_expr
+from typing import Callable, Tuple
 
 from .ast import *
+from .typechecker.ast_helpers import smt_true, is_unop, mk_unop, is_binop, binop_args, mk_binop, is_t_binop, t_binop_args, mk_t_binop, smt_and, smt_or, smt_not
 
 
-def is_unop(a: TypedNode, name: str = "") -> bool:
-    return isinstance(a, Application) and isinstance(
-        a.target, Var) and (name != "" and a.target.name == name)
 
+def map_expr(f:Callable[[Any, TypedNode], Optional[TypedNode]], n:TypedNode) -> TypedNode:
+    rec = lambda x: map_expr(f, x)
+    nn = f(rec, n)
+    if nn:
+        return nn
+    elif isinstance(n, Application):
+        return Application(rec(n.target), rec(n.argument))
+    elif isinstance(n, TApplication):
+        return TApplication(rec(n.target), n.argument)
+    elif isinstance(n, If):
+        return If(rec(n.cond), rec(n.then), rec(n.otherwise))
+    elif isinstance(n, Abstraction):
+        return Abstraction(n.arg_name, n.arg_type, rec(n.body))
+    elif isinstance(n, TAbstraction):
+        return TAbstraction(n.type, n.kind, rec(n.body))
+    return n
 
-def mk_unop(t: str, a: TypedNode):
-    return Application(Var(t), a)
-
-
-def is_binop(a: TypedNode, name: str = "") -> bool:
-    return isinstance(
-        a, Application) and isinstance(a.target, Application) and isinstance(
-            a.target.target, Var) and (name != ""
-                                       and a.target.target.name == name)
-
-
-def binop_args(a: TypedNode) -> Tuple[TypedNode, TypedNode]:
-    assert (isinstance(a, Application) and isinstance(a.target, Application))
-    return (a.target.argument, a.argument)
-
-
-def mk_binop(t: str, a: TypedNode, b: TypedNode):
-    return Application(Application(Var(t), a), b)
-
-
-def is_t_binop(a: TypedNode, name: str = "") -> bool:
-    return isinstance(
-        a, Application) and isinstance(a.target, Application) and isinstance(
-            a.target.target, TApplication) and isinstance(
-                a.target.target.target,
-                Var) and (name != "" and a.target.target.target.name == name)
-
-
-def t_binop_args(a: TypedNode) -> Tuple[TypedNode, TypedNode, Type]:
-    assert (isinstance(a, Application) and isinstance(a.target, Application)
-            and isinstance(a.target.target, TApplication)
-            and isinstance(a.target.target.target, Var))
-    return (a.target.argument, a.argument, a.target.target.argument)
-
-
-def mk_t_binop(name: str, t: Type, a: TypedNode, b: TypedNode):
-    return Application(Application(TApplication(Var(name), t), a), b)
-
-
-def to_nnf(n: TypedNode) -> TypedNode:
+def to_nnf_helper(rec, n:TypedNode) -> Optional[TypedNode]:
     if is_binop(n, "-->"):
         (a, b) = binop_args(n)
-        return to_nnf(mk_binop("||", mk_unop("!", a), b))
-    elif is_unop(n, "!"):
+        return rec(smt_or(smt_not(a), rec(b)))
+    elif is_unop(n, "smtNot"):
         assert (isinstance(n, Application))
-        if is_binop(n.argument, "&&"):
+        if is_binop(n.argument, "smtAnd"):
             (a, b) = binop_args(n.argument)
-            return cnf_simplify(
-                mk_binop("||", to_nnf(mk_unop("!", a)), to_nnf(mk_unop("!",
-                                                                       b))))
-        elif is_binop(n.argument, "||"):
+            return smt_or(rec(smt_not(a)),
+                          rec(smt_not(b)))
+        elif is_binop(n.argument, "smtOr"):
             (a, b) = binop_args(n.argument)
-            return mk_binop("&&", to_nnf(mk_unop("!", a)),
-                            to_nnf(mk_unop("!", b)))
-    elif isinstance(n, Application):
-        return Application(to_nnf(n.target), to_nnf(n.argument))
-    if isinstance(n, TApplication):
-        return TApplication(to_nnf(n.target), n.argument)
-    return n
+            return smt_and(rec(smt_not(a)),
+                           rec(smt_not(b)))
+    return None
+
+def to_nnf(n: TypedNode) -> TypedNode:
+    return map_expr(to_nnf_helper, n)
 
 
-def to_cnf(n: TypedNode) -> TypedNode:
-    n = to_nnf(n)
-    if is_binop(n, "||"):
+def to_cnf_helper(rec, n:TypedNode) -> Optional[TypedNode]:
+    if is_binop(n, "smtEq"):
+        (a, b) = binop_args(n)
+        if a == b:
+            return smt_true
+    elif is_binop(n, "smtAnd"):
+        (a, b) = binop_args(n)
+        (ap, bp) = (rec(a), rec(b))
+        if is_binop(ap, "smtAnd"):
+            (c, d) = binop_args(ap)
+            return smt_and(c, smt_and(d, bp))
+        return smt_and(ap, bp)
+    elif is_binop(n, "smtOr"):
         assert (isinstance(n, Application))
         (a, b) = binop_args(n)
-        if is_binop(a, "&&"):
+        if is_binop(a, "smtAnd"):
             assert (isinstance(a, Application))
             (c, d) = binop_args(a)
-            na = mk_binop("||", c, b)
-            nb = mk_binop("||", d, b)
-            return to_cnf(mk_binop("&&", na, nb))
-        if is_binop(b, "&&"):
+            na = mk_binop("smtOr", c, b)
+            nb = mk_binop("smtOr", d, b)
+            return rec(mk_binop("smtAnd", na, nb))
+        if is_binop(b, "smtAnd"):
             assert (isinstance(b, Application))
             (c, d) = binop_args(b)
-            na = mk_binop("||", a, c)
-            nb = mk_binop("||", a, d)
-            return to_cnf(mk_binop("&&", na, nb))
-    if isinstance(n, Application):
-        return Application(to_cnf(n.target), to_cnf(n.argument))
-    if isinstance(n, TApplication):
-        return TApplication(to_cnf(n.target), n.argument)
-    return n
+            na = mk_binop("smtOr", a, c)
+            nb = mk_binop("smtOr", a, d)
+            return rec(mk_binop("smtAnd", na, nb))
+    return None
 
+def to_cnf(n: TypedNode) -> TypedNode:
+    return map_expr(to_cnf_helper, n)
 
-def cnf_simplify(n: TypedNode) -> TypedNode:
-    n = to_cnf(n)
-    if is_unop(n, "!"):
+def invert_comparisons_helper(rec, n:TypedNode) -> Optional[TypedNode]:
+    if is_unop(n, "smtNot"):
+
         assert (isinstance(n, Application))
-        if is_unop(n.argument, "!"):
+        if is_unop(n.argument, "smtNot"):
             assert (isinstance(n.argument, Application))
-            return cnf_simplify(n.argument.argument)
+            return rec(n.argument.argument)
 
         opposites = [
-            ('<=', '>'),
-            ('>=', '<'),
-            ('>', '<='),
-            ('<', '>='),
-            ('!=', '=='),
-            ('==', '!='),
+            ('smtLte', 'smtGt'),
+            ('smtGte', 'smtLt'),
+            ('smtGt', 'smtLte'),
+            ('smtLt', 'smtGte'),
+            ('smtIneq', 'smtEq'),
+            ('smtEq', 'smtIneq'),
         ]
         for (r, op) in opposites:
             if is_t_binop(n.argument, r):
                 (a, b, t) = t_binop_args(n.argument)
+                (a, b) = (rec(a), rec(b))
                 return mk_t_binop(op, t, a, b)
             elif is_binop(n.argument, r):
-                (a, b) = binop_args(n.argument)
-                return mk_binop(op, a, b)
 
-    if isinstance(n, Application):
-        return Application(cnf_simplify(n.target), cnf_simplify(n.argument))
-    if isinstance(n, TApplication):
-        return TApplication(cnf_simplify(n.target), n.argument)
+                (a, b) = binop_args(n.argument)
+                (a, b) = (rec(a), rec(b))
+                return mk_binop(op, a, b)
+    return None
+
+def invert_comparisons(n: TypedNode) -> TypedNode:
+    return map_expr(invert_comparisons_helper, n)
+
+def remove_eqs(n:TypedNode, forbidden_variables:List[str]) -> TypedNode:
+    comp = n
+    will_replace = None
+    while is_binop(comp, "smtAnd"):
+        (a, b) = binop_args(comp)
+        if is_binop(a, "smtEq"):
+            (c, d) = binop_args(a)
+            if isinstance(c, Var) and c.name not in forbidden_variables:
+                will_replace = (c.name,d)
+                break
+            elif isinstance(d, Var) and d.name not in forbidden_variables:
+                will_replace = (d.name, c)
+                break
+        comp = b
+    if will_replace:
+        return remove_eqs(substitution_expr_in_expr(n, will_replace[1], will_replace[0]), forbidden_variables)
+    return n
+
+def cnf_simplify(n: TypedNode) -> TypedNode:
+    n = to_nnf(n)
+    n = to_cnf(n)
+    n = invert_comparisons(n)
     return n
 
 

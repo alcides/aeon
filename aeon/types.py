@@ -125,6 +125,13 @@ class TypingContext(object):
     def __contains__(self, n):
         return n in self.variables.keys() or n in self.type_variables.keys()
 
+    def fresh_type_var(self):
+        global fresh_var_counter
+        fresh_var_counter += 1
+        k = "_fresh_t_{}".format(fresh_var_counter)
+        assert (k not in self.type_variables.keys())
+        return k
+
     def fresh_var(self):
         global fresh_var_counter
         fresh_var_counter += 1
@@ -362,11 +369,35 @@ def type_map(pred, f, n):
     elif isinstance(n, IntersectionType):
         return IntersectionType(rec(n.left), rec(n.right))
     elif isinstance(n, ExistentialType):
-        return ExistentialType(n.left_name, n.left, rec(n.left))
+        return ExistentialType(n.left_name, n.left, rec(n.right))
     elif isinstance(n, ProductType):
-        return ProductType(n.left_name, n.left, n.left)
+        return ProductType(n.left_name, n.left, n.right)
     return n
 
+
+
+def apply_rec(pred, f, n):
+    print(" ....> 1. n:", n)
+    rec = lambda n1: type_map(pred, f, n1)
+    if pred(n):
+        return f(rec, n)
+    if isinstance(n, AbstractionType):
+        return AbstractionType(n.arg_name, rec(n.arg_type), rec(n.return_type))
+    elif isinstance(n, RefinedType):
+        return RefinedType(n.name, rec(n.type), n.cond)
+    elif isinstance(n, TypeAbstraction):
+        return TypeAbstraction(n.name, n.kind, rec(n.type))
+    elif isinstance(n, TypeApplication):
+        return TypeApplication(rec(n.target), n.argument)
+    elif isinstance(n, UnionType):
+        return UnionType(rec(n.left), rec(n.right))
+    elif isinstance(n, IntersectionType):
+        return IntersectionType(rec(n.left), rec(n.right))
+    elif isinstance(n, ExistentialType):
+        return ExistentialType(n.left_name, rec(n.left), rec(n.right))
+    elif isinstance(n, ProductType):
+        return ProductType(n.left_name, rec(n.left), rec(n.right))
+    return n
 
 def find_basic_types(n):
     rec = lambda n1: find_basic_types(n1)

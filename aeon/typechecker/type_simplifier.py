@@ -1,23 +1,25 @@
-from aeon.typechecker.unification import UnificationError
 from typing import List, Optional
-from aeon.free_variables import free_variables_in_type
+
+from ..typechecker.unification import UnificationError
+from ..free_variables import free_variables_in_type
 from ..types import ExistentialType, TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate, bottom, top
+    TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, apply_rec, star, TypeException, t_b, t_delegate, bottom, top, type_map
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
+from ..simplification import cnf_simplify, remove_eqs
+from ..typechecker.ast_helpers import smt_true, smt_and, smt_eq, smt_or
 
 from .substitutions import substitution_expr_in_expr, substitution_type_in_type, substitution_expr_in_type
 from .exceptions import TypingException
 
-smt_true = Literal(True, t_b)
-smt_and = lambda x, y: x == smt_true and y or (
-    y == smt_true and x or Application(Application(Var("smtAnd"), x), y))
-smt_or = lambda x, y: x == smt_true and smt_true or (
-    y == smt_true and smt_true or Application(Application(Var("smtOr"), x), y))
 
+def further_reduce_type(ctx:TypingContext, t:Type):
+    return apply_rec(lambda x: isinstance(x, RefinedType), lambda rec, x: RefinedType(x.name, rec(x.type), cnf_simplify(remove_eqs(cnf_simplify(x.cond), [x.name]))), t)
 
 def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = None) -> Type:
     # Flatten refined types
     nt: Type
+
+    print("start", t)
 
     if not variables:
         vars_in_ctx = []
@@ -29,19 +31,20 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
 
     if isinstance(t, RefinedType):
         inner = reduce_type(ctx, t.type)
+        t_cond = t.cond
         if isinstance(inner, RefinedType):
             new_cond = smt_and(
-                t.cond,
+                t_cond,
                 substitution_expr_in_expr(inner.cond, Var(t.name), inner.name))
             nt = RefinedType(t.name, inner.type, new_cond)
             return reduce_type(ctx, nt)
-        elif isinstance(inner, BasicType) and t.cond == smt_true:
+        elif isinstance(inner, BasicType) and t_cond == smt_true:
             return inner
         elif isinstance(inner, ExistentialType):
-            return reduce_type(ctx, ExistentialType(inner.left_name, inner.left, RefinedType(t.name, inner.right, t.cond)))
+            return reduce_type(ctx, ExistentialType(inner.left_name, inner.left, RefinedType(t.name, inner.right, t_cond)))
 
         else:
-            return RefinedType(t.name, inner, t.cond)
+            return RefinedType(t.name, inner, t_cond)
 
     elif isinstance(t, AbstractionType):
         at = reduce_type(ctx, t.arg_type)
@@ -104,6 +107,7 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             return UnionType(left, right)
 
     elif isinstance(t, IntersectionType):
+        print("HE", t)
         left = reduce_type(ctx, t.left)
         right = reduce_type(ctx, t.right)
         if left == top:
@@ -117,7 +121,7 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             if left.name == right.name:
                 return left
             else:
-                IntersectionType(left, right)
+                return IntersectionType(left, right)
         elif isinstance(left, RefinedType) and \
             isinstance(right, BasicType):
             if left.type == right:
@@ -146,22 +150,13 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             """ Ex:U.V | T -> Ex:U. (V | T) """
             nt = ExistentialType(left.left_name, left.left, IntersectionType(left.right, right))
             return reduce_type(ctx, nt)
-        elif isinstance(right, TypeAbstraction):
-            from aeon.typechecker.unification import unificationEq, UnificationError
-            try:
-                k = unificationEq(ctx, left, right)
-                return reduce_type(ctx, k)
-            except UnificationError as e:
-                raise e
-                return IntersectionType(left, right)
-        elif isinstance(left, TypeAbstraction):
+        elif isinstance(right, TypeAbstraction) or isinstance(left, TypeAbstraction):
             from aeon.typechecker.unification import unificationEq, UnificationError
             try:
                 k = unificationEq(ctx, right, left)
                 return reduce_type(ctx, k)
 
             except UnificationError as e:
-                raise e
                 return IntersectionType(left, right)
         else:
             return IntersectionType(left, right)
@@ -183,6 +178,7 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             return reduce_type(ctx, ExistentialType(t.left.left_name, t.left.left, ExistentialType(t.left_name, t.left.right, t.right)))
         else:
             return ExistentialType(t.left_name, left, right)
-
-
-    raise TypingException("Simplifier missing rule:", type(t))
+    else:
+        print("LLOOP", t)
+    print("LLO", t)
+    raise TypingException("Simplifier missing rule:", type(t), t)

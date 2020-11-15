@@ -4,7 +4,7 @@ from ..frontend_core import expr, typee, kind
 from ..types import star, TypingContext, Kind
 from ..typechecker.liquefaction import liquefy
 from ..typechecker.subtyping import is_subtype
-from ..typechecker.type_simplifier import reduce_type
+from ..typechecker.type_simplifier import further_reduce_type, reduce_type
 
 ex = expr.parse
 ty = typee.parse
@@ -31,8 +31,12 @@ class TestLiquefaction(unittest.TestCase):
 
         t = reduce_type(self.ctx, ty(ref))
         conv = liquefy(self.ctx, t)
-        print("CONV: ", conv, "FROM", ref)
-        self.assertEqual(ty(expected), conv)
+        print(" 1: converstion", conv)
+        convAlt = reduce_type(self.ctx, conv)
+        print(" 2: converstion", convAlt)
+        convFurther = further_reduce_type(self.ctx, convAlt)
+        print("CONV: ", convFurther, "FROM", ref)
+        self.assertEqual(ty(expected), convFurther)
         #self.assertTrue(is_subtype(self.ctx, conv, ty(expected)) )
 
     # Literals
