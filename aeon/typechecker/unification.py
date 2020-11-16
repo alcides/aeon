@@ -2,13 +2,9 @@ from aeon.typechecker.substitutions import substitution_type_in_type
 from typing import List, Callable, Dict
 from functools import reduce
 from aeon.types import ExistentialType, TypeException, Type, TypingContext, BasicType, AbstractionType, TypeAbstraction, \
-    IntersectionType, UnionType, TypeApplication, RefinedType, top, bottom, find_basic_types, shape
+    IntersectionType, UnionType, TypeApplication, RefinedType, top, bottom, find_basic_types, shape, star
 
 from aeon.typechecker.ast_helpers import smt_not
-
-
-global counter
-counter = 0
 
 class UnificationError(Exception):
     pass
@@ -18,6 +14,7 @@ class VariableState(object):
         self.lower_bounds = []
         self.upper_bounds = []
         self.name = str(name)
+        self.kind = star # TODO: check kinds in Variable States
 
     def __str__(self):
         return "var({} l={} u={})".format(self.name, self.lower_bounds, self.upper_bounds)
@@ -136,11 +133,7 @@ def collapse(t: BasicType, explored: List[VariableState], polarity : bool, const
     return r
 
 
-counter = 0
-def fresh_type_inference_var():
-    global counter
-    counter += 1
-    return "fresh_{}".format(counter)
+
 
 def unification(ctx: TypingContext,
                 t1: Type,
@@ -184,16 +177,13 @@ def unificationEq(ctx: TypingContext,
         type_variables1.append(v)
         type_kinds1[t1.name] = t1.kind
         t1 = t1.type
-    #print("t1", t1, variables_to_track)
+
     while isinstance(t2, TypeAbstraction):
         t2_new_name = str(t2.name) + "__" + ctx.fresh_type_var()
         v = VariableState(t2_new_name)
         variables_to_track[v.name] = v
         type_variables2.append(v)
         type_kinds1[v.name] = t2.kind
-        #print("before:", t2.type)
-        #print("after", substitution_type_in_type(t2.type, BasicType(v.name), t2.name))
-
         t2 = substitution_type_in_type(t2.type, BasicType(v.name), t2.name)
 
     constrain(ctx, t1, t2, variables_to_track)
@@ -202,6 +192,6 @@ def unificationEq(ctx: TypingContext,
     l2 = [ collapse(t, [], True, variables_to_track) for t in type_variables2 ]
     r = reduce( lambda x, y: TypeApplication(x, y), l1, original_t1 )
     bts = find_basic_types(r)
-    variables_to_abstract = [(t, type_kinds1[t]) for t in variables_to_track.keys() if t in bts]
+    variables_to_abstract = [(t, variables_to_track[t].kind) for t in variables_to_track.keys() if t in bts]
     r = reduce( lambda y, a: TypeAbstraction(a[0], a[1], y), variables_to_abstract, r)
     return r

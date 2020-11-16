@@ -41,10 +41,10 @@ class TreeToCore(Transformer):
         return AbstractionType(str(args[0]), args[1], args[2])
 
     def tabstraction_t(self, args):
-        return TypeAbstraction(*args)
+        return TypeAbstraction(str(args[0]), args[1], args[2])
 
     def simple_t(self, args):
-        return BasicType(*args)
+        return BasicType(str(args[0]))
 
     def tapplication_t(self, args):
         return TypeApplication(*args)
@@ -56,7 +56,7 @@ class TreeToCore(Transformer):
         return IntersectionType(args[0], args[1])
 
     def product_t(self, args):
-        return ProductType(args[0], args[1], args[2])
+        return ProductType(str(args[0]), args[1], args[2])
 
     # Expressions
 
@@ -129,9 +129,11 @@ class TreeToCore(Transformer):
         return Application(*args)
 
     def abstraction_e(self, args):
+        args[0] = str(args[0])
         return Abstraction(*args)
 
     def tabstraction_e(self, args):
+        args[0] = str(args[0])
         return TAbstraction(*args)
 
     def hole(self, args):

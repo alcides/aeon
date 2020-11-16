@@ -4,7 +4,7 @@ from ..frontend_core import expr, typee, kind
 from ..types import star, TypingContext, Kind
 from ..typechecker.liquefaction import liquefy
 from ..typechecker.subtyping import is_subtype
-from ..typechecker.type_simplifier import further_reduce_type, reduce_type
+from ..typechecker.type_simplifier import reduce_type, strong_reduce
 
 ex = expr.parse
 ty = typee.parse
@@ -31,13 +31,8 @@ class TestLiquefaction(unittest.TestCase):
 
         t = reduce_type(self.ctx, ty(ref))
         conv = liquefy(self.ctx, t)
-        print(" 1: converstion", conv)
-        convAlt = reduce_type(self.ctx, conv)
-        print(" 2: converstion", convAlt)
-        convFurther = further_reduce_type(self.ctx, convAlt)
-        print("CONV: ", convFurther, "FROM", ref)
-        self.assertEqual(ty(expected), convFurther)
-        #self.assertTrue(is_subtype(self.ctx, conv, ty(expected)) )
+        convSimpl = strong_reduce(self.ctx, conv)
+        self.assertEqual(ty(expected), convSimpl)
 
     # Literals
     def test_simple(self):
@@ -48,6 +43,13 @@ class TestLiquefaction(unittest.TestCase):
                         '{ x:Boolean | ((smtEq 1) 2) }')
 
     def test_minimal(self):
+        self.assert_liq(
+            '{x:Boolean | not true}',
+            '{x:Boolean | false}',
+            extra_ctx=[('not', "(a:Boolean) -> {y:Boolean | (smtEq y) (smtNot a)}")]
+        )
+
+    def test_minimal2(self):
         self.assert_liq(
             '{x:Boolean | not (not true)}',
             'Boolean',
@@ -65,12 +67,16 @@ class TestLiquefaction(unittest.TestCase):
                         "(x:Integer) -> { y:Boolean | ((smtEq y) false) }")])
 
     def test_middle2(self):
-        self.assert_liq('{ x:Integer | ((smtEq (f 3)) x) }',
+        self.assert_liq('{ x:Integer | (f 3) == x }',
                         '{ x:Integer | ((smtGt x) 3) }',
                         extra_ctx=[
                             ("f",
                              "(k:Integer) -> { y:Integer | ((smtGt y) k) }")
                         ])
+
+    def test_refinement_cond(self):
+        self.assert_liq('{ y:Integer | a }', 'Integer', extra_ctx=[("a", "{k:Boolean|smtEq k true}")])
+        self.assert_liq('{ y:Integer | a }', '{ y:Integer | false}', extra_ctx=[("a", "{k:Boolean|smtEq k false}")])
 
     def test_complex(self):
         pass

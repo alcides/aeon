@@ -63,17 +63,43 @@ def t_binop_args(a: TypedNode) -> Tuple[TypedNode, TypedNode, Type]:
 def mk_t_binop(name: str, t: Type, a: TypedNode, b: TypedNode):
     return Application(Application(TApplication(Var(name), t), a), b)
 
-
-
 smt_true = Literal(True, t_b)
 smt_false = Literal(False, t_b)
-smt_and = lambda x, y: x == smt_true and y or (
-    y == smt_true and x or mk_binop("smtAnd", x, y))
-smt_or = lambda x, y: x == smt_true and smt_true or (
-    y == smt_true and smt_true or mk_binop("smtOr", x, y))
 
-smt_eq = lambda x, y: mk_binop("smtEq", x, y)
+def smt_and(x, y):
+    if x == smt_false or y == smt_false:
+        return smt_false
+    elif x == smt_true:
+        return y
+    elif y == smt_true:
+        return x
+    else:
+        return mk_binop("smtAnd", x, y)
 
-smt_not = lambda x: x == smt_true and smt_false or (x == smt_true and smt_false or mk_unop("smtNot", x))
+def smt_or(x, y):
+    if x == smt_true or y == smt_true:
+        return smt_true
+    elif x == smt_false:
+        return y
+    elif y == smt_false:
+        return x
+    else:
+        return mk_binop("smtOr", x, y)
+
+def smt_eq(x, y):
+    if x == y:
+        return smt_true
+    elif x == smt_true and y == smt_false:
+        return smt_false
+    else:
+        return mk_binop("smtEq", x, y)
+
+def smt_not(x):
+    if x == smt_true:
+        return smt_false
+    elif x == smt_false:
+        return smt_true
+    else:
+        return mk_unop("smtNot", x)
 
 

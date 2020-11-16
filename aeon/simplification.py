@@ -2,7 +2,7 @@ from aeon.typechecker.substitutions import substitution_expr_in_expr
 from typing import Callable, Tuple
 
 from .ast import *
-from .typechecker.ast_helpers import smt_true, is_unop, mk_unop, is_binop, binop_args, mk_binop, is_t_binop, t_binop_args, mk_t_binop, smt_and, smt_or, smt_not
+from .typechecker.ast_helpers import smt_eq, smt_true, is_unop, mk_unop, is_binop, binop_args, mk_binop, is_t_binop, t_binop_args, mk_t_binop, smt_and, smt_or, smt_not
 
 
 
@@ -37,6 +37,8 @@ def to_nnf_helper(rec, n:TypedNode) -> Optional[TypedNode]:
             (a, b) = binop_args(n.argument)
             return smt_and(rec(smt_not(a)),
                            rec(smt_not(b)))
+        else:
+            return smt_not(rec(n.argument))
     return None
 
 def to_nnf(n: TypedNode) -> TypedNode:
@@ -46,8 +48,11 @@ def to_nnf(n: TypedNode) -> TypedNode:
 def to_cnf_helper(rec, n:TypedNode) -> Optional[TypedNode]:
     if is_binop(n, "smtEq"):
         (a, b) = binop_args(n)
+        (a, b) = (rec(a), rec(b))
         if a == b:
             return smt_true
+        else:
+            return smt_eq(a, b)
     elif is_binop(n, "smtAnd"):
         (a, b) = binop_args(n)
         (ap, bp) = (rec(a), rec(b))
@@ -106,20 +111,30 @@ def invert_comparisons_helper(rec, n:TypedNode) -> Optional[TypedNode]:
 def invert_comparisons(n: TypedNode) -> TypedNode:
     return map_expr(invert_comparisons_helper, n)
 
+
+def remove_eqs_helper(n:TypedNode, forbidden_variables:List[str]) -> Optional[Tuple[str, TypedNode]]:
+    if is_binop(n, "smtEq"):
+        (c, d) = binop_args(n)
+        if c == d:
+            return None
+        elif isinstance(c, Var) and c.name not in forbidden_variables:
+            return (c.name,d)
+        elif isinstance(d, Var) and d.name not in forbidden_variables:
+            return (d.name, c)
+    return None
+
 def remove_eqs(n:TypedNode, forbidden_variables:List[str]) -> TypedNode:
     comp = n
     will_replace = None
     while is_binop(comp, "smtAnd"):
         (a, b) = binop_args(comp)
-        if is_binop(a, "smtEq"):
-            (c, d) = binop_args(a)
-            if isinstance(c, Var) and c.name not in forbidden_variables:
-                will_replace = (c.name,d)
-                break
-            elif isinstance(d, Var) and d.name not in forbidden_variables:
-                will_replace = (d.name, c)
-                break
+        will_replace = remove_eqs_helper(a, forbidden_variables)
+        if will_replace:
+            break
         comp = b
+    if not will_replace:
+        will_replace = remove_eqs_helper(comp, forbidden_variables)
+
     if will_replace:
         return remove_eqs(substitution_expr_in_expr(n, will_replace[1], will_replace[0]), forbidden_variables)
     return n

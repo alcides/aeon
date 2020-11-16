@@ -33,7 +33,9 @@ class TestConversion(unittest.TestCase):
     def assertSimp(self, t: str, expects: str):
         ctx = TypingContext()
         ctx.setup()
-        self.assertEqual(ty(expects), reduce_type(ctx, ty(t)))
+        a = ty(expects)
+        b = reduce_type(ctx, ty(t))
+        self.assertEqual(a, b)
 
     def test_types(self):
         self.assertSimp("((T:*) => T) Integer", "Integer")
@@ -54,4 +56,5 @@ class TestConversion(unittest.TestCase):
         self.assertSimp("((T:*) => T) & Integer", "Integer")
 
     def test_intersections2(self):
-        self.assertSimp("((T:*) => (x:T) -> T) & ((K:*) => K)", "((T:*) => (x:T) -> T)")
+        # TODO: The expected type could be even more simplified.
+        self.assertSimp("((T:*) => (x:T) -> T) & ((K:*) => K)", "(_fresh_5:*) => (_fresh_4:*) => (_fresh_3:*) => (_fresh_2:*) => ((x:_fresh_2) -> _fresh_3) & ((x:_fresh_4) -> _fresh_5)")

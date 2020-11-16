@@ -21,6 +21,13 @@ class TypeException(Exception):
 global fresh_var_counter
 fresh_var_counter = 0
 
+global alpha_counter
+alpha_counter = 0
+
+def get_next_alpha_counter():
+    global alpha_counter
+    alpha_counter += 1
+    return alpha_counter
 
 class TypingContext(object):
     def __init__(self):
@@ -128,14 +135,14 @@ class TypingContext(object):
     def fresh_type_var(self):
         global fresh_var_counter
         fresh_var_counter += 1
-        k = "_fresh_t_{}".format(fresh_var_counter)
+        k = "_@{}".format(fresh_var_counter)
         assert (k not in self.type_variables.keys())
         return k
 
     def fresh_var(self):
         global fresh_var_counter
         fresh_var_counter += 1
-        k = "_fresh_{}".format(fresh_var_counter)
+        k = "_#{}".format(fresh_var_counter)
         assert (k not in self)
         return k
 
@@ -216,25 +223,31 @@ class AbstractionType(Type):
                                         self.return_type)
 
     def __eq__(self, o):
+        from .typechecker.substitutions import substitution_expr_in_type
+        from .ast import Var
+        new_name = Var("x_eq_{}".format(get_next_alpha_counter()))
         return type(self) == type(o) \
-            and self.arg_name == o.arg_name \
             and self.arg_type == o.arg_type \
-            and self.return_type == o.return_type
+            and substitution_expr_in_type(self.return_type, new_name, self.arg_name) == \
+                 substitution_expr_in_type(o.return_type, new_name, o.arg_name)
 
 
 class RefinedType(Type):
     """ x:T where U """
-    def __init__(self, name: str, type: Type, cond):  # : Node
+    def __init__(self, name: str, type: Type, cond):
         assert(type is not None)
         self.name = name
         self.type = type
         self.cond = cond
 
     def __eq__(self, o):
+        from .typechecker.substitutions import substitution_expr_in_expr
+        from .ast import Var
+        new_name = Var("x_eq_{}".format(get_next_alpha_counter()))
         return type(self) == type(o) \
-            and self.name == o.name \
             and self.type == o.type \
-            and self.cond == o.cond
+            and substitution_expr_in_expr(self.cond, new_name, self.name) \
+                == substitution_expr_in_expr(o.cond, new_name, o.name)
 
     def __str__(self):
         return "{{ {}:{} where {} }}".format(self.name, self.type, self.cond)
@@ -251,10 +264,12 @@ class TypeAbstraction(Type):
         return "({}:{} => {})".format(self.name, self.kind, self.type)
 
     def __eq__(self, o):
+        from .typechecker.substitutions import substitution_type_in_type
+        new_name = BasicType("T_eq_{}".format(get_next_alpha_counter))
         return type(self) == type(o) \
-            and self.name == o.name \
             and self.kind == o.kind \
-            and self.type == o.type
+            and substitution_type_in_type(self.type, new_name, self.name) \
+                == substitution_type_in_type(o.type, new_name, o.name)
 
 
 class TypeApplication(Type):
@@ -377,7 +392,6 @@ def type_map(pred, f, n):
 
 
 def apply_rec(pred, f, n):
-    print(" ....> 1. n:", n)
     rec = lambda n1: type_map(pred, f, n1)
     if pred(n):
         return f(rec, n)
@@ -404,7 +418,7 @@ def find_basic_types(n):
     if isinstance(n, BasicType):
         return [n.name]
     if isinstance(n, AbstractionType):
-        return rec(n.return_type)
+        return rec(n.arg_type) + rec(n.return_type)
     elif isinstance(n, RefinedType):
         return rec(n.type)
     elif isinstance(n, TypeAbstraction):

@@ -3,7 +3,7 @@ from typing import List, Optional
 from ..typechecker.unification import UnificationError
 from ..free_variables import free_variables_in_type
 from ..types import ExistentialType, TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
-    TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, apply_rec, star, TypeException, t_b, t_delegate, bottom, top, type_map
+    TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, apply_rec, find_basic_types, star, TypeException, t_b, t_delegate, bottom, top, type_map
 from ..ast import TypedNode, Application, Abstraction, TApplication, TAbstraction, Literal, Var, If, Hole
 from ..simplification import cnf_simplify, remove_eqs
 from ..typechecker.ast_helpers import smt_true, smt_and, smt_eq, smt_or
@@ -18,8 +18,6 @@ def further_reduce_type(ctx:TypingContext, t:Type):
 def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = None) -> Type:
     # Flatten refined types
     nt: Type
-
-    print("start", t)
 
     if not variables:
         vars_in_ctx = []
@@ -47,12 +45,15 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             return RefinedType(t.name, inner, t_cond)
 
     elif isinstance(t, AbstractionType):
+        n_arg_name = t.arg_name + "_abs_" + ctx.fresh_var()
         at = reduce_type(ctx, t.arg_type)
-        rt = reduce_type(ctx, t.return_type)
-        return AbstractionType(t.arg_name, at, rt)
+        rt = reduce_type(ctx, substitution_expr_in_type(t.return_type, Var(n_arg_name), t.arg_name))
+        return AbstractionType(n_arg_name, at, rt)
     elif isinstance(t, TypeAbstraction):
-        # TODO: remove TypeAbstraction if variable esta linha está mal por causa das variáveis!
-        return TypeAbstraction(t.name, t.kind, reduce_type(ctx, t.type, vars_in_ctx + [t.name]))
+        rt = reduce_type(ctx, t.type, vars_in_ctx + [t.name])
+        if t.name not in find_basic_types(rt):
+            return rt
+        return TypeAbstraction(t.name, t.kind, rt)
     elif isinstance(t, TypeApplication):
         tar = reduce_type(ctx, t.target)
         arg = reduce_type(ctx, t.argument)
@@ -60,8 +61,10 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             nt = substitution_type_in_type(tar.type, arg, tar.name)
             o = reduce_type(ctx, nt)
             return o
-        else:
+        elif isinstance(tar, BasicType) or isinstance(tar, TypeApplication):
             return TypeApplication(tar, arg)
+        else:
+            return tar # TODO: check if this is correct
     elif isinstance(t, UnionType):
         left = reduce_type(ctx, t.left)
         right = reduce_type(ctx, t.right)
@@ -107,7 +110,6 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             return UnionType(left, right)
 
     elif isinstance(t, IntersectionType):
-        print("HE", t)
         left = reduce_type(ctx, t.left)
         right = reduce_type(ctx, t.right)
         if left == top:
@@ -120,6 +122,8 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             isinstance(right, BasicType):
             if left.name == right.name:
                 return left
+            elif left.name not in vars_in_ctx and right.name not in vars_in_ctx:
+                return bottom
             else:
                 return IntersectionType(left, right)
         elif isinstance(left, RefinedType) and \
@@ -171,14 +175,35 @@ def reduce_type(ctx: TypingContext, t: Type, variables:Optional[List[str]] = Non
             return right
         elif isinstance(t.left, RefinedType):
             """ Ex:{y:T | c}.U -> Ex:T.{k:U | c[x|y]}  """
-            nr = RefinedType(ctx.fresh_var(), right, substitution_expr_in_expr(t.left.cond, Var(t.left_name), t.left.name))
-            return reduce_type(ctx, ExistentialType(t.left_name, t.left.type, reduce_type(ctx, nr)))
+            n_left_name = t.left_name.split("_#")[0] + ctx.fresh_var()
+            nright = substitution_expr_in_type(right, Var(n_left_name), t.left_name)
+
+            nr = RefinedType(ctx.fresh_var(), nright, substitution_expr_in_expr(t.left.cond, Var(n_left_name), t.left.name))
+            return reduce_type(ctx, ExistentialType(n_left_name, t.left.type, reduce_type(ctx, nr)))
         elif isinstance(t.left, ExistentialType):
             """ Ex:(Ey:Integer.T).U -> Ey:Integer.Ex:T.U """
-            return reduce_type(ctx, ExistentialType(t.left.left_name, t.left.left, ExistentialType(t.left_name, t.left.right, t.right)))
+            n_left_name = t.left_name.split("_#")[0] + ctx.fresh_var()
+            nright = substitution_expr_in_type(right, Var(n_left_name), t.left_name)
+            n_left_left_name = t.left.left_name.split("_#")[0] + ctx.fresh_var()
+            r = substitution_expr_in_type(t.left.right, Var(n_left_left_name), t.left.left_name)
+            return reduce_type(ctx, ExistentialType(n_left_left_name, t.left.left, ExistentialType(n_left_name, r, nright)))
+        elif isinstance(t.left, TypeAbstraction):
+            n_left_name = t.left_name.split("_#")[0] + ctx.fresh_var()
+            nright = substitution_expr_in_type(right, Var(n_left_name), t.left_name)
+            n_name = t.left.name + ctx.fresh_var()
+            n_type = substitution_type_in_type(t.left.type, BasicType(n_name), t.left.name)
+            return reduce_type(ctx, TypeAbstraction(n_name, t.left.kind, ExistentialType(n_left_name, n_type, nright)  ))
         else:
             return ExistentialType(t.left_name, left, right)
-    else:
-        print("LLOOP", t)
-    print("LLO", t)
     raise TypingException("Simplifier missing rule:", type(t), t)
+
+
+def strong_reduce(ctx:TypingContext, t:Type):
+    current = t
+    next = reduce_type(ctx, t)
+    next = further_reduce_type(ctx, next)
+    while next != current:
+        current = next
+        next = further_reduce_type(ctx, current)
+        next = reduce_type(ctx, next)
+    return next

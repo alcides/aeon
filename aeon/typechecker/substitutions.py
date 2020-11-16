@@ -169,7 +169,7 @@ def substitution_expr_in_type(n: Type, replacement: TypedNode,
             return ProductType(left_name=n.left_name, left=r(n.left), right=r(n.right))
     elif isinstance(n, ExistentialType):
         if n.left_name == replaced:
-            return ExistentialType(left_name=n.left_name, left=r(n.left), right=n.right)
+            return ExistentialType(left_name=n.left_name, left=n.left, right=n.right)
         else:
             return ExistentialType(left_name=n.left_name, left=r(n.left), right=r(n.right))
     else:
