@@ -118,7 +118,7 @@ initial_context = {
     (ty2("(T:*) => (a:T) -> (b:T) -> {c:T where ((smtEq c) ((smtMult a) b))}"),
      lambda x: lambda y: x * y),
     '/': (ty2(
-        "(T:*) => (a:T) -> (b:{z:T where (z != 0)}) -> {c:T where ((smtEq c) ((smtDiv a) b))}"
+        "(T:*) => (a:T) -> (b:{z:T where smtIneq z 0}) -> {c:T where smtEq c (smtDiv a b)}"
     ), lambda x: lambda y: x / y),
     '^': (ty2(
         "(T:*) => (a:T) -> (b:T) -> {c:T where ((smtEq c) ((smtCaret a) b))}"),

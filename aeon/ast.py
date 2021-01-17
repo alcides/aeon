@@ -89,7 +89,6 @@ class Var(TypedNode):
 
 class If(TypedNode):
     """ if cond then e else e """
-
     def __init__(self, cond: TypedNode, then: TypedNode, otherwise: TypedNode):
         super(If, self).__init__()
         self.cond = cond
@@ -117,7 +116,8 @@ class Application(TypedNode):
     def __str__(self):
         if isinstance(self.target, Application) and isinstance(self.target.target, Var) \
             and not self.target.target.name.isalnum():
-            return "({} {} {})".format(self.target.argument, self.target.target, self.argument)
+            return "({} {} {})".format(self.target.argument,
+                                       self.target.target, self.argument)
         if isinstance(self.target, Var) and \
             not self.target.name.isalnum():
             return "({} {})".format(self.target.target, self.argument)
@@ -205,6 +205,7 @@ class Definition(Node):
             and self.body == o.body \
             and self.return_type == o.return_type
 
+
 class TypeAlias(Node):
     def __init__(self, name: str, type: Type):
         self.name = name
@@ -217,6 +218,7 @@ class TypeAlias(Node):
         return type(self) == type(o) \
             and self.name == o.name \
             and self.type == o.type
+
 
 class TypeDeclaration(Node):
     def __init__(self, name: str, kind: Kind, ghost_variables):
@@ -231,6 +233,7 @@ class TypeDeclaration(Node):
         return type(self) == type(o) \
             and self.name == o.name \
             and self.kind == o.kind \
+
 
 class Import(Node):
     def __init__(self, name: str, function: Optional[str] = None):
@@ -248,16 +251,16 @@ class Import(Node):
             and self.name == o.name \
             and self.function == o.function
 
+
 def refined_value(v, t, label="_v"):
     if t == None:
         raise Exception("No Type Defined")
     if type(v) == str:
-        tapp = TApplication(Var("=="), t_i)
-        app1 = Application(tapp, Application(Var("String_size"), Var(label)))
+        app1 = Application(Var("smtEq"),
+                           Application(Var("String_size"), Var(label)))
         app2 = Application(app1, Literal(len(v), t_i, ensured=True))
         return RefinedType(label, t, app2)
     else:
-        tapp = TApplication(Var("=="), t)
-        app1 = Application(tapp, Var(label))
+        app1 = Application(Var("smtEq"), Var(label))
         app2 = Application(app1, Literal(v, type=t))
         return RefinedType(label, t, app2)

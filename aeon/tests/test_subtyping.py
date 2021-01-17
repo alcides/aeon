@@ -115,11 +115,10 @@ class TestSubtyping(unittest.TestCase):
         self.assert_st("(T:*) => T", "(T:*) => T")
         self.assert_st("(((T:*) => T) Integer)", "Integer")
         self.assert_st("((((T:*) => ((S:*) => T)) Integer) Void)", "Integer")
+        self.assert_st("((T:*) => T)", "Boolean")
 
         # Errors
         self.assert_error("(((T:*) => T) Integer)", "Boolean")
-        self.assert_error("((T:*) => T)", "Boolean")
-
         self.assert_error("(((T:*) => T) Boolean)", "(((T:*) => T) Integer)")
 
         self.assert_error("(Integer Boolean)", "(String Double)")

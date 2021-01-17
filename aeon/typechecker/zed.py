@@ -334,7 +334,7 @@ def extract_from_type(ty):
     if isinstance(ty, BasicType):
         return random_name(), ty, True
     elif isinstance(ty, AbstractionType):
-        return random_name(), reduce_type(None, ty), True
+        return random_name(), reduce_type(TypingContext(), ty), True
     elif isinstance(ty, RefinedType):
         t = reduce_type(None, ty)
         return t.name, t.type, t.cond

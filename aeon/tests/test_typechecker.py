@@ -1,9 +1,8 @@
 import unittest
 
-from ..types import *
+from ..types import TypingContext
 from ..frontend_core import expr, typee
-from ..typechecker import TypeCheckingError, TypingException, synth_type
-from ..typechecker.inference import check_type, TypeCheckingError
+from ..typechecker.uinference import check_type, TypeCheckingError
 
 ex = expr.parse
 ty = typee.parse
@@ -115,14 +114,17 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("(5 % 1)", "Integer")
 
     def test_refined_12(self):
-        self.generic_test("1", "{ x:Integer where (x == (3-1)) }", should_fail=True)
+        self.generic_test("1",
+                          "{ x:Integer where (x == (3-1)) }",
+                          should_fail=True)
 
     def test_refined_13(self):
         self.generic_test("(5 % 0)", "Integer", should_fail=True)
 
     def test_refined_14(self):
         self.generic_test("5",
-                              "{x:Integer where ((\\y:Integer -> x > y) 10)}", should_fail=True)
+                          "{x:Integer where ((\\y:Integer -> x > y) 10)}",
+                          should_fail=True)
 
     def test_refined_15(self):
         self.generic_test('5.0',
@@ -142,7 +144,9 @@ class TestTypeChecking(unittest.TestCase):
         self.generic_test("\"abc\"", "{x:String | (String_size x) == 3 }")
 
     def test_refined_string_wrong_size(self):
-        self.generic_test("\"ac\"", "{x:String | (String_size x) == 3 }", should_fail=True)
+        self.generic_test("\"ac\"",
+                          "{x:String | (String_size x) == 3 }",
+                          should_fail=True)
 
     def test_if_1(self):
         self.generic_test("if true then 1 else 0",
@@ -150,7 +154,8 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_abs_wrong(self):
         self.generic_test("((\\u:Integer -> u) 9)",
-                           "{ x:Integer where (x == 9) }", should_fail=True)
+                          "{ x:Integer where (x == 9) }",
+                          should_fail=True)
 
     def test_complex(self):
         self.generic_test("f 5",

@@ -1,4 +1,6 @@
 import os
+import pathlib
+
 from lark import Lark, Transformer, v_args
 from .types import *
 from .ast import *
@@ -164,7 +166,7 @@ class TreeToCore(Transformer):
 
 def mk_parser(rule="start"):
     return Lark.open(
-        "aeon/aeon_core.lark",
+        pathlib.Path(__file__).parent.absolute() / "aeon_core.lark",
         parser='lalr',
         #lexer='standard',
         start=rule,

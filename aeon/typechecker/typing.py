@@ -30,7 +30,6 @@ class TypeCheckingError(TypingException):
     pass
 
 
-
 def t_base(ctx: TypingContext, e: Literal) -> Type:
     # Literals are pre-populated with their correct type from the front-end
     v = e.value
@@ -50,29 +49,25 @@ def t_base(ctx: TypingContext, e: Literal) -> Type:
         return RefinedType(name=name,
                            type=t_b,
                            cond=Application(
-                               Application(TApplication(Var("=="), t_b),
-                                           Var(name)),
+                               Application(Var("smtEq"), Var(name)),
                                Literal(value=v, type=t_b, ensured=True)))
     elif isinstance(e.value, int) and not e.type:
         return RefinedType(name=name,
                            type=t_i,
                            cond=Application(
-                               Application(TApplication(Var("=="), t_i),
-                                           Var(name)),
+                               Application(Var("smtEq"), Var(name)),
                                Literal(value=v, type=t_i, ensured=True)))
     elif isinstance(e.value, float) and not e.type:
         return RefinedType(name=name,
                            type=t_f,
                            cond=Application(
-                               Application(TApplication(Var("=="), t_f),
-                                           Var(name)),
+                               Application(Var("smtEq"), Var(name)),
                                Literal(value=v, type=t_f, ensured=True)))
     elif isinstance(e.value, str) and not e.type:
         return RefinedType(name=name,
                            type=t_s,
                            cond=Application(
-                               Application(TApplication(Var("=="), t_s),
-                                           Var(name)),
+                               Application(Var("smtEq"), Var(name)),
                                Literal(value=v, type=t_s, ensured=True)))
     return e.type
 
@@ -90,7 +85,7 @@ def t_var(ctx: TypingContext, e: Var) -> Type:
 def t_if(ctx: TypingContext, e: If) -> Type:
     check_type(ctx, e.cond, t_b)
     ctxThen = ctx.with_cond(e.cond)
-    ctxElse = ctx.with_cond(Application(Var("!"), e.cond))
+    ctxElse = ctx.with_cond(Application(Var("smtNot"), e.cond))
 
     T = synth_type(ctxThen, e.then)
     U = synth_type(ctxElse, e.otherwise)
@@ -123,7 +118,6 @@ def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
             "TypeApplication requires a Type abstraction: {} : {} in {}".
             format(e.target, V, e))
 
-
     check_kind(ctx, e.argument, V.kind)
     k = substitution_type_in_type(V.type, e.argument, V.name)
     return k
@@ -132,6 +126,7 @@ def t_tapp(ctx: TypingContext, e: TApplication) -> Type:
 def t_tabs(ctx: TypingContext, e: TAbstraction) -> Type:
     T = synth_type(ctx.with_type_var(e.typevar, e.kind), e.body)
     return TypeAbstraction(e.typevar, e.kind, T)
+
 
 holes = []
 

@@ -1,6 +1,7 @@
+from aeon.typechecker.unification import unification
 import logging
 
-from ..types import TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
+from ..types import ExistentialType, TypingContext, Type, BasicType, RefinedType, AbstractionType, TypeAbstraction, \
     TypeApplication, UnionType, IntersectionType, ProductType, Kind, AnyKind, star, TypeException, t_b, t_delegate
 from ..ast import Var, TAbstraction, TApplication, Application, Abstraction, Literal
 
@@ -9,7 +10,7 @@ from .substitutions import substitution_expr_in_type, substitution_type_in_type,
 from .zed import is_satisfiable, entails
 from .kinding import check_kind, KindingError
 from .exceptions import TypingException
-from .type_simplifier import reduce_type
+from .type_simplifier import reduce_type, further_reduce_type
 
 
 class SubtypingException(TypingException):
@@ -25,10 +26,10 @@ def sub_whereL(ctx, sub: RefinedType, sup: Type) -> bool:
     """ S-WhereL """
     from .inference import check_type
     nctx = ctx.with_var(sub.name, sub.type)
-    check_type(nctx.with_uninterpreted(), sub.cond, t_b)
+    # This was commented because types are liquid now
+    # check_type(nctx.with_uninterpreted(), sub.cond, t_b)
 
-    return check_type(nctx.with_uninterpreted(), sub.cond, t_b) and \
-        is_subtype(ctx, sub.type, sup)
+    return is_subtype(nctx, sub.type, sup)
 
 
 def sub_whereR(ctx, sub: Type, sup: RefinedType) -> bool:
@@ -104,12 +105,32 @@ def sub_sum_left(ctx: TypingContext, sub: Type, sup: UnionType):
     return is_subtype(ctx, sub, sup.left) or is_subtype(ctx, sub, sup.right)
 
 
+def sub_existL(ctx: TypingContext, sub: ExistentialType, sup: Type):
+    """ S-ExistsL """
+    return is_subtype(ctx.with_var(sub.left_name, sub.left), sub.right, sup)
+
+
+def sub_existR(ctx: TypingContext, sub: Type, sup: ExistentialType):
+    """ S-ExistsR """
+    return is_subtype(ctx.with_var(sup.left_name, sup.left), sub, sup.right)
+
+
+def sub_tabsL(ctx: TypingContext, sub: TypeAbstraction, sup: Type):
+    try:
+        unification(ctx, sub, sup)
+        return True
+    except:
+        return False
+
+
 def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
     """ Subtyping Rules """
 
     sub = reduce_type(ctx, sub)
     sup = reduce_type(ctx, sup)
-
+    print()
+    print("DEBUG", sub)
+    print("   <:", sup)
     # ===
     # Small hack because of type_aliases that are not replaced
     if isinstance(sub, BasicType) and sub.name in ctx.type_aliases:
@@ -136,7 +157,8 @@ def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
         return sub_whereL(ctx, sub, sup)
     elif isinstance(sub, AbstractionType) and isinstance(sup, AbstractionType):
         return sub_abs(ctx, sub, sup)
-    elif isinstance(sub, TypeAbstraction) and isinstance(sup, TypeAbstraction):
+    elif isinstance(sub, TypeAbstraction) and isinstance(
+            sup, TypeAbstraction):  # wrong
         return sub_tabs(ctx, sub, sup)
     elif isinstance(sub, TypeApplication) and isinstance(sup, TypeApplication):
         return sub_tapp(ctx, sub, sup)
@@ -144,5 +166,12 @@ def is_subtype(ctx: TypingContext, sub: Type, sup: Type) -> bool:
         return sub_tappL(ctx, sub, sup)
     elif isinstance(sup, TypeApplication):
         return sub_tappR(ctx, sub, sup)
-    #logging.debug("No subtyping rule for {} <: {}".format(sub, sup))
+    elif isinstance(sub, ExistentialType):
+        return sub_existL(ctx, sub, sup)
+    elif isinstance(sub, TypeAbstraction):
+        return sub_tabsL(ctx, sub, sup)
+    elif isinstance(sup, ExistentialType):
+        return sub_existR(ctx, sub, sup)
+
+    print("No subtyping rule for {} <: {}".format(sub, sup))
     return False
