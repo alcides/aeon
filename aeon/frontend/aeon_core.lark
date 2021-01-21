@@ -38,7 +38,7 @@ expression_fact : expression_b                           -> same
 
 
 
-expression_b : "\\" ID ":" type "->" expression             -> abstraction_e
+expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
 

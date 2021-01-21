@@ -96,8 +96,7 @@ class TreeToCore(Transformer):
         return Application(*args)
 
     def abstraction_e(self, args):
-        args[0] = str(args[0])
-        return Abstraction(*args)
+        return Abstraction(str(args[0]), args[1])
 
     def var(self, args):
         return Var(str(args[0]))

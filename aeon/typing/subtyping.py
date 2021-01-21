@@ -1,13 +1,25 @@
-from aeon.core.terms import Var
-from z3.z3 import is_sub
-from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
-from aeon.verification.vcs import Implication, LiquidConstraint
+from typing import List, Union
+
 from aeon.core.liquid import LiquidLiteralBool, LiquidVar
-from typing import Union
+from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
+from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, BaseType, RefinedType, Type
 from aeon.typing.context import TypingContext, VariableBinder
-from aeon.typing.typeinfer import InferenceContext
 from aeon.typing.entailment import entailment
+from aeon.verification.vcs import Implication, LiquidConstraint
+
+
+class Restriction(object):
+    pass
+
+
+class InferenceContext(object):
+    type: Type
+    restrictions: List[Restriction]
+
+    def __init__(self, type: Type, restrictions: List[Restriction] = None):
+        self.type = type
+        self.restrictions = restrictions or []
 
 
 def ensure_refined(t: Type) -> RefinedType:

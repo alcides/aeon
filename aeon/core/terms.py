@@ -52,22 +52,18 @@ class Application(Term):
 
 class Abstraction(Term):
     var_name: str
-    var_type: Type
     body: Term
 
-    def __init__(self, var_name: str, var_type: Type, body: Term):
+    def __init__(self, var_name: str, body: Term):
         self.var_name = var_name
-        self.var_type = var_type
         self.body = body
 
     def __str__(self):
-        return u"(\\{}:{} -> {})".format(self.var_name, self.var_type,
-                                         self.body)
+        return u"(\\{} -> {})".format(self.var_name, self.body)
 
     def __eq__(self, other):
         return (isinstance(other, Abstraction)
                 and self.var_name == other.var_name
-                and self.var_type == other.var_type
                 and self.body == other.body)
 
 

@@ -14,6 +14,10 @@ from z3 import Solver, Int, sat, unsat, And, Not
 base_functions = {
     "==": lambda x, y: x == y,
     "!=": lambda x, y: x != y,
+    "<": lambda x, y: x < y,
+    "<=": lambda x, y: x <= y,
+    ">": lambda x, y: x >= y,
+    ">=": lambda x, y: x >= y,
 }
 
 

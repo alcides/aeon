@@ -2,7 +2,7 @@ from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
 import pytest
 
 from aeon.typing.context import EmptyContext, VariableBinder
-from aeon.typing.typeinfer import InferenceError, synth_type
+from aeon.typing.typeinfer import InferenceError, check_type, synth_type
 from aeon.typing.subtyping import is_subtype, is_subtype
 from aeon.core.types import AbstractionType, RefinedType, t_int, t_bool
 from aeon.core.terms import Literal, Var, Application, Abstraction
@@ -14,7 +14,7 @@ y = Var(name="y")
 z = Var(name="z")
 f = Var(name="f")
 f_x = Application(f, x)
-la = Abstraction("x", t_bool, x)
+la = Abstraction("x", x)
 app_la_x = Application(la, x)
 
 int_to_int = AbstractionType("x", t_int, t_int)
@@ -51,4 +51,4 @@ def test_f_x_is_int():
 
 
 def test_la_x_is_int():
-    assert is_subtype(ctx_empty, synth_type(ctx_x_f, app_la_x), t_bool)
+    assert check_type(ctx_x_f, app_la_x, t_bool)

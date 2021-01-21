@@ -67,9 +67,7 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
         if t.var_name == name:
             return t
         else:
-            return Abstraction(t.var_name,
-                               substitution_in_type(t.var_type, rep, name),
-                               rec(t.body))
+            return Abstraction(t.var_name, rec(t.body))
     elif isinstance(t, Let):
         if t.var_name == name:
             n_value = t.value

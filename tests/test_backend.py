@@ -9,7 +9,7 @@ def test_literal():
 
 
 def test_application():
-    assert eval(parse_term("(\\x:Int -> x) 1")) == 1
+    assert eval(parse_term("(\\x -> x) 1")) == 1
 
 
 def test_if():

@@ -1,15 +1,13 @@
+from typing import Tuple
+
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidVar
-from typing import List
+from aeon.core.terms import Abstraction, Application, Let, Literal, Term, Var
+from aeon.core.types import AbstractionType, RefinedType, Type, t_bool, t_int
 from aeon.typing.context import TypingContext, VariableBinder
-from aeon.core.terms import Term, Literal, Var, Application, Abstraction
-from aeon.core.types import AbstractionType, RefinedType, Type, t_int, t_bool
+from aeon.typing.subtyping import InferenceContext, Restriction, is_subtype
 
 
 class InferenceError(Exception):
-    pass
-
-
-class Restriction(object):
     pass
 
 
@@ -20,15 +18,6 @@ class SubtypingRestriction(Restriction):
     def __init__(self, sub: Type, sup: Type):
         self.sub = sub
         self.sup = sup
-
-
-class InferenceContext(object):
-    type: Type
-    restrictions: List[Restriction]
-
-    def __init__(self, type: Type, restrictions: List[Restriction] = None):
-        self.type = type
-        self.restrictions = restrictions or []
 
 
 IC = InferenceContext
@@ -42,7 +31,7 @@ def singleton(t: Literal) -> RefinedType:
     else:
         return t.value
     name = "lit_{}".format(t.value)
-    refinement = LiquidApp("eq", [LiquidVar(name), cons])
+    refinement = LiquidApp("==", [LiquidVar(name), cons])
     return RefinedType(name, t.type, refinement)
 
 
@@ -81,7 +70,22 @@ def synth_type(ctx: TypingContext, t: Term) -> InferenceContext:
         return synth_type_var(ctx, t)
     elif isinstance(t, Application):
         return synth_type_app(ctx, t)
-    elif isinstance(t, Abstraction):
-        return synth_type_abs(ctx, t)
+    # elif isinstance(t, Abstraction):
+    #    return synth_type_abs(ctx, t)
     else:
-        assert False
+        raise InferenceError("Could not synthesize the type of ({})".format(t))
+
+
+def check_type(ctx: TypingContext, t: Term,
+               ty: Type) -> Tuple[bool, InferenceContext]:
+    if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
+        return check_type(ctx.with_var(t.var_name, ty.var_type), t.body)
+    elif isinstance(t, Let):
+        t1 = synth_type(ctx, t.var_value)
+        return check_type(ctx.with_var(t.var_name, t1), t.body)
+    else:
+        try:
+            ic = synth_type(ctx, t)
+            return (is_subtype(ctx, ic.type, ty), ic)
+        except:
+            return (False, None)

@@ -1,3 +1,4 @@
+import typing
 from typing import Optional
 from aeon.core.types import Type
 
@@ -5,6 +6,9 @@ from aeon.core.types import Type
 class TypingContext(object):
     def type_of(self, name: str) -> Optional[Type]:
         return None
+
+    def with_var(self, name: str, type: Type) -> typing.Type["VariableBinder"]:
+        return VariableBinder(self, name, type)
 
 
 class EmptyContext(TypingContext):

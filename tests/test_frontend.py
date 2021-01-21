@@ -85,4 +85,4 @@ def test_if():
 
 
 def test_abs():
-    assert parse_term("\\x : Int -> x") == Abstraction("x", t_int, Var("x"))
+    assert parse_term("\\x -> x") == Abstraction("x", Var("x"))
