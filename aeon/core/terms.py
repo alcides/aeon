@@ -50,8 +50,8 @@ class Abstraction(Term):
         self.body = body
 
     def __str__(self):
-        return u"(\{}:{} -> {})".format(self.var_name, self.var_type,
-                                        self.body)
+        return u"(\\{}:{} -> {})".format(self.var_name, self.var_type,
+                                         self.body)
 
 
 class Let(Term):
