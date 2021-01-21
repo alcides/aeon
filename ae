@@ -1,4 +1,0 @@
-#!/bin/bash
-# export PATH="$PATH:/usr/bin/z3-4.8.5.9c9cd5ebf791-x86-ubuntu-14.04/bin/"
-export PYTHONPATH=".:$PYTHONPATH:/usr/bin/"
-python3.7 -m aeon $@

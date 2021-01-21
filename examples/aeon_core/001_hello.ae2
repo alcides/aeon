@@ -1,3 +1,0 @@
-print : (T:*) => (x:T) -> Void = native;
-
-main : Void = print[Integer](1);

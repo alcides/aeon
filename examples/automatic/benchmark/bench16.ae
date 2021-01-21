@@ -1,6 +1,0 @@
-// Super Anagrams:
-// ---------------
-// Given strings x and y of lowercase letters, return true if y
-// is super anagram of x, which is the case if every character in x
-// is in y. To be true, y may contain extra characters, but must have
-// at least as many copies of each character as x does.

@@ -1,7 +1,0 @@
-// Pig Latin:
-// ----------
-// Given a string containing lowercase words separated by single
-// spaces, print the string with each word translated to pig Latin.
-// Specifically, if a word starts with a vowl, it should have "ay"
-// added to its end; otherwise, the first letter is moved to the end
-// of the word, followed bt "ay"

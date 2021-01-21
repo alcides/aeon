@@ -1,12 +1,4 @@
-z3-solver
-lark-parser
-multipledispatch
-zss
-pandas
-matplotlib
-seaborn
-python-Levenshtein
-sympy
-coverage
-Pillow
-scikit-image
+pytest
+flake8
+black
+lark
