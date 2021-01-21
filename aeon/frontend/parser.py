@@ -3,10 +3,9 @@ import os
 import pathlib
 
 from lark import Lark, Transformer
-from z3.z3 import If
 
 from aeon.core.types import AbstractionType, RefinedType, BaseType, Type, t_int, t_bool, t_float, t_string
-from aeon.core.terms import Abstraction, Application, Let, Term, Var, Literal
+from aeon.core.terms import Abstraction, Application, Let, Term, Var, Literal, If
 
 
 class TreeToCore(Transformer):
