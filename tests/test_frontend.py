@@ -1,8 +1,9 @@
 from typing import Optional
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidVar
-from aeon.core.terms import Literal
+from aeon.core.terms import Abstraction, Application, If, Let, Literal, Term, Var
 from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, t_bool
 from aeon.frontend.parser import parse_term, parse_type
+from aeon.utils.ast_helpers import mk_binop, i0, i1, i2, true, false
 
 
 def test_basetypes():
@@ -28,26 +29,60 @@ def test_refinedtypes():
         "y", t_int, LiquidApp(">",
                               [LiquidVar("y"), LiquidVar("x")]))
     assert parse_type("{y:Int | y == 1 + 1}") == RefinedType(
-        "y", t_int,
-        LiquidApp("==", [
-            LiquidVar("y"),
-            LiquidApp("+", [LiquidLiteralInt(1),
-                            LiquidLiteralInt(1)])
-        ]))
+        "y",
+        t_int,
+        LiquidApp(
+            "==",
+            [
+                LiquidVar("y"),
+                LiquidApp("+", [LiquidLiteralInt(1),
+                                LiquidLiteralInt(1)]),
+            ],
+        ),
+    )
 
 
 def test_literals():
-    one = parse_term("1")
-    assert isinstance(one, Literal)
-    assert one.type == t_int
-    assert one.value == 1
+    assert parse_term("1") == i1
+    assert parse_term("true") == true
+    assert parse_term("false") == false
 
-    tt = parse_term("true")
-    assert isinstance(tt, Literal)
-    assert tt.type == t_bool
-    assert tt.value == True
 
-    ff = parse_term("false")
-    assert isinstance(ff, Literal)
-    assert ff.type == t_bool
-    assert ff.value == False
+def test_operators():
+    assert parse_term("-1") == mk_binop("-", i0, i1)
+
+    assert parse_term("!true") == Application(Var("!"), true)
+
+    assert parse_term("1 == 1") == mk_binop("==", i1, i1)
+    assert parse_term("1 != 1") == mk_binop("!=", i1, i1)
+    assert parse_term("true && true") == mk_binop("&&", true, true)
+    assert parse_term("true || true") == mk_binop("||", true, true)
+
+    assert parse_term("0 < 1") == mk_binop("<", i0, i1)
+    assert parse_term("0 > 1") == mk_binop(">", i0, i1)
+    assert parse_term("0 <= 1") == mk_binop("<=", i0, i1)
+    assert parse_term("0 >= 1") == mk_binop(">=", i0, i1)
+
+    assert parse_term("true --> false") == mk_binop("-->", true, false)
+
+    assert parse_term("1 + 1") == mk_binop("+", i1, i1)
+    assert parse_term("1 - 1") == mk_binop("-", i1, i1)
+    assert parse_term("1 * 1") == mk_binop("*", i1, i1)
+    assert parse_term("1 / 1") == mk_binop("/", i1, i1)
+    assert parse_term("1 % 1") == mk_binop("%", i1, i1)
+
+
+def test_precedence():
+    assert parse_term("1 + 2 * 0") == mk_binop("+", i1, mk_binop("*", i2, i0))
+
+
+def test_let():
+    assert parse_term("let x = 1 in x") == Let("x", i1, Var("x"))
+
+
+def test_if():
+    assert parse_term("if true then 1 else 2") == If(true, i1, i2)
+
+
+def test_abs():
+    assert parse_term("\\x : Int -> x") == Abstraction("x", t_int, Var("x"))

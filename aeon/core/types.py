@@ -39,10 +39,10 @@ class AbstractionType(Type):
         return u"({}:{}) -> {}".format(self.var_name, self.var_type, self.type)
 
     def __eq__(self, other):
-        return isinstance(other, AbstractionType) and \
-            self.var_name == other.var_name and \
-            self.var_type == other.var_type and \
-            self.type == other.type
+        return (isinstance(other, AbstractionType)
+                and self.var_name == other.var_name
+                and self.var_type == other.var_type
+                and self.type == other.type)
 
 
 class RefinedType(Type):
@@ -60,15 +60,17 @@ class RefinedType(Type):
                                           self.refinement)
 
     def __eq__(self, other):
-        return isinstance(other, RefinedType) and \
-            self.name == other.name and \
-            self.type == other.type and \
-            self.refinement == other.refinement
+        return (isinstance(other, RefinedType) and self.name == other.name
+                and self.type == other.type
+                and self.refinement == other.refinement)
 
 
 def extract_parts(t: Type) -> Tuple[str, BaseType, LiquidTerm]:
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
-        return ("_", t, LiquidLiteralBool(True)
-                )  # None could be a fresh name from context
+        return (
+            "_",
+            t,
+            LiquidLiteralBool(True),
+        )  # None could be a fresh name from context

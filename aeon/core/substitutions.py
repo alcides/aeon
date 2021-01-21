@@ -1,6 +1,12 @@
 from ctypes import c_bool
 from typing import List, Optional
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidTerm, LiquidVar
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidLiteralInt,
+    LiquidTerm,
+    LiquidVar,
+)
 from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, t_int, t_bool
 from aeon.core.terms import Term, Literal, Var, Application, Abstraction, Let
 

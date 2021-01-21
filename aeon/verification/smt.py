@@ -1,11 +1,20 @@
 from z3.z3 import Bool
 from aeon.core.types import BaseType, t_int, t_bool
 from typing import Any, List, Tuple
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidTerm, LiquidVar
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidLiteralInt,
+    LiquidTerm,
+    LiquidVar,
+)
 from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
 from z3 import Solver, Int, sat, unsat, And, Not
 
-base_functions = {'eq': lambda x, y: x == y}
+base_functions = {
+    "==": lambda x, y: x == y,
+    "!=": lambda x, y: x != y,
+}
 
 
 def smt_valid(c: Constraint) -> bool:

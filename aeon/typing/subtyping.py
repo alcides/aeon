@@ -20,8 +20,11 @@ def ensure_refined(t: Type) -> RefinedType:
     assert False
 
 
-def is_subtype(ctx: TypingContext, sub: Union[InferenceContext, Type],
-               sup: Union[InferenceContext, Type]):
+def is_subtype(
+    ctx: TypingContext,
+    sub: Union[InferenceContext, Type],
+    sup: Union[InferenceContext, Type],
+):
     if isinstance(sub, Type):
         subc = InferenceContext(sub)
     else:
@@ -51,5 +54,6 @@ def is_subtype(ctx: TypingContext, sub: Union[InferenceContext, Type],
         return entailment(
             ctx,
             Implication(rsub.name, rsub.type, rsub.refinement,
-                        LiquidConstraint(sup_subs)))
+                        LiquidConstraint(sup_subs)),
+        )
     return False

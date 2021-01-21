@@ -7,7 +7,8 @@ from aeon.typing.subtyping import is_subtype, is_subtype
 from aeon.core.types import AbstractionType, RefinedType, t_int, t_bool
 from aeon.core.terms import Literal, Var, Application, Abstraction
 
-one = Literal(value=1, type=t_int)
+from aeon.utils.ast_helpers import i1
+
 x = Var(name="x")
 y = Var(name="y")
 z = Var(name="z")
@@ -21,12 +22,11 @@ int_to_int = AbstractionType("x", t_int, t_int)
 ctx_empty = EmptyContext()
 ctx_x_int = VariableBinder(ctx_empty, "x", t_int)
 ctx_y_bool = VariableBinder(ctx_empty, "y", t_bool)
-
 ctx_x_f = VariableBinder(ctx_x_int, "f", int_to_int)
 
 
 def test_one_is_int():
-    assert is_subtype(ctx_empty, synth_type(ctx_empty, one), t_int)
+    assert is_subtype(ctx_empty, synth_type(ctx_empty, i1), t_int)
 
 
 def test_x_is_int():

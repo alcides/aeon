@@ -59,5 +59,5 @@ class LiquidApp(LiquidTerm):
                                 ",".join([repr(x) for x in self.args]))
 
     def __eq__(self, other):
-        return isinstance(other, LiquidApp) and other.fun == self.fun and all(
-            (x == y for (x, y) in zip(self.args, other.args)))
+        return (isinstance(other, LiquidApp) and other.fun == self.fun and all(
+            (x == y for (x, y) in zip(self.args, other.args))))

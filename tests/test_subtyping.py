@@ -2,15 +2,11 @@ from aeon.typing.context import EmptyContext
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidVar
 from aeon.typing.subtyping import is_subtype
 from aeon.core.types import RefinedType, t_int
+from aeon.frontend.parser import parse_type
 
-rtrue = RefinedType("x", t_int, LiquidLiteralBool(True))
-
-x_eq_3 = RefinedType(
-    "x", t_int, LiquidApp("eq",
-                          [LiquidVar("x"), LiquidLiteralInt(3)]))
-y_eq_3 = RefinedType(
-    "y", t_int, LiquidApp("eq",
-                          [LiquidVar("y"), LiquidLiteralInt(3)]))
+rtrue = parse_type("{x:Int|true}")
+x_eq_3 = parse_type("{x:Int| x == 3}")
+y_eq_3 = parse_type("{y:Int| y == 3}")
 
 
 def test_subtype1():

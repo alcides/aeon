@@ -1,11 +1,22 @@
+from aeon.utils.ast_helpers import mk_binop
 from aeon.core.substitutions import liquefy
 import os
 import pathlib
 
 from lark import Lark, Transformer
 
-from aeon.core.types import AbstractionType, RefinedType, BaseType, Type, t_int, t_bool, t_float, t_string
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    BaseType,
+    Type,
+    t_int,
+    t_bool,
+    t_float,
+    t_string,
+)
 from aeon.core.terms import Abstraction, Application, Let, Term, Var, Literal, If
+from aeon.utils.ast_helpers import mk_binop, i0
 
 
 class TreeToCore(Transformer):
@@ -25,7 +36,7 @@ class TreeToCore(Transformer):
     # Expressions
 
     def minus(self, args):
-        return Application(Application(Var("-"), Literal(0, t_int)), args[0])
+        return mk_binop("-", i0, args[0])
 
     def let_e(self, args):
         return Let(str(args[0]), args[1], args[2])
@@ -79,7 +90,7 @@ class TreeToCore(Transformer):
         return self.binop(args, "%")
 
     def binop(self, args, op):
-        return Application(Application(Var(op), args[0]), args[1])
+        return mk_binop(op, args[0], args[1])
 
     def application_e(self, args):
         return Application(*args)
@@ -112,10 +123,11 @@ class TreeToCore(Transformer):
 def mk_parser(rule="start"):
     return Lark.open(
         pathlib.Path(__file__).parent.absolute() / "aeon_core.lark",
-        parser='lalr',
-        #lexer='standard',
+        parser="lalr",
+        # lexer='standard',
         start=rule,
-        transformer=TreeToCore())
+        transformer=TreeToCore(),
+    )
 
 
 parse_type: Type = mk_parser("type").parse
