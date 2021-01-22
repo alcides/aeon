@@ -12,6 +12,9 @@ class LiquidConstraint(Constraint):
     def __init__(self, expr: LiquidTerm):
         self.expr = expr
 
+    def __repr__(self):
+        return repr(self.expr)
+
 
 class Conjunction(Constraint):
     c1: Constraint
@@ -20,6 +23,9 @@ class Conjunction(Constraint):
     def __init__(self, c1: Constraint, c2: Constraint):
         self.c1 = c1
         self.c2 = c2
+
+    def __repr__(self):
+        return u"({}) ∧ ({})".format(self.c1, self.c2)
 
 
 class Implication(Constraint):
@@ -34,3 +40,7 @@ class Implication(Constraint):
         self.base = base
         self.pred = pred
         self.seq = seq
+
+    def __repr__(self):
+        return u"∀{}:{}, ({}) => {}".format(self.name, self.base, self.pred,
+                                            self.seq)

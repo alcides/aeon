@@ -1,4 +1,4 @@
-from z3.z3 import Bool
+from z3.z3 import Bool, And, Not
 from aeon.core.types import BaseType, t_int, t_bool
 from typing import Any, List, Tuple
 from aeon.core.liquid import (
@@ -21,21 +21,39 @@ base_functions = {
 }
 
 
-def smt_valid(c: Constraint) -> bool:
-    """ Verifies if a constraint is true using Z3 """
-    s = Solver()
-    c = translate(c, [])
-    s.add(c)
-    result = s.check()
-    print(s)
-    print(result)
-    print("...")
-    if result == sat:
-        return False
-    elif result == unsat:
-        return True
+def free_vars(c: Constraint) -> List[str]:
+    if isinstance(c, LiquidConstraint):
+        return []
+    elif isinstance(c, Implication):
+        return [c.name]
+    elif isinstance(c, Conjunction):
+        return free_vars(c.c1) + free_vars(c.c2)
     else:
         assert False
+
+
+def smt_valid(c: Constraint) -> bool:
+    """ Verifies if a constraint is true using Z3 """
+    print("SMT solving", c)
+    if free_vars(c) == []:
+        s = Solver()
+        c = translate(c, [])
+        s.add(c)
+        return s.check() == sat
+
+    if isinstance(c, Conjunction):
+        return smt_valid(c.c1) and smt_valid(c.c2)
+    else:
+        s = Solver()
+        c = translate(c, [])
+        s.add(c)
+        result = s.check()
+        if result == sat:
+            return False
+        elif result == unsat:
+            return True
+        else:
+            assert False
 
 
 def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
@@ -70,11 +88,13 @@ def translate(c: Constraint, variables: List[Tuple[str, Any]]):
     if isinstance(c, LiquidConstraint):
         return translate_liq(c.expr, variables)
     elif isinstance(c, Conjunction):
-        e1 = translate(c.c1, variables, variables)
-        e2 = translate(c.c2, variables, variables)
+        e1 = translate(c.c1, variables)
+        e2 = translate(c.c2, variables)
         return And(e1, e2)
     elif isinstance(c, Implication):
         nvariables = [(c.name, make_variable(c.name, c.base))] + variables
         e1 = translate_liq(c.pred, nvariables)
         e2 = translate(c.seq, nvariables)
         return And(e1, Not(e2))
+    else:
+        assert False

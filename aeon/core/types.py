@@ -19,10 +19,29 @@ class BaseType(Type):
         return isinstance(other, BaseType) and other.name == self.name
 
 
+class Top(Type):
+    def __repr__(self):
+        return u"⊤"
+
+    def __eq__(self, other):
+        return isinstance(other, Top)
+
+
+class Bottom(Type):
+    def __repr__(self):
+        return u"⊥"
+
+    def __eq__(self, other):
+        return isinstance(other, Bottom)
+
+
 t_bool = BaseType("Bool")
 t_int = BaseType("Int")
 t_float = BaseType("Float")
 t_string = BaseType("String")
+
+top = Top()
+bottom = Bottom()
 
 
 class AbstractionType(Type):

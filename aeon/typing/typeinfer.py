@@ -1,91 +1,98 @@
+from aeon.verification.smt import smt_valid
+from aeon.core.substitutions import substitution_in_type
+from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
 from typing import Tuple
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidVar
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidLiteralInt,
+    LiquidVar,
+)
 from aeon.core.terms import Abstraction, Application, Let, Literal, Term, Var
-from aeon.core.types import AbstractionType, RefinedType, Type, t_bool, t_int
-from aeon.typing.context import TypingContext, VariableBinder
-from aeon.typing.subtyping import InferenceContext, Restriction, is_subtype
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    Type,
+    t_bool,
+    t_int,
+    top,
+    bottom,
+)
+from aeon.typing.context import TypingContext
+from aeon.core.liquid_ops import ops
+from aeon.verification.sub import implication_constraint, sub
+
+ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
 
-class InferenceError(Exception):
+class CouldNotGenerateConstraintException(Exception):
     pass
 
 
-class SubtypingRestriction(Restriction):
-    sub: Type
-    sup: Type
-
-    def __init__(self, sub: Type, sup: Type):
-        self.sub = sub
-        self.sup = sup
+def prim_litbool(t: bool) -> RefinedType:
+    return RefinedType(
+        "v", t_bool,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralBool(t)]))
 
 
-IC = InferenceContext
+def prim_litint(t: int) -> RefinedType:
+    return RefinedType(
+        "v", t_int,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]))
 
 
-def singleton(t: Literal) -> RefinedType:
-    if t.type == t_int:
-        cons = LiquidLiteralInt(t.value)
-    elif t.type == t_bool:
-        cons = LiquidLiteralBool(t.value)
-    else:
-        return t.value
-    name = "lit_{}".format(t.value)
-    refinement = LiquidApp("==", [LiquidVar(name), cons])
-    return RefinedType(name, t.type, refinement)
+def prim_op(t: str) -> Type:
+    return AbstractionType(
+        "x",
+        top,
+        AbstractionType("y", top),
+        RefinedType("z", bottom,
+                    LiquidApp(t,
+                              [LiquidVar("x"), LiquidVar("y")])),
+    )
 
 
-def synth_type_lit(ctx: TypingContext, t: Literal) -> InferenceContext:
-    return IC(singleton(t))
-
-
-def synth_type_var(ctx: TypingContext, t: Var) -> InferenceContext:
-    ty = ctx.type_of(t.name)
-    if ty is None:
-        raise InferenceError("{} is not in context".format(t.name))
-    return IC(ty)
-
-
-def synth_type_app(ctx: TypingContext, t: Application) -> InferenceContext:
-    tfun = synth_type(ctx, t.fun).type  # TODO extract IC
-    targ = synth_type(ctx, t.arg).type  # TODO extract IC
-    if isinstance(tfun, AbstractionType):
-        return IC(tfun.type,
-                  restrictions=[SubtypingRestriction(targ, tfun.var_type)])
-    else:
-        raise InferenceError("{} is not a function, but {}".format(
-            t.fun, tfun))
-
-
-def synth_type_abs(ctx: TypingContext, t: Abstraction) -> InferenceContext:
-    nctx = VariableBinder(ctx, t.var_name, t.var_type)
-    body_type = synth_type(nctx, t.body).type  # TODO extract IC
-    return IC(AbstractionType(t.var_name, t.var_type, body_type))
-
-
-def synth_type(ctx: TypingContext, t: Term) -> InferenceContext:
-    if isinstance(t, Literal):
-        return synth_type_lit(ctx, t)
+def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
+    if isinstance(t, Literal) and t.type == t_bool:
+        return (ctrue, prim_litbool(t.value))
+    elif isinstance(t, Literal) and t.type == t_int:
+        return (ctrue, prim_litint(t.value))
     elif isinstance(t, Var):
-        return synth_type_var(ctx, t)
+        if t.name in ops:
+            return (ctrue, prim_op(t.name))
+        ty = ctx.type_of(t.name)
+        if not ty:
+            raise CouldNotGenerateConstraintException(
+                "Variable {} not in context", t)
+        return (ctrue, ty)
     elif isinstance(t, Application):
-        return synth_type_app(ctx, t)
-    # elif isinstance(t, Abstraction):
-    #    return synth_type_abs(ctx, t)
-    else:
-        raise InferenceError("Could not synthesize the type of ({})".format(t))
+        (c, ty) = synth(ctx, t.fun)
+        if isinstance(ty, AbstractionType):
+            cp = check(ctx, t.arg, ty.var_type)
+            t_subs = substitution_in_type(ty.type, Var(t.arg), ty.var_name)
+            return (Conjunction(c, cp), t_subs)
+        else:
+            raise CouldNotGenerateConstraintException()
+    assert False
 
 
-def check_type(ctx: TypingContext, t: Term,
-               ty: Type) -> Tuple[bool, InferenceContext]:
+def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
-        return check_type(ctx.with_var(t.var_name, ty.var_type), t.body)
+        ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
+        c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
+        return implication_constraint(t.var_name, ty.var_type, c)
     elif isinstance(t, Let):
-        t1 = synth_type(ctx, t.var_value)
-        return check_type(ctx.with_var(t.var_name, t1), t.body)
+        (c1, t1) = synth(ctx, t.var_value)
+        nctx: TypingContext = ctx.with_var(t.var_name, t1)
+        c2 = check(nctx, t.body, ty)
+        return Conjunction(c1, implication_constraint(t.var_name, t1, c2))
     else:
-        try:
-            ic = synth_type(ctx, t)
-            return (is_subtype(ctx, ic.type, ty), ic)
-        except:
-            return (False, None)
+        (c, s) = synth(ctx, t)
+        cp = sub(s, ty)
+        return Conjunction(c, cp)
+
+
+def check_type(ctx, t: Term, ty: Type) -> bool:
+    constraint = check(ctx, t, ty)
+    return smt_valid(constraint)

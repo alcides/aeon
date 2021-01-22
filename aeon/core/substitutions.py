@@ -49,6 +49,7 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
             return RefinedType(
                 t.name, t.type,
                 substitution_in_liquid(t.refinement, replacement, name))
+    assert False
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
