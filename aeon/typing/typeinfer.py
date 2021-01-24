@@ -9,7 +9,7 @@ from aeon.core.liquid import (
     LiquidLiteralInt,
     LiquidVar,
 )
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Term, Var
+from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Term, Var
 from aeon.core.types import (
     AbstractionType,
     BaseType,
@@ -112,6 +112,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         c2 = check(nctx, t.body, ty)
         return Conjunction(c1, implication_constraint(t.var_name, t1, c2))
+    elif isinstance(t, Rec):
+        nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
+        c1 = check(nrctx, t.var_value, t.var_type)
+        c2 = check(nrctx, t.body, ty)
+        return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)

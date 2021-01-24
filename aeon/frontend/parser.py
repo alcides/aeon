@@ -15,7 +15,7 @@ from aeon.core.types import (
     t_float,
     t_string,
 )
-from aeon.core.terms import Abstraction, Application, Let, Term, Var, Literal, If
+from aeon.core.terms import Abstraction, Application, Let, Rec, Term, Var, Literal, If
 from aeon.utils.ast_helpers import mk_binop, i0
 
 
@@ -40,6 +40,9 @@ class TreeToCore(Transformer):
 
     def let_e(self, args):
         return Let(str(args[0]), args[1], args[2])
+
+    def rec_e(self, args):
+        return Rec(str(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
         return If(*args)

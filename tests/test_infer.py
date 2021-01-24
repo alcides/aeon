@@ -89,3 +89,18 @@ def test_or():
     or_def = "\\x -> \\y -> if x then true else y"
     or_type = "(x:Bool) -> (y:Bool) -> {z:Bool | z == (x || y)}"
     assert tt(or_def, or_type)
+
+
+# Selfication
+
+
+def test_abs():
+    abs_def = "\\x -> if x >= 0 then x else -x"
+    abs_type = "(x:Int) -> {z:Int | z >= 0}"
+    assert tt(abs_def, abs_type)
+
+
+def test_sumTo():
+    sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n < 0 then 0 else n + (sum (n - 1)) in sum"
+    sumTo_type = "(x: Int) -> {y: Int | (y >= 0) && (x <= y) } "
+    assert tt(sumTo_def, sumTo_type)

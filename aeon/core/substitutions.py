@@ -7,8 +7,17 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import AbstractionType, BaseType, Bottom, RefinedType, Top, Type, t_int, t_bool
-from aeon.core.terms import If, Term, Literal, Var, Application, Abstraction, Let
+from aeon.core.types import (
+    AbstractionType,
+    BaseType,
+    Bottom,
+    RefinedType,
+    Top,
+    Type,
+    t_int,
+    t_bool,
+)
+from aeon.core.terms import If, Rec, Term, Literal, Var, Application, Abstraction, Let
 
 
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
@@ -97,6 +106,14 @@ def liquefy_app(app: Application) -> Optional[LiquidApp]:
     assert False
 
 
+def liquefy_rec(t: Let) -> Optional[LiquidTerm]:
+    value = liquefy(t.var_value)  # TODO
+    body = liquefy(t.body)
+    if value and body:
+        return substitution_in_liquid(body, value, t.var_name)
+    return None
+
+
 def liquefy_let(t: Let) -> Optional[LiquidTerm]:
     value = liquefy(t.var_value)
     body = liquefy(t.body)
@@ -126,6 +143,8 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return LiquidVar(rep.name)
     elif isinstance(rep, Let):
         return liquefy_let(rep)
+    elif isinstance(rep, Rec):
+        return liquefy_rec(rep)
     elif isinstance(rep, If):
         return liquefy_if(rep)
     assert False

@@ -87,6 +87,30 @@ class Let(Term):
                 and self.body == other.body)
 
 
+class Rec(Term):
+    var_name: str
+    var_type: Type
+    var_value: Term
+    body: Term
+
+    def __init__(self, var_name: str, var_type: Type, var_value: Term,
+                 body: Term):
+        self.var_name = var_name
+        self.var_type = var_type
+        self.var_value = var_value
+        self.body = body
+
+    def __str__(self):
+        return u"(let {} : {} = {} in {})".format(self.var_name, self.var_type,
+                                                  self.var_value, self.body)
+
+    def __eq__(self, other):
+        return (isinstance(other, Rec) and self.var_name == other.var_name
+                and self.var_type == other.var_type
+                and self.var_value == other.var_value
+                and self.body == other.body)
+
+
 class If(Term):
     cond: Term
     then: Term
