@@ -29,6 +29,63 @@ def test_a_is_bool():
     assert tt("a", "{x:Bool| x == true}", {"a": "{x:Bool| x == true}"})
 
 
+def test_a_is_not_bool():
+    assert not tt("a", "Bool", {"a": "Int"})
+    assert not tt("a", "Int", {"a": "{x:Bool| x == true}"})
+    assert not tt("a", "Bool", {"a": "{x:Int| x > 0}"})
+    assert not tt("a", "{x:Bool| x == false}", {"a": "{x:Bool| x == true}"})
+
+
 def test_abs_is_int():
     # assert tt("\\x -> x", "(x:Int) -> Int")
     assert not tt("\\x -> x", "(x:Bool) -> Int")
+
+
+# lambda
+
+nat = "{v:Int | 0 <= v}"
+pos = "{v:Int | 0 < v}"
+
+
+def test_six():
+    assert tt("6", nat)
+
+
+def test_nine():
+    assert tt("6+3", nat)
+
+
+def test_two():
+    assert tt("let a = 1 in 2", "Int")
+
+
+def test_fifteen():
+    fifteen = "let six = 6 in let nine = 9 in 6 + 9"
+    assert tt(fifteen, nat)
+
+
+# Branches
+
+
+def test_if():
+    assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
+    assert tt("if x == 1 then 1 else 0", "{k:Int | (k == 1) || (k == 0) }",
+              {"x": "Int"})
+
+
+def test_not():
+    not_def = "\\x -> if x then false else true"
+    not_type = "(x:Bool) -> {b:Bool | b == !x}"
+    assert tt(not_def, not_type)
+
+
+def test_and():
+    and_def = "\\x -> \\y -> if x then y else false"
+    and_type = "(x:Bool) -> (y:Bool) -> {z:Bool | z == (x && y)}"
+    assert tt(and_def, and_type)
+
+
+def test_or():
+    or_def = "\\x -> \\y -> if x then true else y"
+    or_type = "(x:Bool) -> (y:Bool) -> {z:Bool | z == (x || y)}"
+    assert tt(or_def, or_type)

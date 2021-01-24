@@ -7,8 +7,8 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, t_int, t_bool
-from aeon.core.terms import Term, Literal, Var, Application, Abstraction, Let
+from aeon.core.types import AbstractionType, BaseType, Bottom, RefinedType, Top, Type, t_int, t_bool
+from aeon.core.terms import If, Term, Literal, Var, Application, Abstraction, Let
 
 
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
@@ -38,7 +38,11 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     def rec(t: Type) -> Type:
         return substitution_in_type(t, rep, name)
 
-    if isinstance(t, BaseType):
+    if isinstance(t, Top):
+        return t
+    elif isinstance(t, Bottom):
+        return t
+    elif isinstance(t, BaseType):
         return t
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
@@ -101,6 +105,16 @@ def liquefy_let(t: Let) -> Optional[LiquidTerm]:
     return None
 
 
+def liquefy_if(t: If) -> Optional[LiquidTerm]:
+    co = liquefy(t.cond)
+    th = liquefy(t.then)
+    ot = liquefy(t.otherwise)
+    if co and th and ot:
+        return LiquidApp("ite", [co, th, ot])
+    return None
+
+
+# patterm matching term
 def liquefy(rep: Term) -> Optional[LiquidTerm]:
     if isinstance(rep, Literal) and rep.type == t_int:
         return LiquidLiteralInt(rep.value)
@@ -112,4 +126,6 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return LiquidVar(rep.name)
     elif isinstance(rep, Let):
         return liquefy_let(rep)
+    elif isinstance(rep, If):
+        return liquefy_if(rep)
     assert False

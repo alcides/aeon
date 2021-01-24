@@ -10,9 +10,16 @@ class TypingContext(object):
     def with_var(self, name: str, type: Type) -> "TypingContext":
         return VariableBinder(self, name, type)
 
+    def fresh_var(self):
+        return "#_"
+
 
 class EmptyContext(TypingContext):
-    pass
+    def fresh_var(self):
+        return "#_1"
+
+    def __repr__(self) -> str:
+        return "ø"
 
 
 class VariableBinder(TypingContext):
@@ -29,3 +36,12 @@ class VariableBinder(TypingContext):
         if name == self.name:
             return self.type
         return self.prev.type_of(name)
+
+    def fresh_var(self):
+        p = int(self.prev.fresh_var().split("_")[-1])
+        while self.type_of(p):
+            p += 1
+        return "#_{}".format(p)
+
+    def __repr__(self) -> str:
+        return "{},{}:{}".format(self.prev, self.name, self.type)

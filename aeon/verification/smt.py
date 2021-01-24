@@ -1,6 +1,6 @@
-from z3.z3 import Bool, And, Not
+from z3.z3 import Bool, And, Not, Or
 from aeon.core.types import BaseType, t_int, t_bool
-from typing import Any, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -11,49 +11,71 @@ from aeon.core.liquid import (
 from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
 from z3 import Solver, Int, sat, unsat, And, Not
 
-base_functions = {
+base_functions: Dict[str, Any] = {
     "==": lambda x, y: x == y,
     "!=": lambda x, y: x != y,
     "<": lambda x, y: x < y,
     "<=": lambda x, y: x <= y,
     ">": lambda x, y: x >= y,
     ">=": lambda x, y: x >= y,
+    "!": lambda x: Not(x),
+    "+": lambda x, y: x + y,
+    "&&": lambda x, y: And(x, y),
+    "||": lambda x, y: Or(x, y),
 }
 
 
-def free_vars(c: Constraint) -> List[str]:
-    if isinstance(c, LiquidConstraint):
-        return []
+class CanonicConstraint(object):
+    binders: List[Tuple[str, BaseType]]
+    pre: LiquidTerm
+    pos: LiquidTerm
+
+    def __init__(self, binders: List[Tuple[str, BaseType]], pre: LiquidTerm,
+                 pos: LiquidTerm):
+        self.binders = binders
+        self.pre = pre
+        self.pos = pos
+
+    def __repr__(self):
+        return "\\forall {}, {} => {}".format(self.binders, self.pre, self.pos)
+
+
+def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
+    if isinstance(c, Conjunction):
+        yield from flatten(c.c1)
+        yield from flatten(c.c2)
     elif isinstance(c, Implication):
-        return [c.name]
-    elif isinstance(c, Conjunction):
-        return free_vars(c.c1) + free_vars(c.c2)
+        for sub in flatten(c.seq):
+            yield CanonicConstraint(
+                binders=sub.binders + [(c.name, c.base)],
+                pre=LiquidApp("&&", [sub.pre, c.pred]),
+                pos=sub.pos,
+            )
+    elif isinstance(c, LiquidConstraint):
+        yield CanonicConstraint(binders=[],
+                                pre=LiquidLiteralBool(True),
+                                pos=c.expr)
+
+
+def smt_valid_single(c: CanonicConstraint) -> bool:
+    s = Solver()
+    print("R2", c, end=" ")
+    c = translate(c)
+    s.add(c)
+    result = s.check()
+    print("<>", s.check() == unsat)
+    if result == sat:
+        return False
+    elif result == unsat:
+        return True
     else:
         assert False
 
 
 def smt_valid(c: Constraint) -> bool:
     """ Verifies if a constraint is true using Z3 """
-    print("SMT solving", c)
-    if free_vars(c) == []:
-        s = Solver()
-        c = translate(c, [])
-        s.add(c)
-        return s.check() == sat
-
-    if isinstance(c, Conjunction):
-        return smt_valid(c.c1) and smt_valid(c.c2)
-    else:
-        s = Solver()
-        c = translate(c, [])
-        s.add(c)
-        result = s.check()
-        if result == sat:
-            return False
-        elif result == unsat:
-            return True
-        else:
-            assert False
+    cons: List[CanonicConstraint] = list(flatten(c))
+    return all([smt_valid_single(c) for c in cons])
 
 
 def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
@@ -84,7 +106,9 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
     assert False
 
 
-def translate(c: Constraint, variables: List[Tuple[str, Any]]):
+# patterm matching term
+"""
+def translate_old(c: Constraint, variables: List[Tuple[str, Any]]):
     if isinstance(c, LiquidConstraint):
         return translate_liq(c.expr, variables)
     elif isinstance(c, Conjunction):
@@ -98,3 +122,12 @@ def translate(c: Constraint, variables: List[Tuple[str, Any]]):
         return And(e1, Not(e2))
     else:
         assert False
+"""
+
+
+def translate(c: CanonicConstraint):
+    variables = [(name, make_variable(name, base))
+                 for (name, base) in c.binders]
+    e1 = translate_liq(c.pre, variables)
+    e2 = translate_liq(c.pos, variables)
+    return And(e1, Not(e2))
