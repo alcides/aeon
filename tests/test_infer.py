@@ -104,3 +104,7 @@ def test_sumTo():
     sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n < 0 then 0 else n + (sum (n - 1)) in sum"
     sumTo_type = "(x: Int) -> {y: Int | (y >= 0) && (x <= y) } "
     assert tt(sumTo_def, sumTo_type)
+
+
+def test_simplerec():
+    assert tt("let x : Int = 1 in x", "Int")

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 from aeon.core.liquid import LiquidLiteralBool, LiquidTerm
 
 
@@ -84,7 +84,8 @@ class RefinedType(Type):
                 and self.refinement == other.refinement)
 
 
-def extract_parts(t: Type) -> Tuple[str, BaseType, LiquidTerm]:
+def extract_parts(
+        t: Union[RefinedType, BaseType]) -> Tuple[str, BaseType, LiquidTerm]:
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:

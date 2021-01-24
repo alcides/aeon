@@ -1,5 +1,5 @@
-from z3.z3 import Bool, And, Not, Or
-from aeon.core.types import BaseType, t_int, t_bool
+from z3.z3 import Bool, And, Not, Or, String
+from aeon.core.types import BaseType, t_int, t_bool, t_string
 from typing import Any, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
     LiquidApp,
@@ -59,11 +59,11 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 def smt_valid_single(c: CanonicConstraint) -> bool:
     s = Solver()
-    print("R2", c, end=" ")
+    # print("R2", c, end=" ")
     c = translate(c)
     s.add(c)
     result = s.check()
-    print("<>", s.check() == unsat)
+    # print("<>", s.check() == unsat)
     if result == sat:
         return False
     elif result == unsat:
@@ -90,6 +90,9 @@ def make_variable(name: str, base: BaseType) -> Any:
         return Int(name)
     elif base == t_bool:
         return Bool(name)
+    elif base == t_string:
+        return String(name)
+    print("NO var:", name, base)
     assert False
 
 
@@ -127,7 +130,7 @@ def translate_old(c: Constraint, variables: List[Tuple[str, Any]]):
 
 def translate(c: CanonicConstraint):
     variables = [(name, make_variable(name, base))
-                 for (name, base) in c.binders]
+                 for (name, base) in c.binders if isinstance(base, BaseType)]
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     return And(e1, Not(e2))

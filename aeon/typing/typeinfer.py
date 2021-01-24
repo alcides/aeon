@@ -17,6 +17,8 @@ from aeon.core.types import (
     Type,
     t_bool,
     t_int,
+    t_string,
+    t_float,
     top,
     bottom,
 )
@@ -64,6 +66,8 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         return (ctrue, prim_litbool(t.value))
     elif isinstance(t, Literal) and t.type == t_int:
         return (ctrue, prim_litint(t.value))
+    elif isinstance(t, Literal):
+        return (ctrue, t.type)
     elif isinstance(t, Var):
         if t.name in ops:
             return (ctrue, prim_op(t.name))
@@ -93,10 +97,10 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         if isinstance(ty, AbstractionType):
             cp = check(ctx, t.arg, ty.var_type)
             t_subs = substitution_in_type(ty.type, Var(t.arg), ty.var_name)
-            print("app", t, t_subs)
             return (Conjunction(c, cp), t_subs)
         else:
             raise CouldNotGenerateConstraintException()
+    print("Unhandled:", t)
     assert False
 
 
@@ -116,11 +120,12 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
         c2 = check(nrctx, t.body, ty)
+        c1 = implication_constraint(t.var_name, t.var_type, c1)
+        c2 = implication_constraint(t.var_name, t.var_type, c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
-        print("Liq", liq_cond)
         # c0 = check(ctx, t.cond, t_bool) TODO!
         c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
                                     check(ctx, t.then, ty))

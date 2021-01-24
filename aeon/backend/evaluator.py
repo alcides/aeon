@@ -12,7 +12,9 @@ class EvaluationContext(object):
             self.variables = {}
 
     def with_var(self, name: str, value: Any):
-        return EvaluationContext(self.variables | {name: value})
+        v = self.variables.copy()
+        v.update({name: value})
+        return EvaluationContext(v)
 
     def get(self, name: str):
         return self.variables[name]
@@ -31,7 +33,19 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Let):
         return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
     elif isinstance(t, Rec):
-        return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
+
+        if isinstance(t.var_value, Abstraction):
+            fun = t.var_value
+
+            def v(x):
+                return eval(
+                    fun.body,
+                    ctx.with_var(t.var_name, v).with_var(fun.var_name, x),
+                )
+
+        else:
+            v = eval(t.var_value, ctx)
+        return eval(t.body, ctx.with_var(t.var_name, v))
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
         return bool(c) and eval(t.cond, ctx) or eval(t.otherwise, ctx)

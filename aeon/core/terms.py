@@ -13,7 +13,7 @@ class Literal(Term):
         self.value = value
         self.type = type
 
-    def __str__(self):
+    def __repr__(self):
         return u"({}::{})".format(self.value, self.type)
 
     def __eq__(self, other):
@@ -29,6 +29,9 @@ class Var(Term):
 
     def __str__(self):
         return u"{}".format(self.name)
+
+    def __repr__(self):
+        return u"Var({})".format(self.name)
 
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
