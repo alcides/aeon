@@ -97,6 +97,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         if isinstance(ty, AbstractionType):
             cp = check(ctx, t.arg, ty.var_type)
             t_subs = substitution_in_type(ty.type, Var(t.arg), ty.var_name)
+            print("debug", t_subs)
             return (Conjunction(c, cp), t_subs)
         else:
             raise CouldNotGenerateConstraintException()
@@ -126,7 +127,10 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
-        # c0 = check(ctx, t.cond, t_bool) TODO!
+        if not check_type(ctx, t.cond, t_bool):
+            raise CouldNotGenerateConstraintException(
+                "If condition not boolean")
+        c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
                                     check(ctx, t.then, ty))
         c2 = implication_constraint(
@@ -134,7 +138,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),
             check(ctx, t.otherwise, ty),
         )
-        return Conjunction(c1, c2)
+        return Conjunction(c0, Conjunction(c1, c2))
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
@@ -142,5 +146,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
 
 def check_type(ctx, t: Term, ty: Type) -> bool:
-    constraint = check(ctx, t, ty)
+    try:
+        constraint = check(ctx, t, ty)
+    except CouldNotGenerateConstraintException as e:
+        return False
     return entailment(ctx, constraint)

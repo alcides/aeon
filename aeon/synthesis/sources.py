@@ -18,3 +18,17 @@ class SeededRandomSource(RandomSource):
 
     def next_integer(self) -> int:
         return self.r.randint(-100000, 100000)
+
+
+class ListRandomSource(RandomSource):
+    values: List[int]
+    index: int
+
+    def __init__(self, values: List[int]):
+        self.values = values
+        self.index = 0
+
+    def next_integer(self) -> int:
+        v = self.values[self.index % len(self.values)]
+        self.index += 1
+        return v

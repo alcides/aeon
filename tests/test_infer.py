@@ -41,6 +41,15 @@ def test_abs_is_int():
     assert not tt("\\x -> x", "(x:Bool) -> Int")
 
 
+def test_negatives():
+    assert not tt("1", "{x:Int| x == 0}")
+    assert not tt("2", "{x:Int| x >= 5}")
+    assert tt("5-2", "{x:Int| x == 3}")
+    assert tt("0-2", "{x:Int| x == (-2)}")
+    assert tt("0-2", "{x:Int| x <= 0}")
+    assert not tt("0-2", "{x:Int| x == (-1)}")
+
+
 # lambda
 
 nat = "{v:Int | 0 <= v}"
@@ -71,6 +80,7 @@ def test_if():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
     assert tt("if x == 1 then 1 else 0", "{k:Int | (k == 1) || (k == 0) }",
               {"x": "Int"})
+    assert not tt("if x then 1 else 0", "Int", {"x": "Int"})
 
 
 def test_not():

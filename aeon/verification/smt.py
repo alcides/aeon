@@ -59,11 +59,11 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 def smt_valid_single(c: CanonicConstraint) -> bool:
     s = Solver()
-    # print("R2", c, end=" ")
+    print("R2", c, end=" ")
     c = translate(c)
     s.add(c)
     result = s.check()
-    # print("<>", s.check() == unsat)
+    print("<>", s.check() == unsat)
     if result == sat:
         return False
     elif result == unsat:
