@@ -7,6 +7,7 @@ class RandomSource(object):
         return 0
 
     def choose(self, options: List[Any]) -> Any:
+        assert options
         k = self.next_integer() % len(options)
         return options[k]
 

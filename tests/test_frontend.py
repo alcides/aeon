@@ -49,7 +49,7 @@ def test_literals():
 
 
 def test_operators():
-    assert parse_term("-1") == mk_binop(lambda: "t", "-", i0, i1)
+    assert parse_term("-a") == mk_binop(lambda: "t", "-", i0, Var("a"))
 
     assert parse_term("!true") == Application(Var("!"), true)
 

@@ -46,6 +46,8 @@ class TreeToCore(Transformer):
     # Expressions
 
     def minus(self, args):
+        if isinstance(args[0], Literal) and args[0].type == t_int:
+            return Literal(-args[0].value, args[0].type)
         return mk_binop(lambda: self.fresh(), "-", i0, args[0])
 
     def let_e(self, args):
