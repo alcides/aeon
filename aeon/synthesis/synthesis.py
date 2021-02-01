@@ -57,6 +57,7 @@ def vars_of_type(
 
 def synth_var(r: RandomSource, ctx: TypingContext, ty: Type):
     candidates = vars_of_type(ctx, ty)
+    print("candidates", candidates, ty)
     if candidates:
         return Var(r.choose(candidates))
     return None

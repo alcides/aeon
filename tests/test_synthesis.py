@@ -59,3 +59,11 @@ def test_ref1():
         "{x:Int | x < 0}",
         "-10",
     )
+
+
+def test_ref2():
+    helper_syn(
+        [2, 0, 2, 1, 0, 0, 0, 400] + rseed,
+        "{x:Int | x >= 0}",
+        "(\\k -> 0) 400",
+    )
