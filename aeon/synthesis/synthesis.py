@@ -6,8 +6,7 @@ from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
 from aeon.typing.typeinfer import check_type
 
 
-def synth_literal(r: RandomSource, ctx: TypingContext,
-                  ty: Type) -> Optional[Literal]:
+def synth_literal(r: RandomSource, ctx: TypingContext, ty: Type) -> Optional[Literal]:
     print("syntlit", ty)
     if isinstance(ty, BaseType):
         if ty == t_int:
@@ -37,9 +36,9 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     return entailment(ctx, c)
 
 
-def vars_of_type(ctx: TypingContext,
-                 ty: Type,
-                 ictx: Optional[TypingContext] = None) -> List[str]:
+def vars_of_type(
+    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
+) -> List[str]:
     if not ictx:
         return vars_of_type(ctx, ty, ctx)
 
