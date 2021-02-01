@@ -40,7 +40,7 @@ class LiquidVar(LiquidTerm):
         self.name = name
 
     def __repr__(self):
-        return u"{}".format(self.name)
+        return u"§{}".format(self.name)
 
     def __eq__(self, other):
         return isinstance(other, LiquidVar) and other.name == self.name

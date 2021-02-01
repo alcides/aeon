@@ -1,6 +1,11 @@
 from aeon.typing.entailment import entailment
-from aeon.core.substitutions import liquefy, substitution_in_type
-from aeon.verification.vcs import Conjunction, Constraint, LiquidConstraint
+from aeon.core.substitutions import liquefy, substitute_vartype, substitution_in_type
+from aeon.verification.vcs import (
+    Conjunction,
+    Constraint,
+    LiquidConstraint,
+    variables_in,
+)
 from typing import Tuple
 
 from aeon.core.liquid import (
@@ -15,6 +20,8 @@ from aeon.core.types import (
     BaseType,
     RefinedType,
     Type,
+    TypeVar,
+    extract_parts,
     t_bool,
     t_int,
     t_string,
@@ -33,6 +40,11 @@ class CouldNotGenerateConstraintException(Exception):
     pass
 
 
+def argument_is_typevar(ty: Type):
+    return (isinstance(ty, TypeVar)
+            or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar))
+
+
 def prim_litbool(t: bool) -> RefinedType:
     if t:
         return RefinedType("v", t_bool, LiquidVar("v"))
@@ -47,15 +59,34 @@ def prim_litint(t: int) -> RefinedType:
 
 
 def prim_op(t: str) -> Type:
+    i1 = TypeVar("_op_1")
+    i2 = TypeVar("_op_1")
+    o = TypeVar("_op_1")
+
+    if t in ["==", "!=", "<", ">", "<=", ">=", "&&", "||"]:
+        o = t_bool
+    if t in ["&&", "||"]:
+        i1 = t_bool
+        i2 = t_bool
+
     return AbstractionType(
         "x",
-        top,
+        i1,
         AbstractionType(
             "y",
-            top,
-            RefinedType("z", bottom,
+            i2,
+            RefinedType(
+                "z",
+                o,
+                LiquidApp(
+                    "==",
+                    [
+                        LiquidVar("z"),
                         LiquidApp(
-                            t, [LiquidVar("x"), LiquidVar("y")])),
+                            t, [LiquidVar("x"), LiquidVar("y")])
+                    ],
+                ),
+            ),
         ),
     )
 
@@ -95,12 +126,53 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
         if isinstance(ty, AbstractionType):
-            cp = check(ctx, t.arg, ty.var_type)
-            t_subs = substitution_in_type(ty.type, Var(t.arg), ty.var_name)
-            print("debug", t_subs)
+
+            if argument_is_typevar(ty.var_type):
+                (_, b, _) = extract_parts(ty.var_type)
+                assert isinstance(b, TypeVar)
+                (cp, at) = synth(ctx, t.arg)
+                if isinstance(at, RefinedType):
+                    at = at.type  # This is a hack before inference
+                return_type = substitute_vartype(ty.type, at, b.name)
+            else:
+                cp = check(ctx, t.arg, ty.var_type)
+                return_type = ty.type
+
+            t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
+
             return (Conjunction(c, cp), t_subs)
         else:
             raise CouldNotGenerateConstraintException()
+    elif isinstance(t, Let):
+        (c1, t1) = synth(ctx, t.var_value)
+        nctx: TypingContext = ctx.with_var(t.var_name, t1)
+        (c2, t2) = synth(nctx, t.body)
+        return (Conjunction(c1, implication_constraint(t.var_name, t1,
+                                                       c2)), t2)
+    elif isinstance(t, Rec):
+        nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
+        c1 = check(nrctx, t.var_value, t.var_type)
+        (c2, t2) = synth(nrctx, t.body)
+
+        c1 = implication_constraint(t.var_name, t.var_type, c1)
+        c2 = implication_constraint(t.var_name, t.var_type, c2)
+
+        print(
+            "\tLetRec",
+            list(variables_in(c1)),
+            ", ",
+            list(variables_in(c2)),
+            " ... ",
+            t.var_name,
+            " >=>",
+            ctx,
+            "??",
+            c1,
+            "??",
+            c2,
+        )
+
+        return (Conjunction(c1, c2), t2)
     print("Unhandled:", t)
     assert False
 
@@ -145,9 +217,13 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         return Conjunction(c, cp)
 
 
-def check_type(ctx, t: Term, ty: Type) -> bool:
+def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
+    print(ctx, "|-", t, "<:", ty)
     try:
         constraint = check(ctx, t, ty)
     except CouldNotGenerateConstraintException as e:
+        print("OOPs", e)
         return False
+
+    print("Checking {} <: {} leads to {}".format(t, ty, constraint))
     return entailment(ctx, constraint)

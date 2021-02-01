@@ -14,10 +14,28 @@ from aeon.core.types import (
     RefinedType,
     Top,
     Type,
+    TypeVar,
     t_int,
     t_bool,
 )
 from aeon.core.terms import If, Rec, Term, Literal, Var, Application, Abstraction, Let
+
+
+def substitute_vartype(t: Type, rep: Type, name: str):
+    def rec(k: Type):
+        return substitute_vartype(k, rep, name)
+
+    if isinstance(t, BaseType):
+        return t
+    elif isinstance(t, TypeVar) and t.name == name:
+        return rep
+    elif isinstance(t, TypeVar) and t.name != name:
+        return t
+    elif isinstance(t, RefinedType):
+        return RefinedType(t.name, rec(t.type), t.refinement)
+    elif isinstance(t, AbstractionType):
+        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
+    assert False
 
 
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
@@ -52,6 +70,8 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     elif isinstance(t, Bottom):
         return t
     elif isinstance(t, BaseType):
+        return t
+    elif isinstance(t, TypeVar):
         return t
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
@@ -103,6 +123,11 @@ def liquefy_app(app: Application) -> Optional[LiquidApp]:
             return LiquidApp(liquid_pseudo_fun.fun,
                              liquid_pseudo_fun.args + [arg])
         return None
+    elif isinstance(app.fun, Let):
+        return liquefy_app(
+            Application(
+                substitution(app.fun.body, app.fun.var_value,
+                             app.fun.var_name), app.arg))
     assert False
 
 
@@ -147,4 +172,7 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return liquefy_rec(rep)
     elif isinstance(rep, If):
         return liquefy_if(rep)
+
+    print("Could not liquefy: {} of {}".format(rep, type(rep)))
+    print(isinstance(rep, Literal) and rep.type == t_int)
     assert False

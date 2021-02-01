@@ -1,6 +1,6 @@
-from z3.z3 import Bool, And, Not, Or, String
-from aeon.core.types import BaseType, t_int, t_bool, t_string
-from typing import Any, Dict, Generator, List, Tuple
+from z3.z3 import Bool, And, BoolRef, ExprRef, Not, Or, String
+from aeon.core.types import AbstractionType, BaseType, t_int, t_bool, t_string
+from typing import Any, Callable, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -19,9 +19,14 @@ base_functions: Dict[str, Any] = {
     ">": lambda x, y: x >= y,
     ">=": lambda x, y: x >= y,
     "!": lambda x: Not(x),
-    "+": lambda x, y: x + y,
     "&&": lambda x, y: And(x, y),
     "||": lambda x, y: Or(x, y),
+    "+": lambda x, y: x + y,
+    "-": lambda x, y: x - y,
+    "*": lambda x, y: x * y,
+    "/": lambda x, y: x / y,
+    "*": lambda x, y: x * y,
+    "%": lambda x, y: x % y,
 }
 
 
@@ -59,11 +64,9 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 def smt_valid_single(c: CanonicConstraint) -> bool:
     s = Solver()
-    print("R2", c, end=" ")
     c = translate(c)
     s.add(c)
     result = s.check()
-    print("<>", s.check() == unsat)
     if result == sat:
         return False
     elif result == unsat:
@@ -104,31 +107,40 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
     elif isinstance(t, LiquidVar):
         return type_of_variable(variables, t.name)
     elif isinstance(t, LiquidApp):
+        f = None
+        if t.fun in base_functions:
+            f = base_functions[t.fun]
+        else:
+            for v in variables:
+                if v[0] == t.fun and isinstance(v[1], function):
+                    f = v[1]
+        if not f:
+            assert False
         args = [translate_liq(a, variables) for a in t.args]
-        return base_functions[t.fun](*args)
+        return f(*args)
     assert False
 
 
-# patterm matching term
 """
-def translate_old(c: Constraint, variables: List[Tuple[str, Any]]):
-    if isinstance(c, LiquidConstraint):
-        return translate_liq(c.expr, variables)
-    elif isinstance(c, Conjunction):
-        e1 = translate(c.c1, variables)
-        e2 = translate(c.c2, variables)
-        return And(e1, e2)
-    elif isinstance(c, Implication):
-        nvariables = [(c.name, make_variable(c.name, c.base))] + variables
-        e1 = translate_liq(c.pred, nvariables)
-        e2 = translate(c.seq, nvariables)
-        return And(e1, Not(e2))
-    else:
-        assert False
+def make_variable_abs(name: str, abs: AbstractionType) -> Callable[[ExprRef], ExprRef]:
+
+    return None
+
+
+def translate_context(
+    binders: List[Tuple[str, BaseType]]
+) -> Generator[Tuple[str, Any], None, None]:
+    for (name, base) in binders:
+        if isinstance(base, BaseType):
+            yield (name, make_variable(name, base))
+        elif isinstance(base, AbstractionType):
+            yield (name, make_variable_abs(name, base))
+        else:
+            assert False
 """
 
 
-def translate(c: CanonicConstraint):
+def translate(c: CanonicConstraint) -> BoolRef:
     variables = [(name, make_variable(name, base))
                  for (name, base) in c.binders if isinstance(base, BaseType)]
     e1 = translate_liq(c.pre, variables)

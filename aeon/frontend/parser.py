@@ -1,3 +1,4 @@
+from typing import Callable
 from aeon.utils.ast_helpers import mk_binop
 from aeon.core.substitutions import liquefy
 import os
@@ -16,10 +17,19 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.core.terms import Abstraction, Application, Let, Rec, Term, Var, Literal, If
-from aeon.utils.ast_helpers import mk_binop, i0
+from aeon.utils.ast_helpers import ensure_anf_if, ensure_anf_app, mk_binop, i0
 
 
 class TreeToCore(Transformer):
+    counter: int
+
+    def __init__(self):
+        self.counter = 0
+
+    def fresh(self) -> str:
+        self.counter += 1
+        return "_anf_{}".format(self.counter)
+
     def same(self, args):
         return args[0]
 
@@ -36,7 +46,7 @@ class TreeToCore(Transformer):
     # Expressions
 
     def minus(self, args):
-        return mk_binop("-", i0, args[0])
+        return mk_binop(lambda: self.fresh(), "-", i0, args[0])
 
     def let_e(self, args):
         return Let(str(args[0]), args[1], args[2])
@@ -45,7 +55,8 @@ class TreeToCore(Transformer):
         return Rec(str(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
-        return If(*args)
+        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1],
+                                                      args[2]))
 
     def nnot(self, args):
         return Application(Var("!"), args[0])
@@ -93,10 +104,11 @@ class TreeToCore(Transformer):
         return self.binop(args, "%")
 
     def binop(self, args, op):
-        return mk_binop(op, args[0], args[1])
+        return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
     def application_e(self, args):
-        return Application(*args)
+        return ensure_anf_app(lambda: self.fresh(),
+                              Application(args[0], args[1]))
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])

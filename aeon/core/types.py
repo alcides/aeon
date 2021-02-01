@@ -19,6 +19,19 @@ class BaseType(Type):
         return isinstance(other, BaseType) and other.name == self.name
 
 
+class TypeVar(Type):
+    name: str
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return u"{}".format(self.name)
+
+    def __eq__(self, other):
+        return isinstance(other, BaseType) and other.name == self.name
+
+
 class Top(Type):
     def __repr__(self):
         return u"⊤"
@@ -85,7 +98,8 @@ class RefinedType(Type):
 
 
 def extract_parts(
-        t: Union[RefinedType, BaseType]) -> Tuple[str, BaseType, LiquidTerm]:
+    t: Union[RefinedType, BaseType, TypeVar]
+) -> Tuple[str, Union[BaseType, TypeVar], LiquidTerm]:
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:

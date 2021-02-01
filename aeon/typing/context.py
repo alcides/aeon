@@ -1,6 +1,6 @@
 import typing
 from typing import Optional
-from aeon.core.types import AbstractionType, Type
+from aeon.core.types import Type
 
 
 class TypingContext(object):

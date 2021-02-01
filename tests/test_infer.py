@@ -47,7 +47,7 @@ def test_negatives():
     assert tt("5-2", "{x:Int| x == 3}")
     assert tt("0-2", "{x:Int| x == (-2)}")
     assert tt("0-2", "{x:Int| x <= 0}")
-    assert not tt("0-2", "{x:Int| x == (-1)}")
+    assert not tt("0-2", "{x:Int| x == (0-1)}")
 
 
 # lambda
@@ -110,11 +110,89 @@ def test_abs():
     assert tt(abs_def, abs_type)
 
 
+def test_abs_f():
+    assert tt("let f : (x:Int) -> Int = \\x -> x in f 1", "Int")
+
+
+def test_abs_if():
+    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0",
+                  "Int")
+    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0",
+              "Int")
+
+
+def test_sumSimple():
+    assert tt("if b then 0 else sum 0", "Int", {
+        "b": "Bool",
+        "sum": "(x:Int) -> Int"
+    })
+    assert tt("let sum : (x: Int) -> Int = \\x -> sum x in sum 0", "Int")
+    assert tt(
+        "let k = sum b in if k then 1 else 0",
+        "Int",
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
+    )
+
+
+def test_sumSimple2():
+    assert tt(
+        "if sum b then 1 else 0",
+        "Int",
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
+    )
+
+
+def test_sumSimple3():
+    assert tt(
+        "let a : Int = if sum b then 1 else 0 in a",
+        "Int",
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
+    )
+
+
+def test_sumToSimple4():
+    assert tt("let k : {x:Int | x > 1} = 3 in k", "{k:Int| k > 0}")
+
+    assert tt("let k : (x:Int) -> {y:Int | y > x} = \\x -> x+1 in k 5",
+              "{k:Int| k > 5}")
+
+    assert tt(
+        "let k : (x:Int) -> {y:Int | y > 0} = \\x -> if x == 5 then k 1 else k 0 in k 5",
+        "{k:Int| k > 0}",
+    )
+
+
 def test_sumTo():
-    sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n < 0 then 0 else n + (sum (n - 1)) in sum"
-    sumTo_type = "(x: Int) -> {y: Int | (y >= 0) && (x <= y) } "
+    sumTo_def = """
+        let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) =
+        \\n -> 
+            let b : {k:Bool | n <= 0} = n <= 0 in
+            if b then 0 else (
+                let n_minus_1 : {nm1:Int | nm1 == (n - 1) } = (n - 1) in
+                let sum_n_minus_1 : {s:Int| (s >= 0) && (s <= n_minus_1)} = sum n_minus_1 in
+                n + sum_n_minus_1
+            ) in 1
+    """
+    sumTo_type = "Int"
     assert tt(sumTo_def, sumTo_type)
+    """
+    sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n <= 0 then 0 else n + sum (n-1) in sum"
+    sumTo_type = "(x: Int) -> {y: Int | (y >= 0) && (x <= y) } "
+    """
 
 
 def test_simplerec():
     assert tt("let x : Int = 1 in x", "Int")
+
+
+def test_let_let():
+    assert tt("let x = let y = 1 in 1 in 2", "Int")

@@ -49,31 +49,37 @@ def test_literals():
 
 
 def test_operators():
-    assert parse_term("-1") == mk_binop("-", i0, i1)
+    assert parse_term("-1") == mk_binop(lambda: "t", "-", i0, i1)
 
     assert parse_term("!true") == Application(Var("!"), true)
 
-    assert parse_term("1 == 1") == mk_binop("==", i1, i1)
-    assert parse_term("1 != 1") == mk_binop("!=", i1, i1)
-    assert parse_term("true && true") == mk_binop("&&", true, true)
-    assert parse_term("true || true") == mk_binop("||", true, true)
+    assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
+    assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
+    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true,
+                                                  true)
+    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true,
+                                                  true)
 
-    assert parse_term("0 < 1") == mk_binop("<", i0, i1)
-    assert parse_term("0 > 1") == mk_binop(">", i0, i1)
-    assert parse_term("0 <= 1") == mk_binop("<=", i0, i1)
-    assert parse_term("0 >= 1") == mk_binop(">=", i0, i1)
+    assert parse_term("0 < 1") == mk_binop(lambda: "t", "<", i0, i1)
+    assert parse_term("0 > 1") == mk_binop(lambda: "t", ">", i0, i1)
+    assert parse_term("0 <= 1") == mk_binop(lambda: "t", "<=", i0, i1)
+    assert parse_term("0 >= 1") == mk_binop(lambda: "t", ">=", i0, i1)
 
-    assert parse_term("true --> false") == mk_binop("-->", true, false)
+    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true,
+                                                    false)
 
-    assert parse_term("1 + 1") == mk_binop("+", i1, i1)
-    assert parse_term("1 - 1") == mk_binop("-", i1, i1)
-    assert parse_term("1 * 1") == mk_binop("*", i1, i1)
-    assert parse_term("1 / 1") == mk_binop("/", i1, i1)
-    assert parse_term("1 % 1") == mk_binop("%", i1, i1)
+    assert parse_term("1 + 1") == mk_binop(lambda: "t", "+", i1, i1)
+    assert parse_term("1 - 1") == mk_binop(lambda: "t", "-", i1, i1)
+    assert parse_term("1 * 1") == mk_binop(lambda: "t", "*", i1, i1)
+    assert parse_term("1 / 1") == mk_binop(lambda: "t", "/", i1, i1)
+    assert parse_term("1 % 1") == mk_binop(lambda: "t", "%", i1, i1)
 
 
 def test_precedence():
-    assert parse_term("1 + 2 * 0") == mk_binop("+", i1, mk_binop("*", i2, i0))
+    t1 = parse_term("1 + 2 * 0")
+    t2 = mk_binop(lambda: "_anf_1", "+", i1,
+                  mk_binop(lambda: "_anf_1", "*", i2, i0))
+    assert t1 == t2
 
 
 def test_let():
