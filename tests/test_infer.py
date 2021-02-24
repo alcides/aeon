@@ -78,8 +78,9 @@ def test_fifteen():
 
 def test_if():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
-    assert tt("if x == 1 then 1 else 0", "{k:Int | (k == 1) || (k == 0) }",
-              {"x": "Int"})
+    assert tt(
+        "if x == 1 then 1 else 0", "{k:Int | (k == 1) || (k == 0) }", {"x": "Int"}
+    )
     assert not tt("if x then 1 else 0", "Int", {"x": "Int"})
 
 
@@ -115,25 +116,17 @@ def test_abs_f():
 
 
 def test_abs_if():
-    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0",
-                  "Int")
-    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0",
-              "Int")
+    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0", "Int")
+    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
 
 
 def test_sumSimple():
-    assert tt("if b then 0 else sum 0", "Int", {
-        "b": "Bool",
-        "sum": "(x:Int) -> Int"
-    })
+    assert tt("if b then 0 else sum 0", "Int", {"b": "Bool", "sum": "(x:Int) -> Int"})
     assert tt("let sum : (x: Int) -> Int = \\x -> sum x in sum 0", "Int")
     assert tt(
         "let k = sum b in if k then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -141,10 +134,7 @@ def test_sumSimple2():
     assert tt(
         "if sum b then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -152,18 +142,16 @@ def test_sumSimple3():
     assert tt(
         "let a : Int = if sum b then 1 else 0 in a",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
 def test_sumToSimple4():
     assert tt("let k : {x:Int | x > 1} = 3 in k", "{k:Int| k > 0}")
 
-    assert tt("let k : (x:Int) -> {y:Int | y > x} = \\x -> x+1 in k 5",
-              "{k:Int| k > 5}")
+    assert tt(
+        "let k : (x:Int) -> {y:Int | y > x} = \\x -> x+1 in k 5", "{k:Int| k > 5}"
+    )
 
     assert tt(
         "let k : (x:Int) -> {y:Int | y > 0} = \\x -> if x == 5 then k 1 else k 0 in k 5",

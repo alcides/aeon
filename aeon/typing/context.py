@@ -1,5 +1,4 @@
-import typing
-from typing import Optional
+from typing import Tuple, List, Optional
 from aeon.core.types import Type
 
 
@@ -11,15 +10,21 @@ class TypingContext(object):
         return VariableBinder(self, name, type)
 
     def fresh_var(self):
-        return "#_"
+        return "fresh_"
+
+    def vars(self) -> List[Tuple[str, Type]]:
+        return []
 
 
 class EmptyContext(TypingContext):
     def fresh_var(self):
-        return "#_1"
+        return "fresh_1"
 
     def __repr__(self) -> str:
         return "ø"
+
+    def vars(self) -> List[Tuple[str, Type]]:
+        return []
 
 
 class VariableBinder(TypingContext):
@@ -39,9 +44,12 @@ class VariableBinder(TypingContext):
 
     def fresh_var(self):
         p = int(self.prev.fresh_var().split("_")[-1])
-        while self.type_of(p):
+        while self.type_of(p) is not None:
             p += 1
-        return "#_{}".format(p)
+        return "fresh_{}".format(p)
 
     def __repr__(self) -> str:
         return "{},{}:{}".format(self.prev, self.name, self.type)
+
+    def vars(self) -> List[Tuple[str, Type]]:
+        return [(self.name, self.type)] + self.prev.vars()

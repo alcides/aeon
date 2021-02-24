@@ -1,13 +1,14 @@
+from aeon.core.pprint import pretty_print
 from typing import Optional, List
 from aeon.core.terms import Abstraction, Application, Literal, Var
 from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, t_int, t_bool
 from aeon.synthesis.sources import RandomSource
+from aeon.synthesis.type_synthesis import synth_type
 from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
 from aeon.typing.typeinfer import check_type
 
 
 def synth_literal(r: RandomSource, ctx: TypingContext, ty: Type) -> Optional[Literal]:
-    print("syntlit", ty)
     if isinstance(ty, BaseType):
         if ty == t_int:
             return Literal(r.next_integer(), ty)
@@ -33,19 +34,24 @@ from aeon.typing.entailment import entailment
 
 def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     c = sub(subt, supt)
+    print("Trace2:", repr(c))
     return entailment(ctx, c)
 
 
 def vars_of_type(
     ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
 ) -> List[str]:
-    if not ictx:
+    if ictx is None:
         return vars_of_type(ctx, ty, ctx)
 
     if isinstance(ictx, EmptyContext):
         return []
     elif isinstance(ictx, VariableBinder):
         rest = vars_of_type(ctx, ty, ictx.prev)
+        print("Trace1:", pretty_print(ictx.type), "|", pretty_print(ty))
+        import sys
+
+        sys.stdout.flush()
         if is_subtype(ctx, ictx.type, ty):
             return [ictx.name] + rest
         else:
@@ -57,7 +63,6 @@ def vars_of_type(
 
 def synth_var(r: RandomSource, ctx: TypingContext, ty: Type):
     candidates = vars_of_type(ctx, ty)
-    print("candidates", candidates, ty)
     if candidates:
         return Var(r.choose(candidates))
     return None
@@ -70,13 +75,9 @@ def extract_base_type(ty: Type):
         return ty
 
 
-def synth_type(r: RandomSource):
-    return r.choose([t_int, t_bool])
-
-
 def synth_app(r: RandomSource, ctx: TypingContext, ty: Type):
-    arg_type = synth_type(r)
-    f = synth_term(r, ctx, AbstractionType("k", arg_type, ty))
+    arg_type = synth_type(r, ctx)
+    f = synth_term(r, ctx, AbstractionType(ctx.fresh_var(), arg_type, ty))
     arg = synth_term(r, ctx, arg_type)
     return Application(f, arg)
 

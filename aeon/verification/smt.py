@@ -35,8 +35,9 @@ class CanonicConstraint(object):
     pre: LiquidTerm
     pos: LiquidTerm
 
-    def __init__(self, binders: List[Tuple[str, BaseType]], pre: LiquidTerm,
-                 pos: LiquidTerm):
+    def __init__(
+        self, binders: List[Tuple[str, BaseType]], pre: LiquidTerm, pos: LiquidTerm
+    ):
         self.binders = binders
         self.pre = pre
         self.pos = pos
@@ -57,9 +58,7 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[],
-                                pre=LiquidLiteralBool(True),
-                                pos=c.expr)
+        yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
 
 
 def smt_valid_single(c: CanonicConstraint) -> bool:
@@ -115,6 +114,7 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
                 if v[0] == t.fun and isinstance(v[1], function):
                     f = v[1]
         if not f:
+            print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
         return f(*args)
@@ -141,8 +141,11 @@ def translate_context(
 
 
 def translate(c: CanonicConstraint) -> BoolRef:
-    variables = [(name, make_variable(name, base))
-                 for (name, base) in c.binders if isinstance(base, BaseType)]
+    variables = [
+        (name, make_variable(name, base))
+        for (name, base) in c.binders
+        if isinstance(base, BaseType)
+    ]
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     return And(e1, Not(e2))

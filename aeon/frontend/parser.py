@@ -57,8 +57,7 @@ class TreeToCore(Transformer):
         return Rec(str(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
-        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1],
-                                                      args[2]))
+        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1], args[2]))
 
     def nnot(self, args):
         return Application(Var("!"), args[0])
@@ -109,8 +108,7 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
     def application_e(self, args):
-        return ensure_anf_app(lambda: self.fresh(),
-                              Application(args[0], args[1]))
+        return ensure_anf_app(lambda: self.fresh(), Application(args[0], args[1]))
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])

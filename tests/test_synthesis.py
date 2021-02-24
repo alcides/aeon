@@ -1,9 +1,12 @@
 import random
 from typing import Dict
+from aeon.core.substitutions import liquefy
 from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
-from aeon.synthesis.synthesis import synth_term
+from aeon.synthesis.term_synthesis import synth_term
+from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource, SeededRandomSource
 from aeon.frontend.parser import parse_type, parse_term
+
 
 seed = lambda x: SeededRandomSource(x)
 listr = lambda x: ListRandomSource(x)
@@ -25,6 +28,27 @@ def test_list_source():
     assert l.next_integer() == 2
     assert l.next_integer() == 3
     assert l.choose([1, 2, 3]) == 2
+
+
+def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
+    ctx: TypingContext = empty
+    if dctx:
+        for k in dctx.keys():
+            ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
+    t = synth_type(listr(l), ctx)
+    assert t == parse_type(ty)
+
+
+def helper_syn_liq(l, t: str, liq: str, dctx: Dict[str, str] = None):
+    ctx: TypingContext = empty
+    if dctx:
+        for k in dctx.keys():
+            ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
+
+    s = synth_liquid(listr(l), ctx, parse_type(t))
+    liq_term = parse_term(liq)
+    expected = liquefy(liq_term)
+    assert s == expected
 
 
 def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None):
@@ -50,7 +74,7 @@ def test_synthesis3():
 
 
 def test_synthesis4():
-    helper_syn([2, 3, 0, 0], "Int", "(\\k -> 0) true")
+    helper_syn([2, 3, 0, 0], "Int", "(\\fresh_1 -> 0) 2")
 
 
 def test_ref1():
@@ -63,7 +87,28 @@ def test_ref1():
 
 def test_ref2():
     helper_syn(
-        [2, 0, 2, 1, 0, 0, 0, 400] + rseed,
+        [2, 0, 2, 1, 0, 0, 0, 400, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] + rseed,
         "{x:Int | x >= 0}",
         "(\\k -> 0) 400",
     )
+
+
+def test_t():
+    helper_syn_type([0, 0, 0, 1, 0, 0, 0, 400] + rseed, "Int")
+
+
+def test_liq_term():
+    helper_syn_liq([0, 0] + rseed, "Bool", "x", {"x": "Bool"})
+    helper_syn_liq([0, 0] + rseed, "Int", "x", {"x": "Int"})
+    helper_syn_liq([0, 0] + rseed, "Bool", "y", {"x": "Int", "y": "Bool"})
+
+    helper_syn_liq([1, 0] + rseed, "Bool", "true")
+    helper_syn_liq([1, 1] + rseed, "Bool", "false")
+    helper_syn_liq([1, 80] + rseed, "Int", "80")
+    helper_syn_liq([1, 91] + rseed, "Int", "91")
+
+
+def test_liq_app():
+    d = {"x": "Bool", "y": "Int", "z": "Bool", "w": "Int"}
+    helper_syn_liq([2, 0, 1, 2, 3, 4], "Bool", "true && z", d)
+    helper_syn_liq([2, 5, 4, 3, 2, 1, 4, 5, 6, 7] + rseed, "Int", "3 + (5 - y)", d)

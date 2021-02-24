@@ -1,5 +1,5 @@
-from typing import Tuple, Union
-from aeon.core.liquid import LiquidLiteralBool, LiquidTerm
+from typing import List, Tuple, Union
+from aeon.core.liquid import LiquidLiteralBool, LiquidTerm, liquid_free_vars
 
 
 class Type(object):
@@ -71,10 +71,12 @@ class AbstractionType(Type):
         return u"({}:{}) -> {}".format(self.var_name, self.var_type, self.type)
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractionType)
-                and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.type == other.type)
+        return (
+            isinstance(other, AbstractionType)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.type == other.type
+        )
 
 
 class RefinedType(Type):
@@ -83,18 +85,21 @@ class RefinedType(Type):
     refinement: LiquidTerm
 
     def __init__(self, name: str, type: BaseType, refinement: LiquidTerm):
+        assert isinstance(type, BaseType) or isinstance(type, TypeVar)
         self.name = name
         self.type = type
         self.refinement = refinement
 
     def __repr__(self):
-        return u"{{ {}:{} | {} }}".format(self.name, self.type,
-                                          self.refinement)
+        return u"{{ {}:{} | {} }}".format(self.name, self.type, self.refinement)
 
     def __eq__(self, other):
-        return (isinstance(other, RefinedType) and self.name == other.name
-                and self.type == other.type
-                and self.refinement == other.refinement)
+        return (
+            isinstance(other, RefinedType)
+            and self.name == other.name
+            and self.type == other.type
+            and self.refinement == other.refinement
+        )
 
 
 def extract_parts(
@@ -108,3 +113,19 @@ def extract_parts(
             t,
             LiquidLiteralBool(True),
         )  # None could be a fresh name from context
+
+
+def type_free_term_vars(t: Type) -> List[str]:
+    if isinstance(t, BaseType):
+        return []
+    elif isinstance(t, TypeVar):
+        return []
+    elif isinstance(t, AbstractionType):
+        afv = type_free_term_vars(t.var_type)
+        rfv = type_free_term_vars(t.type)
+        return [x for x in afv + rfv if x != t.var_name]
+    elif isinstance(t, RefinedType):
+        ifv = type_free_term_vars(t.type)
+        rfv = liquid_free_vars(t.refinement)
+        return [x for x in ifv + rfv if x != t.name]
+    return []
