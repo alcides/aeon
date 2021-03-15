@@ -7,7 +7,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.liquid_ops import ops
+from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
 
 
@@ -38,27 +38,17 @@ def synth_liquid_literal(
         assert False
 
 
-all_ops = [
-    ("&&", t_bool, t_bool),
-    ("||", t_bool, t_bool),
-    ("==", t_bool, None),
-    ("!=", t_bool, None),
-    ("<", t_bool, t_int),
-    ("<=", t_bool, t_int),
-    (">", t_bool, t_int),
-    (">=", t_bool, t_int),
-    ("+", t_int, t_int),
-    ("-", t_int, t_int),
-    ("*", t_int, t_int),
-    ("/", t_int, t_int),
-    ("%", t_int, t_int),
-]
-
-
 def synth_liquid_app(r: RandomSource, ctx: TypingContext, ty: BaseType) -> LiquidTerm:
     assert isinstance(ty, BaseType)
-    valid_ops = [p for p in all_ops if p[1] == ty]
+
+    valid_ops = [
+        p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()
+    ]
+
     (name, _, arg_type) = r.choose(valid_ops)
+
+    # TODO - HERE - preencher as variaveis livres do tipo
+
     if arg_type is None:
         arg_type = r.choose([t_int, t_bool])
     a = synth_liquid(r, ctx, arg_type)
