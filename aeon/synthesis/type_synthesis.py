@@ -1,5 +1,13 @@
 from aeon.synthesis.sources import RandomSource
-from aeon.core.types import AbstractionType, RefinedType, Type, t_int, t_bool, BaseType
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    Type,
+    t_int,
+    t_bool,
+    BaseType,
+    base,
+)
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -10,14 +18,12 @@ from aeon.core.liquid import (
 from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
 
-
-def base(ty: Type) -> Type:
-    if isinstance(ty, RefinedType):
-        return ty.type
-    return ty
+DEFAULT_DEPTH = 9
 
 
-def synth_liquid_var(r: RandomSource, ctx: TypingContext, ty: BaseType) -> LiquidTerm:
+def synth_liquid_var(
+    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+) -> LiquidTerm:
     options = [v for (v, t) in ctx.vars() if base(t) == ty]
     if options:
         v = r.choose(options)
@@ -27,7 +33,7 @@ def synth_liquid_var(r: RandomSource, ctx: TypingContext, ty: BaseType) -> Liqui
 
 
 def synth_liquid_literal(
-    r: RandomSource, ctx: TypingContext, ty: BaseType
+    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
 ) -> LiquidTerm:
     if ty == t_bool:
         return r.choose([LiquidLiteralBool(True), LiquidLiteralBool(False)])
@@ -38,63 +44,70 @@ def synth_liquid_literal(
         assert False
 
 
-def synth_liquid_app(r: RandomSource, ctx: TypingContext, ty: BaseType) -> LiquidTerm:
+def synth_liquid_app(
+    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+) -> LiquidTerm:
     assert isinstance(ty, BaseType)
 
     valid_ops = [
         p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()
     ]
 
-    (name, _, arg_type) = r.choose(valid_ops)
-
-    # TODO - HERE - preencher as variaveis livres do tipo
-
-    if arg_type is None:
-        arg_type = r.choose([t_int, t_bool])
-    a = synth_liquid(r, ctx, arg_type)
-    b = synth_liquid(r, ctx, arg_type)
-    return LiquidApp(name, [a, b])
+    (name, namet) = r.choose(valid_ops)
+    args = []
+    bindings = {"Int": t_int, "Bool": t_bool}
+    for t in namet[:-1]:
+        if t not in bindings:
+            bindings[t] = r.choose([t_int, t_bool])
+        args.append(synth_liquid(r, ctx, bindings[t], d - 1))
+    return LiquidApp(name, args)
 
 
 # TODO: Type and LiquidType?
-def synth_liquid(r: RandomSource, ctx: TypingContext, ty: BaseType) -> LiquidTerm:
-    for i in range(100):
-        k = r.choose(
-            [
-                lambda: synth_liquid_var(r, ctx, ty),
-                lambda: synth_liquid_literal(r, ctx, ty),
-                lambda: synth_liquid_app(r, ctx, ty),
-            ]
-        )()
+def synth_liquid(
+    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+) -> LiquidTerm:
+    assert isinstance(ty, BaseType)
+
+    options = [
+        lambda: synth_liquid_var(r, ctx, ty, d),
+        lambda: synth_liquid_literal(r, ctx, ty, d),
+    ]
+    if d > 0:
+        options.append(lambda: synth_liquid_app(r, ctx, ty, d))
+
+    for _ in range(100):
+        k = r.choose(options)()
         if k:
             return k
     assert False
 
 
-def synth_native(r: RandomSource, ctx: TypingContext):
+def synth_native(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
     return r.choose([t_int, t_bool])
 
 
-def synth_refined(r: RandomSource, ctx: TypingContext):
+def synth_refined(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
     name = ctx.fresh_var()
-    base = synth_native(r, ctx)
-    liquidExpr: LiquidTerm = synth_liquid(r, ctx.with_var(name, base), t_bool)
+    base = synth_native(r, ctx, d)
+    liquidExpr: LiquidTerm = synth_liquid(r, ctx.with_var(name, base), t_bool, d)
     return RefinedType(name, base, liquidExpr)
 
 
-def synth_abstraction(r: RandomSource, ctx: TypingContext):
+def synth_abstraction(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
     name = ctx.fresh_var()
-    arg_type = synth_type(r, ctx)
-    ty = synth_type(r, ctx.with_var(name, arg_type))
+    arg_type = synth_type(r, ctx, d)
+    ty = synth_type(r, ctx.with_var(name, arg_type), d)
     return AbstractionType(name, arg_type, ty)
 
 
-def synth_type(r: RandomSource, ctx: TypingContext):
-    options = [
-        lambda: synth_native(r, ctx),
-        lambda: synth_refined(r, ctx),
-        lambda: synth_abstraction(r, ctx),
-    ]
-    k = r.choose(options)()
-    print("DEBUG: ", k)
-    return k
+def synth_type(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
+    if d > 0:
+        options = [
+            lambda: synth_native(r, ctx, d),
+            lambda: synth_refined(r, ctx, d),
+            lambda: synth_abstraction(r, ctx, d),
+        ]
+        return r.choose(options)()
+    else:
+        return synth_native(r, ctx, d)

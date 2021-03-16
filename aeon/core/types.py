@@ -115,6 +115,12 @@ def extract_parts(
         )  # None could be a fresh name from context
 
 
+def base(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty
+
+
 def type_free_term_vars(t: Type) -> List[str]:
     if isinstance(t, BaseType):
         return []

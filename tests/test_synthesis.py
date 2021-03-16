@@ -36,6 +36,7 @@ def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
     t = synth_type(listr(l), ctx)
+    print("GOT TYPE:", t)
     assert t == parse_type(ty)
 
 
@@ -87,7 +88,7 @@ def test_ref1():
 
 def test_ref2():
     helper_syn(
-        [2, 0, 2, 1, 0, 0, 0, 400, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] + rseed,
+        rseed,
         "{x:Int | x >= 0}",
         "(\\k -> 0) 400",
     )
@@ -110,5 +111,16 @@ def test_liq_term():
 
 def test_liq_app():
     d = {"x": "Bool", "y": "Int", "z": "Bool", "w": "Int"}
-    helper_syn_liq([2, 0, 1, 2, 3, 4], "Bool", "true && z", d)
-    helper_syn_liq([2, 5, 4, 3, 2, 1, 4, 5, 6, 7] + rseed, "Int", "3 + (5 - y)", d)
+    helper_syn_liq([2, 0, 0, 1, 2, 3, 4], "Bool", "2 == w", d)
+    helper_syn_liq([2, 5, 4, 3, 2, 1, 4, 5, 6, 7] + rseed, "Int", "3 * (5 + y)", d)
+
+
+def test_liq_term_r1000():
+    for i in range(1000):
+        seed = [random.randint(0, 100) for _ in range(20)] + rseed
+        s = synth_liquid(
+            listr(seed),
+            VariableBinder(EmptyContext(), "x", parse_type("Int")),
+            parse_type("Int"),
+        )
+        assert s != None

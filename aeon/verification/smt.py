@@ -1,4 +1,4 @@
-from z3.z3 import Bool, And, BoolRef, ExprRef, Not, Or, String
+from z3.z3 import Bool, And, BoolRef, ExprRef, Not, Or, String, Implies
 from aeon.core.types import AbstractionType, BaseType, t_int, t_bool, t_string
 from typing import Any, Callable, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
@@ -16,7 +16,7 @@ base_functions: Dict[str, Any] = {
     "!=": lambda x, y: x != y,
     "<": lambda x, y: x < y,
     "<=": lambda x, y: x <= y,
-    ">": lambda x, y: x >= y,
+    ">": lambda x, y: x > y,
     ">=": lambda x, y: x >= y,
     "!": lambda x: Not(x),
     "&&": lambda x, y: And(x, y),
@@ -27,6 +27,7 @@ base_functions: Dict[str, Any] = {
     "/": lambda x, y: x / y,
     "*": lambda x, y: x * y,
     "%": lambda x, y: x % y,
+    "-->": lambda x, y: Implies(x, y),
 }
 
 
@@ -84,6 +85,7 @@ def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
     for (na, ref) in variables:
         if na == name:
             return ref
+    print("Failed to load ", name, "from", [x[0] for x in variables])
     assert False
 
 

@@ -8,7 +8,7 @@ from aeon.core.liquid import (
     LiquidVar,
 )
 from aeon.core.liquid_ops import get_type_of
-from aeon.core.types import BaseType, t_bool, t_int
+from aeon.core.types import BaseType, t_bool, t_int, base
 
 
 def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]:
@@ -18,8 +18,7 @@ def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]
         return t_int
     elif isinstance(liq, LiquidVar):
         t = ctx.type_of(liq.name)
-        assert t is not None and isinstance(t, BaseType)
-        return t
+        return base(t)
     elif isinstance(liq, LiquidApp):
         ftype = get_type_of(liq.fun)
         equalities: Dict[str, BaseType] = {}

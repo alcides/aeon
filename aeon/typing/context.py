@@ -1,3 +1,4 @@
+import random
 from typing import Tuple, List, Optional
 from aeon.core.types import Type
 
@@ -17,8 +18,12 @@ class TypingContext(object):
 
 
 class EmptyContext(TypingContext):
+    def __init__(self):
+        self.counter = 0
+
     def fresh_var(self):
-        return "fresh_1"
+        self.counter += 1
+        return f"fresh_{self.counter}"
 
     def __repr__(self) -> str:
         return "ø"
@@ -36,6 +41,8 @@ class VariableBinder(TypingContext):
         self.prev = prev
         self.name = name
         self.type = type
+        assert isinstance(prev, TypingContext)
+        assert name not in prev.vars()
 
     def type_of(self, name: str) -> Optional[Type]:
         if name == self.name:
