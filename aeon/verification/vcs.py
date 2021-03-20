@@ -42,16 +42,14 @@ class Implication(Constraint):
     pred: LiquidTerm
     seq: Constraint
 
-    def __init__(self, name: str, base: BaseType, pred: LiquidTerm,
-                 seq: Constraint):
+    def __init__(self, name: str, base: BaseType, pred: LiquidTerm, seq: Constraint):
         self.name = name
         self.base = base
         self.pred = pred
         self.seq = seq
 
     def __repr__(self):
-        return u"∀{}:{}, ({}) => {}".format(self.name, self.base, self.pred,
-                                            self.seq)
+        return u"∀{}:{}, ({}) => {}".format(self.name, self.base, self.pred, self.seq)
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:

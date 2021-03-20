@@ -10,7 +10,7 @@ from aeon.typing.typeinfer import check_type
 from aeon.synthesis.term_synthesis import NoMoreBudget, synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource
-from aeon.typing.well_formed import wellformed
+from aeon.typing.well_formed import wellformed, inhabited
 
 listr = lambda x: ListRandomSource(x)
 rseed = lambda: listr([random.randint(-100000, 100000) for _ in range(10000)])
@@ -43,15 +43,17 @@ def test_soundness_liq():
 def test_soundess_types():
     for _ in range(10):
         ctx = random_base_context()
-        t: Type = synth_type(rseed(), ctx)
+        t: Type = synth_type(rseed(), ctx, d=2)
         assert wellformed(ctx, t)
 
 
 def test_soundess_terms():
     for _ in range(10):
         ctx = random_base_context()
-        ty: Type = synth_type(rseed(), ctx)
+        ty: Type = synth_type(rseed(), ctx, d=2)
         assert wellformed(ctx, ty)
+        if inhabited(ctx, ty):
+            continue
         try:
             t: Term = synth_term(rseed(), ctx, ty)
             assert t != None

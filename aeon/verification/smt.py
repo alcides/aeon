@@ -1,4 +1,17 @@
-from z3.z3 import Bool, And, BoolRef, ExprRef, Not, Or, String, Implies
+from z3.z3 import (
+    Bool,
+    And,
+    BoolRef,
+    BoolSort,
+    ExprRef,
+    IntSort,
+    Not,
+    Or,
+    String,
+    Implies,
+    ForAll,
+    StringSort,
+)
 from aeon.core.types import AbstractionType, BaseType, t_int, t_bool, t_string
 from typing import Any, Callable, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
@@ -8,7 +21,12 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
+from aeon.verification.vcs import (
+    Conjunction,
+    Constraint,
+    Implication,
+    LiquidConstraint,
+)
 from z3 import Solver, Int, sat, unsat, And, Not
 
 base_functions: Dict[str, Any] = {
@@ -37,7 +55,10 @@ class CanonicConstraint(object):
     pos: LiquidTerm
 
     def __init__(
-        self, binders: List[Tuple[str, BaseType]], pre: LiquidTerm, pos: LiquidTerm
+        self,
+        binders: List[Tuple[str, BaseType]],
+        pre: LiquidTerm,
+        pos: LiquidTerm,
     ):
         self.binders = binders
         self.pre = pre
@@ -62,9 +83,17 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
         yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
 
 
-def smt_valid_single(c: CanonicConstraint) -> bool:
+def smt_valid_single(c: CanonicConstraint, foralls: List[Tuple[str, Any]] = []) -> bool:
     s = Solver()
-    c = translate(c)
+    forall_vars = [
+        (f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)
+    ]
+
+    c = translate(c, extra=forall_vars)
+
+    for _, v in forall_vars:
+        c = ForAll(v, c)
+
     s.add(c)
     result = s.check()
     if result == sat:
@@ -75,10 +104,10 @@ def smt_valid_single(c: CanonicConstraint) -> bool:
         assert False
 
 
-def smt_valid(c: Constraint) -> bool:
+def smt_valid(c: Constraint, foralls: List[Tuple[str, Any]] = []) -> bool:
     """ Verifies if a constraint is true using Z3 """
     cons: List[CanonicConstraint] = list(flatten(c))
-    return all([smt_valid_single(c) for c in cons])
+    return all([smt_valid_single(c, foralls) for c in cons])
 
 
 def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
@@ -86,6 +115,17 @@ def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
         if na == name:
             return ref
     print("Failed to load ", name, "from", [x[0] for x in variables])
+    assert False
+
+
+def get_sort(base: BaseType) -> Any:
+    if base == t_int:
+        return IntSort
+    elif base == t_bool:
+        return BoolSort
+    elif base == t_string:
+        return StringSort
+    print("NO sort:", base)
     assert False
 
 
@@ -142,12 +182,12 @@ def translate_context(
 """
 
 
-def translate(c: CanonicConstraint) -> BoolRef:
+def translate(c: CanonicConstraint, extra=List[Tuple[str, Any]]) -> BoolRef:
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders
         if isinstance(base, BaseType)
-    ]
+    ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     return And(e1, Not(e2))

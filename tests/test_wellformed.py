@@ -1,7 +1,7 @@
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.types import BaseType, RefinedType, AbstractionType, t_int, t_bool
 from aeon.typing.context import TypingContext, EmptyContext, VariableBinder
-from aeon.typing.well_formed import wellformed
+from aeon.typing.well_formed import inhabited, wellformed
 from aeon.frontend.parser import parse_type
 
 empty = EmptyContext()
@@ -33,3 +33,10 @@ def test_dependent():
     assert wellformed(
         VariableBinder(empty, "x", t_int), parse_type("(y:Int) -> {z:Int | x > y}")
     )
+
+
+def test_inhabited():
+    assert inhabited(empty, parse_type("{x:Int | x > 0}"))
+    assert inhabited(empty, parse_type("{x:Int | x == 2313}"))
+    assert not inhabited(empty, parse_type("{x:Int | false}"))
+    assert not inhabited(empty, parse_type("{x:Int | (x == 3) && (x == 4)}"))
