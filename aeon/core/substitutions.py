@@ -4,6 +4,7 @@ from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
     LiquidLiteralInt,
+    LiquidLiteralString,
     LiquidTerm,
     LiquidVar,
 )
@@ -17,6 +18,7 @@ from aeon.core.types import (
     TypeVar,
     t_int,
     t_bool,
+    t_string,
 )
 from aeon.core.terms import If, Rec, Term, Literal, Var, Application, Abstraction, Let
 
@@ -38,11 +40,12 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     assert False
 
 
-def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
-                           name: str) -> LiquidTerm:
+def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
     if isinstance(t, LiquidLiteralInt):
         return t
     elif isinstance(t, LiquidLiteralBool):
+        return t
+    elif isinstance(t, LiquidLiteralString):
         return t
     elif isinstance(t, LiquidVar):
         if t.name == name:
@@ -50,8 +53,7 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
         else:
             return t
     elif isinstance(t, LiquidApp):
-        return LiquidApp(
-            t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
     else:
         print(t, type(t))
         assert False
@@ -80,8 +82,8 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
             return t
         else:
             return RefinedType(
-                t.name, t.type,
-                substitution_in_liquid(t.refinement, replacement, name))
+                t.name, t.type, substitution_in_liquid(t.refinement, replacement, name)
+            )
     assert False
 
 
@@ -120,14 +122,14 @@ def liquefy_app(app: Application) -> Optional[LiquidApp]:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
-            return LiquidApp(liquid_pseudo_fun.fun,
-                             liquid_pseudo_fun.args + [arg])
+            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
-                substitution(app.fun.body, app.fun.var_value,
-                             app.fun.var_name), app.arg))
+                substitution(app.fun.body, app.fun.var_value, app.fun.var_name), app.arg
+            )
+        )
     assert False
 
 
@@ -160,8 +162,10 @@ def liquefy_if(t: If) -> Optional[LiquidTerm]:
 def liquefy(rep: Term) -> Optional[LiquidTerm]:
     if isinstance(rep, Literal) and rep.type == t_int:
         return LiquidLiteralInt(rep.value)
-    if isinstance(rep, Literal) and rep.type == t_bool:
+    elif isinstance(rep, Literal) and rep.type == t_bool:
         return LiquidLiteralBool(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_string:
+        return LiquidLiteralString(rep.value)
     elif isinstance(rep, Application):
         return liquefy_app(rep)
     elif isinstance(rep, Var):
@@ -173,6 +177,4 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
     elif isinstance(rep, If):
         return liquefy_if(rep)
 
-    print("Could not liquefy: {} of {}".format(rep, type(rep)))
-    print(isinstance(rep, Literal) and rep.type == t_int)
     assert False

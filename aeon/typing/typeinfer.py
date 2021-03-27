@@ -41,8 +41,11 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar)
-            or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(ty, RefinedType)
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -54,8 +57,8 @@ def prim_litbool(t: bool) -> RefinedType:
 
 def prim_litint(t: int) -> RefinedType:
     return RefinedType(
-        "v", t_int,
-        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]))
+        "v", t_int, LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)])
+    )
 
 
 def prim_op(t: str) -> Type:
@@ -80,11 +83,7 @@ def prim_op(t: str) -> Type:
                 o,
                 LiquidApp(
                     "==",
-                    [
-                        LiquidVar("z"),
-                        LiquidApp(
-                            t, [LiquidVar("x"), LiquidVar("y")])
-                    ],
+                    [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
                 ),
             ),
         ),
@@ -113,15 +112,14 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                     "&&",
                     [
                         ty.refinement,
-                        LiquidApp("==",
-                                  [LiquidVar(ty.name),
-                                   LiquidVar(t.name)]),
+                        LiquidApp("==", [LiquidVar(ty.name), LiquidVar(t.name)]),
                     ],
                 ),
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                "Variable {} not in context", t.name)
+                "Variable {} not in context", t.name
+            )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
@@ -147,8 +145,8 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)
-        return (Conjunction(c1, implication_constraint(t.var_name, t1,
-                                                       c2)), t2)
+        # TODO: not supported
+        return (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
     elif isinstance(t, Rec):
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
@@ -200,11 +198,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean")
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
-        c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
-                                    check(ctx, t.then, ty))
+        c1 = implication_constraint(
+            y, RefinedType("branch_", t_int, liq_cond), check(ctx, t.then, ty)
+        )
         c2 = implication_constraint(
             y,
             RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),

@@ -4,11 +4,12 @@ from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
     LiquidLiteralInt,
+    LiquidLiteralString,
     LiquidTerm,
     LiquidVar,
 )
 from aeon.core.liquid_ops import get_type_of
-from aeon.core.types import BaseType, t_bool, t_int, base
+from aeon.core.types import BaseType, t_bool, t_int, t_string, base
 
 
 def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]:
@@ -16,6 +17,8 @@ def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]
         return t_bool
     elif isinstance(liq, LiquidLiteralInt):
         return t_int
+    elif isinstance(liq, LiquidLiteralString):
+        return t_string
     elif isinstance(liq, LiquidVar):
         t = ctx.type_of(liq.name)
         return base(t)

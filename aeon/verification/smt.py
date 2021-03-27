@@ -18,6 +18,7 @@ from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
     LiquidLiteralInt,
+    LiquidLiteralString,
     LiquidTerm,
     LiquidVar,
 )
@@ -144,6 +145,8 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
     if isinstance(t, LiquidLiteralBool):
         return t.value
     elif isinstance(t, LiquidLiteralInt):
+        return t.value
+    elif isinstance(t, LiquidLiteralString):
         return t.value
     elif isinstance(t, LiquidVar):
         return type_of_variable(variables, t.name)

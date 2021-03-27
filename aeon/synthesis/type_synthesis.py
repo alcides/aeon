@@ -5,6 +5,7 @@ from aeon.core.types import (
     Type,
     t_int,
     t_bool,
+    t_string,
     BaseType,
     base,
 )
@@ -12,6 +13,7 @@ from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
     LiquidLiteralInt,
+    LiquidLiteralString,
     LiquidTerm,
     LiquidVar,
 )
@@ -19,6 +21,7 @@ from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
 
 DEFAULT_DEPTH = 9
+MAX_STRING_SIZE = 12
 
 
 def synth_liquid_var(
@@ -40,6 +43,11 @@ def synth_liquid_literal(
     elif ty == t_int:
         i = r.next_integer()
         return LiquidLiteralInt(i)
+    elif ty == t_string:
+        rstring = str(
+            [chr(r.next_integer()) for _ in range(r.next_integer() % MAX_STRING_SIZE)]
+        )
+        return LiquidLiteralString(rstring)
     else:
         assert False
 

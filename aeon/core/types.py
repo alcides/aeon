@@ -39,6 +39,9 @@ class Top(Type):
     def __eq__(self, other):
         return isinstance(other, Top)
 
+    def __str__(self):
+        return repr(self)
+
 
 class Bottom(Type):
     def __repr__(self):
@@ -46,6 +49,9 @@ class Bottom(Type):
 
     def __eq__(self, other):
         return isinstance(other, Bottom)
+
+    def __str__(self):
+        return repr(self)
 
 
 t_bool = BaseType("Bool")

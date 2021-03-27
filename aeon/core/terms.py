@@ -1,4 +1,4 @@
-from aeon.core.types import Type
+from aeon.core.types import Type, t_string
 
 
 class Term(object):
@@ -14,11 +14,16 @@ class Literal(Term):
         self.type = type
 
     def __repr__(self):
-        return u"({}::{})".format(self.value, self.type)
+        if self.type == t_string:
+            return f'"{self.value}"'
+        return "({}::{})".format(self.value, self.type)
 
     def __eq__(self, other):
-        return (isinstance(other, Literal) and self.value == other.value
-                and self.type == other.type)
+        return (
+            isinstance(other, Literal)
+            and self.value == other.value
+            and self.type == other.type
+        )
 
 
 class Var(Term):
@@ -28,10 +33,10 @@ class Var(Term):
         self.name = name
 
     def __str__(self):
-        return u"{}".format(self.name)
+        return "{}".format(self.name)
 
     def __repr__(self):
-        return u"Var({})".format(self.name)
+        return "Var({})".format(self.name)
 
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
@@ -46,11 +51,14 @@ class Application(Term):
         self.arg = arg
 
     def __str__(self):
-        return u"({} {})".format(self.fun, self.arg)
+        return "({} {})".format(self.fun, self.arg)
 
     def __eq__(self, other):
-        return (isinstance(other, Application) and self.fun == other.fun
-                and self.arg == other.arg)
+        return (
+            isinstance(other, Application)
+            and self.fun == other.fun
+            and self.arg == other.arg
+        )
 
 
 class Abstraction(Term):
@@ -62,12 +70,14 @@ class Abstraction(Term):
         self.body = body
 
     def __str__(self):
-        return u"(\\{} -> {})".format(self.var_name, self.body)
+        return "(\\{} -> {})".format(self.var_name, self.body)
 
     def __eq__(self, other):
-        return (isinstance(other, Abstraction)
-                and self.var_name == other.var_name
-                and self.body == other.body)
+        return (
+            isinstance(other, Abstraction)
+            and self.var_name == other.var_name
+            and self.body == other.body
+        )
 
 
 class Let(Term):
@@ -81,13 +91,15 @@ class Let(Term):
         self.body = body
 
     def __str__(self):
-        return u"(let {} = {} in {})".format(self.var_name, self.var_value,
-                                             self.body)
+        return "(let {} = {} in\n\t{})".format(self.var_name, self.var_value, self.body)
 
     def __eq__(self, other):
-        return (isinstance(other, Let) and self.var_name == other.var_name
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Let)
+            and self.var_name == other.var_name
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 class Rec(Term):
@@ -96,22 +108,25 @@ class Rec(Term):
     var_value: Term
     body: Term
 
-    def __init__(self, var_name: str, var_type: Type, var_value: Term,
-                 body: Term):
+    def __init__(self, var_name: str, var_type: Type, var_value: Term, body: Term):
         self.var_name = var_name
         self.var_type = var_type
         self.var_value = var_value
         self.body = body
 
     def __str__(self):
-        return u"(let {} : {} = {} in {})".format(self.var_name, self.var_type,
-                                                  self.var_value, self.body)
+        return "(let {} : {} = {} in\n\t{})".format(
+            self.var_name, self.var_type, self.var_value, self.body
+        )
 
     def __eq__(self, other):
-        return (isinstance(other, Rec) and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Rec)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 class If(Term):
@@ -125,10 +140,12 @@ class If(Term):
         self.otherwise = otherwise
 
     def __str__(self):
-        return u"(if {} then {} else {})".format(self.cond, self.then,
-                                                 self.otherwise)
+        return "(if {} then {} else {})".format(self.cond, self.then, self.otherwise)
 
     def __eq__(self, other):
-        return (isinstance(other, If) and self.cond == other.cond
-                and self.then == other.then
-                and self.otherwise == other.otherwise)
+        return (
+            isinstance(other, If)
+            and self.cond == other.cond
+            and self.then == other.then
+            and self.otherwise == other.otherwise
+        )

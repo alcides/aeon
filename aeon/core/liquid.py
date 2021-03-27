@@ -31,6 +31,19 @@ class LiquidLiteralInt(LiquidTerm):
         return isinstance(other, LiquidLiteralInt) and other.value == self.value
 
 
+class LiquidLiteralString(LiquidTerm):
+    value: str
+
+    def __init__(self, value: str):
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.value}"
+
+    def __eq__(self, other):
+        return isinstance(other, LiquidLiteralString) and other.value == self.value
+
+
 class LiquidVar(LiquidTerm):
     name: str
 
