@@ -52,11 +52,13 @@ expression_simple : "(" expression ")"                       -> same
              | BOOLLIT                                         -> bool_lit
              | STRINGLIT                                      -> string_lit
              | ID                                             -> var
+             | "?" ID                                         -> hole
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 STRINGLIT : ESCAPED_STRING
+
 
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
 PATH : (".." | ID )* "/" ID

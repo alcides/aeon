@@ -2,6 +2,7 @@ from ctypes import c_bool
 from typing import List, Optional
 from aeon.core.liquid import (
     LiquidApp,
+    LiquidHole,
     LiquidLiteralBool,
     LiquidLiteralInt,
     LiquidLiteralString,
@@ -20,7 +21,17 @@ from aeon.core.types import (
     t_bool,
     t_string,
 )
-from aeon.core.terms import If, Rec, Term, Literal, Var, Application, Abstraction, Let
+from aeon.core.terms import (
+    Hole,
+    If,
+    Rec,
+    Term,
+    Literal,
+    Var,
+    Application,
+    Abstraction,
+    Let,
+)
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):
@@ -54,6 +65,14 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidT
             return t
     elif isinstance(t, LiquidApp):
         return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+    elif isinstance(t, LiquidHole):
+        if t.name == name:
+            return rep
+        else:
+            return LiquidHole(
+                t.name,
+                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
+            )
     else:
         print(t, type(t))
         assert False
@@ -94,6 +113,10 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
     if isinstance(t, Literal):
         return t
     elif isinstance(t, Var):
+        if t.name == name:
+            return rep
+        return t
+    elif isinstance(t, Hole):
         if t.name == name:
             return rep
         return t
@@ -170,6 +193,8 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return liquefy_app(rep)
     elif isinstance(rep, Var):
         return LiquidVar(rep.name)
+    elif isinstance(rep, Hole):
+        return LiquidHole(rep.name)
     elif isinstance(rep, Let):
         return liquefy_let(rep)
     elif isinstance(rep, Rec):

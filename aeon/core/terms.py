@@ -42,6 +42,22 @@ class Var(Term):
         return isinstance(other, Var) and self.name == other.name
 
 
+class Hole(Term):
+    name: str
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __str__(self):
+        return "?{}".format(self.name)
+
+    def __repr__(self):
+        return "Hole({})".format(self.name)
+
+    def __eq__(self, other):
+        return isinstance(other, Hole) and self.name == other.name
+
+
 class Application(Term):
     fun: Term
     arg: Term

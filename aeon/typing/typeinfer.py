@@ -103,8 +103,15 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
+        print(t.name, ty)  # TODO:
+        """
+        Correr abs.ae
+        O problema é o z do eq se misturar com o z deste programa em particular.
+        A substituição devia garantir que nunca há conflitos
+        """
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
+            assert ty.name != t.name
             # Self
             ty = RefinedType(
                 ty.name,
@@ -136,14 +143,12 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
             else:
                 cp = check(ctx, t.arg, ty.var_type)
                 return_type = ty.type
-                print("b", ty)
-
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-
             return (Conjunction(c, cp), t_subs)
         else:
             raise CouldNotGenerateConstraintException()
     elif isinstance(t, Let):
+        assert False
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)

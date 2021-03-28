@@ -16,7 +16,17 @@ from aeon.core.types import (
     t_float,
     t_string,
 )
-from aeon.core.terms import Abstraction, Application, Let, Rec, Term, Var, Literal, If
+from aeon.core.terms import (
+    Abstraction,
+    Application,
+    Let,
+    Rec,
+    Term,
+    Var,
+    Literal,
+    If,
+    Hole,
+)
 from aeon.utils.ast_helpers import ensure_anf_if, ensure_anf_app, mk_binop, i0
 
 
@@ -115,6 +125,9 @@ class TreeToCore(Transformer):
 
     def var(self, args):
         return Var(str(args[0]))
+
+    def hole(self, args):
+        return Hole(str(args[0]))
 
     def fitness_annotation(self, args):
         return Var(str(args[0]))

@@ -39,8 +39,10 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         id = context.fresh_var()
         v = f"v_{id}"
         args = [
-            (n, smt_base_type(t)) for (n, t) in context.vars() if smt_base_type(t)
-        ] + [(v, smt_base_type(ty.type))]
+            (LiquidVar(n), smt_base_type(t))
+            for (n, t) in context.vars()
+            if smt_base_type(t)
+        ] + [(LiquidVar(v), smt_base_type(ty.type))]
         return RefinedType(v, ty.type, LiquidHole(f"{id}", args))
     elif isinstance(ty, RefinedType):
         return ty
@@ -100,6 +102,17 @@ def contains_horn(t: LiquidTerm) -> bool:
         assert False
 
 
+def contains_horn_constraint(c: Constraint):
+    if isinstance(c, LiquidConstraint):
+        return contains_horn(c.expr)
+    elif isinstance(c, Conjunction):
+        return contains_horn_constraint(c.c1) or contains_horn_constraint(c.c2)
+    elif isinstance(c, Implication):
+        return contains_horn(c.pred) or contains_horn_constraint(c.seq)
+    else:
+        assert False
+
+
 def wellformed_horn(predicate: LiquidTerm):
     if not contains_horn(predicate):
         return True
@@ -120,12 +133,12 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: List[Tuple[str, str]], arity: int):
+def get_possible_args(vars: List[Tuple[str, LiquidTerm]], arity: int):
     if arity == 0:
         yield []
     else:
         for base in get_possible_args(vars, arity - 1):
-            for (i, (argn, _)) in enumerate(vars):
+            for (i, (_, _)) in enumerate(vars):
                 yield [LiquidVar(mk_arg(i))] + base
                 yield [LiquidLiteralBool(True)] + base
                 yield [LiquidLiteralBool(False)] + base
@@ -232,7 +245,7 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
 
 def fill_horn_arguments(h: LiquidHole, candidate: LiquidTerm) -> LiquidTerm:
     for (i, (n, _)) in enumerate(h.argtypes):
-        candidate = substitution_in_liquid(candidate, LiquidVar(n), mk_arg(i))
+        candidate = substitution_in_liquid(candidate, n, mk_arg(i))
     return candidate
 
 
@@ -295,11 +308,13 @@ def fixpoint(cs: List[Constraint], assign) -> Assignment:
 
 
 def solve(c: Constraint) -> bool:
-    assignment0: Assignment = build_initial_assignment(c)
-
+    # Performance improvement
+    if not contains_horn_constraint(c):
+        return smt_valid(c)
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
     csp = [c for c in cs if not has_k_head(c)]
+    assignment0: Assignment = build_initial_assignment(c)
     subst = fixpoint(csk, assignment0)
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:

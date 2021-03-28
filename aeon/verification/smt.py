@@ -16,6 +16,7 @@ from aeon.core.types import AbstractionType, BaseType, t_int, t_bool, t_string
 from typing import Any, Callable, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
     LiquidApp,
+    LiquidHole,
     LiquidLiteralBool,
     LiquidLiteralInt,
     LiquidLiteralString,
@@ -150,6 +151,8 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
         return t.value
     elif isinstance(t, LiquidVar):
         return type_of_variable(variables, t.name)
+    elif isinstance(t, LiquidHole):
+        assert False  # LiquidHoles should not get to SMT solver!
     elif isinstance(t, LiquidApp):
         f = None
         if t.fun in base_functions:
