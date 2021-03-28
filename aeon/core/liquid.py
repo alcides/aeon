@@ -1,8 +1,24 @@
-from typing import List
+from typing import List, Tuple
 
 
 class LiquidTerm(object):
     pass
+
+
+class LiquidHole(LiquidTerm):
+    name: str
+    argtypes: List[Tuple[str, str]]
+
+    def __init__(self, name: str, argtypes: List[Tuple[str, str]] = None):
+        self.name = name
+        self.argtypes = argtypes or []
+
+    def __repr__(self):
+        j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
+        return f"?{self.name}({j})"
+
+    def __eq__(self, other):
+        return isinstance(other, LiquidHole) and other.name == self.name
 
 
 class LiquidLiteralBool(LiquidTerm):
