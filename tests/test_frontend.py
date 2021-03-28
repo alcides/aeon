@@ -3,7 +3,7 @@ from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, Liq
 from aeon.core.terms import Abstraction, Application, If, Let, Literal, Term, Var
 from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, t_bool
 from aeon.frontend.parser import parse_term, parse_type
-from aeon.utils.ast_helpers import mk_binop, i0, i1, i2, true, false
+from aeon.utils.ast_helpers import mk_binop, i0, i1, i2, true, false, is_anf
 
 
 def test_basetypes():
@@ -19,15 +19,17 @@ def test_abstractiontypes():
     assert parse_type("(y:Int) -> Int") != AbstractionType("x", t_int, t_int)
     assert parse_type("(x:Bool) -> Int") != AbstractionType("x", t_int, t_int)
     assert parse_type("(x:Bool) -> (y:Bool) -> Int") == AbstractionType(
-        "x", t_bool, AbstractionType("y", t_bool, t_int))
+        "x", t_bool, AbstractionType("y", t_bool, t_int)
+    )
 
 
 def test_refinedtypes():
-    assert parse_type("{x:Int|true}") == RefinedType("x", t_int,
-                                                     LiquidLiteralBool(True))
+    assert parse_type("{x:Int|true}") == RefinedType(
+        "x", t_int, LiquidLiteralBool(True)
+    )
     assert parse_type("{y:Int|y > x}") == RefinedType(
-        "y", t_int, LiquidApp(">",
-                              [LiquidVar("y"), LiquidVar("x")]))
+        "y", t_int, LiquidApp(">", [LiquidVar("y"), LiquidVar("x")])
+    )
     assert parse_type("{y:Int | y == 1 + 1}") == RefinedType(
         "y",
         t_int,
@@ -35,8 +37,7 @@ def test_refinedtypes():
             "==",
             [
                 LiquidVar("y"),
-                LiquidApp("+", [LiquidLiteralInt(1),
-                                LiquidLiteralInt(1)]),
+                LiquidApp("+", [LiquidLiteralInt(1), LiquidLiteralInt(1)]),
             ],
         ),
     )
@@ -55,18 +56,15 @@ def test_operators():
 
     assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
     assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
-    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true,
-                                                  true)
-    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true,
-                                                  true)
+    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true, true)
+    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true, true)
 
     assert parse_term("0 < 1") == mk_binop(lambda: "t", "<", i0, i1)
     assert parse_term("0 > 1") == mk_binop(lambda: "t", ">", i0, i1)
     assert parse_term("0 <= 1") == mk_binop(lambda: "t", "<=", i0, i1)
     assert parse_term("0 >= 1") == mk_binop(lambda: "t", ">=", i0, i1)
 
-    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true,
-                                                    false)
+    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true, false)
 
     assert parse_term("1 + 1") == mk_binop(lambda: "t", "+", i1, i1)
     assert parse_term("1 - 1") == mk_binop(lambda: "t", "-", i1, i1)
@@ -77,9 +75,7 @@ def test_operators():
 
 def test_precedence():
     t1 = parse_term("1 + 2 * 0")
-    t2 = mk_binop(lambda: "_anf_1", "+", i1,
-                  mk_binop(lambda: "_anf_1", "*", i2, i0))
-    assert t1 == t2
+    assert is_anf(t1)
 
 
 def test_let():

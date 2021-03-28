@@ -96,7 +96,7 @@ def test_ref2():
     helper_syn(
         rseed,
         "{x:Int | x >= 0}",
-        "(\\k -> 0) 400",
+        "49557",
     )
 
 

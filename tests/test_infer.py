@@ -140,7 +140,7 @@ def test_sumSimple2():
 
 def test_sumSimple3():
     assert tt(
-        "let a : Int = if sum b then 1 else 0 in a",
+        r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
         "Int",
         {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )

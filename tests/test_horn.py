@@ -35,19 +35,19 @@ def test_fresh():
 def test_possible_args():
     hpars = [("x", "Int")]
     args = list(get_possible_args(hpars, arity=1))
-    assert len(args) == 1
+    assert len(args) == 5
 
 
 def test_possible_args2():
     hpars = [("x", "Int"), ("y", "Int")]
     args = list(get_possible_args(hpars, arity=2))
-    assert len(args) == 4
+    assert len(args) == 100
 
 
 def test_base_assignment_helper():
     assign = build_initial_assignment(LiquidConstraint(LiquidHole("k", [("x", "Int")])))
     assert "k" in assign
-    assert len(assign["k"]) == 6
+    assert len(assign["k"]) == 30
 
 
 def test_base_assignment_helper2():
@@ -55,7 +55,7 @@ def test_base_assignment_helper2():
         LiquidConstraint(LiquidHole("k", [("x", "Int"), ("y", "Int")]))
     )
     assert "k" in assign
-    assert len(assign["k"]) == 24
+    assert len(assign["k"]) == 120
 
 
 def test_merge_assignments():

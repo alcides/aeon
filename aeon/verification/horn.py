@@ -33,7 +33,9 @@ def smt_base_type(ty: Type) -> Optional[str]:
 
 
 def fresh(context: TypingContext, ty: Type) -> Type:
-    if isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
+    if isinstance(ty, BaseType):
+        return ty
+    elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
         id = context.fresh_var()
         v = f"v_{id}"
         args = [
@@ -45,7 +47,9 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, AbstractionType):
         sp = fresh(context, ty.var_type)
         tp = fresh(context, ty.type)
-        return AbstractionType(ty.name, sp, tp)
+        return AbstractionType(ty.var_name, sp, tp)
+    else:
+        assert False
 
 
 def obtain_holes(t: LiquidTerm) -> List[LiquidHole]:

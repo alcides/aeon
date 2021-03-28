@@ -32,6 +32,7 @@ from aeon.core.types import (
 from aeon.typing.context import TypingContext
 from aeon.core.liquid_ops import ops
 from aeon.verification.sub import ensure_refined, implication_constraint, sub
+from aeon.verification.horn import fresh
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -135,6 +136,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
             else:
                 cp = check(ctx, t.arg, ty.var_type)
                 return_type = ty.type
+                print("b", ty)
 
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
 
@@ -188,11 +190,12 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         c2 = check(nctx, t.body, ty)
         return Conjunction(c1, implication_constraint(t.var_name, t1, c2))
     elif isinstance(t, Rec):
-        nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
+        t1 = fresh(ctx, t.var_type)
+        nrctx: TypingContext = ctx.with_var(t.var_name, t1)
         c1 = check(nrctx, t.var_value, t.var_type)
         c2 = check(nrctx, t.body, ty)
-        c1 = implication_constraint(t.var_name, t.var_type, c1)
-        c2 = implication_constraint(t.var_name, t.var_type, c2)
+        c1 = implication_constraint(t.var_name, t1, c1)
+        c2 = implication_constraint(t.var_name, t1, c2)  # TODO Check these 2 lines!!!
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()

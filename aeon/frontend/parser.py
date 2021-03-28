@@ -23,8 +23,8 @@ from aeon.utils.ast_helpers import ensure_anf_if, ensure_anf_app, mk_binop, i0
 class TreeToCore(Transformer):
     counter: int
 
-    def __init__(self):
-        self.counter = 0
+    def __init__(self, start_counter=0):
+        self.counter = start_counter
 
     def fresh(self) -> str:
         self.counter += 1
@@ -134,13 +134,13 @@ class TreeToCore(Transformer):
         return Literal(str(v), type=t_string)
 
 
-def mk_parser(rule="start"):
+def mk_parser(rule="start", start_counter=0):
     return Lark.open(
         pathlib.Path(__file__).parent.absolute() / "aeon_core.lark",
         parser="lalr",
         # lexer='standard',
         start=rule,
-        transformer=TreeToCore(),
+        transformer=TreeToCore(start_counter),
     )
 
 
