@@ -53,6 +53,7 @@ def substitute_vartype(t: Type, rep: Type, name: str):
 
 
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
+    assert isinstance(rep, LiquidTerm)
     if isinstance(t, LiquidLiteralInt):
         return t
     elif isinstance(t, LiquidLiteralBool):

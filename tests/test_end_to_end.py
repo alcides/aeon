@@ -11,6 +11,7 @@ ectx = EvaluationContext(evaluation_vars)
 
 def check_compile(source, ty, res):
     p = parse_term(source)
+    print("D", str(p))
     check_type(ctx, p, ty)
     assert eval(p, ectx) == res
 

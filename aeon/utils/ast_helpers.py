@@ -40,11 +40,17 @@ def is_anf(t: Term) -> bool:
 
 
 def ensure_anf_app(fresh: Callable[[], str], t: Application) -> Term:
+    if isinstance(t.fun, Let):
+        return Let(
+            t.fun.var_name,
+            t.fun.var_value,
+            ensure_anf_app(fresh, Application(t.fun.body, t.arg)),
+        )
     if isinstance(t.arg, Var) or isinstance(t.arg, Literal):
         return t
     else:
         v = fresh()
-        return Let(v, t.arg, Application(t.fun, Var(v)))
+        return ensure_anf_let(Let(v, t.arg, Application(t.fun, Var(v))))
 
 
 def ensure_anf_if(fresh: Callable[[], str], t: If) -> Term:
@@ -52,13 +58,39 @@ def ensure_anf_if(fresh: Callable[[], str], t: If) -> Term:
         return t
     else:
         v = fresh()
-        return Let(v, t.cond, If(Var(v), t.then, t.otherwise))
+        return ensure_anf_let(Let(v, t.cond, If(Var(v), t.then, t.otherwise)))
 
 
 def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Application:
     return ensure_anf_app(
         fresh, Application(ensure_anf_app(fresh, Application(Var(op), a1)), a2)
     )
+
+
+"""
+    let x = (let y = 1 in y) in x
+
+    let y = 1 in (let x = y in x)
+"""
+
+
+def ensure_anf_let(t: Let) -> Term:
+    if isinstance(t.var_value, Let):
+
+        inner = t.var_value
+        assert inner.var_name != t.var_name
+
+        b = inner.var_value
+        if isinstance(b, Let):
+            b = ensure_anf_let(inner.var_value)
+
+        return Let(
+            inner.var_name,
+            b,
+            ensure_anf_let(Let(t.var_name, inner.body, t.body)),
+        )
+    else:
+        return t
 
 
 true = Literal(True, t_bool)

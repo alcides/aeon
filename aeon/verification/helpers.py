@@ -48,11 +48,11 @@ def constraint_builder(vs: List[Tuple[str, Type]], exp: LiquidConstraint):
 def get_abs_example() -> Constraint:
     hole = LiquidHole(
         "k",
-        [("x", "Int"), ("v", "Int")],
+        [(LiquidVar("x"), "Int"), (LiquidVar("v"), "Int")],
     )
     hole2 = LiquidHole(
         "k",
-        [("y", "Int"), ("z", "Int")],
+        [(LiquidVar("y"), "Int"), (LiquidVar("z"), "Int")],
     )
 
     ap = constraint_builder(

@@ -38,6 +38,7 @@ from aeon.core.types import (
     t_float,
     top,
     bottom,
+    type_free_term_vars,
 )
 from aeon.typing.context import TypingContext
 from aeon.core.liquid_ops import ops
@@ -157,10 +158,8 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)
-        # TODO: not supported
-        print("WEIRD", t2, t.var_name, t1)
-        r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), None)  # t2
-        assert t.var_name not in list(variables_in(r))
+        assert t.var_name not in type_free_term_vars(t2)
+        r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
         return r
     elif isinstance(t, Rec):
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)

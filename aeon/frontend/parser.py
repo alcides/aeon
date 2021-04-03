@@ -28,7 +28,13 @@ from aeon.core.terms import (
     If,
     Hole,
 )
-from aeon.utils.ast_helpers import ensure_anf_if, ensure_anf_app, mk_binop, i0
+from aeon.utils.ast_helpers import (
+    ensure_anf_let,
+    ensure_anf_if,
+    ensure_anf_app,
+    mk_binop,
+    i0,
+)
 
 
 class TreeToCore(Transformer):
@@ -65,7 +71,7 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), "-", i0, args[0])
 
     def let_e(self, args):
-        return Let(str(args[0]), args[1], args[2])
+        return ensure_anf_let(Let(str(args[0]), args[1], args[2]))
 
     def rec_e(self, args):
         return Rec(str(args[0]), args[1], args[2], args[3])
