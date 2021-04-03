@@ -38,11 +38,11 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
         id = context.fresh_var()
         v = f"v_{id}"
-        args: List[Tuple[LiquidTerm, str]] = [
-            (LiquidVar(n), smt_base_type(t))
-            for (n, t) in context.vars()
-            if smt_base_type(t)
-        ] + [(LiquidVar(v), smt_base_type(ty.type))]
+        args: List[Tuple[LiquidVar, str]] = []
+        for (n, t) in context.vars() + [(v, ty.type)]:
+            tp = smt_base_type(t)
+            if tp:
+                args.append((LiquidVar(n), tp))
         return RefinedType(v, ty.type, LiquidHole(f"{id}", args))
     elif isinstance(ty, RefinedType):
         return ty
