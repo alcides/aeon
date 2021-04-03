@@ -14,7 +14,17 @@ from aeon.core.liquid import (
     LiquidLiteralInt,
     LiquidVar,
 )
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Term, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    If,
+    Let,
+    Literal,
+    Rec,
+    Term,
+    Var,
+)
 from aeon.core.types import (
     AbstractionType,
     BaseType,
@@ -103,7 +113,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
-        print(t.name, ty)  # TODO:
+        print("AAAA", t.name, ty)  # TODO:
         """
         Correr abs.ae
         O problema é o z do eq se misturar com o z deste programa em particular.
@@ -182,6 +192,10 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         )
 
         return (Conjunction(c1, c2), t2)
+    elif isinstance(t, Annotation):
+        ty = fresh(ctx, t.type)
+        c = check(ctx, t.expr, ty)
+        return (c, ty)
     print("Unhandled:", t)
     assert False
 

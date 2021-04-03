@@ -1,7 +1,17 @@
 from typing import Callable
 
 from aeon.core.types import t_int, t_bool
-from aeon.core.terms import Abstraction, Application, Let, Rec, Term, Var, Literal, If
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    Let,
+    Rec,
+    Term,
+    Var,
+    Literal,
+    If,
+)
 
 
 def is_anf(t: Term) -> bool:
@@ -21,6 +31,8 @@ def is_anf(t: Term) -> bool:
             and is_anf(t.then)
             and is_anf(t.otherwise)
         )
+    elif isinstance(t, Annotation):
+        return is_anf(t.expr)
     elif isinstance(t, Abstraction):
         return is_anf(t.body)
     else:

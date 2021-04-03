@@ -1,6 +1,15 @@
 from typing import Optional
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidVar
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Term, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    If,
+    Let,
+    Literal,
+    Term,
+    Var,
+)
 from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, t_bool
 from aeon.frontend.parser import parse_term, parse_type
 from aeon.utils.ast_helpers import mk_binop, i0, i1, i2, true, false, is_anf
@@ -88,3 +97,9 @@ def test_if():
 
 def test_abs():
     assert parse_term("\\x -> x") == Abstraction("x", Var("x"))
+
+
+def test_ann():
+    assert parse_term("\\x -> (x : Int)") == Abstraction(
+        "x", Annotation(Var("x"), t_int)
+    )

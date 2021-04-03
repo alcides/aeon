@@ -22,6 +22,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.core.terms import (
+    Annotation,
     Hole,
     If,
     Rec,
@@ -95,7 +96,10 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     elif isinstance(t, TypeVar):
         return t
     elif isinstance(t, AbstractionType):
-        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
+        if name == t.var_name:
+            return t
+        else:
+            return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
     elif isinstance(t, RefinedType):
         if t.name == name:
             return t
@@ -129,10 +133,22 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
             return Abstraction(t.var_name, rec(t.body))
     elif isinstance(t, Let):
         if t.var_name == name:
+            n_value = t.var_value
+            n_body = t.body
+        else:
+            n_value = rec(t.var_value)
+            n_body = rec(t.body)
+        return Let(t.var_name, n_value, n_body)
+    elif isinstance(t, Rec):
+        if t.var_name == name:
             n_value = t.value
+            n_body = t.body
         else:
             n_value = rec(t.value)
-        return Let(t.var_name, n_value, rec(t.body))
+            n_body = rec(t.body)
+        return Rec(t.var_name, t.var_type, n_value, n_body)
+    elif isinstance(t, Annotation):
+        return Annotation(rec(t.expr), type)
     assert False
 
 
@@ -181,6 +197,10 @@ def liquefy_if(t: If) -> Optional[LiquidTerm]:
     return None
 
 
+def liquefy_ann(t: Annotation) -> Optional[LiquidTerm]:
+    return liquefy(t.expr)
+
+
 # patterm matching term
 def liquefy(rep: Term) -> Optional[LiquidTerm]:
     if isinstance(rep, Literal) and rep.type == t_int:
@@ -201,5 +221,7 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return liquefy_rec(rep)
     elif isinstance(rep, If):
         return liquefy_if(rep)
+    elif isinstance(rep, Annotation):
+        return liquefy_ann(rep)
 
     assert False

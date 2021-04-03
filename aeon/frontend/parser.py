@@ -18,6 +18,7 @@ from aeon.core.types import (
 )
 from aeon.core.terms import (
     Abstraction,
+    Annotation,
     Application,
     Let,
     Rec,
@@ -54,6 +55,9 @@ class TreeToCore(Transformer):
         return BaseType(str(args[0]))
 
     # Expressions
+
+    def annotation(self, args):
+        return Annotation(args[0], args[1])
 
     def minus(self, args):
         if isinstance(args[0], Literal) and args[0].type == t_int:

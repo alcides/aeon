@@ -48,7 +48,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         return ty
     elif isinstance(ty, AbstractionType):
         sp = fresh(context, ty.var_type)
-        tp = fresh(context, ty.type)
+        tp = fresh(context.with_var(ty.var_name, ty.var_type), ty.type)
         return AbstractionType(ty.var_name, sp, tp)
     else:
         assert False

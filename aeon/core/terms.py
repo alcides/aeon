@@ -42,6 +42,24 @@ class Var(Term):
         return isinstance(other, Var) and self.name == other.name
 
 
+class Annotation(Term):
+    expr: Term
+    type: Type
+
+    def __init__(self, expr: Term, type: Type):
+        self.expr = expr
+        self.type = type
+
+    def __str__(self):
+        return f"({self.expr} : {self.type})"
+
+    def __repr__(self):
+        return f"({self.expr} : {self.type})"
+
+    def __eq__(self, other):
+        return isinstance(other, Annotation) and self.expr == other.expr
+
+
 class Hole(Term):
     name: str
 

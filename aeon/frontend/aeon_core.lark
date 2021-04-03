@@ -47,6 +47,7 @@ application : application expression_simple                      -> application_
             | expression_simple                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
+             | "(" expression ":" type ")"                       -> annotation
              | INTLIT                                           -> int_lit
              | FLOATLIT                                        -> float_lit
              | BOOLLIT                                         -> bool_lit

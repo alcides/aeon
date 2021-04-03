@@ -1,5 +1,15 @@
 from typing import Any, Dict, List, Tuple
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Term, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    If,
+    Let,
+    Literal,
+    Rec,
+    Term,
+    Var,
+)
 
 
 class EvaluationContext(object):
@@ -49,4 +59,6 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
         return bool(c) and eval(t.cond, ctx) or eval(t.otherwise, ctx)
+    elif isinstance(t, Annotation):
+        return eval(t.expr, ctx)
     assert False
