@@ -39,3 +39,13 @@ def test_anf_typed_smaller():
 def test_annotation():
     source = r""" (1 : Int) """
     check_compile(source, parse_type("{x:Int | x == 1}"), 1)
+
+
+def test_annotation_anf():
+    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : Int = 3 in f a) in j"""
+    check_compile(source, parse_type("{x:Int | x == 3}"), 3)
+
+
+def test_annotation_anf2():
+    source = r"""let j : Int = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : Int = (let k : Int = 3 in k) in f a) in j"""
+    check_compile(source, parse_type("{x:Int | x == 3}"), 3)

@@ -76,18 +76,71 @@ def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Applicati
 
 def ensure_anf_let(t: Let) -> Term:
     if isinstance(t.var_value, Let):
-
         inner = t.var_value
         assert inner.var_name != t.var_name
 
         b = inner.var_value
         if isinstance(b, Let):
             b = ensure_anf_let(inner.var_value)
+        if isinstance(b, Rec):
+            b = ensure_anf_rec(inner.var_value)
 
         return Let(
             inner.var_name,
             b,
             ensure_anf_let(Let(t.var_name, inner.body, t.body)),
+        )
+    elif isinstance(t.var_value, Rec):
+        inner = t.var_value
+        assert inner.var_name != t.var_name
+
+        b = inner.var_value
+        if isinstance(b, Let):
+            b = ensure_anf_let(inner.var_value)
+        if isinstance(b, Rec):
+            b = ensure_anf_rec(inner.var_value)
+
+        return Rec(
+            inner.var_name,
+            inner.var_type,
+            b,
+            ensure_anf_let(Let(t.var_name, inner.body, t.body)),
+        )
+    else:
+        return t
+
+
+def ensure_anf_rec(t: Rec) -> Term:
+    if isinstance(t.var_value, Let):
+        inner = t.var_value
+        assert inner.var_name != t.var_name
+
+        b = inner.var_value
+        if isinstance(b, Let):
+            b = ensure_anf_let(inner.var_value)
+        if isinstance(b, Rec):
+            b = ensure_anf_rec(inner.var_value)
+
+        return Let(
+            inner.var_name,
+            b,
+            ensure_anf_let(Rec(t.var_name, t.var_type, inner.body, t.body)),
+        )
+    elif isinstance(t.var_value, Rec):
+        inner = t.var_value
+        assert inner.var_name != t.var_name
+
+        b = inner.var_value
+        if isinstance(b, Let):
+            b = ensure_anf_let(inner.var_value)
+        if isinstance(b, Rec):
+            b = ensure_anf_rec(inner.var_value)
+
+        return Rec(
+            inner.var_name,
+            inner.var_type,
+            b,
+            ensure_anf_let(Rec(t.var_name, t.var_type, inner.body, t.body)),
         )
     else:
         return t

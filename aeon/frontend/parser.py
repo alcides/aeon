@@ -1,5 +1,5 @@
 from typing import Callable
-from aeon.utils.ast_helpers import mk_binop
+from aeon.utils.ast_helpers import ensure_anf_rec, mk_binop
 from aeon.core.substitutions import liquefy
 import os
 import pathlib
@@ -74,7 +74,7 @@ class TreeToCore(Transformer):
         return ensure_anf_let(Let(str(args[0]), args[1], args[2]))
 
     def rec_e(self, args):
-        return Rec(str(args[0]), args[1], args[2], args[3])
+        return ensure_anf_rec(Rec(str(args[0]), args[1], args[2], args[3]))
 
     def if_e(self, args):
         return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1], args[2]))
