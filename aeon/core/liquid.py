@@ -7,9 +7,9 @@ class LiquidTerm(object):
 
 class LiquidHole(LiquidTerm):
     name: str
-    argtypes: List[Tuple[str, LiquidTerm]]
+    argtypes: List[Tuple[LiquidTerm, LiquidTerm]]
 
-    def __init__(self, name: str, argtypes: List[Tuple[str, str]] = None):
+    def __init__(self, name: str, argtypes: List[Tuple[LiquidTerm, str]] = None):
         self.name = name
         self.argtypes = argtypes or []
 

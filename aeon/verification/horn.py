@@ -38,7 +38,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
         id = context.fresh_var()
         v = f"v_{id}"
-        args = [
+        args: List[Tuple[LiquidTerm, str]] = [
             (LiquidVar(n), smt_base_type(t))
             for (n, t) in context.vars()
             if smt_base_type(t)
@@ -319,5 +319,4 @@ def solve(c: Constraint) -> bool:
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
-    r = apply(subst, merged_csps)
     return smt_valid(apply(subst, merged_csps))
