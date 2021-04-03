@@ -39,10 +39,10 @@ def synth_literal(
             if check_type(ctx, k, ty):
                 return k
             else:
-                return None
-        return None
+                raise NoMoreBudget()
+        raise NoMoreBudget()
     else:
-        return None
+        raise NoMoreBudget()
 
 
 from aeon.verification.sub import sub
@@ -77,13 +77,16 @@ def synth_var(r: RandomSource, ctx: TypingContext, ty: Type, d: int = DEFAULT_DE
     candidates = vars_of_type(ctx, ty)
     if candidates:
         return Var(r.choose(candidates))
-    return None
+    raise NoMoreBudget()
 
 
 def synth_app(r: RandomSource, ctx: TypingContext, ty: Type, d: int = DEFAULT_DEPTH):
     arg_type = synth_type(r, ctx)
     f = synth_term(r, ctx, AbstractionType(ctx.fresh_var(), arg_type, ty), d - 1)
-    arg = synth_term(r, ctx, arg_type, d - 1)
+    if r.next_integer() % 2:  # ANF
+        arg = synth_literal(r, ctx, arg_type, d - 1)
+    else:
+        arg = synth_var(r, ctx, arg_type, d - 1)
     return Application(f, arg)
 
 
@@ -94,7 +97,10 @@ def synth_abs(r: RandomSource, ctx: TypingContext, ty: AbstractionType, d: int =
 
 
 def synth_term(
-    r: RandomSource, ctx: TypingContext, ty: Type, d: int = DEFAULT_DEPTH
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: Type,
+    d: int = DEFAULT_DEPTH,
 ) -> Term:
     b = base(ty)
     candidate_generators = []
