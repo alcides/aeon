@@ -144,16 +144,20 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                 cp = check(ctx, t.arg, ty.var_type)
                 return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-            return (Conjunction(c, cp), t_subs)
+            r = (Conjunction(c, cp), t_subs)
+            assert ty.var_name not in list(variables_in(r))
+            return r
         else:
             raise CouldNotGenerateConstraintException()
     elif isinstance(t, Let):
-        assert False
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)
         # TODO: not supported
-        return (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
+        print("WEIRD", t2, t.var_name, t1)
+        r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), None)  # t2
+        assert t.var_name not in list(variables_in(r))
+        return r
     elif isinstance(t, Rec):
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)

@@ -80,6 +80,8 @@ class LiquidApp(LiquidTerm):
     def __init__(self, fun: str, args: List[LiquidTerm]):
         self.fun = fun
         self.args = args
+        for a in self.args:
+            assert isinstance(a, LiquidTerm)
 
     def __repr__(self):
         if all([not c.isalnum() for c in self.fun]) and len(self.args) == 2:

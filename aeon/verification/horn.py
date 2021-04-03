@@ -245,7 +245,7 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
 
 def fill_horn_arguments(h: LiquidHole, candidate: LiquidTerm) -> LiquidTerm:
     for (i, (n, _)) in enumerate(h.argtypes):
-        candidate = substitution_in_liquid(candidate, n, mk_arg(i))
+        candidate = substitution_in_liquid(candidate, LiquidVar(n), mk_arg(i))
     return candidate
 
 
