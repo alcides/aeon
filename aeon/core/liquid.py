@@ -64,6 +64,7 @@ class LiquidVar(LiquidTerm):
     name: str
 
     def __init__(self, name: str):
+        assert isinstance(name, str)
         self.name = name
 
     def __repr__(self):

@@ -96,12 +96,26 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     elif isinstance(t, TypeVar):
         return t
     elif isinstance(t, AbstractionType):
-        if name == t.var_name:
+        if isinstance(rep, Var) and rep.name == t.var_name:
+            nname = t.var_name + "1"
+            renamed = AbstractionType(
+                nname, t.var_type, substitution_in_type(t.type, Var(nname), t.var_name)
+            )
+            return substitution_in_type(renamed, rep, name)
+        elif name == t.var_name:
             return t
         else:
             return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
     elif isinstance(t, RefinedType):
-        if t.name == name:
+        if isinstance(rep, Var) and rep.name == t.name:
+            nname = t.name + "1"
+            renamed = RefinedType(
+                nname,
+                t.type,
+                substitution_in_liquid(t.refinement, LiquidVar(nname), t.name),
+            )
+            return substitution_in_type(renamed, rep, name)
+        elif t.name == name:
             return t
         else:
             return RefinedType(

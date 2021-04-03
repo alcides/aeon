@@ -48,3 +48,17 @@ def test_substitution_type_abs():
     assert substitution_in_type(ty, parse_term("3"), "z") == parse_type(
         r"(y:Int) -> {x : Int | x > 3}"
     )
+
+
+def test_substitution_autorename():
+    ty = parse_type(r"(y:Int) -> {x : Int | x > z}")
+    assert substitution_in_type(ty, parse_term("x"), "z") == parse_type(
+        r"(y:Int) -> {x1 : Int | x1 > x}"
+    )
+
+
+def test_substitution_autorename_ref():
+    ty = parse_type(r"(y:Int) -> {x : Int | y > z}")
+    assert substitution_in_type(ty, parse_term("y"), "z") == parse_type(
+        r"(y1:Int) -> {x : Int | y1 > y}"
+    )
