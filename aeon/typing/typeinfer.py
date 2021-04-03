@@ -198,20 +198,22 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
-        c_ = implication_constraint(t.var_name, ty.var_type, c)
-        return c_
+        return implication_constraint(t.var_name, ty.var_type, c)
+
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         c2 = check(nctx, t.body, ty)
         return Conjunction(c1, implication_constraint(t.var_name, t1, c2))
+
     elif isinstance(t, Rec):
         t1 = fresh(ctx, t.var_type)
         nrctx: TypingContext = ctx.with_var(t.var_name, t1)
+        print(t.var_name, "...")
         c1 = check(nrctx, t.var_value, t.var_type)
         c2 = check(nrctx, t.body, ty)
         c1 = implication_constraint(t.var_name, t1, c1)
-        c2 = implication_constraint(t.var_name, t1, c2)  # TODO Check these 2 lines!!!
+        c2 = implication_constraint(t.var_name, t1, c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()

@@ -11,8 +11,8 @@ ectx = EvaluationContext(evaluation_vars)
 
 def check_compile(source, ty, res):
     p = parse_term(source)
-    print("D", str(p))
-    check_type(ctx, p, ty)
+    print("D", str(p), ty)
+    assert check_type(ctx, p, ty)
     assert eval(p, ectx) == res
 
 
@@ -38,14 +38,14 @@ def test_anf_typed_smaller():
 
 def test_annotation():
     source = r""" (1 : Int) """
-    check_compile(source, parse_type("{x:Int | x == 1}"), 1)
+    check_compile(source, parse_type("Int"), 1)
 
 
 def test_annotation_anf():
-    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : Int = 3 in f a) in j"""
+    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : {x:Int | x == 3} = 3 in f a) in j"""
     check_compile(source, parse_type("{x:Int | x == 3}"), 3)
 
 
 def test_annotation_anf2():
-    source = r"""let j : Int = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : Int = (let k : Int = 3 in k) in f a) in j"""
+    source = r"""let j : {x:Int | x == 3} = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : {x:Int | x == 3} = (let k : {x:Int | x == 3} = 3 in k) in f a) in j"""
     check_compile(source, parse_type("{x:Int | x == 3}"), 3)

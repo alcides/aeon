@@ -148,6 +148,9 @@ class Rec(Term):
         self.var_value = var_value
         self.body = body
 
+    def __repr__(self):
+        return str(self)
+
     def __str__(self):
         return "(let {} : {} = {} in\n\t{})".format(
             self.var_name, self.var_type, self.var_value, self.body
