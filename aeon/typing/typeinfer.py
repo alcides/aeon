@@ -209,7 +209,6 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     elif isinstance(t, Rec):
         t1 = fresh(ctx, t.var_type)
         nrctx: TypingContext = ctx.with_var(t.var_name, t1)
-        print(t.var_name, "...")
         c1 = check(nrctx, t.var_value, t.var_type)
         c2 = check(nrctx, t.body, ty)
         c1 = implication_constraint(t.var_name, t1, c1)
