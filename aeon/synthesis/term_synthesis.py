@@ -10,17 +10,15 @@ from aeon.core.types import (
     t_bool,
     base,
 )
+from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.type_synthesis import synth_type
-from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
+from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
 from aeon.typing.typeinfer import check_type
+from aeon.synthesis.smt_synthesis import smt_synth_int_lit
 
 DEFAULT_DEPTH = 9
 DEFAULT_CHECK_TRIES = 100
-
-
-class NoMoreBudget(Exception):
-    pass
 
 
 def synth_literal(
@@ -34,12 +32,16 @@ def synth_literal(
         else:
             assert False
     elif isinstance(ty, RefinedType):
+        if ty.type == t_int:
+            v = smt_synth_int_lit(ctx, ty, r.next_integer())
+            if v is not None:
+                return Literal(v, t_int)
         for _ in range(DEFAULT_CHECK_TRIES):
             k = synth_literal(r, ctx, ty.type)
             if check_type(ctx, k, ty):
                 return k
             else:
-                raise NoMoreBudget()
+                print("does not typecheck", k, type(k), ty)
         raise NoMoreBudget()
     else:
         raise NoMoreBudget()
@@ -68,6 +70,8 @@ def vars_of_type(
             return [ictx.name] + rest
         else:
             return rest
+    elif isinstance(ictx, TypeBinder):
+        return vars_of_type(ctx, ty, ictx.prev)
     else:
         print(ictx, type(ictx))
         assert False
@@ -82,11 +86,9 @@ def synth_var(r: RandomSource, ctx: TypingContext, ty: Type, d: int = DEFAULT_DE
 
 def synth_app(r: RandomSource, ctx: TypingContext, ty: Type, d: int = DEFAULT_DEPTH):
     arg_type = synth_type(r, ctx)
+    print("CHOSEN TYPE:", arg_type)
     f = synth_term(r, ctx, AbstractionType(ctx.fresh_var(), arg_type, ty), d - 1)
-    if r.next_integer() % 2:  # ANF
-        arg = synth_literal(r, ctx, arg_type, d - 1)
-    else:
-        arg = synth_var(r, ctx, arg_type, d - 1)
+    arg = synth_term(r, ctx, arg_type, d - 1, anf=True)
     return Application(f, arg)
 
 
@@ -96,30 +98,61 @@ def synth_abs(r: RandomSource, ctx: TypingContext, ty: AbstractionType, d: int =
     return Abstraction(name, e)
 
 
+def any_var_of_type(ctx: TypingContext, ty: TypingContext):
+    if isinstance(ctx, EmptyContext):
+        return False
+    elif isinstance(ctx, VariableBinder):
+        if check_type(ctx, Var(ctx.name), ty):
+            return True
+        return any_var_of_type(ctx.prev, ty)
+    elif isinstance(ctx, TypeBinder):
+        return any_var_of_type(ctx.prev, ty)
+
+
 def synth_term(
     r: RandomSource,
     ctx: TypingContext,
     ty: Type,
     d: int = DEFAULT_DEPTH,
+    anf: bool = False,
 ) -> Term:
     b = base(ty)
     candidate_generators = []
+    print("synthing", ty)
+
+    def go_lit():
+        return synth_literal(r, ctx, ty, d)
+
+    def go_var():
+        return synth_var(r, ctx, ty, d)
+
+    def go_app():
+        return synth_app(r, ctx, ty, d)
+
+    def go_abs():
+        return synth_abs(r, ctx, ty, d)
 
     if b == t_int or b == t_bool:
-        candidate_generators.append(lambda: synth_literal(r, ctx, ty, d))
+        candidate_generators.append(go_lit)
+    if vars_of_type(ctx, ty):
+        candidate_generators.append(go_var)
 
-    candidate_generators.append(lambda: synth_var(r, ctx, ty, d))
-
-    if d > 0:
-        candidate_generators.append(lambda: synth_app(r, ctx, ty, d))
+    if d > 0 and not anf:
+        candidate_generators.append(go_app)
         if isinstance(ty, AbstractionType):
-            candidate_generators.append(lambda: synth_abs(r, ctx, ty, d))
+            candidate_generators.append(go_abs)
+    if candidate_generators:
+        for _ in range(DEFAULT_CHECK_TRIES):
+            f = r.choose(candidate_generators)
+            print("RULE CHOSEN", f, candidate_generators)
+            try:
+                t = f()
+                if t:
+                    return t
+                else:
+                    print("Failed to get", ty, len(candidate_generators))
+            except RecursionError:
+                raise NoMoreBudget()
 
-    for _ in range(DEFAULT_CHECK_TRIES):
-        f = r.choose(candidate_generators)
-        t = f()
-        if t:
-            return t
-        else:
-            print("Failed to get", ty, len(candidate_generators))
+    print("D", candidate_generators)
     raise NoMoreBudget()

@@ -42,7 +42,12 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Abstraction):
         return lambda k: eval(t.body, ctx.with_var(t.var_name, k))
     elif isinstance(t, Application):
-        return eval(t.fun, ctx)(eval(t.arg, ctx))
+        f = eval(t.fun, ctx)
+        arg = eval(t.arg, ctx)
+        e = f(arg)
+        if isinstance(t.fun, Var) and t.fun.name == "native_import":
+            globals()[arg] = e
+        return e
     elif isinstance(t, Let):
         return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
     elif isinstance(t, Rec):

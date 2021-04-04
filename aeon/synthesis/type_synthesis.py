@@ -1,3 +1,4 @@
+from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
 from aeon.core.types import (
     AbstractionType,
@@ -19,6 +20,7 @@ from aeon.core.liquid import (
 )
 from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
+from aeon.typing.well_formed import inhabited
 
 DEFAULT_DEPTH = 9
 MAX_STRING_SIZE = 12
@@ -84,7 +86,7 @@ def synth_liquid(
     if d > 0:
         options.append(lambda: synth_liquid_app(r, ctx, ty, d))
 
-    for _ in range(100):
+    for _ in range(d):
         k = r.choose(options)()
         if k:
             return k
@@ -98,8 +100,14 @@ def synth_native(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
 def synth_refined(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
     name = ctx.fresh_var()
     base = synth_native(r, ctx, d)
-    liquidExpr: LiquidTerm = synth_liquid(r, ctx.with_var(name, base), t_bool, d)
-    return RefinedType(name, base, liquidExpr)
+    for _ in range(d):
+        liquidExpr: LiquidTerm = synth_liquid(
+            r, ctx.with_var(name, base), t_bool, d - 1
+        )
+        t = RefinedType(name, base, liquidExpr)
+        if inhabited(ctx, t):
+            return t
+    raise NoMoreBudget()
 
 
 def synth_abstraction(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):

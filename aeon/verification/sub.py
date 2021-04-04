@@ -36,7 +36,6 @@ def sub(t1: Type, t2: Type) -> Constraint:
     if isinstance(t2, BaseType):
         t2 = ensure_refined(t2)
     if isinstance(t1, RefinedType) and isinstance(t2, RefinedType):
-        print("sub", t1, t2)
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:

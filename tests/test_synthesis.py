@@ -3,7 +3,8 @@ import random
 from typing import Dict
 from aeon.core.substitutions import liquefy
 from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
-from aeon.synthesis.term_synthesis import NoMoreBudget, synth_term
+from aeon.synthesis.exceptions import NoMoreBudget
+from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource, SeededRandomSource
 from aeon.frontend.parser import parse_type, parse_term
@@ -37,7 +38,6 @@ def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
     t = synth_type(listr(l), ctx)
-    print("GOT TYPE:", t)
     assert t == parse_type(ty)
 
 
@@ -53,7 +53,7 @@ def helper_syn_liq(l, t: str, liq: str, dctx: Dict[str, str] = None):
     assert s == expected
 
 
-def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None):
+def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None, budget=50):
     ctx: TypingContext = empty
     if dctx:
         for k in dctx.keys():
@@ -61,11 +61,14 @@ def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None):
     type_ = parse_type(ty)
     if inhabited(ctx, type_):
         try:
-            g = synth_term(listr(l), ctx, type_)
+            g = synth_term(listr(l), ctx, type_, d=budget)
             print(g, "DEBUG")
             assert g == parse_term(term)
         except NoMoreBudget as e:
             pass
+            assert False
+    else:
+        assert False
 
 
 def test_synthesis1():
@@ -81,22 +84,26 @@ def test_synthesis3():
 
 
 def test_synthesis4():
-    helper_syn([2, 3, 0, 0], "Int", "(\\fresh_1 -> 0) 2")
+    helper_syn([1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], "Int", "(\\fresh_1 -> 0) 2")
 
 
 def test_ref1():
     helper_syn(
-        [0, -10],
+        [0, -1],
         "{x:Int | x < 0}",
-        "-10",
+        "-1",
     )
 
 
 def test_ref2():
+    helper_syn([400, 500, 600, -700], "{x:Int | x >= 0}", "0", budget=100)
+
+
+def test_ref3():
     helper_syn(
-        rseed,
-        "{x:Int | x >= 0}",
-        "49557",
+        [0, 1] + rseed,
+        "{x:Int | x == 3}",
+        "3",
     )
 
 

@@ -1,3 +1,5 @@
+import importlib
+
 from aeon.frontend.parser import parse_type
 
 
@@ -6,8 +8,13 @@ def p(x):
     return 0
 
 
+def native_import(name):
+    return importlib.import_module(name)
+
+
 prelude = [
     ("native", "(x:String) -> Bottom", eval),
+    ("native_import", "(x:String) -> Bottom", native_import),
     ("print", "(x:String) -> Int", p),
     ("==", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x == y),
     ("!=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x != y),

@@ -1,0 +1,2 @@
+class NoMoreBudget(Exception):
+    pass
