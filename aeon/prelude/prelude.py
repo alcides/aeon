@@ -7,7 +7,7 @@ def p(x):
 
 
 prelude = [
-    ("native", "(x:String) -> Int", eval),
+    ("native", "(x:String) -> Bottom", eval),
     ("print", "(x:String) -> Int", p),
     ("==", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x == y),
     ("!=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x != y),

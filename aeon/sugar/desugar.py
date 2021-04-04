@@ -19,7 +19,7 @@ def desugar(p: Program) -> Tuple[Term, TypingContext, EvaluationContext]:
     print(p)
 
     prog = Application(Var("print"), Hole("main"))
-    for d in p.definitions:
+    for d in p.definitions[::-1]:
         ty = d.type
         body = d.body
         for (a, t) in d.args:

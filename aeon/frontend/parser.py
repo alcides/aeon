@@ -14,6 +14,8 @@ from aeon.core.types import (
     t_bool,
     t_float,
     t_string,
+    bottom,
+    top,
 )
 from aeon.core.terms import (
     Abstraction,
@@ -58,7 +60,13 @@ class TreeToCore(Transformer):
         return AbstractionType(str(args[0]), args[1], args[2])
 
     def simple_t(self, args):
-        return BaseType(str(args[0]))
+        n = str(args[0])
+        if n == "Bottom":
+            return bottom
+        elif n == "Top":
+            return top
+        else:
+            return BaseType(n)
 
     # Expressions
 

@@ -3,6 +3,7 @@ from z3.z3 import (
     And,
     BoolRef,
     BoolSort,
+    DeclareSort,
     ExprRef,
     IntSort,
     Not,
@@ -11,8 +12,9 @@ from z3.z3 import (
     Implies,
     ForAll,
     StringSort,
+    Const,
 )
-from aeon.core.types import AbstractionType, BaseType, t_int, t_bool, t_string
+from aeon.core.types import AbstractionType, BaseType, TypeVar, t_int, t_bool, t_string
 from typing import Any, Callable, Dict, Generator, List, Tuple
 from aeon.core.liquid import (
     LiquidApp,
@@ -120,6 +122,9 @@ def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
     assert False
 
 
+sort_cache = {}
+
+
 def get_sort(base: BaseType) -> Any:
     if base == t_int:
         return IntSort
@@ -127,6 +132,10 @@ def get_sort(base: BaseType) -> Any:
         return BoolSort
     elif base == t_string:
         return StringSort
+    elif isinstance(base, BaseType):
+        if base.name not in sort_cache:
+            sort_cache[base.name] = DeclareSort(base.name)
+        return sort_cache[base.name]
     print("NO sort:", base)
     assert False
 
@@ -138,7 +147,10 @@ def make_variable(name: str, base: BaseType) -> Any:
         return Bool(name)
     elif base == t_string:
         return String(name)
-    print("NO var:", name, base)
+    elif isinstance(base, BaseType):
+        return Const(name, get_sort(base))
+
+    print("NO var:", name, base, type(base))
     assert False
 
 

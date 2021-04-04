@@ -169,22 +169,6 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
 
         c1 = implication_constraint(t.var_name, t.var_type, c1)
         c2 = implication_constraint(t.var_name, t.var_type, c2)
-
-        print(
-            "\tLetRec",
-            list(variables_in(c1)),
-            ", ",
-            list(variables_in(c2)),
-            " ... ",
-            t.var_name,
-            " >=>",
-            ctx,
-            "??",
-            c1,
-            "??",
-            c2,
-        )
-
         return (Conjunction(c1, c2), t2)
     elif isinstance(t, Annotation):
         ty = fresh(ctx, t.type)
@@ -247,5 +231,5 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         print("Type Error", e)
         return False
 
-    # print("Checking {} <: {} leads to {}".format(t, ty, constraint))
+    print("Checking {} <: {} leads to {}".format(t, ty, constraint))
     return entailment(ctx, constraint)
