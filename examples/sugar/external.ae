@@ -1,8 +1,9 @@
 type A;
-def a : Int = 1;
-def f (x:Int) -> Int {
-    y = (x + 2);
-    z = y - 2;
-    _ = print ?a;
-    10
+def a : Int = native("1+1");
+def factorial (n:Int) -> Int {
+    if n == 0 then 1 else (n * factorial(n-1))
+}
+
+def test (x:{k:Int | k > 0}) -> {z:Int | z < 0} {
+    ?r
 }
