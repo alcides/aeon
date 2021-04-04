@@ -7,6 +7,7 @@ def p(x):
 
 
 prelude = [
+    ("native", "(x:String) -> Int", eval),
     ("print", "(x:String) -> Int", p),
     ("==", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x == y),
     ("!=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x != y),
@@ -18,6 +19,7 @@ prelude = [
     ("-", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x - y),
     ("*", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x * y),
     ("/", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x / y),
+    ("%", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x % y),
 ]
 
 typing_vars = {}

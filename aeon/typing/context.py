@@ -60,3 +60,25 @@ class VariableBinder(TypingContext):
 
     def vars(self) -> List[Tuple[str, Type]]:
         return [(self.name, self.type)] + self.prev.vars()
+
+
+class TypeBinder(TypingContext):
+    type_name: str
+    type_kind: str
+
+    def __init__(self, prev: TypingContext, type_name, type_kind="*"):
+        self.prev = prev
+        self.type_name = type_name
+        self.type_kind = type_kind
+
+    def type_of(self, name: str) -> Optional[Type]:
+        return self.prev.type_of(name)
+
+    def fresh_var(self):
+        return self.prev.fresh_var()
+
+    def vars(self) -> List[Tuple[str, Type]]:
+        return self.prev.vars()
+
+    def __repr__(self) -> str:
+        return "{},<{}:{}>".format(self.prev, self.type_name, self.type_kind)

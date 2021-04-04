@@ -16,7 +16,7 @@ class Literal(Term):
     def __repr__(self):
         if self.type == t_string:
             return f'"{self.value}"'
-        return "({}::{})".format(self.value, self.type)
+        return f"{self.value}"
 
     def __eq__(self, other):
         return (

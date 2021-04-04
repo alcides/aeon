@@ -1,7 +1,6 @@
-from typing import Callable
+from typing import Any, Callable
 from aeon.utils.ast_helpers import ensure_anf_rec, mk_binop
 from aeon.core.substitutions import liquefy
-import os
 import pathlib
 
 from lark import Lark, Transformer
@@ -32,6 +31,7 @@ from aeon.utils.ast_helpers import (
     ensure_anf_let,
     ensure_anf_if,
     ensure_anf_app,
+    ensure_anf_rec,
     mk_binop,
     i0,
 )
@@ -139,9 +139,6 @@ class TreeToCore(Transformer):
     def hole(self, args):
         return Hole(str(args[0]))
 
-    def fitness_annotation(self, args):
-        return Var(str(args[0]))
-
     def int_lit(self, args):
         return Literal(int(args[0]), type=t_int)
 
@@ -167,5 +164,5 @@ def mk_parser(rule="start", start_counter=0):
     )
 
 
-parse_type: Type = mk_parser("type").parse
-parse_term: Term = mk_parser("expression").parse
+parse_type: Callable[[str], Type] = mk_parser("type").parse
+parse_term: Callable[[str], Term] = mk_parser("expression").parse

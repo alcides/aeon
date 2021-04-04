@@ -18,6 +18,7 @@ from aeon.core.terms import (
     Abstraction,
     Annotation,
     Application,
+    Hole,
     If,
     Let,
     Literal,
@@ -189,6 +190,9 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         ty = fresh(ctx, t.type)
         c = check(ctx, t.expr, ty)
         return (c, ty)
+    elif isinstance(t, Hole):
+        return (ctrue, bottom)
+
     print("Unhandled:", t)
     assert False
 
@@ -240,7 +244,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
     except CouldNotGenerateConstraintException as e:
-        print("OOPs", e)
+        print("Type Error", e)
         return False
 
     # print("Checking {} <: {} leads to {}".format(t, ty, constraint))

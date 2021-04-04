@@ -123,5 +123,3 @@ def synth_term(
         else:
             print("Failed to get", ty, len(candidate_generators))
     raise NoMoreBudget()
-
-    # TODO: check type!

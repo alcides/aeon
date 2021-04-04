@@ -1,0 +1,8 @@
+type A;
+def a : Int = 1;
+def f (x:Int) -> Int {
+    y = (x + 2);
+    z = y - 2;
+    _ = print ?a;
+    10
+}

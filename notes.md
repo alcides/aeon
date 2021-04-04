@@ -1,4 +1,6 @@
 TODO:
 
-* Ensure ANF with Rec
-* Type polymorphism
+* Add custom types
+* Introduce Imports
+* Introduce non-liquid refinements
+* Introduce holes and synthesis

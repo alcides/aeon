@@ -1,17 +1,27 @@
-type : "{" ID ":" type _PIPE expression "}"                -> refined_t
-     | "(" ID ":" type ")" "->" type                       -> abstraction_t
-     | ID                                                  -> simple_t
-     | "(" type ")"                                        -> same
+program : type_decls defs                         -> program
+
+type_decls : type_decl*                              -> list
+
+defs : def*                                          -> list
+
+type_decl : "type" ID ";"                            -> type_decl
+
+def : "def" ID ":" type "=" expression ";"          -> def_cons
+    | "def" ID "(" args ")" "->" type "{" expression "}" -> def_fun
+
+
+args :                          -> empty_list
+     | arg ("," arg)*          -> args
+     
+arg : ID ":" type               -> arg
 
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
 
-
-expression_i : "let" ID "=" expression ("in"|";") expression     -> let_e
-          |  "let" ID ":" type "=" expression ("in"|";") expression     -> rec_e
+expression_i :  ID "=" expression ("in"|";") expression     -> let_e
+          |  ID ":" type "=" expression ("in"|";") expression     -> rec_e
           | "if" expression "then" expression "else" expression -> if_e
           | expression_un                                -> same
-
 
 expression_un : expression_bool                               -> same
            | "!" expression_un                               -> nnot
@@ -38,7 +48,6 @@ expression_fact : expression_b                           -> same
                 | expression_b "%" expression_fact       -> binop_mod
 
 
-
 expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
@@ -47,19 +56,25 @@ application : application expression_simple                      -> application_
             | expression_simple                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
-             | "(" expression ":" type ")"                       -> annotation
-             | INTLIT                                           -> int_lit
-             | FLOATLIT                                        -> float_lit
-             | BOOLLIT                                         -> bool_lit
-             | STRINGLIT                                      -> string_lit
-             | ID                                             -> var
-             | "?" ID                                         -> hole
+        | "(" expression ":" type ")"                       -> annotation
+        | INTLIT                                           -> int_lit
+        | FLOATLIT                                        -> float_lit
+        | BOOLLIT                                         -> bool_lit
+        | STRINGLIT                                      -> string_lit
+        | ID                                             -> var
+        | "?" ID                                         -> hole
+
+
+type : "{" ID ":" type _PIPE expression "}"                -> refined_t
+     | "(" ID ":" type ")" "->" type                       -> abstraction_t
+     | ID                                                  -> simple_t
+     | "(" type ")"                                        -> same
+
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 STRINGLIT : ESCAPED_STRING
-
 
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
 PATH : (".." | ID )* "/" ID

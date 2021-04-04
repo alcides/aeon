@@ -3,6 +3,7 @@ from aeon.core.terms import (
     Abstraction,
     Annotation,
     Application,
+    Hole,
     If,
     Let,
     Literal,
@@ -10,6 +11,8 @@ from aeon.core.terms import (
     Term,
     Var,
 )
+
+real_eval = eval
 
 
 class EvaluationContext(object):
@@ -61,4 +64,9 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         return bool(c) and eval(t.cond, ctx) or eval(t.otherwise, ctx)
     elif isinstance(t, Annotation):
         return eval(t.expr, ctx)
+    elif isinstance(t, Hole):
+        args = ", ".join([str(n) for n in ctx.variables])
+        print(f"Context ({args})")
+        h = input(f"Enter value for hole {t} in Python: ")
+        return real_eval(h, ctx.variables)
     assert False
