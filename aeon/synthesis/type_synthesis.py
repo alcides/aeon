@@ -24,6 +24,7 @@ from aeon.typing.well_formed import inhabited
 
 DEFAULT_DEPTH = 9
 MAX_STRING_SIZE = 12
+MAX_TRIES = 20
 
 
 def synth_liquid_var(
@@ -79,17 +80,30 @@ def synth_liquid(
 ) -> LiquidTerm:
     assert isinstance(ty, BaseType)
 
+    def go_liquid_var():
+        return synth_liquid_var(r, ctx, ty, d)
+
+    def go_liquid_lit():
+        return synth_liquid_literal(r, ctx, ty, d)
+
+    def go_liquid_app():
+        return synth_liquid_app(r, ctx, ty, d)
+
     options = [
-        lambda: synth_liquid_var(r, ctx, ty, d),
-        lambda: synth_liquid_literal(r, ctx, ty, d),
+        go_liquid_var,
+        go_liquid_lit,
     ]
     if d > 0:
-        options.append(lambda: synth_liquid_app(r, ctx, ty, d))
+        options.append(go_liquid_app)
 
-    for _ in range(d):
-        k = r.choose(options)()
+    for _ in range(MAX_TRIES):
+        f = r.choose(options)
+        k = f()
         if k:
             return k
+    nt = go_liquid_lit()
+    if nt:
+        return nt
     assert False
 
 
@@ -100,7 +114,7 @@ def synth_native(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
 def synth_refined(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
     name = ctx.fresh_var()
     base = synth_native(r, ctx, d)
-    for _ in range(d):
+    for i in range(MAX_TRIES):
         liquidExpr: LiquidTerm = synth_liquid(
             r, ctx.with_var(name, base), t_bool, d - 1
         )
@@ -118,11 +132,20 @@ def synth_abstraction(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPT
 
 
 def synth_type(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
+    def go_native():
+        return synth_native(r, ctx, d)
+
+    def go_refined():
+        return synth_refined(r, ctx, d)
+
+    def go_abst():
+        return synth_abstraction(r, ctx, d)
+
     if d > 0:
         options = [
-            lambda: synth_native(r, ctx, d),
-            lambda: synth_refined(r, ctx, d),
-            lambda: synth_abstraction(r, ctx, d),
+            go_native,
+            go_refined,
+            go_abst,
         ]
         return r.choose(options)()
     else:
