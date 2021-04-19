@@ -16,9 +16,13 @@ class SeededRandomSource(RandomSource):
     def __init__(self, seed):
         self.r = Random()
         self.r.seed(seed)
+        self.seed = seed
 
     def next_integer(self) -> int:
         return self.r.randint(-100000, 100000)
+
+    def __str__(self):
+        return f"RandomSource({self.seed})"
 
 
 class ListRandomSource(RandomSource):
@@ -29,7 +33,15 @@ class ListRandomSource(RandomSource):
         self.values = values
         self.index = 0
 
+    def choose(self, options: List[Any]) -> Any:
+        assert options
+        k = self.next_integer() % len(options)
+        return options[k]
+
     def next_integer(self) -> int:
         v = self.values[self.index % len(self.values)]
         self.index += 1
         return v
+
+    def __str__(self):
+        return str(self.values[self.index :])

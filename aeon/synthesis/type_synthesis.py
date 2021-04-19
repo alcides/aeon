@@ -1,3 +1,4 @@
+from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
 from aeon.core.types import (
@@ -24,11 +25,15 @@ from aeon.typing.well_formed import inhabited
 
 DEFAULT_DEPTH = 9
 MAX_STRING_SIZE = 12
-MAX_TRIES = 20
+MAX_TRIES = 10
 
 
 def synth_liquid_var(
-    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: BaseType,
+    d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm:
     options = [v for (v, t) in ctx.vars() if base(t) == ty]
     if options:
@@ -39,7 +44,11 @@ def synth_liquid_var(
 
 
 def synth_liquid_literal(
-    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: BaseType,
+    d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm:
     if ty == t_bool:
         return r.choose([LiquidLiteralBool(True), LiquidLiteralBool(False)])
@@ -56,7 +65,11 @@ def synth_liquid_literal(
 
 
 def synth_liquid_app(
-    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: BaseType,
+    d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm:
     assert isinstance(ty, BaseType)
 
@@ -70,24 +83,27 @@ def synth_liquid_app(
     for t in namet[:-1]:
         if t not in bindings:
             bindings[t] = r.choose([t_int, t_bool])
-        args.append(synth_liquid(r, ctx, bindings[t], d - 1))
+        args.append(synth_liquid(man, r, ctx, bindings[t], d - 1))
     return LiquidApp(name, args)
 
 
-# TODO: Type and LiquidType?
 def synth_liquid(
-    r: RandomSource, ctx: TypingContext, ty: BaseType, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: BaseType,
+    d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm:
     assert isinstance(ty, BaseType)
 
     def go_liquid_var():
-        return synth_liquid_var(r, ctx, ty, d)
+        return synth_liquid_var(man, r, ctx, ty, d)
 
     def go_liquid_lit():
-        return synth_liquid_literal(r, ctx, ty, d)
+        return synth_liquid_literal(man, r, ctx, ty, d)
 
     def go_liquid_app():
-        return synth_liquid_app(r, ctx, ty, d)
+        return synth_liquid_app(man, r, ctx, ty, d)
 
     options = [
         go_liquid_var,
@@ -97,49 +113,68 @@ def synth_liquid(
         options.append(go_liquid_app)
 
     for _ in range(MAX_TRIES):
-        f = r.choose(options)
-        k = f()
+        man.checkpoint()
+        k = man.choose_rule(r, options, d)
         if k:
             return k
+        else:
+            man.undo_choice()
     nt = go_liquid_lit()
     if nt:
         return nt
     assert False
 
 
-def synth_native(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
-    return r.choose([t_int, t_bool])
+def synth_native(
+    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+):
+    def lc_int():
+        return t_int
+
+    def lc_bool():
+        return t_bool
+
+    return man.choose_rule(r, [lc_int, lc_bool], d)
 
 
-def synth_refined(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
+def synth_refined(
+    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+):
     name = ctx.fresh_var()
-    base = synth_native(r, ctx, d)
+    base = synth_native(man, r, ctx, d)
     for i in range(MAX_TRIES):
+        man.checkpoint()
         liquidExpr: LiquidTerm = synth_liquid(
-            r, ctx.with_var(name, base), t_bool, d - 1
+            man, r, ctx.with_var(name, base), t_bool, d - 1
         )
         t = RefinedType(name, base, liquidExpr)
         if inhabited(ctx, t):
             return t
+        else:
+            man.undo_choice()
     raise NoMoreBudget()
 
 
-def synth_abstraction(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
+def synth_abstraction(
+    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+):
     name = ctx.fresh_var()
-    arg_type = synth_type(r, ctx, d)
-    ty = synth_type(r, ctx.with_var(name, arg_type), d)
+    arg_type = synth_type(man, r, ctx, d - 1)
+    ty = synth_type(man, r, ctx.with_var(name, arg_type), d - 1)
     return AbstractionType(name, arg_type, ty)
 
 
-def synth_type(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
+def synth_type(
+    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+):
     def go_native():
-        return synth_native(r, ctx, d)
+        return synth_native(man, r, ctx, d)
 
     def go_refined():
-        return synth_refined(r, ctx, d)
+        return synth_refined(man, r, ctx, d)
 
     def go_abst():
-        return synth_abstraction(r, ctx, d)
+        return synth_abstraction(man, r, ctx, d)
 
     if d > 0:
         options = [
@@ -147,6 +182,6 @@ def synth_type(r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH):
             go_refined,
             go_abst,
         ]
-        return r.choose(options)()
+        return man.choose_rule(r, options, d)
     else:
-        return synth_native(r, ctx, d)
+        return synth_native(man, r, ctx, d)

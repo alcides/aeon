@@ -16,7 +16,6 @@ def desugar(p: Program) -> Tuple[Term, TypingContext, EvaluationContext]:
     ectx = EvaluationContext(evaluation_vars)
     for tyname in p.type_decls:
         ctx = TypeBinder(ctx, tyname)
-    print(p)
 
     prog = Application(Var("print"), Hole("main"))
     for d in p.definitions[::-1]:

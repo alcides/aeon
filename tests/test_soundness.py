@@ -10,6 +10,7 @@ from aeon.typing.typeinfer import check_type
 from aeon.synthesis.term_synthesis import NoMoreBudget, synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource
+from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
 from aeon.typing.well_formed import wellformed, inhabited
 
 listr = lambda x: ListRandomSource(x)
@@ -29,10 +30,12 @@ def random_base_context() -> TypingContext:
 
 
 def test_soundness_liq():
+    man = DynamicProbManager()
     for _ in range(1000):
         target_ty = random_base_type()
         ctx = random_base_context()
         s: LiquidTerm = synth_liquid(
+            man,
             rseed(),
             ctx,
             target_ty,
@@ -42,20 +45,22 @@ def test_soundness_liq():
 
 def test_soundess_types():
     for _ in range(10):
+        man: ChoiceManager = DynamicProbManager()
         ctx = random_base_context()
-        t: Type = synth_type(rseed(), ctx, d=2)
+        t: Type = synth_type(man, rseed(), ctx, d=2)
         assert wellformed(ctx, t)
 
 
 def test_soundess_terms():
     for _ in range(10):
+        man: ChoiceManager = DynamicProbManager()
         ctx = random_base_context()
-        ty: Type = synth_type(rseed(), ctx, d=2)
+        ty: Type = synth_type(man, rseed(), ctx, d=2)
         assert wellformed(ctx, ty)
         if inhabited(ctx, ty):
             continue
         try:
-            t: Term = synth_term(rseed(), ctx, ty)
+            t: Term = synth_term(man, rseed(), ctx, ty)
             assert t != None
             assert check_type(ctx, t, ty)
         except NoMoreBudget:

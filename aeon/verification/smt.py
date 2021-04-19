@@ -89,6 +89,7 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 def smt_valid_single(c: CanonicConstraint, foralls: List[Tuple[str, Any]] = []) -> bool:
     s = Solver()
+    s.set(timeout=2000),
     forall_vars = [
         (f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)
     ]
@@ -105,7 +106,7 @@ def smt_valid_single(c: CanonicConstraint, foralls: List[Tuple[str, Any]] = []) 
     elif result == unsat:
         return True
     else:
-        assert False
+        return False
 
 
 def smt_valid(c: Constraint, foralls: List[Tuple[str, Any]] = []) -> bool:

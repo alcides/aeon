@@ -16,6 +16,7 @@ all_ops = [
     ("/", ("Int", "Int", "Int")),
     ("-", ("Int", "Int", "Int")),
     ("%", ("Int", "Int", "Int")),
+    ("!", ("Bool", "Bool")),
 ]
 
 

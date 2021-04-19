@@ -1,9 +1,14 @@
+from aeon.typing.context import EmptyContext, VariableBinder
 from typing import Dict
 
 from aeon.typing.typeinfer import check_type
 from aeon.frontend.parser import parse_type, parse_term
 
 from aeon.utils.ctx_helpers import build_context
+from aeon.typing.typeinfer import sub
+from aeon.verification.smt import smt_valid
+from aeon.typing.entailment import entailment
+from aeon.core.types import t_int
 
 
 def tt(e: str, t: str, vars: Dict[str, str] = {}):
@@ -184,3 +189,10 @@ def test_simplerec():
 
 def test_let_let():
     assert tt("let x = let y = 1 in 1 in 2", "Int")
+
+
+def test_sub():
+    subt = parse_type(r"(x:((z:{a:Int| a > 1 }) -> Int)) -> {k:Int | k > x}")
+    supt = parse_type(r"(y:((m:{b:Int| b > 0 }) -> Int)) -> {z:Int | z >= y}")
+    c = sub(subt, supt)
+    assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)

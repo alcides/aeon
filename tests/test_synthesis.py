@@ -1,12 +1,13 @@
+from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
 from aeon.typing.well_formed import inhabited
 import random
-from typing import Dict
+from typing import Dict, Union, List
 from aeon.core.substitutions import liquefy
 from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
-from aeon.synthesis.sources import ListRandomSource, SeededRandomSource
+from aeon.synthesis.sources import ListRandomSource, RandomSource, SeededRandomSource
 from aeon.frontend.parser import parse_type, parse_term
 
 
@@ -34,26 +35,40 @@ def test_list_source():
 
 def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
     ctx: TypingContext = empty
+    man: ChoiceManager = DynamicProbManager()
     if dctx:
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
-    t = synth_type(listr(l), ctx)
+    t = synth_type(man, listr(l), ctx)
     assert t == parse_type(ty)
 
 
 def helper_syn_liq(l, t: str, liq: str, dctx: Dict[str, str] = None):
+    man: ChoiceManager = ChoiceManager()
     ctx: TypingContext = empty
     if dctx:
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
 
-    s = synth_liquid(listr(l), ctx, parse_type(t))
+    s = synth_liquid(man, listr(l), ctx, parse_type(t))
     liq_term = parse_term(liq)
     expected = liquefy(liq_term)
     assert s == expected
 
 
-def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None, budget=50):
+def helper_syn(
+    l: Union[List[int], RandomSource],
+    ty: str,
+    term: str,
+    dctx: Dict[str, str] = None,
+    budget=50,
+):
+    man: ChoiceManager = ChoiceManager()
+    randomSource: RandomSource
+    if isinstance(l, list):
+        randomSource = listr(l)
+    else:
+        randomSource = l
     ctx: TypingContext = empty
     if dctx:
         for k in dctx.keys():
@@ -61,8 +76,9 @@ def helper_syn(l, ty: str, term: str, dctx: Dict[str, str] = None, budget=50):
     type_ = parse_type(ty)
     if inhabited(ctx, type_):
         try:
-            g = synth_term(listr(l), ctx, type_, d=budget)
-            print(g, "DEBUG")
+            print(man, randomSource, ".")
+            g = synth_term(man, randomSource, ctx, type_, d=budget)
+            print(g, "DEBUG", term)
             assert g == parse_term(term)
         except NoMoreBudget as e:
             pass
@@ -84,7 +100,11 @@ def test_synthesis3():
 
 
 def test_synthesis4():
-    helper_syn([1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], "Int", "(\\fresh_1 -> 0) 2")
+    helper_syn(
+        [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1],
+        "Int",
+        r"((\fresh_2 -> fresh_2) 1)",
+    )
 
 
 def test_ref1():
@@ -111,14 +131,31 @@ def test_t():
     helper_syn_type([0, 0, 0, 1, 0, 0, 0, 400] + rseed, "Int")
 
 
-def test_liq_term():
+def test_liq_term1():
     helper_syn_liq([0, 0] + rseed, "Bool", "x", {"x": "Bool"})
+
+
+def test_liq_term2():
     helper_syn_liq([0, 0] + rseed, "Int", "x", {"x": "Int"})
+
+
+def test_liq_term3():
     helper_syn_liq([0, 0] + rseed, "Bool", "y", {"x": "Int", "y": "Bool"})
 
+
+def test_liq_term4():
     helper_syn_liq([1, 0] + rseed, "Bool", "true")
+
+
+def test_liq_term5():
     helper_syn_liq([1, 1] + rseed, "Bool", "false")
+
+
+def test_liq_term6():
     helper_syn_liq([1, 80] + rseed, "Int", "80")
+
+
+def test_liq_term7():
     helper_syn_liq([1, 91] + rseed, "Int", "91")
 
 
@@ -130,8 +167,10 @@ def test_liq_app():
 
 def test_liq_term_r1000():
     for i in range(1000):
+        man = ChoiceManager()
         seed = [random.randint(0, 100) for _ in range(20)] + rseed
         s = synth_liquid(
+            man,
             listr(seed),
             VariableBinder(EmptyContext(), "x", parse_type("Int")),
             parse_type("Int"),

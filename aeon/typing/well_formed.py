@@ -52,16 +52,19 @@ def inhabited(ctx: TypingContext, ty: Type) -> bool:
         else:
             assert False
 
-    (name, base, refinement) = extract_parts(ty)
-    constraint = LiquidConstraint(refinement)
-    wrapper = Implication(
-        "__internal__",
-        t_bool,
-        LiquidLiteralBool(True),
-        entailment_like(ctx, constraint),
-    )
-    r = smt_valid(wrapper, foralls=[(name, base)])
-    return r
+    try:
+        (name, base, refinement) = extract_parts(ty)
+        constraint = LiquidConstraint(refinement)
+        wrapper = Implication(
+            "__internal__",
+            t_bool,
+            LiquidLiteralBool(True),
+            entailment_like(ctx, constraint),
+        )
+        r = smt_valid(wrapper, foralls=[(name, base)])
+        return r
+    except ZeroDivisionError:
+        return False
 
 
 """
