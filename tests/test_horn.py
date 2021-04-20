@@ -18,7 +18,7 @@ from aeon.verification.horn import (
 )
 from aeon.core.types import RefinedType, t_int, t_bool
 from aeon.utils.ctx_helpers import build_context
-from aeon.verification.helpers import get_abs_example
+from aeon.verification.helpers import get_abs_example, parse_liquid
 
 
 def test_fresh():
@@ -27,32 +27,40 @@ def test_fresh():
     t = RefinedType("v", t_int, LiquidHole("?"))
     r = fresh(ctx, t)
     assert r == RefinedType(
-        "v_fresh_1", t_int, LiquidHole("fresh_1", [("x", "Int"), ("v_fresh_1", "Int")])
+        "v_fresh_1",
+        t_int,
+        LiquidHole(
+            "fresh_1", [(parse_liquid("x"), "Int"), (parse_liquid("v_fresh_1"), "Int")]
+        ),
     )
     assert wellformed_horn(r.refinement)
 
 
 def test_possible_args():
-    hpars = [("x", "Int")]
+    hpars = [(parse_liquid("x"), "Int")]
     args = list(get_possible_args(hpars, arity=1))
     assert len(args) == 5
 
 
 def test_possible_args2():
-    hpars = [("x", "Int"), ("y", "Int")]
+    hpars = [(parse_liquid("x"), "Int"), (parse_liquid("y"), "Int")]
     args = list(get_possible_args(hpars, arity=2))
     assert len(args) == 100
 
 
 def test_base_assignment_helper():
-    assign = build_initial_assignment(LiquidConstraint(LiquidHole("k", [("x", "Int")])))
+    assign = build_initial_assignment(
+        LiquidConstraint(LiquidHole("k", [(parse_liquid("x"), "Int")]))
+    )
     assert "k" in assign
     assert len(assign["k"]) == 30
 
 
 def test_base_assignment_helper2():
     assign = build_initial_assignment(
-        LiquidConstraint(LiquidHole("k", [("x", "Int"), ("y", "Int")]))
+        LiquidConstraint(
+            LiquidHole("k", [(parse_liquid("x"), "Int"), (parse_liquid("y"), "Int")])
+        )
     )
     assert "k" in assign
     assert len(assign["k"]) == 120

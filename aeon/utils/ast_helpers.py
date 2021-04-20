@@ -61,7 +61,7 @@ def ensure_anf_if(fresh: Callable[[], str], t: If) -> Term:
         return ensure_anf_let(Let(v, t.cond, If(Var(v), t.then, t.otherwise)))
 
 
-def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Application:
+def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Term:
     return ensure_anf_app(
         fresh, Application(ensure_anf_app(fresh, Application(Var(op), a1)), a2)
     )

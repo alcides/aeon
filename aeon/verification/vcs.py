@@ -68,12 +68,16 @@ def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
             yield from variables_in_liq(a)
 
 
-def variables_in(c: Constraint) -> Generator[str, None, None]:
+def variables_free_in(c: Constraint) -> Generator[str, None, None]:
     if isinstance(c, Conjunction):
-        yield from variables_in(c.c1)
-        yield from variables_in(c.c2)
+        yield from variables_free_in(c.c1)
+        yield from variables_free_in(c.c2)
     elif isinstance(c, Implication):
-        yield from variables_in_liq(c.pred)
-        yield from variables_in(c.seq)
+        for k in variables_in_liq(c.pred):
+            if k != c.name:
+                yield k
+        for k in variables_free_in(c.seq):
+            if k != c.name:
+                yield k
     elif isinstance(c, LiquidConstraint):
         yield from variables_in_liq(c.expr)

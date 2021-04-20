@@ -1,4 +1,4 @@
-from typing import List, Any, Optional, Tuple
+from typing import List, Any, Optional, Tuple, Union
 
 from aeon.frontend.parser import parse_term
 from aeon.core.types import Type, t_bool, t_int
@@ -21,25 +21,25 @@ def parse_liquid(t: str) -> LiquidTerm:
     return tl
 
 
-def imp(a: Any, b: LiquidConstraint) -> LiquidConstraint:
+def imp(a: Union[str, LiquidTerm], b: Constraint) -> Constraint:
     if isinstance(a, str):
         a = parse_liquid(a)
     assert isinstance(a, LiquidTerm)
     return Implication("_", t_bool, a, b)
 
 
-def conj(a: LiquidConstraint, b: LiquidConstraint) -> LiquidConstraint:
+def conj(a: Constraint, b: Constraint) -> Constraint:
     return Conjunction(a, b)
 
 
-def end(a: str) -> LiquidConstraint:
+def end(a: Union[str, LiquidTerm]) -> LiquidConstraint:
     if isinstance(a, str):
         a = parse_liquid(a)
     assert isinstance(a, LiquidTerm)
     return LiquidConstraint(a)
 
 
-def constraint_builder(vs: List[Tuple[str, Type]], exp: LiquidConstraint):
+def constraint_builder(vs: List[Tuple[str, Type]], exp: Constraint):
     for (n, t) in vs[::-1]:
         exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp

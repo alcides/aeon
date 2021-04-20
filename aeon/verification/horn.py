@@ -133,7 +133,7 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: List[Tuple[str, LiquidTerm]], arity: int):
+def get_possible_args(vars: List[Tuple[LiquidTerm, str]], arity: int):
     if arity == 0:
         yield []
     else:

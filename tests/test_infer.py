@@ -125,9 +125,15 @@ def test_abs_if():
     assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
 
 
-def test_sumSimple():
+def test_sumSimple1():
     assert tt("if b then 0 else sum 0", "Int", {"b": "Bool", "sum": "(x:Int) -> Int"})
+
+
+def test_sumSimple2():
     assert tt("let sum : (x: Int) -> Int = \\x -> sum x in sum 0", "Int")
+
+
+def test_sumSimple3():
     assert tt(
         "let k = sum b in if k then 1 else 0",
         "Int",
@@ -135,7 +141,7 @@ def test_sumSimple():
     )
 
 
-def test_sumSimple2():
+def test_sumSimple4():
     assert tt(
         "if sum b then 1 else 0",
         "Int",
@@ -143,7 +149,7 @@ def test_sumSimple2():
     )
 
 
-def test_sumSimple3():
+def test_sumSimple5():
     assert tt(
         r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
         "Int",
@@ -154,10 +160,14 @@ def test_sumSimple3():
 def test_sumToSimple4():
     assert tt("let k : {x:Int | x > 1} = 3 in k", "{k:Int| k > 0}")
 
+
+def test_sumToSimple5():
     assert tt(
         "let k : (x:Int) -> {y:Int | y > x} = \\x -> x+1 in k 5", "{k:Int| k > 5}"
     )
 
+
+def test_sumToSimple6():
     assert tt(
         "let k : (x:Int) -> {y:Int | y > 0} = \\x -> if x == 5 then k 1 else k 0 in k 5",
         "{k:Int| k > 0}",
@@ -208,4 +218,12 @@ def test_sub_simple():
     )
 
 
-"ø,plus:(x:Int) -> Int (x:Int) -> Int (fresh_1:Int) -> Int"
+def test_capture_avoiding_subs():
+    assert tt(
+        "f1 (f2 3)",
+        r"{k:Int | k >= 3 }",
+        {
+            "f1": r"(x:Int) -> {z:Int | z >= x}",
+            "f2": r"(z:Int) -> {k:Int | k >= z}",
+        },
+    )

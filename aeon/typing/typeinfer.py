@@ -4,7 +4,7 @@ from aeon.verification.vcs import (
     Conjunction,
     Constraint,
     LiquidConstraint,
-    variables_in,
+    variables_free_in,
 )
 from typing import List, Tuple
 
@@ -46,6 +46,7 @@ from aeon.typing.context import TypingContext
 from aeon.core.liquid_ops import ops
 from aeon.verification.sub import ensure_refined, implication_constraint, sub
 from aeon.verification.horn import fresh
+from aeon.verification.vcs import variables_free_in
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -152,21 +153,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                 return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
             c0 = Conjunction(c, cp)
-            vs: List[str] = list(variables_in(c0))
-            print(
-                ty.var_name,
-                "not in ",
-                vs,
-                "|",
-                return_type,
-                "[",
-                t.arg,
-                "/",
-                ty.var_name,
-                "]",
-            )
-            print(c0, "_", t_subs)
-            assert ty.var_name not in vs
+            vs: List[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException()

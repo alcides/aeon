@@ -54,9 +54,12 @@ class VariableBinder(TypingContext):
 
     def fresh_var(self):
         p = int(self.prev.fresh_var().split("_")[-1])
-        while self.type_of(p) is not None:
+        while True:
+            name = "fresh_{}".format(p)
+            if self.type_of(name) is None:
+                break
             p += 1
-        return "fresh_{}".format(p)
+        return name
 
     def __repr__(self) -> str:
         return "{},{}:{}".format(self.prev, self.name, self.type)

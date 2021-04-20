@@ -1,3 +1,4 @@
+from typing import Optional
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
@@ -34,7 +35,7 @@ def synth_liquid_var(
     ctx: TypingContext,
     ty: BaseType,
     d: int = DEFAULT_DEPTH,
-) -> LiquidTerm:
+) -> Optional[LiquidTerm]:
     options = [v for (v, t) in ctx.vars() if base(t) == ty]
     if options:
         v = r.choose(options)
@@ -64,6 +65,10 @@ def synth_liquid_literal(
         assert False
 
 
+def valid_ops(ty):
+    return [p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()]
+
+
 def synth_liquid_app(
     man: ChoiceManager,
     r: RandomSource,
@@ -73,11 +78,7 @@ def synth_liquid_app(
 ) -> LiquidTerm:
     assert isinstance(ty, BaseType)
 
-    valid_ops = [
-        p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()
-    ]
-
-    (name, namet) = r.choose(valid_ops)
+    (name, namet) = r.choose(valid_ops(ty))
     args = []
     bindings = {"Int": t_int, "Bool": t_bool}
     for t in namet[:-1]:
@@ -106,9 +107,10 @@ def synth_liquid(
         return synth_liquid_app(man, r, ctx, ty, d)
 
     options = [
-        go_liquid_var,
         go_liquid_lit,
     ]
+    if valid_ops(ty):
+        options.append(go_liquid_var)
     if d > 0:
         options.append(go_liquid_app)
 

@@ -1,17 +1,25 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 
 class LiquidTerm(object):
     pass
 
 
+def ensure_liqterm(a: Union[LiquidTerm, str]) -> LiquidTerm:
+    if isinstance(a, str):
+        return LiquidVar(a)
+    return a
+
+
 class LiquidHole(LiquidTerm):
     name: str
-    argtypes: List[Tuple[LiquidTerm, LiquidTerm]]
+    argtypes: List[Tuple[LiquidTerm, str]]
 
-    def __init__(self, name: str, argtypes: List[Tuple[LiquidTerm, str]] = None):
+    def __init__(
+        self, name: str, argtypes: List[Tuple[Union[LiquidTerm, str], str]] = None
+    ):
         self.name = name
-        self.argtypes = argtypes or []
+        self.argtypes = [(ensure_liqterm(a), b) for (a, b) in (argtypes or [])]
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])

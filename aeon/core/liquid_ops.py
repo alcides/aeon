@@ -23,7 +23,7 @@ all_ops = [
 ops = [x[0] for x in all_ops]
 
 
-def get_type_of(name: str) -> Optional[Tuple[str, str, str]]:
+def get_type_of(name: str) -> Optional[Tuple]:
     for (op, t) in all_ops:
         if op == name:
             return t

@@ -132,37 +132,37 @@ def test_t():
 
 
 def test_liq_term1():
-    helper_syn_liq([0, 0] + rseed, "Bool", "x", {"x": "Bool"})
+    helper_syn_liq([1, 0] + rseed, "Bool", "x", {"x": "Bool"})
 
 
 def test_liq_term2():
-    helper_syn_liq([0, 0] + rseed, "Int", "x", {"x": "Int"})
+    helper_syn_liq([1, 0] + rseed, "Int", "x", {"x": "Int"})
 
 
 def test_liq_term3():
-    helper_syn_liq([0, 0] + rseed, "Bool", "y", {"x": "Int", "y": "Bool"})
+    helper_syn_liq([1, 0] + rseed, "Bool", "y", {"x": "Int", "y": "Bool"})
 
 
 def test_liq_term4():
-    helper_syn_liq([1, 0] + rseed, "Bool", "true")
+    helper_syn_liq([0, 0] + rseed, "Bool", "true")
 
 
 def test_liq_term5():
-    helper_syn_liq([1, 1] + rseed, "Bool", "false")
+    helper_syn_liq([0, 1] + rseed, "Bool", "false")
 
 
 def test_liq_term6():
-    helper_syn_liq([1, 80] + rseed, "Int", "80")
+    helper_syn_liq([0, 80] + rseed, "Int", "80")
 
 
 def test_liq_term7():
-    helper_syn_liq([1, 91] + rseed, "Int", "91")
+    helper_syn_liq([0, 91] + rseed, "Int", "91")
 
 
 def test_liq_app():
     d = {"x": "Bool", "y": "Int", "z": "Bool", "w": "Int"}
-    helper_syn_liq([2, 0, 0, 1, 2, 3, 4], "Bool", "2 == w", d)
-    helper_syn_liq([2, 5, 4, 3, 2, 1, 4, 5, 6, 7] + rseed, "Int", "3 * (5 + y)", d)
+    helper_syn_liq([2, 0, 0, 0, 2, 1, 4], "Bool", "2 == w", d)
+    helper_syn_liq([2, 5, 4, 3, 2, 1, 4, 5, 6, 7] + rseed, "Int", "y * (y + 7)", d)
 
 
 def test_liq_term_r1000():
@@ -196,6 +196,6 @@ def test_can_generate_plus2():
 
 def test_can_generate_plus3():
     ctx = build_context({"plus": parse_type("(x:Int) -> (y:Int) -> {x:Int | x == 0 }")})
-    seed = [1, 1, 2, 0, 1, 1, 0, 2, 3]
+    seed = [1, 1, 2, 0, 1, 0, 0, 2, 3]
     s = synth_term(ChoiceManager(), listr(seed), ctx, parse_type("Int"), 3)
     assert s == parse_term("(plus 1) 2")

@@ -102,13 +102,12 @@ class AbstractionType(Type):
 
 class RefinedType(Type):
     name: str
-    type: BaseType
+    type: Union[BaseType, TypeVar]
     refinement: LiquidTerm
 
-    def __init__(self, name: str, type: BaseType, refinement: LiquidTerm):
-        assert isinstance(type, BaseType) or isinstance(type, TypeVar)
+    def __init__(self, name: str, ty: Union[BaseType, TypeVar], refinement: LiquidTerm):
         self.name = name
-        self.type = type
+        self.type = ty
         self.refinement = refinement
 
     def __repr__(self):
