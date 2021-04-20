@@ -18,6 +18,9 @@ class BaseType(Type):
     def __eq__(self, other):
         return isinstance(other, BaseType) and other.name == self.name
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
 
 class TypeVar(Type):
     name: str
@@ -31,6 +34,9 @@ class TypeVar(Type):
     def __eq__(self, other):
         return isinstance(other, BaseType) and other.name == self.name
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
 
 class Top(Type):
     def __repr__(self):
@@ -42,6 +48,9 @@ class Top(Type):
     def __str__(self):
         return repr(self)
 
+    def __hash__(self) -> int:
+        return hash("Top")
+
 
 class Bottom(Type):
     def __repr__(self):
@@ -52,6 +61,9 @@ class Bottom(Type):
 
     def __str__(self):
         return repr(self)
+
+    def __hash__(self) -> int:
+        return hash("Bottom")
 
 
 t_bool = BaseType("Bool")
@@ -84,6 +96,9 @@ class AbstractionType(Type):
             and self.type == other.type
         )
 
+    def __hash__(self) -> int:
+        return hash(self.var_name) + hash(self.var_type) + hash(self.type)
+
 
 class RefinedType(Type):
     name: str
@@ -106,6 +121,9 @@ class RefinedType(Type):
             and self.type == other.type
             and self.refinement == other.refinement
         )
+
+    def __hash__(self) -> int:
+        return hash(self.name) + hash(self.type) + hash(self.refinement)
 
 
 def extract_parts(
@@ -141,3 +159,14 @@ def type_free_term_vars(t: Type) -> List[str]:
         rfv = liquid_free_vars(t.refinement)
         return [x for x in ifv + rfv if x != t.name]
     return []
+
+
+def args_size_of_type(t: Type) -> int:
+    if isinstance(t, BaseType):
+        return 0
+    if isinstance(t, TypeVar):
+        return 0
+    if isinstance(t, RefinedType):
+        return 0
+    if isinstance(t, AbstractionType):
+        return 1 + args_size_of_type(t.type)

@@ -31,6 +31,9 @@ class EmptyContext(TypingContext):
     def vars(self) -> List[Tuple[str, Type]]:
         return []
 
+    def __hash__(self) -> int:
+        return 0
+
 
 class VariableBinder(TypingContext):
     prev: TypingContext
@@ -61,6 +64,9 @@ class VariableBinder(TypingContext):
     def vars(self) -> List[Tuple[str, Type]]:
         return [(self.name, self.type)] + self.prev.vars()
 
+    def __hash__(self) -> int:
+        return hash(self.prev) + hash(self.name) + hash(self.type)
+
 
 class TypeBinder(TypingContext):
     type_name: str
@@ -82,3 +88,6 @@ class TypeBinder(TypingContext):
 
     def __repr__(self) -> str:
         return "{},<{}:{}>".format(self.prev, self.type_name, self.type_kind)
+
+    def __hash__(self) -> int:
+        return hash(self.prev) + hash(self.type_name) + hash(self.type_kind)

@@ -1,11 +1,13 @@
+from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.pprint import pretty_print
 from typing import ContextManager, Optional, List
-from aeon.core.terms import Abstraction, Application, Literal, Var, Term
+from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Var, Term
 from aeon.core.types import (
     AbstractionType,
     BaseType,
     RefinedType,
     Type,
+    args_size_of_type,
     t_int,
     t_bool,
     base,
@@ -15,12 +17,12 @@ from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.type_synthesis import synth_type
 from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
-from aeon.typing.typeinfer import check_type
-
+from aeon.typing.typeinfer import check_type, is_subtype
+from aeon.utils.time_utils import measure
 from aeon.synthesis.smt_synthesis import smt_synth_int_lit
 
 DEFAULT_DEPTH = 9
-DEFAULT_CHECK_TRIES = 100
+DEFAULT_CHECK_TRIES = 5
 
 
 def synth_literal(
@@ -48,20 +50,11 @@ def synth_literal(
             if check_type(ctx, k, ty):
                 return k
             else:
+                print("(d) does not typecheck", k, type(k), ty)
                 man.undo_choice()
-                # print("(d) does not typecheck", k, type(k), ty)
         raise NoMoreBudget()
     else:
         raise NoMoreBudget()
-
-
-from aeon.verification.sub import sub
-from aeon.typing.entailment import entailment
-
-
-def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
-    c = sub(subt, supt)
-    return entailment(ctx, c)
 
 
 def vars_of_type(
@@ -69,7 +62,6 @@ def vars_of_type(
 ) -> List[str]:
     if ictx is None:
         return vars_of_type(ctx, ty, ctx)
-
     if isinstance(ictx, EmptyContext):
         return []
     elif isinstance(ictx, VariableBinder):
@@ -83,6 +75,22 @@ def vars_of_type(
     else:
         print(ictx, type(ictx))
         assert False
+
+
+def any_var_of_type(
+    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
+) -> bool:
+    if ictx is None:
+        return any_var_of_type(ctx, ty, ctx)
+    if isinstance(ictx, EmptyContext):
+        return False
+    elif isinstance(ictx, VariableBinder):
+        if is_subtype(ctx, ictx.type, ty):
+            return True
+        return any_var_of_type(ctx, ty, ictx.prev)
+    elif isinstance(ictx, TypeBinder):
+        return any_var_of_type(ctx, ty, ictx.prev)
+    assert False
 
 
 def synth_var(
@@ -106,7 +114,14 @@ def synth_app(
     d: int = DEFAULT_DEPTH,
 ):
     arg_type = synth_type(man, r, ctx)
-    f = synth_term(man, r, ctx, AbstractionType(ctx.fresh_var(), arg_type, ty), d - 1)
+    f = synth_term(
+        man,
+        r,
+        ctx,
+        AbstractionType(ctx.fresh_var(), arg_type, ty),
+        d - 1,
+        avoid_eta=True,
+    )
     arg = synth_term(man, r, ctx, arg_type, d - 1, anf=True)
     return Application(f, arg)
 
@@ -123,15 +138,60 @@ def synth_abs(
     return Abstraction(name, e)
 
 
-def any_var_of_type(ctx: TypingContext, ty: TypingContext):
-    if isinstance(ctx, EmptyContext):
+def synth_let(
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: Type,
+    d: int = 1,
+):
+    name = ctx.fresh_var()
+    rty = synth_type(man, r, ctx)
+    e1 = synth_term(man, r, ctx, rty, d - 1)
+    e2 = synth_term(man, r, ctx.with_var(name, rty), ty, d - 1)
+    return Rec(name, rty, e1, e2)
+
+
+def synth_if(
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: Type,
+    d: int = 1,
+):
+    cond = synth_term(man, r, ctx, t_bool, d - 1, anf=True)
+    then = synth_term(man, r, ctx, ty, d - 1)
+    otherwise = synth_term(man, r, ctx, ty, d - 1)
+    return If(cond, then, otherwise)
+
+
+def is_tail_of(ctx: TypingContext, a: Type, b: Type):
+    while args_size_of_type(b) > args_size_of_type(a):
+        pass
+
+    if is_subtype(ctx, a, b):
+        return True
+    elif isinstance(a, AbstractionType) and args_size_of_type:
+        return is_tail_of(ctx, a.type, b)
+    else:
         return False
-    elif isinstance(ctx, VariableBinder):
-        if check_type(ctx, Var(ctx.name), ty):
-            return True
-        return any_var_of_type(ctx.prev, ty)
-    elif isinstance(ctx, TypeBinder):
-        return any_var_of_type(ctx.prev, ty)
+
+
+def synth_app_directed(
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    ty: AbstractionType,
+    d: int = 1,
+):
+    options = [(n, v) for (n, v) in ctx.vars() if is_tail_of(ctx, ty, v)]
+    pass
+
+
+def steps_necessary_to_close(ctx: TypingContext, ty: Type):
+    max_arrows = max([0] + [args_size_of_type(ty_) for (_, ty_) in ctx.vars()])
+    arrows_ty = args_size_of_type(ty)
+    return arrows_ty - max_arrows
 
 
 def synth_term(
@@ -141,6 +201,7 @@ def synth_term(
     ty: Type,
     d: int = DEFAULT_DEPTH,
     anf: bool = False,
+    avoid_eta=False,
 ) -> Term:
     b = base(ty)
     candidate_generators = []
@@ -157,21 +218,35 @@ def synth_term(
     def go_abs():
         return synth_abs(man, r, ctx, ty, d)
 
+    def go_let():
+        return synth_let(man, r, ctx, ty, d)
+
+    def go_if():
+        return synth_if(man, r, ctx, ty, d)
+
     if b == t_int or b == t_bool:
         candidate_generators.append(go_lit)
-    if vars_of_type(ctx, ty):
+
+    if any_var_of_type(ctx, ty):
         candidate_generators.append(go_var)
 
-    if d > 0 and not anf:
+    if d > steps_necessary_to_close(ctx, ty) and not anf:
         candidate_generators.append(go_app)
+    if d > 0 and not anf and (not avoid_eta or go_var not in candidate_generators):
         if isinstance(ty, AbstractionType):
             candidate_generators.append(go_abs)
+        candidate_generators.append(go_let)
+        candidate_generators.append(go_if)
     if candidate_generators:
         for _ in range(DEFAULT_CHECK_TRIES):
             man.checkpoint()
-            t = man.choose_rule(r, candidate_generators, d)
+            try:
+                t = man.choose_rule(r, candidate_generators, d)
+            except NoMoreBudget:
+                t = None
             if t:
                 return t
             else:
                 man.undo_choice()
+    print("No alternative for", ty, d, anf)
     raise NoMoreBudget()

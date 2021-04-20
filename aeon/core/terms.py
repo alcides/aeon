@@ -2,7 +2,8 @@ from aeon.core.types import Type, t_string
 
 
 class Term(object):
-    pass
+    def __hash__(self) -> int:
+        return str(self).__hash__()
 
 
 class Literal(Term):
@@ -84,7 +85,7 @@ class Application(Term):
         self.fun = fun
         self.arg = arg
 
-    def __str__(self):
+    def __repr__(self):
         return "({} {})".format(self.fun, self.arg)
 
     def __eq__(self, other):
@@ -103,7 +104,7 @@ class Abstraction(Term):
         self.var_name = var_name
         self.body = body
 
-    def __str__(self):
+    def __repr__(self):
         return "(\\{} -> {})".format(self.var_name, self.body)
 
     def __eq__(self, other):

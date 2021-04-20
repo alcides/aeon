@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Union
 
 from aeon.core.types import t_int, t_bool
 from aeon.core.terms import (
@@ -124,7 +124,7 @@ def ensure_anf_rec(t: Rec) -> Term:
         return Let(
             inner.var_name,
             b,
-            ensure_anf_let(Rec(t.var_name, t.var_type, inner.body, t.body)),
+            ensure_anf_rec(Rec(t.var_name, t.var_type, inner.body, t.body)),
         )
     elif isinstance(t.var_value, Rec):
         inner = t.var_value
@@ -140,7 +140,7 @@ def ensure_anf_rec(t: Rec) -> Term:
             inner.var_name,
             inner.var_type,
             b,
-            ensure_anf_let(Rec(t.var_name, t.var_type, inner.body, t.body)),
+            ensure_anf_rec(Rec(t.var_name, t.var_type, inner.body, t.body)),
         )
     else:
         return t

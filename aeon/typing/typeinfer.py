@@ -6,7 +6,7 @@ from aeon.verification.vcs import (
     LiquidConstraint,
     variables_in,
 )
-from typing import Tuple
+from typing import List, Tuple
 
 from aeon.core.liquid import (
     LiquidApp,
@@ -32,6 +32,7 @@ from aeon.core.types import (
     RefinedType,
     Type,
     TypeVar,
+    args_size_of_type,
     extract_parts,
     t_bool,
     t_int,
@@ -150,9 +151,23 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                 cp = check(ctx, t.arg, ty.var_type)
                 return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-            r = (Conjunction(c, cp), t_subs)
-            assert ty.var_name not in list(variables_in(r))
-            return r
+            c0 = Conjunction(c, cp)
+            vs: List[str] = list(variables_in(c0))
+            print(
+                ty.var_name,
+                "not in ",
+                vs,
+                "|",
+                return_type,
+                "[",
+                t.arg,
+                "/",
+                ty.var_name,
+                "]",
+            )
+            print(c0, "_", t_subs)
+            assert ty.var_name not in vs
+            return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException()
     elif isinstance(t, Let):
@@ -231,5 +246,23 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         print("Type Error", e)
         return False
 
-    # print("Checking {} <: {} leads to {}".format(t, ty, constraint))
+    print("Checking {} <: {} leads to {}".format(t, ty, constraint))
     return entailment(ctx, constraint)
+
+
+from aeon.verification.sub import sub
+from aeon.typing.entailment import entailment
+
+
+def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
+    if args_size_of_type(subt) != args_size_of_type(supt):
+        return False
+    if subt == supt:
+        return True
+    if isinstance(subt, RefinedType) and subt.type == supt:
+        return True
+    c = sub(subt, supt)
+    if isinstance(c, LiquidLiteralBool):
+        return c.value
+    r = entailment(ctx, c)
+    return r

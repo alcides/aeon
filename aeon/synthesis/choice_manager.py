@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List
 from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.exceptions import NoMoreBudget
 
+
 MAX_TRIES = 128
 
 
@@ -17,20 +18,25 @@ class ChoiceManager(object):
     ):
         for t in range(budget):
             f = self.make_choice(r, options, depth)
-            # print(
-            #     "Made choice, "
-            #     + str(f.__name__)
-            #     + ", from: "
-            #     + str([str(f.__name__) for f in options])
-            # )
+            print(
+                "Made choice, "
+                + str(f.__name__)
+                + ", from: "
+                + str([str(f.__name__) for f in options])
+                + " at "
+                + str(depth)
+            )
             t = f()
             if t and validate(t):
                 return t
             else:
+                print("failed with ", f, "at", depth)
                 self.undo_choice()
         raise NoMoreBudget()
 
-    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+    def make_choice(
+        self, r: RandomSource, options: List[Any], depth: int
+    ):  # TODO: PRIORITY - whether each option is terminal or not
         return r.choose(options)
 
     def undo_choice(self):
@@ -99,4 +105,4 @@ class DynamicProbManager(ChoiceManager):
 
 class DepthAwareManager(DynamicProbManager):
     def make_key(self, fun, depth: int):
-        return str(fun.__name__) + "_d_" + str(depth > 5)
+        return str(fun.__name__) + "_d_" + str(depth // 5)

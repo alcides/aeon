@@ -22,7 +22,7 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
             return z3.ForAll([v], z3.Implies(req, inner))
 
         elif isinstance(ctx.type, AbstractionType):
-            print("TODO HERE", ctx.type, type(ctx.type))
+            return translate(ctx.prev, t, vars)
         else:
             print("ERROR HERE", ctx.type, type(ctx.type))
 

@@ -9,7 +9,7 @@ from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource, RandomSource, SeededRandomSource
 from aeon.frontend.parser import parse_type, parse_term
-
+from aeon.utils.ctx_helpers import build_context
 
 seed = lambda x: SeededRandomSource(x)
 listr = lambda x: ListRandomSource(x)
@@ -103,7 +103,7 @@ def test_synthesis4():
     helper_syn(
         [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1],
         "Int",
-        r"((\fresh_2 -> fresh_2) 1)",
+        r"((\fresh_1 -> fresh_1) 0)",
     )
 
 
@@ -176,3 +176,26 @@ def test_liq_term_r1000():
             parse_type("Int"),
         )
         assert s != None
+
+
+def test_can_generate_plus():
+    ctx = build_context({"plus": parse_type("(x:Int) -> Int")})
+    seed = [1, 3, 4, 0, 1, 3, 1]
+    s = synth_term(ChoiceManager(), listr(seed), ctx, parse_type("Int"), 5)
+    assert s == parse_term("plus 1")
+
+
+def test_can_generate_plus2():
+    ctx = build_context({"plus": parse_type("(x:Int) -> (y:Int) -> Int")})
+    seed = [0]
+    s = synth_term(
+        ChoiceManager(), listr(seed), ctx, parse_type("(k:Int) -> (z:Int) -> Int"), 3
+    )
+    assert s == parse_term("plus")
+
+
+def test_can_generate_plus3():
+    ctx = build_context({"plus": parse_type("(x:Int) -> (y:Int) -> {x:Int | x == 0 }")})
+    seed = [1, 1, 2, 0, 1, 1, 0, 2, 3]
+    s = synth_term(ChoiceManager(), listr(seed), ctx, parse_type("Int"), 3)
+    assert s == parse_term("(plus 1) 2")

@@ -23,7 +23,7 @@ from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
 from aeon.typing.well_formed import inhabited
 
-DEFAULT_DEPTH = 9
+DEFAULT_DEPTH = 5
 MAX_STRING_SIZE = 12
 MAX_TRIES = 10
 
@@ -179,8 +179,8 @@ def synth_type(
     if d > 0:
         options = [
             go_native,
-            go_refined,
-            go_abst,
+            # go_refined,
+            # go_abst,
         ]
         return man.choose_rule(r, options, d)
     else:

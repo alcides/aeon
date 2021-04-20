@@ -20,6 +20,9 @@ class LiquidHole(LiquidTerm):
     def __eq__(self, other):
         return isinstance(other, LiquidHole) and other.name == self.name
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
 
 class LiquidLiteralBool(LiquidTerm):
     value: bool
@@ -32,6 +35,9 @@ class LiquidLiteralBool(LiquidTerm):
 
     def __eq__(self, other):
         return isinstance(other, LiquidLiteralBool) and other.value == self.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class LiquidLiteralInt(LiquidTerm):
@@ -46,6 +52,9 @@ class LiquidLiteralInt(LiquidTerm):
     def __eq__(self, other):
         return isinstance(other, LiquidLiteralInt) and other.value == self.value
 
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 
 class LiquidLiteralString(LiquidTerm):
     value: str
@@ -58,6 +67,9 @@ class LiquidLiteralString(LiquidTerm):
 
     def __eq__(self, other):
         return isinstance(other, LiquidLiteralString) and other.value == self.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class LiquidVar(LiquidTerm):
@@ -72,6 +84,9 @@ class LiquidVar(LiquidTerm):
 
     def __eq__(self, other):
         return isinstance(other, LiquidVar) and other.name == self.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class LiquidApp(LiquidTerm):
@@ -98,6 +113,9 @@ class LiquidApp(LiquidTerm):
             and other.fun == self.fun
             and all((x == y for (x, y) in zip(self.args, other.args)))
         )
+
+    def __hash__(self) -> int:
+        return hash(self.fun) + sum([hash(a) for a in self.args])
 
 
 def liquid_free_vars(e: LiquidTerm) -> List[str]:
