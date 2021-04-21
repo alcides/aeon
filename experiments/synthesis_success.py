@@ -159,14 +159,21 @@ def evaluate_term(
 total_tries = 100
 
 
+ds = [5]
+seeds = [0]
+if (sys.argv) > 1:
+    ds = [int(sys.argv[1])]
+if (sys.argv) > 2:
+    seeds = [int(sys.argv[2])]
+
 for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
     for t in [
-        "Int",
+        # "Int",
         r"{x: Int | x > 0}",
-        r"{x: Int | x > 0 && x < 1000}",
-        r"{x: Int | x > 0 && x < 100}",
-        r"{x: Int | x == 3 && x == 5}",
+        # r"{x: Int | x > 0 && x < 1000}",
+        # r"{x: Int | x > 0 && x < 100}",
+        # r"{x: Int | x == 3 && x == 5}",
     ]:
-        for d in [6]:
-            for seed in range(3):
+        for d in [5]:
+            for seed in seeds:
                 evaluate_term(manc, t, d, total_tries, seed=seed)
