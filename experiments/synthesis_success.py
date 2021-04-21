@@ -171,10 +171,10 @@ for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
     for t in [
         # "Int",
         r"{x: Int | x > 0}",
-        # r"{x: Int | x > 0 && x < 1000}",
-        # r"{x: Int | x > 0 && x < 100}",
-        # r"{x: Int | x == 3 && x == 5}",
+        r"{x: Int | x > 0 && x < 1000}",
+        r"{x: Int | x > 0 && x < 100}",
+        r"{x: Int | x == 3 && x == 5}",
     ]:
-        for d in [5]:
+        for d in ds:
             for seed in seeds:
                 evaluate_term(manc, t, d, total_tries, seed=seed)
