@@ -74,4 +74,4 @@ def mk_parser(rule="start", start_counter=0):
     )
 
 
-parse_program: Term = mk_parser("program").parse
+parse_program = mk_parser("program").parse

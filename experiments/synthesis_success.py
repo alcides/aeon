@@ -161,9 +161,9 @@ total_tries = 100
 
 ds = [5]
 seeds = [0]
-if (sys.argv) > 1:
+if len(sys.argv) > 1:
     ds = [int(sys.argv[1])]
-if (sys.argv) > 2:
+if len(sys.argv) > 2:
     seeds = [int(sys.argv[2])]
 
 for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
