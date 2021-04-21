@@ -15,7 +15,11 @@ def reset_folder(path):
 
 # -----------------------------------------------------------------------------
 def boxplot(df, ttype, outputpath, x_col, y_col):
-    sns_plot = sns.boxplot(data=df, x=x_col, y=y_col)
+    sns_plot = sns.boxplot(data=df, x=x_col, y=y_col, 
+                           hue='Manager',
+                           hue_order=['ChoiceManager','DynamicProbManager', 'DepthAwareManager'],
+    )
+    sns.despine(offset=10, trim=True)
     fig = sns_plot.get_figure()
     ax = plt.gca()
     ax.set_title(ttype)
@@ -35,15 +39,9 @@ def swarmplot(df, ttype, outputpath, x_col, y_col):
 
 # -----------------------------------------------------------------------------
 def plot_ttype(df, ttype, outpath):
-    
-    seaborn_plots = [
-                     sns.scatterplot,
-                     sns.barplot,  
-                     sns.swarmplot,
-                    ]
-    
+ 
     # Doing different combinations of columns
-    combinations = itertools.product(['Manager'], ['Sucesses', 'Time', 'Entropy', 'Tree-Distance', 'AVG-Depth'])
+    combinations = itertools.product(['Max-Depth'], ['Sucesses', 'Time', 'Entropy', 'Tree-Distance', 'AVG-Depth'])
 
     # Lets generate one plot for each type of plot in seaborn
     for x_col, y_col in combinations:
