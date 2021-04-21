@@ -9,7 +9,6 @@ import typing
 experiments_folder = pathlib.Path(__file__).parent
 sys.path.append(str(experiments_folder.parent.absolute()))
 
-
 import zstandard as zstd
 
 from aeon.synthesis.exceptions import NoMoreBudget
@@ -30,12 +29,9 @@ from aeon.utils.ctx_helpers import build_context
 
 type_tries = 100
 
-
 compressor = zstd.ZstdCompressor(
     level=22, write_checksum=False, write_content_size=False, write_dict_id=False
 )
-
-fname = str(experiments_folder / "data.csv")
 
 with open(fname, "w") as f:
     f.write("")
@@ -158,14 +154,19 @@ def evaluate_term(
 
 total_tries = 100
 
-
 ds = [5]
 seeds = [0]
+bname = "data"
 if len(sys.argv) > 1:
-    ds = [int(sys.argv[1])]
+    d = int(sys.argv[1])
+    ds = [d]
+    bname = f"{bname}_{d}"
 if len(sys.argv) > 2:
-    seeds = [int(sys.argv[2])]
+    seed = int(sys.argv[2])
+    seeds = [seed]
+    bname = f"{bname}_{seed}"
 
+fname = str(experiments_folder / f"{bname}.csv")
 for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
     for t in [
         # "Int",
