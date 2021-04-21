@@ -33,10 +33,6 @@ compressor = zstd.ZstdCompressor(
     level=22, write_checksum=False, write_content_size=False, write_dict_id=False
 )
 
-with open(fname, "w") as f:
-    f.write("")
-
-
 def save_line(str):
     with open(fname, "a") as f:
         f.write(str + "\n")
@@ -160,13 +156,17 @@ bname = "data"
 if len(sys.argv) > 1:
     d = int(sys.argv[1])
     ds = [d]
-    bname = f"{bname}_{d}"
+    bname = f"{bname}_d_{d}"
 if len(sys.argv) > 2:
     seed = int(sys.argv[2])
     seeds = [seed]
-    bname = f"{bname}_{seed}"
+    bname = f"{bname}_seed_{seed}"
 
 fname = str(experiments_folder / f"{bname}.csv")
+
+with open(fname, "w") as f:
+    f.truncate(0)
+
 for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
     for t in [
         # "Int",
