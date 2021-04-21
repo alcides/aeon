@@ -14,15 +14,13 @@ from aeon.core.types import (
 )
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
-from aeon.synthesis.choice_manager import ChoiceManager
+from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
 from aeon.synthesis.type_synthesis import synth_type
 from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
 from aeon.typing.typeinfer import check_type, is_subtype
-from aeon.utils.time_utils import measure
 from aeon.synthesis.smt_synthesis import smt_synth_int_lit
 
 DEFAULT_DEPTH = 9
-DEFAULT_CHECK_TRIES = 5
 
 
 def synth_literal(
@@ -44,7 +42,7 @@ def synth_literal(
             v = smt_synth_int_lit(ctx, ty, r.next_integer())
             if v is not None:
                 return Literal(v, t_int)
-        for _ in range(DEFAULT_CHECK_TRIES):
+        while man.budget > 0:
             man.checkpoint()
             k = synth_literal(man, r, ctx, ty.type)
             if check_type(ctx, k, ty):
@@ -191,7 +189,8 @@ def synth_app_directed(
 def steps_necessary_to_close(ctx: TypingContext, ty: Type):
     max_arrows = max([0] + [args_size_of_type(ty_) for (_, ty_) in ctx.vars()])
     arrows_ty = args_size_of_type(ty)
-    return arrows_ty - max_arrows
+    d = max(arrows_ty - max_arrows, 0)
+    return d
 
 
 def synth_term(
@@ -203,6 +202,7 @@ def synth_term(
     anf: bool = False,
     avoid_eta=False,
 ) -> Term:
+    assert d >= 0
     b = base(ty)
     candidate_generators = []
 
@@ -230,7 +230,7 @@ def synth_term(
     if any_var_of_type(ctx, ty):
         candidate_generators.append(go_var)
 
-    if d > steps_necessary_to_close(ctx, ty) and not anf:
+    if d > steps_necessary_to_close(ctx, ty) + 1 and not anf:
         candidate_generators.append(go_app)
     if d > 0 and not anf and (not avoid_eta or go_var not in candidate_generators):
         if isinstance(ty, AbstractionType):
@@ -238,15 +238,13 @@ def synth_term(
         candidate_generators.append(go_let)
         candidate_generators.append(go_if)
     if candidate_generators:
-        for _ in range(DEFAULT_CHECK_TRIES):
+        while man.budget > 0:
             man.checkpoint()
             try:
                 t = man.choose_rule(r, candidate_generators, d)
+                if t:
+                    return t
             except NoMoreBudget:
-                t = None
-            if t:
-                return t
-            else:
-                man.undo_choice()
-    print("No alternative for", ty, d, anf)
+                pass
+            man.undo_choice()
     raise NoMoreBudget()

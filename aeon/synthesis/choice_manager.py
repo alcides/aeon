@@ -4,28 +4,35 @@ from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.exceptions import NoMoreBudget
 
 
-MAX_TRIES = 128
+DEFAULT_BUDGET = 100
 
 
 class ChoiceManager(object):
+    debug: bool
+    budget: int
+
+    def __init__(self):
+        self.debug = False
+        self.reset_budget()
+
     def choose_rule(
         self,
         r: RandomSource,
         options: List[Any],
         depth: int,
-        budget: int = MAX_TRIES,
         validate: Callable[[Any], bool] = lambda x: True,
     ):
-        for t in range(budget):
+        while self.budget > 0:
             f = self.make_choice(r, options, depth)
-            print(
-                "Made choice, "
-                + str(f.__name__)
-                + ", from: "
-                + str([str(f.__name__) for f in options])
-                + " at "
-                + str(depth)
-            )
+            if self.debug:
+                print(
+                    "Made choice, "
+                    + str(f.__name__)
+                    + ", from: "
+                    + str([str(f.__name__) for f in options])
+                    + " at "
+                    + str(depth)
+                )
             t = f()
             if t and validate(t):
                 return t
@@ -40,7 +47,7 @@ class ChoiceManager(object):
         return r.choose(options)
 
     def undo_choice(self):
-        pass
+        self.budget -= 1
 
     def checkpoint(self):
         pass
@@ -49,11 +56,15 @@ class ChoiceManager(object):
         pass
 
     def reset(self):
-        pass
+        self.reset_budget()
+
+    def reset_budget(self):
+        self.budget = DEFAULT_BUDGET
 
 
 class DynamicProbManager(ChoiceManager):
     def __init__(self) -> None:
+        super().__init__()
         self.probabilities: Dict[str, int] = {}
         self.reset()
 
@@ -79,6 +90,8 @@ class DynamicProbManager(ChoiceManager):
         self.index_stack.append(len(self.choices))
 
     def undo_choice(self):
+        super().undo_choice()
+
         def undo(o):
             self.probabilities[o] = max(1, int(self.probabilities[o] * 0.9))
 
@@ -96,6 +109,7 @@ class DynamicProbManager(ChoiceManager):
             )
 
     def reset(self):
+        super().reset()
         self.choices: List[Any] = []
         self.index_stack: List[int] = []
 
@@ -105,4 +119,4 @@ class DynamicProbManager(ChoiceManager):
 
 class DepthAwareManager(DynamicProbManager):
     def make_key(self, fun, depth: int):
-        return str(fun.__name__) + "_d_" + str(depth // 5)
+        return str(fun.__name__) + "_d_" + str(depth // 2)

@@ -29,12 +29,21 @@ from aeon.prelude.prelude import typing_vars
 from aeon.utils.ctx_helpers import build_context
 
 type_tries = 100
-term_tries = 100
 
 
 compressor = zstd.ZstdCompressor(
     level=22, write_checksum=False, write_content_size=False, write_dict_id=False
 )
+
+fname = str(experiments_folder / "data.csv")
+
+with open(fname, "w") as f:
+    f.write("")
+
+
+def save_line(str):
+    with open(fname, "a") as f:
+        f.write(str + "\n")
 
 
 def entropy(l: List[Any]) -> float:
@@ -46,7 +55,7 @@ def entropy(l: List[Any]) -> float:
 def generate_lists(n, seed=1234):
     r = random.Random(seed)
     for _ in range(n):
-        size = r.randint(1, 50)
+        size = r.randint(10, 100)
         yield [r.randint(-256, 256) for _ in range(size)]
 
 
@@ -73,7 +82,7 @@ base_ctx = build_context(
         "times": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x * y) }"),
         "div": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x / y) }"),
         "abs": parse_type(
-            r"(x:Int) -> (y:Int) -> {z:Int | (z == x && x > y) || (z == y && y >= x) }"
+            r"(x:Int) -> (y:Int) -> {z:Int | (z == x) && (x > y) || (z == y) && (y >= x) }"
         ),
         "not": parse_type("(x:Bool) -> Bool"),
         "eqInt": parse_type("(x:Int) -> (y:Int) -> Int"),
@@ -89,10 +98,10 @@ base_ctx = build_context(
         "toInt": parse_type("(x:Bool) -> Int"),
     }
 )
-for i in range(35):
+for i in range(2):
     name = f"x_{i}"
     base_ctx = VariableBinder(base_ctx, name, t_int)
-for i in range(8):
+for i in range(2):
     name = f"b_{i}"
     base_ctx = VariableBinder(base_ctx, name, t_bool)
 
@@ -109,25 +118,26 @@ def evaluate_term(
     man = mang()
     list_of_sources = list(generate_lists(tries, seed))
     start_time = time.perf_counter()
-    for l in list_of_sources:
+    for i, l in enumerate(list_of_sources):
         man.reset()
         try:
             t = synth_term(man, ListRandomSource(l), base_ctx, ty, d=depth)
             if t:
-                print(t)
+                # print(t)
                 man.reinforce()
                 successes.append(t)
             else:
                 print(":(")
         except NoMoreBudget as e:
-            pass
-            print("fb")
+            print("out of budget", i)
+            continue
         except RecursionError:
-            pass
+            continue
         except Exception as e:
             print("Error at", e)
-            pass
+            raise e
     time_consumed = time.perf_counter() - start_time
+    print("Computing stats...")
     ctreeedit = pairwise_distance(successes)
     csuccesses = len(successes)
     centropy = entropy(successes)
@@ -137,25 +147,26 @@ def evaluate_term(
     else:
         avgdepth = 0
         maxdepth = 0
-    print(
-        f"Experiment;{mang.__name__};{tries};{ty_name};{depth};{seed};{csuccesses};{time_consumed};{centropy};{ctreeedit};{avgdepth};{maxdepth}",
+    save_line(
+        f"{mang.__name__};{tries};{ty_name};{depth};{seed};{csuccesses};{time_consumed};{centropy};{ctreeedit};{avgdepth};{maxdepth}",
     )
+    print("Stats done")
     # print(successes)
     # if isinstance(man, DynamicProbManager):
     #    print(man.probabilities)
 
 
-total_tries = 10
+total_tries = 100
 
 
-for manc in [DynamicProbManager, DepthAwareManager, ChoiceManager]:
+for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
     for t in [
         "Int",
         r"{x: Int | x > 0}",
-        # r"{x: Int | x > 0 && x < 1000}",
-        # r"{x: Int | x > 0 && x < 100}",
-        # r"{x: Int | x == 3 && x == 5}",
+        r"{x: Int | x > 0 && x < 1000}",
+        r"{x: Int | x > 0 && x < 100}",
+        r"{x: Int | x == 3 && x == 5}",
     ]:
-        for d in [10]:  # [3, 5, 10, 20, 30, 50]:
-            for seed in range(1):
+        for d in [6]:
+            for seed in range(3):
                 evaluate_term(manc, t, d, total_tries, seed=seed)

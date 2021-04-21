@@ -26,7 +26,6 @@ from aeon.typing.well_formed import inhabited
 
 DEFAULT_DEPTH = 5
 MAX_STRING_SIZE = 12
-MAX_TRIES = 10
 
 
 def synth_liquid_var(
@@ -41,7 +40,7 @@ def synth_liquid_var(
         v = r.choose(options)
         return LiquidVar(v)
     else:
-        return None
+        assert False
 
 
 def synth_liquid_literal(
@@ -114,7 +113,7 @@ def synth_liquid(
     if d > 0:
         options.append(go_liquid_app)
 
-    for _ in range(MAX_TRIES):
+    while man.budget > 0:
         man.checkpoint()
         k = man.choose_rule(r, options, d)
         if k:
@@ -144,7 +143,7 @@ def synth_refined(
 ):
     name = ctx.fresh_var()
     base = synth_native(man, r, ctx, d)
-    for i in range(MAX_TRIES):
+    while man.budget > 0:
         man.checkpoint()
         liquidExpr: LiquidTerm = synth_liquid(
             man, r, ctx.with_var(name, base), t_bool, d - 1

@@ -233,7 +233,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         print("Type Error", e)
         return False
 
-    print("Checking {} <: {} leads to {}".format(t, ty, constraint))
+    # print("Checking {} <: {} leads to {}".format(t, ty, constraint))
     return entailment(ctx, constraint)
 
 

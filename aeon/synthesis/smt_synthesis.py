@@ -29,7 +29,6 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         return translate(ctx.prev, t, vars)
 
     elif isinstance(ctx, TypeBinder):
-        print("ERROR HBERE")
         return translate(ctx.prev, t)
 
 

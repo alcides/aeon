@@ -76,9 +76,7 @@ def helper_syn(
     type_ = parse_type(ty)
     if inhabited(ctx, type_):
         try:
-            print(man, randomSource, ".")
             g = synth_term(man, randomSource, ctx, type_, d=budget)
-            print(g, "DEBUG", term)
             assert g == parse_term(term)
         except NoMoreBudget as e:
             pass

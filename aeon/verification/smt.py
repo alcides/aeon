@@ -25,6 +25,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
+from aeon.core.liquid_ops import mk_liquid_and
 from aeon.verification.vcs import (
     Conjunction,
     Constraint,
@@ -81,7 +82,7 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
         for sub in flatten(c.seq):
             yield CanonicConstraint(
                 binders=sub.binders + [(c.name, c.base)],
-                pre=LiquidApp("&&", [sub.pre, c.pred]),
+                pre=mk_liquid_and(sub.pre, c.pred),
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):

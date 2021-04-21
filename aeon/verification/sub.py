@@ -28,6 +28,8 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
         return implication_constraint(
             t.var_name, t.var_type, implication_constraint(name, t.type, c)
         )  # TODO: email Rahjit
+    elif isinstance(t, Bottom):
+        return c
     assert False
 
 

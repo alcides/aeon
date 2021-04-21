@@ -10,7 +10,7 @@ from aeon.core.liquid import (
     LiquidLiteralInt,
     LiquidVar,
 )
-from aeon.core.liquid_ops import all_ops
+from aeon.core.liquid_ops import all_ops, mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
 from aeon.typing.liquid import type_infer_liquid
@@ -175,7 +175,7 @@ def build_initial_assignment(c: Constraint) -> Assignment:
 def merge_assignments(xs: List[LiquidTerm]) -> LiquidTerm:
     b = LiquidLiteralBool(True)
     for c in xs:
-        b = LiquidApp("&&", [b, c])
+        b = mk_liquid_and(b, c)
     return b
 
 
@@ -203,7 +203,7 @@ def build_forall_implication(
 
 def simpl(vs: List[Tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
     if isinstance(c, Implication):
-        return simpl(vs + [(c.name, c.base)], LiquidApp("&&", [p, c.pred]), c.seq)
+        return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
         return build_forall_implication(vs, p, c)
 
