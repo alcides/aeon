@@ -1,4 +1,6 @@
 import pathlib
+import os.path as path
+import os
 import sys
 import random
 import time
@@ -163,18 +165,31 @@ if len(sys.argv) > 2:
     bname = f"{bname}_seed_{seed}"
 
 fname = str(experiments_folder / f"{bname}.csv")
+ename = str(experiments_folder / f"{bname}.err")
 
 with open(fname, "w") as f:
     f.truncate(0)
 
-for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
-    for t in [
+if path.exists(ename):
+    os.remove(ename)
+
+for i, t in enumerate([
         # "Int",
         r"{x: Int | x > 0}",
         r"{x: Int | x > 0 && x < 1000}",
         r"{x: Int | x > 0 && x < 100}",
         r"{x: Int | x == 3 && x == 5}",
-    ]:
-        for d in ds:
-            for seed in seeds:
-                evaluate_term(manc, t, d, total_tries, seed=seed)
+    ]):
+    try:
+        for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
+            for d in ds:
+                for seed in seeds:
+                    evaluate_term(manc, t, d, total_tries, seed=seed)
+    except e:
+        import traceback
+        with open(ename, 'a') as f:
+            f.write(str(e))
+            f.write("\n")
+            f.write(traceback.format_exc())
+            f.write("\n")
+            f.write(f"error on {i}\n")

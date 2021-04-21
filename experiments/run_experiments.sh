@@ -9,4 +9,4 @@ done
 DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
 
-parallel "python3 $DIR/synthesis_success.py {}" ::: $(seq 1 30) ::: 4 6 8 10
+parallel "echo {} && python3 $DIR/synthesis_success.py {}" ::: $(seq 1 30) ::: 4 6 8 10
