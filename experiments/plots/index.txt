@@ -1,0 +1,3 @@
+ttype0 = {x: Int | x > 0}
+ttype1 = {x: Int | x > 0 && x < 1000}
+ttype2 = {x: Int | x > 0 && x < 100}

@@ -35,6 +35,7 @@ compressor = zstd.ZstdCompressor(
     level=22, write_checksum=False, write_content_size=False, write_dict_id=False
 )
 
+
 def save_line(str):
     with open(fname, "a") as f:
         f.write(str + "\n")
@@ -150,7 +151,7 @@ def evaluate_term(
     #    print(man.probabilities)
 
 
-total_tries = 100
+total_tries = 1000
 
 ds = [5]
 seeds = [0]
@@ -173,21 +174,24 @@ with open(fname, "w") as f:
 if path.exists(ename):
     os.remove(ename)
 
-for i, t in enumerate([
+for i, t in enumerate(
+    [
         # "Int",
         r"{x: Int | x > 0}",
         r"{x: Int | x > 0 && x < 1000}",
         r"{x: Int | x > 0 && x < 100}",
         r"{x: Int | x == 3 && x == 5}",
-    ]):
+    ]
+):
     try:
         for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
             for d in ds:
                 for seed in seeds:
                     evaluate_term(manc, t, d, total_tries, seed=seed)
-    except e:
+    except Exception as e:
         import traceback
-        with open(ename, 'a') as f:
+
+        with open(ename, "a") as f:
             f.write(str(e))
             f.write("\n")
             f.write(traceback.format_exc())
