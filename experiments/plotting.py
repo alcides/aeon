@@ -23,9 +23,9 @@ def boxplot(df, ttype, outputpath, x_col, y_col):
         y=y_col,
         hue="Probability",
         hue_order=[
-            "Equal",
-            "Dynamic depth-independent",
-            "Dynamic depth-aware",
+            "Static",
+            "Adaptive",
+            "Depth-Aware Adaptive",
         ],
     )
 
@@ -56,7 +56,8 @@ def plot_ttype(df, ttype, outpath):
 
     # Doing different combinations of columns
     combinations = itertools.product(
-        ["Depth"], ["Sucesses", "Time", "Entropy", "Tree distance", "Average depth"]
+        ["Depth"],
+        ["Successes", "Time (s)", "Entropy", "Tree distance", "Average depth"],
     )
 
     # Lets generate one plot for each type of plot in seaborn
@@ -74,7 +75,7 @@ def plot_csv(csv_path):
         "Type",
         "Depth",
         "Seed",
-        "Sucesses",
+        "Successes",
         "Time",
         "Entropy",
         "Tree distance",
@@ -86,15 +87,16 @@ def plot_csv(csv_path):
 
     # Preprocessing
     df["Depth"] = df["Depth"].apply(lambda x: x + 1)
+    df["Time (s)"] = df["Time"] / df["Successes"]
     "ChoiceManager", "DynamicProbManager", "DepthAwareManager"
 
     def rename(name: str) -> str:
         if name == "ChoiceManager":
-            return "Equal"
+            return "Static"
         elif name == "DynamicProbManager":
-            return "Dynamic depth-independent"
+            return "Adaptive"
         else:
-            return "Dynamic depth-aware"
+            return "Depth-Aware Adaptive"
 
     df["Probability"] = df["Manager"].apply(rename)
 

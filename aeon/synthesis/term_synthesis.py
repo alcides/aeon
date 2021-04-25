@@ -193,6 +193,9 @@ def steps_necessary_to_close(ctx: TypingContext, ty: Type):
     return d
 
 
+NOFILTER = True
+
+
 def synth_term(
     man: ChoiceManager,
     r: RandomSource,
@@ -224,15 +227,17 @@ def synth_term(
     def go_if():
         return synth_if(man, r, ctx, ty, d)
 
-    if b == t_int or b == t_bool:
+    if b == t_int or b == t_bool or NOFILTER:
         candidate_generators.append(go_lit)
 
-    if any_var_of_type(ctx, ty):
+    if any_var_of_type(ctx, ty) or NOFILTER:
         candidate_generators.append(go_var)
 
-    if d > steps_necessary_to_close(ctx, ty) + 1 and not anf:
+    if not anf and (d > 0 and NOFILTER) or (d > steps_necessary_to_close(ctx, ty) + 1):
         candidate_generators.append(go_app)
-    if d > 0 and not anf and (not avoid_eta or go_var not in candidate_generators):
+    if (d > 0 and NOFILTER) or (
+        d > 0 and not anf and (not avoid_eta or go_var not in candidate_generators)
+    ):
         if isinstance(ty, AbstractionType):
             candidate_generators.append(go_abs)
         candidate_generators.append(go_let)
