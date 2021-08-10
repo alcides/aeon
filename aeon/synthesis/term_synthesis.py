@@ -14,7 +14,7 @@ from aeon.core.types import (
 )
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
-from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
+from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.type_synthesis import synth_type
 from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
 from aeon.typing.typeinfer import check_type, is_subtype
@@ -73,22 +73,6 @@ def vars_of_type(
     else:
         print(ictx, type(ictx))
         assert False
-
-
-def any_var_of_type(
-    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
-) -> bool:
-    if ictx is None:
-        return any_var_of_type(ctx, ty, ctx)
-    if isinstance(ictx, EmptyContext):
-        return False
-    elif isinstance(ictx, VariableBinder):
-        if is_subtype(ctx, ictx.type, ty):
-            return True
-        return any_var_of_type(ctx, ty, ictx.prev)
-    elif isinstance(ictx, TypeBinder):
-        return any_var_of_type(ctx, ty, ictx.prev)
-    assert False
 
 
 def synth_var(
@@ -186,13 +170,6 @@ def synth_app_directed(
     pass
 
 
-def steps_necessary_to_close(ctx: TypingContext, ty: Type):
-    max_arrows = max([0] + [args_size_of_type(ty_) for (_, ty_) in ctx.vars()])
-    arrows_ty = args_size_of_type(ty)
-    d = max(arrows_ty - max_arrows, 0)
-    return d
-
-
 NOFILTER = True
 
 
@@ -227,16 +204,18 @@ def synth_term(
     def go_if():
         return synth_if(man, r, ctx, ty, d)
 
-    if b == t_int or b == t_bool or NOFILTER:
+    if (b == t_int or b == t_bool) and man.allow_lit(ctx, ty, d):
         candidate_generators.append(go_lit)
 
-    if any_var_of_type(ctx, ty) or NOFILTER:
+    if man.allow_var(ctx, ty, d):
         candidate_generators.append(go_var)
 
-    if not anf and (d > 0 and NOFILTER) or (d > steps_necessary_to_close(ctx, ty) + 1):
+    if d > 0 and not anf and man.allow_app(ctx, ty, d):
         candidate_generators.append(go_app)
-    if (d > 0 and NOFILTER) or (
-        d > 0 and not anf and (not avoid_eta or go_var not in candidate_generators)
+    if (
+        d > 0
+        and not anf
+        and man.allow_abs(ctx, ty, d, go_var in candidate_generators, avoid_eta)
     ):
         if isinstance(ty, AbstractionType):
             candidate_generators.append(go_abs)

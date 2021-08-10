@@ -7,6 +7,7 @@ import time
 from typing import Any, Callable, List
 from statistics import mean
 import typing
+from optparse import OptionParser
 
 experiments_folder = pathlib.Path(__file__).parent
 sys.path.append(str(experiments_folder.parent.absolute()))
@@ -22,11 +23,12 @@ from aeon.synthesis.type_synthesis import synth_type
 from aeon.core.distance import pairwise_distance, term_depth
 from aeon.core.types import t_int, t_bool
 from aeon.synthesis.choice_manager import (
-    DepthAwareManager,
-    DynamicProbManager,
+    AdaptiveProbabilityManager,
+    DepthAwareAdaptiveManager,
     ChoiceManager,
+    GrammaticalEvolutionManager,
+    SemanticFilterManager,
 )
-from aeon.prelude.prelude import typing_vars
 from aeon.utils.ctx_helpers import build_context
 
 type_tries = 100
@@ -151,22 +153,55 @@ def evaluate_term(
     #    print(man.probabilities)
 
 
-total_tries = 1000
+parser = OptionParser()
+parser.add_option(
+    "-d",
+    "--depth",
+    dest="depth",
+    type="int",
+    help="Maximum allowed depth",
+    metavar="DEPTH",
+    default=6,
+)
+parser.add_option(
+    "-s",
+    "--seed",
+    dest="seed",
+    type="int",
+    help="Seed for RNG",
+    metavar="SEED",
+    default=0,
+)
+parser.add_option(
+    "-t", "--type", dest="type", help="Type to synthesize", metavar="TYPE"
+)
+parser.add_option(
+    "-n", "--typename", dest="typename", help="Name of the type", metavar="TYPENAME"
+)
+parser.add_option(
+    "-r",
+    "--totaltries",
+    dest="totaltries",
+    type="int",
+    help="Total Number of Tries",
+    metavar="TOTALTRIES",
+)
 
-ds = [5]
-seeds = [0]
-bname = "data"
-if len(sys.argv) > 1:
-    d = int(sys.argv[1])
-    ds = [d]
-    bname = f"{bname}_d_{d}"
-if len(sys.argv) > 2:
-    seed = int(sys.argv[2])
-    seeds = [seed]
-    bname = f"{bname}_seed_{seed}"
+parser.add_option(
+    "-m",
+    "--manager",
+    dest="manager",
+    help="Class to use as ChoiceManager. One of GrammaticalEvolution, SemanticFilter, Adaptive, DepthAwareAdaptive",
+    metavar="MANAGER",
+)
 
-fname = str(experiments_folder / f"{bname}.csv")
-ename = str(experiments_folder / f"{bname}.err")
+(options, args) = parser.parse_args()
+filename = f"ty_{options.typename}_depth_{options.depth}_totaltries_{options.totaltries}_mode_{options.manager}_seed_{options.seed}"
+print(filename)
+print(options)
+
+fname = str(experiments_folder / f"{filename}.csv")
+ename = str(experiments_folder / f"{filename}.err")
 
 with open(fname, "w") as f:
     f.truncate(0)
@@ -174,26 +209,38 @@ with open(fname, "w") as f:
 if path.exists(ename):
     os.remove(ename)
 
-for i, t in enumerate(
-    [
-        # "Int",
-        r"{x: Int | x > 0}",
-        r"{x: Int | x > 0 && x < 1000}",
-        r"{x: Int | x > 0 && x < 100}",
-        r"{x: Int | x == 3 && x == 5}",
-    ]
-):
-    try:
-        for manc in [ChoiceManager, DepthAwareManager, DynamicProbManager]:
-            for d in ds:
-                for seed in seeds:
-                    evaluate_term(manc, t, d, total_tries, seed=seed)
-    except Exception as e:
-        import traceback
+classnames = {
+    "GrammaticalEvolution": GrammaticalEvolutionManager,
+    "SemanticFilter": SemanticFilterManager,
+    "Adaptive": AdaptiveProbabilityManager,
+    "DepthAwareAdaptive": DepthAwareAdaptiveManager,
+}
 
-        with open(ename, "a") as f:
-            f.write(str(e))
-            f.write("\n")
-            f.write(traceback.format_exc())
-            f.write("\n")
-            f.write(f"error on {i}\n")
+manc = classnames[options.manager]
+
+try:
+    evaluate_term(
+        manc,
+        ty_name=options.type,
+        depth=options.depth,
+        tries=options.totaltries,
+        seed=options.seed,
+    )
+except Exception as e:
+    raise e
+    import traceback
+
+    with open(ename, "a") as f:
+        f.write(str(e))
+        f.write("\n")
+        f.write(traceback.format_exc())
+        f.write("\n")
+        f.write(f"error on {i}\n")
+
+[
+    # "Int",
+    r"{x: Int | x > 0}",
+    r"{x: Int | x > 0 && x < 1000}",
+    r"{x: Int | x > 0 && x < 100}",
+    r"{x: Int | x == 3 && x == 5}",
+]

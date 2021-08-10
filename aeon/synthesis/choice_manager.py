@@ -1,8 +1,10 @@
-from typing import Any, Callable, Dict, List
+from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.exceptions import NoMoreBudget
-
+from aeon.typing.typeinfer import is_subtype
+from aeon.core.types import args_size_of_type
 
 DEFAULT_BUDGET = 100
 
@@ -11,9 +13,22 @@ class ChoiceManager(object):
     debug: bool
     budget: int
 
-    def __init__(self):
+    def __init__(self, default_budget=DEFAULT_BUDGET):
         self.debug = False
+        self.default_budget = default_budget
+        self.reset()
+
+    def checkpoint(self):
+        pass
+
+    def reinforce(self):
+        pass
+
+    def reset(self):
         self.reset_budget()
+
+    def reset_budget(self):
+        self.budget = self.default_budget
 
     def choose_rule(
         self,
@@ -41,32 +56,90 @@ class ChoiceManager(object):
                 self.undo_choice()
         raise NoMoreBudget()
 
-    def make_choice(
-        self, r: RandomSource, options: List[Any], depth: int
-    ):  # TODO: PRIORITY - whether each option is terminal or not
-        return r.choose(options)
+    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+        return options[0]
 
     def undo_choice(self):
         self.budget -= 1
 
-    def checkpoint(self):
-        pass
+    def allow_lit(self, ctx: TypingContext, ty: Type, d: int):
+        return True
 
-    def reinforce(self):
-        pass
+    def allow_var(self, ctx: TypingContext, ty: Type, d: int):
+        return True
 
-    def reset(self):
-        self.reset_budget()
+    def allow_app(self, ctx: TypingContext, ty: Type, d: int):
+        return True
 
-    def reset_budget(self):
-        self.budget = DEFAULT_BUDGET
+    def allow_abs(
+        self,
+        ctx: TypingContext,
+        ty: Type,
+        d: int,
+        var_in_choices: bool,
+        avoid_eta: bool,
+    ):
+        return True
 
 
-class DynamicProbManager(ChoiceManager):
+class GrammaticalEvolutionManager(ChoiceManager):
+    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+        return r.choose(options)
+
+
+def any_var_of_type(
+    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
+) -> bool:
+    if ictx is None:
+        return any_var_of_type(ctx, ty, ctx)
+    if isinstance(ictx, EmptyContext):
+        return False
+    elif isinstance(ictx, VariableBinder):
+        if is_subtype(ctx, ictx.type, ty):
+            return True
+        return any_var_of_type(ctx, ty, ictx.prev)
+    elif isinstance(ictx, TypeBinder):
+        return any_var_of_type(ctx, ty, ictx.prev)
+    assert False
+
+
+def steps_necessary_to_close(ctx: TypingContext, ty: Type):
+    max_arrows = max([0] + [args_size_of_type(ty_) for (_, ty_) in ctx.vars()])
+    arrows_ty = args_size_of_type(ty)
+    d = max(arrows_ty - max_arrows, 0)
+    return d
+
+
+class SemanticFilterManager(ChoiceManager):
+    def allow_lit(self, ctx: TypingContext, ty: Type, d: int):
+        return True
+
+    def allow_var(self, ctx: TypingContext, ty: Type, d: int):
+        return any_var_of_type(ctx, ty)
+
+    def allow_app(self, ctx: TypingContext, ty: Type, d: int):
+        return d > steps_necessary_to_close(ctx, ty) + 1
+
+    def allow_abs(
+        self,
+        ctx: TypingContext,
+        ty: Type,
+        d: int,
+        var_in_choices: bool,
+        avoid_eta: bool,
+    ):
+        if avoid_eta:
+            return not var_in_choices
+        return True
+
+    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+        return r.choose(options)
+
+
+class AdaptiveProbabilityManager(SemanticFilterManager):
     def __init__(self) -> None:
-        super().__init__()
         self.probabilities: Dict[str, int] = {}
-        self.reset()
+        super().__init__()
 
     def make_choice(self, r: RandomSource, options: List[Any], depth: int):
         total = 0
@@ -93,7 +166,7 @@ class DynamicProbManager(ChoiceManager):
         super().undo_choice()
 
         def undo(o):
-            self.probabilities[o] = max(1, int(self.probabilities[o] * 0.9))
+            self.probabilities[o] = max(1, self.probabilities[o] * 0.9)
 
         if self.index_stack:
             index_to_remove_after = self.index_stack.pop()
@@ -104,7 +177,7 @@ class DynamicProbManager(ChoiceManager):
     def reinforce(self):
         return
         for successful_choice in self.choices:
-            self.probabilities[successful_choice] = int(
+            self.probabilities[successful_choice] = (
                 self.probabilities[successful_choice] * 1.1
             )
 
@@ -117,6 +190,6 @@ class DynamicProbManager(ChoiceManager):
         return str(fun.__name__)
 
 
-class DepthAwareManager(DynamicProbManager):
+class DepthAwareAdaptiveManager(AdaptiveProbabilityManager):
     def make_key(self, fun, depth: int):
         return str(fun.__name__) + "_d_" + str(depth // 2)
