@@ -30,6 +30,8 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
         )  # TODO: email Rahjit
     elif isinstance(t, Bottom):
         return c
+    elif isinstance(t, Top):
+        return c
     assert False
 
 

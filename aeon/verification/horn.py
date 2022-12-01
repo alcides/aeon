@@ -1,6 +1,15 @@
 from typing import Dict, List, Any, Optional, Tuple
 
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, t_bool, t_int
+from aeon.core.types import (
+    AbstractionType,
+    BaseType,
+    Bottom,
+    RefinedType,
+    Top,
+    Type,
+    t_bool,
+    t_int,
+)
 from aeon.core.liquid import (
     LiquidHole,
     LiquidLiteralBool,
@@ -50,7 +59,12 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         sp = fresh(context, ty.var_type)
         tp = fresh(context.with_var(ty.var_name, ty.var_type), ty.type)
         return AbstractionType(ty.var_name, sp, tp)
+    elif isinstance(ty, Top):
+        return ty
+    elif isinstance(ty, Bottom):
+        return ty
     else:
+        print(ty)
         assert False
 
 

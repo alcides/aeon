@@ -163,9 +163,11 @@ def type_free_term_vars(t: Type) -> List[str]:
 def args_size_of_type(t: Type) -> int:
     if isinstance(t, BaseType):
         return 0
-    if isinstance(t, TypeVar):
+    elif isinstance(t, TypeVar):
         return 0
-    if isinstance(t, RefinedType):
+    elif isinstance(t, RefinedType):
         return 0
-    if isinstance(t, AbstractionType):
+    elif isinstance(t, AbstractionType):
         return 1 + args_size_of_type(t.type)
+    else:
+        assert False

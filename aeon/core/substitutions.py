@@ -2,6 +2,7 @@ from ctypes import c_bool
 from typing import List, Optional
 from aeon.core.liquid import (
     LiquidApp,
+    LiquidForAll,
     LiquidHole,
     LiquidLiteralBool,
     LiquidLiteralInt,
@@ -238,5 +239,5 @@ def liquefy(rep: Term) -> Optional[LiquidTerm]:
         return liquefy_if(rep)
     elif isinstance(rep, Annotation):
         return liquefy_ann(rep)
-
+    raise Exception(f"Unable to liquefy {rep}" + str(type(rep)))
     assert False

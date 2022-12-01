@@ -134,7 +134,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                "Variable {} not in context", t.name
+                f"Variable {t.name} not in context"
             )
         return (ctrue, ty)
     elif isinstance(t, Application):

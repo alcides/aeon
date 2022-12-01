@@ -20,6 +20,7 @@ from aeon.core.types import (
     AbstractionType,
     BaseType,
     RefinedType,
+    TypeVar,
     t_int,
     t_bool,
     t_string,
@@ -61,6 +62,12 @@ class TreeToSugar(TreeToCore):
 
     def arg(self, args):
         return (args[0], args[1])
+
+    def abstraction_et(self, args):
+        return Annotation(
+            Abstraction(args[0], args[2]),
+            AbstractionType(args[0], args[1], TypeVar("?t")),
+        )
 
 
 def mk_parser(rule="start", start_counter=0):
