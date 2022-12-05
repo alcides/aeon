@@ -1,8 +1,35 @@
+from abc import ABC
+from dataclasses import dataclass
+from this import s
 from typing import List, Tuple, Union
-from aeon.core.liquid import LiquidLiteralBool, LiquidTerm, liquid_free_vars
+from aeon.core.liquid import LiquidHole, LiquidLiteralBool, LiquidTerm, liquid_free_vars
 
 
-class Type(object):
+class Kind(ABC):
+    pass
+
+
+class BaseKind(Kind):
+    pass
+
+    def __eq__(self, o):
+        return self.__class__ == o.__class__
+
+    def __str__(self):
+        return "Β"
+
+
+class StarKind(Kind):
+    pass
+
+    def __eq__(self, o):
+        return self.__class__ == o.__class__
+
+    def __str__(self):
+        return "★"
+
+
+class Type(ABC):
     pass
 
 
@@ -66,6 +93,7 @@ class Bottom(Type):
         return hash("Bottom")
 
 
+t_unit = BaseType("Unit")
 t_bool = BaseType("Bool")
 t_int = BaseType("Int")
 t_float = BaseType("Float")
@@ -125,6 +153,13 @@ class RefinedType(Type):
         return hash(self.name) + hash(self.type) + hash(self.refinement)
 
 
+@dataclass
+class TypePolymorphism(Type):
+    name: str  # alpha
+    kind: Kind
+    body: Type
+
+
 def extract_parts(
     t: Union[RefinedType, BaseType, TypeVar]
 ) -> Tuple[str, Union[BaseType, TypeVar], LiquidTerm]:
@@ -136,6 +171,16 @@ def extract_parts(
             t,
             LiquidLiteralBool(True),
         )  # None could be a fresh name from context
+
+
+def is_bare(ty: Type) -> Type:
+    """Returns whether a type is bare or not."""
+    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
+    dependent_function = (
+        isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
+    )
+    type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
+    return bare_base or dependent_function or type_polymorphism
 
 
 def base(ty: Type) -> Type:

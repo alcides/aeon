@@ -1,4 +1,6 @@
-from aeon.core.types import Type, t_string
+from dataclasses import dataclass
+from this import s
+from aeon.core.types import Kind, Type, t_string
 
 
 class Term(object):
@@ -187,3 +189,22 @@ class If(Term):
             and self.then == other.then
             and self.otherwise == other.otherwise
         )
+
+
+@dataclass
+class TypeAbstraction(Term):
+    name: str
+    kind: Kind
+    body: Term
+
+    def __str__(self):
+        return f"ƛ{self.name}:{self.kind}.({self.body})"
+
+
+@dataclass
+class TypeApplication(Term):
+    body: Term
+    type: Type
+
+    def __str__(self):
+        return f"({self.body})[{self.type}]"

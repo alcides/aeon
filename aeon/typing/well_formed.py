@@ -4,6 +4,8 @@ from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Constraint, Implication, LiquidConstraint
 from aeon.typing.liquid import type_infer_liquid
 from aeon.core.types import (
+    Kind,
+    StarKind,
     Type,
     BaseType,
     TypeVar,
@@ -16,21 +18,21 @@ from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
 from aeon.verification.sub import ensure_refined, implication_constraint
 
 
-def wellformed(ctx: TypingContext, t: Type) -> bool:
-    if isinstance(t, BaseType):
-        return True
-    elif isinstance(t, TypeVar):
-        return True  # TODO: var context
-    elif isinstance(t, AbstractionType):
-        return wellformed(ctx, t.var_type) and wellformed(
-            ctx.with_var(t.var_name, t.var_type), t.type
-        )
-    elif isinstance(t, RefinedType):
-        return (
-            wellformed(ctx, t.type)
-            and type_infer_liquid(ctx.with_var(t.name, t.type), t.refinement) == t_bool
-        )
-    assert False
+def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
+    wf_norefinement = isinstance(t, BaseType)
+    wf_var = isinstance(t, TypeVar) and ctx.contains_typevar(t.name, k)
+    wf_base = (
+        isinstance(t, RefinedType)
+        and wellformed(ctx, t.type, k)
+        and type_infer_liquid(ctx.with_var(t.name, t.type), t.refinement) == t_bool
+    )
+    wf_fun = (
+        isinstance(t, AbstractionType)
+        and k == StarKind()
+        and wellformed(ctx, t.var_type)
+        and wellformed(ctx.with_var(t.var_name, t.var_type), t.type)
+    )
+    return wf_simplecases or wf_base or wf_fun
 
 
 def inhabited(ctx: TypingContext, ty: Type) -> bool:

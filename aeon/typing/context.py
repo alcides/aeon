@@ -1,9 +1,10 @@
+from abc import ABC
 import random
 from typing import Tuple, List, Optional
-from aeon.core.types import Type
+from aeon.core.types import Kind, Type
 
 
-class TypingContext(object):
+class TypingContext(ABC):
     def type_of(self, name: str) -> Optional[Type]:
         return None
 
@@ -13,8 +14,11 @@ class TypingContext(object):
     def fresh_var(self):
         return "fresh_"
 
+    def typevars(self) -> List[Tuple[str, Kind]]:
+        ...
+
     def vars(self) -> List[Tuple[str, Type]]:
-        return []
+        ...
 
 
 class EmptyContext(TypingContext):
@@ -27,6 +31,9 @@ class EmptyContext(TypingContext):
 
     def __repr__(self) -> str:
         return "ø"
+
+    def typevars(self) -> List[Tuple[str, Kind]]:
+        return []
 
     def vars(self) -> List[Tuple[str, Type]]:
         return []

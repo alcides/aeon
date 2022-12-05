@@ -38,6 +38,7 @@ from aeon.core.types import (
     t_int,
     t_string,
     t_float,
+    t_unit,
     top,
     bottom,
     type_free_term_vars,
@@ -107,7 +108,12 @@ def prim_op(t: str) -> Type:
 
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
-    if isinstance(t, Literal) and t.type == t_bool:
+    if isinstance(t, Literal) and t.type == t_unit:
+        return (
+            ctrue,
+            LiquidLiteralBool(True),
+        )  # TODO: Unit is encoded as True, replace with custom Sort
+    elif isinstance(t, Literal) and t.type == t_bool:
         return (ctrue, prim_litbool(t.value))
     elif isinstance(t, Literal) and t.type == t_int:
         return (ctrue, prim_litint(t.value))
