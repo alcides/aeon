@@ -1,4 +1,4 @@
-from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
+from aeon.synthesis.choice_manager import ChoiceManager, GrammaticalEvolutionManager
 from aeon.typing.well_formed import inhabited
 import random
 from typing import Dict, Union, List
@@ -35,7 +35,7 @@ def test_list_source():
 
 def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
     ctx: TypingContext = empty
-    man: ChoiceManager = DynamicProbManager()
+    man: ChoiceManager = GrammaticalEvolutionManager()
     if dctx:
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))

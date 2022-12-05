@@ -10,7 +10,7 @@ from aeon.typing.typeinfer import check_type
 from aeon.synthesis.term_synthesis import NoMoreBudget, synth_term
 from aeon.synthesis.type_synthesis import synth_type, synth_liquid
 from aeon.synthesis.sources import ListRandomSource
-from aeon.synthesis.choice_manager import ChoiceManager, DynamicProbManager
+from aeon.synthesis.choice_manager import ChoiceManager, GrammaticalEvolutionManager
 from aeon.typing.well_formed import wellformed, inhabited
 
 listr = lambda x: ListRandomSource(x)
@@ -30,22 +30,25 @@ def random_base_context() -> TypingContext:
 
 
 def test_soundness_liq():
-    man = DynamicProbManager()
-    for _ in range(1000):
+    man = GrammaticalEvolutionManager()
+    for _ in range(1000):  # TODO add support for hypothesis.
         target_ty = random_base_type()
         ctx = random_base_context()
-        s: LiquidTerm = synth_liquid(
-            man,
-            rseed(),
-            ctx,
-            target_ty,
-        )
-        assert type_infer_liquid(ctx, s) == target_ty
+        try:
+            s: LiquidTerm = synth_liquid(
+                man,
+                rseed(),
+                ctx,
+                target_ty,
+            )
+            assert type_infer_liquid(ctx, s) == target_ty
+        except NoMoreBudget:
+            pass
 
 
 def test_soundess_types():
     for _ in range(10):
-        man: ChoiceManager = DynamicProbManager()
+        man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()
         t: Type = synth_type(man, rseed(), ctx, d=2)
         assert wellformed(ctx, t)
@@ -53,7 +56,7 @@ def test_soundess_types():
 
 def test_soundess_terms():
     for _ in range(10):
-        man: ChoiceManager = DynamicProbManager()
+        man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()
         ty: Type = synth_type(man, rseed(), ctx, d=2)
         assert wellformed(ctx, ty)

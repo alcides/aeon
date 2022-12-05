@@ -2,7 +2,6 @@ from ctypes import c_bool
 from typing import List, Optional
 from aeon.core.liquid import (
     LiquidApp,
-    LiquidForAll,
     LiquidHole,
     LiquidLiteralBool,
     LiquidLiteralInt,

@@ -33,7 +33,7 @@ class ChoiceManager(object):
     def choose_rule(
         self,
         r: RandomSource,
-        options: List[Any],
+        options: list[Any],
         depth: int,
         validate: Callable[[Any], bool] = lambda x: True,
     ):

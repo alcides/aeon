@@ -35,12 +35,12 @@ def synth_liquid_var(
     ty: BaseType,
     d: int = DEFAULT_DEPTH,
 ) -> Optional[LiquidTerm]:
-    options = [v for (v, t) in ctx.vars() if base(t) == ty]
+    options = [lambda: v for (v, t) in ctx.vars() if base(t) == ty]
     if options:
-        v = r.choose(options)
+        v = man.choose_rule(r, options, d)
         return LiquidVar(v)
     else:
-        assert False
+        raise NoMoreBudget()
 
 
 def synth_liquid_literal(
@@ -61,7 +61,7 @@ def synth_liquid_literal(
         )
         return LiquidLiteralString(rstring)
     else:
-        assert False
+        raise NoMoreBudget()
 
 
 def valid_ops(ty):
@@ -121,6 +121,7 @@ def synth_liquid(
         else:
             man.undo_choice()
     nt = go_liquid_lit()
+    print("NT", nt)
     if nt:
         return nt
     assert False

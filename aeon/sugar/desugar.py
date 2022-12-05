@@ -17,7 +17,10 @@ def desugar(p: Program) -> Tuple[Term, TypingContext, EvaluationContext]:
     for tyname in p.type_decls:
         ctx = TypeBinder(ctx, tyname)
 
-    prog = Application(Var("print"), Hole("main"))
+    if "main" in [d.name for d in p.definitions]:
+        prog = Application(Var("main"), Literal(1, type=t_int))
+    else:
+        prog = Application(Var("print"), Hole("main"))
     for d in p.definitions[::-1]:
         if d.body == Var("uninterpreted"):
             ctx = VariableBinder(

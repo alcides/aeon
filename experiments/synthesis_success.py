@@ -149,7 +149,7 @@ def evaluate_term(
     )
     print("Stats done")
     # print(successes)
-    # if isinstance(man, DynamicProbManager):
+    # if isinstance(man, GrammaticalEvolutionManager):
     #    print(man.probabilities)
 
 
