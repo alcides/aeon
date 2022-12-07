@@ -1,5 +1,6 @@
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
+     | "forall" ID ":" kind "," type                     -> polymorphism_t
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
 
@@ -54,6 +55,10 @@ expression_simple : "(" expression ")"                       -> same
              | STRINGLIT                                      -> string_lit
              | ID                                             -> var
              | "?" ID                                         -> hole
+
+
+kind : "B" -> base_kind
+     | "*" -> star_kind
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/

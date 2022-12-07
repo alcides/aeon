@@ -1,5 +1,5 @@
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import BaseType, RefinedType, AbstractionType, t_int, t_bool
+from aeon.core.types import BaseKind, BaseType, RefinedType, AbstractionType, TypeVar, StarKind, t_int, t_bool
 from aeon.typing.context import TypingContext, EmptyContext, VariableBinder
 from aeon.typing.well_formed import inhabited, wellformed
 from aeon.frontend.parser import parse_type
@@ -10,14 +10,17 @@ empty = EmptyContext()
 def test_wf1():
     assert wellformed(empty, t_int)
     assert wellformed(empty, t_bool)
-    assert wellformed(empty, BaseType("A"))
+    assert not wellformed(empty, TypeVar("a"))
+    assert wellformed(empty.with_typevar("a", BaseKind()), TypeVar("a"))
+    assert wellformed(empty.with_typevar("a", StarKind()), TypeVar("a"))
 
 
 def test_wf2():
     assert wellformed(empty, parse_type("(x:Int) -> Int"))
     assert wellformed(empty, parse_type("(x:Int) -> Bool"))
     assert wellformed(empty, parse_type("(x:Int) -> (y:Bool) -> Bool"))
-    assert wellformed(empty, parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
+    assert wellformed(empty,
+                      parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
 
 
 def test_refined():
@@ -30,9 +33,8 @@ def test_refined():
 
 def test_dependent():
     assert wellformed(empty, parse_type("(y:Int) -> {x:Int | x > y}"))
-    assert wellformed(
-        VariableBinder(empty, "x", t_int), parse_type("(y:Int) -> {z:Int | x > y}")
-    )
+    assert wellformed(VariableBinder(empty, "x", t_int),
+                      parse_type("(y:Int) -> {z:Int | x > y}"))
 
 
 def test_inhabited():

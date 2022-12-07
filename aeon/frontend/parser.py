@@ -7,9 +7,13 @@ from lark import Lark, Transformer
 
 from aeon.core.types import (
     AbstractionType,
+    BaseKind,
     RefinedType,
     BaseType,
+    StarKind,
     Type,
+    TypePolymorphism,
+    TypeVar,
     t_int,
     t_bool,
     t_float,
@@ -59,14 +63,19 @@ class TreeToCore(Transformer):
     def abstraction_t(self, args):
         return AbstractionType(str(args[0]), args[1], args[2])
 
+    def polymorphism_t(self, args):
+        return TypePolymorphism(str(args[0]), args[1], args[2])
+
     def simple_t(self, args):
         n = str(args[0])
         if n == "Bottom":
             return bottom
         elif n == "Top":
             return top
-        else:
+        elif n in ["Int", "Bool", "Float", "String"]:
             return BaseType(n)
+        else:
+            return TypeVar(n)
 
     # Expressions
 
@@ -85,7 +94,8 @@ class TreeToCore(Transformer):
         return ensure_anf_rec(Rec(str(args[0]), args[1], args[2], args[3]))
 
     def if_e(self, args):
-        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1], args[2]))
+        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1],
+                                                      args[2]))
 
     def nnot(self, args):
         return Application(Var("!"), args[0])
@@ -136,7 +146,8 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
     def application_e(self, args):
-        return ensure_anf_app(lambda: self.fresh(), Application(args[0], args[1]))
+        return ensure_anf_app(lambda: self.fresh(),
+                              Application(args[0], args[1]))
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])
@@ -160,6 +171,12 @@ class TreeToCore(Transformer):
     def string_lit(self, args):
         v = str(args[0])[1:-1]
         return Literal(str(v), type=t_string)
+
+    def base_kind(self, args):
+        return BaseKind()
+
+    def star_kind(self, args):
+        return StarKind()
 
 
 def mk_parser(rule="start", start_counter=0):

@@ -40,7 +40,7 @@ class BaseType(Type):
         self.name = name
 
     def __repr__(self):
-        return u"{}".format(self.name)
+        return u"{}_".format(self.name)
 
     def __eq__(self, other):
         return isinstance(other, BaseType) and other.name == self.name
@@ -59,13 +59,14 @@ class TypeVar(Type):
         return u"{}".format(self.name)
 
     def __eq__(self, other):
-        return isinstance(other, BaseType) and other.name == self.name
+        return isinstance(other, TypeVar) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
 
 
 class Top(Type):
+
     def __repr__(self):
         return u"⊤"
 
@@ -80,6 +81,7 @@ class Top(Type):
 
 
 class Bottom(Type):
+
     def __repr__(self):
         return u"⊥"
 
@@ -117,12 +119,10 @@ class AbstractionType(Type):
         return u"({}:{}) -> {}".format(self.var_name, self.var_type, self.type)
 
     def __eq__(self, other):
-        return (
-            isinstance(other, AbstractionType)
-            and self.var_name == other.var_name
-            and self.var_type == other.var_type
-            and self.type == other.type
-        )
+        return (isinstance(other, AbstractionType)
+                and self.var_name == other.var_name
+                and self.var_type == other.var_type
+                and self.type == other.type)
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -133,21 +133,20 @@ class RefinedType(Type):
     type: Union[BaseType, TypeVar]
     refinement: LiquidTerm
 
-    def __init__(self, name: str, ty: Union[BaseType, TypeVar], refinement: LiquidTerm):
+    def __init__(self, name: str, ty: Union[BaseType, TypeVar],
+                 refinement: LiquidTerm):
         self.name = name
         self.type = ty
         self.refinement = refinement
 
     def __repr__(self):
-        return u"{{ {}:{} | {} }}".format(self.name, self.type, self.refinement)
+        return u"{{ {}:{} | {} }}".format(self.name, self.type,
+                                          self.refinement)
 
     def __eq__(self, other):
-        return (
-            isinstance(other, RefinedType)
-            and self.name == other.name
-            and self.type == other.type
-            and self.refinement == other.refinement
-        )
+        return (isinstance(other, RefinedType) and self.name == other.name
+                and self.type == other.type
+                and self.refinement == other.refinement)
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -173,12 +172,12 @@ def extract_parts(
         )  # None could be a fresh name from context
 
 
-def is_bare(ty: Type) -> Type:
+def is_bare(ty: Type) -> bool:
     """Returns whether a type is bare or not."""
-    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = (
-        isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
-    )
+    bare_base = isinstance(ty, RefinedType) and isinstance(
+        ty.refinement, LiquidHole)
+    dependent_function = (isinstance(ty, AbstractionType)
+                          and is_bare(ty.var_type) and is_bare(ty.type))
     type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
     return bare_base or dependent_function or type_polymorphism
 
