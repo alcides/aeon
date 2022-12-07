@@ -1,41 +1,44 @@
-from z3.z3 import (
-    Bool,
-    And,
-    BoolRef,
-    BoolSort,
-    DeclareSort,
-    ExprRef,
-    IntSort,
-    Not,
-    Or,
-    String,
-    Implies,
-    ForAll,
-    StringSort,
-    Const,
-)
-from aeon.core.types import AbstractionType, BaseType, TypeVar, t_int, t_bool, t_string
-from typing import Any, Callable, Dict, Generator, List, Tuple, Union
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidHole,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
-from aeon.core.liquid_ops import mk_liquid_and
-from aeon.verification.vcs import (
-    Conjunction,
-    Constraint,
-    Implication,
-    LiquidConstraint,
-)
-from aeon.utils.time_utils import measure
-from z3 import Solver, Int, sat, unsat, And, Not, unknown
+from __future__ import annotations
 
-base_functions: Dict[str, Any] = {
+from typing import Any
+from typing import Generator
+
+from z3 import Int
+from z3 import sat
+from z3 import Solver
+from z3 import unknown
+from z3.z3 import And
+from z3.z3 import Bool
+from z3.z3 import BoolRef
+from z3.z3 import BoolSort
+from z3.z3 import Const
+from z3.z3 import DeclareSort
+from z3.z3 import ForAll
+from z3.z3 import Implies
+from z3.z3 import IntSort
+from z3.z3 import Not
+from z3.z3 import Or
+from z3.z3 import String
+from z3.z3 import StringSort
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
+from aeon.core.liquid_ops import mk_liquid_and
+from aeon.core.types import BaseType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import Implication
+from aeon.verification.vcs import LiquidConstraint
+
+base_functions: dict[str, Any] = {
     "==": lambda x, y: x == y,
     "!=": lambda x, y: x != y,
     "<": lambda x, y: x < y,
@@ -49,20 +52,19 @@ base_functions: Dict[str, Any] = {
     "-": lambda x, y: x - y,
     "*": lambda x, y: x * y,
     "/": lambda x, y: x / y,
-    "*": lambda x, y: x * y,
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
 }
 
 
-class CanonicConstraint(object):
-    binders: List[Tuple[str, BaseType]]
+class CanonicConstraint:
+    binders: list[tuple[str, BaseType]]
     pre: LiquidTerm
     pos: LiquidTerm
 
     def __init__(
         self,
-        binders: List[Tuple[str, BaseType]],
+        binders: list[tuple[str, BaseType]],
         pre: LiquidTerm,
         pos: LiquidTerm,
     ):
@@ -71,7 +73,7 @@ class CanonicConstraint(object):
         self.pos = pos
 
     def __repr__(self):
-        return "\\forall {}, {} => {}".format(self.binders, self.pre, self.pos)
+        return f"\\forall {self.binders}, {self.pre} => {self.pos}"
 
 
 def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
@@ -93,9 +95,9 @@ s = Solver()
 s.set(timeout=200),
 
 
-def smt_valid(c: Constraint, foralls: List[Tuple[str, Any]] = []) -> bool:
-    """ Verifies if a constraint is true using Z3 """
-    cons: List[CanonicConstraint] = list(flatten(c))
+def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
+    """Verifies if a constraint is true using Z3."""
+    cons: list[CanonicConstraint] = list(flatten(constraint))
 
     forall_vars = [
         (f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)
@@ -117,8 +119,8 @@ def smt_valid(c: Constraint, foralls: List[Tuple[str, Any]] = []) -> bool:
     return True
 
 
-def type_of_variable(variables: List[Tuple[str, Any]], name: str) -> Any:
-    for (na, ref) in variables:
+def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
+    for na, ref in variables:
         if na == name:
             return ref
     print("Failed to load ", name, "from", [x[0] for x in variables])
@@ -157,7 +159,7 @@ def make_variable(name: str, base: BaseType) -> Any:
     assert False
 
 
-def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
+def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
     if isinstance(t, LiquidLiteralBool):
         return t.value
     elif isinstance(t, LiquidLiteralInt):
@@ -174,7 +176,7 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
-                if v[0] == t.fun and isinstance(v[1], function):
+                if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
                     f = v[1]
         if not f:
             print("Failed to find t.fun", t.fun)
@@ -184,28 +186,10 @@ def translate_liq(t: LiquidTerm, variables: List[Tuple[str, Any]]):
     assert False
 
 
-"""
-def make_variable_abs(name: str, abs: AbstractionType) -> Callable[[ExprRef], ExprRef]:
-
-    return None
-
-
-def translate_context(
-    binders: List[Tuple[str, BaseType]]
-) -> Generator[Tuple[str, Any], None, None]:
-    for (name, base) in binders:
-        if isinstance(base, BaseType):
-            yield (name, make_variable(name, base))
-        elif isinstance(base, AbstractionType):
-            yield (name, make_variable_abs(name, base))
-        else:
-            assert False
-"""
-
-
 def translate(
-    c: CanonicConstraint, extra=List[Tuple[str, Any]]
-) -> Union[BoolRef, bool]:
+    c: CanonicConstraint,
+    extra=list[tuple[str, Any]],
+) -> BoolRef | bool:
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders

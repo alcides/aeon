@@ -1,36 +1,43 @@
-from typing import Dict, List, Any, Optional, Tuple
+from __future__ import annotations
 
-from aeon.core.types import (
-    AbstractionType,
-    BaseType,
-    Bottom,
-    RefinedType,
-    Top,
-    Type,
-    t_bool,
-    t_int,
-)
-from aeon.core.liquid import (
-    LiquidHole,
-    LiquidLiteralBool,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidApp,
-    LiquidLiteralInt,
-    LiquidVar,
-)
-from aeon.core.liquid_ops import all_ops, mk_liquid_and
+from typing import Any
+from typing import Sequence
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
+from aeon.core.liquid_ops import all_ops
+from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
+from aeon.core.types import Bottom
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import Top
+from aeon.core.types import Type
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
 from aeon.typing.liquid import type_infer_liquid
-from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
+from aeon.verification.helpers import constraint_builder
+from aeon.verification.helpers import end
+from aeon.verification.helpers import imp
 from aeon.verification.smt import smt_valid
-from aeon.verification.helpers import end, constraint_builder, imp
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import Implication
+from aeon.verification.vcs import LiquidConstraint
 
-Assignment = Dict[str, List[LiquidTerm]]
+Assignment = dict[str, list[LiquidTerm]]
 
 
-def smt_base_type(ty: Type) -> Optional[str]:
+def smt_base_type(ty: Type) -> str | None:
     if isinstance(ty, AbstractionType):
         return None
     if isinstance(ty, BaseType):
@@ -47,11 +54,11 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
         id = context.fresh_var()
         v = f"v_{id}"
-        args: List[Tuple[LiquidVar, str]] = []
-        for (n, t) in context.vars() + [(v, ty.type)]:
-            tp = smt_base_type(t)
-            if tp:
-                args.append((LiquidVar(n), tp))
+        args: list[tuple[LiquidTerm, str]] = []
+        for n, t in context.vars() + [(v, ty.type)]:
+            stp = smt_base_type(t)
+            if stp:
+                args.append((LiquidVar(n), stp))
         return RefinedType(v, ty.type, LiquidHole(f"{id}", args))
     elif isinstance(ty, RefinedType):
         return ty
@@ -68,7 +75,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         assert False
 
 
-def obtain_holes(t: LiquidTerm) -> List[LiquidHole]:
+def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
     if isinstance(t, LiquidHole):
         return [t]
     elif (
@@ -80,7 +87,7 @@ def obtain_holes(t: LiquidTerm) -> List[LiquidHole]:
     elif isinstance(t, LiquidVar):
         return []
     elif isinstance(t, LiquidApp):
-        holes: List[LiquidHole] = []
+        holes: list[LiquidHole] = []
         for h in t.args:
             holes = holes + obtain_holes(h)
         return holes
@@ -88,7 +95,7 @@ def obtain_holes(t: LiquidTerm) -> List[LiquidHole]:
         assert False
 
 
-def obtain_holes_constraint(c: Constraint) -> List[LiquidHole]:
+def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
     if isinstance(c, LiquidConstraint):
         return obtain_holes(c.expr)
     elif isinstance(c, Conjunction):
@@ -147,12 +154,12 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: List[Tuple[LiquidTerm, str]], arity: int):
+def get_possible_args(vars: Sequence[tuple[LiquidTerm, str]], arity: int):
     if arity == 0:
         yield []
     else:
         for base in get_possible_args(vars, arity - 1):
-            for (i, (_, _)) in enumerate(vars):
+            for i, (_, _) in enumerate(vars):
                 yield [LiquidVar(mk_arg(i))] + base
                 yield [LiquidLiteralBool(True)] + base
                 yield [LiquidLiteralBool(False)] + base
@@ -166,9 +173,9 @@ def reverse_type(t: str) -> Type:
 
 def build_possible_assignment(hole: LiquidHole):
     ctx: TypingContext = EmptyContext()
-    for (i, (_, t)) in enumerate(hole.argtypes):
+    for i, (_, t) in enumerate(hole.argtypes):
         ctx = VariableBinder(ctx, mk_arg(i), reverse_type(t))
-    for (opn, opt) in all_ops:
+    for opn, opt in all_ops:
         arity = len(opt) - 1
         for args in get_possible_args(hole.argtypes, arity):
             if not any([isinstance(a, LiquidVar) for a in args]):
@@ -180,20 +187,20 @@ def build_possible_assignment(hole: LiquidHole):
 
 def build_initial_assignment(c: Constraint) -> Assignment:
     holes = obtain_holes_constraint(c)
-    assign: Dict[str, LiquidTerm] = {}
+    assign: dict[str, list[LiquidTerm]] = {}
     for h in holes:
         assign[h.name] = list(build_possible_assignment(h))
     return assign
 
 
-def merge_assignments(xs: List[LiquidTerm]) -> LiquidTerm:
+def merge_assignments(xs: list[LiquidTerm]) -> LiquidTerm:
     b = LiquidLiteralBool(True)
     for c in xs:
         b = mk_liquid_and(b, c)
     return b
 
 
-def split(c: Constraint) -> List[Constraint]:
+def split(c: Constraint) -> list[Constraint]:
     if isinstance(c, LiquidConstraint):
         return [c]
     elif isinstance(c, Conjunction):
@@ -204,25 +211,29 @@ def split(c: Constraint) -> List[Constraint]:
 
 
 def build_forall_implication(
-    vs: List[Tuple[str, Type]], p: LiquidTerm, c: Constraint
+    vs: list[tuple[str, Type]],
+    p: LiquidTerm,
+    c: Constraint,
 ) -> Constraint:
     if not vs:
         return c
     lastEl = vs[-1]
+    assert isinstance(lastEl[1], BaseType)
     cf = Implication(lastEl[0], lastEl[1], p, c)
-    for (n, t) in vs[-2::-1]:
+    for n, t in vs[-2::-1]:
+        assert isinstance(t, BaseType)
         cf = Implication(n, t, LiquidLiteralBool(True), cf)
     return cf
 
 
-def simpl(vs: List[Tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
         return build_forall_implication(vs, p, c)
 
 
-def flat(c: Constraint) -> List[Constraint]:
+def flat(c: Constraint) -> list[Constraint]:
     return [simpl([], LiquidLiteralBool(True), cp) for cp in split(c)]
 
 
@@ -245,7 +256,8 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
         return LiquidConstraint(apply_liquid(assign, c.expr))
     elif isinstance(c, Conjunction):
         return Conjunction(
-            apply_constraint(assign, c.c1), apply_constraint(assign, c.c2)
+            apply_constraint(assign, c.c1),
+            apply_constraint(assign, c.c2),
         )
     elif isinstance(c, Implication):
         return Implication(
@@ -258,7 +270,7 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
 
 
 def fill_horn_arguments(h: LiquidHole, candidate: LiquidTerm) -> LiquidTerm:
-    for (i, (n, _)) in enumerate(h.argtypes):
+    for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
     return candidate
@@ -285,10 +297,10 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> Tuple[List[Tuple[str, Type]], Tuple[LiquidTerm, LiquidTerm]]:
+) -> tuple[list[tuple[str, Type]], tuple[LiquidTerm, LiquidTerm]]:
     assert isinstance(c, Implication)
     if isinstance(c.seq, LiquidConstraint):
-        vs = [(c.name, c.base)]
+        vs: list[tuple[str, Type]] = [(c.name, c.base)]
         p = c.pred
         h = c.seq.expr
         return (vs, (p, h))
@@ -302,10 +314,15 @@ def extract_components_of_imp(
 
 def weaken(assign, c: Constraint) -> Assignment:
     (vs, (p, h)) = extract_components_of_imp(c)
+
+    # TODO: double check this assert
+    assert isinstance(h, LiquidHole)
     assert h.name in assign
     current_rep = assign[h.name]
 
     def keep(q: LiquidTerm) -> bool:
+        # TODO: double check this assert
+        assert isinstance(h, LiquidHole)
         qp = fill_horn_arguments(h, q)
         nc = constraint_builder(vs, imp(apply(assign, p), end(qp)))
         return smt_valid(nc)
@@ -314,7 +331,7 @@ def weaken(assign, c: Constraint) -> Assignment:
     return {h.name: qsp}
 
 
-def fixpoint(cs: List[Constraint], assign) -> Assignment:
+def fixpoint(cs: list[Constraint], assign) -> Assignment:
     ncs = [c for c in cs if not smt_valid(apply(assign, c))]
     if not ncs:
         return assign
@@ -331,6 +348,7 @@ def solve(c: Constraint) -> bool:
     csp = [c for c in cs if not has_k_head(c)]
     assignment0: Assignment = build_initial_assignment(c)
     subst = fixpoint(csk, assignment0)
+    merged_csps: Constraint
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)

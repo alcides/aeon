@@ -1,59 +1,49 @@
-from aeon.core.instantiation import type_substition
-from aeon.typing.entailment import entailment
-from aeon.core.substitutions import liquefy, substitute_vartype, substitution_in_type
-from aeon.verification.vcs import (
-    Conjunction,
-    Constraint,
-    LiquidConstraint,
-    variables_free_in,
-)
-from typing import List, Tuple
+from __future__ import annotations
 
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidVar,
-)
-from aeon.core.terms import (
-    Abstraction,
-    Annotation,
-    Application,
-    Hole,
-    If,
-    Let,
-    Literal,
-    Rec,
-    Term,
-    TypeAbstraction,
-    TypeApplication,
-    Var,
-)
-from aeon.core.types import (
-    AbstractionType,
-    BaseKind,
-    BaseType,
-    RefinedType,
-    StarKind,
-    Type,
-    TypePolymorphism,
-    TypeVar,
-    args_size_of_type,
-    extract_parts,
-    t_bool,
-    t_int,
-    t_string,
-    t_float,
-    t_unit,
-    top,
-    bottom,
-    type_free_term_vars,
-)
-from aeon.typing.context import TypingContext
+from aeon.core.instantiation import type_substition
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
-from aeon.verification.sub import ensure_refined, implication_constraint, sub
+from aeon.core.substitutions import liquefy
+from aeon.core.substitutions import substitute_vartype
+from aeon.core.substitutions import substitution_in_type
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import Hole
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import TypeAbstraction
+from aeon.core.terms import TypeApplication
+from aeon.core.terms import Var
+from aeon.core.types import AbstractionType
+from aeon.core.types import args_size_of_type
+from aeon.core.types import BaseKind
+from aeon.core.types import BaseType
+from aeon.core.types import bottom
+from aeon.core.types import extract_parts
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_unit
+from aeon.core.types import Type
+from aeon.core.types import type_free_term_vars
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
+from aeon.typing.context import TypingContext
+from aeon.typing.entailment import entailment
 from aeon.verification.horn import fresh
-from aeon.verification.vcs import variables_free_in
+from aeon.verification.sub import ensure_refined
+from aeon.verification.sub import implication_constraint
+from aeon.verification.sub import sub
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import LiquidConstraint
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -63,8 +53,11 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar)
-            or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(ty, RefinedType)
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -76,11 +69,16 @@ def prim_litbool(t: bool) -> RefinedType:
 
 def prim_litint(t: int) -> RefinedType:
     return RefinedType(
-        "v", t_int,
-        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]))
+        "v",
+        t_int,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]),
+    )
 
 
 def prim_op(t: str) -> Type:
+    i1: Type
+    i2: Type
+    o: Type
     if t in ["+", "*", "-", "/"]:
         i1 = i2 = t_int
         o = t_int
@@ -108,11 +106,7 @@ def prim_op(t: str) -> Type:
                 o,
                 LiquidApp(
                     "==",
-                    [
-                        LiquidVar("z"),
-                        LiquidApp(
-                            t, [LiquidVar("x"), LiquidVar("y")])
-                    ],
+                    [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
                 ),
             ),
         ),
@@ -120,15 +114,17 @@ def prim_op(t: str) -> Type:
 
 
 # patterm matching term
-def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
+def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     if isinstance(t, Literal) and t.type == t_unit:
         return (
             ctrue,
-            LiquidLiteralBool(True),
+            prim_litbool(True),
         )  # TODO: Unit is encoded as True, replace with custom Sort
     elif isinstance(t, Literal) and t.type == t_bool:
+        assert isinstance(t.value, bool)
         return (ctrue, prim_litbool(t.value))
     elif isinstance(t, Literal) and t.type == t_int:
+        assert isinstance(t.value, int)
         return (ctrue, prim_litint(t.value))
     elif isinstance(t, Literal):
         return (ctrue, t.type)
@@ -147,20 +143,18 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                     "&&",
                     [
                         ty.refinement,
-                        LiquidApp("==",
-                                  [LiquidVar(ty.name),
-                                   LiquidVar(t.name)]),
+                        LiquidApp("==", [LiquidVar(ty.name), LiquidVar(t.name)]),
                     ],
                 ),
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context")
+                f"Variable {t.name} not in context",
+            )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
         if isinstance(ty, AbstractionType):
-
             # This is the solution to handle polymorphic "==" in refinements.
             if argument_is_typevar(ty.var_type):
                 (_, b, _) = extract_parts(ty.var_type)
@@ -174,7 +168,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                 return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
             c0 = Conjunction(c, cp)
-            vs: List[str] = list(variables_free_in(c0))
+            # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException()
@@ -198,8 +192,8 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         c = check(ctx, t.expr, ty)
         return (c, ty)
     elif isinstance(t, TypeApplication):
-        tabs: TypePolymorphism
         (c, tabs) = synth(ctx, t.body)
+        assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
         ty = fresh(ctx, t.type)
         s = type_substition(tabs.body, tabs.name, ty)
         return (c, s)
@@ -234,12 +228,15 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
+        assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean")
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
-        c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
-                                    check(ctx, t.then, ty))
+        c1 = implication_constraint(
+            y,
+            RefinedType("branch_", t_int, liq_cond),
+            check(ctx, t.then, ty),
+        )
         c2 = implication_constraint(
             y,
             RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),
@@ -247,8 +244,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         )
         return Conjunction(c0, Conjunction(c1, c2))
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
-        ty_right: TypePolymorphism = type_substition(ty, ty.name,
-                                                     TypeVar(t.name))
+        ty_right = type_substition(ty, ty.name, TypeVar(t.name))
+        assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
             return LiquidConstraint(LiquidLiteralBool(False))
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
@@ -268,10 +265,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
 
     # print("Checking {} <: {} leads to {}".format(t, ty, constraint))
     return entailment(ctx, constraint)
-
-
-from aeon.verification.sub import sub
-from aeon.typing.entailment import entailment
 
 
 def is_subtype(ctx: TypingContext, subt: Type, supt: Type):

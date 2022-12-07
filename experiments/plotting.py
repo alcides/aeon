@@ -1,11 +1,12 @@
+from __future__ import annotations
+
+import itertools
 import os
 import shutil
-import itertools
-import pandas as pd
-import seaborn as sns
 
 import matplotlib.pyplot as plt
-
+import pandas as pd
+import seaborn as sns
 
 plt.rc("font", family="serif")
 sns.set(rc={"figure.figsize": (8, 4)})
@@ -27,7 +28,6 @@ def reset_folder(path):
 
 # -----------------------------------------------------------------------------
 def boxplot(df, ttype, outputpath, x_col, y_col):
-
     sns.set_theme(style="whitegrid")
     sns_plot = sns.boxplot(
         data=df,
@@ -73,7 +73,6 @@ def swarmplot(df, ttype, outputpath, x_col, y_col):
 
 # -----------------------------------------------------------------------------
 def plot_ttype(df, ttype, outpath):
-
     # Doing different combinations of columns
     combinations = itertools.product(
         ["Depth"],
@@ -94,7 +93,6 @@ def plot_ttype(df, ttype, outpath):
 
 # Main method to plot, just provide the csv file
 def plot_csv(csv_path):
-
     headers = [
         "Manager",
         "Tries",

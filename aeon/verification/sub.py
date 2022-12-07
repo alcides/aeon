@@ -1,10 +1,22 @@
+from __future__ import annotations
+
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidVar
 from aeon.core.pprint import pretty_print
+from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
-from aeon.core.types import Bottom, Top, t_bool
-from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
-from aeon.core.liquid import LiquidLiteralBool, LiquidVar
-from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
+from aeon.core.types import Bottom
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import Top
+from aeon.core.types import Type
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import Implication
+from aeon.verification.vcs import LiquidConstraint
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 cfalse = LiquidConstraint(LiquidLiteralBool(False))
@@ -21,12 +33,15 @@ def ensure_refined(t: Type) -> RefinedType:
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
         ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
+        assert isinstance(t.type, BaseType)
         return Implication(name, t.type, ref_subs, c)
     elif isinstance(t, BaseType):
         return Implication(name, t, LiquidLiteralBool(True), c)
     elif isinstance(t, AbstractionType):
         return implication_constraint(
-            t.var_name, t.var_type, implication_constraint(name, t.type, c)
+            t.var_name,
+            t.var_type,
+            implication_constraint(name, t.type, c),
         )  # TODO: email Rahjit
     elif isinstance(t, Bottom):
         return c
@@ -47,8 +62,12 @@ def sub(t1: Type, t2: Type) -> Constraint:
             return ctrue
         elif t1.type == t2.type:
             t2_subs = substitution_in_liquid(t2.refinement, LiquidVar(t1.name), t2.name)
+            assert isinstance(t1.type, BaseType)  # TODO: check this
             return Implication(
-                t1.name, t1.type, t1.refinement, LiquidConstraint(t2_subs)
+                t1.name,
+                t1.type,
+                t1.refinement,
+                LiquidConstraint(t2_subs),
             )
         else:
             return cfalse

@@ -1,6 +1,12 @@
-from aeon.core.liquid import LiquidLiteralInt, LiquidVar, LiquidApp
+from __future__ import annotations
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
-from aeon.core.terms import Var, Literal, Application
+from aeon.core.terms import Application
+from aeon.core.terms import Literal
+from aeon.core.terms import Var
 from aeon.core.types import t_int
 from aeon.utils.ast_helpers import i1
 
@@ -19,8 +25,11 @@ def test_liquefaction():
 
 def test_simple_eq():
     assert LiquidApp("x", [LiquidLiteralInt(1)]) == LiquidApp(
-        "x", [LiquidLiteralInt(1)])
+        "x",
+        [LiquidLiteralInt(1)],
+    )
     assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
-        "x", [LiquidLiteralInt(2)])
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
-        "x", [LiquidVar("x2")])
+        "x",
+        [LiquidLiteralInt(2)],
+    )
+    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp("x", [LiquidVar("x2")])

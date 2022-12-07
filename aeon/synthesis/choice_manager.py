@@ -1,15 +1,22 @@
-from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
-from typing import Any, Callable, Dict, List, Optional, Type
+from __future__ import annotations
 
-from aeon.synthesis.sources import RandomSource
-from aeon.synthesis.exceptions import NoMoreBudget
-from aeon.typing.typeinfer import is_subtype
+from typing import Any
+from typing import Callable
+
 from aeon.core.types import args_size_of_type
+from aeon.core.types import Type
+from aeon.synthesis.exceptions import NoMoreBudget
+from aeon.synthesis.sources import RandomSource
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypeBinder
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
+from aeon.typing.typeinfer import is_subtype
 
 DEFAULT_BUDGET = 100
 
 
-class ChoiceManager(object):
+class ChoiceManager:
     debug: bool
     budget: int
 
@@ -46,7 +53,7 @@ class ChoiceManager(object):
                     + ", from: "
                     + str([str(f.__name__) for f in options])
                     + " at "
-                    + str(depth)
+                    + str(depth),
                 )
             t = f()
             if t and validate(t):
@@ -56,7 +63,7 @@ class ChoiceManager(object):
                 self.undo_choice()
         raise NoMoreBudget()
 
-    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+    def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         return options[0]
 
     def undo_choice(self):
@@ -83,12 +90,14 @@ class ChoiceManager(object):
 
 
 class GrammaticalEvolutionManager(ChoiceManager):
-    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+    def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         return r.choose(options)
 
 
 def any_var_of_type(
-    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
+    ctx: TypingContext,
+    ty: Type,
+    ictx: TypingContext | None = None,
 ) -> bool:
     if ictx is None:
         return any_var_of_type(ctx, ty, ctx)
@@ -132,16 +141,16 @@ class SemanticFilterManager(ChoiceManager):
             return not var_in_choices
         return True
 
-    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+    def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         return r.choose(options)
 
 
 class AdaptiveProbabilityManager(SemanticFilterManager):
     def __init__(self) -> None:
-        self.probabilities: Dict[str, int] = {}
+        self.probabilities: dict[str, int] = {}
         super().__init__()
 
-    def make_choice(self, r: RandomSource, options: List[Any], depth: int):
+    def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         total = 0
         indices = []
         for o in options:
@@ -152,7 +161,7 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
             indices.append(total)
 
         chosen_index = r.next_integer() % total
-        for (index, opt) in zip(indices, options):
+        for index, opt in zip(indices, options):
             if chosen_index < index:
                 key = self.make_key(o, depth)
                 self.choices.append(key)
@@ -183,8 +192,8 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
 
     def reset(self):
         super().reset()
-        self.choices: List[Any] = []
-        self.index_stack: List[int] = []
+        self.choices = []
+        self.index_stack = []
 
     def make_key(self, fun, depth: int):
         return str(fun.__name__)

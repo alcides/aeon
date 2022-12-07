@@ -1,24 +1,28 @@
-from typing import Any, Dict, List, Tuple
-from aeon.core.terms import (
-    Abstraction,
-    Annotation,
-    Application,
-    Hole,
-    If,
-    Let,
-    Literal,
-    Rec,
-    Term,
-    Var,
-)
+from __future__ import annotations
+
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
+
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import Hole
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
 
 real_eval = eval
 
 
-class EvaluationContext(object):
-    variables: Dict[str, Any]
+class EvaluationContext:
+    variables: dict[str, Any]
 
-    def __init__(self, prev: Dict[str, Any] = None):
+    def __init__(self, prev: dict[str, Any] | None = None):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
         else:
@@ -51,7 +55,6 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Let):
         return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
     elif isinstance(t, Rec):
-
         if isinstance(t.var_value, Abstraction):
             fun = t.var_value
 

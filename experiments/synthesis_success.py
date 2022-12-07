@@ -1,13 +1,17 @@
-import pathlib
-import os.path as path
+from __future__ import annotations
+
 import os
-import sys
+import os.path as path
+import pathlib
 import random
+import sys
 import time
-from typing import Any, Callable, List
-from statistics import mean
 import typing
 from optparse import OptionParser
+from statistics import mean
+from typing import Any
+from typing import Callable
+from typing import List
 
 experiments_folder = pathlib.Path(__file__).parent
 sys.path.append(str(experiments_folder.parent.absolute()))
@@ -34,7 +38,10 @@ from aeon.utils.ctx_helpers import build_context
 type_tries = 100
 
 compressor = zstd.ZstdCompressor(
-    level=22, write_checksum=False, write_content_size=False, write_dict_id=False
+    level=22,
+    write_checksum=False,
+    write_content_size=False,
+    write_dict_id=False,
 )
 
 
@@ -43,7 +50,7 @@ def save_line(str):
         f.write(str + "\n")
 
 
-def entropy(l: List[Any]) -> float:
+def entropy(l: list[Any]) -> float:
     s = " | ".join([str(x) for x in l])
     compressed = compressor.compress(s.encode("ascii"))
     return len(compressed)
@@ -56,7 +63,10 @@ def generate_lists(n, seed=1234):
         yield [r.randint(-256, 256) for _ in range(size)]
 
 
-def evaluate_type(mang: Callable[[], ChoiceManager], depth=5, tries=100, seed=1234):
+def evaluate_type(mang: Callable[[], ChoiceManager],
+                  depth=5,
+                  tries=100,
+                  seed=1234):
     successes = 0
     man = mang()
     list_of_sources = list(generate_lists(tries, seed))
@@ -74,27 +84,43 @@ def evaluate_type(mang: Callable[[], ChoiceManager], depth=5, tries=100, seed=12
 
 base_ctx = build_context(
     {
-        "plus": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x + y) }"),
-        "minus": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x - y) }"),
-        "times": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x * y) }"),
-        "div": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x / y) }"),
-        "abs": parse_type(
-            r"(x:Int) -> (y:Int) -> {z:Int | (z == x) && (x > y) || (z == y) && (y >= x) }"
+        "plus":
+        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x + y) }"),
+        "minus":
+        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x - y) }"),
+        "times":
+        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x * y) }"),
+        "div":
+        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x / y) }"),
+        "abs":
+        parse_type(
+            r"(x:Int) -> (y:Int) -> {z:Int | (z == x) && (x > y) || (z == y) && (y >= x) }",
         ),
-        "not": parse_type("(x:Bool) -> Bool"),
-        "eqInt": parse_type("(x:Int) -> (y:Int) -> Int"),
-        "eqBool": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "and": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "or": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "gt": parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "gte": parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "lt": parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "lte": parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "isPositive": parse_type("(x:Int) -> Bool"),
-        "isNegative": parse_type("(x:Int) -> Bool"),
-        "toInt": parse_type("(x:Bool) -> Int"),
-    }
-)
+        "not":
+        parse_type("(x:Bool) -> Bool"),
+        "eqInt":
+        parse_type("(x:Int) -> (y:Int) -> Int"),
+        "eqBool":
+        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "and":
+        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "or":
+        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "gt":
+        parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "gte":
+        parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "lt":
+        parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "lte":
+        parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "isPositive":
+        parse_type("(x:Int) -> Bool"),
+        "isNegative":
+        parse_type("(x:Int) -> Bool"),
+        "toInt":
+        parse_type("(x:Bool) -> Int"),
+    }, )
 for i in range(2):
     name = f"x_{i}"
     base_ctx = VariableBinder(base_ctx, name, t_int)
@@ -140,7 +166,7 @@ def evaluate_term(
     centropy = entropy(successes)
     if successes:
         avgdepth = mean([term_depth(t) for t in successes])
-        maxdepth = max([term_depth(t) for t in successes])
+        maxdepth = max(term_depth(t) for t in successes)
     else:
         avgdepth = 0
         maxdepth = 0
@@ -173,10 +199,18 @@ parser.add_option(
     default=0,
 )
 parser.add_option(
-    "-t", "--type", dest="type", help="Type to synthesize", metavar="TYPE"
+    "-t",
+    "--type",
+    dest="type",
+    help="Type to synthesize",
+    metavar="TYPE",
 )
 parser.add_option(
-    "-n", "--typename", dest="typename", help="Name of the type", metavar="TYPENAME"
+    "-n",
+    "--typename",
+    dest="typename",
+    help="Name of the type",
+    metavar="TYPENAME",
 )
 parser.add_option(
     "-r",
@@ -191,7 +225,8 @@ parser.add_option(
     "-m",
     "--manager",
     dest="manager",
-    help="Class to use as ChoiceManager. One of GrammaticalEvolution, SemanticFilter, Adaptive, DepthAwareAdaptive",
+    help=
+    "Class to use as ChoiceManager. One of GrammaticalEvolution, SemanticFilter, Adaptive, DepthAwareAdaptive",
     metavar="MANAGER",
 )
 

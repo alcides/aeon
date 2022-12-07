@@ -1,17 +1,17 @@
+from __future__ import annotations
+
 from typing import Generator
 
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
 from aeon.core.types import BaseType
 
 
-class Constraint(object):
+class Constraint:
     pass
 
 
@@ -34,7 +34,7 @@ class Conjunction(Constraint):
         self.c2 = c2
 
     def __repr__(self):
-        return u"({}) ∧ ({})".format(self.c1, self.c2)
+        return f"({self.c1}) ∧ ({self.c2})"
 
 
 class Implication(Constraint):
@@ -50,7 +50,7 @@ class Implication(Constraint):
         self.seq = seq
 
     def __repr__(self):
-        return u"∀{}:{}, ({}) => {}".format(self.name, self.base, self.pred, self.seq)
+        return f"∀{self.name}:{self.base}, ({self.pred}) => {self.seq}"
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:

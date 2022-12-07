@@ -1,7 +1,15 @@
-from typing import List
+from __future__ import annotations
+
 import zss
 
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Term, Var
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Application
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
 
 
 def term_children(t: Term):
@@ -37,7 +45,7 @@ def distance_terms(t1: Term, t2: Term):
     return zss.simple_distance(t1, t2, term_children, term_label, term_label_dist)
 
 
-def pairwise_distance(ts: List[Term]):
+def pairwise_distance(ts: list[Term]):
     s = 0
     for i in range(len(ts)):
         for j in range(i + 1, len(ts)):

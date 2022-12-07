@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import wraps
 from time import process_time
 
@@ -12,7 +14,7 @@ def measure(func):
             end_ = int(round(process_time() * 1000)) - start
             if end_ > 1:
                 print(
-                    f"Total execution time {func.__name__}: {end_ if end_ > 0 else 0} ms"
+                    f"Total execution time {func.__name__}: {end_ if end_ > 0 else 0} ms",
                 )
 
     return _time_it

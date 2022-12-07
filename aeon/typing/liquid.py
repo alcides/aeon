@@ -1,18 +1,25 @@
-from typing import Dict, Optional
-from aeon.typing.context import TypingContext
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
+from __future__ import annotations
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import get_type_of
-from aeon.core.types import BaseType, t_bool, t_int, t_string, base
+from aeon.core.types import base
+from aeon.core.types import BaseType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.core.types import Type
+from aeon.typing.context import TypingContext
 
 
-def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]:
+def type_infer_liquid(
+    ctx: TypingContext,
+    liq: LiquidTerm,
+) -> Type | None:  # TODO: should be BaseType?
     if isinstance(liq, LiquidLiteralBool):
         return t_bool
     elif isinstance(liq, LiquidLiteralInt):
@@ -21,19 +28,24 @@ def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]
         return t_string
     elif isinstance(liq, LiquidVar):
         t = ctx.type_of(liq.name)
-        return base(t)
+        if t:
+            return base(t)
+        else:
+            return None
     elif isinstance(liq, LiquidApp):
         ftype = get_type_of(liq.fun)
-        equalities: Dict[str, BaseType] = {}
-        for (a, raw_t) in zip(liq.args, ftype):
+        equalities: dict[str, BaseType] = {}
+        for a, raw_t in zip(liq.args, ftype):
             t = BaseType(raw_t)
             k = type_infer_liquid(ctx, a)
             if raw_t.islower():
                 if raw_t in equalities:
                     if equalities[raw_t] != k:
                         return None
-                else:
+                elif isinstance(k, BaseType):
                     equalities[raw_t] = k
+                else:
+                    return None
             else:
                 if k != t:
                     return None

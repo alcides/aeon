@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from aeon.backend.evaluator import eval
 from aeon.frontend.parser import parse_term
 

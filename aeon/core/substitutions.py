@@ -1,42 +1,39 @@
+from __future__ import annotations
+
 from ctypes import c_bool
-from typing import List, Optional
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidHole,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
-from aeon.core.types import (
-    AbstractionType,
-    BaseType,
-    Bottom,
-    RefinedType,
-    Top,
-    Type,
-    TypeVar,
-    t_int,
-    t_bool,
-    t_string,
-)
-from aeon.core.terms import (
-    Annotation,
-    Hole,
-    If,
-    Rec,
-    Term,
-    Literal,
-    Var,
-    Application,
-    Abstraction,
-    Let,
-)
+from typing import List
+from typing import Optional
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import Hole
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
+from aeon.core.types import Bottom
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.core.types import Top
+from aeon.core.types import Type
+from aeon.core.types import TypeVar
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):
-
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
 
@@ -53,9 +50,8 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     assert False
 
 
-def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
-                           name: str) -> LiquidTerm:
-    """ substitutes name in the term t with the new replacement term rep """
+def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
+    """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
     if isinstance(t, LiquidLiteralInt):
         return t
@@ -69,16 +65,14 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
         else:
             return t
     elif isinstance(t, LiquidApp):
-        return LiquidApp(
-            t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
     elif isinstance(t, LiquidHole):
         if t.name == name:
             return rep
         else:
             return LiquidHole(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t)
-                 for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
             )
     else:
         print(t, type(t))
@@ -86,12 +80,14 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
 
 
 def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
-    replacement: LiquidTerm = liquefy(rep)
+    replacement: LiquidTerm | None = liquefy(rep)
     if replacement is None:
         return t
 
     def rec(t: Type) -> Type:
         return substitution_in_type(t, rep, name)
+
+    renamed: Type
 
     if isinstance(t, Top):
         return t
@@ -105,8 +101,10 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
         if isinstance(rep, Var) and rep.name == t.var_name:
             nname = t.var_name + "1"
             renamed = AbstractionType(
-                nname, t.var_type,
-                substitution_in_type(t.type, Var(nname), t.var_name))
+                nname,
+                t.var_type,
+                substitution_in_type(t.type, Var(nname), t.var_name),
+            )
             return substitution_in_type(renamed, rep, name)
         elif name == t.var_name:
             return t
@@ -125,13 +123,14 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
             return t
         else:
             return RefinedType(
-                t.name, t.type,
-                substitution_in_liquid(t.refinement, replacement, name))
+                t.name,
+                t.type,
+                substitution_in_liquid(t.refinement, replacement, name),
+            )
     assert False
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
-
     def rec(x: Term):
         return substitution(x, rep, name)
 
@@ -162,18 +161,18 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
         return Let(t.var_name, n_value, n_body)
     elif isinstance(t, Rec):
         if t.var_name == name:
-            n_value = t.value
+            n_value = t.var_value
             n_body = t.body
         else:
-            n_value = rec(t.value)
+            n_value = rec(t.var_value)
             n_body = rec(t.body)
         return Rec(t.var_name, t.var_type, n_value, n_body)
     elif isinstance(t, Annotation):
-        return Annotation(rec(t.expr), type)
+        return Annotation(rec(t.expr), t.type)
     assert False
 
 
-def liquefy_app(app: Application) -> Optional[LiquidApp]:
+def liquefy_app(app: Application) -> LiquidApp | None:
     arg = liquefy(app.arg)
     if not arg:
         return None
@@ -182,18 +181,19 @@ def liquefy_app(app: Application) -> Optional[LiquidApp]:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
-            return LiquidApp(liquid_pseudo_fun.fun,
-                             liquid_pseudo_fun.args + [arg])
+            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
-                substitution(app.fun.body, app.fun.var_value,
-                             app.fun.var_name), app.arg))
+                substitution(app.fun.body, app.fun.var_value, app.fun.var_name),
+                app.arg,
+            ),
+        )
     assert False
 
 
-def liquefy_rec(t: Let) -> Optional[LiquidTerm]:
+def liquefy_rec(t: Rec) -> LiquidTerm | None:
     value = liquefy(t.var_value)  # TODO
     body = liquefy(t.body)
     if value and body:
@@ -201,7 +201,7 @@ def liquefy_rec(t: Let) -> Optional[LiquidTerm]:
     return None
 
 
-def liquefy_let(t: Let) -> Optional[LiquidTerm]:
+def liquefy_let(t: Let) -> LiquidTerm | None:
     value = liquefy(t.var_value)
     body = liquefy(t.body)
     if value and body:
@@ -209,7 +209,7 @@ def liquefy_let(t: Let) -> Optional[LiquidTerm]:
     return None
 
 
-def liquefy_if(t: If) -> Optional[LiquidTerm]:
+def liquefy_if(t: If) -> LiquidTerm | None:
     co = liquefy(t.cond)
     th = liquefy(t.then)
     ot = liquefy(t.otherwise)
@@ -218,17 +218,20 @@ def liquefy_if(t: If) -> Optional[LiquidTerm]:
     return None
 
 
-def liquefy_ann(t: Annotation) -> Optional[LiquidTerm]:
+def liquefy_ann(t: Annotation) -> LiquidTerm | None:
     return liquefy(t.expr)
 
 
 # patterm matching term
-def liquefy(rep: Term) -> Optional[LiquidTerm]:
+def liquefy(rep: Term) -> LiquidTerm | None:
     if isinstance(rep, Literal) and rep.type == t_int:
+        assert isinstance(rep.value, int)
         return LiquidLiteralInt(rep.value)
     elif isinstance(rep, Literal) and rep.type == t_bool:
+        assert isinstance(rep.value, bool)
         return LiquidLiteralBool(rep.value)
     elif isinstance(rep, Literal) and rep.type == t_string:
+        assert isinstance(rep.value, str)
         return LiquidLiteralString(rep.value)
     elif isinstance(rep, Application):
         return liquefy_app(rep)

@@ -1,8 +1,21 @@
+from __future__ import annotations
+
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import BaseKind, BaseType, RefinedType, AbstractionType, TypePolymorphism, TypeVar, StarKind, t_int, t_bool
-from aeon.typing.context import TypingContext, EmptyContext, VariableBinder
-from aeon.typing.well_formed import inhabited, wellformed
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseKind
+from aeon.core.types import BaseType
+from aeon.core.types import RefinedType
+from aeon.core.types import StarKind
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_type
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
+from aeon.typing.well_formed import inhabited
+from aeon.typing.well_formed import wellformed
 
 empty = EmptyContext()
 
@@ -19,8 +32,7 @@ def test_wf2():
     assert wellformed(empty, parse_type("(x:Int) -> Int"))
     assert wellformed(empty, parse_type("(x:Int) -> Bool"))
     assert wellformed(empty, parse_type("(x:Int) -> (y:Bool) -> Bool"))
-    assert wellformed(empty,
-                      parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
+    assert wellformed(empty, parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
 
 
 def test_refined():
@@ -33,8 +45,10 @@ def test_refined():
 
 def test_dependent():
     assert wellformed(empty, parse_type("(y:Int) -> {x:Int | x > y}"))
-    assert wellformed(VariableBinder(empty, "x", t_int),
-                      parse_type("(y:Int) -> {z:Int | x > y}"))
+    assert wellformed(
+        VariableBinder(empty, "x", t_int),
+        parse_type("(y:Int) -> {z:Int | x > y}"),
+    )
 
 
 def test_inhabited():
@@ -47,5 +61,8 @@ def test_inhabited():
 def test_poly():
     assert wellformed(empty, TypePolymorphism("a", BaseKind(), TypeVar("a")))
     assert wellformed(empty, TypePolymorphism("a", StarKind(), TypeVar("a")))
-    assert not wellformed(empty, TypePolymorphism("a", StarKind(),
-                                                  TypeVar("a")), BaseKind())
+    assert not wellformed(
+        empty,
+        TypePolymorphism("a", StarKind(), TypeVar("a")),
+        BaseKind(),
+    )

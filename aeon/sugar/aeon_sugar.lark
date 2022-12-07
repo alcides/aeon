@@ -12,7 +12,7 @@ def : "def" ID ":" type "=" expression ";"          -> def_cons
 
 args :                          -> empty_list
      | arg ("," arg)*          -> args
-     
+
 arg : ID ":" type               -> arg
 
 expression : "-" expression_i                           -> minus

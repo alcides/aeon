@@ -1,10 +1,21 @@
-from aeon.core.liquid import LiquidTerm
+from __future__ import annotations
+
 from typing import Optional
+
 import z3
 
-from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
-from aeon.core.types import AbstractionType, BaseType, RefinedType, extract_parts, t_int
-from aeon.verification.smt import make_variable, translate_liq
+from aeon.core.liquid import LiquidTerm
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
+from aeon.core.types import extract_parts
+from aeon.core.types import RefinedType
+from aeon.core.types import t_int
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypeBinder
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
+from aeon.verification.smt import make_variable
+from aeon.verification.smt import translate_liq
 
 
 def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
@@ -14,6 +25,7 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         if isinstance(ctx.type, RefinedType) or isinstance(ctx.type, BaseType):
             (name, base, cond) = extract_parts(ctx.type)
 
+            assert isinstance(base, BaseType)
             v = make_variable(name, base)
             nvars = vars + [(name, v)]
 
@@ -32,10 +44,11 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         return translate(ctx.prev, t)
 
 
-def smt_synth_int_lit(ctx: TypingContext, t: RefinedType, seed: int) -> Optional[int]:
+def smt_synth_int_lit(ctx: TypingContext, t: RefinedType, seed: int) -> int | None:
     assert t.type == t_int
     s = z3.Solver()
     s.set(":random-seed", seed)
+    assert isinstance(t.type, BaseType)  # TODO: check this assert
     v = make_variable(t.name, t.type)
     expr = translate(ctx, t.refinement, vars=[(t.name, v)])
     s.add(expr)
