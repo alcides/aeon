@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import (
-    Type,
-    TypeVar,
-    BaseType,
-    AbstractionType,
-    RefinedType,
-    type_free_term_vars,
-)
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
+from aeon.core.types import RefinedType
+from aeon.core.types import Type
+from aeon.core.types import type_free_term_vars
+from aeon.core.types import TypeVar
 
 
 def pretty_print(t: Type) -> str:

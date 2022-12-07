@@ -1,18 +1,24 @@
-from typing import Dict, Optional
-from aeon.typing.context import TypingContext
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
+from __future__ import annotations
+
+from typing import Dict
+from typing import Optional
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import get_type_of
-from aeon.core.types import BaseType, t_bool, t_int, t_string, base
+from aeon.core.types import base
+from aeon.core.types import BaseType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.typing.context import TypingContext
 
 
-def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]:
+def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> BaseType | None:
     if isinstance(liq, LiquidLiteralBool):
         return t_bool
     elif isinstance(liq, LiquidLiteralInt):
@@ -24,7 +30,7 @@ def type_infer_liquid(ctx: TypingContext, liq: LiquidTerm) -> Optional[BaseType]
         return base(t)
     elif isinstance(liq, LiquidApp):
         ftype = get_type_of(liq.fun)
-        equalities: Dict[str, BaseType] = {}
+        equalities: dict[str, BaseType] = {}
         for (a, raw_t) in zip(liq.args, ftype):
             t = BaseType(raw_t)
             k = type_infer_liquid(ctx, a)

@@ -1,16 +1,28 @@
-from copy import copy
-from unittest import skip
-from aeon.synthesis.choice_manager import ChoiceManager, GrammaticalEvolutionManager
-from aeon.typing.well_formed import inhabited
+from __future__ import annotations
+
 import random
-from typing import Dict, Union, List
+from copy import copy
+from typing import Dict
+from typing import List
+from typing import Union
+from unittest import skip
+
 from aeon.core.substitutions import liquefy
-from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
+from aeon.frontend.parser import parse_term
+from aeon.frontend.parser import parse_type
+from aeon.synthesis.choice_manager import ChoiceManager
+from aeon.synthesis.choice_manager import GrammaticalEvolutionManager
 from aeon.synthesis.exceptions import NoMoreBudget
+from aeon.synthesis.sources import ListRandomSource
+from aeon.synthesis.sources import RandomSource
+from aeon.synthesis.sources import SeededRandomSource
 from aeon.synthesis.term_synthesis import synth_term
-from aeon.synthesis.type_synthesis import synth_type, synth_liquid
-from aeon.synthesis.sources import ListRandomSource, RandomSource, SeededRandomSource
-from aeon.frontend.parser import parse_type, parse_term
+from aeon.synthesis.type_synthesis import synth_liquid
+from aeon.synthesis.type_synthesis import synth_type
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
+from aeon.typing.well_formed import inhabited
 from aeon.utils.ctx_helpers import build_context
 
 seed = lambda x: SeededRandomSource(x)
@@ -35,7 +47,7 @@ def test_list_source():
     assert l.choose([1, 2, 3]) == 2
 
 
-def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
+def helper_syn_type(l, ty: str, dctx: dict[str, str] = None):
     ctx: TypingContext = empty
     man: ChoiceManager = GrammaticalEvolutionManager()
     if dctx:
@@ -45,7 +57,7 @@ def helper_syn_type(l, ty: str, dctx: Dict[str, str] = None):
     assert t == parse_type(ty)
 
 
-def helper_syn_liq(l, t: str, liq: str, dctx: Dict[str, str] = None):
+def helper_syn_liq(l, t: str, liq: str, dctx: dict[str, str] = None):
     man: ChoiceManager = ChoiceManager()
     ctx: TypingContext = empty
     if dctx:
@@ -59,10 +71,10 @@ def helper_syn_liq(l, t: str, liq: str, dctx: Dict[str, str] = None):
 
 
 def helper_syn(
-    l: Union[List[int], RandomSource],
+    l: list[int] | RandomSource,
     ty: str,
     term: str,
-    dctx: Dict[str, str] = None,
+    dctx: dict[str, str] = None,
     budget=50,
 ):
     man: ChoiceManager = ChoiceManager()
@@ -189,7 +201,11 @@ def test_can_generate_plus2():
     ctx = build_context({"plus": parse_type("(x:Int) -> (y:Int) -> Int")})
     seed = [0]
     s = synth_term(
-        ChoiceManager(), listr(seed), ctx, parse_type("(k:Int) -> (z:Int) -> Int"), 3
+        ChoiceManager(),
+        listr(seed),
+        ctx,
+        parse_type("(k:Int) -> (z:Int) -> Int"),
+        3,
     )
     assert s == parse_term("plus")
 

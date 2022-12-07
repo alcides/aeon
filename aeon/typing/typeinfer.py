@@ -1,58 +1,56 @@
-from aeon.core.instantiation import type_substition
-from aeon.typing.entailment import entailment
-from aeon.core.substitutions import liquefy, substitute_vartype, substitution_in_type
-from aeon.verification.vcs import (
-    Conjunction,
-    Constraint,
-    LiquidConstraint,
-    variables_free_in,
-)
-from typing import List, Tuple
+from __future__ import annotations
 
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidVar,
-)
-from aeon.core.terms import (
-    Abstraction,
-    Annotation,
-    Application,
-    Hole,
-    If,
-    Let,
-    Literal,
-    Rec,
-    Term,
-    TypeAbstraction,
-    TypeApplication,
-    Var,
-)
-from aeon.core.types import (
-    AbstractionType,
-    BaseKind,
-    BaseType,
-    RefinedType,
-    StarKind,
-    Type,
-    TypePolymorphism,
-    TypeVar,
-    args_size_of_type,
-    extract_parts,
-    t_bool,
-    t_int,
-    t_string,
-    t_float,
-    t_unit,
-    top,
-    bottom,
-    type_free_term_vars,
-)
-from aeon.typing.context import TypingContext
+from typing import List
+from typing import Tuple
+
+from aeon.core.instantiation import type_substition
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
-from aeon.verification.sub import ensure_refined, implication_constraint, sub
+from aeon.core.substitutions import liquefy
+from aeon.core.substitutions import substitute_vartype
+from aeon.core.substitutions import substitution_in_type
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import Hole
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import TypeAbstraction
+from aeon.core.terms import TypeApplication
+from aeon.core.terms import Var
+from aeon.core.types import AbstractionType
+from aeon.core.types import args_size_of_type
+from aeon.core.types import BaseKind
+from aeon.core.types import BaseType
+from aeon.core.types import bottom
+from aeon.core.types import extract_parts
+from aeon.core.types import RefinedType
+from aeon.core.types import StarKind
+from aeon.core.types import t_bool
+from aeon.core.types import t_float
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.core.types import t_unit
+from aeon.core.types import top
+from aeon.core.types import Type
+from aeon.core.types import type_free_term_vars
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
+from aeon.typing.context import TypingContext
+from aeon.typing.entailment import entailment
 from aeon.verification.horn import fresh
+from aeon.verification.sub import ensure_refined
+from aeon.verification.sub import implication_constraint
+from aeon.verification.sub import sub
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import variables_free_in
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
@@ -76,8 +74,10 @@ def prim_litbool(t: bool) -> RefinedType:
 
 def prim_litint(t: int) -> RefinedType:
     return RefinedType(
-        "v", t_int,
-        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]))
+        "v",
+        t_int,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]),
+    )
 
 
 def prim_op(t: str) -> Type:
@@ -120,7 +120,7 @@ def prim_op(t: str) -> Type:
 
 
 # patterm matching term
-def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
+def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     if isinstance(t, Literal) and t.type == t_unit:
         return (
             ctrue,
@@ -155,7 +155,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context")
+                f"Variable {t.name} not in context", )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
@@ -174,7 +174,7 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                 return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
             c0 = Conjunction(c, cp)
-            vs: List[str] = list(variables_free_in(c0))
+            vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException()
@@ -238,8 +238,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             raise CouldNotGenerateConstraintException(
                 "If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
-        c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
-                                    check(ctx, t.then, ty))
+        c1 = implication_constraint(
+            y,
+            RefinedType("branch_", t_int, liq_cond),
+            check(ctx, t.then, ty),
+        )
         c2 = implication_constraint(
             y,
             RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),

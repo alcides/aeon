@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import z3
 
 s = z3.Solver()
 x, y, k = z3.Ints("x y k")
-s.add(z3.ForAll([x, y], z3.Implies(x < 4, z3.Implies(y < 10, z3.And(k > x, k > y)))))
+s.add(
+    z3.ForAll([x, y],
+              z3.Implies(x < 4, z3.Implies(y < 10, z3.And(k > x, k > y)))))
 r = s.check()
 if r == z3.sat:
     print(s.model())
 else:
     print("unsat")
-
 
 equations = """
 x < 4

@@ -1,9 +1,15 @@
-from aeon.frontend.parser import parse_term, parse_type
-from aeon.backend.evaluator import EvaluationContext, eval
-from aeon.core.types import top, t_int
+from __future__ import annotations
+
+from aeon.backend.evaluator import eval
+from aeon.backend.evaluator import EvaluationContext
+from aeon.core.types import t_int
+from aeon.core.types import top
+from aeon.frontend.parser import parse_term
+from aeon.frontend.parser import parse_type
+from aeon.prelude.prelude import evaluation_vars
+from aeon.prelude.prelude import typing_vars
 from aeon.typing.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
-from aeon.prelude.prelude import typing_vars, evaluation_vars
 
 ctx = build_context(typing_vars)
 ectx = EvaluationContext(evaluation_vars)

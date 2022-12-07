@@ -1,18 +1,27 @@
-from typing import List, Any, Optional, Tuple, Union
+from __future__ import annotations
 
-from aeon.frontend.parser import parse_term
-from aeon.core.types import Type, t_bool, t_int
-from aeon.core.liquid import (
-    LiquidHole,
-    LiquidLiteralBool,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidApp,
-    LiquidLiteralInt,
-    LiquidVar,
-)
+from typing import Any
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
-from aeon.verification.vcs import Conjunction, Constraint, Implication, LiquidConstraint
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import Type
+from aeon.frontend.parser import parse_term
+from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import Implication
+from aeon.verification.vcs import LiquidConstraint
 
 
 def parse_liquid(t: str) -> LiquidTerm:
@@ -21,7 +30,7 @@ def parse_liquid(t: str) -> LiquidTerm:
     return tl
 
 
-def imp(a: Union[str, LiquidTerm], b: Constraint) -> Constraint:
+def imp(a: str | LiquidTerm, b: Constraint) -> Constraint:
     if isinstance(a, str):
         a = parse_liquid(a)
     assert isinstance(a, LiquidTerm)
@@ -32,14 +41,14 @@ def conj(a: Constraint, b: Constraint) -> Constraint:
     return Conjunction(a, b)
 
 
-def end(a: Union[str, LiquidTerm]) -> LiquidConstraint:
+def end(a: str | LiquidTerm) -> LiquidConstraint:
     if isinstance(a, str):
         a = parse_liquid(a)
     assert isinstance(a, LiquidTerm)
     return LiquidConstraint(a)
 
 
-def constraint_builder(vs: List[Tuple[str, Type]], exp: Constraint):
+def constraint_builder(vs: list[tuple[str, Type]], exp: Constraint):
     for (n, t) in vs[::-1]:
         exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp

@@ -1,11 +1,15 @@
-from typing import List, Tuple, Union
+from __future__ import annotations
+
+from typing import List
+from typing import Tuple
+from typing import Union
 
 
-class LiquidTerm(object):
+class LiquidTerm:
     pass
 
 
-def ensure_liqterm(a: Union[LiquidTerm, str]) -> LiquidTerm:
+def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
     if isinstance(a, str):
         return LiquidVar(a)
     return a
@@ -13,10 +17,12 @@ def ensure_liqterm(a: Union[LiquidTerm, str]) -> LiquidTerm:
 
 class LiquidHole(LiquidTerm):
     name: str
-    argtypes: List[Tuple[LiquidTerm, str]]
+    argtypes: list[tuple[LiquidTerm, str]]
 
     def __init__(
-        self, name: str, argtypes: List[Tuple[Union[LiquidTerm, str], str]] = None
+        self,
+        name: str,
+        argtypes: list[tuple[LiquidTerm | str, str]] = None,
     ):
         self.name = name
         self.argtypes = [(ensure_liqterm(a), b) for (a, b) in (argtypes or [])]
@@ -42,7 +48,8 @@ class LiquidLiteralBool(LiquidTerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralBool) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralBool) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -58,7 +65,8 @@ class LiquidLiteralInt(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralInt) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralInt) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -74,7 +82,8 @@ class LiquidLiteralString(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralString) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralString) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -99,9 +108,9 @@ class LiquidVar(LiquidTerm):
 
 class LiquidApp(LiquidTerm):
     fun: str
-    args: List[LiquidTerm]
+    args: list[LiquidTerm]
 
-    def __init__(self, fun: str, args: List[LiquidTerm]):
+    def __init__(self, fun: str, args: list[LiquidTerm]):
         self.fun = fun
         self.args = args
         for a in self.args:
@@ -109,24 +118,21 @@ class LiquidApp(LiquidTerm):
 
     def __repr__(self):
         if all([not c.isalnum() for c in self.fun]) and len(self.args) == 2:
-            (a1, a2) = [repr(x) for x in self.args]
+            (a1, a2) = (repr(x) for x in self.args)
             return f"({a1} {self.fun} {a2})"
 
         fargs = ",".join([repr(x) for x in self.args])
         return f"{self.fun}({fargs})"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, LiquidApp)
-            and other.fun == self.fun
-            and all((x == y for (x, y) in zip(self.args, other.args)))
-        )
+        return (isinstance(other, LiquidApp) and other.fun == self.fun
+                and all(x == y for (x, y) in zip(self.args, other.args)))
 
     def __hash__(self) -> int:
-        return hash(self.fun) + sum([hash(a) for a in self.args])
+        return hash(self.fun) + sum(hash(a) for a in self.args)
 
 
-def liquid_free_vars(e: LiquidTerm) -> List[str]:
+def liquid_free_vars(e: LiquidTerm) -> list[str]:
     if isinstance(e, LiquidVar):
         return [e.name]
     elif isinstance(e, LiquidApp):

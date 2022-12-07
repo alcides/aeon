@@ -1,9 +1,13 @@
-from typing import List, Tuple
+from __future__ import annotations
+
+from typing import List
+from typing import Tuple
+
 from aeon.core.terms import Term
 from aeon.core.types import Type
 
 
-class Node(object):
+class Node:
     pass
 
 
@@ -23,11 +27,12 @@ class TypeDecl(Node):
 
 class Definition(Node):
     name: str
-    args: List[Tuple[str, Type]]
+    args: list[tuple[str, Type]]
     type: Type
     body: Expr
 
-    def __init__(self, name: str, args: List[Tuple[str, Type]], type: Type, body: Expr):
+    def __init__(self, name: str, args: list[tuple[str, Type]], type: Type,
+                 body: Expr):
         self.name = name
         self.args = args
         self.type = type
@@ -42,8 +47,8 @@ class Definition(Node):
 
 
 class Program(Node):
-    type_decls: List[str]
-    definitions: List[Definition]
+    type_decls: list[str]
+    definitions: list[Definition]
 
     def __init__(self, td, defs):
         self.type_decls = td

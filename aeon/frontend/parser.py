@@ -1,48 +1,45 @@
-from typing import Any, Callable
-from aeon.utils.ast_helpers import ensure_anf_rec, mk_binop
-from aeon.core.substitutions import liquefy
+from __future__ import annotations
+
 import pathlib
+from typing import Any
+from typing import Callable
 
-from lark import Lark, Transformer
+from lark import Lark
+from lark import Transformer
 
-from aeon.core.types import (
-    AbstractionType,
-    BaseKind,
-    RefinedType,
-    BaseType,
-    StarKind,
-    Type,
-    TypePolymorphism,
-    TypeVar,
-    t_int,
-    t_bool,
-    t_float,
-    t_string,
-    bottom,
-    top,
-)
-from aeon.core.terms import (
-    Abstraction,
-    Annotation,
-    Application,
-    Let,
-    Rec,
-    Term,
-    TypeAbstraction,
-    TypeApplication,
-    Var,
-    Literal,
-    If,
-    Hole,
-)
-from aeon.utils.ast_helpers import (
-    ensure_anf_let,
-    ensure_anf_if,
-    ensure_anf_app,
-    ensure_anf_rec,
-    mk_binop,
-    i0,
-)
+from aeon.core.substitutions import liquefy
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import Hole
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import TypeAbstraction
+from aeon.core.terms import TypeApplication
+from aeon.core.terms import Var
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseKind
+from aeon.core.types import BaseType
+from aeon.core.types import bottom
+from aeon.core.types import RefinedType
+from aeon.core.types import StarKind
+from aeon.core.types import t_bool
+from aeon.core.types import t_float
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.core.types import top
+from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
+from aeon.utils.ast_helpers import ensure_anf_app
+from aeon.utils.ast_helpers import ensure_anf_if
+from aeon.utils.ast_helpers import ensure_anf_let
+from aeon.utils.ast_helpers import ensure_anf_rec
+from aeon.utils.ast_helpers import i0
+from aeon.utils.ast_helpers import mk_binop
 
 
 class TreeToCore(Transformer):
@@ -53,7 +50,7 @@ class TreeToCore(Transformer):
 
     def fresh(self) -> str:
         self.counter += 1
-        return "_anf_{}".format(self.counter)
+        return f"_anf_{self.counter}"
 
     def same(self, args):
         return args[0]

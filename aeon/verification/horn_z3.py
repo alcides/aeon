@@ -1,24 +1,26 @@
-from aeon.core.liquid import LiquidTerm, LiquidApp, LiquidLiteralInt
-from z3 import (
-    Datatype,
-    IntSort,
-    Function,
-    BoolSort,
-    Const,
-    set_option,
-    Fixedpoint,
-    And,
-    Implies,
-    Ints,
-    ForAll,
-    Bools,
-    SolverFor,
-)
+from __future__ import annotations
+
+from z3 import And
+from z3 import Bools
+from z3 import BoolSort
+from z3 import Const
+from z3 import Datatype
+from z3 import Fixedpoint
+from z3 import ForAll
+from z3 import Function
+from z3 import Implies
+from z3 import Ints
+from z3 import IntSort
+from z3 import set_option
+from z3 import SolverFor
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidTerm
 
 # let max max2 x y z = max2 (max2 x y) z
 # let f x y = if x > y then x else y
 # assert (f (max f x y z) x) = (max f x y z)
-
 
 LiqTermWDef = Datatype("LiqTermW")
 LiqTermWDef.declare("lit", ("v", IntSort()))
@@ -59,17 +61,17 @@ k1e, k2e = Bools("k1e k2e")
 fp.declare_var(x, y, k1, k2, b, z, k1e)
 
 fp.rule(evalInt(LiqTermW.lit(x), x))
-fp.rule(evalBool(LiqTermW.lt(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x < y])
-fp.rule(evalBool(LiqTermW.eq(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x == y])
-
+fp.rule(evalBool(LiqTermW.lt(k1, k2), b),
+        [evalInt(k1, x), evalInt(k2, y), x < y])
+fp.rule(evalBool(LiqTermW.eq(k1, k2), b),
+        [evalInt(k1, x), evalInt(k2, y), x == y])
 
 x, v = Ints("x v")
-(c,) = Bools("c")
+(c, ) = Bools("c")
 fp.declare_var(x, v, c)
 p1 = Implies(c == (0 <= x), Implies(c, Implies(v == x, k1e)))
 
 fp.query(evalBool(k1, k1e), p1)
-
 
 a = fp.get_answer()
 # print(fp.get_ground_sat_answer())
@@ -80,7 +82,8 @@ try:
 except:
     print("Could not verify")
 
-"""Expr = Datatype("Expr")
+ignore = """
+Expr = Datatype("Expr")
 Expr.declare("Max")
 Expr.declare("f")
 Expr.declare("I", ("i", IntSort()))
@@ -93,8 +96,7 @@ f = Expr.f
 Eval = Function("Eval", Expr, Expr, Expr, BoolSort())
 """
 
-
-"""
+ignore2 = """
 # Max max x y z = max (max x y) z
 fp.rule(
     x
@@ -121,7 +123,6 @@ s = SolverFor("HORN")
 print(s)
 
 k_ = Const("k_", LiqTermW)
-
 
 s.add(evalBool(k_, True))
 

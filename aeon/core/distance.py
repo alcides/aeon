@@ -1,7 +1,17 @@
+from __future__ import annotations
+
 from typing import List
+
 import zss
 
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Term, Var
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Application
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
 
 
 def term_children(t: Term):
@@ -34,10 +44,11 @@ def term_label_dist(s1: str, s2: str):
 
 
 def distance_terms(t1: Term, t2: Term):
-    return zss.simple_distance(t1, t2, term_children, term_label, term_label_dist)
+    return zss.simple_distance(t1, t2, term_children, term_label,
+                               term_label_dist)
 
 
-def pairwise_distance(ts: List[Term]):
+def pairwise_distance(ts: list[Term]):
     s = 0
     for i in range(len(ts)):
         for j in range(i + 1, len(ts)):
@@ -57,6 +68,7 @@ def term_depth(t: Term):
     elif isinstance(t, Let):
         return 1 + max(term_depth(t.var_value), term_depth(t.body))
     elif isinstance(t, If):
-        return 1 + max(term_depth(t.cond), term_depth(t.then), term_depth(t.otherwise))
+        return 1 + max(term_depth(t.cond), term_depth(t.then),
+                       term_depth(t.otherwise))
     else:
         return 1

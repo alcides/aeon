@@ -1,26 +1,25 @@
+from __future__ import annotations
+
 from typing import Optional
+
+from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidVar
+from aeon.core.liquid_ops import all_ops
+from aeon.core.types import AbstractionType
+from aeon.core.types import base
+from aeon.core.types import BaseType
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import t_string
+from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
-from aeon.core.types import (
-    AbstractionType,
-    RefinedType,
-    Type,
-    t_int,
-    t_bool,
-    t_string,
-    BaseType,
-    base,
-)
-from aeon.core.liquid import (
-    LiquidApp,
-    LiquidLiteralBool,
-    LiquidLiteralInt,
-    LiquidLiteralString,
-    LiquidTerm,
-    LiquidVar,
-)
-from aeon.core.liquid_ops import all_ops
 from aeon.typing.context import TypingContext
 from aeon.typing.well_formed import inhabited
 
@@ -34,7 +33,7 @@ def synth_liquid_var(
     ctx: TypingContext,
     ty: BaseType,
     d: int = DEFAULT_DEPTH,
-) -> Optional[LiquidTerm]:
+) -> LiquidTerm | None:
     options = [lambda: v for (v, t) in ctx.vars() if base(t) == ty]
     if options:
         v = man.choose_rule(r, options, d)
@@ -56,16 +55,20 @@ def synth_liquid_literal(
         i = r.next_integer()
         return LiquidLiteralInt(i)
     elif ty == t_string:
-        rstring = str(
-            [chr(r.next_integer()) for _ in range(r.next_integer() % MAX_STRING_SIZE)]
-        )
+        rstring = str([
+            chr(r.next_integer())
+            for _ in range(r.next_integer() % MAX_STRING_SIZE)
+        ], )
         return LiquidLiteralString(rstring)
     else:
         raise NoMoreBudget()
 
 
 def valid_ops(ty):
-    return [p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()]
+    return [
+        p for p in all_ops
+        if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()
+    ]
 
 
 def synth_liquid_app(
@@ -128,8 +131,12 @@ def synth_liquid(
 
 
 def synth_native(
-    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    d: int = DEFAULT_DEPTH,
 ):
+
     def lc_int():
         return t_int
 
@@ -140,14 +147,21 @@ def synth_native(
 
 
 def synth_refined(
-    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    d: int = DEFAULT_DEPTH,
 ):
     name = ctx.fresh_var()
     base = synth_native(man, r, ctx, d)
     while man.budget > 0:
         man.checkpoint()
         liquidExpr: LiquidTerm = synth_liquid(
-            man, r, ctx.with_var(name, base), t_bool, d - 1
+            man,
+            r,
+            ctx.with_var(name, base),
+            t_bool,
+            d - 1,
         )
         t = RefinedType(name, base, liquidExpr)
         if inhabited(ctx, t):
@@ -158,7 +172,10 @@ def synth_refined(
 
 
 def synth_abstraction(
-    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    d: int = DEFAULT_DEPTH,
 ):
     name = ctx.fresh_var()
     arg_type = synth_type(man, r, ctx, d - 1)
@@ -167,8 +184,12 @@ def synth_abstraction(
 
 
 def synth_type(
-    man: ChoiceManager, r: RandomSource, ctx: TypingContext, d: int = DEFAULT_DEPTH
+    man: ChoiceManager,
+    r: RandomSource,
+    ctx: TypingContext,
+    d: int = DEFAULT_DEPTH,
 ):
+
     def go_native():
         return synth_native(man, r, ctx, d)
 

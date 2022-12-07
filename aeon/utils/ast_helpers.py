@@ -1,17 +1,19 @@
-from typing import Callable, Union
+from __future__ import annotations
 
-from aeon.core.types import t_int, t_bool
-from aeon.core.terms import (
-    Abstraction,
-    Annotation,
-    Application,
-    Let,
-    Rec,
-    Term,
-    Var,
-    Literal,
-    If,
-)
+from typing import Callable
+from typing import Union
+
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Annotation
+from aeon.core.terms import Application
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
 
 
 def is_anf(t: Term) -> bool:
@@ -24,13 +26,11 @@ def is_anf(t: Term) -> bool:
     elif isinstance(t, Rec):
         return is_anf(t.var_value) and is_anf(t.body)
     elif isinstance(t, Application):
-        return is_anf(t.fun) and (isinstance(t.arg, Var) or isinstance(t.arg, Literal))
+        return is_anf(t.fun) and (isinstance(t.arg, Var)
+                                  or isinstance(t.arg, Literal))
     elif isinstance(t, If):
-        return (
-            (isinstance(t.cond, Var) or isinstance(t.cond, Literal))
-            and is_anf(t.then)
-            and is_anf(t.otherwise)
-        )
+        return ((isinstance(t.cond, Var) or isinstance(t.cond, Literal))
+                and is_anf(t.then) and is_anf(t.otherwise))
     elif isinstance(t, Annotation):
         return is_anf(t.expr)
     elif isinstance(t, Abstraction):
@@ -63,18 +63,20 @@ def ensure_anf_if(fresh: Callable[[], str], t: If) -> Term:
 
 def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Term:
     return ensure_anf_app(
-        fresh, Application(ensure_anf_app(fresh, Application(Var(op), a1)), a2)
+        fresh,
+        Application(ensure_anf_app(fresh, Application(Var(op), a1)), a2),
     )
 
 
-"""
+def ensure_anf_let(t: Let) -> Term:
+    """Converts all lets into ANF. Example:
+
     let x = (let y = 1 in y) in x
 
+    is converted into
+
     let y = 1 in (let x = y in x)
-"""
-
-
-def ensure_anf_let(t: Let) -> Term:
+    """
     if isinstance(t.var_value, Let):
         inner = t.var_value
         assert inner.var_name != t.var_name

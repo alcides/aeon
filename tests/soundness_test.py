@@ -1,19 +1,31 @@
-from copy import copy
+from __future__ import annotations
+
 import random
+from copy import copy
 from typing import Dict
 from unittest import skip
-from aeon.core.substitutions import liquefy
-from aeon.core.types import t_bool, t_int, Type, BaseType
+
 from aeon.core.liquid import LiquidTerm
+from aeon.core.substitutions import liquefy
 from aeon.core.terms import Term
-from aeon.typing.context import EmptyContext, TypingContext, VariableBinder
+from aeon.core.types import BaseType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import Type
+from aeon.synthesis.choice_manager import ChoiceManager
+from aeon.synthesis.choice_manager import GrammaticalEvolutionManager
+from aeon.synthesis.sources import ListRandomSource
+from aeon.synthesis.term_synthesis import NoMoreBudget
+from aeon.synthesis.term_synthesis import synth_term
+from aeon.synthesis.type_synthesis import synth_liquid
+from aeon.synthesis.type_synthesis import synth_type
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
 from aeon.typing.liquid import type_infer_liquid
 from aeon.typing.typeinfer import check_type
-from aeon.synthesis.term_synthesis import NoMoreBudget, synth_term
-from aeon.synthesis.type_synthesis import synth_type, synth_liquid
-from aeon.synthesis.sources import ListRandomSource
-from aeon.synthesis.choice_manager import ChoiceManager, GrammaticalEvolutionManager
-from aeon.typing.well_formed import wellformed, inhabited
+from aeon.typing.well_formed import inhabited
+from aeon.typing.well_formed import wellformed
 
 listr = lambda x: ListRandomSource(x)
 rseed = lambda: listr([random.randint(-100000, 100000) for _ in range(10000)])

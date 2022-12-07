@@ -1,18 +1,23 @@
+from __future__ import annotations
+
 from random import Random
-from typing import Any, List
+from typing import Any
+from typing import List
 
 
-class RandomSource(object):
+class RandomSource:
+
     def next_integer(self) -> int:
         return 0
 
-    def choose(self, options: List[Any]) -> Any:
+    def choose(self, options: list[Any]) -> Any:
         assert options
         k = self.next_integer() % len(options)
         return options[k]
 
 
 class SeededRandomSource(RandomSource):
+
     def __init__(self, seed):
         self.r = Random()
         self.r.seed(seed)
@@ -26,14 +31,14 @@ class SeededRandomSource(RandomSource):
 
 
 class ListRandomSource(RandomSource):
-    values: List[int]
+    values: list[int]
     index: int
 
-    def __init__(self, values: List[int]):
+    def __init__(self, values: list[int]):
         self.values = values
         self.index = 0
 
-    def choose(self, options: List[Any]) -> Any:
+    def choose(self, options: list[Any]) -> Any:
         assert options
         k = self.next_integer() % len(options)
         return options[k]
@@ -44,4 +49,4 @@ class ListRandomSource(RandomSource):
         return v
 
     def __str__(self):
-        return str(self.values[self.index :])
+        return str(self.values[self.index:])

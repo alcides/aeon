@@ -1,24 +1,38 @@
+from __future__ import annotations
+
+from typing import ContextManager
+from typing import List
+from typing import Optional
+
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.pprint import pretty_print
-from typing import ContextManager, Optional, List
-from aeon.core.terms import Abstraction, Application, If, Let, Literal, Rec, Var, Term
-from aeon.core.types import (
-    AbstractionType,
-    BaseType,
-    RefinedType,
-    Type,
-    args_size_of_type,
-    t_int,
-    t_bool,
-    base,
-)
-from aeon.synthesis.exceptions import NoMoreBudget
-from aeon.synthesis.sources import RandomSource
+from aeon.core.terms import Abstraction
+from aeon.core.terms import Application
+from aeon.core.terms import If
+from aeon.core.terms import Let
+from aeon.core.terms import Literal
+from aeon.core.terms import Rec
+from aeon.core.terms import Term
+from aeon.core.terms import Var
+from aeon.core.types import AbstractionType
+from aeon.core.types import args_size_of_type
+from aeon.core.types import base
+from aeon.core.types import BaseType
+from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_int
+from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
-from aeon.synthesis.type_synthesis import synth_type
-from aeon.typing.context import EmptyContext, TypeBinder, TypingContext, VariableBinder
-from aeon.typing.typeinfer import check_type, is_subtype
+from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.smt_synthesis import smt_synth_int_lit
+from aeon.synthesis.sources import RandomSource
+from aeon.synthesis.type_synthesis import synth_type
+from aeon.typing.context import EmptyContext
+from aeon.typing.context import TypeBinder
+from aeon.typing.context import TypingContext
+from aeon.typing.context import VariableBinder
+from aeon.typing.typeinfer import check_type
+from aeon.typing.typeinfer import is_subtype
 
 DEFAULT_DEPTH = 9
 
@@ -29,7 +43,7 @@ def synth_literal(
     ctx: TypingContext,
     ty: Type,
     d: int = DEFAULT_DEPTH,
-) -> Optional[Literal]:
+) -> Literal | None:
     if isinstance(ty, BaseType):
         if ty == t_int:
             return Literal(r.next_integer(), ty)
@@ -56,8 +70,10 @@ def synth_literal(
 
 
 def vars_of_type(
-    ctx: TypingContext, ty: Type, ictx: Optional[TypingContext] = None
-) -> List[str]:
+    ctx: TypingContext,
+    ty: Type,
+    ictx: TypingContext | None = None,
+) -> list[str]:
     if ictx is None:
         return vars_of_type(ctx, ty, ctx)
     if isinstance(ictx, EmptyContext):
@@ -212,11 +228,8 @@ def synth_term(
 
     if d > 0 and not anf and man.allow_app(ctx, ty, d):
         candidate_generators.append(go_app)
-    if (
-        d > 0
-        and not anf
-        and man.allow_abs(ctx, ty, d, go_var in candidate_generators, avoid_eta)
-    ):
+    if (d > 0 and not anf and man.allow_abs(
+            ctx, ty, d, go_var in candidate_generators, avoid_eta)):
         if isinstance(ty, AbstractionType):
             candidate_generators.append(go_abs)
         candidate_generators.append(go_let)

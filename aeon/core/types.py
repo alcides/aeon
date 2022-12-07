@@ -1,7 +1,15 @@
+from __future__ import annotations
+
 from abc import ABC
 from dataclasses import dataclass
-from typing import List, Tuple, Union
-from aeon.core.liquid import LiquidHole, LiquidLiteralBool, LiquidTerm, liquid_free_vars
+from typing import List
+from typing import Tuple
+from typing import Union
+
+from aeon.core.liquid import liquid_free_vars
+from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidTerm
 
 
 class Kind(ABC):
@@ -42,7 +50,7 @@ class BaseType(Type):
         self.name = name
 
     def __repr__(self):
-        return u"{}".format(self.name)
+        return f"{self.name}"
 
     def __eq__(self, other):
         return isinstance(other, BaseType) and other.name == self.name
@@ -58,7 +66,7 @@ class TypeVar(Type):
         self.name = name
 
     def __repr__(self):
-        return u"{}".format(self.name)
+        return f"{self.name}"
 
     def __eq__(self, other):
         return isinstance(other, TypeVar) and other.name == self.name
@@ -70,7 +78,7 @@ class TypeVar(Type):
 class Top(Type):
 
     def __repr__(self):
-        return u"⊤"
+        return "⊤"
 
     def __eq__(self, other):
         return isinstance(other, Top)
@@ -85,7 +93,7 @@ class Top(Type):
 class Bottom(Type):
 
     def __repr__(self):
-        return u"⊥"
+        return "⊥"
 
     def __eq__(self, other):
         return isinstance(other, Bottom)
@@ -118,7 +126,7 @@ class AbstractionType(Type):
         self.type = type
 
     def __repr__(self):
-        return u"({}:{}) -> {}".format(self.var_name, self.var_type, self.type)
+        return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
         return (isinstance(other, AbstractionType)
@@ -132,18 +140,17 @@ class AbstractionType(Type):
 
 class RefinedType(Type):
     name: str
-    type: Union[BaseType, TypeVar]
+    type: BaseType | TypeVar
     refinement: LiquidTerm
 
-    def __init__(self, name: str, ty: Union[BaseType, TypeVar],
+    def __init__(self, name: str, ty: BaseType | TypeVar,
                  refinement: LiquidTerm):
         self.name = name
         self.type = ty
         self.refinement = refinement
 
     def __repr__(self):
-        return u"{{ {}:{} | {} }}".format(self.name, self.type,
-                                          self.refinement)
+        return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
         return (isinstance(other, RefinedType) and self.name == other.name
@@ -162,8 +169,8 @@ class TypePolymorphism(Type):
 
 
 def extract_parts(
-    t: Union[RefinedType, BaseType, TypeVar]
-) -> Tuple[str, Union[BaseType, TypeVar], LiquidTerm]:
+    t: RefinedType | BaseType | TypeVar,
+) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -190,7 +197,7 @@ def base(ty: Type) -> Type:
     return ty
 
 
-def type_free_term_vars(t: Type) -> List[str]:
+def type_free_term_vars(t: Type) -> list[str]:
     if isinstance(t, BaseType):
         return []
     elif isinstance(t, TypeVar):
