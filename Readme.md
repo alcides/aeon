@@ -1,4 +1,11 @@
 # Aeon 4
 
+See the examples folder.
 
-TODO: write this
+# Next Steps
+
+* Add polymorphism
+* Add support for data types
+* Add synthesis
+* Add imports
+* Introduce non-liquid refinements in the sugar language
