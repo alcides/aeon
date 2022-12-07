@@ -5,11 +5,15 @@ from aeon.core.types import Kind, Type
 
 
 class TypingContext(ABC):
+
     def type_of(self, name: str) -> Optional[Type]:
         return None
 
     def with_var(self, name: str, type: Type) -> "TypingContext":
         return VariableBinder(self, name, type)
+
+    def with_typevar(self, name: str, kind: Kind) -> "TypingContext":
+        return TypeBinder(self, name, kind)
 
     def fresh_var(self):
         return "fresh_"
@@ -22,6 +26,7 @@ class TypingContext(ABC):
 
 
 class EmptyContext(TypingContext):
+
     def __init__(self):
         self.counter = 0
 
@@ -74,6 +79,9 @@ class VariableBinder(TypingContext):
     def vars(self) -> List[Tuple[str, Type]]:
         return [(self.name, self.type)] + self.prev.vars()
 
+    def typevars(self) -> List[Tuple[str, Kind]]:
+        return self.prev.typevars()
+
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
@@ -95,6 +103,9 @@ class TypeBinder(TypingContext):
 
     def vars(self) -> List[Tuple[str, Type]]:
         return self.prev.vars()
+
+    def typevars(self) -> List[Tuple[str, Kind]]:
+        return [(self.type_name, self.type_kind)] + self.prev.typevars()
 
     def __repr__(self) -> str:
         return "{},<{}:{}>".format(self.prev, self.type_name, self.type_kind)
