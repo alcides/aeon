@@ -8,6 +8,7 @@ from aeon.core.terms import (
     Literal,
     Term,
     TypeAbstraction,
+    TypeApplication,
     Var,
 )
 from aeon.core.types import AbstractionType, BaseKind, BaseType, RefinedType, TypeVar, TypePolymorphism, t_int, t_bool
@@ -110,3 +111,19 @@ def test_ann():
 def test_poly_parse():
     assert parse_type("forall a:B, (_:a) -> a") == TypePolymorphism(
         "a", BaseKind(), AbstractionType("_", TypeVar("a"), TypeVar("a")))
+
+
+def test_poly_abs():
+    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(),
+                                                      parse_term("1"))
+
+
+def test_poly_abs_plus():
+    assert parse_term("Λa:B => \\ x -> x + 1") == TypeAbstraction(
+        "a", BaseKind(), parse_term("\\ x -> x + 1"))
+
+
+def test_poly_app():
+    one_a = TypeApplication(parse_term("1"), TypeVar("a"))
+    e = TypeAbstraction("a", BaseKind(), one_a)
+    assert parse_term("(Λa:B => 1[a])[Int]") == TypeApplication(e, t_int)

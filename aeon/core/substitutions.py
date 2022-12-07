@@ -36,6 +36,7 @@ from aeon.core.terms import (
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):
+
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
 
@@ -52,7 +53,9 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     assert False
 
 
-def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
+def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
+                           name: str) -> LiquidTerm:
+    """ substitutes name in the term t with the new replacement term rep """
     assert isinstance(rep, LiquidTerm)
     if isinstance(t, LiquidLiteralInt):
         return t
@@ -66,14 +69,16 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidT
         else:
             return t
     elif isinstance(t, LiquidApp):
-        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+        return LiquidApp(
+            t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
     elif isinstance(t, LiquidHole):
         if t.name == name:
             return rep
         else:
             return LiquidHole(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t)
+                 for (a, t) in t.argtypes],
             )
     else:
         print(t, type(t))
@@ -100,8 +105,8 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
         if isinstance(rep, Var) and rep.name == t.var_name:
             nname = t.var_name + "1"
             renamed = AbstractionType(
-                nname, t.var_type, substitution_in_type(t.type, Var(nname), t.var_name)
-            )
+                nname, t.var_type,
+                substitution_in_type(t.type, Var(nname), t.var_name))
             return substitution_in_type(renamed, rep, name)
         elif name == t.var_name:
             return t
@@ -120,12 +125,13 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
             return t
         else:
             return RefinedType(
-                t.name, t.type, substitution_in_liquid(t.refinement, replacement, name)
-            )
+                t.name, t.type,
+                substitution_in_liquid(t.refinement, replacement, name))
     assert False
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
+
     def rec(x: Term):
         return substitution(x, rep, name)
 
@@ -176,14 +182,14 @@ def liquefy_app(app: Application) -> Optional[LiquidApp]:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
-            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
+            return LiquidApp(liquid_pseudo_fun.fun,
+                             liquid_pseudo_fun.args + [arg])
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
-                substitution(app.fun.body, app.fun.var_value, app.fun.var_name), app.arg
-            )
-        )
+                substitution(app.fun.body, app.fun.var_value,
+                             app.fun.var_name), app.arg))
     assert False
 
 

@@ -1,5 +1,5 @@
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import BaseKind, BaseType, RefinedType, AbstractionType, TypeVar, StarKind, t_int, t_bool
+from aeon.core.types import BaseKind, BaseType, RefinedType, AbstractionType, TypePolymorphism, TypeVar, StarKind, t_int, t_bool
 from aeon.typing.context import TypingContext, EmptyContext, VariableBinder
 from aeon.typing.well_formed import inhabited, wellformed
 from aeon.frontend.parser import parse_type
@@ -42,3 +42,10 @@ def test_inhabited():
     assert inhabited(empty, parse_type("{x:Int | x == 2313}"))
     assert not inhabited(empty, parse_type("{x:Int | false}"))
     assert not inhabited(empty, parse_type("{x:Int | (x == 3) && (x == 4)}"))
+
+
+def test_poly():
+    assert wellformed(empty, TypePolymorphism("a", BaseKind(), TypeVar("a")))
+    assert wellformed(empty, TypePolymorphism("a", StarKind(), TypeVar("a")))
+    assert not wellformed(empty, TypePolymorphism("a", StarKind(),
+                                                  TypeVar("a")), BaseKind())
