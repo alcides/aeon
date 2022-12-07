@@ -50,11 +50,14 @@ expression_fact : expression_b                           -> same
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
              | "\\" ID ":" type "->" expression                      -> abstraction_et
+             | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
+application_t : application_t "[" type "]"                    -> type_application_e
+              | expression_simple                                 -> same
 
 application : application expression_simple                      -> application_e
-            | expression_simple                                  -> same
+            | application_t                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
         | "(" expression ":" type ")"                       -> annotation
@@ -68,8 +71,12 @@ expression_simple : "(" expression ")"                       -> same
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
+     | "forall" ID ":" kind "," type                     -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
+
+kind : "B" -> base_kind
+     | "*" -> star_kind
 
 
 BOOLLIT.5 : "true" | "false"

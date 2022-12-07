@@ -1,12 +1,14 @@
 from abc import ABC
 from dataclasses import dataclass
-from this import s
 from typing import List, Tuple, Union
 from aeon.core.liquid import LiquidHole, LiquidLiteralBool, LiquidTerm, liquid_free_vars
 
 
 class Kind(ABC):
     pass
+
+    def __repr__(self):
+        return str(self)
 
 
 class BaseKind(Kind):
@@ -40,7 +42,7 @@ class BaseType(Type):
         self.name = name
 
     def __repr__(self):
-        return u"{}_".format(self.name)
+        return u"{}".format(self.name)
 
     def __eq__(self, other):
         return isinstance(other, BaseType) and other.name == self.name

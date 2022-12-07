@@ -28,6 +28,8 @@ from aeon.core.terms import (
     Let,
     Rec,
     Term,
+    TypeAbstraction,
+    TypeApplication,
     Var,
     Literal,
     If,
@@ -151,6 +153,12 @@ class TreeToCore(Transformer):
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])
+
+    def tabstraction_e(self, args):
+        return TypeAbstraction(str(args[0]), args[1], args[2])
+
+    def type_application_e(self, args):
+        return TypeApplication(args[0], args[1])
 
     def var(self, args):
         return Var(str(args[0]))

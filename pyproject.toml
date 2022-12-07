@@ -1,0 +1,33 @@
+[project]
+name = "Aeon"
+version = "4.0.0a"
+description = "Language with Refinement Types"
+authors = [
+    {name = "Alcides Fonseca", email = "me@alcidesfonseca.com"}
+]
+readme = "Readme.md"
+requires-python = "~=3.9"
+
+[project.urls]
+homepage = "https://github.com/alcides/aeon"
+repository = "https://github.com/alcides/aeon"
+documentation = "https://github.com/alcides/aeon"
+
+[project.license]
+text = "https://opensource.org/licenses/MIT"
+
+[build-system]
+build-backend = 'setuptools.build_meta'
+requires = [
+    'setuptools >= 43.0.0',
+]
+
+[tool.docformatter]
+syntax = 'google'
+black = true
+recursive = true
+docstring-length = [60, 100]
+blank = false
+pre-summary-newline = true
+close-quotes-on-newline = true
+wrap-one-line = true

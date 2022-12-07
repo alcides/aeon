@@ -1,3 +1,4 @@
+from aeon.core.instantiation import type_substition
 from aeon.typing.entailment import entailment
 from aeon.core.substitutions import liquefy, substitute_vartype, substitution_in_type
 from aeon.verification.vcs import (
@@ -24,13 +25,18 @@ from aeon.core.terms import (
     Literal,
     Rec,
     Term,
+    TypeAbstraction,
+    TypeApplication,
     Var,
 )
 from aeon.core.types import (
     AbstractionType,
+    BaseKind,
     BaseType,
     RefinedType,
+    StarKind,
     Type,
+    TypePolymorphism,
     TypeVar,
     args_size_of_type,
     extract_parts,
@@ -57,11 +63,8 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return (
-        isinstance(ty, TypeVar)
-        or isinstance(ty, RefinedType)
-        and isinstance(ty.type, TypeVar)
-    )
+    return (isinstance(ty, TypeVar)
+            or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar))
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -73,20 +76,26 @@ def prim_litbool(t: bool) -> RefinedType:
 
 def prim_litint(t: int) -> RefinedType:
     return RefinedType(
-        "v", t_int, LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)])
-    )
+        "v", t_int,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralInt(t)]))
 
 
 def prim_op(t: str) -> Type:
-    i1 = TypeVar("_op_1")
-    i2 = TypeVar("_op_1")
-    o = TypeVar("_op_1")
-
-    if t in ["==", "!=", "<", ">", "<=", ">=", "&&", "||"]:
+    if t in ["+", "*", "-", "/"]:
+        i1 = i2 = t_int
+        o = t_int
+    elif t in ["<", ">", "<=", ">="]:
+        i1 = i2 = t_int
         o = t_bool
-    if t in ["&&", "||"]:
-        i1 = t_bool
-        i2 = t_bool
+    elif t in ["&&", "||"]:
+        i1 = i2 = o = t_bool
+    elif t in ["==", "!="]:
+        i1 = TypeVar("_op_1")
+        i2 = TypeVar("_op_2")
+        o = t_bool
+    else:
+        print(t)
+        assert False
 
     return AbstractionType(
         "x",
@@ -99,7 +108,11 @@ def prim_op(t: str) -> Type:
                 o,
                 LiquidApp(
                     "==",
-                    [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
+                    [
+                        LiquidVar("z"),
+                        LiquidApp(
+                            t, [LiquidVar("x"), LiquidVar("y")])
+                    ],
                 ),
             ),
         ),
@@ -134,19 +147,21 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
                     "&&",
                     [
                         ty.refinement,
-                        LiquidApp("==", [LiquidVar(ty.name), LiquidVar(t.name)]),
+                        LiquidApp("==",
+                                  [LiquidVar(ty.name),
+                                   LiquidVar(t.name)]),
                     ],
                 ),
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context"
-            )
+                f"Variable {t.name} not in context")
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
         if isinstance(ty, AbstractionType):
 
+            # This is the solution to handle polymorphic "==" in refinements.
             if argument_is_typevar(ty.var_type):
                 (_, b, _) = extract_parts(ty.var_type)
                 assert isinstance(b, TypeVar)
@@ -182,6 +197,12 @@ def synth(ctx: TypingContext, t: Term) -> Tuple[Constraint, Type]:
         ty = fresh(ctx, t.type)
         c = check(ctx, t.expr, ty)
         return (c, ty)
+    elif isinstance(t, TypeApplication):
+        tabs: TypePolymorphism
+        (c, tabs) = synth(ctx, t.body)
+        ty = fresh(ctx, t.type)
+        s = type_substition(tabs.body, tabs.name, ty)
+        return (c, s)
     elif isinstance(t, Hole):
         return (ctrue, bottom)
 
@@ -214,17 +235,23 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException("If condition not boolean")
+            raise CouldNotGenerateConstraintException(
+                "If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
-        c1 = implication_constraint(
-            y, RefinedType("branch_", t_int, liq_cond), check(ctx, t.then, ty)
-        )
+        c1 = implication_constraint(y, RefinedType("branch_", t_int, liq_cond),
+                                    check(ctx, t.then, ty))
         c2 = implication_constraint(
             y,
             RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),
             check(ctx, t.otherwise, ty),
         )
         return Conjunction(c0, Conjunction(c1, c2))
+    elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
+        ty_right: TypePolymorphism = type_substition(ty, ty.name,
+                                                     TypeVar(t.name))
+        if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
+            return LiquidConstraint(LiquidLiteralBool(False))
+        return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
