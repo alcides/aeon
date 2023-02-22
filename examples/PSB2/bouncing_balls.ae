@@ -1,0 +1,10 @@
+type Unit;
+
+def math : Unit = native_import "math";
+
+def bouncing_balls(starting_height:{x:Float | 1 <= x <= 100}) ->  
+                    (bounce_height:{y:Float | 1 <= y <= 100}) -> 
+                    (bounces:{z:Int | 1 <= z <= 20}) -> Float {
+
+     native "2 * bounce_height * (1 - math.pow((bounce_height / starting_height) , bounces)) / (1 - (bounce_height / starting_height))"  
+}
