@@ -31,7 +31,9 @@ def synth_liquid_var(
     ty: BaseType,
     d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm | None:
-    options = [lambda: v for (v, t) in ctx.vars() if base(t) == ty]
+    generated = [v for (v, t) in ctx.vars() if base(t) == ty]
+    options = [lambda: x for x in generated]
+
     if options:
         v = man.choose_rule(r, options, d)
         return LiquidVar(v)
@@ -117,7 +119,6 @@ def synth_liquid(
         else:
             man.undo_choice()
     nt = go_liquid_lit()
-    print("NT", nt)
     if nt:
         return nt
     assert False

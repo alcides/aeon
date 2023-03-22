@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import random
-from copy import copy
-from unittest import skip
+
+import pytest
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.terms import Term
@@ -13,6 +13,7 @@ from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.choice_manager import GrammaticalEvolutionManager
 from aeon.synthesis.sources import ListRandomSource
+from aeon.synthesis.sources import SeededRandomSource
 from aeon.synthesis.term_synthesis import NoMoreBudget
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_liquid
@@ -46,6 +47,16 @@ def random_base_context() -> TypingContext:
     return ctx
 
 
+@pytest.mark.parametrize("target_ty", [t_bool, t_int])
+@pytest.mark.parametrize("seed", range(10))
+def test_soundness_fixed(target_ty, seed) -> None:
+    man = GrammaticalEvolutionManager()
+    ctx = EmptyContext().with_var("a", t_int).with_var("b", t_bool)
+    s: LiquidTerm = synth_liquid(man, SeededRandomSource(seed), ctx, target_ty)
+    gen = type_infer_liquid(ctx, s)
+    assert gen is None or gen == target_ty
+
+
 def test_soundness_liq() -> None:
     man = GrammaticalEvolutionManager()
     for _ in range(1000):  # TODO add support for hypothesis.
@@ -58,7 +69,11 @@ def test_soundness_liq() -> None:
                 ctx,
                 target_ty,
             )
-            assert type_infer_liquid(ctx, s) == target_ty
+            print("..")
+            print(ctx)
+            print(s)
+            gen = type_infer_liquid(ctx, s)
+            assert gen == target_ty
         except NoMoreBudget:
             pass
 
@@ -85,10 +100,3 @@ def test_soundess_terms() -> None:
             assert check_type(ctx, t, ty)
         except NoMoreBudget:
             pass
-
-
-# TODO: remove this
-d = copy(globals())
-for var in d:
-    if "test_" in var:
-        globals()[var] = skip(d[var])

@@ -186,9 +186,7 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
     def reinforce(self):
         return
         for successful_choice in self.choices:
-            self.probabilities[successful_choice] = (
-                self.probabilities[successful_choice] * 1.1
-            )
+            self.probabilities[successful_choice] = self.probabilities[successful_choice] * 1.1
 
     def reset(self):
         super().reset()
