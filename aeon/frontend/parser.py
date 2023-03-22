@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Any
 from typing import Callable
 
 from lark import Lark

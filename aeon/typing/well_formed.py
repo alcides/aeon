@@ -4,7 +4,6 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import Kind

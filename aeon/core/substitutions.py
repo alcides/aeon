@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from ctypes import c_bool
-from typing import List
-from typing import Optional
-
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool

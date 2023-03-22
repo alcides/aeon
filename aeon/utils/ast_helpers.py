@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Callable
-from typing import Union
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation

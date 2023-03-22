@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
-from aeon.core.pprint import pretty_print
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
@@ -10,7 +9,6 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction

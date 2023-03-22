@@ -1,16 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
-
-from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.liquid import LiquidLiteralInt
-from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy

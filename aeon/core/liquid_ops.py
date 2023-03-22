@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Tuple
-
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm

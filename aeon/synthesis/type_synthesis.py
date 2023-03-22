@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
@@ -16,7 +14,6 @@ from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource

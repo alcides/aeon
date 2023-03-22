@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from random import Random
 from typing import Any
-from typing import List
 
 
 class RandomSource:

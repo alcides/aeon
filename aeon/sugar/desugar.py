@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Tuple
-
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
@@ -14,7 +12,6 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import t_int
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
-from aeon.sugar.parser import TreeToSugar
 from aeon.sugar.program import Definition
 from aeon.sugar.program import Program
 from aeon.typing.context import TypeBinder

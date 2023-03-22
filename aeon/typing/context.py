@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC
 from abc import abstractmethod
 
-from aeon.core.types import BaseKind
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
