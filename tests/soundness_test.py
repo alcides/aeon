@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import random
 from copy import copy
-from typing import Dict
 from unittest import skip
 
 from aeon.core.liquid import LiquidTerm
-from aeon.core.substitutions import liquefy
 from aeon.core.terms import Term
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
@@ -27,8 +25,13 @@ from aeon.typing.typeinfer import check_type
 from aeon.typing.well_formed import inhabited
 from aeon.typing.well_formed import wellformed
 
-listr = lambda x: ListRandomSource(x)
-rseed = lambda: listr([random.randint(-100000, 100000) for _ in range(10000)])
+
+def listr(x):
+    return ListRandomSource(x)
+
+
+def rseed():
+    return listr([random.randint(-100000, 100000) for _ in range(10000)])
 
 
 def random_base_type() -> BaseType:
@@ -78,7 +81,7 @@ def test_soundess_terms():
             continue
         try:
             t: Term = synth_term(man, rseed(), ctx, ty)
-            assert t != None
+            assert t is not None
             assert check_type(ctx, t, ty)
         except NoMoreBudget:
             pass

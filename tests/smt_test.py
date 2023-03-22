@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import t_int
@@ -13,8 +12,7 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp(
-        "==", [LiquidVar("x"), LiquidLiteralInt(3)])),
+    LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)])),
 )
 
 

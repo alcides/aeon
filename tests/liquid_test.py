@@ -5,9 +5,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.terms import Application
-from aeon.core.terms import Literal
 from aeon.core.terms import Var
-from aeon.core.types import t_int
 from aeon.utils.ast_helpers import i1
 
 l1 = LiquidLiteralInt(1)

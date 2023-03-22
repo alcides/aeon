@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import random
 from copy import copy
-from typing import Dict
-from typing import List
-from typing import Union
 from unittest import skip
 
 from aeon.core.substitutions import liquefy
@@ -25,8 +22,14 @@ from aeon.typing.context import VariableBinder
 from aeon.typing.well_formed import inhabited
 from aeon.utils.ctx_helpers import build_context
 
-seed = lambda x: SeededRandomSource(x)
-listr = lambda x: ListRandomSource(x)
+
+def seed(x):
+    return SeededRandomSource(x)
+
+
+def listr(x):
+    return ListRandomSource(x)
+
 
 rseed = [random.randint(-100000, 100000) for _ in range(10000)]
 
@@ -92,7 +95,7 @@ def helper_syn(
         try:
             g = synth_term(man, randomSource, ctx, type_, d=budget)
             assert g == parse_term(term)
-        except NoMoreBudget as e:
+        except NoMoreBudget:
             pass
             assert False
     else:
@@ -187,7 +190,7 @@ def test_liq_term_r1000():
             VariableBinder(EmptyContext(), "x", parse_type("Int")),
             parse_type("Int"),
         )
-        assert s != None
+        assert s is not None
 
 
 def test_can_generate_plus():

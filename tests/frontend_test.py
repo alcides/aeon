@@ -9,14 +9,11 @@ from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Let
-from aeon.core.terms import Literal
-from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseKind
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int

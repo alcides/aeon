@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import AbstractionType
 from aeon.core.types import BaseKind
-from aeon.core.types import BaseType
-from aeon.core.types import RefinedType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
@@ -12,7 +8,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_type
 from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypingContext
 from aeon.typing.context import VariableBinder
 from aeon.typing.well_formed import inhabited
 from aeon.typing.well_formed import wellformed
