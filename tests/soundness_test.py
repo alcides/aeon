@@ -46,7 +46,7 @@ def random_base_context() -> TypingContext:
     return ctx
 
 
-def test_soundness_liq():
+def test_soundness_liq() -> None:
     man = GrammaticalEvolutionManager()
     for _ in range(1000):  # TODO add support for hypothesis.
         target_ty = random_base_type()
@@ -63,7 +63,7 @@ def test_soundness_liq():
             pass
 
 
-def test_soundess_types():
+def test_soundess_types() -> None:
     for _ in range(10):
         man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()
@@ -71,7 +71,7 @@ def test_soundess_types():
         assert wellformed(ctx, t)
 
 
-def test_soundess_terms():
+def test_soundess_terms() -> None:
     for _ in range(10):
         man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()

@@ -5,6 +5,7 @@ from copy import copy
 from unittest import skip
 
 from aeon.core.substitutions import liquefy
+from aeon.core.types import BaseType
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.synthesis.choice_manager import ChoiceManager
@@ -50,7 +51,7 @@ def test_list_source():
     assert l.choose([1, 2, 3]) == 2
 
 
-def helper_syn_type(l, ty: str, dctx: dict[str, str] = None):
+def helper_syn_type(l, ty: str, dctx: dict[str, str] | None = None):
     ctx: TypingContext = empty
     man: ChoiceManager = GrammaticalEvolutionManager()
     if dctx:
@@ -60,14 +61,16 @@ def helper_syn_type(l, ty: str, dctx: dict[str, str] = None):
     assert t == parse_type(ty)
 
 
-def helper_syn_liq(l, t: str, liq: str, dctx: dict[str, str] = None):
+def helper_syn_liq(l, t: str, liq: str, dctx: dict[str, str] | None = None):
     man: ChoiceManager = ChoiceManager()
     ctx: TypingContext = empty
     if dctx:
         for k in dctx.keys():
             ctx = VariableBinder(ctx, k, parse_type(dctx[k]))
 
-    s = synth_liquid(man, listr(l), ctx, parse_type(t))
+    bt = parse_type(t)
+    assert isinstance(bt, BaseType)
+    s = synth_liquid(man, listr(l), ctx, bt)
     liq_term = parse_term(liq)
     expected = liquefy(liq_term)
     assert s == expected
@@ -77,7 +80,7 @@ def helper_syn(
     l: list[int] | RandomSource,
     ty: str,
     term: str,
-    dctx: dict[str, str] = None,
+    dctx: dict[str, str] | None = None,
     budget=50,
 ):
     man: ChoiceManager = ChoiceManager()
