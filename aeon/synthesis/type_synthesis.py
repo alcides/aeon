@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
@@ -16,7 +14,6 @@ from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
@@ -34,7 +31,9 @@ def synth_liquid_var(
     ty: BaseType,
     d: int = DEFAULT_DEPTH,
 ) -> LiquidTerm | None:
-    options = [lambda: v for (v, t) in ctx.vars() if base(t) == ty]
+    generated = [v for (v, t) in ctx.vars() if base(t) == ty]
+    options = [lambda: x for x in generated]
+
     if options:
         v = man.choose_rule(r, options, d)
         return LiquidVar(v)
@@ -55,10 +54,9 @@ def synth_liquid_literal(
         i = r.next_integer()
         return LiquidLiteralInt(i)
     elif ty == t_string:
-        rstring = str([
-            chr(r.next_integer())
-            for _ in range(r.next_integer() % MAX_STRING_SIZE)
-        ], )
+        rstring = str(
+            [chr(r.next_integer()) for _ in range(r.next_integer() % MAX_STRING_SIZE)],
+        )
         return LiquidLiteralString(rstring)
     else:
         raise NoMoreBudget()
@@ -124,7 +122,6 @@ def synth_liquid(
         else:
             man.undo_choice()
     nt = go_liquid_lit()
-    print("NT", nt)
     if nt:
         return nt
     assert False

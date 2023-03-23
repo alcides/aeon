@@ -6,8 +6,8 @@ from aeon.frontend.parser import parse_term
 
 def test_literal():
     assert eval(parse_term("1")) == 1
-    assert eval(parse_term("true")) == True
-    assert eval(parse_term("false")) == False
+    assert eval(parse_term("true")) is True
+    assert eval(parse_term("false")) is False
 
 
 def test_application():

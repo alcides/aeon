@@ -3,37 +3,15 @@ from __future__ import annotations
 import pathlib
 
 from lark import Lark
-from lark import Transformer
 
-from aeon.core.substitutions import liquefy
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
-from aeon.core.terms import Application
-from aeon.core.terms import Hole
-from aeon.core.terms import If
-from aeon.core.terms import Let
-from aeon.core.terms import Literal
-from aeon.core.terms import Rec
-from aeon.core.terms import Term
-from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
-from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_string
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.utils.ast_helpers import ensure_anf_app
-from aeon.utils.ast_helpers import ensure_anf_if
-from aeon.utils.ast_helpers import ensure_anf_let
-from aeon.utils.ast_helpers import ensure_anf_rec
-from aeon.utils.ast_helpers import i0
-from aeon.utils.ast_helpers import mk_binop
 
 
 class TreeToSugar(TreeToCore):

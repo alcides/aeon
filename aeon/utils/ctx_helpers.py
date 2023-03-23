@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Dict
-
 from aeon.core.types import Type
 from aeon.typing.context import EmptyContext
 from aeon.typing.context import TypingContext

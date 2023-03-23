@@ -4,3 +4,4 @@ black
 lark
 zstandard==0.15.2
 zss
+z3-solver

@@ -34,6 +34,6 @@ prelude = [
 typing_vars = {}
 evaluation_vars = {}
 
-for (n, ty, ex) in prelude:
+for n, ty, ex in prelude:
     typing_vars[n] = parse_type(ty)
     evaluation_vars[n] = ex

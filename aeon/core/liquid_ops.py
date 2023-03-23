@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Tuple
-
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -28,11 +25,11 @@ all_ops = [
 ops = [x[0] for x in all_ops]
 
 
-def get_type_of(name: str) -> tuple | None:
-    for (op, t) in all_ops:
+def get_type_of(name: str) -> tuple:
+    for op, t in all_ops:
         if op == name:
             return t
-    return None
+    assert False
 
 
 def mk_liquid_and(e1: LiquidTerm, e2: LiquidTerm):

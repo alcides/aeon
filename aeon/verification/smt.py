@@ -1,27 +1,18 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Generator
-from typing import List
-from typing import Tuple
-from typing import Union
 
-from z3 import And
 from z3 import Int
-from z3 import Not
 from z3 import sat
 from z3 import Solver
 from z3 import unknown
-from z3 import unsat
 from z3.z3 import And
 from z3.z3 import Bool
 from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import ExprRef
 from z3.z3 import ForAll
 from z3.z3 import Implies
 from z3.z3 import IntSort
@@ -38,13 +29,10 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
-from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import TypeVar
-from aeon.utils.time_utils import measure
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -64,7 +52,6 @@ base_functions: dict[str, Any] = {
     "-": lambda x, y: x - y,
     "*": lambda x, y: x * y,
     "/": lambda x, y: x / y,
-    "*": lambda x, y: x * y,
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
 }
@@ -110,9 +97,9 @@ s = Solver()
 s.set(timeout=200),
 
 
-def smt_valid(c: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
+def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
     """Verifies if a constraint is true using Z3."""
-    cons: list[CanonicConstraint] = list(flatten(c))
+    cons: list[CanonicConstraint] = list(flatten(constraint))
 
     forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
                    if isinstance(f[1], BaseType)]
@@ -134,7 +121,7 @@ def smt_valid(c: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
 
 
 def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
-    for (na, ref) in variables:
+    for na, ref in variables:
         if na == name:
             return ref
     print("Failed to load ", name, "from", [x[0] for x in variables])
@@ -190,7 +177,7 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
-                if v[0] == t.fun and isinstance(v[1], function):
+                if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
                     f = v[1]
         if not f:
             print("Failed to find t.fun", t.fun)
@@ -204,9 +191,11 @@ def translate(
     c: CanonicConstraint,
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
-    variables = [(name, make_variable(name, base))
-                 for (name, base) in c.binders
-                 if isinstance(base, BaseType)] + extra
+    variables = [
+        (name, make_variable(name, base))
+        for (name, base) in c.binders
+        if isinstance(base, BaseType)
+    ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):

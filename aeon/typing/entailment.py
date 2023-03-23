@@ -1,18 +1,12 @@
 from __future__ import annotations
 
-from typing import Tuple
-
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
-from aeon.core.types import RefinedType
 from aeon.core.types import Type
-from aeon.core.types import TypeVar
+from aeon.core.types import TypePolymorphism
 from aeon.typing.context import EmptyContext
 from aeon.typing.context import TypeBinder
 from aeon.typing.context import TypingContext
@@ -31,8 +25,12 @@ def entailment(ctx: TypingContext, c: Constraint):
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):
             return entailment(ctx.prev, c)
+        elif isinstance(ctx.type, TypePolymorphism):
+            return entailment(ctx.prev, c)  # TODO: check that this is not relevant
         else:
-            (name, base, cond) = extract_parts(ctx.type)
+            ty: Type = ctx.type
+            (name, base, cond) = extract_parts(ty)
+            assert isinstance(base, BaseType)
             ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
             return entailment(ctx.prev, Implication(ctx.name, base, ncond, c))
     elif isinstance(ctx, TypeBinder):

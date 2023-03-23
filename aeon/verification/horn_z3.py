@@ -1,22 +1,25 @@
 from __future__ import annotations
 
-from z3 import And
+from typing import Any
+
 from z3 import Bools
 from z3 import BoolSort
 from z3 import Const
 from z3 import Datatype
 from z3 import Fixedpoint
-from z3 import ForAll
 from z3 import Function
 from z3 import Implies
 from z3 import Ints
 from z3 import IntSort
-from z3 import set_option
 from z3 import SolverFor
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidTerm
+
+# from z3 import And
+# from z3 import ForAll
+# from z3 import set_option
 
 # let max max2 x y z = max2 (max2 x y) z
 # let f x y = if x > y then x else y
@@ -29,16 +32,19 @@ LiqTermWDef.declare("eq", ("op1", LiqTermWDef), ("op2", LiqTermWDef))
 LiqTermW = LiqTermWDef.create()
 
 
+def reverse_z3_int(i: Any) -> int:
+    return int(str(i))
+
+
 def reverse_z3(e) -> LiquidTerm:
     if e.sort() == LiqTermW:
         if e.decl() == LiqTermW.lit:
-            return LiquidLiteralInt(reverse_z3(e.arg(0)))
+            return LiquidLiteralInt(reverse_z3_int(e.arg(0)))
         if e.decl() == LiqTermW.lt:
             return LiquidApp("<", [reverse_z3(e.arg(0)), reverse_z3(e.arg(1))])
     elif e.sort() == IntSort():
         return LiquidLiteralInt(int(str(e)))
-    else:
-        raise Exception("TODO")
+    raise Exception("TODO")
 
 
 evalBool = Function("evalBool", LiqTermW, BoolSort(), BoolSort())
@@ -61,10 +67,8 @@ k1e, k2e = Bools("k1e k2e")
 fp.declare_var(x, y, k1, k2, b, z, k1e)
 
 fp.rule(evalInt(LiqTermW.lit(x), x))
-fp.rule(evalBool(LiqTermW.lt(k1, k2), b),
-        [evalInt(k1, x), evalInt(k2, y), x < y])
-fp.rule(evalBool(LiqTermW.eq(k1, k2), b),
-        [evalInt(k1, x), evalInt(k2, y), x == y])
+fp.rule(evalBool(LiqTermW.lt(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x < y])
+fp.rule(evalBool(LiqTermW.eq(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x == y])
 
 x, v = Ints("x v")
 (c, ) = Bools("c")
@@ -79,7 +83,7 @@ try:
     sol = a.arg(0).arg(1).children()[0]
     r = reverse_z3(sol)
     print(r)
-except:
+except Exception:
     print("Could not verify")
 
 ignore = """

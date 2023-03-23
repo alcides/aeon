@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-from typing import ContextManager
-from typing import List
-from typing import Optional
-
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.pprint import pretty_print
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
 from aeon.core.terms import If
-from aeon.core.terms import Let
 from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
@@ -59,7 +52,7 @@ def synth_literal(
         while man.budget > 0:
             man.checkpoint()
             k = synth_literal(man, r, ctx, ty.type)
-            if check_type(ctx, k, ty):
+            if k and check_type(ctx, k, ty):
                 return k
             else:
                 print("(d) does not typecheck", k, type(k), ty)
@@ -169,7 +162,7 @@ def is_tail_of(ctx: TypingContext, a: Type, b: Type):
 
     if is_subtype(ctx, a, b):
         return True
-    elif isinstance(a, AbstractionType) and args_size_of_type:
+    elif isinstance(a, AbstractionType) and args_size_of_type(a):
         return is_tail_of(ctx, a.type, b)
     else:
         return False
@@ -183,7 +176,9 @@ def synth_app_directed(
     d: int = 1,
 ):
     options = [(n, v) for (n, v) in ctx.vars() if is_tail_of(ctx, ty, v)]
-    pass
+    assert options
+    # TODO: Finish special synthesis
+    return True
 
 
 NOFILTER = True

@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Type
 
 from aeon.core.types import args_size_of_type
+from aeon.core.types import Type
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
 from aeon.typing.context import EmptyContext
@@ -51,9 +48,13 @@ class ChoiceManager:
             f = self.make_choice(r, options, depth)
             if self.debug:
                 print(
-                    "Made choice, " + str(f.__name__) + ", from: " +
-                    str([str(f.__name__)
-                         for f in options]) + " at " + str(depth), )
+                    "Made choice, "
+                    + str(f.__name__)
+                    + ", from: "
+                    + str([str(f.__name__) for f in options])
+                    + " at "
+                    + str(depth),
+                )
             t = f()
             if t and validate(t):
                 return t
@@ -89,14 +90,13 @@ class ChoiceManager:
 
 
 class GrammaticalEvolutionManager(ChoiceManager):
-
     def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         return r.choose(options)
 
 
 def any_var_of_type(
     ctx: TypingContext,
-    ty: type,
+    ty: Type,
     ictx: TypingContext | None = None,
 ) -> bool:
     if ictx is None:
@@ -163,7 +163,7 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
             indices.append(total)
 
         chosen_index = r.next_integer() % total
-        for (index, opt) in zip(indices, options):
+        for index, opt in zip(indices, options):
             if chosen_index < index:
                 key = self.make_key(o, depth)
                 self.choices.append(key)
@@ -188,13 +188,12 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
     def reinforce(self):
         return
         for successful_choice in self.choices:
-            self.probabilities[successful_choice] = (
-                self.probabilities[successful_choice] * 1.1)
+            self.probabilities[successful_choice] = self.probabilities[successful_choice] * 1.1
 
     def reset(self):
         super().reset()
-        self.choices: list[Any] = []
-        self.index_stack: list[int] = []
+        self.choices = []
+        self.index_stack = []
 
     def make_key(self, fun, depth: int):
         return str(fun.__name__)

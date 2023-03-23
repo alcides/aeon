@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
-from aeon.core.pprint import pretty_print
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
@@ -10,7 +9,6 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction
@@ -32,8 +30,8 @@ def ensure_refined(t: Type) -> RefinedType:
 
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name),
-                                          t.name)
+        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
+        assert isinstance(t.type, BaseType)
         return Implication(name, t.type, ref_subs, c)
     elif isinstance(t, BaseType):
         return Implication(name, t, LiquidLiteralBool(True), c)
@@ -61,8 +59,8 @@ def sub(t1: Type, t2: Type) -> Constraint:
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
-            t2_subs = substitution_in_liquid(t2.refinement, LiquidVar(t1.name),
-                                             t2.name)
+            t2_subs = substitution_in_liquid(t2.refinement, LiquidVar(t1.name), t2.name)
+            assert isinstance(t1.type, BaseType)  # TODO: check this
             return Implication(
                 t1.name,
                 t1.type,

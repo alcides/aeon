@@ -2,15 +2,8 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.liquid import LiquidLiteralInt
-from aeon.core.liquid import LiquidVar
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
 from aeon.core.types import t_int
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
 from aeon.utils.ctx_helpers import build_context
 from aeon.verification.helpers import get_abs_example
 from aeon.verification.helpers import parse_liquid
@@ -21,8 +14,6 @@ from aeon.verification.horn import get_possible_args
 from aeon.verification.horn import merge_assignments
 from aeon.verification.horn import solve
 from aeon.verification.horn import wellformed_horn
-from aeon.verification.vcs import Conjunction
-from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 
 
@@ -74,7 +65,16 @@ def test_base_assignment_helper2():
 
 def test_merge_assignments():
     assign = build_initial_assignment(
-        LiquidConstraint(LiquidHole("k", [("x", "Int"), ("y", "Int"), ("z", "Bool")])),
+        LiquidConstraint(
+            LiquidHole(
+                "k",
+                [
+                    (parse_liquid("x"), "Int"),
+                    (parse_liquid("y"), "Int"),
+                    (parse_liquid("z"), "Bool"),
+                ],
+            ),
+        ),
     )
     t = merge_assignments(assign["k"])
     assert isinstance(t, LiquidApp)
@@ -89,4 +89,4 @@ def test_flat():
 def test_solve():
     ex = get_abs_example()
     b = solve(ex)
-    assert b == True
+    assert b is True

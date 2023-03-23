@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Callable
-from typing import Union
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -83,9 +82,9 @@ def ensure_anf_let(t: Let) -> Term:
 
         b = inner.var_value
         if isinstance(b, Let):
-            b = ensure_anf_let(inner.var_value)
+            b = ensure_anf_let(b)
         if isinstance(b, Rec):
-            b = ensure_anf_rec(inner.var_value)
+            b = ensure_anf_rec(b)
 
         return Let(
             inner.var_name,
@@ -93,20 +92,20 @@ def ensure_anf_let(t: Let) -> Term:
             ensure_anf_let(Let(t.var_name, inner.body, t.body)),
         )
     elif isinstance(t.var_value, Rec):
-        inner = t.var_value
-        assert inner.var_name != t.var_name
+        innerr = t.var_value
+        assert innerr.var_name != t.var_name
 
-        b = inner.var_value
+        b = innerr.var_value
         if isinstance(b, Let):
-            b = ensure_anf_let(inner.var_value)
+            b = ensure_anf_let(b)
         if isinstance(b, Rec):
-            b = ensure_anf_rec(inner.var_value)
+            b = ensure_anf_rec(b)
 
         return Rec(
-            inner.var_name,
-            inner.var_type,
+            innerr.var_name,
+            innerr.var_type,
             b,
-            ensure_anf_let(Let(t.var_name, inner.body, t.body)),
+            ensure_anf_let(Let(t.var_name, innerr.body, t.body)),
         )
     else:
         return t
@@ -114,35 +113,35 @@ def ensure_anf_let(t: Let) -> Term:
 
 def ensure_anf_rec(t: Rec) -> Term:
     if isinstance(t.var_value, Let):
-        inner = t.var_value
-        assert inner.var_name != t.var_name
+        innerl = t.var_value
+        assert innerl.var_name != t.var_name
 
-        b = inner.var_value
+        b = innerl.var_value
         if isinstance(b, Let):
-            b = ensure_anf_let(inner.var_value)
+            b = ensure_anf_let(b)
         if isinstance(b, Rec):
-            b = ensure_anf_rec(inner.var_value)
+            b = ensure_anf_rec(b)
 
         return Let(
-            inner.var_name,
+            innerl.var_name,
             b,
-            ensure_anf_rec(Rec(t.var_name, t.var_type, inner.body, t.body)),
+            ensure_anf_rec(Rec(t.var_name, t.var_type, innerl.body, t.body)),
         )
     elif isinstance(t.var_value, Rec):
-        inner = t.var_value
-        assert inner.var_name != t.var_name
+        innerv = t.var_value
+        assert innerv.var_name != t.var_name
 
-        b = inner.var_value
+        b = innerv.var_value
         if isinstance(b, Let):
-            b = ensure_anf_let(inner.var_value)
+            b = ensure_anf_let(b)
         if isinstance(b, Rec):
-            b = ensure_anf_rec(inner.var_value)
+            b = ensure_anf_rec(b)
 
         return Rec(
-            inner.var_name,
-            inner.var_type,
+            innerv.var_name,
+            innerv.var_type,
             b,
-            ensure_anf_rec(Rec(t.var_name, t.var_type, inner.body, t.body)),
+            ensure_anf_rec(Rec(t.var_name, t.var_type, innerv.body, t.body)),
         )
     else:
         return t

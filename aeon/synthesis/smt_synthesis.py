@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import z3
 
 from aeon.core.liquid import LiquidTerm
@@ -25,6 +23,7 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         if isinstance(ctx.type, RefinedType) or isinstance(ctx.type, BaseType):
             (name, base, cond) = extract_parts(ctx.type)
 
+            assert isinstance(base, BaseType)
             v = make_variable(name, base)
             nvars = vars + [(name, v)]
 
@@ -43,11 +42,11 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         return translate(ctx.prev, t)
 
 
-def smt_synth_int_lit(ctx: TypingContext, t: RefinedType,
-                      seed: int) -> int | None:
+def smt_synth_int_lit(ctx: TypingContext, t: RefinedType, seed: int) -> int | None:
     assert t.type == t_int
     s = z3.Solver()
     s.set(":random-seed", seed)
+    assert isinstance(t.type, BaseType)  # TODO: check this assert
     v = make_variable(t.name, t.type)
     expr = translate(ctx, t.refinement, vars=[(t.name, v)])
     s.add(expr)

@@ -17,7 +17,7 @@ def pretty_print(t: Type) -> str:
     elif isinstance(t, AbstractionType):
         at = pretty_print(t.var_type)
         rt = pretty_print(t.type)
-        if t.var_name in type_free_term_vars(at):
+        if t.var_name in type_free_term_vars(t.var_type):
             return f"({t.var_name}:{at}) -> {rt}"
         else:
             return f"{at} -> {rt}"
@@ -27,3 +27,4 @@ def pretty_print(t: Type) -> str:
             return it
         else:
             return f"{{{t.name}:{it} | {t.refinement}}}"
+    assert False

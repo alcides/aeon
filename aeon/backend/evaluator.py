@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -22,7 +19,7 @@ real_eval = eval
 class EvaluationContext:
     variables: dict[str, Any]
 
-    def __init__(self, prev: dict[str, Any] = None):
+    def __init__(self, prev: dict[str, Any] | None = None):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
         else:
@@ -55,7 +52,6 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Let):
         return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
     elif isinstance(t, Rec):
-
         if isinstance(t.var_value, Abstraction):
             fun = t.var_value
 

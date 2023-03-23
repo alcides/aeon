@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import random
 from abc import ABC
-from typing import List
-from typing import Optional
-from typing import Tuple
+from abc import abstractmethod
 
 from aeon.core.types import Kind
+from aeon.core.types import StarKind
 from aeon.core.types import Type
 
 
 class TypingContext(ABC):
-
     def type_of(self, name: str) -> Type | None:
         return None
 
@@ -24,15 +21,16 @@ class TypingContext(ABC):
     def fresh_var(self):
         return "fresh_"
 
+    @abstractmethod
     def typevars(self) -> list[tuple[str, Kind]]:
         ...
 
+    @abstractmethod
     def vars(self) -> list[tuple[str, Type]]:
         ...
 
 
 class EmptyContext(TypingContext):
-
     def __init__(self):
         self.counter = 0
 
@@ -94,9 +92,14 @@ class VariableBinder(TypingContext):
 
 class TypeBinder(TypingContext):
     type_name: str
-    type_kind: str
+    type_kind: Kind
 
-    def __init__(self, prev: TypingContext, type_name, type_kind="*"):
+    def __init__(
+        self,
+        prev: TypingContext,
+        type_name: str,
+        type_kind: Kind = StarKind(),
+    ):
         self.prev = prev
         self.type_name = type_name
         self.type_kind = type_kind

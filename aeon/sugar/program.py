@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-from typing import List
-from typing import Tuple
+from dataclasses import dataclass
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
 
 
 class Node:
-    pass
-
-
-class Expr(Node):
     pass
 
 
@@ -25,18 +20,12 @@ class TypeDecl(Node):
         return f"type {self.name};"
 
 
+@dataclass
 class Definition(Node):
     name: str
     args: list[tuple[str, Type]]
     type: Type
-    body: Expr
-
-    def __init__(self, name: str, args: list[tuple[str, Type]], type: Type,
-                 body: Expr):
-        self.name = name
-        self.args = args
-        self.type = type
-        self.body = body
+    body: Term  # TODO: replace with custom Sugar Expr
 
     def __repr__(self):
         if not self.args:
@@ -46,13 +35,10 @@ class Definition(Node):
             return f"def {self.name} ({args}) -> {self.type} {{\n {self.body} \n}}"
 
 
+@dataclass
 class Program(Node):
     type_decls: list[str]
     definitions: list[Definition]
-
-    def __init__(self, td, defs):
-        self.type_decls = td
-        self.definitions = defs
 
     def __repr__(self):
         decls = "\n".join([str(td) for td in self.type_decls])
