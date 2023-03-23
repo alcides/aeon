@@ -1,0 +1,10 @@
+# Dice Game (PE) Peter has an n sided die and Colin has an m
+# sided die. If they both roll their dice at the same time, return
+# the probability that Peter rolls strictly higher than Colin.
+# --Not yet tested--
+
+def mult ( n :{n:Int})-> ( m :{m:Int}) -> Int : n * m;
+
+def peter_wins ( n :{n:Int})-> ( m :{m:Int}) -> Int = native "lambda x: lambda y: sum((x - i) * y for i in range(1, x + 1)) ";
+
+def dice_game ( n :{n:Int})-> ( m :{m:Int}) -> Float = (peter_wins n m )\ (mult n m) ;
