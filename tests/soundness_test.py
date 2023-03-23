@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import random
-from copy import copy
-from typing import Dict
-from unittest import skip
+
+import pytest
 
 from aeon.core.liquid import LiquidTerm
-from aeon.core.substitutions import liquefy
 from aeon.core.terms import Term
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
@@ -15,6 +13,7 @@ from aeon.core.types import Type
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.choice_manager import GrammaticalEvolutionManager
 from aeon.synthesis.sources import ListRandomSource
+from aeon.synthesis.sources import SeededRandomSource
 from aeon.synthesis.term_synthesis import NoMoreBudget
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_liquid
@@ -27,8 +26,13 @@ from aeon.typing.typeinfer import check_type
 from aeon.typing.well_formed import inhabited
 from aeon.typing.well_formed import wellformed
 
-listr = lambda x: ListRandomSource(x)
-rseed = lambda: listr([random.randint(-100000, 100000) for _ in range(10000)])
+
+def listr(x):
+    return ListRandomSource(x)
+
+
+def rseed():
+    return listr([random.randint(-100000, 100000) for _ in range(10000)])
 
 
 def random_base_type() -> BaseType:
@@ -43,7 +47,17 @@ def random_base_context() -> TypingContext:
     return ctx
 
 
-def test_soundness_liq():
+@pytest.mark.parametrize("target_ty", [t_bool, t_int])
+@pytest.mark.parametrize("seed", range(10))
+def test_soundness_fixed(target_ty, seed) -> None:
+    man = GrammaticalEvolutionManager()
+    ctx = EmptyContext().with_var("a", t_int).with_var("b", t_bool)
+    s: LiquidTerm = synth_liquid(man, SeededRandomSource(seed), ctx, target_ty)
+    gen = type_infer_liquid(ctx, s)
+    assert gen is None or gen == target_ty
+
+
+def test_soundness_liq() -> None:
     man = GrammaticalEvolutionManager()
     for _ in range(1000):  # TODO add support for hypothesis.
         target_ty = random_base_type()
@@ -55,12 +69,16 @@ def test_soundness_liq():
                 ctx,
                 target_ty,
             )
-            assert type_infer_liquid(ctx, s) == target_ty
+            print("..")
+            print(ctx)
+            print(s)
+            gen = type_infer_liquid(ctx, s)
+            assert gen == target_ty
         except NoMoreBudget:
             pass
 
 
-def test_soundess_types():
+def test_soundess_types() -> None:
     for _ in range(10):
         man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()
@@ -68,7 +86,7 @@ def test_soundess_types():
         assert wellformed(ctx, t)
 
 
-def test_soundess_terms():
+def test_soundess_terms() -> None:
     for _ in range(10):
         man: ChoiceManager = GrammaticalEvolutionManager()
         ctx = random_base_context()
@@ -78,14 +96,7 @@ def test_soundess_terms():
             continue
         try:
             t: Term = synth_term(man, rseed(), ctx, ty)
-            assert t != None
+            assert t is not None
             assert check_type(ctx, t, ty)
         except NoMoreBudget:
             pass
-
-
-# TODO: remove this
-d = copy(globals())
-for var in d:
-    if "test_" in var:
-        globals()[var] = skip(d[var])
