@@ -5,9 +5,9 @@
 # output : float
 # --Not yet tested--
 
-def mult ( n :{n:Int})-> ( m :{m:Int}) -> Int = n * m;
+def mult ( n:Int )-> ( m:Int) -> Int { n * m }
 
-def peter_wins ( n :{n:Int})-> ( m :{m:Int}) -> Int = native "lambda x: lambda y: sum((x - i) * y for i in range(1, x + 1)) ";
+def peter_wins ( n :Int)-> ( m :Int) -> Int { native "lambda x: lambda y: sum((x - i) * y for i in range(1, x + 1)) " }
 
 def dice_game ( n :{n:Int | 1 <= n <= 10000})-> 
-                ( m :{m:Int | 1 <= m <= 10000}) -> Float = (peter_wins(n,m) ) / (mult(n, m)) ;
+                ( m :{m:Int | 1 <= m <= 10000}) -> Float { (peter_wins(n , m) ) / (mult(n, m)) }

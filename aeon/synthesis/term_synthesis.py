@@ -20,12 +20,12 @@ from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.smt_synthesis import smt_synth_int_lit
 from aeon.synthesis.sources import RandomSource
 from aeon.synthesis.type_synthesis import synth_type
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypeBinder
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
-from aeon.typing.typeinfer import check_type
-from aeon.typing.typeinfer import is_subtype
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypeBinder
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.typeinfer import is_subtype
 
 DEFAULT_DEPTH = 9
 

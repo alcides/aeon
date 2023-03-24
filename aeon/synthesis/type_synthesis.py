@@ -17,8 +17,8 @@ from aeon.core.types import t_string
 from aeon.synthesis.choice_manager import ChoiceManager
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
-from aeon.typing.context import TypingContext
-from aeon.typing.well_formed import inhabited
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.well_formed import inhabited
 
 DEFAULT_DEPTH = 5
 MAX_STRING_SIZE = 12

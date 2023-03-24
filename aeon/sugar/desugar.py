@@ -14,9 +14,9 @@ from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.program import Definition
 from aeon.sugar.program import Program
-from aeon.typing.context import TypeBinder
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
+from aeon.typechecking.context import TypeBinder
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
 from aeon.utils.ctx_helpers import build_context
 
 
