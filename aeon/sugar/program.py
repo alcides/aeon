@@ -10,11 +10,9 @@ class Node:
     pass
 
 
+@dataclass
 class TypeDecl(Node):
     name: str
-
-    def __init__(self, name):
-        self.name = name
 
     def __repr__(self):
         return f"type {self.name};"
@@ -37,7 +35,7 @@ class Definition(Node):
 
 @dataclass
 class Program(Node):
-    type_decls: list[str]
+    type_decls: list[TypeDecl]
     definitions: list[Definition]
 
     def __repr__(self):

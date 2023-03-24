@@ -78,11 +78,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
     if isinstance(t, LiquidHole):
         return [t]
-    elif (
-        isinstance(t, LiquidLiteralBool)
-        or isinstance(t, LiquidLiteralInt)
-        or isinstance(t, LiquidLiteralString)
-    ):
+    elif isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -107,11 +103,7 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if (
-        isinstance(t, LiquidLiteralInt)
-        or isinstance(t, LiquidLiteralBool)
-        or isinstance(t, LiquidLiteralString)
-    ):
+    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
         return False
     elif isinstance(t, LiquidVar):
         return False
