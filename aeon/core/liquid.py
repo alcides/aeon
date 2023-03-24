@@ -57,6 +57,7 @@ class LiquidLiteralBool(LiquidTerm):
         return hash(self.value)
 
 
+
 class LiquidLiteralInt(LiquidTerm):
     value: int
 
@@ -69,6 +70,23 @@ class LiquidLiteralInt(LiquidTerm):
     def __eq__(self, other):
         return isinstance(other,
                           LiquidLiteralInt) and other.value == self.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+    
+
+class LiquidLiteralFloat(LiquidTerm):
+    value: float
+
+    def __init__(self, value: float):
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.value}"
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          LiquidLiteralFloat) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)

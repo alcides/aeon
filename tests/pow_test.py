@@ -10,7 +10,7 @@ from aeon.frontend.parser import parse_type
 from aeon.sugar.parser import parse_program
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
-from aeon.typing.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
 def check_compile(source, ty, res):
@@ -23,6 +23,6 @@ def test_anf():
     source = r"""
         type Unit;
         def math : Unit = native_import "math";
-        def test (b:{x:Float | 1 <= x <= 100}) -> (e:{y:Float | 1 <= y <= 100}) ->  Int { native "math.pow(b , e)"} 
+        def test (b:{x:Int | 1 <= x && x <= 100}) -> (e:{y:Int | 1 <= y && y <= 100}) ->  Int { native "lambda x: lambda y: math.pow(x , y)"} 
         """
     check_compile(source, top, 1)
