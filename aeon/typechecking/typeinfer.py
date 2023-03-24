@@ -35,8 +35,8 @@ from aeon.core.types import Type
 from aeon.core.types import type_free_term_vars
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typing.context import TypingContext
-from aeon.typing.entailment import entailment
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.entailment import entailment
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint

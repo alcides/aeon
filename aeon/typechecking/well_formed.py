@@ -13,10 +13,10 @@ from aeon.core.types import t_bool
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
-from aeon.typing.liquid import type_infer_liquid
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.liquid import type_infer_liquid
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication

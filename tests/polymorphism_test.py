@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
-from aeon.typing.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
 

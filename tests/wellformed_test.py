@@ -7,10 +7,10 @@ from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_type
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import VariableBinder
-from aeon.typing.well_formed import inhabited
-from aeon.typing.well_formed import wellformed
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.well_formed import inhabited
+from aeon.typechecking.well_formed import wellformed
 
 empty = EmptyContext()
 

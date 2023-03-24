@@ -7,10 +7,10 @@ from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypeBinder
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypeBinder
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
 from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
