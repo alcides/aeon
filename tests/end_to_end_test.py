@@ -7,7 +7,7 @@ from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
-from aeon.typing.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
 ctx = build_context(typing_vars)

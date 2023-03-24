@@ -7,11 +7,11 @@ from aeon.core.types import args_size_of_type
 from aeon.core.types import Type
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.synthesis.sources import RandomSource
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypeBinder
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
-from aeon.typing.typeinfer import is_subtype
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypeBinder
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.typeinfer import is_subtype
 
 DEFAULT_BUDGET = 100
 

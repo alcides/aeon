@@ -18,13 +18,13 @@ from aeon.synthesis.term_synthesis import NoMoreBudget
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_liquid
 from aeon.synthesis.type_synthesis import synth_type
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
-from aeon.typing.liquid import type_infer_liquid
-from aeon.typing.typeinfer import check_type
-from aeon.typing.well_formed import inhabited
-from aeon.typing.well_formed import wellformed
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.liquid import type_infer_liquid
+from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.well_formed import inhabited
+from aeon.typechecking.well_formed import wellformed
 
 
 def listr(x):

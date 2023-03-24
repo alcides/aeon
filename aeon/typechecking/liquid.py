@@ -13,7 +13,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import Type
-from aeon.typing.context import TypingContext
+from aeon.typechecking.context import TypingContext
 
 
 def type_infer_liquid(
