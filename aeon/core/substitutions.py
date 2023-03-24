@@ -46,6 +46,35 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     assert False
 
 
+def substitute_vartype_in_term(t: Term, rep: Type, name: str):
+    def rec(x: Term):
+        return substitute_vartype_in_term(x, rep, name)
+
+    if isinstance(t, Literal):
+        return t
+    elif isinstance(t, Var):
+        return t
+    elif isinstance(t, Hole):
+        return t
+    elif isinstance(t, Application):
+        return Application(fun=rec(t.fun), arg=rec(t.arg))
+    elif isinstance(t, Abstraction):
+        return Abstraction(t.var_name, rec(t.body))
+    elif isinstance(t, Let):
+        n_value = rec(t.var_value)
+        n_body = rec(t.body)
+        return Let(t.var_name, n_value, n_body)
+    elif isinstance(t, Rec):
+        n_value = rec(t.var_value)
+        n_type = substitute_vartype(t.var_type, rep, name)
+        n_body = rec(t.body)
+        return Rec(t.var_name, n_type, n_value, n_body)
+    elif isinstance(t, Annotation):
+        n_type = substitute_vartype(t.type, rep, name)
+        return Annotation(rec(t.expr), n_type)
+    assert False
+
+
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
