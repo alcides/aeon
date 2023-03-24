@@ -1,0 +1,15 @@
+# Given an integer n, return "Fizz" if n is divisible by 3, 
+# "Buzz" if n is divisible by 5, "FizzBuzz" if n is 
+# divisible by 3 and 5, and a string version of n if none of
+# the above hold (convert integer to string).
+# input : integer in [1, 1000000]
+# output : string
+# --Not yet tested--
+
+def div3 ( n :{n:Int | 1 <= n <= 1000000}) -> Bool = if n % 3 then True else False;
+def div5 ( n :{n:Int | 1 <= n <= 1000000}) -> Bool = if n % 5 then True else False;
+def div15 ( n :{n:Int | 1 <= n <= 1000000}) -> Bool = if n % 15 then True else False;
+
+def FizzBuzz ( n :{n:Int | 1 <= n <= 1000000}) -> String {
+    if div15(n) then "FizzBuzz" else (if div3(n)then "Fizz" else (if div5 then "Buzz" else native "str(n)"))
+}

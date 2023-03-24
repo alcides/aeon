@@ -1,0 +1,12 @@
+# Given two integers, return the largest integer that 
+# divides each of the integers evenly. 
+# input : 2 integers in [1, 1000000] 
+# output : integer
+# --Not yet tested--
+
+def gcd ( n :{n:Int}) -> ( m :{m:Int}) -> Int {
+    if m == 0 then a else (gcd(b, (a % b)))
+}
+
+def largest_common_divisor ( n :{n:Int | 1 <= n <= 1000000})-> 
+                            ( m :{m:Int | 1 <= m <= 1000000}) -> Int = gcd(n, m)
