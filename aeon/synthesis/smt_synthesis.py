@@ -8,10 +8,10 @@ from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import RefinedType
 from aeon.core.types import t_int
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypeBinder
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypeBinder
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
 from aeon.verification.smt import make_variable
 from aeon.verification.smt import translate_liq
 

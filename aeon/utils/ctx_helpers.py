@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from aeon.core.types import Type
-from aeon.typing.context import EmptyContext
-from aeon.typing.context import TypingContext
-from aeon.typing.context import VariableBinder
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import VariableBinder
 
 
 def build_context(ls: dict[str, Type]) -> TypingContext:
