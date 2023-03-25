@@ -69,19 +69,19 @@ class ChoiceManager:
     def undo_choice(self):
         self.budget -= 1
 
-    def allow_lit(self, ctx: TypingContext, ty: type, d: int):
+    def allow_lit(self, ctx: TypingContext, ty: Type, d: int):
         return True
 
-    def allow_var(self, ctx: TypingContext, ty: type, d: int):
+    def allow_var(self, ctx: TypingContext, ty: Type, d: int):
         return True
 
-    def allow_app(self, ctx: TypingContext, ty: type, d: int):
+    def allow_app(self, ctx: TypingContext, ty: Type, d: int):
         return True
 
     def allow_abs(
         self,
         ctx: TypingContext,
-        ty: type,
+        ty: Type,
         d: int,
         var_in_choices: bool,
         avoid_eta: bool,
@@ -112,7 +112,7 @@ def any_var_of_type(
     assert False
 
 
-def steps_necessary_to_close(ctx: TypingContext, ty: type):
+def steps_necessary_to_close(ctx: TypingContext, ty: Type):
     max_arrows = max([0] + [args_size_of_type(ty_) for (_, ty_) in ctx.vars()])
     arrows_ty = args_size_of_type(ty)
     d = max(arrows_ty - max_arrows, 0)
@@ -121,19 +121,19 @@ def steps_necessary_to_close(ctx: TypingContext, ty: type):
 
 class SemanticFilterManager(ChoiceManager):
 
-    def allow_lit(self, ctx: TypingContext, ty: type, d: int):
+    def allow_lit(self, ctx: TypingContext, ty: Type, d: int):
         return True
 
-    def allow_var(self, ctx: TypingContext, ty: type, d: int):
+    def allow_var(self, ctx: TypingContext, ty: Type, d: int):
         return any_var_of_type(ctx, ty)
 
-    def allow_app(self, ctx: TypingContext, ty: type, d: int):
+    def allow_app(self, ctx: TypingContext, ty: Type, d: int):
         return d > steps_necessary_to_close(ctx, ty) + 1
 
     def allow_abs(
         self,
         ctx: TypingContext,
-        ty: type,
+        ty: Type,
         d: int,
         var_in_choices: bool,
         avoid_eta: bool,

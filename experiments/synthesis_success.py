@@ -19,7 +19,7 @@ sys.path.append(str(experiments_folder.parent.absolute()))
 import zstandard as zstd
 
 from aeon.synthesis.exceptions import NoMoreBudget
-from aeon.typing.context import EmptyContext, VariableBinder
+from aeon.typechecking.context import EmptyContext, VariableBinder
 from aeon.synthesis.sources import ListRandomSource
 from aeon.frontend.parser import parse_term, parse_type
 from aeon.synthesis.term_synthesis import synth_term
