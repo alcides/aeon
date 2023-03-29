@@ -187,7 +187,6 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
     elif isinstance(t, LiquidApp):
         f = None
         if t.fun in base_functions:
-            print(t.fun)
             f = base_functions[t.fun]
         else:
             for v in variables:

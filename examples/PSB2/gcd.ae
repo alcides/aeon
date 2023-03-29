@@ -2,11 +2,11 @@
 # divides each of the integers evenly. 
 # input : 2 integers in [1, 1000000] 
 # output : integer
-# --Not yet tested--
+# --not- working - recursion problem--
+# RecursionError: maximum recursion depth exceeded in comparison
 
-def gcd ( n :{n:Int}) -> ( m :{m:Int}) -> Int {
-    if m == 0 then a else (gcd(b, (a % b)))
+def gcd ( n:Int, z:Int) -> Int {
+    if z == 0 then n else (gcd(z)(n % z))
 }
 
-def largest_common_divisor ( n :{n:Int | 1 <= n <= 1000000})-> 
-                            ( m :{m:Int | 1 <= m <= 1000000}) -> Int = gcd(n, m)
+# def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) -> Int { gcd n m } 

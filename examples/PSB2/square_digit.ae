@@ -2,6 +2,6 @@
 # concatenate the squares into a returned string.
 # input : integer in [0, 1000000] 
 # output : string
-# --Not yet tested--
+# --working--
 
-def square_digit ( n :{n:Int | 1 <= n <= 1000000})-> Int = native "lambda n: ''.join(str(int(d)**2) for d in str(n))"
+def square_digit : ( n :{x:Int | 1 <= x && x <= 1000000})-> Int = native "lambda n: ''.join(str(int(d)**2) for d in str(n))";

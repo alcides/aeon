@@ -76,10 +76,11 @@ def prim_litint(t: int) -> RefinedType:
 
 
 def prim_op(t: str) -> Type:
+    #TODO add suport to floats
     i1: Type
     i2: Type
     o: Type
-    if t in ["+", "*", "-", "/"]:
+    if t in ["+", "*", "-", "/", "%"]:
         i1 = i2 = t_int
         o = t_int
     elif t in ["<", ">", "<=", ">="]:
@@ -135,6 +136,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             assert ty.name != t.name
+            # TODO if the names are equal , we must replace it for another variable 
             # Self
             ty = RefinedType(
                 ty.name,
