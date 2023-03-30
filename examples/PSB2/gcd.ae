@@ -10,3 +10,7 @@ def gcd ( n:Int, z:Int) : Int {
 }
 
 # def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) : Int { gcd n m } 
+
+def main (x:Top) : Int {
+    gcd(15)(5)
+}
