@@ -1,0 +1,35 @@
+type List;
+
+def List_new : (i:Int) -> List = native "[]" ;
+
+def List_append: (l:List) -> (i: Int) -> List = native"lambda xs: lambda x: xs + [x]";
+
+def List_cons: (l:List) -> (i:Int) -> List = native" lambda x: lambda xs: [x] + xs";
+
+# def List_recursive: TODO
+
+def List_sum : (l:List) -> Int= native "lambda xs: sum(xs, 0, lambda x, y: x + y)";
+
+def List_head: (l:List) -> Int= native"lambda xs: xs[0]";
+
+def List_tail:(l:List) -> List  = native"lambda xs: xs[1:]";
+
+def List_last: (l:List) -> Int= native"lambda xs: xs[-1]";
+
+def List_get: (l:List) -> (i:Int) -> Int = native"lambda xs: lambda i: xs[i]";
+
+def List_elem: (l:List) -> (i:Int) -> Bool = native"lambda xs: lambda x: x in xs";
+
+def List_remove: (l:List) -> (i:Int) -> List = native"lambda xs: lambda x: [elem for elem in xs if elem != x]";
+
+def List_extends: (l:List)->(l2:List)-> List = native"lambda xs: lambda ys: xs + ys";
+
+def List_sort: (l:List) -> List = native"lambda xs: sorted(xs, key=lambda x: x)";
+
+def List_reverse: (l: List)-> List = native "lambda xs : reverse(xs)";
+
+def List_count:(l:List) -> (i:Int) -> Int= native"lambda xs: lambda x: xs.count(x)";
+
+def List_index:(l:List) -> (i:Int) -> Int= native"lambda xs: lambda x: xs.index(x)";
+
+
