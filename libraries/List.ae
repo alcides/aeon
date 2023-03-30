@@ -1,6 +1,6 @@
 type List;
 
-def List_new : (i:Int) -> List = native "[]" ;
+def List_new : List = native "[]" ;
 
 def List_append: (l:List) -> (i: Int) -> List = native"lambda xs: lambda x: xs + [x]";
 

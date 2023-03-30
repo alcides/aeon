@@ -7,7 +7,7 @@ defs : def*                                          -> list
 type_decl : "type" ID ";"                            -> type_decl
 
 def : "def" ID ":" type "=" expression ";"          -> def_cons
-    | "def" ID "(" args ")" "->" type "{" expression "}" -> def_fun
+    | "def" ID "(" args ")" ":" type "{" expression "}" -> def_fun
 
 
 args :                          -> empty_list

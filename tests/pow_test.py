@@ -23,6 +23,7 @@ def test_anf():
     source = r"""
         type Unit;
         def math : Unit = native_import "math";
-        def test (b:{x:Int | 1 <= x && x <= 100}) -> (e:{y:Int | 1 <= y && y <= 100}) ->  Int { native "lambda x: lambda y: math.pow(x , y)"} 
-        """
+        def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) -> (e:{d:Int | ((d >= 1) && (d <= 100))}) ->  Int = native "lambda x: lambda y: math.pow(x , y)";
+
+"""
     check_compile(source, top, 1)

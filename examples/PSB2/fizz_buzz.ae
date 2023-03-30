@@ -7,12 +7,12 @@
 # --not working properly--
 
 
-def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) -> Bool { if ((n % 3) == 0) then true else false}
-def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) -> Bool  {if ((n % 5) == 0)  then true else false}
-def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) -> Bool {if ((n % 15) == 0)  then true else false}
+def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool { if ((n % 3) == 0) then true else false}
+def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool  {if ((n % 5) == 0)  then true else false}
+def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool {if ((n % 15) == 0)  then true else false}
 
 
-def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) -> String {
+def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
 
     # Aeon does not assume that div15(n) is a boolean expression
     # if div15(n) then "FizzBuzz" else (if div3(n)then "Fizz" else (if div5 then "Buzz" else native "str(n)"))
