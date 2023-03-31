@@ -1,3 +1,4 @@
+# TODO: resolve Type Checking failed because of print
 let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (\x -> (\y -> x)) in
 let r = f (f 1 2) (f 2 3) in
 print r
