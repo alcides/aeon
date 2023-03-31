@@ -12,6 +12,7 @@ from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
+from aeon.sugar.program import ImportAe
 
 
 class TreeToSugar(TreeToCore):
@@ -20,7 +21,10 @@ class TreeToSugar(TreeToCore):
         return args
 
     def program(self, args):
-        return Program(args[0], args[1])
+        return Program(args[0], args[1], args[2])
+    
+    def regular_imp(self, args):
+        return ImportAe(args[0])
 
     def type_decl(self, args):
         return TypeDecl(args[0])

@@ -11,6 +11,14 @@ class Node:
 
 
 @dataclass
+class ImportAe(Node):
+    path: str
+
+    def __repr__(self):
+        return f"import {self.path};"
+
+
+@dataclass
 class TypeDecl(Node):
     name: str
 
@@ -35,10 +43,12 @@ class Definition(Node):
 
 @dataclass
 class Program(Node):
+    imports: list[ImportAe]
     type_decls: list[TypeDecl]
     definitions: list[Definition]
 
     def __repr__(self):
+        imps = "\n".join([str(td) for td in self.imports])
         decls = "\n".join([str(td) for td in self.type_decls])
         defs = "\n".join([str(d) for d in self.definitions])
-        return f"{decls}\n{defs}"
+        return f"{imps}\n{decls}\n{defs}"
