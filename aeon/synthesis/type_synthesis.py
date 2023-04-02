@@ -63,7 +63,10 @@ def synth_liquid_literal(
 
 
 def valid_ops(ty):
-    return [p for p in all_ops if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()]
+    return [
+        p for p in all_ops
+        if BaseType(p[1][-1]) == ty or str(p[1][-1]).islower()
+    ]
 
 
 def synth_liquid_app(
@@ -130,6 +133,7 @@ def synth_native(
     ctx: TypingContext,
     d: int = DEFAULT_DEPTH,
 ):
+
     def lc_int():
         return t_int
 
@@ -182,6 +186,7 @@ def synth_type(
     ctx: TypingContext,
     d: int = DEFAULT_DEPTH,
 ):
+
     def go_native():
         return synth_native(man, r, ctx, d)
 

@@ -20,6 +20,10 @@ from z3.z3 import Not
 from z3.z3 import Or
 from z3.z3 import String
 from z3.z3 import StringSort
+from z3.z3 import FPSort
+from z3.z3 import FP  
+from z3.z3 import Float32  
+
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
@@ -28,11 +32,13 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import t_string
+from aeon.core.types import t_float
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -88,7 +94,9 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
+        yield CanonicConstraint(binders=[],
+                                pre=LiquidLiteralBool(True),
+                                pos=c.expr)
 
 
 s = Solver()
@@ -99,9 +107,8 @@ def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bo
     """Verifies if a constraint is true using Z3."""
     cons: list[CanonicConstraint] = list(flatten(constraint))
 
-    forall_vars = [
-        (f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)
-    ]
+    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
+                   if isinstance(f[1], BaseType)]
 
     for c in cons:
         s.push()
@@ -135,6 +142,8 @@ def get_sort(base: BaseType) -> Any:
         return IntSort
     elif base == t_bool:
         return BoolSort
+    elif base == t_float:
+        return Float32
     elif base == t_string:
         return StringSort
     elif isinstance(base, BaseType):
@@ -150,6 +159,9 @@ def make_variable(name: str, base: BaseType) -> Any:
         return Int(name)
     elif base == t_bool:
         return Bool(name)
+    elif base == t_float:
+        fpsort = FPSort(8, 24)
+        return FP(name, fpsort)
     elif base == t_string:
         return String(name)
     elif isinstance(base, BaseType):
@@ -163,6 +175,8 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
     if isinstance(t, LiquidLiteralBool):
         return t.value
     elif isinstance(t, LiquidLiteralInt):
+        return t.value
+    elif isinstance(t, LiquidLiteralFloat):
         return t.value
     elif isinstance(t, LiquidLiteralString):
         return t.value

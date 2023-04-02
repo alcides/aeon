@@ -1,4 +1,4 @@
-let assert : (b:{b1:Bool | b1}) -> int = \b -> 0 in
+let assert : (b:{b1:Bool | b1}) -> Int = \b -> 0 in
 let abs : (x:Int) -> {y:Int | ?k } = \x -> if 0 <= x then x else (x-1) in
 
 let main : (x:Int) -> Int = \y ->

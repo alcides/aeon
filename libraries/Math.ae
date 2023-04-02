@@ -1,0 +1,19 @@
+type Unit;
+
+def math : Unit = native_import "math";
+
+def Math_min : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: min(i,j)" ;
+
+def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+
+def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
+
+# def Math_ceil : (i:Double) -> Int = native "lambda i: math.ceil(i)" ;
+
+# def Math_floor : (i:Double) -> Int = native "lambda i: math.flooar(i)" ;
+
+# def Math_intToDouble : (i:Int) -> Double = native "lambda i: int(i)" ;
+
+# def Math_sqrt : (i:Double) -> Double = native "lambda i: math.sqrt(i)" ;
+
+def Math_pow : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: math.pow(i,j)" ;

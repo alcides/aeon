@@ -1,4 +1,9 @@
-program : type_decls defs                         -> program
+program :  aeimport type_decls defs                         -> program
+
+aeimport : import*                                  -> list
+
+import: "import" (CNAME | PATH) ";"               -> regular_imp
+      | "import" CNAME "from" (CNAME | PATH) ";"       -> function_imp
 
 type_decls : type_decl*                              -> list
 
@@ -7,7 +12,7 @@ defs : def*                                          -> list
 type_decl : "type" ID ";"                            -> type_decl
 
 def : "def" ID ":" type "=" expression ";"          -> def_cons
-    | "def" ID "(" args ")" "->" type "{" expression "}" -> def_fun
+    | "def" ID "(" args ")" ":" type "{" expression "}" -> def_fun
 
 
 args :                          -> empty_list

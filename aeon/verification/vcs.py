@@ -43,7 +43,8 @@ class Implication(Constraint):
     pred: LiquidTerm
     seq: Constraint
 
-    def __init__(self, name: str, base: BaseType, pred: LiquidTerm, seq: Constraint):
+    def __init__(self, name: str, base: BaseType, pred: LiquidTerm,
+                 seq: Constraint):
         self.name = name
         self.base = base
         self.pred = pred
@@ -54,11 +55,8 @@ class Implication(Constraint):
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
-    if (
-        isinstance(t, LiquidLiteralBool)
-        or isinstance(t, LiquidLiteralInt)
-        or isinstance(t, LiquidLiteralString)
-    ):
+    if (isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt)
+            or isinstance(t, LiquidLiteralString)):
         pass
     elif isinstance(t, LiquidVar):
         yield t.name

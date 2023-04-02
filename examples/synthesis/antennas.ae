@@ -4,6 +4,6 @@ def blank_map : (w:Int) -> (h:Int) -> { m:Map | forall (\i:Int -> forall ((\j:In
 
 def print : (x:Top) -> Bottom = native "print";
 
-def main (x:Top) -> Bottom {
+def main (x:Top) : Bottom {
     print blank_map
 }

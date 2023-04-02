@@ -120,6 +120,7 @@ def steps_necessary_to_close(ctx: TypingContext, ty: Type):
 
 
 class SemanticFilterManager(ChoiceManager):
+
     def allow_lit(self, ctx: TypingContext, ty: Type, d: int):
         return True
 
@@ -146,6 +147,7 @@ class SemanticFilterManager(ChoiceManager):
 
 
 class AdaptiveProbabilityManager(SemanticFilterManager):
+
     def __init__(self) -> None:
         self.probabilities: dict[str, int] = {}
         super().__init__()
@@ -198,5 +200,6 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
 
 
 class DepthAwareAdaptiveManager(AdaptiveProbabilityManager):
+
     def make_key(self, fun, depth: int):
         return str(fun.__name__) + "_d_" + str(depth // 2)

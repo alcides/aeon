@@ -25,13 +25,11 @@ def is_anf(t: Term) -> bool:
     elif isinstance(t, Rec):
         return is_anf(t.var_value) and is_anf(t.body)
     elif isinstance(t, Application):
-        return is_anf(t.fun) and (isinstance(t.arg, Var) or isinstance(t.arg, Literal))
+        return is_anf(t.fun) and (isinstance(t.arg, Var)
+                                  or isinstance(t.arg, Literal))
     elif isinstance(t, If):
-        return (
-            (isinstance(t.cond, Var) or isinstance(t.cond, Literal))
-            and is_anf(t.then)
-            and is_anf(t.otherwise)
-        )
+        return ((isinstance(t.cond, Var) or isinstance(t.cond, Literal))
+                and is_anf(t.then) and is_anf(t.otherwise))
     elif isinstance(t, Annotation):
         return is_anf(t.expr)
     elif isinstance(t, Abstraction):

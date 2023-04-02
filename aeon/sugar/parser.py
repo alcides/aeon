@@ -12,14 +12,19 @@ from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
+from aeon.sugar.program import ImportAe
 
 
 class TreeToSugar(TreeToCore):
+
     def list(self, args):
         return args
 
     def program(self, args):
-        return Program(args[0], args[1])
+        return Program(args[0], args[1], args[2])
+    
+    def regular_imp(self, args):
+        return ImportAe(args[0])
 
     def type_decl(self, args):
         return TypeDecl(args[0])
@@ -53,7 +58,9 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
+        import_paths=[
+            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
+        ],
     )
 
 

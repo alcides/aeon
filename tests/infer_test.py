@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from aeon.core.types import t_int
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
