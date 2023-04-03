@@ -38,14 +38,12 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
         
     defs: list[Definition] = p.definitions
     type_decls:list[TypeDecl] = p.type_decls
-    imports: list[ImportAe] = p.imports
     
-    imp: ImportAe
-    for imp in imports:
-        import_p: Program = handle_import(imp.path)
-        
-        defs = import_p.definitions + defs
-        type_decls = import_p.type_decls + type_decls
+    import_defs, import_type_decls  = handle_imports(p)
+    
+    defs = import_defs + defs
+    type_decls = import_type_decls + type_decls
+    
 
     d: Definition
     for d in defs[::-1]:
@@ -71,10 +69,21 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     return (prog, ctx, ectx)
 
 
-def handle_import(path:str)-> Program:
+def handle_imports(p: Program) -> tuple[list[Definition], list[TypeDecl]]:
+    defs: list[Definition] = []
+    type_decls: list[TypeDecl] = []
+
+    imp: ImportAe
+    for imp in p.imports:
+        filename = f"libraries/{imp.path}.ae"
+        path = os.path.abspath(filename)
+        assert os.path.exists(path), f"The library '{path}' does not exist. {path}"
+        
+        with open(path) as import_file_data:
+            import_p = mk_parser("program").parse(import_file_data.read())
+
+        import_defs, import_type_decls = handle_imports(import_p)
+        defs += import_defs + import_p.definitions
+        type_decls += import_type_decls + import_p.type_decls
     
-    filename = "libraries/" + path + ".ae"
-    path = os.path.abspath(filename)
-    assert os.path.exists(path), f"The library '{path}' does not exist. {path}"
-    import_file_data = open(path).read()
-    return mk_parser("program").parse(import_file_data)
+    return defs , type_decls
