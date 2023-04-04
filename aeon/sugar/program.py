@@ -13,13 +13,17 @@ class Node:
 @dataclass
 class ImportAe(Node):
     path: str
+    func_or_type: str
 
     def __repr__(self):
-        return f"import {self.path};"
+        if not self.func_or_type:
+            return f"import {self.path};"
+        else:
+            return f"import {self.func_or_type} from {self.path};"
 
 
 @dataclass
-class TypeDecl(Node):
+class TypeDecl(Node): 
     name: str
 
     def __repr__(self):
