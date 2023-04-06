@@ -79,29 +79,49 @@ def handle_imports(p: Program) -> tuple[list[Definition], list[TypeDecl]]:
         path = os.path.abspath(filename)
         assert os.path.exists(path), f"The library '{path}' does not exist. {path}"
         
-        with open(path) as import_file_data:
-            import_p = mk_parser("program").parse(import_file_data.read())
+        imported_program = parse_import_file(path)
             
-        import_defs, import_type_decls = handle_imports(import_p)
+        import_defs, import_type_decls = handle_imports(imported_program)
             
-        if imp.func_or_type:  # function_imp
-            if any(str(defn.name) == imp.func_or_type for defn in import_p.definitions):
-                defs += import_defs + \
-                    [elem for elem in import_p.definitions if str(elem.name) ==
-                        imp.func_or_type]
-                    
-                type_decls += import_type_decls + import_p.type_decls
+        if imp.func_or_type:
+            defs, type_decls = handle_function_imp(imp, imported_program, defs, type_decls, path)
 
-            elif any(str(typedec.name) == imp.func_or_type for typedec in import_p.type_decls):
-                defs += import_defs
-                type_decls += import_type_decls + \
-                    [elem for elem in import_p.type_decls if str(elem.name) ==
-                        imp.func_or_type]
-            else:
-                assert False, f"The function or type {imp.func_or_type} does not exist in {path}"
+        else:
+            defs, type_decls = handle_regular_imp(imported_program, defs, type_decls)
+            
+        defs = import_defs + defs
+        type_decls = import_type_decls + type_decls
 
-        else: #regular_imp
-            defs += import_defs + import_p.definitions
-            type_decls += import_type_decls + import_p.type_decls
         
     return defs , type_decls
+
+
+def parse_import_file(path: str) -> Program:
+    with open(path) as import_file_data:
+        return mk_parser("program").parse(import_file_data.read())
+
+
+def handle_function_imp(
+    imp: ImportAe, 
+    import_p: Program, 
+    defs: list[Definition], 
+    type_decls: list[TypeDecl] , 
+    path: str
+    ) -> tuple[list[Definition], list[TypeDecl]]:
+    
+    if any(str(defn.name) == imp.func_or_type for defn in import_p.definitions):
+        defs += [elem for elem in import_p.definitions if str(
+                elem.name) == imp.func_or_type]
+        type_decls +=  import_p.type_decls
+    elif any(str(typedec.name) == imp.func_or_type for typedec in import_p.type_decls):
+        type_decls += [elem for elem in import_p.type_decls if str(
+                elem.name) == imp.func_or_type]
+    else:
+        assert False, f"The function or type {imp.func_or_type} does not exist in {path}"
+
+    return defs, type_decls
+
+def handle_regular_imp(import_p: Program, defs: list[Definition], type_decls: list[TypeDecl]) -> tuple[list[Definition], list[TypeDecl]]:
+    defs +=  import_p.definitions
+    type_decls += import_p.type_decls
+    return defs, type_decls
