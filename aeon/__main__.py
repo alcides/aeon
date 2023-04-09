@@ -28,5 +28,5 @@ if __name__ == "__main__":
     if check_type(ctx, p, top):
         eval(p, ectx)
     else:
-        print(p, top)
+        print(p, "is not a subtype of ", top)
         print("Type Checking failed.")

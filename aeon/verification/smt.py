@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 from typing import Generator
 
+from z3 import Function
 from z3 import Int
 from z3 import sat
 from z3 import Solver
@@ -33,6 +35,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
+from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
@@ -42,6 +45,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
 base_functions: dict[str, Any] = {
     "==": lambda x, y: x == y,
@@ -62,20 +66,11 @@ base_functions: dict[str, Any] = {
 }
 
 
+@dataclass
 class CanonicConstraint:
     binders: list[tuple[str, BaseType]]
     pre: LiquidTerm
     pos: LiquidTerm
-
-    def __init__(
-        self,
-        binders: list[tuple[str, BaseType]],
-        pre: LiquidTerm,
-        pos: LiquidTerm,
-    ):
-        self.binders = binders
-        self.pre = pre
-        self.pos = pos
 
     def __repr__(self):
         return f"\\forall {self.binders}, {self.pre} => {self.pos}"
@@ -94,6 +89,15 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
             )
     elif isinstance(c, LiquidConstraint):
         yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        for sub in flatten(c.seq):
+            yield CanonicConstraint(
+                binders=sub.binders + [(c.name, c.type)],
+                pre=sub.pre,
+                pos=sub.pos,
+            )
+    else:
+        assert False
 
 
 s = Solver()
@@ -105,13 +109,13 @@ def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bo
     cons: list[CanonicConstraint] = list(flatten(constraint))
 
     forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
-
     for c in cons:
         s.push()
         smt_c = translate(c, extra=forall_vars)
         for _, v in forall_vars:
             smt_c = ForAll(v, smt_c)
         s.add(smt_c)
+        print("smt:", s)
         result = s.check()
         s.pop()
         if result == sat:
@@ -162,6 +166,20 @@ def make_variable(name: str, base: BaseType) -> Any:
         return String(name)
     elif isinstance(base, BaseType):
         return Const(name, get_sort(base))
+    elif isinstance(base, AbstractionType):
+        print("hello")
+        # TODO: flatten arguments
+        if name in base_functions:
+            return base_functions[name]
+        print(name, base, base.var_type, base.type)
+
+        # TODO: Ideia: fazer um uninterpreted function binder, em vez de abusar do variable binder.
+        # Como é que isto interage com o reflect?
+
+        in_type = get_sort(base.var_type)
+        out_type = get_sort(base.type)
+
+        return Function(name, in_type(), out_type())
 
     print("NO var:", name, base, type(base))
     assert False
@@ -186,7 +204,9 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
+                print("DEBUG", t.fun, v[0], v[1])
                 if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
+                    print("DEBUG", "yes")
                     f = v[1]
         if not f:
             print("Failed to find t.fun", t.fun)
@@ -200,7 +220,11 @@ def translate(
     c: CanonicConstraint,
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
-    variables = [(name, make_variable(name, base)) for (name, base) in c.binders if isinstance(base, BaseType)] + extra
+    variables = [
+        (name, make_variable(name, base))
+        for (name, base) in c.binders
+        if isinstance(base, BaseType) or isinstance(base, AbstractionType)
+    ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):

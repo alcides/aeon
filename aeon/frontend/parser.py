@@ -70,7 +70,7 @@ class TreeToCore(Transformer):
             return bottom
         elif n == "Top":
             return top
-        elif n in ["Int", "Bool", "Float", "String"]:
+        elif n in ["Unit", "Int", "Bool", "Float", "String"]:
             return BaseType(n)
         else:
             return TypeVar(n)

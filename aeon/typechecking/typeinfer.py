@@ -53,11 +53,7 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return (
-        isinstance(ty, TypeVar)
-        or isinstance(ty, RefinedType)
-        and isinstance(ty.type, TypeVar)
-    )
+    return isinstance(ty, TypeVar) or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar)
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -76,7 +72,7 @@ def prim_litint(t: int) -> RefinedType:
 
 
 def prim_op(t: str) -> Type:
-    #TODO add suport to floats
+    # TODO add suport to floats
     i1: Type
     i2: Type
     o: Type
@@ -136,7 +132,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             assert ty.name != t.name
-            # TODO if the names are equal , we must replace it for another variable 
+            # TODO if the names are equal , we must replace it for another variable
             # Self
             ty = RefinedType(
                 ty.name,
@@ -173,7 +169,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
-            raise CouldNotGenerateConstraintException()
+            raise CouldNotGenerateConstraintException(f"Application {t} is not a function.")
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
