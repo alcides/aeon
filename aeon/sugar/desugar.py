@@ -44,6 +44,8 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     defs = import_defs + defs
     type_decls = import_type_decls + type_decls
     
+    
+    print(type_decls)
 
     d: Definition
     for d in defs[::-1]:
