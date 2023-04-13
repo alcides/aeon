@@ -11,9 +11,12 @@ defs : def*                                          -> list
 
 type_decl : "type" ID ";"                            -> type_decl
 
-def : "def" ID ":" type "=" expression ";"          -> def_cons
-    | "def" ID "(" args ")" ":" type "{" expression "}" -> def_fun
+def : "def" namespace ":" type "=" expression ";"          -> def_cons
+    | "def" namespace "(" args ")" ":" type "{" expression "}" -> def_fun
 
+
+namespace : ID                     -> same
+          | ID "." namespace       -> namespace
 
 args :                          -> empty_list
      | arg ("," arg)*          -> args
@@ -70,7 +73,7 @@ expression_simple : "(" expression ")"                       -> same
         | FLOATLIT                                        -> float_lit
         | BOOLLIT                                         -> bool_lit
         | STRINGLIT                                      -> string_lit
-        | ID                                             -> var
+        | namespace                                             -> var
         | "?" ID                                         -> hole
 
 
