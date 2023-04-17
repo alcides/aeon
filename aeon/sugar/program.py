@@ -52,3 +52,9 @@ class Program(Node):
         decls = "\n".join([str(td) for td in self.type_decls])
         defs = "\n".join([str(d) for d in self.definitions])
         return f"{imps}\n{decls}\n{defs}"
+
+
+@dataclass
+class Namespace(Node):
+    base: str
+    other: str | Namespace

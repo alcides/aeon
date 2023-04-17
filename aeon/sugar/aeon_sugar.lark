@@ -73,7 +73,8 @@ expression_simple : "(" expression ")"                       -> same
         | FLOATLIT                                        -> float_lit
         | BOOLLIT                                         -> bool_lit
         | STRINGLIT                                      -> string_lit
-        | namespace                                             -> var
+        | ID                                             -> var
+        | expression_simple "." expression_simple        -> dot
         | "?" ID                                         -> hole
 
 
