@@ -4,24 +4,35 @@ type Color;
 type ImageDraw;
 type Coordinate;
 
-def pil : Unit = native_import "PIL";
+def pil_Image : Unit = native_import "PIL.Image";
 
-def Image_load: (path: String)-> Image = native "lambda i: Image.open(i)";
+def pil_ImageDraw : Unit = native_import "PIL.ImageDraw";
 
-def Image_create: (weight: {x:Int | 0 < x} ) -> (height:{y:Int | 0 < y}) -> Image = native "lambda i: lambda j: Image.new('RGB', (x, y), color ='white')" ;
+def dot : (module:Unit) -> (s:String) -> Bottom = native "lambda m: lambda s: getattr(m, s)";
 
-def Image_draw: (i : Image) -> ImageDraw = native "lambda i: ImageDraw.Draw(i.copy())";
+def Image_load: (path: String)-> Image = dot pil_Image "open";
 
-def Image_makeColor: (r:{x:Int | 0 <= x && x <= 255} ) -> (g:{y:Int | 0 <= y && y <= 255}) -> (b:{z:Int | 0 <= z && z <= 255}) -> Color = uninterpreted;
+def Image_load2: (path: String)-> Image = native "lambda i: __import__('PIL').Image.open(i)";
 
-def Image_cordinate: (x:Int)-> (y1:Int) -> Coordinate = uninterpreted;
+def Image_create: (width: Int) -> (height: Int )-> Unit = native "lambda i: lambda j: __import__('PIL').Image.new('RGB', (i, j), color ='white')" ;
 
-def Image_draw_rectangle: (i : ImageDraw) -> (coordinate : Coordinate) -> (color : Color) -> ImageDraw= native "lambda x: lambda y: lambda z: x.copy().rectangle(y, fill=z)";
+# def Image_create: (width: {x:Int | 0 < x} ) -> (height:{y:Int | 0 < y}) -> \x -> \y -> curry2 (dot pil_Image "new") "RGB" (x , Y);
 
-def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, x.histogram(), y.histogram())) / len(x.histogram())) ";
+def Image_draw: (i : Image) -> ImageDraw = native "lambda i: __import__('PIL').ImageDraw.Draw(i.copy())";
 
-def Image_show: (i : ImageDraw) -> Image = native "lambda x: x.copy().show()";
+#def Image_makeColor: (r:{x:Int | 0 <= x && x <= 255} ) -> (g:{y:Int | 0 <= y && y <= 255}) -> (b:{z:Int | 0 <= z && z <= 255}) -> Color = uninterpreted;
+
+#def Image_cordinate: (x:Int)-> (y1:Int) -> Coordinate = uninterpreted;
+
+def Image_draw_rectangle: (i : ImageDraw) -> (coordinate : Coordinate) -> (color : Color) -> ImageDraw= native "lambda x: lambda y: lambda z: x.__import__('PIL').ImageDraw.copy().rectangle(y, fill=z)";
+
+def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, x.__import__('PIL').Image.histogram(), y.__import__('PIL').Image.histogram())) / len(x.__import__('PIL').Image.histogram())) ";
+
+def Image_show: (i : ImageDraw) -> Image = native "lambda x: x.__import__('PIL').ImageDraw.copy().copy().show()";
 
 
+#def call_splat :(f : Unit) -> (args: List) = native "lambda f: lambda args: f(*args)";
+
+#def curry2 : (f : Unit) -> (x1: Unit) -> (x2: Unit) = native "lambda f:lambda x1: lambda x2: f(x1,x2)";
 
 
