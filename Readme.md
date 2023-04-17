@@ -7,5 +7,5 @@ See the examples folder.
 * Add polymorphism
 * Add support for data types
 * Add synthesis
-* Add imports
+* Add imports [Done]
 * Introduce non-liquid refinements in the sugar language

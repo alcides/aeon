@@ -32,8 +32,11 @@ from aeon.core.types import TypeVar
 def substitute_vartype(t: Type, rep: Type, name: str):
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
-
-    if isinstance(t, BaseType):
+    if isinstance(t, Bottom):
+        return t
+    elif isinstance(t, Top):
+        return t
+    elif isinstance(t, BaseType):
         return t
     elif isinstance(t, TypeVar) and t.name == name:
         return rep
@@ -43,6 +46,7 @@ def substitute_vartype(t: Type, rep: Type, name: str):
         return RefinedType(t.name, rec(t.type), t.refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
+    print("Substitution", t, rep, name)
     assert False
 
 
