@@ -3,6 +3,7 @@ from __future__ import annotations
 import os.path
 
 from aeon.backend.evaluator import EvaluationContext
+from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitute_vartype_in_term
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
@@ -51,10 +52,13 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
             assert isinstance(d.type, AbstractionType)
+            d_type = d.type
+            for tyname in type_decls:
+                d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
             ctx = UninterpretedBinder(
                 ctx,
                 d.name,
-                d.type,
+                d_type,
             )
         else:
             ty = d.type
@@ -67,7 +71,6 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     tyname: TypeDecl
     for tyname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tyname.name), tyname.name)
-
     return (prog, ctx, ectx)
 
 

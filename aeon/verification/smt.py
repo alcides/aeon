@@ -139,13 +139,13 @@ sort_cache = {}
 
 def get_sort(base: BaseType) -> Any:
     if base == t_int:
-        return IntSort
+        return IntSort()
     elif base == t_bool:
-        return BoolSort
+        return BoolSort()
     elif base == t_float:
-        return Float32
+        return Float32()
     elif base == t_string:
-        return StringSort
+        return StringSort()
     elif isinstance(base, BaseType):
         if base.name not in sort_cache:
             sort_cache[base.name] = DeclareSort(base.name)
@@ -167,7 +167,6 @@ def make_variable(name: str, base: BaseType) -> Any:
     elif isinstance(base, BaseType):
         return Const(name, get_sort(base))
     elif isinstance(base, AbstractionType):
-        print("hello")
         # TODO: flatten arguments
         if name in base_functions:
             return base_functions[name]
@@ -179,7 +178,7 @@ def make_variable(name: str, base: BaseType) -> Any:
         in_type = get_sort(base.var_type)
         out_type = get_sort(base.type)
 
-        return Function(name, in_type(), out_type())
+        return Function(name, in_type, out_type)
 
     print("NO var:", name, base, type(base))
     assert False
@@ -204,11 +203,9 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
-                print("DEBUG", t.fun, v[0], v[1])
                 if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
-                    print("DEBUG", "yes")
                     f = v[1]
-        if not f:
+        if f is None:
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
