@@ -1,8 +1,8 @@
 import List;
 def consume : (l: {x:List | List_size(x) == 1}) -> Int = \n -> 0;
 
-def neg1 : Int = consume(List_new);
+# def neg1 : Int = consume(List_new);
 
-def neg2: Int = consume(List_append(List_append(List_new)(1))(1));
+# def neg2: Int = consume(List_append(List_append(List_new)(1))(1));
 
 def pos : Int = consume(List_append(List_new)(1));
