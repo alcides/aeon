@@ -14,7 +14,7 @@ def Image_load: (path: String)-> Image = dot pil_Image "open";
 
 def Image_load2: (path: String)-> Image = native "lambda i: __import__('PIL').Image.open(i)";
 
-def Image_create: (width: Int) -> (height: Int )-> Unit = native "lambda i: lambda j: __import__('PIL').Image.new('RGB', (i, j), color ='white')" ;
+def Image_create: (width: Int) -> (height: Int )-> Image = native "lambda i: lambda j: __import__('PIL').Image.new('RGB', (i, j), color ='white')" ;
 
 # def Image_create: (width: {x:Int | 0 < x} ) -> (height:{y:Int | 0 < y}) -> \x -> \y -> curry2 (dot pil_Image "new") "RGB" (x , Y);
 
