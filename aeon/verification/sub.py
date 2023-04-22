@@ -31,6 +31,7 @@ def ensure_refined(t: Type) -> RefinedType:
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
         ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
+        # print(t.type, BaseType)
         assert isinstance(t.type, BaseType)
         return Implication(name, t.type, ref_subs, c)
     elif isinstance(t, BaseType):
