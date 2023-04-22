@@ -22,11 +22,11 @@ def List_tail:(l:{x:List | List_size(x) > 0 }) -> {l2:List | List_size(l2) ==  L
 
 def List_last: (l:{x:List | List_size(x) > 0 }) -> Int = native"lambda xs: xs[-1]";
 
-def List_get: (l:{x:List | List_size(x) > 0 }) -> (i:{y:Int | (y >= 0) && y < List_size(x)}) -> Int = native"lambda xs: lambda i: xs[i]";
+def List_get: (l:{x:List | List_size(x) > 0 }) -> (i:{y:Int | (y >= 0) && y < List_size(l)}) -> Int = native"lambda xs: lambda i: xs[i]";
 
 def List_elem: (l:List) -> (i:Int) -> Bool = native"lambda xs: lambda x: x in xs";
 
-def List_remove: (l:{x:List | List_size(x) > 0 }) -> (i:Int) -> {y:List | List_size(y) == (List_size(x)-1) } = native"lambda xs: lambda x: [elem for elem in xs if elem != x]";
+def List_remove: (l:{x:List | List_size(x) > 0 }) -> (i:Int) -> {y:List | List_size(y) == (List_size(l)-1) } = native"lambda xs: lambda x: [elem for elem in xs if elem != x]";
 
 def List_extends: (l:List)->(l2:List)-> {x:List | List_size(x) == (List_size(l) + List_size(l2)) } = native"lambda xs: lambda ys: xs + ys";
 
