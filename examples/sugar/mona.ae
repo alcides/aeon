@@ -1,7 +1,0 @@
-import Math;
-import Image;
-
-def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) -> 
-           (e:{d:Int | ((d >= 1) && (d <= 100))}) ->  Int = \x -> \y -> Math_pow x y  ;
-
-def monaLisa : (Image) = Image_load2("examples/sugar/mona.jpg");

@@ -76,6 +76,11 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
     elif isinstance(t, Annotation):
         n_type = substitute_vartype(t.type, rep, name)
         return Annotation(rec(t.expr), n_type)
+    #TODO add If
+    print("term- ", t)
+    print("type term-", type(t))
+    print("type- ",rep)
+    print("name- ", name)
     assert False
 
 

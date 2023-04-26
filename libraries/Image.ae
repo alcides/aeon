@@ -26,6 +26,8 @@ def pil_ImageDraw : Unit = native_import "PIL.ImageDraw";
 
 def dot : (module:Unit) -> (s:String) -> Bottom = native "lambda m: lambda s: getattr(m, s)";
 
+###
+
 def Image_load: (path: String)-> Image = dot pil_Image "open";
 
 def Image_load2: (path: String)-> Image = native "lambda i: __import__('PIL').Image.open(i)";
@@ -39,22 +41,29 @@ def Image_makeColor: (r:{x:Int | 0 <= x && x <= 255} ) ->
                         (b:{z:Int | 0 <= z && z <= 255}) -> 
                         {i:Color | (Color_r(i) == r) && (Color_g(i) == g) && (Color_b(i) == b) } = native "lambda r: lambda g: lambda b: (r,g,b)";
 
+#def Image_makeCoordinate: (img:Image) -> 
+#                            (x0:{x0:Int | (x0 >= 0) && (x0 <= Image_width(img))}) -> 
+#                            (y0:{y0:Int | (y0 >= 0) && (y0 <= Image_height(img))}) ->
+#                            (x1:{x1:Int | (x1 >= 0) && (x1 <= Image_width(img))}) -> 
+#                            (y1:{y0:Int | (y1 >= 0) && (y1 <= Image_height(img))}) -> Coordinate =  native "lambda img: lambda x0: lambda y0: lambda x1: lambda y1:  (x0, y0, x1, y1)";
+
 def Image_makeCoordinate: (img:Image) -> 
-                            (x0:{x0:Int | (x0 >= 0) && (x0 <= Image_width(img))}) -> 
-                            (y0:{y0:Int | (y0 >= 0) && (y0 <= Image_height(img))}) ->
-                            (x1:{x1:Int | (x1 >= 0) && (x1 <= Image_width(img))}) -> 
-                            (y1:{y0:Int | (y1 >= 0) && (y1 <= Image_height(img))}) -> Coordinate =  native "lambda x0: lambda y0: lambda x1: lambda y1:  (x0, y0, x1, y1)";
+                            (x0:Int) -> 
+                            (y0:Int) ->
+                            (x1:Int) -> 
+                            (y1:Int) -> Coordinate =  native "lambda img: lambda x0: lambda y0: lambda x1: lambda y1:  [x0, y0, x1, y1]";
 
 # {c:Coordinate | (Coordinate_x(c)== x0) && (Coordinate_y(c)== y0)}
 # def Image_cordinate: (x:Int)-> (y1:Int) -> Coordinate = uninterpreted;
 
-def Image_draw_rectangle: (i : ImageDraw) -> (coordinate : Coordinate) -> (color : Color) -> ImageDraw= native "lambda x: lambda y: lambda z: x.__import__('PIL').ImageDraw.copy().rectangle(y, fill=z)";
+def Image_draw_rectangle: (i : Image) -> (coordinate : Coordinate) -> (color : Color) -> Image= 
+native "lambda img: lambda coords: lambda color:((lambda draw: (draw.rectangle(coords, fill=color),img))(__import__('PIL.ImageDraw').ImageDraw.Draw(img)))[-1]";
 
 def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, x.__import__('PIL').Image.histogram(), y.__import__('PIL').Image.histogram())) / len(x.__import__('PIL').Image.histogram())) ";
 
-def Image_show: (i : ImageDraw) -> Image = native "lambda x: x.__import__('PIL').ImageDraw.copy().copy().show()";
+def Image_show: (i : Image) -> Image = native "lambda img: img.show()";
 
-def Image_save: (img : Image)-> (path : String)-> Bool = native "lambda x:lambda y: x.__import__('PIL').save(y) ";
+def Image_save: (img : Image)-> (path : String)-> Bool = native "lambda x:lambda y: x.save(y) ";
 
 # ------------------------------------------------------------------------------------------------
 #def Image_create: (width: {x:Int | 0 < x} ) -> (height:{y:Int | 0 < y}) -> \x -> \y -> curry2 (dot pil_Image "new") "RGB" (x , Y); 

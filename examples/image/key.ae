@@ -1,0 +1,32 @@
+import Image;
+
+def canvas : (Image) = (Image_create(1024)(768));
+
+def draw : (ImageDraw) = Image_draw(canvas);
+
+def key_color: (Color) = (Image_makeColor(192)(192)(192));
+def white_color: (Color) = (Image_makeColor(255)(255)(255));
+
+def rect1_coord: (Coordinate) = (Image_makeCoordinate(canvas)(170)(256)(426)(512));
+
+def rect2_coord: (Coordinate) = (Image_makeCoordinate(canvas)(255)(341)(340)(424));
+
+def rect3_coord: (Coordinate) = (Image_makeCoordinate(canvas)(426)(341)(936)(424));
+
+def rect4_coord: (Coordinate) = (Image_makeCoordinate(canvas)(836)(492)(936)(424));
+
+def rect5_coord: (Coordinate) = (Image_makeCoordinate(canvas)(686)(472)(786)(424));
+
+def key2: Image = Image_draw_rectangle(
+    Image_draw_rectangle(
+        Image_draw_rectangle(
+            Image_draw_rectangle(
+                Image_draw_rectangle(canvas)(rect1_coord)(key_color)
+            )(rect2_coord)(white_color)
+        )(rect3_coord)(key_color)
+    )(rect4_coord)(key_color)
+)(rect5_coord)(key_color);
+
+def keyshow : (Image) = Image_show(key2);
+
+def keysave: (Bool)= Image_save(key2)("examples/image/key.jpg");
