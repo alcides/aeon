@@ -1,75 +1,33 @@
-type Unit;
-type Image;
 type Color;
-type ImageDraw;
-type Coordinate;
+type Image;
 
-def math : Unit = native_import "math";
-
-def Image_width: (i:Image) -> Int = uninterpreted;
-
-def Image_height: (i:Image) -> Int = uninterpreted;
-
-def Color_r: (c:Color) -> Int = uninterpreted;
-
-def Color_g: (c:Color) -> Int = uninterpreted;
-
-def Color_b: (c:Color) -> Int = uninterpreted;
-
-def Coordinate_x :(c:Coordinate)-> Int = uninterpreted;
-
-def Coordinate_y :(c:Coordinate)-> Int = uninterpreted;
-
-def pil_Image : Unit = native_import "PIL.Image";
-
-def pil_ImageDraw : Unit = native_import "PIL.ImageDraw";
-
-def dot : (module:Unit) -> (s:String) -> Bottom = native "lambda m: lambda s: getattr(m, s)";
-
-###
-
-def Image_load: (path: String)-> Image = dot pil_Image "open";
-
-def Image_load2: (path: String)-> Image = native "lambda i: __import__('PIL').Image.open(i)";
-
-def Image_create: (width: Int) -> (height: Int )-> {i:Image | (Image_width(i) == width) && (Image_height(i) == height)} = native "lambda i: lambda j: __import__('PIL').Image.new('RGB', (i, j), color ='white')" ;
-
-def Image_draw: (i : Image) -> ImageDraw = native "lambda i: __import__('PIL').ImageDraw.Draw(i.copy())";
-
-def Image_makeColor: (r:{x:Int | 0 <= x && x <= 255} ) -> 
-                        (g:{y:Int | 0 <= y && y <= 255}) -> 
-                        (b:{z:Int | 0 <= z && z <= 255}) -> 
-                        {i:Color | (Color_r(i) == r) && (Color_g(i) == g) && (Color_b(i) == b) } = native "lambda r: lambda g: lambda b: (r,g,b)";
-
-#def Image_makeCoordinate: (img:Image) -> 
-#                            (x0:{x0:Int | (x0 >= 0) && (x0 <= Image_width(img))}) -> 
-#                            (y0:{y0:Int | (y0 >= 0) && (y0 <= Image_height(img))}) ->
-#                            (x1:{x1:Int | (x1 >= 0) && (x1 <= Image_width(img))}) -> 
-#                            (y1:{y0:Int | (y1 >= 0) && (y1 <= Image_height(img))}) -> Coordinate =  native "lambda img: lambda x0: lambda y0: lambda x1: lambda y1:  (x0, y0, x1, y1)";
-
-def Image_makeCoordinate: (img:Image) -> 
-                            (x0:Int) -> 
-                            (y0:Int) ->
-                            (x1:Int) -> 
-                            (y1:Int) -> Coordinate =  native "lambda img: lambda x0: lambda y0: lambda x1: lambda y1:  [x0, y0, x1, y1]";
-
-# {c:Coordinate | (Coordinate_x(c)== x0) && (Coordinate_y(c)== y0)}
-# def Image_cordinate: (x:Int)-> (y1:Int) -> Coordinate = uninterpreted;
-
-def Image_draw_rectangle: (i : Image) -> (coordinate : Coordinate) -> (color : Color) -> Image= 
-native "lambda img: lambda coords: lambda color:((lambda draw: (draw.rectangle(coords, fill=color),img))(__import__('PIL.ImageDraw').ImageDraw.Draw(img)))[-1]";
-
-def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, x.__import__('PIL').Image.histogram(), y.__import__('PIL').Image.histogram())) / len(x.__import__('PIL').Image.histogram())) ";
-
-def Image_show: (i : Image) -> Image = native "lambda img: img.show()";
-
-def Image_save: (img : Image)-> (path : String)-> Bool = native "lambda x:lambda y: x.save(y) ";
-
-# ------------------------------------------------------------------------------------------------
-#def Image_create: (width: {x:Int | 0 < x} ) -> (height:{y:Int | 0 < y}) -> \x -> \y -> curry2 (dot pil_Image "new") "RGB" (x , Y); 
-
-#def call_splat :(f : Unit) -> (args: List) = native "lambda f: lambda args: f(*args)";
-
-#def curry2 : (f : Unit) -> (x1: Unit) -> (x2: Unit) = native "lambda f:lambda x1: lambda x2: f(x1,x2)";
+def Color_mk :
+    (r:{r:Int | r >= 0 && r < 256}) ->
+    (g:{r:Int | r >= 0 && r < 256}) ->
+    (b:{r:Int | r >= 0 && r < 256}) ->
+    Color = native "lambda r: lambda g: lambda b: (r, g, b)";
 
 
+def Image_height : (im:Image) -> Int = uninterpreted;
+def Image_width : (im:Image) -> Int = uninterpreted;
+
+def Image_mk :
+    (width:{p:Int | p > 0}) ->
+    (height:{p:Int | p > 0}) ->
+    (color:Color) ->
+    {i : Image | (Image_width i == width) && (Image_height i == height) } =
+native "__import__('aeon.bindings.image').bindings.image.Image_mk";
+
+def Image_save : (path:String) -> (image:Image) -> Unit = native "lambda path: lambda im: im.save(path)";
+def Image_open : (path:String) -> Image = native "__import__('PIL.Image').Image.open";
+
+def Image_diff : (img : Image) -> (img : Image) -> Float = native "__import__('aeon.bindings.image').bindings.image.Image_diff";
+
+def Image_draw_rectangle :
+    (x:{p:Int | p > 0}) ->
+    (y:{p:Int | p > 0}) ->
+    (width:{p:Int | p > 0}) ->
+    (height:{p:Int | p > 0}) ->
+    (color:Color) ->
+    (im:{i:Image | (x + width < Image_width i) && (y + height < Image_height i) }) ->
+    Image = native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle";
