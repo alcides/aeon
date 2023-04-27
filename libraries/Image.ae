@@ -6,6 +6,10 @@ type Coordinate;
 
 def math : Unit = native_import "math";
 
+def functools : Unit = native_import "functools";
+
+def operator : Unit = native_import "operator";
+
 def Image_width: (i:Image) -> Int = uninterpreted;
 
 def Image_height: (i:Image) -> Int = uninterpreted;
@@ -59,7 +63,7 @@ def Image_makeCoordinate: (img:Image) ->
 def Image_draw_rectangle: (i : Image) -> (coordinate : Coordinate) -> (color : Color) -> Image= 
 native "lambda img: lambda coords: lambda color:((lambda draw: (draw.rectangle(coords, fill=color),img))(__import__('PIL.ImageDraw').ImageDraw.Draw(img)))[-1]";
 
-def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(reduce(operator.add, map(lambda a, b: (a-b)**2, x.__import__('PIL').Image.histogram(), y.__import__('PIL').Image.histogram())) / len(x.__import__('PIL').Image.histogram())) ";
+def Image_diff: (img : Image)-> (img : Image)-> Float = native "lambda x: lambda y: math.sqrt(functools.reduce(operator.add, map(lambda a, b: (a-b)**2, x.histogram(), y.histogram())) / len(x.histogram())) ";
 
 def Image_show: (i : Image) -> Image = native "lambda img: img.show()";
 
