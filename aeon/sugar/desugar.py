@@ -68,9 +68,9 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
                 body = Abstraction(a, body)
             prog = Rec(d.name, ty, body, prog)
 
-    tyname: TypeDecl
-    for tyname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tyname.name), tyname.name)
+    tydeclname: TypeDecl
+    for tydeclname in type_decls:
+        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
     return (prog, ctx, ectx)
 
 
