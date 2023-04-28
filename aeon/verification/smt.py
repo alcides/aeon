@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 from typing import Generator
+from typing import Tuple
 
 from z3 import Function
 from z3 import Int
@@ -41,6 +42,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
+from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -68,7 +70,7 @@ base_functions: dict[str, Any] = {
 
 @dataclass
 class CanonicConstraint:
-    binders: list[tuple[str, BaseType]]
+    binders: list[tuple[str, BaseType | AbstractionType]]
     pre: LiquidTerm
     pos: LiquidTerm
 
@@ -115,7 +117,6 @@ def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bo
         for _, v in forall_vars:
             smt_c = ForAll(v, smt_c)
         s.add(smt_c)
-        print("smt:", s)
         result = s.check()
         s.pop()
         if result == sat:
@@ -154,7 +155,18 @@ def get_sort(base: BaseType) -> Any:
     assert False
 
 
-def make_variable(name: str, base: BaseType) -> Any:
+def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
+    current: Type = base
+    inputs = []
+    while isinstance(current, AbstractionType):
+        assert isinstance(current.var_type, BaseType)
+        inputs.append(current.var_type)
+        current = current.type
+    assert isinstance(current, BaseType)
+    return (inputs, current)
+
+
+def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
     if base == t_int:
         return Int(name)
     elif base == t_bool:
@@ -167,18 +179,12 @@ def make_variable(name: str, base: BaseType) -> Any:
     elif isinstance(base, BaseType):
         return Const(name, get_sort(base))
     elif isinstance(base, AbstractionType):
-        # TODO: flatten arguments
         if name in base_functions:
             return base_functions[name]
-        print(name, base, base.var_type, base.type)
 
-        # TODO: Ideia: fazer um uninterpreted function binder, em vez de abusar do variable binder.
-        # Como é que isto interage com o reflect?
-
-        in_type = get_sort(base.var_type)
-        out_type = get_sort(base.type)
-
-        return Function(name, in_type, out_type)
+        input_types, output_type = uncurry(base)
+        args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
+        return Function(name, *args)
 
     print("NO var:", name, base, type(base))
     assert False
