@@ -24,7 +24,7 @@ def ensure_refined(t: Type) -> RefinedType:
     if isinstance(t, RefinedType):
         return t
     elif isinstance(t, BaseType):
-        return RefinedType("singleton_", t, LiquidLiteralBool(True))
+        return RefinedType(f"singleton_{t}", t, LiquidLiteralBool(True))
     assert False
 
 
@@ -72,9 +72,7 @@ def sub(t1: Type, t2: Type) -> Constraint:
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
-        c1 = sub(substitution_in_type(t1.type, Var(t2.var_name), t1.var_name),
-                 t2.type)
-        return Conjunction(
-            c0, implication_constraint(t2.var_name, t2.var_type, c1))
+        c1 = sub(substitution_in_type(t1.type, Var(t2.var_name), t1.var_name), t2.type)
+        return Conjunction(c0, implication_constraint(t2.var_name, t2.var_type, c1))
     else:
         return cfalse

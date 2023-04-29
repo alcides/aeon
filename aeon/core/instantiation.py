@@ -11,12 +11,12 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 
 
-def type_substition(t: Type, alpha: str, beta: Type) -> Type:
+def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
     """t[alpha := beta], standard substition."""
     assert isinstance(t, Type)
 
     def rec(x):
-        return type_substition(x, alpha, beta)
+        return type_substitution(x, alpha, beta)
 
     if isinstance(t, BaseType):
         return t
@@ -35,12 +35,12 @@ def type_substition(t: Type, alpha: str, beta: Type) -> Type:
             target = TypePolymorphism(
                 new_name,
                 t.kind,
-                type_substition(t.body, alpha, TypeVar(new_name)),
+                type_substitution(t.body, alpha, TypeVar(new_name)),
             )
         return TypePolymorphism(
             target.name,
             target.kind,
-            type_substition(target.body, alpha, beta),
+            type_substitution(target.body, alpha, beta),
         )
     else:
         assert False
@@ -83,7 +83,7 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
             target = TypePolymorphism(
                 new_name,
                 t.kind,
-                type_substition(t.body, alpha, TypeVar(new_name)),
+                type_substitution(t.body, alpha, TypeVar(new_name)),
             )
         return TypePolymorphism(target.name, target.kind, rec(target.body))
     else:
