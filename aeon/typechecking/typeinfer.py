@@ -40,6 +40,7 @@ from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.helpers import pretty_print_constraint
+from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -56,7 +57,14 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 class FailedConstraintException(Exception):
-    pass
+    def __init__(self, ctx, t, ty, ks):
+        self.ctx = ctx
+        self.t = t
+        self.ty = ty
+        self.ks = ks
+
+    def __str__(self):
+        return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
 
 
 def argument_is_typevar(ty: Type):
@@ -212,8 +220,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 def wrap_checks(f):
     def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         k = f(ctx, t, ty)
-        if k == False:
-            raise FailedConstraintException(ctx, t, ty)
+        ks = simplify_constraint(k)
+        if ks == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedConstraintException(ctx, t, ty, ks)
         else:
             return k
 
