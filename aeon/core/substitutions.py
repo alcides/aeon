@@ -32,6 +32,7 @@ from aeon.core.types import TypeVar
 def substitute_vartype(t: Type, rep: Type, name: str):
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
+
     if isinstance(t, Bottom):
         return t
     elif isinstance(t, Top):
@@ -76,11 +77,11 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
     elif isinstance(t, Annotation):
         n_type = substitute_vartype(t.type, rep, name)
         return Annotation(rec(t.expr), n_type)
-    #TODO add If
-    print("term- ", t)
-    print("type term-", type(t))
-    print("type- ",rep)
-    print("name- ", name)
+    elif isinstance(t, If):
+        n_cond = rec(t.cond)
+        n_then = rec(t.then)
+        n_otherwise = rec(t.otherwise)
+        return If(n_cond, n_then, n_otherwise)
     assert False
 
 
