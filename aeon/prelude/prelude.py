@@ -17,7 +17,7 @@ def native_import(name):
 prelude = [
     ("native", "(x:String) -> Bottom", eval),
     ("native_import", "(x:String) -> Bottom", native_import),
-    ("print", "(x:Top) -> Int", p),
+    ("print", "(x:Top) -> Unit", p),
     ("==", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x == y),
     ("!=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x != y),
     ("<", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x < y),
