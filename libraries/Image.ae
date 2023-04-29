@@ -29,5 +29,5 @@ def Image_draw_rectangle :
     (width:{p:Int | p > 0}) ->
     (height:{p:Int | p > 0}) ->
     (color:Color) ->
-    (im:{i:Image | (x + width < Image_width i) && (y + height < Image_height i) }) ->
-    Image = native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle";
+    (im:{i:Image | ((x + width) < (Image_width i)) && ((y + height) < Image_height i) }) ->
+    {rim:Image | (Image_width rim == Image_width im) && (Image_height rim == Image_height im) } = native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle";
