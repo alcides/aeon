@@ -45,11 +45,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Application):
         f = eval(t.fun, ctx)
         arg = eval(t.arg, ctx)
-        try:
-            e = f(arg)
-        except Exception as e:
-            print(t, "failed", f, arg)
-            raise e
+        e = f(arg)
         if isinstance(t.fun, Var) and t.fun.name == "native_import":
             globals()[arg] = e
         return e
