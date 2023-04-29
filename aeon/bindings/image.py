@@ -14,7 +14,7 @@ def Image_mk(w, h, c):
 
 
 @curried
-def Image_draw_rectangle(x, y, w, h, c, im):
+def Image_draw_rectangle(im, x, y, w, h, c):
     im2 = im.copy()
     d = Draw(im2)
     d.rectangle((x, y, x + w, y + h), c)
