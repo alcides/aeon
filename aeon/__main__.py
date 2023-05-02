@@ -28,30 +28,6 @@ from aeon.utils.ctx_helpers import build_context
 from geneticengine.core.grammar import extract_grammar
 
 
-from aeon.core.terms import Rec
-from aeon.core.terms import Term
-from aeon.core.types import Type
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
-from aeon.core.types import Bottom
-from aeon.core.types import Top
-
-from geneticengine.core.grammar import extract_grammar
-
-from aeon.core.types import AbstractionType
-from aeon.sugar.program import Definition
-from aeon.sugar.program import TypeDecl
-from aeon.backend.evaluator import eval
-from aeon.backend.evaluator import EvaluationContext
-from aeon.core.types import top
-from aeon.frontend.parser import parse_term
-from aeon.prelude.prelude import evaluation_vars
-from aeon.prelude.prelude import typing_vars
-from aeon.sugar.desugar import desugar
-from aeon.sugar.program import Program
-from aeon.sugar.parser import parse_program
-from aeon.utils.ctx_helpers import build_context
-
 def find_class_by_name(grammar_nodes: list(type), class_name: str) -> tuple[list(type), type]:
     for cls in grammar_nodes:
         if cls.__name__ == class_name:
