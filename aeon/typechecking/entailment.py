@@ -10,22 +10,28 @@ from aeon.core.types import TypePolymorphism
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
+from aeon.verification.helpers import pretty_print_constraint
 from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
+from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
 # from aeon.verification.smt import smt_valid
 
 
 def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
-        return solve(c)
-        # return smt_valid(c)
+        r = solve(c)
+        if not r:
+            print("Could not show constrain:")
+            print(pretty_print_constraint(c))
+        return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):
             return entailment(ctx.prev, c)
-        elif isinstance(ctx.type, TypePolymorphism):
+        if isinstance(ctx.type, TypePolymorphism):
             return entailment(ctx.prev, c)  # TODO: check that this is not relevant
         else:
             ty: Type = ctx.type
@@ -34,6 +40,12 @@ def entailment(ctx: TypingContext, c: Constraint):
             ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
             return entailment(ctx.prev, Implication(ctx.name, base, ncond, c))
     elif isinstance(ctx, TypeBinder):
+        print("TODO: Handle TypeBinder in entailment. The current solution is to ignore.")
         return entailment(ctx.prev, c)  # TODO
+    elif isinstance(ctx, UninterpretedBinder):
+        return entailment(
+            ctx.prev,
+            UninterpretedFunctionDeclaration(ctx.name, ctx.type, c),
+        )
     else:
         assert False

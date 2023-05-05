@@ -4,6 +4,7 @@ import os.path
 from pathlib import Path
 
 from aeon.backend.evaluator import EvaluationContext
+from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitute_vartype_in_term
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
@@ -23,7 +24,7 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
@@ -51,11 +52,15 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     d: Definition
     for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
-            ctx = VariableBinder(
+            assert isinstance(d.type, AbstractionType)
+            d_type = d.type
+            for tyname in type_decls:
+                d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
+            ctx = UninterpretedBinder(
                 ctx,
                 d.name,
-                d.type,
-            )  # TODO: ensure basic type in d.type
+                d_type,
+            )
         else:
             ty = d.type
             body = d.body
@@ -64,10 +69,9 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
                 body = Abstraction(a, body)
             prog = Rec(d.name, ty, body, prog)
 
-    tyname: TypeDecl
-    for tyname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tyname.name), tyname.name)
-
+    tydeclname: TypeDecl
+    for tydeclname in type_decls:
+        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
     return (prog, ctx, ectx)
 
 

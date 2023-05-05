@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
+from dataclasses import dataclass
 
+from aeon.core.types import AbstractionType
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
@@ -49,6 +51,39 @@ class EmptyContext(TypingContext):
 
     def __hash__(self) -> int:
         return 0
+
+
+@dataclass
+class UninterpretedBinder(TypingContext):
+    prev: TypingContext
+    name: str
+    type: AbstractionType
+
+    def type_of(self, name: str) -> Type | None:
+        if name == self.name:
+            return self.type
+        return self.prev.type_of(name)
+
+    def fresh_var(self):
+        p = int(self.prev.fresh_var().split("_")[-1])
+        while True:
+            name = f"fresh_{p}"
+            if self.type_of(name) is None:
+                break
+            p += 1
+        return name
+
+    def __repr__(self) -> str:
+        return f"{self.prev},{self.name}:{self.type}"
+
+    def vars(self) -> list[tuple[str, Type]]:
+        return [(self.name, self.type)] + self.prev.vars()
+
+    def typevars(self) -> list[tuple[str, Kind]]:
+        return self.prev.typevars()
+
+    def __hash__(self) -> int:
+        return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
 class VariableBinder(TypingContext):

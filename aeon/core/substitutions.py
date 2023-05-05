@@ -33,7 +33,11 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
 
-    if isinstance(t, BaseType):
+    if isinstance(t, Bottom):
+        return t
+    elif isinstance(t, Top):
+        return t
+    elif isinstance(t, BaseType):
         return t
     elif isinstance(t, TypeVar) and t.name == name:
         return rep
@@ -43,6 +47,7 @@ def substitute_vartype(t: Type, rep: Type, name: str):
         return RefinedType(t.name, rec(t.type), t.refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
+    print("Substitution", t, rep, name)
     assert False
 
 
@@ -72,6 +77,11 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
     elif isinstance(t, Annotation):
         n_type = substitute_vartype(t.type, rep, name)
         return Annotation(rec(t.expr), n_type)
+    elif isinstance(t, If):
+        n_cond = rec(t.cond)
+        n_then = rec(t.then)
+        n_otherwise = rec(t.otherwise)
+        return If(n_cond, n_then, n_otherwise)
     assert False
 
 

@@ -24,7 +24,10 @@ class TreeToSugar(TreeToCore):
         return Program(args[0], args[1], args[2])
     
     def regular_imp(self, args):
-        return ImportAe(args[0])
+        return ImportAe(args[0], [])
+    
+    def function_imp(self, args):
+        return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
         return TypeDecl(args[0])

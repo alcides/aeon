@@ -1,6 +1,5 @@
-# TODO: resolve Type Checking failed because of print
 let factorial : (x:Int) -> Int = (\n -> if n == 0 then 1 else n * factorial (n-1)) in
-# let _1 = print "Factorial of 5:" in
-# let _2 = print (factorial 5) in
+let _1 = print "Factorial of 5:" in
+let _2 = print (factorial 5) in
 let _2 =  (factorial 5) in
 5

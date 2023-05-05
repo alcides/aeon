@@ -10,7 +10,7 @@ from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 
 if __name__ == "__main__":
@@ -24,9 +24,17 @@ if __name__ == "__main__":
         p = parse_term(code)
     else:
         p, ctx, ectx = desugar(parse_program(code))
-    print(p)
-    if check_type(ctx, p, top):
-        eval(p, ectx)
+    if "-d" in sys.argv or "--debug" in sys.argv:
+        print(p)
+    errors = check_type_errors(ctx, p, top)
+    if errors:
+        print("-------------------------------")
+        print("+  Type Checking Error        +")
+        for error in errors:
+            print("-------------------------------")
+            print(error)
+
+        print("-------------------------------")
+
     else:
-        print(p, top)
-        print("Type Checking failed.")
+        eval(p, ectx)

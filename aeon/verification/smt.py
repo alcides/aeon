@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 from typing import Generator
+from typing import Tuple
 
+from z3 import Function
 from z3 import Int
 from z3 import sat
 from z3 import Solver
@@ -13,36 +16,38 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
+from z3.z3 import Float32
 from z3.z3 import ForAll
+from z3.z3 import FP
+from z3.z3 import FPSort
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import Not
 from z3.z3 import Or
 from z3.z3 import String
 from z3.z3 import StringSort
-from z3.z3 import FPSort
-from z3.z3 import FP  
-from z3.z3 import Float32  
-
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid_ops import mk_liquid_and
+from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
+from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import t_float
+from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
 base_functions: dict[str, Any] = {
     "==": lambda x, y: x == y,
@@ -63,20 +68,11 @@ base_functions: dict[str, Any] = {
 }
 
 
+@dataclass
 class CanonicConstraint:
-    binders: list[tuple[str, BaseType]]
+    binders: list[tuple[str, BaseType | AbstractionType]]
     pre: LiquidTerm
     pos: LiquidTerm
-
-    def __init__(
-        self,
-        binders: list[tuple[str, BaseType]],
-        pre: LiquidTerm,
-        pos: LiquidTerm,
-    ):
-        self.binders = binders
-        self.pre = pre
-        self.pos = pos
 
     def __repr__(self):
         return f"\\forall {self.binders}, {self.pre} => {self.pos}"
@@ -94,9 +90,16 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[],
-                                pre=LiquidLiteralBool(True),
-                                pos=c.expr)
+        yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        for sub in flatten(c.seq):
+            yield CanonicConstraint(
+                binders=sub.binders + [(c.name, c.type)],
+                pre=sub.pre,
+                pos=sub.pos,
+            )
+    else:
+        assert False
 
 
 s = Solver()
@@ -107,9 +110,7 @@ def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bo
     """Verifies if a constraint is true using Z3."""
     cons: list[CanonicConstraint] = list(flatten(constraint))
 
-    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
-                   if isinstance(f[1], BaseType)]
-
+    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
     for c in cons:
         s.push()
         smt_c = translate(c, extra=forall_vars)
@@ -139,22 +140,33 @@ sort_cache = {}
 
 def get_sort(base: BaseType) -> Any:
     if base == t_int:
-        return IntSort
+        return IntSort()
     elif base == t_bool:
-        return BoolSort
+        return BoolSort()
     elif base == t_float:
-        return Float32
+        return Float32()
     elif base == t_string:
-        return StringSort
+        return StringSort()
     elif isinstance(base, BaseType):
         if base.name not in sort_cache:
             sort_cache[base.name] = DeclareSort(base.name)
         return sort_cache[base.name]
-    print("NO sort:", base)
+    print("No sort:", base)
     assert False
 
 
-def make_variable(name: str, base: BaseType) -> Any:
+def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
+    current: Type = base
+    inputs = []
+    while isinstance(current, AbstractionType):
+        assert isinstance(current.var_type, BaseType)
+        inputs.append(current.var_type)
+        current = current.type
+    assert isinstance(current, BaseType)
+    return (inputs, current)
+
+
+def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
     if base == t_int:
         return Int(name)
     elif base == t_bool:
@@ -166,6 +178,13 @@ def make_variable(name: str, base: BaseType) -> Any:
         return String(name)
     elif isinstance(base, BaseType):
         return Const(name, get_sort(base))
+    elif isinstance(base, AbstractionType):
+        if name in base_functions:
+            return base_functions[name]
+
+        input_types, output_type = uncurry(base)
+        args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
+        return Function(name, *args)
 
     print("NO var:", name, base, type(base))
     assert False
@@ -192,7 +211,7 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             for v in variables:
                 if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
                     f = v[1]
-        if not f:
+        if f is None:
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
@@ -207,7 +226,7 @@ def translate(
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders
-        if isinstance(base, BaseType)
+        if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)

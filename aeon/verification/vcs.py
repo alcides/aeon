@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Generator
 
 from aeon.core.liquid import LiquidApp
@@ -8,6 +9,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 
 
@@ -15,48 +17,46 @@ class Constraint:
     pass
 
 
+@dataclass
 class LiquidConstraint(Constraint):
     expr: LiquidTerm
-
-    def __init__(self, expr: LiquidTerm):
-        self.expr = expr
 
     def __repr__(self):
         return repr(self.expr)
 
 
+@dataclass
 class Conjunction(Constraint):
     c1: Constraint
     c2: Constraint
-
-    def __init__(self, c1: Constraint, c2: Constraint):
-        self.c1 = c1
-        self.c2 = c2
 
     def __repr__(self):
         return f"({self.c1}) ∧ ({self.c2})"
 
 
+@dataclass
+class UninterpretedFunctionDeclaration(Constraint):
+    name: str
+    type: AbstractionType
+    seq: Constraint
+
+    def __repr__(self):
+        return f"fun {self.name}:{self.type} => {self.seq}"
+
+
+@dataclass
 class Implication(Constraint):
     name: str
     base: BaseType
     pred: LiquidTerm
     seq: Constraint
 
-    def __init__(self, name: str, base: BaseType, pred: LiquidTerm,
-                 seq: Constraint):
-        self.name = name
-        self.base = base
-        self.pred = pred
-        self.seq = seq
-
     def __repr__(self):
         return f"∀{self.name}:{self.base}, ({self.pred}) => {self.seq}"
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
-    if (isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt)
-            or isinstance(t, LiquidLiteralString)):
+    if isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         pass
     elif isinstance(t, LiquidVar):
         yield t.name
