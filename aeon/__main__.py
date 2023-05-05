@@ -54,10 +54,10 @@ if __name__ == "__main__":
             print(key, " : ", value, "\n")
 
         # TODO  extract the nodes from p instead of defs and type_decl
-        # grammar_n: list[type] = build_grammar_core(p)
-        # for cls in grammar_n:
-        #    print(cls)
-        # print(len(grammar_n))
+        grammar_n: list[type] = build_grammar_core(p)
+        for cls in grammar_n:
+            print(cls)
+        print(len(grammar_n))
 
         # grammar from sugar
         # synth_funcs = ([d for d in prog.definitionsif d.name.startswith("synth_")])

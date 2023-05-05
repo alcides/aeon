@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC
 from typing import Optional
 
+from lark.lexer import Token
+
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -59,7 +61,7 @@ def create_dataclass_from_definition(definition: Definition, grammar_nodes: list
 
     def str_method(self):
         # wrong representation
-        field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in definition.args]
+        field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
         return f"{definition.name} {' '.join(field_values)}"
 
     new_class.__str__ = str_method
@@ -90,7 +92,10 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
         # TODO replace basetype Int, Bool etc with <class 'int'>, <class 'bool'> etc
         # TODO handle refined type
         grammar_nodes, typ = find_class_by_name(grammar_nodes, t.var_type.name)
-        fields[t.var_name] = typ
+
+        var_name = t.var_name.value if isinstance(t.var_name, Token) else t.var_name
+
+        fields[var_name] = typ
         t = t.type
 
     # TODO handle type top and bottom
@@ -104,10 +109,11 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
     new_class_dict = {"__annotations__": dict(fields)}
     new_class = type(term.var_name, (parent_class,), new_class_dict)
 
-    # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
-    # TODO
+    print(new_class.__name__, "\n", new_class.__annotations__, "\n")
+
     def str_method(self):
-        return f" "
+        field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
+        return f"{term.name} {' '.join(field_values)}"
 
     new_class.__str__ = str_method
     grammar_nodes.append(new_class)
