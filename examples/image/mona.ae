@@ -1,0 +1,50 @@
+import Image;
+
+def monaLisa : (Image) = Image_load2("examples/sugar/mona.jpg");
+
+def random_int_color: {x:Int | 0 <= x && x <= 255} = native "__import__('random').randint(0, 255)";
+
+def random_x_coord: Int = native " __import__('random').randint(0, 732)";
+def random_y_coord: Int = native "__import__('random').randint(0, 1024)";
+
+#def random_x_coord:(img:Image) -> {x:Int | (x >= 0) && (x <= Image_width(img))} = native " __import__('random').randint(0, 732)";
+#def random_y_coord:(img:Image) -> {y:Int | (y >= 0) && (y <= Image_height(img))} = native "__import__('random').randint(0, 1024)";
+
+def random_x1_coord:  (x1:Int)-> Int= native "lambda min:  __import__('random').randint(min, 732)";
+def random_y1_coord: (y1:Int)->  Int = native "lambda min:  __import__('random').randint(min, 1024)";
+
+#def random_x1_coord:(img:Image) ->  (x1:Int)-> {x:Int | (x >= 0) && (x <= Image_width(img))} = native "lambda min:  __import__('random').randint(min, 732)";
+#def random_y1_coord:(img:Image) -> (y1:Int)->  {y:Int | (y >= 0) && (y <= Image_height(img))} = native "lambda min:  __import__('random').randint(min, 1024)";
+
+
+# 732 width, 1024 height
+
+def canvas : (Image) = (Image_create(732)(1024));
+
+def draw : (ImageDraw) = Image_draw(canvas);
+
+def random_color: (Color) = (Image_makeColor(random_int_color)(random_int_color)(random_int_color));
+
+
+#def random_coord: (Coordinate) = (Image_makeCoordinate(canvas)(random_x_coord(canvas))(random_y_coord(canvas))(random_x1_coord(canvas)(random_x_coord(canvas)))(random_y1_coord(canvas)(random_y_coord(canvas))));
+
+def random_coord: (Coordinate) = (Image_makeCoordinate(canvas)(random_x_coord)(random_y_coord)(random_x1_coord(random_x_coord))(random_y1_coord(random_y_coord)));
+
+
+#def random_rect: ImageDraw= (Image_draw_rectangle(canvas)(random_coord)(random_color));
+
+def random_rect: ImageDraw=  (Image_draw_rectangle(draw)(random_coord)(random_color));
+
+def random_rect2:(x:ImageDraw) -> ImageDraw= \x -> (Image_draw_rectangle(x)(random_coord)(random_color));
+
+
+def multiple_random_rectangles(count: Int, img:ImageDraw) : ImageDraw {
+    if (count <= 0 ) then (img) 
+       else (multiple_random_rectangles(c-1)(random_rect2(img)))
+
+}
+
+
+def multiple_random_rectangles2:(count: Int)-> (x:ImageDraw) -> ImageDraw = 
+\c -> \img -> if (c <= 0 ) then (img) 
+    else (multiple_random_rectangles2(c-1)(random_rect2(img)));

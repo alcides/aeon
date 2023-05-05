@@ -11,7 +11,19 @@ class Node:
 
 
 @dataclass
-class TypeDecl(Node):
+class ImportAe(Node):
+    path: str
+    func_or_type: str
+
+    def __repr__(self):
+        if not self.func_or_type:
+            return f"import {self.path};"
+        else:
+            return f"import {self.func_or_type} from {self.path};"
+
+
+@dataclass
+class TypeDecl(Node): 
     name: str
 
     def __repr__(self):
@@ -35,10 +47,12 @@ class Definition(Node):
 
 @dataclass
 class Program(Node):
+    imports: list[ImportAe]
     type_decls: list[TypeDecl]
     definitions: list[Definition]
 
     def __repr__(self):
+        imps = "\n".join([str(td) for td in self.imports])
         decls = "\n".join([str(td) for td in self.type_decls])
         defs = "\n".join([str(d) for d in self.definitions])
-        return f"{decls}\n{defs}"
+        return f"{imps}\n{decls}\n{defs}"

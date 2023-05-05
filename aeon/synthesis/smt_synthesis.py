@@ -11,6 +11,7 @@ from aeon.core.types import t_int
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.verification.smt import make_variable
 from aeon.verification.smt import translate_liq
@@ -19,6 +20,8 @@ from aeon.verification.smt import translate_liq
 def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
     if isinstance(ctx, EmptyContext):
         return translate_liq(t, variables=vars)
+    elif isinstance(ctx, UninterpretedBinder):
+        return translate(ctx.prev, t, vars + [(ctx.name, ctx.type)])
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, RefinedType) or isinstance(ctx.type, BaseType):
             (name, base, cond) = extract_parts(ctx.type)
@@ -35,6 +38,7 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
             return translate(ctx.prev, t, vars)
         else:
             print("ERROR HERE", ctx.type, type(ctx.type))
+            assert False
 
         return translate(ctx.prev, t, vars)
 

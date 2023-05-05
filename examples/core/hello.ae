@@ -1,1 +1,2 @@
-print(?a + 2)
+# TODO: resolve Assertation Error 
+print((?a:Int) + 2)

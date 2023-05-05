@@ -164,9 +164,7 @@ class TypePolymorphism(Type):
 def extract_parts(
     t: Type,
 ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert (
-        isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
-    )
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -180,9 +178,7 @@ def extract_parts(
 def is_bare(ty: Type) -> bool:
     """Returns whether a type is bare or not."""
     bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = (
-        isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
-    )
+    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
     type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
     return bare_base or dependent_function or type_polymorphism
 

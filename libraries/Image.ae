@@ -1,0 +1,39 @@
+type Color;
+type Image;
+
+
+def Color_r: (c:Color) -> Int = uninterpreted;
+def Color_g: (c:Color) -> Int = uninterpreted;
+def Color_b: (c:Color) -> Int = uninterpreted;
+
+def Color_mk :
+    (r:{r:Int | r >= 0 && r < 256}) ->
+    (g:{r:Int | r >= 0 && r < 256}) ->
+    (b:{r:Int | r >= 0 && r < 256}) ->
+    {c:Color | (Color_r c == r) && (Color_g c == g) && (Color_b c == b) } = native "lambda r: lambda g: lambda b: (r, g, b)";
+
+
+def Image_height : (im:Image) -> Int = uninterpreted;
+def Image_width : (im:Image) -> Int = uninterpreted;
+
+def Image_mk :
+    (width:{p:Int | p > 0}) ->
+    (height:{p:Int | p > 0}) ->
+    (color:Color) ->
+    {i : Image | (Image_width i == width) && (Image_height i == height) } =
+native "__import__('aeon.bindings.image').bindings.image.Image_mk";
+
+def Image_show : (image:Image) -> Unit = native "lambda im: im.show()";
+def Image_save : (image:Image) -> (path:String) -> Unit = native "lambda im: lambda path: im.save(path)";
+def Image_open : (path:String) -> Image = native "__import__('PIL.Image').Image.open";
+
+def Image_diff : (img : Image) -> (img : Image) -> Float = native "__import__('aeon.bindings.image').bindings.image.Image_diff";
+
+def Image_draw_rectangle :
+    (im:Image) ->
+    (x:{p:Int | p > 0 && p < Image_width im }) ->
+    (y:{p:Int | p > 0 && p < Image_height im}) ->
+    (width:{p:Int | p > 0 && x + p < Image_width im }) ->
+    (height:{p:Int | p > 0 && y + p < Image_height im }) ->
+    (color:Color) ->
+    {rim:Image | (Image_width rim == Image_width im) && (Image_height rim == Image_height im) } = native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle";

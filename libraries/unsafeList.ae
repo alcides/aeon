@@ -1,0 +1,13 @@
+type unsafeList;
+type Tuple;
+
+def Lnew : List = native "[]" ;
+
+def cons: (l:List) -> (t: Top) -> List = native"lambda xs: lambda x: [x] + xs";
+
+def car: (l:List) -> Bottom = native"lambda xs: xs[0]";
+
+def cdr:(l:List) -> Bottom  = native"lambda xs: xs[1:]";
+
+def list_to_tuple: (l:List) -> Tuple = native "lambda xs: tuple(xs)";
+

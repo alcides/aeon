@@ -1,0 +1,3 @@
+def main (args:Int) : Unit {
+    print "Hello World"
+}

@@ -1,0 +1,5 @@
+def greater : (a:Int) -> Int = uninterpreted;
+
+def f : (a:{y:Int| greater(y) }) -> {x:Int | x == 1} = \a -> 1;
+
+def main : (y:Int) -> {x:Int | x >= 1} = \y -> f 3;
