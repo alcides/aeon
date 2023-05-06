@@ -16,9 +16,12 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
 from aeon.core.types import Bottom
+from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypeVar
 from aeon.sugar.program import Definition
 from aeon.sugar.program import TypeDecl
 from aeon.typechecking.context import TypingContext
@@ -129,6 +132,11 @@ def build_grammar_core(term: Term, grammar_nodes: list[type] = []) -> list[type]
     return grammar_nodes
 
 
+# Probably change this methoad for another file
+def refined_to_unrefinedtype(ty: RefinedType) -> Type:
+    return ty.type
+
+
 # TODO tests
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_type(
@@ -172,7 +180,9 @@ def get_holes_type(
         holes[t.expr.name] = (t.type, ctx)
     elif isinstance(t, Hole):
         print(True)
-        # TODO if ty is refined, convert to unrefined?
+
+        ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
+
         holes[t.name] = (ty, ctx)
 
     return holes
