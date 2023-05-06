@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
+from aeon.core.types import BaseType
 from aeon.core.types import t_int
 from aeon.core.types import top
 from aeon.frontend.parser import parse_term
@@ -10,20 +11,30 @@ from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
+from aeon.synthesis_grammar.grammar import get_holes_type
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
 
-def check_compile(source, ty):
+def check_hole_type(source, hole_name, expected_type):
     p, ctx, _ = desugar(parse_program(source))
-    assert check_type(ctx, p, ty)
+    holes = get_holes_type(p, top, ctx)
+
+    assert holes[hole_name][0] == expected_type
 
 
-def test_anf():
+def test_type_int():
     source = r"""
-        type Unit;
-        def math : Unit = native_import "math";
-        def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) -> (e:{d:Int | ((d >= 1) && (d <= 100))}) ->  Int = native "lambda x: lambda y: math.pow(x , y)";
-
+        def test (x:{k:Int | k > 0}) : {z:Int | z < 0} {
+        ?r
+        }
 """
-    check_compile(source, top)
+    check_hole_type(source, "r", t_int)
+
+
+def test_type_example():
+    source = r"""
+        type Example;
+        def test: Example = ?r ;
+"""
+    check_hole_type(source, "r", BaseType("Example"))

@@ -32,7 +32,7 @@ if __name__ == "__main__":
         print("##\n", ctx)
     else:
         prog: Program = parse_program(code)
-        p, ctx, ectx, defs, type_decls = desugar(prog)
+        p, ctx, ectx = desugar(prog)
     if "-d" in sys.argv or "--debug" in sys.argv:
         print(p)
 
