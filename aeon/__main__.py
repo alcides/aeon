@@ -56,17 +56,11 @@ if __name__ == "__main__":
         # TODO  extract the nodes from p instead of defs and type_decl
         grammar_n: list[type] = build_grammar_core(p)
         for cls in grammar_n:
-            print(cls)
-        print(len(grammar_n))
+            # print(cls)
+            pass
 
-        # grammar from sugar
-        # synth_funcs = ([d for d in prog.definitionsif d.name.startswith("synth_")])
-        # grammar_nodes: list[type] = build_grammar_sugar(defs, type_decls)
-        # for cls in grammar_nodes:
-        #    print(cls)
-        # print(len(grammar_nodes))
-
-        # _, starting_node = find_class_by_name(grammar_nodes, synth_funcs[0].body.var_value.type.name)
+        first_hole = next(iter(holes))
+        hole_ctx = holes[first_hole][1]
 
         # grammar = extract_grammar(grammar_nodes, starting_node)
 

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC
+from typing import Any
+from typing import Callable
 from typing import Optional
 
 from lark.lexer import Token
 
+from aeon.backend.evaluator import eval
+from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -112,7 +116,7 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
     new_class_dict = {"__annotations__": dict(fields)}
     new_class = type(term.var_name, (parent_class,), new_class_dict)
 
-    print(new_class.__name__, "\n", new_class.__annotations__, "\n")
+    # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
 
     def str_method(self):
         field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
@@ -130,6 +134,15 @@ def build_grammar_core(term: Term, grammar_nodes: list[type] = []) -> list[type]
         grammar_nodes = create_class_from_rec_term(rec, grammar_nodes)
         rec = rec.body
     return grammar_nodes
+
+
+def get_fitness_term(term: Rec) -> Term:
+    if term.var_name == "fitness":
+        return term.var_value
+    elif isinstance(term.body, Rec):
+        return get_fitness_term(term.body)
+    else:
+        raise NotImplementedError("Fitness function not found")
 
 
 # Probably change this methoad for another file
@@ -175,13 +188,10 @@ def get_holes_type(
         holes = get_holes_type(t.arg, ty, ctx, holes)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
-        print(True)
         holes[t.expr.name] = (t.type, ctx)
+
     elif isinstance(t, Hole):
-        print(True)
-
         ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
-
         holes[t.name] = (ty, ctx)
 
     return holes
