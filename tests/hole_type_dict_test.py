@@ -42,6 +42,6 @@ def test_type_example():
 
 def test_type_typevar():
     source = r"""
-        def test: Int = (?r:Int) + Int ;
+        def test: Int = (?r:Int) + (1:Int) ;
 """
     check_hole_type(source, "r", BaseType("Int"))
