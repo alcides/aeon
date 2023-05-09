@@ -42,56 +42,6 @@ def find_class_by_name(grammar_nodes: list(type), class_name: str) -> tuple[list
     return grammar_nodes, new_class
 
 
-def create_dataclass_from_definition(definition: Definition, grammar_nodes: list(type)):
-    fields = {arg_name: arg_type for arg_name, arg_type in definition.args}
-
-    t = definition.type
-    while isinstance(t, AbstractionType):
-        # TODO replace basetype Int, Bool etc with <class 'int'>, <class 'bool'> etc
-        # TODO handle refined type
-        _, typ = find_class_by_name(grammar_nodes, t.var_type.name)
-        fields[t.var_name] = typ
-        t = t.type
-
-    # TODO handle type top and bottom
-    if isinstance(t, (Top, Bottom)):
-        return grammar_nodes
-
-    parent_class_name = t.name
-
-    grammar_nodes, parent_class = find_class_by_name(grammar_nodes, parent_class_name)
-
-    new_class_dict = {"__annotations__": dict(fields)}
-    new_class = type(definition.name, (parent_class,), new_class_dict)
-
-    # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
-
-    def str_method(self):
-        # wrong representation
-        field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
-        return f"{definition.name} {' '.join(field_values)}"
-
-    new_class.__str__ = str_method
-    grammar_nodes.append(new_class)
-
-    return grammar_nodes
-
-
-def build_grammar_sugar(defs: list[Definition], type_decls: list[TypeDecl]) -> list[type]:
-    grammar_nodes: list[type] = []
-
-    for ty in type_decls:
-        if ty.name not in [cls.__name__ for cls in grammar_nodes]:
-            type_dataclass = type(ty.name, (ABC,), {})
-            grammar_nodes.append(type_dataclass)
-    for d in defs:
-        # TODO if it is uninterpreted do not create a dataclass ?
-        # if (not isinstance(d.type, AbstractionType)):
-        grammar_nodes = create_dataclass_from_definition(d, grammar_nodes)
-
-    return grammar_nodes
-
-
 def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
     fields = {}
     t = term.var_type
@@ -195,3 +145,54 @@ def get_holes_type(
         holes[t.name] = (ty, ctx)
 
     return holes
+
+
+# delete
+def create_dataclass_from_definition(definition: Definition, grammar_nodes: list(type)):
+    fields = {arg_name: arg_type for arg_name, arg_type in definition.args}
+
+    t = definition.type
+    while isinstance(t, AbstractionType):
+        # TODO replace basetype Int, Bool etc with <class 'int'>, <class 'bool'> etc
+        # TODO handle refined type
+        _, typ = find_class_by_name(grammar_nodes, t.var_type.name)
+        fields[t.var_name] = typ
+        t = t.type
+
+    # TODO handle type top and bottom
+    if isinstance(t, (Top, Bottom)):
+        return grammar_nodes
+
+    parent_class_name = t.name
+
+    grammar_nodes, parent_class = find_class_by_name(grammar_nodes, parent_class_name)
+
+    new_class_dict = {"__annotations__": dict(fields)}
+    new_class = type(definition.name, (parent_class,), new_class_dict)
+
+    # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
+
+    def str_method(self):
+        # wrong representation
+        field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
+        return f"{definition.name} {' '.join(field_values)}"
+
+    new_class.__str__ = str_method
+    grammar_nodes.append(new_class)
+
+    return grammar_nodes
+
+
+def build_grammar_sugar(defs: list[Definition], type_decls: list[TypeDecl]) -> list[type]:
+    grammar_nodes: list[type] = []
+
+    for ty in type_decls:
+        if ty.name not in [cls.__name__ for cls in grammar_nodes]:
+            type_dataclass = type(ty.name, (ABC,), {})
+            grammar_nodes.append(type_dataclass)
+    for d in defs:
+        # TODO if it is uninterpreted do not create a dataclass ?
+        # if (not isinstance(d.type, AbstractionType)):
+        grammar_nodes = create_dataclass_from_definition(d, grammar_nodes)
+
+    return grammar_nodes
