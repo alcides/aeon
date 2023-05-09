@@ -38,3 +38,10 @@ def test_type_example():
         def test: Example = ?r ;
 """
     check_hole_type(source, "r", BaseType("Example"))
+
+
+def test_type_typevar():
+    source = r"""
+        def test: Int = (?r:Int) + Int ;
+"""
+    check_hole_type(source, "r", BaseType("Int"))

@@ -137,7 +137,6 @@ def refined_to_unrefinedtype(ty: RefinedType) -> Type:
     return ty.type
 
 
-# TODO tests
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_type(
     t: Term,
