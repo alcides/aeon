@@ -14,8 +14,7 @@ from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
 from aeon.synthesis_grammar.grammar import build_grammar_core
-from aeon.synthesis_grammar.grammar import build_grammar_sugar
-from aeon.synthesis_grammar.grammar import find_class_by_name
+from aeon.synthesis_grammar.grammar import extract_fitness
 from aeon.synthesis_grammar.grammar import get_holes_type
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
