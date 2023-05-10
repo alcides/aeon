@@ -56,8 +56,7 @@ if __name__ == "__main__":
         # TODO  extract the nodes from p instead of defs and type_decl
         grammar_n: list[type] = build_grammar_core(p)
         for cls in grammar_n:
-            # print(cls)
-            pass
+            print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
         first_hole = next(iter(holes))
         hole_ctx = holes[first_hole][1]

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import dataclass
 from typing import Any
 from typing import Callable
 from typing import Optional
 
+from geneticengine.core.decorators import abstract
 from lark.lexer import Token
 
 from aeon.backend.evaluator import eval
@@ -33,26 +35,41 @@ from aeon.typechecking.typeinfer import synth
 from aeon.verification.horn import fresh
 
 
+# Probably change this methoad for another file
+def refined_to_unrefinedtype(ty: RefinedType) -> Type:
+    return ty.type
+
+
 def find_class_by_name(grammar_nodes: list(type), class_name: str) -> tuple[list(type), type]:
     for cls in grammar_nodes:
-        if cls.__name__ == class_name:
+        if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
-    new_class = type(class_name, (ABC,), {})
-    grammar_nodes.append(new_class)
-    return grammar_nodes, new_class
+    if class_name == "Int":
+        new_abs_class = type("t_" + class_name, (ABC,), {})
+        # new_abs_class = type("t_"+class_name, (), {})
+        # new_abs_class = abstract(new_abs_class)
+        grammar_nodes.append(new_abs_class)
+
+        new_class = dataclass(type("literal_" + class_name, (new_abs_class,), {"__annotations__": {"value": int}}))
+        grammar_nodes.append(new_class)
+
+        return grammar_nodes, new_abs_class
+
+    else:
+        raise Exception("Not implemented: " + class_name)
 
 
-def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
+def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)) -> list(type):
     fields = {}
     t = term.var_type
     while isinstance(t, AbstractionType):
-        # TODO replace basetype Int, Bool etc with <class 'int'>, <class 'bool'> etc
-        # TODO handle refined type
-        grammar_nodes, typ = find_class_by_name(grammar_nodes, t.var_type.name)
+        term_var_type = refined_to_unrefinedtype(t.var_type) if isinstance(t.var_type, RefinedType) else t.var_type
+
+        grammar_nodes, cls = find_class_by_name(grammar_nodes, term_var_type.name)
 
         var_name = t.var_name.value if isinstance(t.var_name, Token) else t.var_name
 
-        fields[var_name] = typ
+        fields[var_name] = cls
         t = t.type
 
     # TODO handle type top and bottom
@@ -60,14 +77,12 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)):
         return grammar_nodes
 
     parent_class_name = t.name
-
     grammar_nodes, parent_class = find_class_by_name(grammar_nodes, parent_class_name)
 
     new_class_dict = {"__annotations__": dict(fields)}
     new_class = type(term.var_name, (parent_class,), new_class_dict)
 
     # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
-
     def str_method(self):
         field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
         return f"{term.name} {' '.join(field_values)}"
@@ -93,11 +108,6 @@ def get_fitness_term(term: Rec) -> Term:
         return get_fitness_term(term.body)
     else:
         raise NotImplementedError("Fitness function not found")
-
-
-# Probably change this methoad for another file
-def refined_to_unrefinedtype(ty: RefinedType) -> Type:
-    return ty.type
 
 
 # dict (hole_name , (hole_type, hole_typingContext))
@@ -173,7 +183,6 @@ def create_dataclass_from_definition(definition: Definition, grammar_nodes: list
     # print(new_class.__name__, "\n", new_class.__annotations__, "\n")
 
     def str_method(self):
-        # wrong representation
         field_values = [f'("{str(getattr(self, field_name))}")' for field_name, _ in fields]
         return f"{definition.name} {' '.join(field_values)}"
 
