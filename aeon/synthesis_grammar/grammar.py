@@ -110,6 +110,14 @@ def get_fitness_term(term: Rec) -> Term:
         raise NotImplementedError("Fitness function not found")
 
 
+def extract_fitness(term: Term, ctx: TypingContext) -> Callable[[Any], int]:
+    assert isinstance(term, Rec)
+    fitness_term = get_fitness_term(term)
+
+    if isinstance(fitness_term, Abstraction):
+        return lambda k: eval(fitness_term.body, ctx.with_var(fitness_term.var_name, k))
+
+
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_type(
     t: Term,

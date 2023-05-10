@@ -61,6 +61,8 @@ if __name__ == "__main__":
         first_hole = next(iter(holes))
         hole_ctx = holes[first_hole][1]
 
+        fitness_function = extract_fitness(p, hole_ctx)
+
         # grammar = extract_grammar(grammar_nodes, starting_node)
 
         eval(p, ectx)
