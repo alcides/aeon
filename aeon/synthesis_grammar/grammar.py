@@ -7,6 +7,7 @@ from typing import Callable
 from typing import Optional
 
 from geneticengine.core.decorators import abstract
+from geneticengine.core.grammar import extract_grammar
 from lark.lexer import Token
 
 from aeon.backend.evaluator import eval
@@ -119,9 +120,9 @@ def extract_fitness(term: Term, ctx: TypingContext):
 
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_type(
+    ctx: TypingContext,
     t: Term,
     ty: Type,
-    ctx: TypingContext,
     holes: dict(str, tuple(Type | None, TypingContext)) = None,
 ) -> dict(str, tuple(Type | None, TypingContext)):
 
@@ -162,3 +163,23 @@ def get_holes_type(
         holes[t.name] = (ty, ctx)
 
     return holes
+
+
+def synthesis(ctx: TypingContext, p: Term, ty: Type):
+    print("###\n", ctx)
+    holes = {}
+    holes = get_holes_type(ctx, p, ty)
+    for key, value in holes.items():
+        print(key, " : ", value, "\n")
+
+    grammar_n: list[type] = build_grammar_core(p)
+    for cls in grammar_n:
+        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+
+    first_hole = next(iter(holes))
+    hole_ctx = holes[first_hole][1]
+
+    extract_fitness(p, hole_ctx)
+
+    # grammar = extract_grammar(grammar_n, starting_node)
+    # print(grammar)
