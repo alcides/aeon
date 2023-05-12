@@ -35,13 +35,14 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.verification.horn import fresh
 
+prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
 
 # Probably move this methoad to another file
 def refined_to_unrefinedtype(ty: RefinedType) -> Type:
     return ty.type
 
 
-def find_class_by_name(grammar_nodes: list(type), class_name: str) -> tuple[list(type), type]:
+def find_class_by_name(class_name: str, grammar_nodes: list(type)) -> tuple[list(type), type]:
     for cls in grammar_nodes:
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
@@ -66,7 +67,7 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)) -> list(typ
     while isinstance(t, AbstractionType):
         term_var_type = refined_to_unrefinedtype(t.var_type) if isinstance(t.var_type, RefinedType) else t.var_type
 
-        grammar_nodes, cls = find_class_by_name(grammar_nodes, term_var_type.name)
+        grammar_nodes, cls = find_class_by_name(term_var_type.name, grammar_nodes)
 
         var_name = t.var_name.value if isinstance(t.var_name, Token) else t.var_name
 
@@ -78,7 +79,7 @@ def create_class_from_rec_term(term: Rec, grammar_nodes: list(type)) -> list(typ
         return grammar_nodes
 
     parent_class_name = t.name
-    grammar_nodes, parent_class = find_class_by_name(grammar_nodes, parent_class_name)
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
     new_class_dict = {"__annotations__": dict(fields)}
     new_class = type(term.var_name, (parent_class,), new_class_dict)
@@ -111,10 +112,9 @@ def get_fitness_term(term: Rec) -> Term:
         raise NotImplementedError("Fitness function not found")
 
 
-def extract_fitness(term: Term, ctx: TypingContext):
+def extract_fitness(term: Term):
     assert isinstance(term, Rec)
     fitness_term = get_fitness_term(term)
-
     print("fitness_body:", fitness_term)
 
 
@@ -165,21 +165,79 @@ def get_holes_type(
     return holes
 
 
+def gen_class_attributes(class_type: type, grammar_nodes: list(type)):
+    fields = {}
+    while isinstance(class_type, AbstractionType):
+        var_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+
+        var_type = (
+            refined_to_unrefinedtype(class_type.var_type)
+            if isinstance(class_type.var_type, RefinedType)
+            else class_type.var_type
+        )
+
+        grammar_nodes, cls = find_class_by_name(var_type.name, grammar_nodes)
+
+        fields[var_name] = cls
+
+        class_type = class_type.type
+    return fields, class_type
+
+
+def create_class_fromm_ctx_var(var: tuple, grammar_nodes: list(type)) -> list(type):
+    class_name = var[0].value if isinstance(var[0], Token) else var[0]
+    class_type = var[1]
+
+    if class_name not in prelude_ops and not class_name.startswith("_anf_"):
+
+        fields, parent_type = gen_class_attributes(class_type, grammar_nodes)
+
+        # TODO handle type top and bottom
+        if isinstance(parent_type, (Top, Bottom)):
+            return grammar_nodes
+
+        parent_class_name = parent_type.name
+        grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+
+        new_class = type(class_name, (parent_class,), {"__annotations__": dict(fields)})
+
+        # print(">>", new_class.__name__, "\n", new_class.__annotations__, "\n")
+
+        grammar_nodes.append(new_class)
+
+    return grammar_nodes
+
+
+def gen_grammar_nodes(ctx: TypingContext, grammar_nodes: list[type] = []) -> list[type]:
+    for var in ctx.vars():
+        grammar_nodes = create_class_fromm_ctx_var(var, grammar_nodes)
+
+    return grammar_nodes
+
+
+def get_grammar_node(node_name: str, nodes: list[type]) -> type:
+    return (n for n in nodes if n.__name__ == node_name)
+
+
 def synthesis(ctx: TypingContext, p: Term, ty: Type):
     print("###\n", ctx)
 
     holes = get_holes_type(ctx, p, ty)
-    for key, value in holes.items():
-        print(key, " : ", value, "\n")
 
-    grammar_n: list[type] = build_grammar_core(p)
+    first_hole = next(iter(holes))
+    hole_type, hole_ctx = holes[first_hole]
+
+    print(hole_ctx, ":", type(hole_ctx))
+
+    # build grammar nodes from context of the hole
+
+    grammar_n = gen_grammar_nodes(hole_ctx)
+
     for cls in grammar_n:
         print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
-    first_hole = next(iter(holes))
-    hole_ctx = holes[first_hole][1]
+    # starting_node = get_grammar_node(hole_type.name, grammar_nodes)
 
-    extract_fitness(p, hole_ctx)
-
-    # grammar = extract_grammar(grammar_n, starting_node)
+    # extract_fitness(p)
+    # grammar = extract_grammar(grammar_nodes, starting_node)
     # print(grammar)
