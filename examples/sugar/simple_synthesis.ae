@@ -1,5 +1,3 @@
-def target : Int= 2023;
-
-def fitness (i : Int) : Int { target - i}
+def fitness (i : Int) : Int { 2023 - i}
 
 def synth_int : Int = (?hole: Int) * 7;
