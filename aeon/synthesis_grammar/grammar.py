@@ -131,29 +131,29 @@ def get_holes_type(
 
     if isinstance(t, Rec):
         ctx = ctx.with_var(t.var_name, t.var_type)
-        holes = get_holes_type(t.var_value, t.var_type, ctx, holes)
-        holes = get_holes_type(t.body, ty, ctx, holes)
+        holes = get_holes_type(ctx, t.var_value, t.var_type, holes)
+        holes = get_holes_type(ctx, t.body, ty, holes)
 
     elif isinstance(t, Let):
         # not sure If the use of synth is the best option to get the type
         _, t1 = synth(ctx, t.var_value)
         ctx = ctx.with_var(t.var_name, t1)
-        holes = get_holes_type(t.var_value, ty, ctx, holes)
-        holes = get_holes_type(t.body, ty, ctx, holes)
+        holes = get_holes_type(ctx, t.var_value, ty, holes)
+        holes = get_holes_type(ctx, t.body, ty, holes)
 
     elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         ctx = ctx.with_var(t.var_name, ty.var_type)
 
-        holes = get_holes_type(t.body, ret, ctx, holes)
+        holes = get_holes_type(ctx, t.body, ret, holes)
 
     elif isinstance(t, If):
-        holes = get_holes_type(t.then, ty, ctx, holes)
-        holes = get_holes_type(t.otherwise, ty, ctx, holes)
+        holes = get_holes_type(ctx, t.then, ty, holes)
+        holes = get_holes_type(ctx, t.otherwise, ty, holes)
 
     elif isinstance(t, Application):
-        holes = get_holes_type(t.fun, ty, ctx, holes)
-        holes = get_holes_type(t.arg, ty, ctx, holes)
+        holes = get_holes_type(ctx, t.fun, ty, holes)
+        holes = get_holes_type(ctx, t.arg, ty, holes)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
         holes[t.expr.name] = (t.type, ctx)
@@ -167,7 +167,7 @@ def get_holes_type(
 
 def synthesis(ctx: TypingContext, p: Term, ty: Type):
     print("###\n", ctx)
-    holes = {}
+
     holes = get_holes_type(ctx, p, ty)
     for key, value in holes.items():
         print(key, " : ", value, "\n")
