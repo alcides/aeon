@@ -35,7 +35,7 @@ def refined_to_unrefinedtype(ty: RefinedType) -> Type:
     return ty.type
 
 
-def find_class_by_name(class_name: str, grammar_nodes: list(type)) -> tuple[list(type), type]:
+def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list[type], type]:
     """This function iterates over the provided list of grammar nodes and
     returns the node whose name matches the provided name. If no match is found
     it creates a new abstract class and a new data class, adds them to the
@@ -57,7 +57,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list(type)) -> tuple[list
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
 
-        new_class = dataclass(
+        new_class: type = dataclass(
             type(
                 "literal_" + class_name,
                 (new_abs_class,),
@@ -92,8 +92,8 @@ def get_holes_type(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict(str, tuple(Type | None, TypingContext)) = None,
-) -> dict(str, tuple(Type | None, TypingContext)):
+    holes: dict[str, tuple[Type | None, TypingContext]] = {},
+) -> dict[str, tuple[Type | None, TypingContext]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
     This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
@@ -103,14 +103,11 @@ def get_holes_type(
         ctx (TypingContext): The current TypingContext.
         t (Term): The term to analyze.
         ty (Type): The current type.
-        holes (dict[str, tuple[Type | None, TypingContext]]): The current dictionary of hole types. Defaults to None.
+        holes (dict[str, tuple[Optional[Type], TypingContext]]): The current dictionary of hole types. Defaults to None.
 
     Returns:
-        dict[str, tuple[Type | None, TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
+        dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
     """
-
-    if holes is None:
-        holes = {}
 
     if isinstance(t, Rec):
         ctx = ctx.with_var(t.var_name, t.var_type)
@@ -147,7 +144,10 @@ def get_holes_type(
     return holes
 
 
-def gen_class_attr_and_superclass(class_type: Type, grammar_nodes: list(type)) -> tuple(dict(str, type), type):
+def gen_class_attr_and_superclass(
+    class_type: Type,
+    grammar_nodes: list[type],
+) -> tuple[list[type], dict[str, type], Type]:
     """Generates the attributes and superclass from a Type object.
 
     This function takes a object type and a list of grammar nodes. It iterates over the Type object as long as
@@ -159,7 +159,7 @@ def gen_class_attr_and_superclass(class_type: Type, grammar_nodes: list(type)) -
         grammar_nodes (list[type]): The list of grammar nodes to search for classes.
 
     Returns:
-        tuple(dict(str, type), type): A tuple containing the fields dictionary and the superclass.
+        tuple[list[type], dict[str, type], Type]: A tuple containing the grammar_nodes list updated, fields dictionary and the superclass.
     """
     fields = {}
     while isinstance(class_type, AbstractionType):
@@ -176,10 +176,30 @@ def gen_class_attr_and_superclass(class_type: Type, grammar_nodes: list(type)) -
         fields[attribute_name] = cls
 
         class_type = class_type.type
-    return fields, class_type
+    return grammar_nodes, fields, class_type
 
 
-def create_class_fromm_ctx_var(var: tuple, grammar_nodes: list(type)) -> list(type):
+def get_superclass_type_name(class_type: Type) -> str:
+    parent_name = ""
+    while isinstance(class_type, AbstractionType):
+
+        attribute_type = (
+            refined_to_unrefinedtype(class_type.var_type)
+            if isinstance(class_type.var_type, RefinedType)
+            else class_type.var_type
+        )
+
+        parent_name += "t_" + attribute_type.name + "_"
+
+        class_type = class_type.type
+
+    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    return parent_name + "t_" + class_type_str
+
+
+# TODO review this method to be more idiomatic
+# TODO update docstring
+def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[type]:
     """Creates a new class based on a context variable and adds it to the list
     of grammar nodes.
 
@@ -199,21 +219,27 @@ def create_class_fromm_ctx_var(var: tuple, grammar_nodes: list(type)) -> list(ty
     class_type = var[1]
 
     if class_name not in prelude_ops and not class_name.startswith("_anf_"):
+        # class app_function_name
+        grammar_nodes, fields, parent_type = gen_class_attr_and_superclass(class_type, grammar_nodes)
 
-        fields, parent_type = gen_class_attr_and_superclass(class_type, grammar_nodes)
+        parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
 
-        # TODO handle type top and bottom
-        if isinstance(parent_type, (Top, Bottom)):
-            return grammar_nodes
-
-        parent_class_name = parent_type.name
         grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-        new_class = type("app_" + class_name, (parent_class,), {"__annotations__": dict(fields)})
+        new_class_app = type("app_" + class_name, (parent_class,), {"__annotations__": dict(fields)})
+        # print(">>", new_class_app.__name__, "\n", new_class_app.__annotations__, "\n")
 
-        # print(">>", new_class.__name__, "\n", new_class.__annotations__, "\n")
+        grammar_nodes.append(new_class_app)
 
-        grammar_nodes.append(new_class)
+        # class var_function_name
+        if isinstance(class_type, AbstractionType):
+            parent_class_name = get_superclass_type_name(class_type)
+
+            grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+
+            new_class = type("var_" + class_name, (parent_class,), {})
+
+            grammar_nodes.append(new_class)
 
     return grammar_nodes
 
@@ -233,14 +259,11 @@ def gen_grammar_nodes(ctx: TypingContext, grammar_nodes: list[type] = []) -> lis
         list[type]: The list of generated grammar nodes.
     """
     for var in ctx.vars():
-        grammar_nodes = create_class_fromm_ctx_var(var, grammar_nodes)
-        if isinstance(var[1], AbstractionType):
-            # grammar_nodes = create_super_class
-            pass
+        grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     return grammar_nodes
 
 
-def get_grammar_node(node_name: str, nodes: list[type]) -> type:
+def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     """Returns the node from the provided list of nodes whose name matches the
     provided name. If no match is found, the function returns None.
 
@@ -251,7 +274,7 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type:
     Returns:
         type: The node with the matching name
     """
-    return (n for n in nodes if n.__name__ == node_name)
+    return next((n for n in nodes if n.__name__ == node_name), None)
 
 
 def synthesis(ctx: TypingContext, p: Term, ty: Type):
