@@ -28,6 +28,8 @@ from aeon.typechecking.typeinfer import synth
 
 prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
 
+aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
+
 # Probably move this methoad to another file
 def refined_to_unrefinedtype(ty: RefinedType) -> Type:
     return ty.type
@@ -49,19 +51,25 @@ def find_class_by_name(class_name: str, grammar_nodes: list(type)) -> tuple[list
     for cls in grammar_nodes:
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
-    if class_name == "Int":
+    if class_name in list(aeon_to_python_types.keys()):
         new_abs_class = type("t_" + class_name, (ABC,), {})
         # new_abs_class = type("t_"+class_name, (), {})
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
 
-        new_class = dataclass(type("literal_" + class_name, (new_abs_class,), {"__annotations__": {"value": int}}))
+        new_class = dataclass(
+            type(
+                "literal_" + class_name,
+                (new_abs_class,),
+                {"__annotations__": {"value": aeon_to_python_types[class_name]}},
+            ),
+        )
         grammar_nodes.append(new_class)
 
-        return grammar_nodes, new_abs_class
-
     else:
-        raise Exception("Not implemented: " + class_name)
+        new_abs_class = type(class_name, (ABC,), {})
+        grammar_nodes.append(new_abs_class)
+    return grammar_nodes, new_abs_class
 
 
 def get_fitness_term(term: Rec) -> Term:
@@ -167,8 +175,8 @@ def gen_class_attr_and_superclass(class_type: Type, grammar_nodes: list(type)) -
 
         fields[attribute_name] = cls
 
-        superclass_type = class_type.type
-    return fields, superclass_type
+        class_type = class_type.type
+    return fields, class_type
 
 
 def create_class_fromm_ctx_var(var: tuple, grammar_nodes: list(type)) -> list(type):
@@ -201,7 +209,7 @@ def create_class_fromm_ctx_var(var: tuple, grammar_nodes: list(type)) -> list(ty
         parent_class_name = parent_type.name
         grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-        new_class = type(class_name, (parent_class,), {"__annotations__": dict(fields)})
+        new_class = type("app_" + class_name, (parent_class,), {"__annotations__": dict(fields)})
 
         # print(">>", new_class.__name__, "\n", new_class.__annotations__, "\n")
 
@@ -226,7 +234,9 @@ def gen_grammar_nodes(ctx: TypingContext, grammar_nodes: list[type] = []) -> lis
     """
     for var in ctx.vars():
         grammar_nodes = create_class_fromm_ctx_var(var, grammar_nodes)
-
+        if isinstance(var[1], AbstractionType):
+            # grammar_nodes = create_super_class
+            pass
     return grammar_nodes
 
 
