@@ -19,6 +19,7 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -31,7 +32,7 @@ prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 # Probably move this methoad to another file
-def refined_to_unrefinedtype(ty: RefinedType) -> Type:
+def refined_to_unrefinedtype(ty: RefinedType) -> BaseType:
     return ty.type
 
 
@@ -144,6 +145,7 @@ def get_holes_type(
     return holes
 
 
+# delete
 def gen_class_attr_and_superclass(
     class_type: Type,
     grammar_nodes: list[type],
@@ -165,7 +167,7 @@ def gen_class_attr_and_superclass(
     while isinstance(class_type, AbstractionType):
         attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
 
-        attribute_type = (
+        attribute_type: BaseType = (
             refined_to_unrefinedtype(class_type.var_type)
             if isinstance(class_type.var_type, RefinedType)
             else class_type.var_type
@@ -179,6 +181,7 @@ def gen_class_attr_and_superclass(
     return grammar_nodes, fields, class_type
 
 
+# delete
 def get_superclass_type_name(class_type: Type) -> str:
     parent_name = ""
     while isinstance(class_type, AbstractionType):
@@ -197,16 +200,57 @@ def get_superclass_type_name(class_type: Type) -> str:
     return parent_name + "t_" + class_type_str
 
 
+def is_valid_class_name(class_name: str) -> bool:
+    return class_name not in prelude_ops and not class_name.startswith("_anf_")
+
+
+def generate_class_components(
+    class_type: Type,
+    grammar_nodes: list[Type],
+) -> tuple[list[Type], dict[str, Type], Type, str]:
+    """Generates the attributes, superclass, and abstraction_type class name
+    from a Type object.
+
+    Args:
+        class_type (Type): The class type to generate attributes and superclass for.
+        grammar_nodes (List[Type]): The list of grammar nodes to search for classes.
+
+    Returns:
+        Tuple[List[Type], Dict[str, Type], Type, str]: A tuple containing the grammar_nodes list updated, attributes dictionary, the superclass, and the abstraction_type class name.
+    """
+    fields = {}
+    parent_name = ""
+    while isinstance(class_type, AbstractionType):
+        # generate attributes
+        attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+
+        attribute_type = (
+            refined_to_unrefinedtype(class_type.var_type)
+            if isinstance(class_type.var_type, RefinedType)
+            else class_type.var_type
+        )
+
+        grammar_nodes, cls = find_class_by_name(attribute_type.name, grammar_nodes)
+        fields[attribute_name] = cls
+
+        # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
+        parent_name += "t_" + attribute_type.name + "_"
+        class_type = class_type.type
+
+    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    superclass_type_name = parent_name + "t_" + class_type_str
+
+    return grammar_nodes, fields, class_type, superclass_type_name
+
+
 # TODO review this method to be more idiomatic
-# TODO update docstring
 def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[type]:
     """Creates a new class based on a context variable and adds it to the list
     of grammar nodes.
 
     This function takes a context variable (a tuple with the class name and type) and a list of existing grammar nodes.
-    It creates a new class with the given name, and generate his attributes and superclass based on the type provided by the tuple.
-    The new class is then added to the list of grammar nodes. If the class name is in the prelude operations or starts with "_anf_",
-    no class is created and the original list of grammar nodes is returned.
+    It creates a new class or classes with the given name, and generate his attributes and superclass based on the type provided by the tuple.
+    The new class or classes are then added to the list of grammar nodes.
 
     Args:
         var (tuple): A tuple containing the class name and type.
@@ -215,31 +259,35 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     Returns:
         list[type]: The updated list of grammar nodes with the new class added, or the original list if no class was added.
     """
-    class_name = var[0].value if isinstance(var[0], Token) else var[0]
-    class_type = var[1]
+    class_name, class_type = var
 
-    if class_name not in prelude_ops and not class_name.startswith("_anf_"):
+    class_name = class_name.value if isinstance(class_name, Token) else class_name
+
+    if is_valid_class_name(class_name):
+
+        grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
+            class_type,
+            grammar_nodes,
+        )
+
         # class app_function_name
-        grammar_nodes, fields, parent_type = gen_class_attr_and_superclass(class_type, grammar_nodes)
-
         parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
 
         grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-        new_class_app = type("app_" + class_name, (parent_class,), {"__annotations__": dict(fields)})
+        new_class_app = type(f"app_{class_name}", (parent_class,), {"__annotations__": dict(fields)})
         # print(">>", new_class_app.__name__, "\n", new_class_app.__annotations__, "\n")
 
         grammar_nodes.append(new_class_app)
 
         # class var_function_name
         if isinstance(class_type, AbstractionType):
-            parent_class_name = get_superclass_type_name(class_type)
 
-            grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+            grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
-            new_class = type("var_" + class_name, (parent_class,), {})
+            new_class_var = type(f"var_{class_name}", (parent_class,), {})
 
-            grammar_nodes.append(new_class)
+            grammar_nodes.append(new_class_var)
 
     return grammar_nodes
 
