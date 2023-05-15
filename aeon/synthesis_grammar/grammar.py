@@ -145,61 +145,6 @@ def get_holes_type(
     return holes
 
 
-# delete
-def gen_class_attr_and_superclass(
-    class_type: Type,
-    grammar_nodes: list[type],
-) -> tuple[list[type], dict[str, type], Type]:
-    """Generates the attributes and superclass from a Type object.
-
-    This function takes a object type and a list of grammar nodes. It iterates over the Type object as long as
-    it is an instance of AbstractionType. For each iteration, it retrieves an attribute name and type,
-    and adds them to the fields dictionary. After the loop, it returns the fields and a superclass.
-
-    Args:
-        class_type (type): The class type to generate attributes and superclass for.
-        grammar_nodes (list[type]): The list of grammar nodes to search for classes.
-
-    Returns:
-        tuple[list[type], dict[str, type], Type]: A tuple containing the grammar_nodes list updated, fields dictionary and the superclass.
-    """
-    fields = {}
-    while isinstance(class_type, AbstractionType):
-        attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
-
-        attribute_type: BaseType = (
-            refined_to_unrefinedtype(class_type.var_type)
-            if isinstance(class_type.var_type, RefinedType)
-            else class_type.var_type
-        )
-
-        grammar_nodes, cls = find_class_by_name(attribute_type.name, grammar_nodes)
-
-        fields[attribute_name] = cls
-
-        class_type = class_type.type
-    return grammar_nodes, fields, class_type
-
-
-# delete
-def get_superclass_type_name(class_type: Type) -> str:
-    parent_name = ""
-    while isinstance(class_type, AbstractionType):
-
-        attribute_type = (
-            refined_to_unrefinedtype(class_type.var_type)
-            if isinstance(class_type.var_type, RefinedType)
-            else class_type.var_type
-        )
-
-        parent_name += "t_" + attribute_type.name + "_"
-
-        class_type = class_type.type
-
-    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
-    return parent_name + "t_" + class_type_str
-
-
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith("_anf_")
 
