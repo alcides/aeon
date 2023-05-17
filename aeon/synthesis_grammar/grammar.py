@@ -4,10 +4,13 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Optional
 
+from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.decorators import abstract
 from geneticengine.core.grammar import extract_grammar
+from geneticengine.core.problems import SingleObjectiveProblem
 from lark.lexer import Token
 
+from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -15,6 +18,7 @@ from aeon.core.terms import Application
 from aeon.core.terms import Hole
 from aeon.core.terms import If
 from aeon.core.terms import Let
+from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
@@ -22,9 +26,15 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
+from aeon.core.types import t_bool
+from aeon.core.types import t_float
+from aeon.core.types import t_int
+from aeon.core.types import t_string
 from aeon.core.types import Top
+from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type_errors
 from aeon.typechecking.typeinfer import synth
 
 prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
@@ -34,6 +44,46 @@ aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 # Probably move this methoad to another file
 def refined_to_unrefinedtype(ty: RefinedType) -> BaseType:
     return ty.type
+
+
+def mk_method_core(cls: type):
+    def get_core(self, *args):
+        class_name = self.__class__.__name__
+        # the prefix is either "var_" or "app_"
+        class_name_without_prefix = class_name[4:]
+
+        base = Var(class_name_without_prefix)
+        for arg in args:
+            base = Application(base, arg.get_Core())
+        return base
+
+    cls.get_core = get_core
+    return cls
+
+
+def mk_method_core_literal(cls: type):
+    def get_core(self):
+        class_name = self.__class__.__name__
+        class_name_without_prefix = class_name[8:]
+        value = getattr(self, "value", None)
+        if value is not None:
+            if class_name_without_prefix == "Int":
+                base = Literal(int(value), type=t_int)
+            elif class_name_without_prefix == "Float":
+                base = Literal(float(value), type=t_float)
+            elif class_name_without_prefix == "Bool":
+                value = str(value) == "true"
+                base = Literal(value, type=t_bool)
+            elif class_name_without_prefix == "String":
+                v = str(value)[1:-1]
+                base = Literal(str(v), type=t_string)
+
+            return base
+        else:
+            raise Exception("no value")
+
+    cls.get_core = get_core
+    return cls
 
 
 def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list[type], type]:
@@ -65,6 +115,11 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
                 {"__annotations__": {"value": aeon_to_python_types[class_name]}},
             ),
         )
+
+        print(new_class.__annotations__)
+
+        new_class = mk_method_core_literal(new_class)
+
         grammar_nodes.append(new_class)
 
     else:
@@ -223,6 +278,8 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         new_class_app = type(f"app_{class_name}", (parent_class,), {"__annotations__": dict(fields)})
         # print(">>", new_class_app.__name__, "\n", new_class_app.__annotations__, "\n")
 
+        new_class_app = mk_method_core(new_class_app)
+
         grammar_nodes.append(new_class_app)
 
         # class var_function_name
@@ -231,6 +288,8 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
             grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
             new_class_var = type(f"var_{class_name}", (parent_class,), {})
+
+            new_class_var = mk_method_core(new_class_var)
 
             grammar_nodes.append(new_class_var)
 
@@ -267,7 +326,9 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     Returns:
         type: The node with the matching name
     """
-    return next((n for n in nodes if n.__name__ == node_name), None)
+    return next(
+        (n for n in nodes if n.__name__ == node_name),
+    )
 
 
 def synthesis(ctx: TypingContext, p: Term, ty: Type):
@@ -283,10 +344,37 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type):
     grammar_n = gen_grammar_nodes(hole_ctx)
 
     for cls in grammar_n:
-        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__class__, "\n")
 
-    # starting_node = get_grammar_node(hole_type.name, grammar_n)
+    starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
+
+    print("ss ", starting_node)
+
+    def fitness(individual):
+        term = individual.get_core()
+        np = substitution(p, term, "hole")
+        if not check_type_errors(ctx, np, top):
+            return 100000000
+        else:
+            return 0
 
     # extract_fitness(p)
-    # grammar = extract_grammar(grammar_nodes, starting_node)
-    # print(grammar)
+    grammar = extract_grammar(grammar_n, starting_node)
+
+    def test_geneticengine(g):
+        alg = SimpleGP(
+            g,
+            problem=SingleObjectiveProblem(
+                minimize=True,
+                fitness_function=fitness,
+            ),
+            max_depth=10,
+            number_of_generations=100,
+            population_size=500,
+        )
+        best = alg.evolve()
+        return best
+
+    print(grammar)
+
+    print(test_geneticengine(grammar))
