@@ -107,7 +107,6 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         # new_abs_class = type("t_"+class_name, (), {})
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
-
         new_class: type = dataclass(
             type(
                 "literal_" + class_name,
@@ -115,8 +114,6 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
                 {"__annotations__": {"value": aeon_to_python_types[class_name]}},
             ),
         )
-
-        print(new_class.__annotations__)
 
         new_class = mk_method_core_literal(new_class)
 
@@ -344,7 +341,7 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type):
     grammar_n = gen_grammar_nodes(hole_ctx)
 
     for cls in grammar_n:
-        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__class__, "\n")
+        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
     starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
 
@@ -353,8 +350,8 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type):
     def fitness(individual):
         term = individual.get_core()
         np = substitution(p, term, "hole")
-        if not check_type_errors(ctx, np, top):
-            return 100000000
+        if check_type_errors(ctx, np, top):
+            return 100
         else:
             return 0
 
@@ -369,8 +366,8 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type):
                 fitness_function=fitness,
             ),
             max_depth=10,
-            number_of_generations=100,
-            population_size=500,
+            number_of_generations=50,
+            population_size=50,
         )
         best = alg.evolve()
         return best
