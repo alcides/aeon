@@ -341,8 +341,8 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = E
 
     grammar_n = gen_grammar_nodes(hole_ctx)
 
-    # for cls in grammar_n:
-    #    print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+    for cls in grammar_n:
+        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
     starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
 
@@ -355,12 +355,12 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = E
             # print("fitness: \n100000000")
             return 100000000
         else:
-            fitness_eval_term = Application(Var("fitness"), individual_term)
+            # TODO get the function that the hole is in, in this case Var("synth_int")
+            fitness_eval_term = Application(Var("fitness"), Var("synth_int"))
             np = substitution(np, fitness_eval_term, "main")
-            print("\nindividual: ", individual)
-            print("fitness: ")
+            # print("\nindividual: ", individual_term)
             result = eval(np, ectx)
-
+            # print("fitness: ", result)
             return result
 
     # extract_fitness(p)
@@ -374,9 +374,11 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = E
                 fitness_function=fitness,
             ),
             max_depth=10,
-            number_of_generations=50,
-            population_size=50,
+            number_of_generations=20,
+            population_size=20,
             verbose=2,
+            n_elites=1,
+            seed=2,
         )
         best = alg.evolve()
         return best

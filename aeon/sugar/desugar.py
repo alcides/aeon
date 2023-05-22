@@ -35,7 +35,8 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     if "main" in [d.name for d in p.definitions]:
         prog = Application(Var("main"), Literal(1, type=t_int))
     else:
-        prog = Application(Var("print"), Hole("main"))
+        # prog = Application(Var("print"), Hole("main"))
+        prog = Hole("main")
 
     defs: list[Definition] = p.definitions
     type_decls: list[TypeDecl] = p.type_decls
