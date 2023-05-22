@@ -24,7 +24,6 @@ if __name__ == "__main__":
         ctx = build_context(typing_vars)
         ectx = EvaluationContext(evaluation_vars)
         p = parse_term(code)
-        print("##\n", ctx)
     else:
         prog: Program = parse_program(code)
         p, ctx, ectx = desugar(prog)
@@ -42,5 +41,5 @@ if __name__ == "__main__":
         print("-------------------------------")
 
     else:
-        synthesis(ctx, p, top)
+        synthesis(ctx, p, top, ectx)
         eval(p, ectx)

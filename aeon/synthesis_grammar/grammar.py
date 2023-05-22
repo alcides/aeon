@@ -10,6 +10,8 @@ from geneticengine.core.grammar import extract_grammar
 from geneticengine.core.problems import SingleObjectiveProblem
 from lark.lexer import Token
 
+from aeon.backend.evaluator import eval
+from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
@@ -80,6 +82,7 @@ def mk_method_core_literal(cls: type):
 
             return base
         else:
+            # TODO replace this genetic exception
             raise Exception("no value")
 
     cls.get_core = get_core
@@ -198,7 +201,7 @@ def get_holes_type(
 
 
 def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith("_anf_")
+    return class_name not in prelude_ops and not class_name.startswith(("_anf_", "synth_"))
 
 
 def generate_class_components(
@@ -328,39 +331,44 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     )
 
 
-def synthesis(ctx: TypingContext, p: Term, ty: Type):
-    print("###\n", ctx)
-
+def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = EvaluationContext()):
     holes = get_holes_type(ctx, p, ty)
 
     first_hole = next(iter(holes))
     hole_type, hole_ctx = holes[first_hole]
 
-    print(hole_ctx, ":", type(hole_ctx))
+    # print(hole_ctx, ":", type(hole_ctx))
 
     grammar_n = gen_grammar_nodes(hole_ctx)
 
-    for cls in grammar_n:
-        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+    # for cls in grammar_n:
+    #    print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
     starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
 
-    print("ss ", starting_node)
+    # print("ss ", starting_node)
 
     def fitness(individual):
-        term = individual.get_core()
-        np = substitution(p, term, "hole")
+        individual_term = individual.get_core()
+        np = substitution(p, individual_term, "hole")
         if check_type_errors(ctx, np, top):
-            return 100
+            # print("fitness: \n100000000")
+            return 100000000
         else:
-            return 0
+            fitness_eval_term = Application(Var("fitness"), individual_term)
+            np = substitution(np, fitness_eval_term, "main")
+            print("\nindividual: ", individual)
+            print("fitness: ")
+            result = eval(np, ectx)
+
+            return result
 
     # extract_fitness(p)
     grammar = extract_grammar(grammar_n, starting_node)
 
-    def test_geneticengine(g):
+    def geneticengine(grammar):
         alg = SimpleGP(
-            g,
+            grammar,
             problem=SingleObjectiveProblem(
                 minimize=True,
                 fitness_function=fitness,
@@ -368,10 +376,11 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type):
             max_depth=10,
             number_of_generations=50,
             population_size=50,
+            verbose=2,
         )
         best = alg.evolve()
         return best
 
-    print(grammar)
+    print("g: ", grammar)
 
-    print(test_geneticengine(grammar))
+    print("best individual: ", geneticengine(grammar))
