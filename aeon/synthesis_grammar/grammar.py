@@ -57,8 +57,10 @@ def mk_method_core(cls: type):
         class_name_without_prefix = class_name[4:]
 
         base = Var(class_name_without_prefix)
-        for arg in args:
-            base = Application(base, arg.get_Core())
+        for attr_name, _ in cls.__annotations__.items():
+            value = getattr(self, attr_name, None)
+            base = Application(base, value.get_core())
+
         return base
 
     cls.get_core = get_core
