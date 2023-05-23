@@ -18,7 +18,7 @@ from aeon.utils.ctx_helpers import build_context
 
 def check_hole_type(source, hole_name, expected_type):
     p, ctx, _ = desugar(parse_program(source))
-    holes = get_holes_type(p, top, ctx)
+    holes = get_holes_type(ctx, p, top)
 
     assert holes[hole_name][0] == expected_type
 
