@@ -59,7 +59,8 @@ def mk_method_core(cls: type):
         base = Var(class_name_without_prefix)
         for attr_name, _ in cls.__annotations__.items():
             value = getattr(self, attr_name, None)
-            base = Application(base, value.get_core())
+            if value is not None:
+                base = Application(base, value.get_core())
 
         return base
 
