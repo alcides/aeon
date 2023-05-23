@@ -11,7 +11,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
-from aeon.synthesis_grammar.grammar import synthesis
+from aeon.synthesis_grammar.grammar import Synthesizer
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 
@@ -41,5 +41,5 @@ if __name__ == "__main__":
         print("-------------------------------")
 
     else:
-        synthesis(ctx, p, top, ectx)
-        eval(p, ectx)
+        Synthesizer(ctx, p, top, ectx)
+        # eval(p, ectx)

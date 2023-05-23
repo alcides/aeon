@@ -4,9 +4,11 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Optional
 
+from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.decorators import abstract
 from geneticengine.core.grammar import extract_grammar
+from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
 from lark.lexer import Token
 
@@ -331,27 +333,62 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     )
 
 
-def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = EvaluationContext()):
-    holes = get_holes_type(ctx, p, ty)
+def geneticengine(grammar: Grammar, fitness: callable[[Individual], float]) -> Individual:
+    alg = SimpleGP(
+        grammar,
+        problem=SingleObjectiveProblem(
+            minimize=True,
+            fitness_function=fitness,
+        ),
+        max_depth=15,
+        number_of_generations=50,
+        population_size=50,
+        verbose=2,
+    )
+    best = alg.evolve()
+    return best
 
-    first_hole = next(iter(holes))
-    hole_type, hole_ctx = holes[first_hole]
 
-    # print(hole_ctx, ":", type(hole_ctx))
+class Synthesizer:
+    def __init__(
+        self,
+        ctx: TypingContext,
+        p: Term,
+        ty: Type = top,
+        ectx: EvaluationContext = EvaluationContext(),
+        genetic_engine: callable[[Grammar, callable[[Individual], float]], Individual] = geneticengine,
+    ):
 
-    grammar_n = gen_grammar_nodes(hole_ctx)
+        self.ctx = ctx
+        self.p = p
+        self.ty = ty
+        self.ectx = ectx
+        self.genetic_engine = genetic_engine
 
-    for cls in grammar_n:
-        print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+        holes = get_holes_type(ctx, p, ty)
 
-    starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
+        first_hole = next(iter(holes))
+        hole_type, hole_ctx = holes[first_hole]
 
-    # print("ss ", starting_node)
+        grammar_n = gen_grammar_nodes(hole_ctx)
 
-    def fitness(individual):
+        for cls in grammar_n:
+            print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+
+        starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
+
+        grammar = extract_grammar(grammar_n, starting_node)
+
+        print("g: ", grammar)
+
+        if self.genetic_engine is not None:
+            self.genetic_engine(grammar, self.fitness)
+            # print("best individual: ", best_individual)
+
+    def fitness(self, individual):
         individual_term = individual.get_core()
-        np = substitution(p, individual_term, "hole")
-        if check_type_errors(ctx, np, top):
+        np = substitution(self.p, individual_term, "hole")
+        if check_type_errors(self.ctx, np, self.ty):
             # print("fitness: \n100000000")
             return 100000000
         else:
@@ -359,30 +396,6 @@ def synthesis(ctx: TypingContext, p: Term, ty: Type, ectx: EvaluationContext = E
             fitness_eval_term = Application(Var("fitness"), Var("synth_int"))
             np = substitution(np, fitness_eval_term, "main")
             # print("\nindividual: ", individual_term)
-            result = eval(np, ectx)
+            result = eval(np, self.ectx)
             # print("fitness: ", result)
             return result
-
-    # extract_fitness(p)
-    grammar = extract_grammar(grammar_n, starting_node)
-
-    def geneticengine(grammar):
-        alg = SimpleGP(
-            grammar,
-            problem=SingleObjectiveProblem(
-                minimize=True,
-                fitness_function=fitness,
-            ),
-            max_depth=10,
-            number_of_generations=20,
-            population_size=20,
-            verbose=2,
-            n_elites=1,
-            seed=2,
-        )
-        best = alg.evolve()
-        return best
-
-    print("g: ", grammar)
-
-    print("best individual: ", geneticengine(grammar))
