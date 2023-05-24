@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from typing import Callable
 from typing import Optional
 
 from geneticengine.algorithms.gp.individual import Individual
@@ -46,7 +47,7 @@ prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 # Probably move this methoad to another file
-def refined_to_unrefinedtype(ty: RefinedType) -> BaseType:
+def refined_to_unrefinedtype(ty: RefinedType) -> Type:
     return ty.type
 
 
@@ -59,8 +60,8 @@ def mk_method_core(cls: type):
         base = Var(class_name_without_prefix)
         for attr_name, _ in cls.__annotations__.items():
             value = getattr(self, attr_name, None)
-            if value is not None:
-                base = Application(base, value.get_core())
+
+            base = Application(base, value.get_core())
 
         return base
 
@@ -111,7 +112,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
     if class_name in list(aeon_to_python_types.keys()):
-        new_abs_class = type("t_" + class_name, (ABC,), {})
+        new_abs_class: type = dataclass(type("t_" + class_name, (ABC,), {}))
         # new_abs_class = type("t_"+class_name, (), {})
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
@@ -128,8 +129,8 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        new_abs_class = type(class_name, (ABC,), {})
-        grammar_nodes.append(new_abs_class)
+        abs_class: type = dataclass(type(class_name, (ABC,), {}))
+        grammar_nodes.append(abs_class)
     return grammar_nodes, new_abs_class
 
 
@@ -153,8 +154,8 @@ def get_holes_type(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict[str, tuple[Type | None, TypingContext]] = {},
-) -> dict[str, tuple[Type | None, TypingContext]]:
+    holes: dict[str, tuple[Type, TypingContext]] = {},
+) -> dict[str, tuple[Type, TypingContext]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
     This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
@@ -211,8 +212,8 @@ def is_valid_class_name(class_name: str) -> bool:
 
 def generate_class_components(
     class_type: Type,
-    grammar_nodes: list[Type],
-) -> tuple[list[Type], dict[str, Type], Type, str]:
+    grammar_nodes: list[type],
+) -> tuple[list[type], dict[str, type], Type, str]:
     """Generates the attributes, superclass, and abstraction_type class name
     from a Type object.
 
@@ -227,7 +228,9 @@ def generate_class_components(
     parent_name = ""
     while isinstance(class_type, AbstractionType):
         # generate attributes
-        attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+        attribute_name: str = (
+            class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+        )
 
         attribute_type = (
             refined_to_unrefinedtype(class_type.var_type)
@@ -243,7 +246,7 @@ def generate_class_components(
         class_type = class_type.type
 
     class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
-    superclass_type_name = parent_name + "t_" + class_type_str
+    superclass_type_name: str = parent_name + "t_" + class_type_str
 
     return grammar_nodes, fields, class_type, superclass_type_name
 
@@ -280,7 +283,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
 
         grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-        new_class_app = type(f"app_{class_name}", (parent_class,), {"__annotations__": dict(fields)})
+        new_class_app: type = dataclass(type(f"app_{class_name}", (parent_class,), {"__annotations__": dict(fields)}))
         # print(">>", new_class_app.__name__, "\n", new_class_app.__annotations__, "\n")
 
         new_class_app = mk_method_core(new_class_app)
@@ -292,7 +295,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
 
             grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
-            new_class_var = type(f"var_{class_name}", (parent_class,), {})
+            new_class_var: type = dataclass(type(f"var_{class_name}", (parent_class,), {}))
 
             new_class_var = mk_method_core(new_class_var)
 
@@ -336,7 +339,7 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     )
 
 
-def geneticengine(grammar: Grammar, fitness: callable[[Individual], float]) -> Individual:
+def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> Individual:
     alg = SimpleGP(
         grammar,
         problem=SingleObjectiveProblem(
@@ -359,7 +362,7 @@ class Synthesizer:
         p: Term,
         ty: Type = top,
         ectx: EvaluationContext = EvaluationContext(),
-        genetic_engine: callable[[Grammar, callable[[Individual], float]], Individual] = geneticengine,
+        genetic_engine: Callable[[Grammar, Callable[[Individual], float]], Individual] = geneticengine,
     ):
 
         self.ctx = ctx

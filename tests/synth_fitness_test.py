@@ -21,9 +21,9 @@ def mock_literal_individual(value: int):
         def __init__(self, value: int):
             self.value = value
 
-    literal_Int = mk_method_core_literal(literal_Int)
+    literal_int_instance = mk_method_core_literal(literal_Int)
 
-    return literal_Int(value)
+    return literal_int_instance(value)
 
 
 def test_fitness():

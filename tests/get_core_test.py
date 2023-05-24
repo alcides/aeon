@@ -28,10 +28,8 @@ class app_f(t_Int):
         self.i = i
 
 
-literal_Int = mk_method_core_literal(literal_Int)
-app_f = mk_method_core(app_f)
-
-
 def test_get_core():
-    assert literal_Int(5).get_core() == Literal(5, t_int)
-    assert app_f(literal_Int(10)).get_core() == Application(Var("f"), Literal(10, t_int))
+    literal_int_instance = mk_method_core_literal(literal_Int)
+    app_f_instance = mk_method_core(app_f)
+    assert literal_int_instance(5).get_core() == Literal(5, t_int)
+    assert app_f_instance(literal_int_instance(10)).get_core() == Application(Var("f"), Literal(10, t_int))
