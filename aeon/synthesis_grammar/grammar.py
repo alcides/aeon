@@ -202,6 +202,8 @@ def get_holes_type(
     elif isinstance(t, Hole):
         ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
         holes[t.name] = (ty, ctx)
+    else:
+        assert False
 
     return holes
 
@@ -405,4 +407,4 @@ class Synthesizer:
             # print("\nindividual: ", individual_term)
             result = eval(np, self.ectx)
             # print("fitness: ", result)
-            return result
+            return abs(result)
