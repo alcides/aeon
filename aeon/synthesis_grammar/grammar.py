@@ -129,8 +129,8 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        abs_class: type = dataclass(type(class_name, (ABC,), {}))
-        grammar_nodes.append(abs_class)
+        new_abs_class: type = dataclass(type(class_name, (ABC,), {}))
+        grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
 
 
@@ -348,7 +348,8 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
         ),
         max_depth=15,
         number_of_generations=50,
-        population_size=50,
+        population_size=20,
+        n_elites=1,
         verbose=2,
     )
     best = alg.evolve()
