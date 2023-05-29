@@ -129,7 +129,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        new_abs_class: type = dataclass(type(class_name, (ABC,), {}))
+        new_abs_class: type = dataclass(type("t_" + class_name, (ABC,), {}))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
 
@@ -202,14 +202,12 @@ def get_holes_type(
     elif isinstance(t, Hole):
         ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
         holes[t.name] = (ty, ctx)
-    else:
-        assert False
 
     return holes
 
 
 def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith(("_anf_", "synth_"))
+    return class_name not in prelude_ops and not class_name.startswith(("_anf_", "synth"))
 
 
 def generate_class_components(
@@ -336,9 +334,7 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     Returns:
         type: The node with the matching name
     """
-    return next(
-        (n for n in nodes if n.__name__ == node_name),
-    )
+    return next((n for n in nodes if n.__name__ == node_name), None)
 
 
 def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> Individual:
@@ -386,6 +382,8 @@ class Synthesizer:
 
         starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
 
+        assert starting_node is not None, "Starting Node is None"
+
         grammar = extract_grammar(grammar_n, starting_node)
 
         print("g: ", grammar)
@@ -402,9 +400,13 @@ class Synthesizer:
             return 100000000
         else:
             # TODO get the function that the hole is in, in this case Var("synth_int")
-            fitness_eval_term = Application(Var("fitness"), Var("synth_int"))
+
+            fitness_eval_term = Application(Var("fitness"), Var("synth"))
             np = substitution(np, fitness_eval_term, "main")
             # print("\nindividual: ", individual_term)
-            result = eval(np, self.ectx)
-            # print("fitness: ", result)
+            try:
+                result = eval(np, self.ectx)
+            except Exception:
+                result = 100000000
+
             return abs(result)

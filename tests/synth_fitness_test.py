@@ -29,7 +29,7 @@ def mock_literal_individual(value: int):
 def test_fitness():
     code = """
         def fitness (i : Int) : Int { 2023 - i}
-        def synth_int : Int = (?hole: Int) * 7;
+        def synth : Int = (?hole: Int) * 7;
     """
     prog: Program = parse_program(code)
     p, ctx, ectx = desugar(prog)
