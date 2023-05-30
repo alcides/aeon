@@ -27,7 +27,7 @@ def Image_show : (image:Image) -> Unit = native "lambda im: im.show()";
 def Image_save : (image:Image) -> (path:String) -> Unit = native "lambda im: lambda path: im.save(path)";
 def Image_open : (path:String) -> Image = native "__import__('PIL.Image').Image.open";
 
-def Image_diff : (img : Image) -> (img : Image) -> Float = native "__import__('aeon.bindings.image').bindings.image.Image_diff";
+def Image_diff : (img : Image) -> (img : Image) -> Float = native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse";
 
 def Image_draw_rectangle :
     (im:Image) ->
