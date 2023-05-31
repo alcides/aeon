@@ -369,17 +369,16 @@ class Synthesizer:
         ectx: EvaluationContext = EvaluationContext(),
         genetic_engine: Callable[[Grammar, Callable[[Individual], float]], Individual] = geneticengine,
     ):
-
         self.ctx = ctx
         self.p = p
         self.ty = ty
         self.ectx = ectx
         self.genetic_engine = genetic_engine
 
-        holes = get_holes_info(ctx, p, ty)
+        self.holes = get_holes_info(ctx, p, ty)
 
-        first_hole_name = next(iter(holes))
-        hole_type, hole_ctx, func_name = holes[first_hole_name]
+        first_hole_name = next(iter(self.holes))
+        hole_type, hole_ctx, _ = self.holes[first_hole_name]
 
         grammar_n = gen_grammar_nodes(hole_ctx)
         for cls in grammar_n:
@@ -393,17 +392,20 @@ class Synthesizer:
 
         if self.genetic_engine is not None:
             self.genetic_engine(grammar, self.fitness)
-            # print("best individual: ", best_individual)
 
     def fitness(self, individual):
         individual_term = individual.get_core()
-        np = substitution(self.p, individual_term, "hole")
+
+        first_hole_name = next(iter(self.holes))
+        _, _, func_name = self.holes[first_hole_name]
+
+        np = substitution(self.p, individual_term, first_hole_name)
 
         if check_type_errors(self.ctx, np, self.ty):
             return 100000000
         else:
             # TODO get the function that the hole is in, in this case Var("synth_int")
-            fitness_eval_term = Application(Var("fitness"), Var("synth"))
+            fitness_eval_term = Application(Var("fitness"), Var(func_name))
             np = substitution(np, fitness_eval_term, "main")
             try:
                 result = eval(np, self.ectx)
