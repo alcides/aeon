@@ -154,7 +154,7 @@ def get_holes_info(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict[str, tuple[Type, TypingContext]] = {},
+    holes: dict[str, tuple[Type, TypingContext]] = None,
 ) -> dict[str, tuple[Type, TypingContext, str]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
@@ -170,7 +170,8 @@ def get_holes_info(
     Returns:
         dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
     """
-
+    if holes is None:
+        holes = {}
     if isinstance(t, Rec):
         if not t.var_name.startswith("_anf"):
             ctx = ctx.with_var(t.var_name, t.var_type)
@@ -382,8 +383,7 @@ class Synthesizer:
             hole_type, hole_ctx, _ = self.holes[first_hole_name]
 
             grammar_n = gen_grammar_nodes(hole_ctx)
-            for cls in grammar_n:
-                print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+            assert len(grammar_n) > 0
 
             starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
             assert starting_node is not None, "Starting Node is None"
@@ -407,7 +407,6 @@ class Synthesizer:
         if check_type_errors(self.ctx, np, self.ty):
             return 100000000
         else:
-            # TODO get the function that the hole is in, in this case Var("synth_int")
             fitness_eval_term = Application(Var("fitness"), Var(func_name))
             np = substitution(np, fitness_eval_term, "main")
             try:
