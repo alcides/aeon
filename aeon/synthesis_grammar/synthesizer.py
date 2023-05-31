@@ -297,7 +297,7 @@ def synthesize_single_function(ctx: TypingContext, ectx: EvaluationContext,
     fitness_function_name = fitness_function_name_for(fun_name)
     candidate_function = [
         fun.var_type for fun in iterate_top_level(term)
-        if fun.name == fitness_function_name
+        if fun.var_name == fitness_function_name
     ]
     if not candidate_function:
         raise SynthesisError(

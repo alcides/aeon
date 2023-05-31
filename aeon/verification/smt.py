@@ -136,7 +136,7 @@ def smt_valid(constraint: Constraint,
 
 
 def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
-    for na, ref in variables:
+    for na, ref in reversed(variables):
         if na == name:
             return ref
     print("Failed to load ", name, "from", [x[0] for x in variables])
