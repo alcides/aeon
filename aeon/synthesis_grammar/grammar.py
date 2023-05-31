@@ -377,21 +377,24 @@ class Synthesizer:
 
         self.holes = get_holes_info(ctx, p, ty)
 
-        first_hole_name = next(iter(self.holes))
-        hole_type, hole_ctx, _ = self.holes[first_hole_name]
+        if len(self.holes) > 1:
+            first_hole_name = next(iter(self.holes))
+            hole_type, hole_ctx, _ = self.holes[first_hole_name]
 
-        grammar_n = gen_grammar_nodes(hole_ctx)
-        for cls in grammar_n:
-            print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+            grammar_n = gen_grammar_nodes(hole_ctx)
+            for cls in grammar_n:
+                print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
 
-        starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
-        assert starting_node is not None, "Starting Node is None"
+            starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
+            assert starting_node is not None, "Starting Node is None"
 
-        grammar = extract_grammar(grammar_n, starting_node)
-        print("g: ", grammar)
+            grammar = extract_grammar(grammar_n, starting_node)
+            print("g: ", grammar)
 
-        if self.genetic_engine is not None:
-            self.genetic_engine(grammar, self.fitness)
+            if self.genetic_engine is not None:
+                self.genetic_engine(grammar, self.fitness)
+        else:
+            eval(p, ectx)
 
     def fitness(self, individual):
         individual_term = individual.get_core()
