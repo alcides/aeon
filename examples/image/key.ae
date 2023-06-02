@@ -2,10 +2,6 @@ import Image;
 
 def target : Image = Image_open "examples/image/key_target.jpg";
 
-def fitness (image:Image) : Float {
-    Image_diff image target
-}
-
 def key_example (steps:Int) : Image {
     white : Color = Color_mk 255 255 255;
     key_color : Color = Color_mk 192 192 192;
@@ -23,8 +19,8 @@ def k : Image = key_example 1;
 #def keyshow : Unit = Image_show k;
 #def keysave : Unit = Image_save k "examples/image/key.jpg";
 
-
-
 #def main (x:Int) : Unit { keysave }
 
-#def synth : Image = (?hole: Image);
+def synth : Image = (?hole: Image);
+
+def fitness : Float = Image_diff synth target;
