@@ -29,8 +29,8 @@ def mock_literal_individual(value: int):
 def test_fitness():
     code = """
         def year : Int = 2023;
-        def fitness (i : Int) : Int { year - i}
         def synth : Int = (?hole: Int) * 7;
+        def fitness : Int  =  year - synth;
     """
     prog: Program = parse_program(code)
     p, ctx, ectx = desugar(prog)
