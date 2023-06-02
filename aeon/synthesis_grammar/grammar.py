@@ -257,7 +257,19 @@ def generate_class_components(
     return grammar_nodes, fields, class_type, superclass_type_name
 
 
-# TODO review this method to be more idiomatic
+def process_class_name(class_name: str) -> str:
+    """Processes the class name depending on its type."""
+    return class_name.value if isinstance(class_name, Token) else class_name
+
+
+def create_new_class(class_name: str, parent_class: type, fields: dict = None) -> type:
+    """Creates a new class with the given name, parent class, and fields."""
+    new_class = type(class_name, (parent_class,), {"__annotations__": fields or {}})
+    new_class = mk_method_core(dataclass(new_class))
+
+    return new_class
+
+
 def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[type]:
     """Creates a new class based on a context variable and adds it to the list
     of grammar nodes.
@@ -274,36 +286,30 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         list[type]: The updated list of grammar nodes with the new class added, or the original list if no class was added.
     """
     class_name, class_type = var
-    class_name = class_name.value if isinstance(class_name, Token) else class_name
+    class_name = process_class_name(class_name)
 
-    if is_valid_class_name(class_name):
-        grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
-            class_type,
-            grammar_nodes,
-        )
+    if not is_valid_class_name(class_name):
+        return grammar_nodes
 
-        # class app_function_name
-        parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
+    grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
+        class_type,
+        grammar_nodes,
+    )
 
-        grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    # class app_function_name
+    parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-        new_class_app: type = dataclass(type(f"app_{class_name}", (parent_class,), {"__annotations__": dict(fields)}))
-        # print(">>", new_class_app.__name__, "\n", new_class_app.__annotations__, "\n")
+    new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
+    grammar_nodes.append(new_class_app)
 
-        new_class_app = mk_method_core(new_class_app)
+    # class var_function_name
+    if isinstance(class_type, AbstractionType):
 
-        grammar_nodes.append(new_class_app)
+        grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
-        # class var_function_name
-        if isinstance(class_type, AbstractionType):
-
-            grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
-
-            new_class_var: type = dataclass(type(f"var_{class_name}", (parent_class,), {}))
-
-            new_class_var = mk_method_core(new_class_var)
-
-            grammar_nodes.append(new_class_var)
+        new_class_var = create_new_class(f"var_{class_name}", parent_class)
+        grammar_nodes.append(new_class_var)
 
     return grammar_nodes
 
