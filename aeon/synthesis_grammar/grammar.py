@@ -155,6 +155,7 @@ def get_holes_info(
     t: Term,
     ty: Type,
     holes: dict[str, tuple[Type, TypingContext]] = None,
+    func_name: str = "",
 ) -> dict[str, tuple[Type, TypingContext, str]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
@@ -173,35 +174,35 @@ def get_holes_info(
     if holes is None:
         holes = {}
     if isinstance(t, Rec):
-        if not t.var_name.startswith("_anf"):
-            ctx = ctx.with_var(t.var_name, t.var_type)
-        holes = get_holes_info(ctx, t.var_value, t.var_type, holes)
-        holes = get_holes_info(ctx, t.body, ty, holes)
+        if t.var_name.startswith("synth"):
+            func_name = t.var_name
+        ctx = ctx.with_var(t.var_name, t.var_type)
+        holes = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name)
+        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
 
     elif isinstance(t, Let):
+        if t.var_name.startswith("synth"):
+            func_name = t.var_name
         _, t1 = synth(ctx, t.var_value)
-        if not t.var_name.startswith("_anf"):
-            ctx = ctx.with_var(t.var_name, t1)
-        holes = get_holes_info(ctx, t.var_value, ty, holes)
-        holes = get_holes_info(ctx, t.body, ty, holes)
+        ctx = ctx.with_var(t.var_name, t1)
+        holes = get_holes_info(ctx, t.var_value, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
 
     elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         ctx = ctx.with_var(t.var_name, ty.var_type)
-
-        holes = get_holes_info(ctx, t.body, ret, holes)
+        holes = get_holes_info(ctx, t.body, ret, holes, func_name)
 
     elif isinstance(t, If):
-        holes = get_holes_info(ctx, t.then, ty, holes)
-        holes = get_holes_info(ctx, t.otherwise, ty, holes)
+        holes = get_holes_info(ctx, t.then, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.otherwise, ty, holes, func_name)
 
     elif isinstance(t, Application):
-        holes = get_holes_info(ctx, t.fun, ty, holes)
-        holes = get_holes_info(ctx, t.arg, ty, holes)
+        holes = get_holes_info(ctx, t.fun, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.arg, ty, holes, func_name)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
-        synth_func_name = ctx.name
-        ctx = ctx.remove_last()
+        synth_func_name = func_name
         holes[t.expr.name] = (t.type, ctx, synth_func_name)
 
     elif isinstance(t, Hole):
@@ -212,7 +213,7 @@ def get_holes_info(
 
 
 def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith(("synth", "target"))
+    return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
 
 
 def generate_class_components(
@@ -273,11 +274,9 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         list[type]: The updated list of grammar nodes with the new class added, or the original list if no class was added.
     """
     class_name, class_type = var
-
     class_name = class_name.value if isinstance(class_name, Token) else class_name
 
     if is_valid_class_name(class_name):
-
         grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
             class_type,
             grammar_nodes,
@@ -309,7 +308,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     return grammar_nodes
 
 
-def gen_grammar_nodes(ctx: TypingContext, grammar_nodes: list[type] = []) -> list[type]:
+def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] = []) -> list[type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,
@@ -324,7 +323,8 @@ def gen_grammar_nodes(ctx: TypingContext, grammar_nodes: list[type] = []) -> lis
         list[type]: The list of generated grammar nodes.
     """
     for var in ctx.vars():
-        grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
+        if var[0] != synth_func_name:
+            grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     return grammar_nodes
 
 
@@ -352,7 +352,7 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
             fitness_function=fitness,
         ),
         max_depth=15,
-        number_of_generations=30,
+        number_of_generations=20,
         population_size=20,
         n_elites=1,
         verbose=2,
@@ -380,9 +380,11 @@ class Synthesizer:
 
         if len(self.holes) > 1:
             first_hole_name = next(iter(self.holes))
-            hole_type, hole_ctx, _ = self.holes[first_hole_name]
+            hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
 
-            grammar_n = gen_grammar_nodes(hole_ctx)
+            grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
+
+            # for cls in grammar_n: print(cls, "\nattributes: ", cls.__annotations__,"\nparent class: ", cls.__bases__, "\n")
             assert len(grammar_n) > 0
 
             starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
@@ -400,17 +402,16 @@ class Synthesizer:
         individual_term = individual.get_core()
 
         first_hole_name = next(iter(self.holes))
-        _, _, func_name = self.holes[first_hole_name]
 
         np = substitution(self.p, individual_term, first_hole_name)
 
         if check_type_errors(self.ctx, np, self.ty):
             return 100000000
         else:
-            fitness_eval_term = Application(Var("fitness"), Var(func_name))
+            fitness_eval_term = Var("fitness")
             np = substitution(np, fitness_eval_term, "main")
             try:
                 result = eval(np, self.ectx)
-            except Exception:
+            except:
                 result = 100000000
             return result
