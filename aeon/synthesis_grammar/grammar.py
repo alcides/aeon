@@ -38,12 +38,16 @@ from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import top
 from aeon.core.types import Type
+from aeon.frontend.parser import TreeToCore
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.typechecking.typeinfer import synth
+from aeon.utils.ast_helpers import mk_binop
 
-prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
-
+prelude_ops = [">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
+# "%", "/", "*", "-", "+",
+aeon_prelude_ops_to_text = {"%": "mod", "/": "div", "*": "mult", "-": "sub", "+": "add"}
+text_to_aeon_prelude_ops = {"mod": "%", "div": "/", "mult": "*", "sub": "-", "add": "+"}
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 # Probably move this methoad to another file
@@ -53,12 +57,87 @@ def refined_to_unrefinedtype(ty: Type) -> Type:
     return ty
 
 
+# dict (hole_name , (hole_type, hole_typingContext))
+def get_holes_info(
+    ctx: TypingContext,
+    t: Term,
+    ty: Type,
+    holes: dict[str, tuple[Type, TypingContext]] = None,
+    func_name: str = "",
+) -> dict[str, tuple[Type, TypingContext, str]]:
+    """Retrieve the Types of "holes" in a given Term and TypingContext.
+
+    This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
+    When a hole is found, its Type and the current TypingContext are added to a dictionary, with the hole name as key.
+
+    Args:
+        ctx (TypingContext): The current TypingContext.
+        t (Term): The term to analyze.
+        ty (Type): The current type.
+        holes (dict[str, tuple[Optional[Type], TypingContext]]): The current dictionary of hole types. Defaults to None.
+
+    Returns:
+        dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
+    """
+    if holes is None:
+        holes = {}
+    if isinstance(t, Rec):
+        if t.var_name.startswith("synth"):
+            func_name = t.var_name
+        ctx = ctx.with_var(t.var_name, t.var_type)
+        holes = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name)
+        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
+
+    elif isinstance(t, Let):
+        if t.var_name.startswith("synth"):
+            func_name = t.var_name
+        _, t1 = synth(ctx, t.var_value)
+        ctx = ctx.with_var(t.var_name, t1)
+        holes = get_holes_info(ctx, t.var_value, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
+
+    elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
+        ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
+        ctx = ctx.with_var(t.var_name, ty.var_type)
+        holes = get_holes_info(ctx, t.body, ret, holes, func_name)
+
+    elif isinstance(t, If):
+        holes = get_holes_info(ctx, t.then, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.otherwise, ty, holes, func_name)
+
+    elif isinstance(t, Application):
+        holes = get_holes_info(ctx, t.fun, ty, holes, func_name)
+        holes = get_holes_info(ctx, t.arg, ty, holes, func_name)
+
+    elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
+        synth_func_name = func_name
+        holes[t.expr.name] = (t.type, ctx, synth_func_name)
+
+    elif isinstance(t, Hole):
+        ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
+        holes[t.name] = (ty, ctx)
+
+    return holes
+
+
 def mk_method_core(cls: type):
     def get_core(self, *args):
         class_name = self.__class__.__name__
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
 
+        # if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
+        #     op = text_to_aeon_prelude_ops[class_name_without_prefix]
+        #     var_values= []
+        #     base = Var(op)
+        #     for attr_name, _ in cls.__annotations__.items():
+        #         value = getattr(self, attr_name, None)
+        #         base = Application(base, value.get_core())
+        #         var_values.append(value)
+
+        #     assert len(var_values) == 2
+
+        # else:
         base = Var(class_name_without_prefix)
         for attr_name, _ in cls.__annotations__.items():
             value = getattr(self, attr_name, None)
@@ -131,87 +210,10 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        new_abs_class: type = dataclass(type("t_" + class_name, (ABC,), {}))
+        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
+        new_abs_class: type = dataclass(type(class_name, (ABC,), {}))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
-
-
-def get_fitness_term(term: Rec) -> Term:
-    if term.var_name == "fitness":
-        return term.var_value
-    elif isinstance(term.body, Rec):
-        return get_fitness_term(term.body)
-    else:
-        raise NotImplementedError("Fitness function not found")
-
-
-def extract_fitness(term: Term):
-    assert isinstance(term, Rec)
-    fitness_term = get_fitness_term(term)
-    print("fitness_body:", fitness_term)
-
-
-# dict (hole_name , (hole_type, hole_typingContext))
-def get_holes_info(
-    ctx: TypingContext,
-    t: Term,
-    ty: Type,
-    holes: dict[str, tuple[Type, TypingContext]] = None,
-    func_name: str = "",
-) -> dict[str, tuple[Type, TypingContext, str]]:
-    """Retrieve the Types of "holes" in a given Term and TypingContext.
-
-    This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
-    When a hole is found, its Type and the current TypingContext are added to a dictionary, with the hole name as key.
-
-    Args:
-        ctx (TypingContext): The current TypingContext.
-        t (Term): The term to analyze.
-        ty (Type): The current type.
-        holes (dict[str, tuple[Optional[Type], TypingContext]]): The current dictionary of hole types. Defaults to None.
-
-    Returns:
-        dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
-    """
-    if holes is None:
-        holes = {}
-    if isinstance(t, Rec):
-        if t.var_name.startswith("synth"):
-            func_name = t.var_name
-        ctx = ctx.with_var(t.var_name, t.var_type)
-        holes = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name)
-        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
-
-    elif isinstance(t, Let):
-        if t.var_name.startswith("synth"):
-            func_name = t.var_name
-        _, t1 = synth(ctx, t.var_value)
-        ctx = ctx.with_var(t.var_name, t1)
-        holes = get_holes_info(ctx, t.var_value, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
-
-    elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
-        ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
-        ctx = ctx.with_var(t.var_name, ty.var_type)
-        holes = get_holes_info(ctx, t.body, ret, holes, func_name)
-
-    elif isinstance(t, If):
-        holes = get_holes_info(ctx, t.then, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.otherwise, ty, holes, func_name)
-
-    elif isinstance(t, Application):
-        holes = get_holes_info(ctx, t.fun, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.arg, ty, holes, func_name)
-
-    elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
-        synth_func_name = func_name
-        holes[t.expr.name] = (t.type, ctx, synth_func_name)
-
-    elif isinstance(t, Hole):
-        ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
-        holes[t.name] = (ty, ctx)
-
-    return holes
 
 
 def is_valid_class_name(class_name: str) -> bool:
@@ -251,7 +253,8 @@ def generate_class_components(
 
         # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
         parent_name += "t_" + attribute_type.name + "_"
-        class_type = class_type.type
+
+        class_type = class_type.typ
 
     class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
     superclass_type_name: str = parent_name + "t_" + class_type_str
@@ -290,9 +293,11 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     class_name, class_type = var
     class_name = process_class_name(class_name)
 
-    print(">> ", class_name)
     if not is_valid_class_name(class_name):
         return grammar_nodes
+
+    if class_name in aeon_prelude_ops_to_text.keys():
+        class_name = aeon_prelude_ops_to_text[class_name]
 
     grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
         class_type,
@@ -332,7 +337,6 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
         list[type]: The list of generated grammar nodes.
     """
     for var in ctx.vars():
-        print(var)
         if var[0] != synth_func_name:
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     return grammar_nodes
@@ -394,7 +398,7 @@ class Synthesizer:
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
 
             grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
-            print(hole_ctx)
+
             # for cls in grammar_n: print(cls, "\nattributes: ", cls.__annotations__,"\nparent class: ", cls.__bases__, "\n")
             assert len(grammar_n) > 0
 
@@ -415,7 +419,6 @@ class Synthesizer:
         first_hole_name = next(iter(self.holes))
 
         np = substitution(self.p, individual_term, first_hole_name)
-
         if check_type_errors(self.ctx, np, self.ty):
             return 100000000
         else:
