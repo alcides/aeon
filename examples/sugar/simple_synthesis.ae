@@ -1,5 +1,8 @@
 import Math;
 
-def synth (i:Int) : Int  {(?hole: Int) * i}
+#def synth : Int = (?hole: Int) * 289:
+#def fitness : Int = Math_abs (2023 - synth);
 
+def x : Int = 7;
+def synth (i:Int) : Int  {(?hole: Int) * i}
 def fitness : Int =  Math_abs (2023 - synth(289));

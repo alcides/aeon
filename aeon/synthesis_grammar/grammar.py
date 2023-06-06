@@ -47,8 +47,10 @@ prelude_ops = ["%", "/", "*", "-", "+", ">=", ">", "<=", "<", "!=", "==", "print
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 # Probably move this methoad to another file
-def refined_to_unrefinedtype(ty: RefinedType) -> Type:
-    return ty.type
+def refined_to_unrefinedtype(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty
 
 
 def mk_method_core(cls: type):
@@ -288,6 +290,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     class_name, class_type = var
     class_name = process_class_name(class_name)
 
+    print(">> ", class_name)
     if not is_valid_class_name(class_name):
         return grammar_nodes
 
@@ -329,6 +332,7 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
         list[type]: The list of generated grammar nodes.
     """
     for var in ctx.vars():
+        print(var)
         if var[0] != synth_func_name:
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     return grammar_nodes
@@ -362,6 +366,7 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
         population_size=20,
         n_elites=1,
         verbose=2,
+        target_fitness=0,
     )
     best = alg.evolve()
     return best
@@ -389,7 +394,7 @@ class Synthesizer:
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
 
             grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
-
+            print(hole_ctx)
             # for cls in grammar_n: print(cls, "\nattributes: ", cls.__annotations__,"\nparent class: ", cls.__bases__, "\n")
             assert len(grammar_n) > 0
 
