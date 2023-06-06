@@ -253,8 +253,7 @@ def generate_class_components(
 
         # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
         parent_name += "t_" + attribute_type.name + "_"
-
-        class_type = class_type.typ
+        class_type = refined_to_unrefinedtype(class_type.type)
 
     class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
     superclass_type_name: str = parent_name + "t_" + class_type_str
