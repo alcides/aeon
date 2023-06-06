@@ -47,7 +47,8 @@ from aeon.utils.ast_helpers import mk_binop
 prelude_ops = [">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
 # "%", "/", "*", "-", "+",
 aeon_prelude_ops_to_text = {"%": "mod", "/": "div", "*": "mult", "-": "sub", "+": "add"}
-text_to_aeon_prelude_ops = {"mod": "%", "div": "/", "mult": "*", "sub": "-", "add": "+"}
+text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
+
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 # Probably move this methoad to another file
@@ -127,7 +128,7 @@ def mk_method_core(cls: type):
         class_name_without_prefix = class_name[4:]
 
         # if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
-        #     op = text_to_aeon_prelude_ops[class_name_without_prefix]
+        #     op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
         #     var_values= []
         #     base = Var(op)
         #     for attr_name, _ in cls.__annotations__.items():
@@ -295,8 +296,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     if not is_valid_class_name(class_name):
         return grammar_nodes
 
-    if class_name in aeon_prelude_ops_to_text.keys():
-        class_name = aeon_prelude_ops_to_text[class_name]
+    class_name = aeon_prelude_ops_to_text.get(class_name, class_name)
 
     grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
         class_type,
