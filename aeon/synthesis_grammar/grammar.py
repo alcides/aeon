@@ -127,23 +127,23 @@ def mk_method_core(cls: type):
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
 
-        # if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
-        #     op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
-        #     var_values= []
-        #     base = Var(op)
-        #     for attr_name, _ in cls.__annotations__.items():
-        #         value = getattr(self, attr_name, None)
-        #         base = Application(base, value.get_core())
-        #         var_values.append(value)
+        if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
 
-        #     assert len(var_values) == 2
+            op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
+            var_values = []
+            base = Var(op)
+            for attr_name, _ in cls.__annotations__.items():
+                value = getattr(self, attr_name, None)
+                base = Application(base, value.get_core())
+                var_values.append(value)
 
-        # else:
-        base = Var(class_name_without_prefix)
-        for attr_name, _ in cls.__annotations__.items():
-            value = getattr(self, attr_name, None)
+            assert len(var_values) == 2
+        else:
+            base = Var(class_name_without_prefix)
+            for attr_name, _ in cls.__annotations__.items():
+                value = getattr(self, attr_name, None)
 
-            base = Application(base, value.get_core())
+                base = Application(base, value.get_core())
 
         return base
 
