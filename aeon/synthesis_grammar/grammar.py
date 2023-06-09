@@ -413,18 +413,24 @@ class Synthesizer:
             eval(p, ectx)
 
     def fitness(self, individual):
+        MAX_FITNESS = 100000000
         individual_term = individual.get_core()
 
         first_hole_name = next(iter(self.holes))
 
         np = substitution(self.p, individual_term, first_hole_name)
-        if check_type_errors(self.ctx, np, self.ty):
-            return 100000000
-        else:
-            fitness_eval_term = Var("fitness")
-            np = substitution(np, fitness_eval_term, "main")
-            try:
-                result = eval(np, self.ectx)
-            except:
-                result = 100000000
-            return result
+        # print (np)
+        try:
+            check_type_errors(self.ctx, np, self.ty)
+        except Exception as e:
+            print(f"Check for type errors failed: {e}")
+            return MAX_FITNESS
+
+        fitness_eval_term = Var("fitness")
+        np = substitution(np, fitness_eval_term, "main")
+        try:
+            result = eval(np, self.ectx)
+        except Exception as e:
+            print(f"Evaluation failed: {e}")
+            result = MAX_FITNESS
+        return abs(result)
