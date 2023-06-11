@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from typing import Any
 from typing import Callable
 from typing import Optional
 
+import numpy as np
+import psb2
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.decorators import abstract
 from geneticengine.core.grammar import extract_grammar
 from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
+from geneticengine.metrics import mse
 from lark.lexer import Token
 
 from aeon.backend.evaluator import eval
@@ -28,7 +32,6 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
@@ -38,11 +41,9 @@ from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import top
 from aeon.core.types import Type
-from aeon.frontend.parser import TreeToCore
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.typechecking.typeinfer import synth
-from aeon.utils.ast_helpers import mk_binop
 
 prelude_ops = [">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
 # "%", "/", "*", "-", "+",
@@ -50,6 +51,7 @@ aeon_prelude_ops_to_text = {"%": "mod", "/": "div", "*": "mult", "-": "sub", "+"
 text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
+
 
 # Probably move this methoad to another file
 def refined_to_unrefinedtype(ty: Type) -> Type:
@@ -170,7 +172,6 @@ def mk_method_core_literal(cls: type):
 
             return base
         else:
-            # TODO replace this genetic exception
             raise Exception("no value")
 
     cls.get_core = get_core
@@ -312,7 +313,6 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
 
     # class var_function_name
     if isinstance(class_type, AbstractionType):
-
         grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
         new_class_var = create_new_class(f"var_{class_name}", parent_class)
@@ -364,7 +364,7 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
             minimize=True,
             fitness_function=fitness,
         ),
-        max_depth=15,
+        max_depth=8,
         number_of_generations=20,
         population_size=20,
         n_elites=1,
@@ -373,6 +373,21 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
     )
     best = alg.evolve()
     return best
+
+
+def load_dataset(dataset: str):
+    return psb2.fetch_examples("path/to/PSB2/datasets/", dataset, 200, 2000, format="competitive")
+
+
+def convert_to_term(inp):
+    if isinstance(inp, str):
+        return Literal(inp, type=t_string)
+    elif isinstance(inp, int):
+        return Literal(inp, type=t_int)
+    elif isinstance(inp, bool):
+        return Literal(inp, type=t_bool)
+    elif isinstance(input, float):
+        return Literal(inp, type=t_float)
 
 
 class Synthesizer:
@@ -393,12 +408,15 @@ class Synthesizer:
         self.holes = get_holes_info(ctx, p, ty)
 
         if len(self.holes) > 1:
+            self.train_data, self.test_data = load_dataset("dice-game")
+
             first_hole_name = next(iter(self.holes))
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
 
             grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
 
-            # for cls in grammar_n: print(cls, "\nattributes: ", cls.__annotations__,"\nparent class: ", cls.__bases__, "\n")
+            for cls in grammar_n:
+                print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
             assert len(grammar_n) > 0
 
             starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
@@ -413,24 +431,37 @@ class Synthesizer:
             eval(p, ectx)
 
     def fitness(self, individual):
-        MAX_FITNESS = 100000000
         individual_term = individual.get_core()
 
         first_hole_name = next(iter(self.holes))
+        _, _, synth_func_name = self.holes[first_hole_name]
 
-        np = substitution(self.p, individual_term, first_hole_name)
+        nt = substitution(self.p, individual_term, first_hole_name)
         # print (np)
         try:
-            check_type_errors(self.ctx, np, self.ty)
+            check_type_errors(self.ctx, nt, self.ty)
         except Exception as e:
             print(f"Check for type errors failed: {e}")
-            return MAX_FITNESS
+            return 100000000
 
-        fitness_eval_term = Var("fitness")
-        np = substitution(np, fitness_eval_term, "main")
         try:
-            result = eval(np, self.ectx)
+            predicted_values = []
+            true_values = []
+            for datapoint in self.train_data:
+                inputs, expected_output = datapoint
+                # Apply the individual (which is a function) to the inputs
+                fitness_eval_term = Var(synth_func_name)
+                for inp in inputs:
+                    fitness_eval_term = Application(fitness_eval_term, convert_to_term(inp))
+
+                nt = substitution(nt, fitness_eval_term, "main")
+                actual_output = eval(nt, self.ectx)
+
+                predicted_values.append(actual_output)
+                true_values.append(expected_output[0])
+            # Calculate mean squared error
+            result = mse(np.array(predicted_values), np.array(true_values))
         except Exception as e:
             print(f"Evaluation failed: {e}")
-            result = MAX_FITNESS
+            result = 100000000
         return abs(result)
