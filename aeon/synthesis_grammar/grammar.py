@@ -65,7 +65,7 @@ aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 
 # Probably move this methoad to another file
-def refined_to_unrefinedtype(ty: Type) -> Type:
+def refined_to_unrefined_type(ty: Type) -> Type:
     if isinstance(ty, RefinedType):
         return ty.type
     return ty
@@ -125,10 +125,11 @@ def get_holes_info(
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
         synth_func_name = func_name
-        holes[t.expr.name] = (t.type, ctx, synth_func_name)
+        ty = refined_to_unrefined_type(t.type)
+        holes[t.expr.name] = (ty, ctx, synth_func_name)
 
     elif isinstance(t, Hole):
-        ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
+        ty = refined_to_unrefined_type(ty)
         holes[t.name] = (ty, ctx, func_name)
 
     return holes
@@ -256,7 +257,7 @@ def generate_class_components(
         )
 
         attribute_type = (
-            refined_to_unrefinedtype(class_type.var_type)
+            refined_to_unrefined_type(class_type.var_type)
             if isinstance(class_type.var_type, RefinedType)
             else class_type.var_type
         )
@@ -266,7 +267,7 @@ def generate_class_components(
 
         # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
         parent_name += "t_" + attribute_type.name + "_"
-        class_type = refined_to_unrefinedtype(class_type.type)
+        class_type = refined_to_unrefined_type(class_type.type)
 
     class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
     superclass_type_name: str = parent_name + "t_" + class_type_str
@@ -303,6 +304,8 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         list[type]: The updated list of grammar nodes with the new class added, or the original list if no class was added.
     """
     class_name, class_type = var
+    class_type = refined_to_unrefined_type(class_type)
+
     class_name = process_class_name(class_name)
 
     if not is_valid_class_name(class_name):
