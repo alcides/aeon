@@ -118,7 +118,7 @@ def get_holes_info(
 
     elif isinstance(t, Hole):
         ty = refined_to_unrefinedtype(ty) if isinstance(ty, RefinedType) else ty
-        holes[t.name] = (ty, ctx)
+        holes[t.name] = (ty, ctx, func_name)
 
     return holes
 
@@ -408,7 +408,8 @@ class Synthesizer:
         self.holes = get_holes_info(ctx, p, ty)
 
         if len(self.holes) > 1:
-            self.train_data, self.test_data = load_dataset("dice-game")
+            # self.train_data, self.test_data = load_dataset("dice-game")
+            self.train_data, self.test_data = load_dataset("bouncing-balls")
 
             first_hole_name = next(iter(self.holes))
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
