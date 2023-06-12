@@ -47,7 +47,18 @@ from aeon.typechecking.typeinfer import synth
 
 prelude_ops = [">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
 # "%", "/", "*", "-", "+",
-aeon_prelude_ops_to_text = {"%": "mod", "/": "div", "*": "mult", "-": "sub", "+": "add"}
+aeon_prelude_ops_to_text = {
+    "%": "mod",
+    "/": "div",
+    "*": "mult",
+    "-": "sub",
+    "+": "add",
+    "%.": "mod_f",
+    "/.": "div_f",
+    "*.": "mult_f",
+    "-.": "sub_f",
+    "+.": "add_f",
+}
 text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
