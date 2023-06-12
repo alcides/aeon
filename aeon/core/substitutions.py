@@ -3,6 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
@@ -22,6 +23,7 @@ from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
+from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import Top
@@ -262,6 +264,9 @@ def liquefy(rep: Term) -> LiquidTerm | None:
     if isinstance(rep, Literal) and rep.type == t_int:
         assert isinstance(rep.value, int)
         return LiquidLiteralInt(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_float:
+        assert isinstance(rep.value, float)
+        return LiquidLiteralFloat(rep.value)
     elif isinstance(rep, Literal) and rep.type == t_bool:
         assert isinstance(rep.value, bool)
         return LiquidLiteralBool(rep.value)

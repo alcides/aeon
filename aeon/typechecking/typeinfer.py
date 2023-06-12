@@ -31,6 +31,7 @@ from aeon.core.types import bottom
 from aeon.core.types import extract_parts
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
+from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_unit
 from aeon.core.types import Type
@@ -94,6 +95,9 @@ def prim_op(t: str) -> Type:
     if t in ["+", "*", "-", "/", "%"]:
         i1 = i2 = t_int
         o = t_int
+    elif t in ["+.", "*.", "-.", "/.", "%."]:
+        i1 = i2 = t_float
+        o = t_float
     elif t in ["<", ">", "<=", ">="]:
         i1 = i2 = t_int
         o = t_bool
@@ -104,7 +108,7 @@ def prim_op(t: str) -> Type:
         i2 = TypeVar("_op_2")
         o = t_bool
     else:
-        print(t)
+        print(">>", t)
         assert False
 
     return AbstractionType(

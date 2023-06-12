@@ -139,6 +139,21 @@ class TreeToCore(Transformer):
     def binop_mod(self, args):
         return self.binop(args, "%")
 
+    def binop_plus_f(self, args):
+        return self.binop(args, "+.")
+
+    def binop_minus_f(self, args):
+        return self.binop(args, "-.")
+
+    def binop_mult_f(self, args):
+        return self.binop(args, "*.")
+
+    def binop_div_f(self, args):
+        return self.binop(args, "/.")
+
+    def binop_mod_f(self, args):
+        return self.binop(args, "%.")
+
     def binop(self, args, op):
         return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
