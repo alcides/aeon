@@ -142,3 +142,5 @@ cython_debug/
 experiments/plots/
 experiments/*.csv
 experiments/ty_*/
+path/
+.DS_Store
