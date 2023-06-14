@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+import argparse
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
@@ -16,18 +16,27 @@ from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 
 if __name__ == "__main__":
-    fname = sys.argv[1]
-    with open(fname) as f:
+
+    parser = argparse.ArgumentParser(description="A simple argument parser")
+
+    parser.add_argument("filename", type=str, help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    parser.add_argument("-d", "--debug", action="store_true", help="debug")
+
+    args = parser.parse_args()
+
+    with open(args.filename) as f:
         code = f.read()
 
-    if "--core" in sys.argv:
+    if args.core:
         ctx = build_context(typing_vars)
         ectx = EvaluationContext(evaluation_vars)
         p = parse_term(code)
     else:
         prog: Program = parse_program(code)
         p, ctx, ectx = desugar(prog)
-    if "-d" in sys.argv or "--debug" in sys.argv:
+
+    if args.debug:
         print(p)
 
     errors = check_type_errors(ctx, p, top)
