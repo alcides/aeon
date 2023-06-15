@@ -400,8 +400,9 @@ def convert_to_term(inp):
         return Literal(inp, type=t_int)
     elif isinstance(inp, bool):
         return Literal(inp, type=t_bool)
-    elif isinstance(input, float):
+    elif isinstance(inp, float):
         return Literal(inp, type=t_float)
+    raise Exception(f"unable to converto to term : {type(inp)}")
 
 
 class Synthesizer:
