@@ -16,7 +16,7 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float32
+from z3.z3 import Float64
 from z3.z3 import ForAll
 from z3.z3 import FP
 from z3.z3 import FPSort
@@ -144,7 +144,7 @@ def get_sort(base: BaseType) -> Any:
     elif base == t_bool:
         return BoolSort()
     elif base == t_float:
-        return Float32()
+        return Float64()
     elif base == t_string:
         return StringSort()
     elif isinstance(base, BaseType):

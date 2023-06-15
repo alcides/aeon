@@ -96,6 +96,8 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidT
         return t
     elif isinstance(t, LiquidLiteralString):
         return t
+    elif isinstance(t, LiquidLiteralFloat):
+        return t
     elif isinstance(t, LiquidVar):
         if t.name == name:
             return rep

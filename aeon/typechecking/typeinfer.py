@@ -5,6 +5,7 @@ import sys
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
@@ -87,6 +88,14 @@ def prim_litint(t: int) -> RefinedType:
     )
 
 
+def prim_litfloat(t: float) -> RefinedType:
+    return RefinedType(
+        "v",
+        t_float,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralFloat(t)]),
+    )
+
+
 def prim_op(t: str) -> Type:
     # TODO add suport to floats
     i1: Type
@@ -142,6 +151,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Literal) and t.type == t_int:
         assert isinstance(t.value, int)
         return (ctrue, prim_litint(t.value))
+    elif isinstance(t, Literal) and t.type == t_float:
+        assert isinstance(t.value, float)
+        return (ctrue, prim_litfloat(t.value))
     elif isinstance(t, Literal):
         return (ctrue, t.type)
     elif isinstance(t, Var):
