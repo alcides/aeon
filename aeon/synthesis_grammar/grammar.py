@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from abc import ABC
 from dataclasses import dataclass
 from typing import Any
@@ -479,5 +480,6 @@ class Synthesizer:
             result = mse(np.array(predicted_values), np.array(true_values))
         except Exception as e:
             print(f"Evaluation failed: {e}")
+            traceback.print_exception(e)
             result = 100000000
         return abs(result)
