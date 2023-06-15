@@ -390,7 +390,7 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
 
 
 def load_dataset(dataset: str):
-    return psb2.fetch_examples("path/to/PSB2/datasets/", dataset, 200, 2000, format="competitive")
+    return psb2.fetch_examples("path/to/PSB2/datasets/", dataset, 200, 2000, format="lists")
 
 
 def convert_to_term(inp):
