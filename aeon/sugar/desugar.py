@@ -64,7 +64,7 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
         else:
             ty = d.type
             body = d.body
-            for a, t in d.args:
+            for a, t in d.args[::-1]:
                 ty = AbstractionType(a, t, ty)
                 body = Abstraction(a, body)
             prog = Rec(d.name, ty, body, prog)
