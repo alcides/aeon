@@ -46,8 +46,8 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.typechecking.typeinfer import synth
 
-prelude_ops = [">=", ">", "<=", "<", "!=", "==", "print", "native_import", "native"]
-# "%", "/", "*", "-", "+",
+prelude_ops = ["print", "native_import", "native"]
+
 aeon_prelude_ops_to_text = {
     "%": "mod",
     "/": "div",
@@ -59,20 +59,26 @@ aeon_prelude_ops_to_text = {
     "*.": "mult_f",
     "-.": "sub_f",
     "+.": "add_f",
+    ">=": "greater_equal",
+    ">": "greater_than",
+    "<=": "less_equal",
+    "<": "less_than",
+    "!=": "not_equal",
+    "==": "equal",
 }
 text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 
-# Probably move this methoad to another file
+# Probably move this method to another file
 def refined_to_unrefined_type(ty: Type) -> Type:
     if isinstance(ty, RefinedType):
         return ty.type
     return ty
 
 
-# dict (hole_name , (hole_type, hole_typingContext))
+# dict (hole_name , (hole_type, hole_typingContext, func_name))
 def get_holes_info(
     ctx: TypingContext,
     t: Term,
@@ -90,7 +96,7 @@ def get_holes_info(
         t (Term): The term to analyze.
         ty (Type): The current type.
         holes (dict[str, tuple[Optional[Type], TypingContext]]): The current dictionary of hole types. Defaults to None.
-
+        func_name (str) : The name of the function where the hole is defined.
     Returns:
         dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
     """
@@ -247,7 +253,8 @@ def generate_class_components(
         grammar_nodes (List[Type]): The list of grammar nodes to search for classes.
 
     Returns:
-        Tuple[List[Type], Dict[str, Type], Type, str]: A tuple containing the grammar_nodes list updated, attributes dictionary, the superclass, and the abstraction_type class name.
+        Tuple[List[Type], Dict[str, Type], Type, str]: A tuple containing the grammar_nodes list updated,
+        attributes dictionary, the superclass, and the abstraction_type class name.
     """
     fields = {}
     parent_name = ""
@@ -294,7 +301,8 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     of grammar nodes.
 
     This function takes a context variable (a tuple with the class name and type) and a list of existing grammar nodes.
-    It creates a new class or classes with the given name, and generate his attributes and superclass based on the type provided by the tuple.
+    It creates a new class or classes with the given name, and generate his attributes and superclass based on the type
+    provided by the tuple.
     The new class or classes are then added to the list of grammar nodes.
 
     Args:
@@ -302,7 +310,8 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         grammar_nodes (list[type]): The list of existing grammar nodes.
 
     Returns:
-        list[type]: The updated list of grammar nodes with the new class added, or the original list if no class was added.
+        list[type]: The updated list of grammar nodes with the new class added,
+        or the original list if no class was added.
     """
     class_name, class_type = var
     class_type = refined_to_unrefined_type(class_type)
@@ -345,6 +354,7 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
 
     Args:
         ctx (TypingContext): The TypingContext to extract variables from.
+        synth_func_name (str) : The name of the function where the hole is located
         grammar_nodes (list[type]): Initial list of grammar nodes. Defaults to an empty list.
 
     Returns:
