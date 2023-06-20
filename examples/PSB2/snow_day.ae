@@ -1,0 +1,20 @@
+# Snow Day (HW) : Given an integer representing a number
+# of hours and 3 floats representing how much snow is on the
+# ground, the rate of snow fall, and the proportion of snow
+# melting per hour, return the amount of snow on the ground
+# after the amount of hours given. Each hour is considered a
+# discrete event of adding snow and then melting, not a continuous process.
+# input : integer in [0, 20], float in [0.0, 20.0], float in [0.0, 10.0], float in [0.0, 1.0]
+# output : float
+
+import math;
+
+def snow_day ( n : {x:Int | 0 <= x && x <= 20} ,
+                m : {y:Float | 0 <= y && y <= 20.0},
+                t : {z:Float | 0 <= z && z <= 10.0},
+                p : {w:Float | 0 <= w && w <= 10.0}) : Float {
+    if n == 0 then m else dice_game (n - 1) ((1.0 -. p) *. (m +. t)) t p
+
+}
+
+def synth_dice_game ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
