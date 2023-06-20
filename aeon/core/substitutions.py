@@ -202,6 +202,8 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
         return Rec(t.var_name, t.var_type, n_value, n_body)
     elif isinstance(t, Annotation):
         return Annotation(rec(t.expr), t.type)
+    elif isinstance(t, If):
+        return If(t.cond, t.then, t.otherwise)
     assert False
 
 
