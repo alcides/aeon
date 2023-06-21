@@ -3,6 +3,7 @@ from __future__ import annotations
 import traceback
 from abc import ABC
 from dataclasses import dataclass
+from dataclasses import make_dataclass
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -68,6 +69,7 @@ aeon_prelude_ops_to_text = {
 }
 text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
+grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 
@@ -345,7 +347,31 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     return grammar_nodes
 
 
-def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] = []) -> list[type]:
+def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list[type]) -> list[type]:
+    grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+
+    if_class = make_dataclass(
+        class_name,
+        [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)],
+        bases=(parent_class,),
+    )
+
+    new_class = mk_method_core(if_class)
+    grammar_nodes.append(new_class)
+
+    return grammar_nodes
+
+
+def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
+    grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
+    for base_type in grammar_base_types:
+        if base_type in grammar_nodes_names_set:
+            grammar_nodes = create_if_class(f"If_t_{base_type}", base_type, grammar_nodes)
+    return grammar_nodes
+
+
+def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] = None) -> list[type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,
@@ -360,9 +386,12 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
     Returns:
         list[type]: The list of generated grammar nodes.
     """
+    if grammar_nodes is None:
+        grammar_nodes = []
     for var in ctx.vars():
         if var[0] != synth_func_name:
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
+    grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
     return grammar_nodes
 
 
@@ -423,7 +452,7 @@ class Synthesizer:
         p: Term,
         ty: Type = top,
         ectx: EvaluationContext = EvaluationContext(),
-        genetic_engine: Callable[[Grammar, Callable[[Individual], float]], Individual] = geneticengine,
+        genetic_engine: Callable = geneticengine,
     ):
         self.ctx = ctx
         self.p = p
@@ -457,7 +486,7 @@ class Synthesizer:
         else:
             eval(p, ectx)
 
-    def fitness(self, individual):
+    def fitness(self, individual) -> float:
         individual_term = individual.get_core()
 
         first_hole_name = next(iter(self.holes))
