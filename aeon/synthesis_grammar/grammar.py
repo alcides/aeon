@@ -510,8 +510,8 @@ class Synthesizer:
                 for inp in inputs:
                     fitness_eval_term = Application(fitness_eval_term, convert_to_term(inp))
 
-                nt = substitution(nt, fitness_eval_term, "main")
-                actual_output = eval(nt, self.ectx)
+                nt_e = substitution(nt, fitness_eval_term, "main")
+                actual_output = eval(nt_e, self.ectx)
 
                 predicted_values.append(actual_output)
                 true_values.append(expected_output[0])
