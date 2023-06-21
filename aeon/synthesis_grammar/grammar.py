@@ -216,16 +216,14 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
     if class_name in list(aeon_to_python_types.keys()):
-        new_abs_class: type = dataclass(type("t_" + class_name, (ABC,), {}))
+        new_abs_class = make_dataclass("t_" + class_name, [], bases=(ABC,))
         # new_abs_class = type("t_"+class_name, (), {})
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
-        new_class: type = dataclass(
-            type(
-                "literal_" + class_name,
-                (new_abs_class,),
-                {"__annotations__": {"value": aeon_to_python_types[class_name]}},
-            ),
+        new_class = make_dataclass(
+            "literal_" + class_name,
+            [("value", aeon_to_python_types[class_name])],
+            bases=(new_abs_class,),
         )
 
         new_class = mk_method_core_literal(new_class)
@@ -234,7 +232,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
 
     else:
         class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
-        new_abs_class: type = dataclass(type(class_name, (ABC,), {}))
+        new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
 
@@ -246,7 +244,7 @@ def is_valid_class_name(class_name: str) -> bool:
 def generate_class_components(
     class_type: Type,
     grammar_nodes: list[type],
-) -> tuple[list[type], dict[str, type], Type, str]:
+) -> tuple[list[type], list[tuple[str, type]], Type, str]:
     """Generates the attributes, superclass, and abstraction_type class name
     from a Type object.
 
@@ -258,7 +256,7 @@ def generate_class_components(
         Tuple[List[Type], Dict[str, Type], Type, str]: A tuple containing the grammar_nodes list updated,
         attributes dictionary, the superclass, and the abstraction_type class name.
     """
-    fields = {}
+    fields = []
     parent_name = ""
     while isinstance(class_type, AbstractionType):
         # generate attributes
@@ -273,7 +271,7 @@ def generate_class_components(
         )
 
         grammar_nodes, cls = find_class_by_name(attribute_type.name, grammar_nodes)
-        fields[attribute_name] = cls
+        fields.append((attribute_name, cls))
 
         # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
         parent_name += "t_" + attribute_type.name + "_"
@@ -290,10 +288,10 @@ def process_class_name(class_name: str) -> str:
     return class_name.value if isinstance(class_name, Token) else class_name
 
 
-def create_new_class(class_name: str, parent_class: type, fields: dict = None) -> type:
+def create_new_class(class_name: str, parent_class: type, fields: list = []) -> type:
     """Creates a new class with the given name, parent class, and fields."""
-    new_class = type(class_name, (parent_class,), {"__annotations__": fields or {}})
-    new_class = mk_method_core(dataclass(new_class))
+    new_class = make_dataclass(class_name, fields, bases=(parent_class,))
+    new_class = mk_method_core(new_class)
 
     return new_class
 
@@ -351,14 +349,10 @@ def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list
     grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
     grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-    if_class = make_dataclass(
-        class_name,
-        [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)],
-        bases=(parent_class,),
-    )
+    fields = [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)]
 
-    new_class = mk_method_core(if_class)
-    grammar_nodes.append(new_class)
+    if_class = create_new_class(class_name, parent_class, fields)
+    grammar_nodes.append(if_class)
 
     return grammar_nodes
 
@@ -367,7 +361,7 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
     for base_type in grammar_base_types:
         if base_type in grammar_nodes_names_set:
-            grammar_nodes = create_if_class(f"If_t_{base_type}", base_type, grammar_nodes)
+            grammar_nodes = create_if_class(f"If_{base_type}", base_type, grammar_nodes)
     return grammar_nodes
 
 
