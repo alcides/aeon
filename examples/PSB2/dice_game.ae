@@ -7,6 +7,10 @@
 
 import math;
 
+#constants
+def constant_f0 : Float = 0.0;
+def constant_f1 : Float = 1.0;
+
 def mult ( n:Int , m:Int ) : Int { n * m }
 
 def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
