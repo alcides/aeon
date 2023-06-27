@@ -161,6 +161,14 @@ def mk_method_core(cls: type):
                 var_values.append(value)
 
             assert len(var_values) == 2
+        elif class_name.startswith("If"):
+            if_dict = {}
+            for attr_name, _ in cls.__annotations__.items():
+                value = getattr(self, attr_name, None)
+                if_dict[attr_name] = value.get_core
+
+            base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
+
         else:
             base = Var(class_name_without_prefix)
             for attr_name, _ in cls.__annotations__.items():
@@ -487,7 +495,7 @@ class Synthesizer:
         _, _, synth_func_name = self.holes[first_hole_name]
 
         nt = substitution(self.p, individual_term, first_hole_name)
-        # print (np)
+
         try:
             check_type_errors(self.ctx, nt, self.ty)
         except Exception as e:
