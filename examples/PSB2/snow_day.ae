@@ -9,6 +9,15 @@
 
 import math;
 
+#constants
+def constant_i0 : Int = 0;
+def constant_i1 : Int = 1;
+def constant_in1 : Int = -1;
+def constant_f0 : Float = 0.0;
+def constant_f1 : Float = 1.0;
+def constant_fn1 : Float = -1.0;
+
+
 def snow_day ( n : {x:Int | 0 <= x && x <= 20} ,
                 m : {y:Float | 0 <= y && y <= 20.0},
                 t : {z:Float | 0 <= z && z <= 10.0},
