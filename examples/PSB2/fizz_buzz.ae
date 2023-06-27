@@ -1,10 +1,18 @@
-# Given an integer n, return "Fizz" if n is divisible by 3, 
-# "Buzz" if n is divisible by 5, "FizzBuzz" if n is 
+# Given an integer n, return "Fizz" if n is divisible by 3,
+# "Buzz" if n is divisible by 5, "FizzBuzz" if n is
 # divisible by 3 and 5, and a string version of n if none of
 # the above hold (convert integer to string).
 # input : integer in [1, 1000000]
 # output : string
 # --not working properly--
+
+#constants
+def constant_i : Int = 0;
+def constant_i3 : Int = 3;
+def constant_i5 : Int = 5;
+def constant_FizzBuzz : String = "FizzBuzz";
+def constant_Buzz : String = "Buzz";
+def constant_Fizz : String = "Fizz";
 
 
 def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool { if ((n % 3) == 0) then true else false}
@@ -13,9 +21,6 @@ def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool {if ((n % 15) == 0)  the
 
 
 def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
-
-    # Aeon does not assume that div15(n) is a boolean expression
-    # if div15(n) then "FizzBuzz" else (if div3(n)then "Fizz" else (if div5 then "Buzz" else native "str(n)"))
 
     if ((n % 15) == 0) then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
 
