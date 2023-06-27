@@ -1,0 +1,37 @@
+# Given two integers, return the largest integer that
+# divides each of the integers evenly.
+# input : 2 integers in [1, 1000000]
+# output : integer
+# --not- working - recursion problem--
+# RecursionError: maximum recursion depth exceeded in comparison
+
+import String;
+
+#constants
+def constant_i0 : Int = 0;
+def constant_i140 : Int = 140;
+def constant_s : String = "Too many characters";
+def constant_s2 : String = "You didn’t type anything";
+def constant_s3 : String = "your tweet has ";
+def constant_s4 : String = " characters";
+
+
+def validate_tweet (tweet: String) : String {
+    tweet_length = String_len(tweet);
+    if tweet_length == 0 then
+        "You didn’t type anything"
+    else
+        if tweet_length > 140 then
+            "Too many characters"
+        else
+            tweet_length_str = String_intToString(tweet_length);
+            String_concat (String_concat "Your tweet has " tweet_length_str)   " characters"
+    }
+
+def tweet_vazio : String = "";
+def tweet_normal : String = "tweet normal";
+def tweet_grande: String = "tweet grande - tweet grande - tweet grande - tweet grande - tweet grande - tweet grande - tweet grande - tweet grande - tweet grande - tweet grande";
+
+def main (i: Int) : Unit { print( validate_tweet tweet_normal}
+
+#def synth_tweet (tweet:String) : String {(?hole:String)}
