@@ -35,6 +35,11 @@ def test_if_str():
     assert eval(parse_term('if false then "ola" else "adeus"')) == "adeus"
 
 
+def test_if_str():
+    assert eval(parse_term('if true then "ola" else "adeus"')) == "ola"
+    assert eval(parse_term('if false then "ola" else "adeus"')) == "adeus"
+
+
 def test_let():
     assert eval(parse_term("let a = 1 in a")) == 1
     assert eval(parse_term("let b = 1 in 2")) == 2
