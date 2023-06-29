@@ -22,6 +22,12 @@ def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool {if ((n % 15) == 0)  the
 
 def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
 
-    if ((n % 15) == 0) then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
+    if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
+
+}
+
+def synth_fizz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
+
+    (?hole:String)
 
 }
