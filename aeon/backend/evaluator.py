@@ -66,7 +66,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         return eval(t.body, ctx.with_var(t.var_name, v))
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
-        return bool(c) and eval(t.cond, ctx) or eval(t.otherwise, ctx)
+        if c:
+            return eval(t.cond, ctx)
+        else:
+            return eval(t.otherwise, ctx)
     elif isinstance(t, Annotation):
         return eval(t.expr, ctx)
     elif isinstance(t, Hole):
