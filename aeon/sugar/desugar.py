@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os.path
+from pathlib import Path
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
@@ -76,8 +77,18 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
 
 
 def handle_import(path: str) -> Program:
-    filename = "libraries/" + path + ".ae"
-    path = os.path.abspath(filename)
-    assert os.path.exists(path), f"The library '{path}' does not exist. {path}"
-    import_file_data = open(path).read()
-    return mk_parser("program").parse(import_file_data)
+    """Imports a given path, following the precedence rules of current folder,
+    AEONPATH."""
+    possible_containers = (
+        [Path.cwd()]
+        + [Path.cwd() / "libraries"]
+        + [Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str]
+    )
+    for container in possible_containers:
+        file = container / f"{path}.ae"
+        if file.exists():
+            contents = open(file).read()
+            return mk_parser("program").parse(contents)
+    raise Exception(
+        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
+    )

@@ -246,7 +246,7 @@ def wrap_checks(f):
 
 
 # patterm matching term
-@wrap_checks
+@wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
