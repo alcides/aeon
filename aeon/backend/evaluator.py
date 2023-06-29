@@ -67,7 +67,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
         if c:
-            return eval(t.cond, ctx)
+            return eval(t.then, ctx)
         else:
             return eval(t.otherwise, ctx)
     elif isinstance(t, Annotation):
