@@ -18,6 +18,7 @@ from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.metrics import mse
 from lark.lexer import Token
+from textdistance import levenshtein
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
@@ -421,11 +422,11 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
             fitness_function=fitness,
         ),
         max_depth=8,
-        number_of_generations=20,
-        population_size=20,
+        number_of_generations=30,
+        population_size=30,
         n_elites=1,
         verbose=2,
-        target_fitness=0,
+        # target_fitness=0,
     )
     best = alg.evolve()
     return best
@@ -465,8 +466,8 @@ class Synthesizer:
         self.holes = get_holes_info(ctx, p, ty)
 
         if len(self.holes) > 1:
-            # self.train_data, self.test_data = load_dataset("dice-game")
-            self.train_data, self.test_data = load_dataset("bouncing-balls")
+            # self.train_data, self.test_data = load_dataset("twitter")
+            self.train_data, self.test_data = load_dataset("gcd")
 
             first_hole_name = next(iter(self.holes))
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
@@ -499,7 +500,8 @@ class Synthesizer:
         try:
             check_type_errors(self.ctx, nt, self.ty)
         except Exception as e:
-            print(f"Check for type errors failed: {e}")
+            # print(f"Check for type errors failed: {e}")
+            # traceback.print_exception(e)
             return 100000000
 
         try:
@@ -517,10 +519,16 @@ class Synthesizer:
 
                 predicted_values.append(actual_output)
                 true_values.append(expected_output[0])
-            # Calculate mean squared error
-            result = mse(np.array(predicted_values), np.array(true_values))
+            # provisional solution
+            if isinstance(true_values[0], str):
+                joined_true_values = " ".join(word.strip() for word in true_values)
+                joined_predicted_values = " ".join(word.strip() for word in predicted_values)
+                result = levenshtein(joined_true_values, joined_predicted_values)
+            else:
+                # Calculate mean squared error
+                result = mse(np.array(predicted_values), np.array(true_values))
         except Exception as e:
-            print(f"Evaluation failed: {e}")
-            traceback.print_exception(e)
+            # print(f"Evaluation failed: {e}")
+            # traceback.print_exception(e)
             result = 100000000
         return abs(result)
