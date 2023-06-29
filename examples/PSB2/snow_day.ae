@@ -18,12 +18,23 @@ def constant_f1 : Float = 1.0;
 def constant_fn1 : Float = -1.0;
 
 
-def snow_day ( n : {x:Int | 0 <= x && x <= 20} ,
-                m : {y:Float | 0 <= y && y <= 20.0},
-                t : {z:Float | 0 <= z && z <= 10.0},
-                p : {w:Float | 0 <= w && w <= 10.0}) : Float {
-    if n == 0 then m else dice_game (n - 1) ((1.0 -. p) *. (m +. t)) t p
+#def snow_day ( n : {x:Int | 0 <= x && x <= 20} ,
+#                m : {y:Float | 0.0 <= y && y <= 20.0},
+#                t : {z:Float | 0.0 <= z && z <= 10.0},
+#                p : {w:Float | 0.0 <= w && w <= 10.0}) : Float {
+#    if n == 0 then m else snow_day (n - 1) ((1.0 -. p) *. (m +. t)) (t) (p)
+#}
 
+def snow_day ( n :Int  ,
+                m :Float ,
+                t :Float ,
+                p :Float) : Float {
+    if n == 0 then m else snow_day (n - 1) ((1.0 -. p) *. (m +. t)) (t) (p)
 }
 
-def synth_dice_game ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
+def synth_snow_day ( n :Int  ,
+                m :Float ,
+                t :Float ,
+                p :Float) : Float {
+    (?hole:Float)
+}
