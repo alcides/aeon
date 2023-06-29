@@ -23,8 +23,8 @@ arg : ID ":" type               -> arg
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
 
-expression_i :  ID "=" expression ("in"|";") expression     -> let_e
-          |  ID ":" type "=" expression ("in"|";") expression     -> rec_e
+expression_i :  ID "=" expression ("in "|";") expression     -> let_e
+          |  ID ":" type "=" expression ("in "|";") expression     -> rec_e
           | "if" expression "then" expression "else" expression -> if_e
           | expression_un                                -> same
 
