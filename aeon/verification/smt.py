@@ -108,7 +108,9 @@ s.set(timeout=200),
 
 def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
     """Verifies if a constraint is true using Z3."""
+    print("foralls:", foralls)
     cons: list[CanonicConstraint] = list(flatten(constraint))
+    print("cons:", cons)
 
     forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
     for c in cons:
@@ -181,7 +183,6 @@ def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
     elif isinstance(base, AbstractionType):
         if name in base_functions:
             return base_functions[name]
-
         input_types, output_type = uncurry(base)
         args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
         return Function(name, *args)
@@ -215,6 +216,11 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
+
+        if 1 > 0:
+            w = lambda x: x.sort() if hasattr(x, "sort") else type(x)
+            print("calling liquid", f, [(x, w(x)) for x in args])
+
         return f(*args)
     assert False
 
@@ -223,6 +229,7 @@ def translate(
     c: CanonicConstraint,
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
+    print("DV:", c.binders)
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders

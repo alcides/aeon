@@ -250,6 +250,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         c2 = check(nrctx, t.body, ty)
         c1 = implication_constraint(t.var_name, t1, c1)
         c2 = implication_constraint(t.var_name, t1, c2)
+        print("c1:", c1)
+        print("c2:", c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()
