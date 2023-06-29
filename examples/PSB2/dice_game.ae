@@ -6,6 +6,7 @@
 # -- working--
 
 import math;
+import PSB2;
 
 #constants
 def constant_f0 : Float = 0.0;
@@ -15,6 +16,17 @@ def mult ( n:Int , m:Int ) : Int { n * m }
 
 def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float { Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
+def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
 
 def synth_dice_game ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
+
+#def fitness (i: Int) : Float {
+#    dataset = load_dataset "dice-game";
+#    train_data = extract_train_data dataset ;
+#    datapoint = extract_train_data_datapoint train_data 0;
+#    p = extract_input datapoint;
+#    x = (get_int_input p 0);
+#    y =( get_int_input p 1);
+#    dice_game x y
+#}
