@@ -86,7 +86,7 @@ def get_holes_info(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict[str, tuple[Type, TypingContext]] = None,
+    holes: dict[str, tuple[Type, TypingContext, str]] = None,
     func_name: str = "",
 ) -> dict[str, tuple[Type, TypingContext, str]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
@@ -146,7 +146,7 @@ def get_holes_info(
 
 
 def mk_method_core(cls: type):
-    def get_core(self, *args):
+    def get_core(self):
         class_name = self.__class__.__name__
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
@@ -188,21 +188,22 @@ def mk_method_core_literal(cls: type):
         class_name = self.__class__.__name__
         class_name_without_prefix = class_name[8:]
         value = getattr(self, "value", None)
-        if value is not None:
-            if class_name_without_prefix == "Int":
-                base = Literal(int(value), type=t_int)
-            elif class_name_without_prefix == "Float":
-                base = Literal(float(value), type=t_float)
-            elif class_name_without_prefix == "Bool":
-                value = str(value) == "true"
-                base = Literal(value, type=t_bool)
-            elif class_name_without_prefix == "String":
-                v = str(value)[1:-1]
-                base = Literal(str(v), type=t_string)
+        try:
+            if value is not None:
+                if class_name_without_prefix == "Int":
+                    base = Literal(int(value), type=t_int)
+                elif class_name_without_prefix == "Float":
+                    base = Literal(float(value), type=t_float)
+                elif class_name_without_prefix == "Bool":
+                    value = str(value) == "true"
+                    base = Literal(value, type=t_bool)
+                elif class_name_without_prefix == "String":
+                    v = str(value)[1:-1]
+                    base = Literal(str(v), type=t_string)
 
-            return base
-        else:
-            raise Exception("no value")
+                return base
+        except Exception as e:
+            raise Exception("no value\n ", e)
 
     cls.get_core = get_core
     return cls
@@ -240,7 +241,8 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
+        class_name = class_name if class_name.startswith(
+            "t_") else ("t_" + class_name)
         new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
@@ -270,7 +272,8 @@ def generate_class_components(
     while isinstance(class_type, AbstractionType):
         # generate attributes
         attribute_name: str = (
-            class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+            class_type.var_name.value if isinstance(
+                class_type.var_name, Token) else class_type.var_name
         )
 
         attribute_type = (
@@ -279,14 +282,16 @@ def generate_class_components(
             else class_type.var_type
         )
 
-        grammar_nodes, cls = find_class_by_name(attribute_type.name, grammar_nodes)
+        grammar_nodes, cls = find_class_by_name(
+            attribute_type.name, grammar_nodes)
         fields.append((attribute_name, cls))
 
         # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
         parent_name += "t_" + attribute_type.name + "_"
         class_type = refined_to_unrefined_type(class_type.type)
 
-    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    class_type_str = str(class_type) if isinstance(
+        class_type, (Top, Bottom)) else class_type.name
     superclass_type_name: str = parent_name + "t_" + class_type_str
 
     return grammar_nodes, fields, class_type, superclass_type_name
@@ -297,8 +302,10 @@ def process_class_name(class_name: str) -> str:
     return class_name.value if isinstance(class_name, Token) else class_name
 
 
-def create_new_class(class_name: str, parent_class: type, fields: list = []) -> type:
+def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
     """Creates a new class with the given name, parent class, and fields."""
+    if fields is None:
+        fields = []
     new_class = make_dataclass(class_name, fields, bases=(parent_class,))
     new_class = mk_method_core(new_class)
 
@@ -338,15 +345,18 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     )
 
     # class app_function_name
-    parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
-    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    parent_class_name = str(parent_type) if isinstance(
+        parent_type, (Top, Bottom)) else parent_type.name
+    grammar_nodes, parent_class = find_class_by_name(
+        parent_class_name, grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
     grammar_nodes.append(new_class_app)
 
     # class var_function_name
     if isinstance(class_type, AbstractionType):
-        grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
+        grammar_nodes, parent_class = find_class_by_name(
+            abstraction_type_class_name, grammar_nodes)
 
         new_class_var = create_new_class(f"var_{class_name}", parent_class)
         grammar_nodes.append(new_class_var)
@@ -356,9 +366,11 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
 
 def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list[type]) -> list[type]:
     grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
-    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    grammar_nodes, parent_class = find_class_by_name(
+        parent_class_name, grammar_nodes)
 
-    fields = [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)]
+    fields = [("cond", cond_class), ("then", parent_class),
+              ("otherwise", parent_class)]
 
     if_class = create_new_class(class_name, parent_class, fields)
     grammar_nodes.append(if_class)
@@ -370,7 +382,8 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
     for base_type in grammar_base_types:
         if base_type in grammar_nodes_names_set:
-            grammar_nodes = create_if_class(f"If_{base_type}", base_type, grammar_nodes)
+            grammar_nodes = create_if_class(
+                f"If_{base_type}", base_type, grammar_nodes)
     return grammar_nodes
 
 
@@ -426,7 +439,7 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
         population_size=30,
         n_elites=1,
         verbose=2,
-        # target_fitness=0,
+        target_fitness=0,
     )
     best = alg.evolve()
     return best
@@ -475,7 +488,8 @@ class Synthesizer:
             grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
 
             for cls in grammar_n:
-                print(cls, "\nattributes: ", cls.__annotations__, "\nparent class: ", cls.__bases__, "\n")
+                print(cls, "\nattributes: ", cls.__annotations__,
+                    "\nparent class: ", cls.__bases__, "\n")
             assert len(grammar_n) > 0
 
             starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
@@ -512,7 +526,8 @@ class Synthesizer:
                 # Apply the individual (which is a function) to the inputs
                 fitness_eval_term = Var(synth_func_name)
                 for inp in inputs:
-                    fitness_eval_term = Application(fitness_eval_term, convert_to_term(inp))
+                    fitness_eval_term = Application(
+                        fitness_eval_term, convert_to_term(inp))
 
                 nt_e = substitution(nt, fitness_eval_term, "main")
                 actual_output = eval(nt_e, self.ectx)
@@ -521,9 +536,12 @@ class Synthesizer:
                 true_values.append(expected_output[0])
             # provisional solution
             if isinstance(true_values[0], str):
-                joined_true_values = " ".join(word.strip() for word in true_values)
-                joined_predicted_values = " ".join(word.strip() for word in predicted_values)
-                result = levenshtein(joined_true_values, joined_predicted_values)
+                joined_true_values = " ".join(
+                    word.strip() for word in true_values)
+                joined_predicted_values = " ".join(
+                    word.strip() for word in predicted_values)
+                result = levenshtein(joined_true_values,
+                                     joined_predicted_values)
             else:
                 # Calculate mean squared error
                 result = mse(np.array(predicted_values), np.array(true_values))
