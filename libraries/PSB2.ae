@@ -7,12 +7,10 @@ type Tuple;
 type Input;
 type Output;
 
-
 def psb2 : Unit = native_import "psb2";
+def np : Unit = native_import "numpy";
 
-def load_dataset : (name:String) -> Dataset = native "lambda s: psb2.fetch_examples('path/to/PSB2/datasets/', s, 200, 2000, format='lists')";
-
-def dataset_to_str: (ds:Dataset) -> Unit = native "lambda ds: print(ds)";
+def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
 
 def extract_train_data : (ds:Dataset) -> TrainData = native "lambda ds: ds[0]";
 
@@ -35,3 +33,5 @@ def get_int_input: (input : Input) -> (i:Int) -> Int = native "lambda input: lam
 def get_float_input: (input : Input) -> (i:Int) -> Float = native "lambda input: lambda i: input[i]";
 
 def get_string_input: (input : Input) -> (i:Int) -> String = native "lambda input: lambda i: input[i]";
+
+def mean_square_error : (t : Tuple) ->  Float = native "lambda tuple_predicted_true_values : __import__('numpy').mean(__import__('numpy').square (__import__('numpy').array(tuple_predicted_true_values[0])-  __import__('numpy').array(tuple_predicted_true_values[1])))";

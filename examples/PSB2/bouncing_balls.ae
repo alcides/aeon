@@ -9,6 +9,7 @@
 # -- working --
 
 import Math;
+import PSB2;
 type Unit;
 
 #constants
@@ -25,6 +26,16 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
    \a -> \b-> \c -> calculate_distance_helper (bounciness_index a b) a c  0.0 ;
 
 
-def synth  (a:{x:Float | 1.0 <= x && x <= 100.0} , b:{y:Float | 1.0 <= y && y <= 100.0} ,  c:{z:Int | 1 <= z && z <= 20}) : Float {
-(?hole:Float)
+#def synth  (a:{x:Float | 1.0 <= x && x <= 100.0} , b:{y:Float | 1.0 <= y && y <= 100.0} ,  c:{z:Int | 1 <= z && z <= 20}) : Float {
+#(?hole:Float)
+#}
+
+def fitness () : Float  {
+    ds = load_dataset "bouncing-balls" 200 2000;
+    train = extract_train_data ds;
+    #predicted_true_values: Tuple = native "zip(*[(bouncing_balls(x)(y)(z), output) for (x, y, z), output in train])";
+    predicted_true_values: Tuple = native "[list(x) for x in zip(*[(bouncing_balls(x)(y)(z), output) for (x, y, z), output in train])]";
+    mse = mean_square_error(predicted_true_values);
+    mse
+
 }
