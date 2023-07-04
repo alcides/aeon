@@ -2,6 +2,9 @@ pytest
 flake8
 black
 lark
+psb2
 zstandard==0.15.2
 zss
 z3-solver
+https://github.com/alcides/GeneticEngine/archive/refs/tags/v0.7.3.zip
+textdistance
