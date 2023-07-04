@@ -8,17 +8,13 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-import numpy as np
-import psb2
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.decorators import abstract
 from geneticengine.core.grammar import extract_grammar
 from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
-from geneticengine.metrics import mse
 from lark.lexer import Token
-from textdistance import levenshtein
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
@@ -445,9 +441,6 @@ def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> I
     return best
 
 
-def load_dataset(dataset: str):
-    return psb2.fetch_examples("path/to/PSB2/datasets/", dataset, 200, 2000, format="lists")
-
 
 def convert_to_term(inp):
     if isinstance(inp, str):
@@ -479,8 +472,6 @@ class Synthesizer:
         self.holes = get_holes_info(ctx, p, ty)
 
         if len(self.holes) > 1:
-            # self.train_data, self.test_data = load_dataset("twitter")
-            self.train_data, self.test_data = load_dataset("gcd")
 
             first_hole_name = next(iter(self.holes))
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
@@ -519,32 +510,10 @@ class Synthesizer:
             return 100000000
 
         try:
-            predicted_values = []
-            true_values = []
-            for datapoint in self.train_data:
-                inputs, expected_output = datapoint
-                # Apply the individual (which is a function) to the inputs
-                fitness_eval_term = Var(synth_func_name)
-                for inp in inputs:
-                    fitness_eval_term = Application(
-                        fitness_eval_term, convert_to_term(inp))
+            fitness_eval_term = Var("fitness")
+            nt_e = substitution(nt, fitness_eval_term, "main")
+            result = eval(nt_e, self.ectx)
 
-                nt_e = substitution(nt, fitness_eval_term, "main")
-                actual_output = eval(nt_e, self.ectx)
-
-                predicted_values.append(actual_output)
-                true_values.append(expected_output[0])
-            # provisional solution
-            if isinstance(true_values[0], str):
-                joined_true_values = " ".join(
-                    word.strip() for word in true_values)
-                joined_predicted_values = " ".join(
-                    word.strip() for word in predicted_values)
-                result = levenshtein(joined_true_values,
-                                     joined_predicted_values)
-            else:
-                # Calculate mean squared error
-                result = mse(np.array(predicted_values), np.array(true_values))
         except Exception as e:
             # print(f"Evaluation failed: {e}")
             # traceback.print_exception(e)

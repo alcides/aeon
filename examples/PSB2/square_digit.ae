@@ -1,7 +1,28 @@
-# Given a positive integer, square each digit and 
+# Given a positive integer, square each digit and
 # concatenate the squares into a returned string.
-# input : integer in [0, 1000000] 
+# input : integer in [0, 1000000]
 # output : string
 # --working--
 
-def square_digit : ( n :{x:Int | 1 <= x && x <= 1000000})-> Int = native "lambda n: ''.join(str(int(d)**2) for d in str(n))";
+import String;
+import Math;
+
+#def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
+#    if n == 0 then
+#        ""
+#    else
+#        digit = n % 10;
+#        square = digit * digit;
+#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
+#        result
+#}
+
+def square_digit_unsafe  ( n : Int) : String {
+    if n == 0 then
+        ""
+    else
+        digit = n % 10;
+        square = digit * digit;
+        result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
+        result
+}

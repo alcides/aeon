@@ -21,3 +21,6 @@ def Math_toInt : (i:Float) -> Int = native "lambda i: int(i)" ;
 def Math_pow : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: math.pow(i,j)" ;
 
 def Math_round : (i:Float) -> Int = native "lambda i: round(i)" ;
+
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+
