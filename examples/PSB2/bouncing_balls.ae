@@ -33,9 +33,10 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
 def fitness () : Float  {
     ds = load_dataset "bouncing-balls" 200 2000;
     train = extract_train_data ds;
-    #predicted_true_values: Tuple = native "zip(*[(bouncing_balls(x)(y)(z), output) for (x, y, z), output in train])";
-    predicted_true_values: Tuple = native "[list(x) for x in zip(*[(bouncing_balls(x)(y)(z), output) for (x, y, z), output in train])]";
-    mse = mean_square_error(predicted_true_values);
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    actual_values : List = native "[bouncing_balls(x)(y)(z) for x, y, z in input_list]";
+    expected_values = get_output_list unpacked_data;
+    mse = mean_square_error actual_values expected_values;
     mse
-
 }
