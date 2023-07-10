@@ -18,12 +18,10 @@ from aeon.utils.ctx_helpers import build_context
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="A simple parser")
+    parser = argparse.ArgumentParser()
 
     parser.add_argument("filename", type=str, help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
-#   parser.add_argument("-d", "--debug", action="store_true", help="debug")
-#   parser.add_argument("-typecheck", action="store_true", help="typechecker")
     parser.add_argument("-l", "--log", type=str, nargs='+', default="", help="set log level")
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
@@ -46,7 +44,6 @@ if __name__ == "__main__":
 
     errors = check_type_errors(ctx, p, top)
     if errors:
-    #if errors and args.typecheck:
         logger.log("TYPECHECKER", "-------------------------------")
         logger.log("TYPECHECKER", "+  Type Checking Error        +")
         for error in errors:
