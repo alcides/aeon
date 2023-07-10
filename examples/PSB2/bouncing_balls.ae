@@ -26,17 +26,22 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
    \a -> \b-> \c -> calculate_distance_helper (bounciness_index a b) a c  0.0 ;
 
 
-def synth  (a:{x:Float | 1.0 <= x && x <= 100.0} , b:{y:Float | 1.0 <= y && y <= 100.0} ,  c:{z:Int | 1 <= z && z <= 20}) : Float {
-(?hole:Float)
-}
+#def synth  (a:{x:Float | 1.0 <= x && x <= 100.0} , b:{y:Float | 1.0 <= y && y <= 100.0} ,  c:{z:Int | 1 <= z && z <= 20}) : Float {
+#(?hole:Float)
+#}
+
+def synth (a:Float , b:Float , c:Int)  : Float  { (?hole:Float)}
 
 def fitness () : Float  {
-    ds = load_dataset "bouncing-balls" 200 2000;
+    ds = load_dataset "bouncing-balls" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;
     input_list = get_input_list unpacked_data;
-    actual_values : List = native "[synth(x)(y)(z) for x, y, z in input_list]";
     expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth(x)(y)(z) for x, y, z in input_list]";
+    # actual_values : List = get_bb_synth_values input_list synth;
     mse = mean_square_error actual_values expected_values;
     mse
 }
+
+

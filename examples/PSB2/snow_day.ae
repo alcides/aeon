@@ -8,6 +8,7 @@
 # output : float
 
 import math;
+import PSB2;
 
 #constants
 def constant_i0 : Int = 0;
@@ -37,4 +38,16 @@ def synth_snow_day ( n :Int  ,
                 t :Float ,
                 p :Float) : Float {
     (?hole:Float)
+}
+
+def fitness () : Float  {
+    ds = load_dataset "snow-day" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth_snow_day(x)(y)(z)(w) for x, y, z, w in input_list]";
+    #actual_values : List = get_bb_synth_values input_list synth;
+    mse = mean_square_error actual_values expected_values;
+    mse
 }

@@ -6,6 +6,7 @@
 # RecursionError: maximum recursion depth exceeded in comparison
 
 import String;
+import PSB2;
 
 #constants
 def constant_i0 : Int = 0;
@@ -27,3 +28,16 @@ def validate_tweet (tweet: String) : String {
             String_concat (String_concat "Your tweet has " tweet_length_str)   " characters"
     }
 def synth_tweet (tweet:String) : String {(?hole:String)}
+
+def fitness(): Float {
+    ds = load_dataset "twitter" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth_tweet(x) for x in input_list]";
+    expected_values_str = join_string_list expected_values;
+    actual_values_str = join_string_list actual_values;
+    str_distance = String_distance expected_values_str actual_values_str;
+    str_distance
+}

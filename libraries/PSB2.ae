@@ -5,7 +5,7 @@ type List;
 type Tuple;
 
 def psb2 : Unit = native_import "psb2";
-def np : Unit = native_import "numpy";
+def textdistance : Unit = native_import "textdistance";
 
 def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
 
@@ -20,3 +20,10 @@ def get_output_list : (t:Tuple) -> List = native "lambda t: sum(t[1], [])";
 def extract_test_data : (ds:Dataset) -> TestData = native "lambda ds: ds[1]";
 
 def mean_square_error : (true_values : List) -> (expected_values : List) ->  Float = native "lambda t: lambda e: __import__('numpy').mean(__import__('numpy').square (__import__('numpy').array(t) - __import__('numpy').array(e)))";
+
+def join_string_list : (list: List) -> String = native "lambda xs: " ".join(word.strip() for word in xs) ";
+
+# maybe move this method to string lib
+def String_distance : (str1 : String) -> (str1 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
+
+def get_bb_synth_values : (input : List) -> (starting_height: Float) ->( bounce_height:Float ) ->( bounces:Int) ->  -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";

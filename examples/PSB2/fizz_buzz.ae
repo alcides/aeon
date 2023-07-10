@@ -27,7 +27,19 @@ def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
 }
 
 def synth_fizz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
-
     (?hole:String)
 
+}
+
+def fitness(): Float {
+    ds = load_dataset "fizz-buzz" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth_fizz(x) for x in input_list]";
+    expected_values_str = join_string_list expected_values;
+    actual_values_str = join_string_list actual_values;
+    str_distance = String_distance expected_values_str actual_values_str;
+    str_distance
 }

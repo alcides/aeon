@@ -19,14 +19,18 @@ def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else
 def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
     Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
 
-def synth_dice_game ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
+def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
 
-#def fitness (i: Int) : Float {
-#    dataset = load_dataset "dice-game";
-#    train_data = extract_train_data dataset ;
-#    datapoint = extract_train_data_datapoint train_data 0;
-#    p = extract_input datapoint;
-#    x = (get_int_input p 0);
-#    y =( get_int_input p 1);
-#    dice_game x y
-#}
+
+def fitness () : Float  {
+    ds = load_dataset "dice-game" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth(x)(y) for x, y in input_list]";
+    mse = mean_square_error actual_values expected_values;
+    mse
+}
+
+
