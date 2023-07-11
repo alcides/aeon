@@ -24,6 +24,6 @@ def mean_square_error : (true_values : List) -> (expected_values : List) ->  Flo
 def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
 
 # maybe move this method to string lib
-def String_distance : (str1 : String) -> (str1 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
+def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
 
 def get_bb_synth_values : (input : List) -> (starting_height: Float) ->( bounce_height:Float ) ->( bounces:Int) -> ( f :Float)  -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
