@@ -50,6 +50,7 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
+from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -334,3 +335,20 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
+
+
+def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
+    errors = check_type_errors(ctx, p, top)
+    if errors:
+        log_typechecker_errors(errors)
+        return True
+    return False
+
+
+def log_typechecker_errors(errors):
+    logger.log("TYPECHECKER", "-------------------------------")
+    logger.log("TYPECHECKER", "+  Type Checking Error        +")
+    for error in errors:
+        logger.log("TYPECHECKER", "-------------------------------")
+        logger.log("TYPECHECKER", error)
+    logger.log("TYPECHECKER", "-------------------------------")
