@@ -7,7 +7,7 @@ from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
-from aeon.synthesis_grammar.grammar import Synthesizer
+from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.typeinfer import check_type_errors
 
 
