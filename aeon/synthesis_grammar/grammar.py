@@ -423,25 +423,6 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     )
 
 
-def geneticengine(grammar: Grammar, fitness: Callable[[Individual], float]) -> Individual:
-    alg = SimpleGP(
-        grammar,
-        problem=SingleObjectiveProblem(
-            minimize=True,
-            fitness_function=fitness,
-        ),
-        max_depth=8,
-        number_of_generations=30,
-        population_size=30,
-        n_elites=1,
-        verbose=2,
-        target_fitness=0,
-    )
-    best = alg.evolve()
-    return best
-
-
-
 def convert_to_term(inp):
     if isinstance(inp, str):
         return Literal(inp, type=t_string)
@@ -454,68 +435,4 @@ def convert_to_term(inp):
     raise Exception(f"unable to converto to term : {type(inp)}")
 
 
-class Synthesizer:
-    def __init__(
-        self,
-        ctx: TypingContext,
-        p: Term,
-        ty: Type = top,
-        ectx: EvaluationContext = EvaluationContext(),
-        genetic_engine: Callable = geneticengine,
-    ):
-        self.ctx = ctx
-        self.p = p
-        self.ty = ty
-        self.ectx = ectx
-        self.genetic_engine = genetic_engine
 
-        self.holes = get_holes_info(ctx, p, ty)
-
-        if len(self.holes) > 1:
-
-            first_hole_name = next(iter(self.holes))
-            hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
-
-            grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
-
-            for cls in grammar_n:
-                print(cls, "\nattributes: ", cls.__annotations__,
-                    "\nparent class: ", cls.__bases__, "\n")
-            assert len(grammar_n) > 0
-
-            starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
-            assert starting_node is not None, "Starting Node is None"
-
-            grammar = extract_grammar(grammar_n, starting_node)
-            print("g: ", grammar)
-
-            if self.genetic_engine is not None:
-                self.genetic_engine(grammar, self.fitness)
-        else:
-            eval(p, ectx)
-
-    def fitness(self, individual) -> float:
-        individual_term = individual.get_core()
-
-        first_hole_name = next(iter(self.holes))
-        _, _, synth_func_name = self.holes[first_hole_name]
-
-        nt = substitution(self.p, individual_term, first_hole_name)
-
-        try:
-            check_type_errors(self.ctx, nt, self.ty)
-        except Exception as e:
-            # print(f"Check for type errors failed: {e}")
-            # traceback.print_exception(e)
-            return 100000000
-
-        try:
-            fitness_eval_term = Var("fitness")
-            nt_e = substitution(nt, fitness_eval_term, "main")
-            result = eval(nt_e, self.ectx)
-
-        except Exception as e:
-            # print(f"Evaluation failed: {e}")
-            # traceback.print_exception(e)
-            result = 100000000
-        return abs(result)

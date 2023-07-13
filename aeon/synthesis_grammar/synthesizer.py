@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable
-from geneticengine.core.grammar import extract_grammar
+import os
+from typing import Callable, Optional
+
+from geneticengine.algorithms.gp.individual import Individual
+from geneticengine.algorithms.gp.simplegp import SimpleGP
+from geneticengine.core.grammar import extract_grammar, Grammar
+from geneticengine.core.problems import SingleObjectiveProblem
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
@@ -10,9 +15,10 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import top
 from aeon.core.types import Type
-from aeon.synthesis_grammar.grammar import geneticengine, get_holes_info, gen_grammar_nodes, get_grammar_node
+from aeon.synthesis_grammar.grammar import  get_holes_info, gen_grammar_nodes, get_grammar_node
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
+
 
 
 class Synthesizer:
@@ -22,16 +28,15 @@ class Synthesizer:
         p: Term,
         ty: Type = top,
         ectx: EvaluationContext = EvaluationContext(),
-        genetic_engine: Callable = geneticengine,
     ):
         self.ctx = ctx
         self.p = p
         self.ty = ty
         self.ectx = ectx
-        self.genetic_engine = genetic_engine
-
         self.holes = get_holes_info(ctx, p, ty)
 
+
+    def get_grammar(self) -> Optional[Grammar]:
         if len(self.holes) > 1:
 
             first_hole_name = next(iter(self.holes))
@@ -45,12 +50,12 @@ class Synthesizer:
             assert starting_node is not None, "Starting Node is None"
 
             grammar = extract_grammar(grammar_n, starting_node)
-            print("g: ", grammar)
+            #print("g: ", grammar)
 
-            if self.genetic_engine is not None:
-                self.genetic_engine(grammar, self.fitness)
+            return grammar
+
         else:
-            eval(p, ectx)
+            return None
 
     def fitness(self, individual) -> float:
         individual_term = individual.get_core()
@@ -63,6 +68,7 @@ class Synthesizer:
         try:
             check_type_errors(self.ctx, nt, self.ty)
         except Exception as e:
+            #add loguru traceback
             # print(f"Check for type errors failed: {e}")
             # traceback.print_exception(e)
             return 100000000
@@ -73,7 +79,41 @@ class Synthesizer:
             result = eval(nt_e, self.ectx)
 
         except Exception as e:
+            # add loguru traceback
             # print(f"Evaluation failed: {e}")
             # traceback.print_exception(e)
             result = 100000000
         return abs(result)
+
+    def synthesize(self, grammar: Grammar,
+                        max_depth:int,
+                        number_of_generations:int,
+                        population_size:int,
+                        n_elites:int,
+                        target_fitness:int,
+                        file_path:str|None) -> Individual:
+
+        if file_path:
+            file_name = os.path.basename(file_path)
+            name_without_extension = os.path.splitext(file_name)[0]
+            csv_file_path = f"csv/{name_without_extension}.csv"
+        else:
+            csv_file_path = None
+
+        alg = SimpleGP(
+            grammar,
+            problem=SingleObjectiveProblem(
+                minimize=True,
+                fitness_function=self.fitness,
+            ),
+            max_depth=max_depth,
+            number_of_generations=number_of_generations,
+            population_size=population_size,
+            n_elites=n_elites,
+            verbose=2,
+            target_fitness=target_fitness,
+            save_to_csv=csv_file_path,
+        )
+        best = alg.evolve()
+        return best
+
