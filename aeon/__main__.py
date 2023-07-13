@@ -14,7 +14,7 @@ from aeon.sugar.program import Program
 from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
-from aeon.logger.logger import setup_logger
+from aeon.logger.logger import setup_logger, export_log
 
 
 def parse_arguments():
@@ -46,7 +46,9 @@ def process_code(core: bool, code: str) -> tuple:
 if __name__ == "__main__":
 
     args = parse_arguments()
-    logger = setup_logger(args.log, args.logfile, args.filename)
+    logger = setup_logger()
+    export_log(args.log, args.logfile, args.filename)
+
     aeon_code = read_file(args.filename)
     p, ctx, ectx = process_code(args.core, aeon_code)
     logger.info(p)
