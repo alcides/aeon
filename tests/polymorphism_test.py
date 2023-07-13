@@ -11,5 +11,20 @@ def tt(e: str, t: str, vars: dict[str, str] = {}):
     return check_type(ctx, parse_term(e), parse_type(t))
 
 
-def test_poly():
+def test_simple_def():
     assert tt("let max : Int = 1 in max", "Int")
+
+
+def test_poly():
+    """
+    TODO: We're missing the manual/automatic binders at the type and term levels.
+    """
+    assert tt(
+        """
+let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
+             let r = max[int] 0 5 in
+              r + 1
+
+              """,
+        """{x:Int| 0 < v}""",
+    )
