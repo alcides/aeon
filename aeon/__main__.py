@@ -28,12 +28,12 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def read_file(filename):
+def read_file(filename: str) -> str:
     with open(filename) as file:
         return file.read()
 
 
-def process_code(core, code):
+def process_code(core: bool, code: str) -> tuple:
     if core:
         context = build_context(typing_vars)
         evaluation_ctx = EvaluationContext(evaluation_vars)
@@ -52,5 +52,18 @@ if __name__ == "__main__":
     logger.info(p)
 
     if not check_and_log_type_errors (ctx, p, top):
-        Synthesizer(ctx, p, top, ectx)
-        # eval(p, ectx)
+        synthesizer = Synthesizer(ctx, p, top, ectx)
+        if len(synthesizer.holes) > 1:
+            grammar = synthesizer.get_grammar()
+            best_solution = synthesizer.synthesize(grammar=grammar,
+                                                   max_depth=8,
+                                                   number_of_generations=10,
+                                                   population_size=20,
+                                                   n_elites=1,
+                                                   target_fitness=0,
+                                                   file_path=args.filename)
+            print(
+                f"Best solution: {best_solution.genotype} ",
+            )
+        else:
+            eval(p, ectx)
