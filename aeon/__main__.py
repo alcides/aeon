@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
+
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.types import top
@@ -53,16 +55,19 @@ if __name__ == "__main__":
     p, ctx, ectx = process_code(args.core, aeon_code)
     logger.info(p)
 
-    if not check_and_log_type_errors (ctx, p, top):
+    if not check_and_log_type_errors(ctx, p, top):
         synthesizer = Synthesizer(ctx, p, top, ectx)
         if len(synthesizer.holes) > 1:
             grammar = synthesizer.get_grammar()
             best_solution = synthesizer.synthesize(grammar=grammar,
+                                                   representation=TreeBasedRepresentation(grammar=grammar, max_depth=8),
                                                    max_depth=8,
                                                    number_of_generations=10,
                                                    population_size=20,
                                                    n_elites=1,
                                                    target_fitness=0,
+                                                   timer_stop_criteria=True,
+                                                   timer_limit=60,
                                                    file_path=args.filename)
             print(
                 f"Best solution: {best_solution.genotype} ",

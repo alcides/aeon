@@ -7,6 +7,7 @@ from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
+from geneticengine.core.representations.api import Representation
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
@@ -82,13 +83,17 @@ class Synthesizer:
             result = 100000000
         return abs(result)
 
-    def synthesize(self, grammar: Grammar,
-                        max_depth:int,
-                        number_of_generations:int,
-                        population_size:int,
-                        n_elites:int,
-                        target_fitness:int,
-                        file_path:str|None) -> Individual:
+    def synthesize(self,grammar: Grammar,
+                        representation:Representation,
+                        max_depth: int,
+                        number_of_generations: int,
+                        population_size: int,
+                        n_elites: int,
+                        target_fitness: int,
+                        timer_stop_criteria: bool,
+                        timer_limit:int,
+                        file_path: str | None,
+                        seed:int = 123,) -> Individual:
 
         if file_path:
             file_name = os.path.basename(file_path)
@@ -98,7 +103,9 @@ class Synthesizer:
             csv_file_path = None
 
         alg = SimpleGP(
-            grammar,
+            seed=seed,
+            grammar=grammar,
+            representation = representation,
             problem=SingleObjectiveProblem(
                 minimize=True,
                 fitness_function=self.fitness,
@@ -109,6 +116,8 @@ class Synthesizer:
             n_elites=n_elites,
             verbose=2,
             target_fitness=target_fitness,
+            timer_stop_criteria=timer_stop_criteria,
+            timer_limit=timer_limit,
             save_to_csv=csv_file_path,
         )
         best = alg.evolve()
