@@ -59,16 +59,13 @@ class Synthesizer:
 
     def fitness(self, individual) -> float:
         individual_term = individual.get_core()
-
         first_hole_name = next(iter(self.holes))
-        _, _, synth_func_name = self.holes[first_hole_name]
-
         nt = substitution(self.p, individual_term, first_hole_name)
 
         try:
             check_type_errors(self.ctx, nt, self.ty)
         except Exception as e:
-            #add loguru traceback
+            # add loguru traceback
             # print(f"Check for type errors failed: {e}")
             # traceback.print_exception(e)
             return 100000000
