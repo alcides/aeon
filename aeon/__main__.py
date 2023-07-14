@@ -60,7 +60,7 @@ if __name__ == "__main__":
         if len(synthesizer.holes) > 1:
             grammar = synthesizer.get_grammar()
             best_solution = synthesizer.synthesize(grammar=grammar,
-                                                   representation=TreeBasedRepresentation(grammar=grammar, max_depth=8),
+                                                   representation= TreeBasedRepresentation,
                                                    max_depth=8,
                                                    number_of_generations=10,
                                                    population_size=20,
