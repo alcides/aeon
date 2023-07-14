@@ -84,7 +84,7 @@ class Synthesizer:
         return abs(result)
 
     def synthesize(self,grammar: Grammar,
-                        representation:Representation,
+                        representation:type,
                         max_depth: int,
                         number_of_generations: int,
                         population_size: int,
@@ -98,7 +98,10 @@ class Synthesizer:
         if file_path:
             file_name = os.path.basename(file_path)
             name_without_extension = os.path.splitext(file_name)[0]
-            csv_file_path = f"csv/{name_without_extension}.csv"
+            directory = f"csv/{name_without_extension}/{representation.__name__}"
+
+            os.makedirs(directory, exist_ok=True)
+            csv_file_path = f"{directory}/{name_without_extension}_{seed}.csv"
         else:
             csv_file_path = None
 
