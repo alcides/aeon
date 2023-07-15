@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -104,11 +104,11 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
     elif isinstance(t, LiquidApp):
         return LiquidApp(
             t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
-    elif isinstance(t, LiquidHole):
+    elif isinstance(t, LiquidHornApplication):
         if t.name == name:
             return rep
         else:
-            return LiquidHole(
+            return LiquidHornApplication(
                 t.name,
                 [(substitution_in_liquid(a, rep, name), t)
                  for (a, t) in t.argtypes],
@@ -284,7 +284,7 @@ def liquefy(rep: Term) -> LiquidTerm | None:
     elif isinstance(rep, Var):
         return LiquidVar(rep.name)
     elif isinstance(rep, Hole):
-        return LiquidHole(rep.name)
+        return LiquidHornApplication(rep.name)
     elif isinstance(rep, Let):
         return liquefy_let(rep)
     elif isinstance(rep, Rec):
