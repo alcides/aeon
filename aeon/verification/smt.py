@@ -28,7 +28,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -201,7 +201,7 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
         return t.value
     elif isinstance(t, LiquidVar):
         return type_of_variable(variables, t.name)
-    elif isinstance(t, LiquidHole):
+    elif isinstance(t, LiquidHornApplication):
         assert False  # LiquidHoles should not get to SMT solver!
     elif isinstance(t, LiquidApp):
         f = None
