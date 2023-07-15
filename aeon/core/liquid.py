@@ -14,6 +14,11 @@ def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
 
 
 class LiquidHole(LiquidTerm):
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+
+class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: Sequence[tuple[LiquidTerm, str]]
 
@@ -34,7 +39,7 @@ class LiquidHole(LiquidTerm):
         return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidHole) and other.name == self.name
+        return isinstance(other, LiquidHornApplication) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
