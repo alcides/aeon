@@ -4,7 +4,7 @@ from typing import Generator
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
@@ -53,11 +53,11 @@ def constraint_builder(vs: list[tuple[str, Type]], exp: Constraint):
 
 
 def get_abs_example() -> Constraint:
-    hole = LiquidHole(
+    hole = LiquidHornApplication(
         "k",
         [(LiquidVar("x"), "Int"), (LiquidVar("v"), "Int")],
     )
-    hole2 = LiquidHole(
+    hole2 = LiquidHornApplication(
         "k",
         [(LiquidVar("y"), "Int"), (LiquidVar("z"), "Int")],
     )

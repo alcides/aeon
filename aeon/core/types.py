@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from typing import List
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 
@@ -175,12 +177,18 @@ def extract_parts(
         )  # None could be a fresh name from context
 
 
-def is_bare(ty: Type) -> bool:
-    """Returns whether a type is bare or not."""
-    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
-    type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
-    return bare_base or dependent_function or type_polymorphism
+def is_bare(t: Type) -> bool:
+    """Returns whether the type is bare."""
+    if isinstance(t, BaseType):
+        return True
+    elif isinstance(t, RefinedType):
+        return t.refinement == LiquidHole()
+    elif isinstance(t, AbstractionType):
+        return is_bare(t.var_type) and is_bare(t.type)
+    elif isinstance(t, TypePolymorphism):
+        return is_bare(t.body)
+    else:
+        return False
 
 
 def base(ty: Type) -> Type:
@@ -202,6 +210,8 @@ def type_free_term_vars(t: Type) -> list[str]:
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
         return [x for x in ifv + rfv if x != t.name]
+    elif isinstance(t, TypePolymorphism):
+        return type_free_term_vars(t.body)
     return []
 
 
@@ -214,5 +224,22 @@ def args_size_of_type(t: Type) -> int:
         return 0
     elif isinstance(t, AbstractionType):
         return 1 + args_size_of_type(t.type)
+    elif isinstance(t, TypePolymorphism):
+        return args_size_of_type(t.body)
+    else:
+        assert False
+
+
+def get_type_vars(t: Type) -> set[TypeVar]:
+    if isinstance(t, BaseType):
+        return set()
+    elif isinstance(t, TypeVar):
+        return {t}
+    elif isinstance(t, AbstractionType):
+        return get_type_vars(t.var_type).union(get_type_vars(t.type))
+    elif isinstance(t, RefinedType):
+        return get_type_vars(t.type)
+    elif isinstance(t, TypePolymorphism):
+        return {t1 for t1 in get_type_vars(t.body) if t1.name != t.name}
     else:
         assert False
