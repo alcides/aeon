@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+from loguru import logger
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
@@ -41,7 +41,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import pretty_print_constraint
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -50,7 +49,6 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
-from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
