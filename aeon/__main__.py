@@ -8,6 +8,8 @@ from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.types import top
 from aeon.frontend.parser import parse_term
+from aeon.logger.logger import export_log
+from aeon.logger.logger import setup_logger
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
@@ -16,16 +18,19 @@ from aeon.sugar.program import Program
 from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
-from aeon.logger.logger import setup_logger, export_log
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
-    parser.add_argument("-l", "--log", nargs='+', default="",
-                        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
-                             "\nWARNINGS \nERROR \nCRITICAL")
+    parser.add_argument(
+        "-l",
+        "--log",
+        nargs="+",
+        default="",
+        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT " "\nWARNINGS \nERROR \nCRITICAL",
+    )
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
     return parser.parse_args()
 
@@ -59,16 +64,18 @@ if __name__ == "__main__":
         synthesizer = Synthesizer(ctx, p, top, ectx)
         if len(synthesizer.holes) > 1:
             grammar = synthesizer.get_grammar()
-            best_solution = synthesizer.synthesize(grammar=grammar,
-                                                   representation= TreeBasedRepresentation,
-                                                   max_depth=8,
-                                                   number_of_generations=10,
-                                                   population_size=20,
-                                                   n_elites=1,
-                                                   target_fitness=0,
-                                                   timer_stop_criteria=True,
-                                                   timer_limit=60,
-                                                   file_path=args.filename)
+            best_solution = synthesizer.synthesize(
+                grammar=grammar,
+                representation=TreeBasedRepresentation,
+                max_depth=8,
+                number_of_generations=10,
+                population_size=20,
+                n_elites=1,
+                target_fitness=0,
+                timer_stop_criteria=True,
+                timer_limit=60,
+                file_path=args.filename,
+            )
             print(
                 f"Best solution: {best_solution.genotype} ",
             )

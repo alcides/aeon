@@ -41,4 +41,3 @@ def get_snowd_synth_values : (input : List) -> (f:(a: Int) ->( b:Float ) -> (c:F
 def get_sd_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
 def get_tt_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
-

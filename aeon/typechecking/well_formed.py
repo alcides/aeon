@@ -29,9 +29,7 @@ def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
     #    print("d", ctx, t, k, ctx.typevars(), (t.name, BaseKind()))
     wf_norefinement = isinstance(t, BaseType)
     wf_var = isinstance(t, TypeVar) and (
-        k == StarKind()
-        and ((t.name, k) in ctx.typevars())
-        or (t.name in [v[0] for v in ctx.typevars()])
+        k == StarKind() and ((t.name, k) in ctx.typevars()) or (t.name in [v[0] for v in ctx.typevars()])
     )
     wf_base = (
         isinstance(t, RefinedType)
@@ -45,9 +43,7 @@ def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
         and wellformed(ctx.with_var(t.var_name, t.var_type), t.type)
     )
     wf_all = (
-        isinstance(t, TypePolymorphism)
-        and k == StarKind()
-        and wellformed(ctx.with_typevar(t.name, t.kind), t.body)
+        isinstance(t, TypePolymorphism) and k == StarKind() and wellformed(ctx.with_typevar(t.name, t.kind), t.body)
     )
     return wf_norefinement or wf_var or wf_base or wf_fun or wf_all
 

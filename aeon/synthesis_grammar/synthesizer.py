@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Optional
+from typing import Callable
+from typing import Optional
 
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
-from geneticengine.core.grammar import extract_grammar, Grammar
+from geneticengine.core.grammar import extract_grammar
+from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.core.representations.api import Representation
 
@@ -16,10 +18,11 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import top
 from aeon.core.types import Type
-from aeon.synthesis_grammar.grammar import  get_holes_info, gen_grammar_nodes, get_grammar_node
+from aeon.synthesis_grammar.grammar import gen_grammar_nodes
+from aeon.synthesis_grammar.grammar import get_grammar_node
+from aeon.synthesis_grammar.grammar import get_holes_info
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
-
 
 
 class Synthesizer:
@@ -36,8 +39,7 @@ class Synthesizer:
         self.ectx = ectx
         self.holes = get_holes_info(ctx, p, ty)
 
-
-    def get_grammar(self) -> Optional[Grammar]:
+    def get_grammar(self) -> Grammar | None:
         if len(self.holes) > 1:
 
             first_hole_name = next(iter(self.holes))
@@ -51,7 +53,7 @@ class Synthesizer:
             assert starting_node is not None, "Starting Node is None"
 
             grammar = extract_grammar(grammar_n, starting_node)
-            #print("g: ", grammar)
+            # print("g: ", grammar)
 
             return grammar
 
@@ -83,17 +85,20 @@ class Synthesizer:
             result = 100000000
         return abs(result)
 
-    def synthesize(self,grammar: Grammar,
-                        representation:type,
-                        max_depth: int,
-                        number_of_generations: int,
-                        population_size: int,
-                        n_elites: int,
-                        target_fitness: int,
-                        timer_stop_criteria: bool,
-                        timer_limit:int,
-                        file_path: str | None,
-                        seed:int = 123,) -> Individual:
+    def synthesize(
+        self,
+        grammar: Grammar,
+        representation: type,
+        max_depth: int,
+        number_of_generations: int,
+        population_size: int,
+        n_elites: int,
+        target_fitness: int,
+        timer_stop_criteria: bool,
+        timer_limit: int,
+        file_path: str | None,
+        seed: int = 123,
+    ) -> Individual:
 
         if file_path:
             file_name = os.path.basename(file_path)
@@ -108,7 +113,7 @@ class Synthesizer:
         alg = SimpleGP(
             seed=seed,
             grammar=grammar,
-            representation = representation,
+            representation=representation,
             problem=SingleObjectiveProblem(
                 minimize=True,
                 fitness_function=self.fitness,
@@ -125,4 +130,3 @@ class Synthesizer:
         )
         best = alg.evolve()
         return best
-

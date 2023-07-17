@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from loguru import logger
+
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -17,7 +19,6 @@ from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from loguru import logger
 
 # from aeon.verification.smt import smt_valid
 
@@ -26,8 +27,8 @@ def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
         if not r:
-            show_constraint(c) # DEMO1
-             #print(c)
+            show_constraint(c)  # DEMO1
+            # print(c)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

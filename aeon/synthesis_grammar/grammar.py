@@ -31,9 +31,9 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
+from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
-from aeon.core.types import BaseType
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -238,8 +238,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        class_name = class_name if class_name.startswith(
-            "t_") else ("t_" + class_name)
+        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
         new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
@@ -253,9 +252,8 @@ def get_attribute_type_name(attribute_type, parent_name=None):
     parent_name = parent_name or ""
     while isinstance(attribute_type, AbstractionType):
         attribute_type = refined_to_unrefined_type(attribute_type.type)
-        parent_name += "t_{}_".format(get_attribute_type_name(attribute_type, parent_name))
+        parent_name += f"t_{get_attribute_type_name(attribute_type, parent_name)}_"
     return parent_name + attribute_type.name if isinstance(attribute_type, BaseType) else parent_name
-
 
 
 def generate_class_components(
@@ -276,20 +274,22 @@ def generate_class_components(
     fields = []
     parent_name = ""
     while isinstance(class_type, AbstractionType):
-        attribute_name = class_type.var_name.value if isinstance(class_type.var_name,
-                                                                 Token) else class_type.var_name
-        attribute_type = refined_to_unrefined_type(class_type.var_type) if isinstance(class_type.var_type,
-                                                                                      RefinedType) else class_type.var_type
+        attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
+        attribute_type = (
+            refined_to_unrefined_type(class_type.var_type)
+            if isinstance(class_type.var_type, RefinedType)
+            else class_type.var_type
+        )
         attribute_type_name = get_attribute_type_name(attribute_type)
 
         grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes)
         fields.append((attribute_name, cls))
 
-        parent_name += "t_{}_".format(attribute_type_name)
+        parent_name += f"t_{attribute_type_name}_"
         class_type = refined_to_unrefined_type(class_type.type)
 
     class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
-    superclass_type_name = "{}t_{}".format(parent_name, class_type_str)
+    superclass_type_name = f"{parent_name}t_{class_type_str}"
 
     return grammar_nodes, fields, class_type, superclass_type_name
 
@@ -342,18 +342,15 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     )
 
     # class app_function_name
-    parent_class_name = str(parent_type) if isinstance(
-        parent_type, (Top, Bottom)) else parent_type.name
-    grammar_nodes, parent_class = find_class_by_name(
-        parent_class_name, grammar_nodes)
+    parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
     grammar_nodes.append(new_class_app)
 
     # class var_function_name
     if isinstance(class_type, AbstractionType):
-        grammar_nodes, parent_class = find_class_by_name(
-            abstraction_type_class_name, grammar_nodes)
+        grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
 
         new_class_var = create_new_class(f"var_{class_name}", parent_class)
         grammar_nodes.append(new_class_var)
@@ -363,11 +360,9 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
 
 def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list[type]) -> list[type]:
     grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
-    grammar_nodes, parent_class = find_class_by_name(
-        parent_class_name, grammar_nodes)
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
-    fields = [("cond", cond_class), ("then", parent_class),
-              ("otherwise", parent_class)]
+    fields = [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)]
 
     if_class = create_new_class(class_name, parent_class, fields)
     grammar_nodes.append(if_class)
@@ -379,8 +374,7 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
     for base_type in grammar_base_types:
         if base_type in grammar_nodes_names_set:
-            grammar_nodes = create_if_class(
-                f"If_{base_type}", base_type, grammar_nodes)
+            grammar_nodes = create_if_class(f"If_{base_type}", base_type, grammar_nodes)
     return grammar_nodes
 
 
@@ -434,6 +428,3 @@ def convert_to_term(inp):
     elif isinstance(inp, float):
         return Literal(inp, type=t_float)
     raise Exception(f"unable to converto to term : {type(inp)}")
-
-
-

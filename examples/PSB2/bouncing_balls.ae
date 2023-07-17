@@ -42,5 +42,3 @@ def fitness () : Float  {
     mse = mean_square_error actual_values expected_values;
     mse
 }
-
-

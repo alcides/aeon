@@ -71,7 +71,7 @@ fp.rule(evalBool(LiqTermW.lt(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x < y
 fp.rule(evalBool(LiqTermW.eq(k1, k2), b), [evalInt(k1, x), evalInt(k2, y), x == y])
 
 x, v = Ints("x v")
-(c, ) = Bools("c")
+(c,) = Bools("c")
 fp.declare_var(x, v, c)
 p1 = Implies(c == (0 <= x), Implies(c, Implies(v == x, k1e)))
 

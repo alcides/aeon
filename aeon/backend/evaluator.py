@@ -37,6 +37,7 @@ class EvaluationContext:
 def is_native_var(t: Term):
     return isinstance(t.fun, Var) and t.fun.name == "native"
 
+
 # pattern match term
 def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     if isinstance(t, Literal):
@@ -48,7 +49,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Application):
         f = eval(t.fun, ctx)
         arg = eval(t.arg, ctx)
-        #e = real_eval(arg, __globals=ctx.variables) if is_native_var(t) else f(arg)
+        # e = real_eval(arg, __globals=ctx.variables) if is_native_var(t) else f(arg)
         e = real_eval(arg, ctx.variables) if is_native_var(t) else f(arg)
 
         if isinstance(t.fun, Var) and t.fun.name == "native_import":
