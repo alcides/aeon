@@ -12,6 +12,9 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
+from aeon.core.types import BaseKind
+from aeon.core.types import get_type_vars
+from aeon.core.types import TypePolymorphism
 
 
 def elaboration(e: Term) -> Term:
@@ -30,9 +33,17 @@ def elaboration(e: Term) -> Term:
     elif isinstance(e, Let):
         return e
     elif isinstance(e, Rec):
-        if contains_type_var(e.var_type):
-            print("Should introduce forall!")
-        return e
+        e1: Rec = e
+        if len(get_type_vars(e.var_type)) > 0:
+            nt = e.var_type
+            nv = e.var_value
+            for typevar in get_type_vars(e.var_type):
+                nt = TypePolymorphism(name=typevar.name, kind=BaseKind(), body=nt)
+                nv = TypeAbstraction(name=typevar.name, kind=BaseKind(), body=nv)
+
+            e1 = Rec(e.var_name, nt, nv, e.body)
+
+        return e1
     elif isinstance(e, If):
         return e
     elif isinstance(e, TypeApplication):
