@@ -26,4 +26,19 @@ def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word
 # maybe move this method to string lib
 def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
 
-def get_bb_synth_values : (input : List) -> (starting_height: Float) ->( bounce_height:Float ) ->( bounces:Int) -> ( f :Float)  -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
+def get_bb_synth_values : (input : List) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
+
+def get_dg_synth_values : (input : List) -> (f:(a: Int) ->( b:Int ) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+def get_fb_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+def get_gcd_synth_values : (input : List) -> (f:(a: Int) -> (b: Int)->  Int ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x,y in inputs]";
+
+def get_mc_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+def get_snowd_synth_values : (input : List) -> (f:(a: Int) ->( b:Float ) -> (c:Float) ->(d:Float)  -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z)(w) for x, y, z, w in inputs]";
+
+def get_sd_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+def get_tt_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
