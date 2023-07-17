@@ -38,8 +38,7 @@ def fitness () : Float  {
     unpacked_data = unpack_train_data train;
     input_list = get_input_list unpacked_data;
     expected_values = get_output_list unpacked_data;
-    actual_values : List = native "[synth(x)(y)(z) for x, y, z in input_list]";
-    # actual_values : List = get_bb_synth_values input_list synth;
+    actual_values : List = get_bb_synth_values input_list synth;
     mse = mean_square_error actual_values expected_values;
     mse
 }
