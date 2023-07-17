@@ -170,7 +170,7 @@ class TreeToCore(Transformer):
         return TypeApplication(args[0], args[1])
 
     def var(self, args):
-        return Var(str(args[0]))
+        return Var(str(args[0]).strip())
 
     def hole(self, args):
         return Hole(str(args[0]))
