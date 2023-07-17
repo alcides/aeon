@@ -8,6 +8,10 @@ def consume : (l: {x:List | List_size(x) == 1}) -> Int = \n -> 0;
 def pos : Int = consume(List_append(List_new)(1));
 
 def main (x:Int) : Unit {
-    l = List_append List_new 1 (List_append List_new 2 (List_append List_new 3));
-    print(List_recursive l 0 (\x -> \y -> x + y))
+    empty = List_new;
+    one = List_append empty 3;
+    two = List_append one 2;
+    three : List = List_append two 1;
+    plus : (x:Int) -> (y: Int) -> Int = (\x -> \y -> x + y);
+    print (List_recursive three 0 plus)
 }
