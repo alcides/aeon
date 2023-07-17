@@ -249,15 +249,13 @@ def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
 
 
-def get_attribute_type_name(attribute_type, parent_name= ""):
-    if isinstance(attribute_type, AbstractionType):
-        while isinstance(attribute_type, AbstractionType):
-            attribute_type = refined_to_unrefined_type(attribute_type.type)
-            attribute_type_name = get_attribute_type_name(attribute_type, parent_name)
-            parent_name += "t_" + attribute_type_name + "_"
-        return get_attribute_type_name(attribute_type, parent_name)
-    elif isinstance(attribute_type, BaseType):
-        return parent_name + attribute_type.name
+def get_attribute_type_name(attribute_type, parent_name=None):
+    parent_name = parent_name or ""
+    while isinstance(attribute_type, AbstractionType):
+        attribute_type = refined_to_unrefined_type(attribute_type.type)
+        parent_name += "t_{}_".format(get_attribute_type_name(attribute_type, parent_name))
+    return parent_name + attribute_type.name if isinstance(attribute_type, BaseType) else parent_name
+
 
 
 def generate_class_components(
@@ -278,31 +276,20 @@ def generate_class_components(
     fields = []
     parent_name = ""
     while isinstance(class_type, AbstractionType):
-        # generate attributes
-        attribute_name: str = (
-            class_type.var_name.value if isinstance(
-                class_type.var_name, Token) else class_type.var_name
-        )
-
-        attribute_type = (
-            refined_to_unrefined_type(class_type.var_type)
-            if isinstance(class_type.var_type, RefinedType)
-            else class_type.var_type
-        )
-
+        attribute_name = class_type.var_name.value if isinstance(class_type.var_name,
+                                                                 Token) else class_type.var_name
+        attribute_type = refined_to_unrefined_type(class_type.var_type) if isinstance(class_type.var_type,
+                                                                                      RefinedType) else class_type.var_type
         attribute_type_name = get_attribute_type_name(attribute_type)
 
-        grammar_nodes, cls = find_class_by_name(
-            attribute_type_name, grammar_nodes)
+        grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes)
         fields.append((attribute_name, cls))
 
-        # generate abc class name for abstraction type e.g class t_Int_t_Int (ABC)
-        parent_name += "t_" + attribute_type_name + "_"
+        parent_name += "t_{}_".format(attribute_type_name)
         class_type = refined_to_unrefined_type(class_type.type)
 
-    class_type_str = str(class_type) if isinstance(
-        class_type, (Top, Bottom)) else class_type.name
-    superclass_type_name: str = parent_name + "t_" + class_type_str
+    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    superclass_type_name = "{}t_{}".format(parent_name, class_type_str)
 
     return grammar_nodes, fields, class_type, superclass_type_name
 
