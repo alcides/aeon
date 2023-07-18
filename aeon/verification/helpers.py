@@ -347,5 +347,4 @@ def show_constraint(c: Constraint):
         logger.log("CONSTRAINT", "Could not show constrain:")
         logger.log("CONSTRAINT", pretty_print_constraint(c))
     except ValueError:
-        print("Could not show constrain:")
-        print(pretty_print_constraint(c))
+        pass
