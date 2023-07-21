@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import os
+
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar
 from geneticengine.core.grammar import Grammar
-from geneticengine.core.problems import SingleObjectiveProblem, MultiObjectiveProblem
-
+from geneticengine.core.problems import MultiObjectiveProblem
+from geneticengine.core.problems import SingleObjectiveProblem
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.core.types import top, BaseType, TypeVar
+from aeon.core.types import BaseType
+from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes
 from aeon.synthesis_grammar.grammar import get_grammar_node
@@ -29,7 +31,6 @@ class Synthesizer:
         p: Term,
         ty: Type = top,
         ectx: EvaluationContext = EvaluationContext(),
-
     ):
 
         self.ctx: TypingContext = ctx
@@ -87,19 +88,18 @@ class Synthesizer:
 
     def get_problem_type(self, minimize: bool | list[bool]):
         if isinstance(minimize, bool):
-            assert self.fitness_type == BaseType('Float')
+            assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
                 fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
         elif isinstance(minimize, list):
-            assert self.fitness_type == BaseType('List')
+            assert self.fitness_type == BaseType("List")
             return MultiObjectiveProblem(
                 minimize=minimize,
                 fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
-
 
     def synthesize(
         self,
@@ -114,7 +114,7 @@ class Synthesizer:
         probability_mutation: float = 0.01,
         probability_crossover: float = 0.9,
         timer_stop_criteria: bool = True,
-        timer_limit: int = 60 ,
+        timer_limit: int = 60,
         seed: int = 123,
     ) -> Individual:
 
@@ -129,7 +129,7 @@ class Synthesizer:
             csv_file_path = None
 
         problem = self.get_problem_type(minimize)
-        parent_selection = ("lexicase",) if isinstance( problem, MultiObjectiveProblem) else ("tournament", 5)
+        parent_selection = ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
 
         alg = SimpleGP(
             seed=seed,
