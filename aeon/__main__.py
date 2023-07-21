@@ -65,16 +65,17 @@ if __name__ == "__main__":
         if len(synthesizer.holes) > 1:
             grammar = synthesizer.get_grammar()
             best_solution = synthesizer.synthesize(
+                file_path=args.filename,
                 grammar=grammar,
                 representation=TreeBasedRepresentation,
+                minimize=[True for _ in range(200)], #TODO: get a more elegant solution for this??
                 max_depth=8,
-                number_of_generations=10,
                 population_size=20,
                 n_elites=1,
                 target_fitness=0,
                 timer_stop_criteria=True,
                 timer_limit=60,
-                file_path=args.filename,
+
             )
             print(
                 f"Best solution: {best_solution.genotype} ",

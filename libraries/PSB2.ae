@@ -19,7 +19,10 @@ def get_output_list : (t:Tuple) -> List = native "lambda t: sum(t[1], [])";
 
 def extract_test_data : (ds:Dataset) -> TestData = native "lambda ds: ds[1]";
 
-def mean_square_error : (true_values : List) -> (expected_values : List) ->  Float = native "lambda t: lambda e: __import__('numpy').mean(__import__('numpy').square (__import__('numpy').array(t) - __import__('numpy').array(e)))";
+def mean_absolute_error : (true_values : List) -> (expected_values : List) ->  Float = native "lambda t: lambda e: __import__('numpy').mean(__import__('numpy').abs(__import__('numpy').array(t) - __import__('numpy').array(e)))";
+
+# add a refinement to make sure that the lists are all the same size
+def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [abs(p - r) for p, r in zip(t, e)]";
 
 def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
 

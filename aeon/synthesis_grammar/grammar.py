@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import traceback
 from abc import ABC
-from dataclasses import dataclass
 from dataclasses import make_dataclass
-from typing import Any
-from typing import Callable
 from typing import Optional
 
 from geneticengine.algorithms.gp.individual import Individual
@@ -16,9 +13,6 @@ from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import SingleObjectiveProblem
 from lark.lexer import Token
 
-from aeon.backend.evaluator import eval
-from aeon.backend.evaluator import EvaluationContext
-from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -39,10 +33,8 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import Top
-from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
 from aeon.typechecking.typeinfer import synth
 
 prelude_ops = ["print", "native_import", "native"]
@@ -85,7 +77,8 @@ def get_holes_info(
     ty: Type,
     holes: dict[str, tuple[Type, TypingContext, str]] = None,
     func_name: str = "",
-) -> dict[str, tuple[Type, TypingContext, str]]:
+    fitness_type: BaseType = None,
+) -> tuple[dict[str, tuple[Type, TypingContext, str]], BaseType]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
     This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
@@ -97,6 +90,7 @@ def get_holes_info(
         ty (Type): The current type.
         holes (dict[str, tuple[Optional[Type], TypingContext]]): The current dictionary of hole types. Defaults to None.
         func_name (str) : The name of the function where the hole is defined.
+        fitness_type (BaseType) : The type of the fitness function
     Returns:
         dict[str, tuple[Optional[Type], TypingContext]]: The updated dictionary of hole Types and their TypingContexts.
     """
@@ -105,30 +99,33 @@ def get_holes_info(
     if isinstance(t, Rec):
         if t.var_name.startswith("synth"):
             func_name = t.var_name
+
+        if t.var_name == "fitness":
+            assert isinstance(t.var_type, BaseType)
+            fitness_type = t.var_type
+
         ctx = ctx.with_var(t.var_name, t.var_type)
-        holes = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name)
-        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
+        holes, fitness_type = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info(ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Let):
-        if t.var_name.startswith("synth"):
-            func_name = t.var_name
         _, t1 = synth(ctx, t.var_value)
         ctx = ctx.with_var(t.var_name, t1)
-        holes = get_holes_info(ctx, t.var_value, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.body, ty, holes, func_name)
+        holes, fitness_type = get_holes_info(ctx, t.var_value, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info(ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         ctx = ctx.with_var(t.var_name, ty.var_type)
-        holes = get_holes_info(ctx, t.body, ret, holes, func_name)
+        holes, fitness_type = get_holes_info(ctx, t.body, ret, holes, func_name, fitness_type)
 
     elif isinstance(t, If):
-        holes = get_holes_info(ctx, t.then, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.otherwise, ty, holes, func_name)
+        holes, fitness_type = get_holes_info(ctx, t.then, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info(ctx, t.otherwise, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Application):
-        holes = get_holes_info(ctx, t.fun, ty, holes, func_name)
-        holes = get_holes_info(ctx, t.arg, ty, holes, func_name)
+        holes, fitness_type = get_holes_info(ctx, t.fun, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info(ctx, t.arg, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
         synth_func_name = func_name
@@ -139,7 +136,7 @@ def get_holes_info(
         ty = refined_to_unrefined_type(ty)
         holes[t.name] = (ty, ctx, func_name)
 
-    return holes
+    return holes, fitness_type
 
 
 def mk_method_core(cls: type):
