@@ -61,69 +61,43 @@ class Synthesizer:
         else:
             return None
 
+    def evaluate_fitness(self, individual, minimize):
+        individual_term = individual.get_core()
+        first_hole_name = next(iter(self.holes))
+        nt = substitution(self.p, individual_term, first_hole_name)
+        exception_return = 100000000 if not isinstance(minimize, list) else [100000000 for _ in range(len(minimize))]
+
+        try:
+            check_type_errors(self.ctx, nt, self.ty)
+        except Exception as e:
+            # add loguru traceback
+            # print(f"Check for type errors failed: {e}")
+            # traceback.print_exception(e)
+            return exception_return
+
+        try:
+            fitness_eval_term = Var("fitness")
+            nt_e = substitution(nt, fitness_eval_term, "main")
+            return eval(nt_e, self.ectx)
+        except Exception as e:
+            # add loguru traceback
+            # print(f"Evaluation failed: {e}")
+            # traceback.print_exception(e)
+            return exception_return
+
     def get_problem_type(self, minimize: bool | list[bool]):
-        if self.fitness_type == BaseType('Float'):
-            assert isinstance(minimize, bool)
-
-            def fitness(individual) -> float | list[float]:
-                individual_term = individual.get_core()
-                first_hole_name = next(iter(self.holes))
-                nt = substitution(self.p, individual_term, first_hole_name)
-
-                try:
-                    check_type_errors(self.ctx, nt, self.ty)
-                except Exception as e:
-                    # add loguru traceback
-                    # print(f"Check for type errors failed: {e}")
-                    # traceback.print_exception(e)
-                    return 100000000
-
-                try:
-                    fitness_eval_term = Var("fitness")
-                    nt_e = substitution(nt, fitness_eval_term, "main")
-                    result = eval(nt_e, self.ectx)
-
-                except Exception as e:
-                    # add loguru traceback
-                    # print(f"Evaluation failed: {e}")
-                    # traceback.print_exception(e)
-                    result = 100000000
-                return result
-
+        if isinstance(minimize, bool):
+            assert self.fitness_type == BaseType('Float')
             return SingleObjectiveProblem(
                 minimize=minimize,
-                fitness_function=fitness,
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
-        elif self.fitness_type == BaseType('List'):
-            assert isinstance(minimize, list)
 
-            def fitness(individual) -> float | list[float]:
-                individual_term = individual.get_core()
-                first_hole_name = next(iter(self.holes))
-                nt = substitution(self.p, individual_term, first_hole_name)
-
-                try:
-                    check_type_errors(self.ctx, nt, self.ty)
-                except Exception as e:
-                    # add loguru traceback
-                    # print(f"Check for type errors failed: {e}")
-                    # traceback.print_exception(e)
-                    return [100000000 for _ in range(len(minimize))]
-
-                try:
-                    fitness_eval_term = Var("fitness")
-                    nt_e = substitution(nt, fitness_eval_term, "main")
-                    result = eval(nt_e, self.ectx)
-
-                except Exception as e:
-                    # add loguru traceback
-                    # print(f"Evaluation failed: {e}")
-                    # traceback.print_exception(e)
-                    result = [100000000 for _ in range(len(minimize))]
-                return result
+        elif isinstance(minimize, list):
+            assert self.fitness_type == BaseType('List')
             return MultiObjectiveProblem(
                 minimize=minimize,
-                fitness_function=fitness,
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
 
