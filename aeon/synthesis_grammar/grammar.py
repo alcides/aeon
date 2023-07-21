@@ -71,7 +71,7 @@ def refined_to_unrefined_type(ty: Type) -> Type:
 
 
 # dict (hole_name , (hole_type, hole_typingContext, func_name))
-def get_holes_info(
+def get_holes_info_and_fitness_type(
     ctx: TypingContext,
     t: Term,
     ty: Type,
@@ -105,27 +105,34 @@ def get_holes_info(
             fitness_type = t.var_type
 
         ctx = ctx.with_var(t.var_name, t.var_type)
-        holes, fitness_type = get_holes_info(ctx, t.var_value, t.var_type, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info(ctx, t.body, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx,
+            t.var_value,
+            t.var_type,
+            holes,
+            func_name,
+            fitness_type,
+        )
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Let):
         _, t1 = synth(ctx, t.var_value)
         ctx = ctx.with_var(t.var_name, t1)
-        holes, fitness_type = get_holes_info(ctx, t.var_value, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info(ctx, t.body, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.var_value, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         ctx = ctx.with_var(t.var_name, ty.var_type)
-        holes, fitness_type = get_holes_info(ctx, t.body, ret, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ret, holes, func_name, fitness_type)
 
     elif isinstance(t, If):
-        holes, fitness_type = get_holes_info(ctx, t.then, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info(ctx, t.otherwise, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.then, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.otherwise, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Application):
-        holes, fitness_type = get_holes_info(ctx, t.fun, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info(ctx, t.arg, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.fun, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.arg, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
         synth_func_name = func_name

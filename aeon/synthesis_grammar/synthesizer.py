@@ -19,7 +19,7 @@ from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes
 from aeon.synthesis_grammar.grammar import get_grammar_node
-from aeon.synthesis_grammar.grammar import get_holes_info
+from aeon.synthesis_grammar.grammar import get_holes_info_and_fitness_type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 
@@ -37,7 +37,7 @@ class Synthesizer:
         self.p: Term = p
         self.ty: Type = ty
         self.ectx: EvaluationContext = ectx
-        holes, fitness_type = get_holes_info(ctx, p, ty)
+        holes, fitness_type = get_holes_info_and_fitness_type(ctx, p, ty)
         self.holes: dict[str, tuple[Type, TypingContext, str]] = holes
         self.fitness_type: BaseType = fitness_type
 
