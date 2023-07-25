@@ -20,6 +20,10 @@ args :                          -> empty_list
 
 arg : ID ":" type               -> arg
 
+
+refined_expression : expression                 -> same
+           | min_max_expression                 -> same
+
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
 
@@ -59,14 +63,14 @@ expression_fact : expression_b                           -> same
 
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
-             | "\\" ID ":" type "->" expression                      -> abstraction_et
+             | "\\" ID ":" type "->" expression             -> abstraction_et
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
 application_t : application_t "[" type "]"                    -> type_application_e
-              | expression_simple                                 -> same
+              | expression_simple                             -> same
 
-application : application expression_simple                      -> application_e
+application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
@@ -78,8 +82,10 @@ expression_simple : "(" expression ")"                       -> same
         | ID                                             -> var
         | "?" ID                                         -> hole
 
+min_max_expression: MINIMIZE "(" expression ")"         -> expression_min
+                  | MAXIMIZE "(" expression ")"         -> expression_max
 
-type : "{" ID ":" type _PIPE expression "}"                -> refined_t
+type : "{" ID ":" type _PIPE refined_expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                     -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
@@ -88,6 +94,9 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t
 kind : "B" -> base_kind
      | "*" -> star_kind
 
+
+MINIMIZE: "@minimize"
+MAXIMIZE: "@maximize"
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
