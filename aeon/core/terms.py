@@ -186,6 +186,38 @@ class If(Term):
         )
 
 
+class Minimize(Term):
+    expression: Term
+
+    def __init__(self, expression: Term):
+        self.expression = expression
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"@minimize( {self.expression} )"
+
+    def __eq__(self, other):
+        return isinstance(other, Minimize) and self.expression == other.expression
+
+
+class Maximize(Term):
+    expression: Term
+
+    def __init__(self, expression: Term):
+        self.expression = expression
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"@maximize( {self.expression} )"
+
+    def __eq__(self, other):
+        return isinstance(other, Maximize) and self.expression == other.expression
+
+
 @dataclass
 class TypeAbstraction(Term):
     name: str
