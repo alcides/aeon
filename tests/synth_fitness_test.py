@@ -43,5 +43,5 @@ def test_fitness():
     expected_output1 = 1995
     expected_output2 = 0
 
-    assert synthesizer.fitness(individual1) == expected_output1
-    assert synthesizer.fitness(individual2) == expected_output2
+    assert synthesizer.evaluate_fitness(individual1, True) == expected_output1
+    assert synthesizer.evaluate_fitness(individual2, True) == expected_output2

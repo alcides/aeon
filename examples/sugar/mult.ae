@@ -1,4 +1,4 @@
-# 4 ways of writting the same function
+# 4 ways of writing the same function
 
 def mult : ( n:Int ) -> ( m:Int ) -> Int = \x -> \y -> x * y  ;
 
