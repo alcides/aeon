@@ -1,8 +1,11 @@
-type : "{" ID ":" type _PIPE expression "}"                -> refined_t
+type : "{" ID ":" type _PIPE refined_expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                     -> polymorphism_t
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
+
+refined_expression : expression                 -> same
+           | min_max_expression                 -> same
 
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
@@ -64,6 +67,8 @@ expression_simple : "(" expression ")"                       -> same
              | ID                                             -> var
              | "?" ID                                         -> hole
 
+min_max_expression: MINIMIZE "(" expression ")"         -> expression_min
+                  | MAXIMIZE "(" expression ")"         -> expression_max
 
 kind : "B" -> base_kind
      | "*" -> star_kind
