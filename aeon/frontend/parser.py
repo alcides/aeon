@@ -14,6 +14,8 @@ from aeon.core.terms import Hole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
+from aeon.core.terms import Maximize
+from aeon.core.terms import Minimize
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
@@ -194,6 +196,12 @@ class TreeToCore(Transformer):
 
     def star_kind(self, args):
         return StarKind()
+
+    def expression_min(self, args):
+        return Minimize(args[0])
+
+    def expression_max(self, args):
+        return Maximize(args[0])
 
 
 def mk_parser(rule="start", start_counter=0):
