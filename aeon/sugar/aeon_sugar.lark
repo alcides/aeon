@@ -21,8 +21,8 @@ args :                          -> empty_list
 arg : ID ":" type               -> arg
 
 
-refined_expression : expression                 -> same
-           | min_max_expression                 -> same
+refined_expression : expression ("and" fitness_expression)*       -> same
+           | fitness_expression                                   -> same
 
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
@@ -82,8 +82,13 @@ expression_simple : "(" expression ")"                       -> same
         | ID                                             -> var
         | "?" ID                                         -> hole
 
-min_max_expression: MINIMIZE "(" expression ")"         -> expression_min
-                  | MAXIMIZE "(" expression ")"         -> expression_max
+fitness_expression: min_max_expression                  -> same
+                  | multiobjective_expression           -> same
+
+min_max_expression: MINIMIZE "(" expression ")" ("and"  min_max_expression)*    -> expression_min
+                  | MAXIMIZE "(" expression ")" ("and"  min_max_expression)*    -> expression_max
+
+multiobjective_expression: MULTIOBJECTIVE "(" expression "," expression ")"     -> expression_multiobjective
 
 type : "{" ID ":" type _PIPE refined_expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
@@ -97,6 +102,7 @@ kind : "B" -> base_kind
 
 MINIMIZE: "@minimize"
 MAXIMIZE: "@maximize"
+MULTIOBJECTIVE: "@multiobjective"
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
