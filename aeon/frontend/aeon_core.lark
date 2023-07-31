@@ -4,8 +4,8 @@ type : "{" ID ":" type _PIPE refined_expression "}"                -> refined_t
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
 
-refined_expression : expression                 -> same
-           | min_max_expression                 -> same
+refined_expression : expression ("and" fitness_expression)?       -> same
+           | fitness_expression                                   -> same
 
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same
@@ -67,8 +67,14 @@ expression_simple : "(" expression ")"                       -> same
              | ID                                             -> var
              | "?" ID                                         -> hole
 
-min_max_expression: MINIMIZE "(" expression ")"         -> expression_min
-                  | MAXIMIZE "(" expression ")"         -> expression_max
+fitness_expression: min_max_expression                  -> same
+                  | multiobjective_expression           -> same
+
+min_max_expression: MINIMIZE "(" expression ")"     -> expression_min
+                  | MAXIMIZE "(" expression ")"     -> expression_max
+
+multiobjective_expression: MULTIOBJECTIVE "(" expression "," expression ")"     -> expression_multiobjective
+                          | min_max_expression ("and" min_max_expression)+      -> expression_min_max
 
 kind : "B" -> base_kind
      | "*" -> star_kind
