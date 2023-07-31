@@ -16,6 +16,7 @@ from aeon.core.terms import Let
 from aeon.core.terms import Literal
 from aeon.core.terms import Maximize
 from aeon.core.terms import Minimize
+from aeon.core.terms import MultiObjectiveProblem
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
@@ -202,6 +203,14 @@ class TreeToCore(Transformer):
 
     def expression_max(self, args):
         return Maximize(args[0])
+
+    def expression_multiobjective(self, args):
+        return MultiObjectiveProblem(args[0], args[1])
+
+    def expression_min_max(self, args):
+        objective_list = [Minimize(arg) if arg.data == "expression_min" else Maximize(arg) for arg in args]
+        # TODO
+        pass
 
 
 def mk_parser(rule="start", start_counter=0):
