@@ -218,6 +218,28 @@ class Maximize(Term):
         return isinstance(other, Maximize) and self.expression == other.expression
 
 
+class MultiObjectiveProblem(Term):
+    objectives_list: Term
+    solution_list: list[Term]
+
+    def __init__(self, objectives_list: Term, solution_list: list[Term]):
+        self.objectives_list = objectives_list
+        self.solution_list = solution_list
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"@multiobejtive( {self.objectives_list}, {self.solution_list} )"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, MultiObjectiveProblem)
+            and self.objectives_list == other.objectives_list
+            and self.solution_list == other.solution_list
+        )
+
+
 @dataclass
 class TypeAbstraction(Term):
     name: str
