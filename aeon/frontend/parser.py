@@ -208,9 +208,12 @@ class TreeToCore(Transformer):
         return MultiObjectiveProblem(args[0], args[1])
 
     def expression_min_max(self, args):
-        objective_list = [Minimize(arg) if arg.data == "expression_min" else Maximize(arg) for arg in args]
-        # TODO
-        pass
+        objective_list = [
+            Minimize(arg.children[0]) if arg.data == "expression_min" else Maximize(arg.children[0]) for arg in args
+        ]
+        solution_list = [arg.children[0] for arg in args]
+
+        return MultiObjectiveProblem(objective_list, solution_list)
 
 
 def mk_parser(rule="start", start_counter=0):

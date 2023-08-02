@@ -222,7 +222,7 @@ class MultiObjectiveProblem(Term):
     objectives_list: Term
     solution_list: list[Term]
 
-    def __init__(self, objectives_list: Term, solution_list: list[Term]):
+    def __init__(self, objectives_list: Term | list[Term], solution_list: list[Term]):
         self.objectives_list = objectives_list
         self.solution_list = solution_list
 
