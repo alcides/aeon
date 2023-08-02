@@ -14,9 +14,6 @@ from aeon.core.terms import Hole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
-from aeon.core.terms import Maximize
-from aeon.core.terms import Minimize
-from aeon.core.terms import MultiObjectiveProblem
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
@@ -27,7 +24,6 @@ from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import bottom
 from aeon.core.types import RefinedType
-from aeon.core.types import SoftRefinedType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
@@ -61,9 +57,6 @@ class TreeToCore(Transformer):
     # Types
     def refined_t(self, args):
         return RefinedType(str(args[0]), args[1], liquefy(args[2]))
-
-    def soft_refined_t(self, args):
-        return SoftRefinedType(str(args[0]), args[1], args[2])
 
     def abstraction_t(self, args):
         return AbstractionType(str(args[0]), args[1], args[2])
@@ -201,23 +194,6 @@ class TreeToCore(Transformer):
 
     def star_kind(self, args):
         return StarKind()
-
-    def expression_min(self, args):
-        return Minimize(args[0])
-
-    def expression_max(self, args):
-        return Maximize(args[0])
-
-    def expression_multiobjective(self, args):
-        return MultiObjectiveProblem(args[0], args[1])
-
-    def expression_min_max(self, args):
-        objective_list = [
-            Minimize(arg.children[0]) if arg.data == "expression_min" else Maximize(arg.children[0]) for arg in args
-        ]
-        solution_list = [arg.children[0] for arg in args]
-
-        return MultiObjectiveProblem(objective_list, solution_list)
 
 
 def mk_parser(rule="start", start_counter=0):

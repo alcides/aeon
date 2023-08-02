@@ -6,7 +6,11 @@ from lark import Lark
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
+from aeon.core.terms import Maximize
+from aeon.core.terms import Minimize
+from aeon.core.terms import MultiObjectiveProblem
 from aeon.core.types import AbstractionType
+from aeon.core.types import SoftRefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
@@ -51,6 +55,26 @@ class TreeToSugar(TreeToCore):
             Abstraction(args[0], args[2]),
             AbstractionType(args[0], args[1], TypeVar("?t")),
         )
+
+    def soft_refined_t(self, args):
+        return SoftRefinedType(str(args[0]), args[1], args[2])
+
+    def expression_min(self, args):
+        return Minimize(args[0])
+
+    def expression_max(self, args):
+        return Maximize(args[0])
+
+    def expression_multiobjective(self, args):
+        return MultiObjectiveProblem(args[0], args[1])
+
+    def expression_min_max(self, args):
+        objective_list = [
+            Minimize(arg.children[0]) if arg.data == "expression_min" else Maximize(arg.children[0]) for arg in args
+        ]
+        solution_list = [arg.children[0] for arg in args]
+
+        return MultiObjectiveProblem(objective_list, solution_list)
 
 
 def mk_parser(rule="start", start_counter=0):
