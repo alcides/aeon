@@ -154,6 +154,31 @@ class RefinedType(Type):
         return hash(self.name) + hash(self.type) + hash(self.refinement)
 
 
+class SoftRefinedType(Type):
+    name: str
+    type: BaseType | TypeVar
+    soft_refinement: any  # TODO create non-liquid term
+
+    def __init__(self, name: str, ty: BaseType | TypeVar, soft_refinement: any):
+        self.name = name
+        self.type = ty
+        self.soft_refinement = soft_refinement
+
+    def __repr__(self):
+        return f"{{ {self.name}:{self.type} | {self.soft_refinement} }}"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, SoftRefinedType)
+            and self.name == other.name
+            and self.type == other.type
+            and self.soft_refinement == other.soft_refinement
+        )
+
+    def __hash__(self) -> int:
+        return hash(self.name) + hash(self.type) + hash(self.soft_refinement)
+
+
 @dataclass
 class TypePolymorphism(Type):
     name: str  # alpha
