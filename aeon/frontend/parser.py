@@ -27,6 +27,7 @@ from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import bottom
 from aeon.core.types import RefinedType
+from aeon.core.types import SoftRefinedType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
@@ -60,6 +61,9 @@ class TreeToCore(Transformer):
     # Types
     def refined_t(self, args):
         return RefinedType(str(args[0]), args[1], liquefy(args[2]))
+
+    def soft_refined_t(self, args):
+        return SoftRefinedType(str(args[0]), args[1], args[2])
 
     def abstraction_t(self, args):
         return AbstractionType(str(args[0]), args[1], args[2])
