@@ -1,9 +1,9 @@
-program :  aeimport type_decls defs                         -> program
+program :  aeimport type_decls defs                     -> program
 
-aeimport : import*                                  -> list
+aeimport : import*                                      -> list
 
-import: "import" (CNAME | PATH) ";"               -> regular_imp
-      | "import" CNAME "from" (CNAME | PATH) ";"       -> function_imp
+import: "import" (CNAME | PATH) ";"                     -> regular_imp
+      | "import" CNAME "from" (CNAME | PATH) ";"        -> function_imp
 
 type_decls : type_decl*                              -> list
 
@@ -11,12 +11,12 @@ defs : def*                                          -> list
 
 type_decl : "type" ID ";"                            -> type_decl
 
-def : "def" ID ":" type "=" expression ";"          -> def_cons
-    | "def" ID "(" args ")" ":" type "{" expression "}" -> def_fun
+def : "def" ID ":" type "=" expression ";"                  -> def_cons
+    | "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
 
 
 args :                          -> empty_list
-     | arg ("," arg)*          -> args
+     | arg ("," arg)*           -> args
 
 arg : ID ":" type               -> arg
 
@@ -91,7 +91,8 @@ min_max_expression: MINIMIZE "(" expression ")"     -> expression_min
 multiobjective_expression: MULTIOBJECTIVE "(" expression "," expression ")"     -> expression_multiobjective
                           | min_max_expression ("and" min_max_expression)+      -> expression_min_max
 
-type : "{" ID ":" type _PIPE refined_expression "}"        -> refined_t
+type : "{" ID ":" type _PIPE expression "}"                -> refined_t
+     | "{" ID ":" type _PIPE refined_expression "}"        -> soft_refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
