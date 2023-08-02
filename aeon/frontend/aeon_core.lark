@@ -1,15 +1,11 @@
-type : "{" ID ":" type _PIPE refined_expression "}"                -> refined_t
-     | "{" ID ":" type _PIPE refined_expression "}"                -> soft_refined_t
-     | "(" ID ":" type ")" "->" type                               -> abstraction_t
-     | "forall" ID ":" kind "," type                               -> polymorphism_t
-     | ID                                                          -> simple_t
-     | "(" type ")"                                                -> same
+type : "{" ID ":" type _PIPE expression "}"                -> refined_t
+     | "(" ID ":" type ")" "->" type                       -> abstraction_t
+     | "forall" ID ":" kind "," type                       -> polymorphism_t
+     | ID                                                  -> simple_t
+     | "(" type ")"                                        -> same
 
-refined_expression : expression ("and" fitness_expression)?        -> same
-           | fitness_expression                                    -> same
-
-expression : "-" expression_i                                      -> minus
-           | expression_i                                          -> same
+expression : "-" expression_i                              -> minus
+           | expression_i                                  -> same
 
 
 expression_i : "let" ID "=" expression ("in"|";") expression            -> let_e
@@ -35,17 +31,12 @@ expression_bool : expression_plus                                   -> same
 
 expression_plus : expression_fact                           -> same
                 | expression_fact "+" expression_plus       -> binop_plus
-                | expression_fact "+." expression_plus      -> binop_plus_f
                 | expression_fact "-" expression_plus       -> binop_minus
-                | expression_fact "-." expression_plus      -> binop_minus_f
 
 expression_fact : expression_b                           -> same
                 | expression_b "*" expression_fact       -> binop_mult
                 | expression_b "/" expression_fact       -> binop_div
                 | expression_b "%" expression_fact       -> binop_mod
-                | expression_b "*." expression_fact      -> binop_mult_f
-                | expression_b "/." expression_fact      -> binop_div_f
-                | expression_b "%." expression_fact      -> binop_mod_f
 
 
 
@@ -56,7 +47,7 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
 application_t : application_t "[" type "]"                    -> type_application_e
               | expression_simple                             -> same
 
-application : application expression_simple                      -> application_e
+application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
 expression_simple : "(" expression ")"                          -> same
@@ -68,14 +59,6 @@ expression_simple : "(" expression ")"                          -> same
              | ID                                               -> var
              | "?" ID                                           -> hole
 
-fitness_expression: min_max_expression                  -> same
-                  | multiobjective_expression           -> same
-
-min_max_expression: MINIMIZE "(" expression ")"     -> expression_min
-                  | MAXIMIZE "(" expression ")"     -> expression_max
-
-multiobjective_expression: MULTIOBJECTIVE "(" expression "," expression ")"     -> expression_multiobjective
-                          | min_max_expression ("and" min_max_expression)+      -> expression_min_max
 
 kind : "B" -> base_kind
      | "*" -> star_kind
