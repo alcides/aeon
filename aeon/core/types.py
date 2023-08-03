@@ -157,26 +157,29 @@ class RefinedType(Type):
 class SoftRefinedType(Type):
     name: str
     type: BaseType | TypeVar
-    soft_refinement: any  # TODO create non-liquid term
+    hard_constraint: LiquidTerm | None
+    soft_constraint: any  # TODO create non-liquid term
 
-    def __init__(self, name: str, ty: BaseType | TypeVar, soft_refinement: any):
+    def __init__(self, name: str, ty: BaseType | TypeVar, hard_refinement: LiquidTerm | None, soft_refinement: any):
         self.name = name
         self.type = ty
-        self.soft_refinement = soft_refinement
+        self.hard_constraint = hard_refinement
+        self.soft_constraint = soft_refinement
 
     def __repr__(self):
-        return f"{{ {self.name}:{self.type} | {self.soft_refinement} }}"
+        hard_refinement_repr = (self.hard_constraint.__repr__() + " and ") if self.hard_constraint else ""
+        return f"{{ {self.name}:{self.type} | {hard_refinement_repr} {self.soft_constraint} }}"
 
     def __eq__(self, other):
         return (
             isinstance(other, SoftRefinedType)
             and self.name == other.name
             and self.type == other.type
-            and self.soft_refinement == other.soft_refinement
+            and self.soft_constraint == other.soft_constraint
         )
 
     def __hash__(self) -> int:
-        return hash(self.name) + hash(self.type) + hash(self.soft_refinement)
+        return hash(self.name) + hash(self.type) + hash(self.soft_constraint)
 
 
 @dataclass
@@ -241,3 +244,9 @@ def args_size_of_type(t: Type) -> int:
         return 1 + args_size_of_type(t.type)
     else:
         assert False
+
+
+def refined_to_unrefined_type(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty
