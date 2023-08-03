@@ -17,9 +17,9 @@ from aeon.core.terms import Var
 from aeon.core.types import BaseType
 from aeon.core.types import top
 from aeon.core.types import Type
+from aeon.synthesis_grammar.fitness import get_holes_info_and_fitness_type
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes
 from aeon.synthesis_grammar.grammar import get_grammar_node
-from aeon.synthesis_grammar.grammar import get_holes_info_and_fitness_type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 
