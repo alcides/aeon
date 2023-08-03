@@ -4,12 +4,14 @@ import pathlib
 
 from lark import Lark
 
+from aeon.core.substitutions import liquefy
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.terms import Maximize
 from aeon.core.terms import Minimize
 from aeon.core.terms import MultiObjectiveProblem
 from aeon.core.types import AbstractionType
+from aeon.core.types import RefinedType
 from aeon.core.types import SoftRefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
@@ -57,7 +59,12 @@ class TreeToSugar(TreeToCore):
         )
 
     def soft_refined_t(self, args):
-        return SoftRefinedType(str(args[0]), args[1], args[2])
+        hard_constraint = None
+        soft_constraint = args[2]
+        if len(args[2].children) > 1:
+            hard_constraint = RefinedType(str(args[0]), args[1], liquefy(args[2].children[0]))
+            soft_constraint = args[2].children[1]
+        return SoftRefinedType(str(args[0]), args[1], hard_constraint, soft_constraint)
 
     def expression_min(self, args):
         return Minimize(args[0])
