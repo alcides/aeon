@@ -11,7 +11,6 @@ from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.elaboration import elaborate_check
 from aeon.typechecking.elaboration import elaborate_foralls
 from aeon.typechecking.elaboration import elaborate_remove_unification
-from aeon.typechecking.unification import unify
 
 
 def help_type_vars(t: str) -> set[TypeVar]:
@@ -65,10 +64,3 @@ def test_elaboration_unification():
     v2 = elaborate_remove_unification(EmptyContext(), v)
     expected = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[(x:Int) -> Int] 3; 1")
     assert v2 == expected
-
-
-def off_test_unification():
-    assert unify(EmptyContext(), parse_type("Int"), parse_type("forall a:B, a"), {})
-    assert unify(EmptyContext(), parse_type("forall a:B, a"), parse_type("Int"), {})
-    assert unify(EmptyContext(), parse_type("forall a:B, a"), parse_type("forall a:B, a"), {})
-    assert not unify(EmptyContext(), parse_type("String"), parse_type("Int"), {})

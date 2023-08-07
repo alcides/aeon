@@ -4,12 +4,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import reduce
 from itertools import combinations
-from typing import Iterator
-from typing import Optional
-from typing import Tuple
-
-from more_itertools import flatten
-from more_itertools import unzip
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.terms import Abstraction
@@ -89,7 +83,11 @@ class UnificationVar(Type):
 
 
 def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
-    if isinstance(sub, BaseType) and isinstance(sup, BaseType):
+    if isinstance(sub, Bottom):
+        return []
+    elif isinstance(sup, Top):
+        return []
+    elif isinstance(sub, BaseType) and isinstance(sup, BaseType):
         if sub != sup:
             raise UnificationException(f"Found {sub}, but expected {sup}")
         return []
@@ -226,9 +224,10 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
         return Let(t.var_name, nval, nbody)
 
     elif isinstance(t, Rec):
-        nval = elaborate_check(ctx.with_var(t.var_name, t.var_type), t.var_value, t.var_type)
+        nctx = ctx.with_var(t.var_name, t.var_type)
+        nval = elaborate_check(nctx, t.var_value, t.var_type)
         nbody = elaborate_check(
-            ctx.with_var(t.var_name, t.var_type),
+            nctx,
             t.body,
             ty,
         )

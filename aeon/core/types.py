@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import List
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
-from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 
