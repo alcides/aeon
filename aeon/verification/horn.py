@@ -21,6 +21,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
@@ -70,6 +71,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, Top):
         return ty
     elif isinstance(ty, Bottom):
+        return ty
+    elif isinstance(ty, TypeVar):
         return ty
     else:
         print("Type not freshable:", ty, type(ty))

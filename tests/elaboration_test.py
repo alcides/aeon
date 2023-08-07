@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+from aeon.core.terms import Rec
+from aeon.core.types import BaseKind
 from aeon.core.types import get_type_vars
+from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
+from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.elaboration import elaborate_check
+from aeon.typechecking.elaboration import elaborate_foralls
+from aeon.typechecking.elaboration import elaborate_remove_unification
+from aeon.typechecking.unification import unify
 
 
 def help_type_vars(t: str) -> set[TypeVar]:
@@ -34,3 +43,32 @@ def test_get_abstraction():
 def test_get_poly():
     assert help_type_vars("forall a:B, (x:a) -> Bool") == set()
     assert help_type_vars("forall a:B, (x:a) -> b") == {TypeVar("b")}
+
+
+def test_elaboration_foralls():
+    t = parse_term("let x : a = 3; x")
+    elab_t = elaborate_foralls(t)
+    assert isinstance(elab_t, Rec)
+    assert elab_t.var_type == TypePolymorphism(name="a", kind=BaseKind(), body=TypeVar("a"))
+
+
+def test_elaboration_foralls2():
+    t = parse_term("let x : Int = 3; x")
+    elab_t = elaborate_foralls(t)
+    assert isinstance(elab_t, Rec)
+    assert elab_t.var_type == parse_type("Int")
+
+
+def test_elaboration_unification():
+    t = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
+    v = elaborate_check(EmptyContext(), t, parse_type("Int"))
+    v2 = elaborate_remove_unification(EmptyContext(), v)
+    expected = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[(x:Int) -> Int] 3; 1")
+    assert v2 == expected
+
+
+def off_test_unification():
+    assert unify(EmptyContext(), parse_type("Int"), parse_type("forall a:B, a"), {})
+    assert unify(EmptyContext(), parse_type("forall a:B, a"), parse_type("Int"), {})
+    assert unify(EmptyContext(), parse_type("forall a:B, a"), parse_type("forall a:B, a"), {})
+    assert not unify(EmptyContext(), parse_type("String"), parse_type("Int"), {})

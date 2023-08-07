@@ -243,3 +243,7 @@ def get_type_vars(t: Type) -> set[TypeVar]:
         return {t1 for t1 in get_type_vars(t.body) if t1.name != t.name}
     else:
         assert False
+
+
+def extract_typelevel_freevars(ty: Type) -> list[str]:
+    return [v.name for v in get_type_vars(ty)]
