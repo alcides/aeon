@@ -123,10 +123,12 @@ class AbstractionType(Type):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractionType)
-                and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.type == other.type)
+        return (
+            isinstance(other, AbstractionType)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.type == other.type
+        )
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -137,19 +139,22 @@ class RefinedType(Type):
     type: BaseType | TypeVar
     refinement: LiquidTerm
 
-    def __init__(self, name: str, ty: BaseType | TypeVar,
-                 refinement: LiquidTerm):
+    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
         self.name = name
         self.type = ty
         self.refinement = refinement
+        assert isinstance(ty, BaseType) or isinstance(ty, TypeVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
-        return (isinstance(other, RefinedType) and self.name == other.name
-                and self.type == other.type
-                and self.refinement == other.refinement)
+        return (
+            isinstance(other, RefinedType)
+            and self.name == other.name
+            and self.type == other.type
+            and self.refinement == other.refinement
+        )
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -161,10 +166,14 @@ class TypePolymorphism(Type):
     kind: Kind
     body: Type
 
+    def __str__(self):
+        return f"forall {self.name}:{self.kind}, {self.body}"
 
-def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
-        t, TypeVar)
+
+def extract_parts(
+    t: Type,
+) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -251,3 +260,7 @@ def refined_to_unrefined_type(ty: Type) -> Type:
     if isinstance(ty, AbstractionType):
         return AbstractionType(ty.var_name, refined_to_unrefined_type(ty.var_type), refined_to_unrefined_type(ty.type))
     return ty
+
+
+def extract_typelevel_freevars(ty: Type) -> list[str]:
+    return [v.name for v in get_type_vars(ty)]
