@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import List
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
-from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 
@@ -140,6 +138,7 @@ class RefinedType(Type):
         self.name = name
         self.type = ty
         self.refinement = refinement
+        assert isinstance(ty, BaseType) or isinstance(ty, TypeVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -161,6 +160,9 @@ class TypePolymorphism(Type):
     name: str  # alpha
     kind: Kind
     body: Type
+
+    def __str__(self):
+        return f"forall {self.name}:{self.kind}, {self.body}"
 
 
 def extract_parts(
@@ -243,3 +245,7 @@ def get_type_vars(t: Type) -> set[TypeVar]:
         return {t1 for t1 in get_type_vars(t.body) if t1.name != t.name}
     else:
         assert False
+
+
+def extract_typelevel_freevars(ty: Type) -> list[str]:
+    return [v.name for v in get_type_vars(ty)]

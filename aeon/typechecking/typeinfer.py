@@ -82,10 +82,14 @@ class FailedSubtypingException(TypeCheckingException):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar) or isinstance(
-        ty,
-        RefinedType,
-    ) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(
+            ty,
+            RefinedType,
+        )
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -108,7 +112,22 @@ def prim_op(t: str) -> Type:
         return AbstractionType(
             "x",
             t_bool,
-            AbstractionType("y", t_bool, t_bool),
+            AbstractionType(
+                "y",
+                t_bool,
+                RefinedType(
+                    "z",
+                    t_bool,
+                    LiquidApp(
+                        "==",
+                        [
+                            LiquidVar("z"),
+                            LiquidApp(t, [LiquidVar("x"),
+                                          LiquidVar("y")])
+                        ],
+                    ),
+                ),
+            ),
         )
     elif t == "%":
         return AbstractionType("x", t_int, AbstractionType("y", t_int, t_int))
@@ -119,7 +138,22 @@ def prim_op(t: str) -> Type:
             AbstractionType(
                 "x",
                 TypeVar("n"),
-                AbstractionType("y", TypeVar("n"), TypeVar("n")),
+                AbstractionType(
+                    "y",
+                    TypeVar("n"),
+                    RefinedType(
+                        "z",
+                        TypeVar("n"),
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar("z"),
+                                LiquidApp(t, [LiquidVar("x"),
+                                              LiquidVar("y")])
+                            ],
+                        ),
+                    ),
+                ),
             ),
         )
     elif t in ["<", ">", "<=", ">=", "==", "!="]:
@@ -129,7 +163,22 @@ def prim_op(t: str) -> Type:
             AbstractionType(
                 "x",
                 TypeVar("n"),
-                AbstractionType("y", TypeVar("n"), t_bool),
+                AbstractionType(
+                    "y",
+                    TypeVar("n"),
+                    RefinedType(
+                        "z",
+                        t_bool,
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar("z"),
+                                LiquidApp(t, [LiquidVar("x"),
+                                              LiquidVar("y")])
+                            ],
+                        ),
+                    ),
+                ),
             ),
         )
     else:
@@ -157,7 +206,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = ctx.type_of(t.name)
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context", )
+                f"Variable {t.name} not in context",
+            )
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             assert ty.name != t.name
@@ -202,7 +252,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         else:
             print(type(ty), "should be abstype")
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.", )
+                f"Application {t} is not a function.",
+            )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -276,7 +327,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
             raise CouldNotGenerateConstraintException(
-                "If condition not boolean", )
+                "If condition not boolean",
+            )
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -300,6 +352,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         cp = sub(s, ty)
         cp_simplified = simplify_constraint(cp)
         if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            print("failed", cp)
             raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
@@ -308,6 +361,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
+        print("Constraint", t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except TypeCheckingException as e:
         print("e", e)  # BUG: check this bug! -k poly

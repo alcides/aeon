@@ -80,7 +80,6 @@ def vars_of_type(
     elif isinstance(ictx, TypeBinder):
         return vars_of_type(ctx, ty, ictx.prev)
     else:
-        print(ictx, type(ictx))
         assert False
 
 
@@ -223,8 +222,8 @@ def synth_term(
 
     if d > 0 and not anf and man.allow_app(ctx, ty, d):
         candidate_generators.append(go_app)
-    if (d > 0 and not anf and man.allow_abs(
-            ctx, ty, d, go_var in candidate_generators, avoid_eta)):
+    if d > 0 and not anf and man.allow_abs(ctx, ty, d, go_var
+                                           in candidate_generators, avoid_eta):
         if isinstance(ty, AbstractionType):
             candidate_generators.append(go_abs)
         candidate_generators.append(go_let)

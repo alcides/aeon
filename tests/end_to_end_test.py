@@ -7,6 +7,7 @@ from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
+from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
@@ -16,8 +17,9 @@ ectx = EvaluationContext(evaluation_vars)
 
 def check_compile(source, ty, res):
     p = parse_term(source)
-    assert check_type(ctx, p, ty)
-    assert eval(p, ectx) == res
+    p2 = elaborate(ctx, p)
+    assert check_type(ctx, p2, ty)
+    assert eval(p2, ectx) == res
 
 
 def test_anf():
