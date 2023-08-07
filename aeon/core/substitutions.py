@@ -32,6 +32,7 @@ from aeon.core.types import TypeVar
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):
+    """Replaces all occurrences of vartypes name in t by rep."""
 
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
@@ -47,7 +48,12 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     elif isinstance(t, TypeVar) and t.name != name:
         return t
     elif isinstance(t, RefinedType):
-        return RefinedType(t.name, rec(t.type), t.refinement)
+        it = RefinedType(t.name, rec(t.type), t.refinement)
+        while isinstance(it.type, RefinedType):
+            nr = substitution_in_liquid(it.type.refinement, LiquidVar(t.name), it.type.name)
+            ncond = LiquidApp("&&", [t.refinement, nr])
+            it = RefinedType(t.name, it.type.type, ncond)
+        return it
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
     print("Substitution", t, rep, name)
@@ -125,11 +131,11 @@ def substitution_in_liquid(
                 [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
             )
     else:
-        print(t, type(t))
         assert False
 
 
 def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
+    """Substitutes name in type t with the new replacement term rep."""
     replacement: LiquidTerm | None = liquefy(rep)
     if replacement is None:
         return t
@@ -181,6 +187,7 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
+    """Substitutes name in term t with the new replacement term rep."""
 
     def rec(x: Term):
         return substitution(x, rep, name)
@@ -234,19 +241,27 @@ def liquefy_app(app: Application) -> LiquidApp | None:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
+<<<<<<< HEAD
             return LiquidApp(
                 liquid_pseudo_fun.fun,
                 liquid_pseudo_fun.args + [arg],
             )
+=======
+            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
+>>>>>>> 0b400c1 (Added polymorphism-related elaboration)
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
+<<<<<<< HEAD
                 substitution(
                     app.fun.body,
                     app.fun.var_value,
                     app.fun.var_name,
                 ),
+=======
+                substitution(app.fun.body, app.fun.var_value, app.fun.var_name),
+>>>>>>> 0b400c1 (Added polymorphism-related elaboration)
                 app.arg,
             ),
         )

@@ -391,6 +391,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         cp = sub(s, ty)
         cp_simplified = simplify_constraint(cp)
         if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            print("failed", cp)
             raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
@@ -399,6 +400,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
+        print("Constraint", t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except CouldNotGenerateConstraintException:
         return False

@@ -17,6 +17,7 @@ from z3.z3 import Const
 from z3.z3 import DeclareSort
 from z3.z3 import Float32
 from z3.z3 import FP
+from z3.z3 import ForAll
 from z3.z3 import FPSort
 from z3.z3 import Float64
 from z3.z3 import ForAll
@@ -161,14 +162,17 @@ s = Solver()
 (s.set(timeout=200),)
 
 
-def smt_valid(constraint: Constraint) -> bool:
+def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = None) -> bool:
     """Verifies if a constraint is true using Z3."""
+    if foralls is None:
+        foralls = []
+    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
     cons: list[CanonicConstraint] = list(flatten(constraint, []))
-    print("cons:", cons)
-
     for c in cons:
         s.push()
-        smt_c = translate(c)
+        smt_c = translate(c, extra=forall_vars)
+        for _, v in forall_vars:
+            smt_c = ForAll(v, smt_c)
         s.add(smt_c)
         result = s.check()
         s.pop()
@@ -267,26 +271,19 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
-
-        if 1 > 0:
-
-            def w(x):
-                return x.sort() if hasattr(x, "sort") else type(x)
-
-            print("calling liquid", f, [(x, w(x)) for x in args])
-
         return f(*args)
     assert False
 
 
 def translate(
     c: CanonicConstraint,
+    extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders[::-1]
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
-    ]
+    ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):

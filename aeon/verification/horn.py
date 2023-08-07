@@ -22,6 +22,8 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
@@ -72,6 +74,10 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         return ty
     elif isinstance(ty, Bottom):
         return ty
+    elif isinstance(ty, TypeVar):
+        return ty
+    elif isinstance(ty, TypePolymorphism):
+        return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
     else:
         print("Type not freshable:", ty, type(ty))
         assert False
@@ -354,4 +360,6 @@ def solve(c: Constraint) -> bool:
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
     v = apply(subst, merged_csps)
+    print("v", v, smt_valid(v))
+    print("Note: I am debugging here. It seesm that this is false -> true")
     return smt_valid(v)
