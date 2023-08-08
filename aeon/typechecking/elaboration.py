@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import reduce
 from itertools import combinations
-from typing import Any
 
 from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidHornApplication
+from aeon.core.liquid import LiquidVar
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
@@ -185,6 +186,10 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
     elif isinstance(t, Var):
         x: Type | None = ctx.type_of(t.name)
         assert x is not None
+        while isinstance(x, TypePolymorphism):
+            u = UnificationVar(ctx.fresh_var())
+            x = type_substitution(x.body, x.name, u)
+            t = TypeApplication(t, u)
         return (t, x)
 
     elif isinstance(t, Hole):
@@ -242,7 +247,7 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
         if t.kind != ty.kind:
-            assert UnificationException(f"Failed to unify {t} with type {ty}")
+            assert UnificationException(f"Failed to unify the kind of {t} with kind fo type {ty}")
         nctx = ctx.with_typevar(t.name, t.kind)
         nbody = elaborate_check(nctx, t.body, ty.body)
         return TypeAbstraction(t.name, t.kind, nbody)
@@ -255,11 +260,8 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     else:
         (c, s) = elaborate_synth(ctx, t)
-        subt: list[Type] = unify(ctx, s, ty)
-        if subt:
-            return wrap_unification(ctx, c, subt)
-        else:
-            return c
+        unify(ctx, s, ty)
+        return c
 
 
 @dataclass
@@ -396,7 +398,11 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         remove_from_union_and_intersection(unions, intersections, to_be_removed)
 
         nt = remove_unions_and_intersections(ctx, nt)
-        return TypeApplication(t.body, nt)
+        assert isinstance(nt, BaseType) or isinstance(nt, TypeVar)
+        new_var = ctx.fresh_var()
+        ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
+        new_type = RefinedType(new_var, nt, ref)
+        return TypeApplication(t.body, new_type)
 
     elif isinstance(t, Abstraction):
         return Abstraction(t.var_name, elaborate_remove_unification(ctx, t.body))

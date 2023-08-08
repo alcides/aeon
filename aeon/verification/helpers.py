@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Generator
-from typing import Tuple
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp

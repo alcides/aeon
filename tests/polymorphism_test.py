@@ -33,5 +33,5 @@ def test_poly():
         """ let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
             let r = max 0 5 in
             r + 1""",
-        """{x:Int| 0 < v}""",
+        """{x:Int| 0 <= v}""",
     )

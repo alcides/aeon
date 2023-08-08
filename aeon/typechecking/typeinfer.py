@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
@@ -39,7 +39,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import pretty_print_constraint
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -52,19 +51,34 @@ from aeon.verification.vcs import LiquidConstraint
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
 
-class CouldNotGenerateConstraintException(Exception):
+class TypeCheckingException(Exception):
     pass
 
 
-class FailedConstraintException(Exception):
-    def __init__(self, ctx, t, ty, ks):
-        self.ctx = ctx
-        self.t = t
-        self.ty = ty
-        self.ks = ks
+class CouldNotGenerateConstraintException(TypeCheckingException):
+    pass
+
+
+@dataclass
+class FailedConstraintException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    ty: Type
+    ks: Constraint
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
+
+
+@dataclass
+class FailedSubtypingException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    s: Type
+    ty: Type
+
+    def __str__(self):
+        return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
 
 
 def argument_is_typevar(ty: Type):
@@ -144,6 +158,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
+        if not ty:
+            raise CouldNotGenerateConstraintException(
+                f"Variable {t.name} not in context",
+            )
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             assert ty.name != t.name
@@ -159,10 +177,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         LiquidApp("==", [LiquidVar(ty.name), LiquidVar(t.name)]),
                     ],
                 ),
-            )
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
             )
         return (ctrue, ty)
     elif isinstance(t, Application):
@@ -220,6 +234,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 def wrap_checks(f):
     def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         k = f(ctx, t, ty)
+        print(t, ty, k)
         ks = simplify_constraint(k)
         if ks == LiquidConstraint(LiquidLiteralBool(False)):
             raise FailedConstraintException(ctx, t, ty, ks)
@@ -278,6 +293,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
+        cp_simplified = simplify_constraint(cp)
+        if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 
@@ -286,9 +304,8 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except CouldNotGenerateConstraintException as e:
-        return False
-    except FailedConstraintException as e:
+    except TypeCheckingException as e:
+        print("e", e)  # BUG: check this bug! -k poly
         return False
 
 
@@ -301,9 +318,7 @@ def check_type_errors(ctx: TypingContext, t: Term, ty: Type) -> list[Exception |
             return []
         else:
             return ["Could not prove typing relation.", f"Context: {ctx}", f"Term: {t}", f"Type: {ty}"]
-    except CouldNotGenerateConstraintException as e:
-        return [e]
-    except FailedConstraintException as e:
+    except TypeCheckingException as e:
         return [e]
 
 
