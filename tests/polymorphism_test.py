@@ -30,8 +30,8 @@ def test_poly():
     """
 
     assert tt(
-        """ let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
+        """let a : {x:Int | 0 <= v} = (let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
             let r = max 0 5 in
-            r + 1""",
-        """{x:Int| 0 <= v}""",
+            r + 1) in true """,
+        """Top""",
     )

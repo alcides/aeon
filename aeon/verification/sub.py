@@ -11,6 +11,8 @@ from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -30,7 +32,11 @@ def ensure_refined(t: Type) -> RefinedType:
 
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
+        ref_subs = substitution_in_liquid(
+            t.refinement,
+            LiquidVar(name),
+            t.name,
+        )
         # print(t.type, BaseType)
         assert isinstance(t.type, BaseType)
         return Implication(name, t.type, ref_subs, c)
@@ -46,6 +52,10 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
         return c
     elif isinstance(t, Top):
         return c
+    elif isinstance(t, TypeVar):
+        return c
+    elif isinstance(t, TypePolymorphism):
+        return implication_constraint(t.name, t.body, c)
     assert False
 
 
@@ -60,7 +70,11 @@ def sub(t1: Type, t2: Type) -> Constraint:
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
-            t2_subs = substitution_in_liquid(t2.refinement, LiquidVar(t1.name), t2.name)
+            t2_subs = substitution_in_liquid(
+                t2.refinement,
+                LiquidVar(t1.name),
+                t2.name,
+            )
             assert isinstance(t1.type, BaseType)  # TODO: check this
             return Implication(
                 t1.name,
@@ -72,7 +86,18 @@ def sub(t1: Type, t2: Type) -> Constraint:
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
-        c1 = sub(substitution_in_type(t1.type, Var(t2.var_name), t1.var_name), t2.type)
-        return Conjunction(c0, implication_constraint(t2.var_name, t2.var_type, c1))
+        c1 = sub(
+            substitution_in_type(t1.type, Var(t2.var_name), t1.var_name),
+            t2.type,
+        )
+        return Conjunction(
+            c0,
+            implication_constraint(t2.var_name, t2.var_type, c1),
+        )
+    elif isinstance(t1, TypeVar) and isinstance(
+            t2,
+            TypeVar,
+    ) and t1.name == t2.name:
+        return ctrue
     else:
         return cfalse
