@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import reduce
 from itertools import combinations
+from typing import Any
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.terms import Abstraction
@@ -236,7 +237,7 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
     elif isinstance(t, If):
         ncond = elaborate_check(ctx, t.cond, t_bool)
         nthen = elaborate_check(ctx, t.then, ty)
-        nelse = elaborate_check(ctx, t.then, ty)
+        nelse = elaborate_check(ctx, t.otherwise, ty)
         return If(ncond, nthen, nelse)
 
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
@@ -271,9 +272,26 @@ class Intersection(Type):
     intersected: list[Type]
 
 
+def extract_direction(ty: Type, upper: bool = True) -> set[Type]:
+    if isinstance(ty, UnificationVar):
+        f: set[Type] = set()
+        candidates = ty.upper if upper else ty.lower
+        for u in candidates:
+            f = f.union(extract_direction(u, upper))
+        return f
+    else:
+        base = top if upper else bottom
+        return {ty, base}
+
+
 def replace_unification_variables(ctx: TypingContext, ty: Type) -> tuple[Type, list[Union], list[Intersection]]:
-    unions = []
-    intersections = []
+    """Removes unification variables, and replaces them with either Union or
+    Intersection Type.
+
+    This function returns lists of unions of intersections.
+    """
+    unions: list[Union] = []
+    intersections: list[Intersection] = []
 
     def go(ctx: TypingContext, ty: Type, polarity: bool):
         """The recursive part of the function."""
@@ -295,17 +313,33 @@ def replace_unification_variables(ctx: TypingContext, ty: Type) -> tuple[Type, l
             return TypePolymorphism(ty.name, ty.kind, go(ctx, ty.body, polarity))
         elif isinstance(ty, UnificationVar):
             if polarity:
-                u = Union(ty.lower + [ty, top])
-                unions.append(u)
-                return u
+                return Union(list(extract_direction(ty, True)))
             else:
-                i = Intersection(ty.upper + [ty, bottom])
-                intersections.append(i)
-                return i
+                return Intersection(list(extract_direction(ty, False)))
         else:
             assert False
 
     return (go(ctx, ty, True), unions, intersections)
+
+
+def remove_from_union_and_intersection(
+    unions: list[Union],
+    intersections: list[Intersection],
+    to_be_removed: list[str],
+):
+    """Removes all unification vars whose name is in the to_be_removed list."""
+
+    def rem(x: Type) -> bool:
+        if isinstance(x, UnificationVar):
+            return x.name not in to_be_removed
+        else:
+            return True
+
+    for i in intersections:
+        i.intersected = list(filter(rem, i.intersected))
+
+    for union in unions:
+        union.united = list(filter(rem, union.united))
 
 
 def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
@@ -359,19 +393,8 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
             if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
                 to_be_removed.append(u.name)
 
-        # Done. Now let us actually remove them.
+        remove_from_union_and_intersection(unions, intersections, to_be_removed)
 
-        def rem(x: Type) -> bool:
-            if isinstance(x, UnificationVar):
-                return x.name not in to_be_removed
-            else:
-                return True
-
-        for i in intersections:
-            i.intersected = list(filter(rem, i.intersected))
-
-        for union in unions:
-            union.united = list(filter(rem, union.united))
         nt = remove_unions_and_intersections(ctx, nt)
         return TypeApplication(t.body, nt)
 

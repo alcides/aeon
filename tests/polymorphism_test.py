@@ -14,7 +14,10 @@ def tt(e: str, t: str, vars: dict[str, str] = {}):
     ctx = build_context(ctx_vars)
     p = parse_term(e)
     p2 = elaborate(ctx, p)
-    return check_type(ctx, p2, parse_type(t))
+    print("got:", p2)
+    exp = parse_type(t)
+    print("excepted:", exp)
+    return check_type(ctx, p2, exp)
 
 
 def test_simple_def():

@@ -21,6 +21,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
@@ -74,6 +75,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         return ty
     elif isinstance(ty, TypeVar):
         return ty
+    elif isinstance(ty, TypePolymorphism):
+        return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
     else:
         print("Type not freshable:", ty, type(ty))
         assert False
