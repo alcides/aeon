@@ -186,60 +186,6 @@ class If(Term):
         )
 
 
-class Minimize(Term):
-    expression: Term
-
-    def __init__(self, expression: Term):
-        self.expression = expression
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        return f"@minimize( {self.expression} )"
-
-    def __eq__(self, other):
-        return isinstance(other, Minimize) and self.expression == other.expression
-
-
-class Maximize(Term):
-    expression: Term
-
-    def __init__(self, expression: Term):
-        self.expression = expression
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        return f"@maximize( {self.expression} )"
-
-    def __eq__(self, other):
-        return isinstance(other, Maximize) and self.expression == other.expression
-
-
-class MultiObjectiveProblem(Term):
-    objectives_list: Term
-    solution_list: list[Term]
-
-    def __init__(self, objectives_list: Term | list[Term], solution_list: list[Term]):
-        self.objectives_list = objectives_list
-        self.solution_list = solution_list
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        return f"@multiobejtive( {self.objectives_list}, {self.solution_list} )"
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, MultiObjectiveProblem)
-            and self.objectives_list == other.objectives_list
-            and self.solution_list == other.solution_list
-        )
-
-
 @dataclass
 class TypeAbstraction(Term):
     name: str
