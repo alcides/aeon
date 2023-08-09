@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
@@ -31,11 +32,21 @@ class TypeDecl(Node):
 
 
 @dataclass
+class Macro(Node):
+    name: str
+    expression: Term
+
+    def __repr__(self):
+        return f"@{self.name}({self.expression})"
+
+
+@dataclass
 class Definition(Node):
     name: str
     args: list[tuple[str, Type]]
     type: Type
     body: Term  # TODO: replace with custom Sugar Expr
+    macros: list[Macro] = field(default_factory=list)
 
     def __repr__(self):
         if not self.args:
