@@ -14,9 +14,7 @@ def tt(e: str, t: str, vars: dict[str, str] = {}):
     ctx = build_context(ctx_vars)
     p = parse_term(e)
     p2 = elaborate(ctx, p)
-    print("got:", p2)
     exp = parse_type(t)
-    print("excepted:", exp)
     return check_type(ctx, p2, exp)
 
 
@@ -25,13 +23,10 @@ def test_simple_def():
 
 
 def test_poly():
-    """
-    TODO: We're missing the manual/automatic binders at the type and term levels.
-    """
-
     assert tt(
-        """let a : {x:Int | 0 <= v} = (let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
+        """ let max : (x:a) -> (y:a) -> a = (\\x -> \\y -> if x < y then y else x) in
             let r = max 0 5 in
-            r + 1) in true """,
+            let a : {x:Int | 0 <= x} = r + 1 in
+            true""",
         """Top""",
     )

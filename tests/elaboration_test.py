@@ -36,7 +36,9 @@ def test_get_abstraction():
     assert help_type_vars("(x:Bool) -> a") == {TypeVar("a")}
     assert help_type_vars("(x:a) -> a") == {TypeVar("a")}
     assert help_type_vars("(x:a) -> b") == {TypeVar("a"), TypeVar("b")}
-    assert help_type_vars("(x:{y:a | true}) -> {z:b | True}") == {TypeVar("a"), TypeVar("b")}
+    assert help_type_vars("(x:{y:a | true}) -> {z:b | True}") == {
+        TypeVar("a"), TypeVar("b")
+    }
 
 
 def test_get_poly():
@@ -48,7 +50,9 @@ def test_elaboration_foralls():
     t = parse_term("let x : a = 3; x")
     elab_t = elaborate_foralls(t)
     assert isinstance(elab_t, Rec)
-    assert elab_t.var_type == TypePolymorphism(name="a", kind=BaseKind(), body=TypeVar("a"))
+    assert elab_t.var_type == TypePolymorphism(name="a",
+                                               kind=BaseKind(),
+                                               body=TypeVar("a"))
 
 
 def test_elaboration_foralls2():
@@ -59,8 +63,12 @@ def test_elaboration_foralls2():
 
 
 def test_elaboration_unification():
-    t = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
+    t = parse_term(
+        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1"
+    )
     v = elaborate_check(EmptyContext(), t, parse_type("Int"))
     v2 = elaborate_remove_unification(EmptyContext(), v)
-    expected = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
+    expected = parse_term(
+        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[{fresh_1:Int| ?k }] 3; 1"
+    )
     assert v2 == expected

@@ -82,10 +82,10 @@ class FailedSubtypingException(TypeCheckingException):
 
 
 def argument_is_typevar(ty: Type):
-    return isinstance(ty, TypeVar) or isinstance(
+    return (isinstance(ty, TypeVar) or isinstance(
         ty,
         RefinedType,
-    ) and isinstance(ty.type, TypeVar)
+    ) and isinstance(ty.type, TypeVar))
 
 
 def prim_litbool(t: bool) -> RefinedType:
