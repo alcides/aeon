@@ -12,7 +12,9 @@ defs : def*                                          -> list
 type_decl : "type" ID ";"                            -> type_decl
 
 def : "def" ID ":" type "=" expression ";"                  -> def_cons
-    | "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
+    | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
+
+soft_constraint : "@" ID "(" expression ")"                 -> macro
 
 
 args :                          -> empty_list
@@ -20,9 +22,6 @@ args :                          -> empty_list
 
 arg : ID ":" type               -> arg
 
-
-refined_expression : expression ("and" fitness_expression)?       -> same
-           | fitness_expression                                   -> same
 
 expression : "-" expression_i                           -> minus
            | expression_i                               -> same
@@ -82,17 +81,7 @@ expression_simple : "(" expression ")"                       -> same
         | ID                                                 -> var
         | "?" ID                                             -> hole
 
-fitness_expression: min_max_expression                  -> same
-                  | multiobjective_expression           -> same
-
-min_max_expression: MINIMIZE "(" expression ")"     -> expression_min
-                  | MAXIMIZE "(" expression ")"     -> expression_max
-
-multiobjective_expression: MULTIOBJECTIVE "(" expression "," expression ")"     -> expression_multiobjective
-                          | min_max_expression ("and" min_max_expression)+      -> expression_min_max
-
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
-     | "{" ID ":" type _PIPE refined_expression "}"        -> soft_refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
@@ -101,10 +90,6 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t
 kind : "B" -> base_kind
      | "*" -> star_kind
 
-
-MINIMIZE: "@minimize"
-MAXIMIZE: "@maximize"
-MULTIOBJECTIVE: "@multiobjective"
 
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
