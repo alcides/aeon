@@ -3,20 +3,16 @@ from __future__ import annotations
 import pathlib
 
 from lark import Lark
+from lark import Tree
 
-from aeon.core.substitutions import liquefy
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
-from aeon.core.terms import Maximize
-from aeon.core.terms import Minimize
-from aeon.core.terms import MultiObjectiveProblem
 from aeon.core.types import AbstractionType
-from aeon.core.types import RefinedType
-from aeon.core.types import SoftRefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
+from aeon.sugar.program import Macro
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
@@ -41,7 +37,13 @@ class TreeToSugar(TreeToCore):
         return Definition(args[0], [], args[1], args[2])
 
     def def_fun(self, args):
-        return Definition(args[0], args[1], args[2], args[3])
+        if len(args) == 4:
+            return Definition(args[0], args[1], args[2], args[3])
+        macros = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        return Definition(args[1], args[2], args[3], args[4], macros)
+
+    def macro(self, args):
+        return Macro(args[1], args[2])
 
     def empty_list(self, args):
         return []
@@ -57,31 +59,6 @@ class TreeToSugar(TreeToCore):
             Abstraction(args[0], args[2]),
             AbstractionType(args[0], args[1], TypeVar("?t")),
         )
-
-    def soft_refined_t(self, args):
-        hard_constraint = None
-        soft_constraint = args[2]
-        if len(args[2].children) > 1:
-            hard_constraint = RefinedType(str(args[0]), args[1], liquefy(args[2].children[0]))
-            soft_constraint = args[2].children[1]
-        return SoftRefinedType(str(args[0]), args[1], hard_constraint, soft_constraint)
-
-    def expression_min(self, args):
-        return Minimize(args[0])
-
-    def expression_max(self, args):
-        return Maximize(args[0])
-
-    def expression_multiobjective(self, args):
-        return MultiObjectiveProblem(args[0], args[1])
-
-    def expression_min_max(self, args):
-        objective_list = [
-            Minimize(arg.children[0]) if arg.data == "expression_min" else Maximize(arg.children[0]) for arg in args
-        ]
-        solution_list = [arg.children[0] for arg in args]
-
-        return MultiObjectiveProblem(objective_list, solution_list)
 
 
 def mk_parser(rule="start", start_counter=0):
