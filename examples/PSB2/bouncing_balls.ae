@@ -32,13 +32,10 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
 
 def synth (a:Float , b:Float , c:Int)  : Float  { (?hole:Float)}
 
+def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
 def fitness () : Float  {
-    ds = load_dataset "bouncing-balls" 200 200;
-    train = extract_train_data ds;
-    unpacked_data = unpack_train_data train;
-    input_list = get_input_list unpacked_data;
-    expected_values = get_output_list unpacked_data;
-    actual_values : List = get_bb_synth_values input_list synth;
-    mse = mean_square_error actual_values expected_values;
-    mse
+     mean_absolute_error (get_bb_synth_values input_list synth) (expected_values)
 }
