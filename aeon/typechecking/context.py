@@ -12,7 +12,7 @@ from aeon.core.types import Type
 
 class TypingContext(ABC):
     def type_of(self, name: str) -> Type | None:
-        return None
+        assert False
 
     def with_var(self, name: str, type: Type) -> TypingContext:
         return VariableBinder(self, name, type)
@@ -35,6 +35,9 @@ class TypingContext(ABC):
 class EmptyContext(TypingContext):
     def __init__(self):
         self.counter = 0
+
+    def type_of(self, name: str) -> Type | None:
+        return None
 
     def fresh_var(self):
         self.counter += 1
