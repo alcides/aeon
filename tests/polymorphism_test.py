@@ -7,6 +7,10 @@ from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
 
+import sys
+
+sys.setrecursionlimit(1500)  # TODO: fix this?
+
 
 def tt(e: str, t: str, vars: dict[str, str] = {}):
     ctx_vars = {k: parse_type(v) for (k, v) in vars.items()}

@@ -266,14 +266,6 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
-
-        if 1 > 0:
-
-            def w(x):
-                return x.sort() if hasattr(x, "sort") else type(x)
-
-            print("calling liquid", f, [(x, w(x)) for x in args])
-
         return f(*args)
     assert False
 
