@@ -4,7 +4,7 @@ from typing import Any
 from typing import Sequence
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
@@ -21,6 +21,8 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
@@ -52,7 +54,8 @@ def smt_base_type(ty: Type) -> str | None:
 def fresh(context: TypingContext, ty: Type) -> Type:
     if isinstance(ty, BaseType):
         return ty
-    elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole):
+    elif isinstance(ty, RefinedType) and isinstance(ty.refinement,
+                                                    LiquidHornApplication):
         id = context.fresh_var()
         v = f"v_{id}"
         args: list[tuple[LiquidTerm, str]] = []
@@ -60,7 +63,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
             stp = smt_base_type(t)
             if stp:
                 args.append((LiquidVar(n), stp))
-        return RefinedType(v, ty.type, LiquidHole(f"{id}", args))
+        return RefinedType(v, ty.type, LiquidHornApplication(f"{id}", args))
     elif isinstance(ty, RefinedType):
         return ty
     elif isinstance(ty, AbstractionType):
@@ -71,13 +74,17 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         return ty
     elif isinstance(ty, Bottom):
         return ty
+    elif isinstance(ty, TypeVar):
+        return ty
+    elif isinstance(ty, TypePolymorphism):
+        return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
     else:
         print("Type not freshable:", ty, type(ty))
         assert False
 
 
-def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
-    if isinstance(t, LiquidHole):
+def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
+    if isinstance(t, LiquidHornApplication):
         return [t]
     elif isinstance(t, LiquidLiteralBool) or isinstance(
             t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
@@ -85,7 +92,7 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
     elif isinstance(t, LiquidVar):
         return []
     elif isinstance(t, LiquidApp):
-        holes: list[LiquidHole] = []
+        holes: list[LiquidHornApplication] = []
         for h in t.args:
             holes = holes + obtain_holes(h)
         return holes
@@ -93,7 +100,7 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
         assert False
 
 
-def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
+def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
     if isinstance(c, LiquidConstraint):
         return obtain_holes(c.expr)
     elif isinstance(c, Conjunction):
@@ -110,7 +117,7 @@ def contains_horn(t: LiquidTerm) -> bool:
         return False
     elif isinstance(t, LiquidVar):
         return False
-    elif isinstance(t, LiquidHole):
+    elif isinstance(t, LiquidHornApplication):
         return True
     elif isinstance(t, LiquidApp):
         return all([contains_horn(arg) for arg in t.args])
@@ -136,9 +143,9 @@ def wellformed_horn(predicate: LiquidTerm) -> bool:
         return True
     elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
           and not contains_horn(predicate.args[0])
-          and isinstance(predicate.args[1], LiquidHole)):
+          and isinstance(predicate.args[1], LiquidHornApplication)):
         return True
-    elif isinstance(predicate, LiquidHole):
+    elif isinstance(predicate, LiquidHornApplication):
         return True
     else:
         return False
@@ -165,7 +172,7 @@ def reverse_type(t: str) -> Type:
     return {"Int": t_int, "Bool": t_bool}[t]
 
 
-def build_possible_assignment(hole: LiquidHole):
+def build_possible_assignment(hole: LiquidHornApplication):
     ctx: TypingContext = EmptyContext()
     for i, (_, t) in enumerate(hole.argtypes):
         ctx = VariableBinder(ctx, mk_arg(i), reverse_type(t))
@@ -238,7 +245,7 @@ def has_k_head(c: Constraint) -> bool:
     elif isinstance(c, Implication):
         return has_k_head(c.seq)
     elif isinstance(c, LiquidConstraint):
-        if isinstance(c.expr, LiquidHole):
+        if isinstance(c.expr, LiquidHornApplication):
             return True
         else:
             return False
@@ -264,7 +271,8 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
     assert False
 
 
-def fill_horn_arguments(h: LiquidHole, candidate: LiquidTerm) -> LiquidTerm:
+def fill_horn_arguments(h: LiquidHornApplication,
+                        candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
@@ -272,7 +280,7 @@ def fill_horn_arguments(h: LiquidHole, candidate: LiquidTerm) -> LiquidTerm:
 
 
 def apply_liquid(assign: Assignment, c: LiquidTerm) -> LiquidTerm:
-    if isinstance(c, LiquidHole):
+    if isinstance(c, LiquidHornApplication):
         assert c.name in assign
         ne = assign[c.name]
         return fill_horn_arguments(c, merge_assignments(ne))
@@ -311,13 +319,13 @@ def weaken(assign, c: Constraint) -> Assignment:
     (vs, (p, h)) = extract_components_of_imp(c)
 
     # TODO: double check this assert
-    assert isinstance(h, LiquidHole)
+    assert isinstance(h, LiquidHornApplication)
     assert h.name in assign
     current_rep = assign[h.name]
 
     def keep(q: LiquidTerm) -> bool:
         # TODO: double check this assert
-        assert isinstance(h, LiquidHole)
+        assert isinstance(h, LiquidHornApplication)
         qp = fill_horn_arguments(h, q)
         nc = constraint_builder(vs, imp(apply(assign, p), end(qp)))
         return smt_valid(nc)

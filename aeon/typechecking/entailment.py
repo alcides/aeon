@@ -7,6 +7,7 @@ from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
@@ -26,7 +27,7 @@ def entailment(ctx: TypingContext, c: Constraint):
         r = solve(c)
         if not r:
             print("Could not show constrain:")
-            print(pretty_print_constraint(c))  # DEMO1
+            print(pretty_print_constraint(c))
             # print(c)
         return r
     elif isinstance(ctx, VariableBinder):
@@ -38,14 +39,25 @@ def entailment(ctx: TypingContext, c: Constraint):
         else:
             ty: Type = ctx.type
             (name, base, cond) = extract_parts(ty)
-            assert isinstance(base, BaseType)
-            ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
-            return entailment(ctx.prev, Implication(ctx.name, base, ncond, c))
+            if isinstance(base, BaseType):
+                ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
+                return entailment(
+                    ctx.prev,
+                    Implication(ctx.name, base, ncond, c),
+                )
+            elif isinstance(ctx.type, TypeVar):
+                return entailment(
+                    ctx.prev,
+                    c,
+                )  # TODO: Double check this one as well.
+            else:
+                assert False
+
     elif isinstance(ctx, TypeBinder):
-        print(
-            "TODO: Handle TypeBinder in entailment. The current solution is to ignore."
-        )
-        return entailment(ctx.prev, c)
+        return entailment(
+            ctx.prev,
+            c,
+        )  # TODO: Consider passing as a concrete placeholder type for SMT
     elif isinstance(ctx, UninterpretedBinder):
         return entailment(
             ctx.prev,

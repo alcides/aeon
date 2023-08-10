@@ -14,6 +14,12 @@ def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
 
 
 class LiquidHole(LiquidTerm):
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+
+class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: Sequence[tuple[LiquidTerm, str]]
 
@@ -34,7 +40,8 @@ class LiquidHole(LiquidTerm):
         return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidHole) and other.name == self.name
+        return isinstance(other,
+                          LiquidHornApplication) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
@@ -57,7 +64,6 @@ class LiquidLiteralBool(LiquidTerm):
         return hash(self.value)
 
 
-
 class LiquidLiteralInt(LiquidTerm):
     value: int
 
@@ -73,7 +79,7 @@ class LiquidLiteralInt(LiquidTerm):
 
     def __hash__(self) -> int:
         return hash(self.value)
-    
+
 
 class LiquidLiteralFloat(LiquidTerm):
     value: float
@@ -145,11 +151,8 @@ class LiquidApp(LiquidTerm):
         return f"{self.fun}({fargs})"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, LiquidApp)
-            and other.fun == self.fun
-            and all(x == y for (x, y) in zip(self.args, other.args))
-        )
+        return (isinstance(other, LiquidApp) and other.fun == self.fun
+                and all(x == y for (x, y) in zip(self.args, other.args)))
 
     def __hash__(self) -> int:
         return hash(self.fun) + sum(hash(a) for a in self.args)
