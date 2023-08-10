@@ -77,7 +77,9 @@ def inhabited(ctx: TypingContext, ty: Type) -> bool:
             LiquidLiteralBool(True),
             entailment_like(ctx, constraint),
         )
-        r = smt_valid(wrapper, foralls=[(name, base)])
+        if isinstance(base, BaseType):
+            wrapper = Implication(name, base, LiquidLiteralBool(True), wrapper)
+        r = smt_valid(wrapper)
         return r
     except ZeroDivisionError:
         return False

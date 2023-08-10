@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from loguru import logger
+from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidHole
@@ -39,13 +40,6 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
-from aeon.prelude.prelude import (
-    INTEGER_ARITHMETIC_OPERATORS,
-    FLOAT_ARITHMETIC_OPERATORS,
-    COMPARISON_OPERATORS,
-    LOGICAL_OPERATORS,
-    EQUALITY_OPERATORS,
-)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.helpers import simplify_constraint
@@ -60,20 +54,34 @@ from aeon.verification.vcs import LiquidConstraint
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
 
-class CouldNotGenerateConstraintException(Exception):
+class TypeCheckingException(Exception):
     pass
 
 
-class FailedConstraintException(Exception):
+class CouldNotGenerateConstraintException(TypeCheckingException):
+    pass
 
-    def __init__(self, ctx, t, ty, ks):
-        self.ctx = ctx
-        self.t = t
-        self.ty = ty
-        self.ks = ks
+
+@dataclass
+class FailedConstraintException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    ty: Type
+    ks: Constraint
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
+
+
+@dataclass
+class FailedSubtypingException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    s: Type
+    ty: Type
+
+    def __str__(self):
+        return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
 
 
 def argument_is_typevar(ty: Type):
@@ -110,52 +118,39 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
-def prim_op(t: str) -> Type:
-    i1: Type
-    i2: Type
-    o: Type
-
-    if t in INTEGER_ARITHMETIC_OPERATORS:
-        i1 = i2 = t_int
-        o = t_int
-    elif t in FLOAT_ARITHMETIC_OPERATORS:
-        i1 = i2 = t_float
-        o = t_float
-    elif t in COMPARISON_OPERATORS:
-        i1 = i2 = t_int
-        o = t_bool
-    elif t in LOGICAL_OPERATORS:
-        i1 = i2 = o = t_bool
-    elif t in EQUALITY_OPERATORS:
-        i1 = TypeVar("_op_1")
-        i2 = TypeVar("_op_1")
-        o = t_bool
-    else:
-        print(">>", t)
-        assert False
-
-    return AbstractionType(
-        "x",
-        i1,
-        AbstractionType(
-            "y",
-            i2,
-            RefinedType(
-                "z",
-                o,
+def make_binary_app_type(t: str, ity: BaseType | TypeVar, oty: BaseType | TypeVar) -> Type:
+    """Creates the type of a binary operator"""
+    output = RefinedType(
+        "z",
+        oty,
+        LiquidApp(
+            "==",
+            [
+                LiquidVar("z"),
                 LiquidApp(
-                    "==",
-                    [
-                        LiquidVar("z"),
-                        LiquidApp(
-                            t,
-                            [LiquidVar("x"), LiquidVar("y")],
-                        ),
-                    ],
+                    t,
+                    [LiquidVar("x"), LiquidVar("y")],
                 ),
-            ),
+            ],
         ),
     )
+    appt2 = AbstractionType("y", ity, output)
+    appt1 = AbstractionType("x", ity, appt2)
+    return appt1
+
+
+def prim_op(t: str) -> Type:
+    match t:
+        case "%":
+            return make_binary_app_type(t, t_int, t_int)
+        case "+" | "-" | "*" | "/":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), TypeVar("a")))
+        case "==" | "!=" | ">" | ">=" | "<" | "<=":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), t_bool))
+        case "&&" | "||":
+            return make_binary_app_type(t, t_bool, t_bool)
+        case _:
+            assert False
 
 
 def rename_liquid_term(refinement, old_name, new_name):
@@ -220,6 +215,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
+        if not ty:
+            raise CouldNotGenerateConstraintException(
+                f"Variable {t.name} not in context",
+            )
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             # assert ty.name != t.name
@@ -243,10 +242,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     ],
                 ),
             )
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
-            )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
@@ -267,6 +262,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
+            print(type(ty), "should be abstype")
             raise CouldNotGenerateConstraintException(
                 f"Application {t} is not a function.",
             )
@@ -365,17 +361,13 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         c2 = check(nrctx, t.body, ty)
         c1 = implication_constraint(t.var_name, t1, c1)
         c2 = implication_constraint(t.var_name, t1, c2)
-        print("c1:", c1)
-        print("c2:", c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean",
-            )
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -397,6 +389,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
+        cp_simplified = simplify_constraint(cp)
+        if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 
