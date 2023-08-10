@@ -28,27 +28,17 @@ def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
     # if isinstance(t, TypeVar):
     #    print("d", ctx, t, k, ctx.typevars(), (t.name, BaseKind()))
     wf_norefinement = isinstance(t, BaseType)
-    wf_var = isinstance(t, TypeVar) and (
-        k == StarKind()
-        and ((t.name, k) in ctx.typevars())
-        or (t.name in [v[0] for v in ctx.typevars()])
-    )
-    wf_base = (
-        isinstance(t, RefinedType)
-        and wellformed(ctx, t.type, k)
-        and type_infer_liquid(ctx.with_var(t.name, t.type), t.refinement) == t_bool
-    )
-    wf_fun = (
-        isinstance(t, AbstractionType)
-        and k == StarKind()
-        and wellformed(ctx, t.var_type)
-        and wellformed(ctx.with_var(t.var_name, t.var_type), t.type)
-    )
-    wf_all = (
-        isinstance(t, TypePolymorphism)
-        and k == StarKind()
-        and wellformed(ctx.with_typevar(t.name, t.kind), t.body)
-    )
+    wf_var = isinstance(
+        t, TypeVar) and (k == StarKind() and ((t.name, k) in ctx.typevars()) or
+                         (t.name in [v[0] for v in ctx.typevars()]))
+    wf_base = (isinstance(t, RefinedType)
+               and wellformed(ctx, t.type, k) and type_infer_liquid(
+                   ctx.with_var(t.name, t.type), t.refinement) == t_bool)
+    wf_fun = (isinstance(t, AbstractionType) and k == StarKind()
+              and wellformed(ctx, t.var_type)
+              and wellformed(ctx.with_var(t.var_name, t.var_type), t.type))
+    wf_all = (isinstance(t, TypePolymorphism) and k == StarKind()
+              and wellformed(ctx.with_typevar(t.name, t.kind), t.body))
     return wf_norefinement or wf_var or wf_base or wf_fun or wf_all
 
 
@@ -68,7 +58,8 @@ def inhabited(ctx: TypingContext, ty: Type) -> bool:
             (name, base, cond) = extract_parts(ctx.type)
             assert isinstance(base, BaseType)  # TODO: check if make sense
             ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
-            return entailment_like(ctx.prev, Implication(ctx.name, base, ncond, c))
+            return entailment_like(ctx.prev,
+                                   Implication(ctx.name, base, ncond, c))
         else:
             assert False
 
@@ -81,7 +72,9 @@ def inhabited(ctx: TypingContext, ty: Type) -> bool:
             LiquidLiteralBool(True),
             entailment_like(ctx, constraint),
         )
-        r = smt_valid(wrapper, foralls=[(name, base)])
+        if isinstance(base, BaseType):
+            wrapper = Implication(name, base, LiquidLiteralBool(True), wrapper)
+        r = smt_valid(wrapper)
         return r
     except ZeroDivisionError:
         return False

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
@@ -39,7 +39,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import pretty_print_constraint
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -52,23 +51,41 @@ from aeon.verification.vcs import LiquidConstraint
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
 
-class CouldNotGenerateConstraintException(Exception):
+class TypeCheckingException(Exception):
     pass
 
 
-class FailedConstraintException(Exception):
-    def __init__(self, ctx, t, ty, ks):
-        self.ctx = ctx
-        self.t = t
-        self.ty = ty
-        self.ks = ks
+class CouldNotGenerateConstraintException(TypeCheckingException):
+    pass
+
+
+@dataclass
+class FailedConstraintException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    ty: Type
+    ks: Constraint
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
 
 
+@dataclass
+class FailedSubtypingException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    s: Type
+    ty: Type
+
+    def __str__(self):
+        return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
+
+
 def argument_is_typevar(ty: Type):
-    return isinstance(ty, TypeVar) or isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar)
+    return (isinstance(ty, TypeVar) or isinstance(
+        ty,
+        RefinedType,
+    ) and isinstance(ty.type, TypeVar))
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -87,42 +104,36 @@ def prim_litint(t: int) -> RefinedType:
 
 
 def prim_op(t: str) -> Type:
-    # TODO add suport to floats
-    i1: Type
-    i2: Type
-    o: Type
-    if t in ["+", "*", "-", "/", "%"]:
-        i1 = i2 = t_int
-        o = t_int
-    elif t in ["<", ">", "<=", ">="]:
-        i1 = i2 = t_int
-        o = t_bool
-    elif t in ["&&", "||"]:
-        i1 = i2 = o = t_bool
-    elif t in ["==", "!="]:
-        i1 = TypeVar("_op_1")
-        i2 = TypeVar("_op_2")
-        o = t_bool
-    else:
-        print(t)
-        assert False
-
-    return AbstractionType(
-        "x",
-        i1,
-        AbstractionType(
-            "y",
-            i2,
-            RefinedType(
-                "z",
-                o,
-                LiquidApp(
-                    "==",
-                    [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
-                ),
+    if t in ["&&", "||"]:
+        return AbstractionType(
+            "x",
+            t_bool,
+            AbstractionType("y", t_bool, t_bool),
+        )
+    elif t == "%":
+        return AbstractionType("x", t_int, AbstractionType("y", t_int, t_int))
+    elif t in ["+", "*", "-", "/"]:
+        return TypePolymorphism(
+            "n",
+            BaseKind(),
+            AbstractionType(
+                "x",
+                TypeVar("n"),
+                AbstractionType("y", TypeVar("n"), TypeVar("n")),
             ),
-        ),
-    )
+        )
+    elif t in ["<", ">", "<=", ">=", "==", "!="]:
+        return TypePolymorphism(
+            "n",
+            BaseKind(),
+            AbstractionType(
+                "x",
+                TypeVar("n"),
+                AbstractionType("y", TypeVar("n"), t_bool),
+            ),
+        )
+    else:
+        assert False
 
 
 # patterm matching term
@@ -144,6 +155,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
+        if not ty:
+            raise CouldNotGenerateConstraintException(
+                f"Variable {t.name} not in context", )
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
             assert ty.name != t.name
@@ -156,13 +170,15 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     "&&",
                     [
                         ty.refinement,
-                        LiquidApp("==", [LiquidVar(ty.name), LiquidVar(t.name)]),
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar(ty.name),
+                                LiquidVar(t.name),
+                            ],
+                        ),
                     ],
                 ),
-            )
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
             )
         return (ctrue, ty)
     elif isinstance(t, Application):
@@ -184,7 +200,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
-            raise CouldNotGenerateConstraintException(f"Application {t} is not a function.")
+            print(type(ty), "should be abstype")
+            raise CouldNotGenerateConstraintException(
+                f"Application {t} is not a function.", )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -218,6 +236,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 
 def wrap_checks(f):
+
     def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         k = f(ctx, t, ty)
         ks = simplify_constraint(k)
@@ -250,15 +269,14 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         c2 = check(nrctx, t.body, ty)
         c1 = implication_constraint(t.var_name, t1, c1)
         c2 = implication_constraint(t.var_name, t1, c2)
-        print("c1:", c1)
-        print("c2:", c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
         y = ctx.fresh_var()
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException("If condition not boolean")
+            raise CouldNotGenerateConstraintException(
+                "If condition not boolean", )
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -280,6 +298,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
+        cp_simplified = simplify_constraint(cp)
+        if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 
@@ -288,13 +309,16 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except CouldNotGenerateConstraintException as e:
-        return False
-    except FailedConstraintException as e:
+    except TypeCheckingException as e:
+        print("e", e)  # BUG: check this bug! -k poly
         return False
 
 
-def check_type_errors(ctx: TypingContext, t: Term, ty: Type) -> list[Exception | str]:
+def check_type_errors(
+    ctx: TypingContext,
+    t: Term,
+    ty: Type,
+) -> list[Exception | str]:
     """Checks whether t as type ty in ctx, but returns a list of errors."""
     try:
         constraint = check(ctx, t, ty)
@@ -302,10 +326,13 @@ def check_type_errors(ctx: TypingContext, t: Term, ty: Type) -> list[Exception |
         if r:
             return []
         else:
-            return ["Could not prove typing relation.", f"Context: {ctx}", f"Term: {t}", f"Type: {ty}"]
-    except CouldNotGenerateConstraintException as e:
-        return [e]
-    except FailedConstraintException as e:
+            return [
+                "Could not prove typing relation.",
+                f"Context: {ctx}",
+                f"Term: {t}",
+                f"Type: {ty}",
+            ]
+    except TypeCheckingException as e:
         return [e]
 
 
