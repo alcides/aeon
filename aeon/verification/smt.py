@@ -15,6 +15,7 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
+from z3.z3 import Float32
 from z3.z3 import FP
 from z3.z3 import FPSort
 from z3.z3 import Float64
@@ -35,6 +36,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
+from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Type
@@ -82,21 +84,70 @@ class CanonicConstraint:
         return f"\\forall {self.binders}, {self.pre} => {self.pos}"
 
 
-def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
+def rename_constraint(c: Constraint, old_name: str, new_name: str) -> Constraint:
+    """Renames a binder within the constraint, to make it is unique."""
     if isinstance(c, Conjunction):
-        yield from flatten(c.c1)
-        yield from flatten(c.c2)
+        return Conjunction(rename_constraint(c.c1, old_name, new_name), rename_constraint(c.c2, old_name, new_name))
     elif isinstance(c, Implication):
-        for sub in flatten(c.seq):
+        # If it shadows, leave it.
+        if c.name == new_name:
+            return c
+        else:
+            npred = substitution_in_liquid(c.pred, LiquidVar(new_name), old_name)
+            nseq = rename_constraint(c.seq, old_name, new_name)
+            return Implication(c.name, c.base, npred, nseq)
+    elif isinstance(c, LiquidConstraint):
+        nexpr = substitution_in_liquid(c.expr, LiquidVar(new_name), old_name)
+        return LiquidConstraint(expr=nexpr)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        # If it shadows, leave it.
+        if c.name == new_name:
+            return c
+        else:
+            nseq = rename_constraint(c.seq, old_name, new_name)
+            return UninterpretedFunctionDeclaration(c.name, c.type, nseq)
+    else:
+        assert False
+
+
+def get_new_name(name: str, used_vars: list[str]) -> None | str:
+    """If a new name for a variable is needed, return it, otherwise return
+    None."""
+    if name not in used_vars:
+        return None
+    while name in used_vars:
+        name = name + "_"
+    return name
+
+
+def flatten(c: Constraint, used_vars: list[str]) -> Generator[CanonicConstraint, None, None]:
+    if isinstance(c, Conjunction):
+        yield from flatten(c.c1, used_vars)
+        yield from flatten(c.c2, used_vars)
+    elif isinstance(c, Implication):
+        name = get_new_name(c.name, used_vars)
+        if name:
+            c = rename_constraint(c, c.name, name)
+            assert isinstance(c, Implication)
+        else:
+            name = c.name
+
+        for sub in flatten(c.seq, used_vars + [name]):
             yield CanonicConstraint(
-                binders=sub.binders + [(c.name, c.base)],
+                binders=sub.binders + [(name, c.base)],
                 pre=mk_liquid_and(sub.pre, c.pred),
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
         yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
-        for sub in flatten(c.seq):
+        name = get_new_name(c.name, used_vars)
+        if name:
+            c = rename_constraint(c, c.name, name)
+            assert isinstance(c, UninterpretedFunctionDeclaration)
+        else:
+            name = c.name
+        for sub in flatten(c.seq, used_vars):
             yield CanonicConstraint(
                 binders=sub.binders + [(c.name, c.type)],
                 pre=sub.pre,
@@ -110,18 +161,14 @@ s = Solver()
 (s.set(timeout=200),)
 
 
-def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
+def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
-    print("foralls:", foralls)
-    cons: list[CanonicConstraint] = list(flatten(constraint))
+    cons: list[CanonicConstraint] = list(flatten(constraint, []))
     print("cons:", cons)
 
-    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
     for c in cons:
         s.push()
-        smt_c = translate(c, extra=forall_vars)
-        for _, v in forall_vars:
-            smt_c = ForAll(v, smt_c)
+        smt_c = translate(c)
         s.add(smt_c)
         result = s.check()
         s.pop()
@@ -222,7 +269,10 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
         args = [translate_liq(a, variables) for a in t.args]
 
         if 1 > 0:
-            w = lambda x: x.sort() if hasattr(x, "sort") else type(x)
+
+            def w(x):
+                return x.sort() if hasattr(x, "sort") else type(x)
+
             print("calling liquid", f, [(x, w(x)) for x in args])
 
         return f(*args)
@@ -231,14 +281,12 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
 
 def translate(
     c: CanonicConstraint,
-    extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
-    print("DV:", c.binders)
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders[::-1]
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
-    ] + extra
+    ]
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):

@@ -19,7 +19,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
-# from aeon.verification.smt import smt_valid
+# TODO: rename inner variables
 
 
 def entailment(ctx: TypingContext, c: Constraint):
@@ -33,7 +33,8 @@ def entailment(ctx: TypingContext, c: Constraint):
         if isinstance(ctx.type, AbstractionType):
             return entailment(ctx.prev, c)
         if isinstance(ctx.type, TypePolymorphism):
-            return entailment(ctx.prev, c)  # TODO: check that this is not relevant
+            return entailment(ctx.prev,
+                              c)  # TODO: check that this is not relevant
         else:
             ty: Type = ctx.type
             (name, base, cond) = extract_parts(ty)
@@ -41,8 +42,10 @@ def entailment(ctx: TypingContext, c: Constraint):
             ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
             return entailment(ctx.prev, Implication(ctx.name, base, ncond, c))
     elif isinstance(ctx, TypeBinder):
-        print("TODO: Handle TypeBinder in entailment. The current solution is to ignore.")
-        return entailment(ctx.prev, c)  # TODO
+        print(
+            "TODO: Handle TypeBinder in entailment. The current solution is to ignore."
+        )
+        return entailment(ctx.prev, c)
     elif isinstance(ctx, UninterpretedBinder):
         return entailment(
             ctx.prev,

@@ -105,7 +105,12 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
+    if (
+        isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralString)
+        or isinstance(t, LiquidLiteralFloat)
+    ):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -117,7 +122,7 @@ def contains_horn(t: LiquidTerm) -> bool:
         assert False
 
 
-def contains_horn_constraint(c: Constraint):
+def contains_horn_constraint(c: Constraint) -> bool:
     if isinstance(c, LiquidConstraint):
         return contains_horn(c.expr)
     elif isinstance(c, Conjunction):
@@ -130,7 +135,7 @@ def contains_horn_constraint(c: Constraint):
         assert False
 
 
-def wellformed_horn(predicate: LiquidTerm):
+def wellformed_horn(predicate: LiquidTerm) -> bool:
     if not contains_horn(predicate):
         return True
     elif (
