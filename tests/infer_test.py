@@ -2,6 +2,7 @@ from __future__ import annotations
 from aeon.core.types import t_int
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
+from aeon.prelude.prelude import typing_vars
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.elaboration import elaborate
@@ -11,10 +12,14 @@ from aeon.typechecking.typeinfer import sub
 from aeon.utils.ctx_helpers import build_context
 
 
-def tt(e: str, t: str, vars: dict[str, str] = {}):
-    ctx = build_context({k: parse_type(v) for (k, v) in vars.items()})
-    p = elaborate(ctx, parse_term(e))
-    return check_type(ctx, p, parse_type(t))
+def tt(e: str, t: str, vars: None | dict[str, str] = None):
+    if vars is None:
+        ctx = build_context(typing_vars)
+    else:
+        ctx = build_context({k: parse_type(v) for (k, v) in vars.items()})
+    expected_type = parse_type(t)
+    p = elaborate(ctx, parse_term(e), expected_type)
+    return check_type(ctx, p, expected_type)
 
 
 def test_one_is_int():

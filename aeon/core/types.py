@@ -142,6 +142,7 @@ class RefinedType(Type):
         self.name = name
         self.type = ty
         self.refinement = refinement
+        assert isinstance(ty, BaseType) or isinstance(ty, TypeVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"

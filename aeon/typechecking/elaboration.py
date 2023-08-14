@@ -132,10 +132,10 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         unify(ctx, sup.var_type, sub.var_type)
         unify(ctx, sub.type, sup.type)
         return []
-    elif isinstance(sub, TypeVar) and isinstance(
+    elif (isinstance(sub, TypeVar) and isinstance(
             sup,
             TypeVar,
-    ) and sup.name == sup.name:
+    ) and sup.name == sup.name):
         return []
     else:
         raise UnificationException(
@@ -210,7 +210,8 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
 
     elif isinstance(t, Var):
         x: Type | None = ctx.type_of(t.name)
-        assert x is not None
+        if x is None:
+            raise UnificationException(f"Undefined variable {t}")
         while isinstance(x, TypePolymorphism):
             u = UnificationVar(ctx.fresh_var())
             x = type_substitution(x.body, x.name, u)
@@ -223,6 +224,12 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
     elif isinstance(t, Annotation):
         ann = elaborate_check(ctx, t.expr, t.type)
         return (ann, t.type)
+
+    elif isinstance(t, Abstraction):
+        u = UnificationVar(ctx.fresh_var())
+        nctx = ctx.with_var(t.var_name, u)
+        (b, bt) = elaborate_synth(nctx, t.body)
+        return (t, AbstractionType(t.var_name, u, bt))
 
     elif isinstance(t, TypeApplication):
         (inner, innert) = elaborate_synth(ctx, t.body)
@@ -502,8 +509,8 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         assert False
 
 
-def elaborate(ctx: TypingContext, e: Term) -> Term:
+def elaborate(ctx: TypingContext, e: Term, expected_type: Type = top) -> Term:
     e2 = elaborate_foralls(e)
-    e3 = elaborate_check(ctx, e2, top)
+    e3 = elaborate_check(ctx, e2, expected_type)
     e4 = elaborate_remove_unification(ctx, e3)
     return e4

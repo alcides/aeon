@@ -108,7 +108,22 @@ def prim_op(t: str) -> Type:
         return AbstractionType(
             "x",
             t_bool,
-            AbstractionType("y", t_bool, t_bool),
+            AbstractionType(
+                "y",
+                t_bool,
+                RefinedType(
+                    "z",
+                    t_bool,
+                    LiquidApp(
+                        "==",
+                        [
+                            LiquidVar("z"),
+                            LiquidApp(t, [LiquidVar("x"),
+                                          LiquidVar("y")])
+                        ],
+                    ),
+                ),
+            ),
         )
     elif t == "%":
         return AbstractionType("x", t_int, AbstractionType("y", t_int, t_int))
@@ -119,7 +134,22 @@ def prim_op(t: str) -> Type:
             AbstractionType(
                 "x",
                 TypeVar("n"),
-                AbstractionType("y", TypeVar("n"), TypeVar("n")),
+                AbstractionType(
+                    "y",
+                    TypeVar("n"),
+                    RefinedType(
+                        "z",
+                        TypeVar("n"),
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar("z"),
+                                LiquidApp(t, [LiquidVar("x"),
+                                              LiquidVar("y")])
+                            ],
+                        ),
+                    ),
+                ),
             ),
         )
     elif t in ["<", ">", "<=", ">=", "==", "!="]:
@@ -129,7 +159,22 @@ def prim_op(t: str) -> Type:
             AbstractionType(
                 "x",
                 TypeVar("n"),
-                AbstractionType("y", TypeVar("n"), t_bool),
+                AbstractionType(
+                    "y",
+                    TypeVar("n"),
+                    RefinedType(
+                        "z",
+                        t_bool,
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar("z"),
+                                LiquidApp(t, [LiquidVar("x"),
+                                              LiquidVar("y")])
+                            ],
+                        ),
+                    ),
+                ),
             ),
         )
     else:
@@ -300,6 +345,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         cp = sub(s, ty)
         cp_simplified = simplify_constraint(cp)
         if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+            print("failed", cp)
             raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
@@ -308,6 +354,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
+        print("Constraint", t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except TypeCheckingException as e:
         print("e", e)  # BUG: check this bug! -k poly
