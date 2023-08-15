@@ -190,7 +190,7 @@ def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
             ),
         )
     elif isinstance(ty, RefinedType):
-        innert = remove_unions_and_intersections(ctx, ty)
+        innert = remove_unions_and_intersections(ctx, ty.type)
         assert isinstance(innert, BaseType) or isinstance(innert, TypeVar)
         return RefinedType(name=ty.name, ty=innert, refinement=ty.refinement)
     else:
@@ -204,6 +204,15 @@ def wrap_unification(ctx: TypingContext, t: Term, us: list[Type]) -> Term:
     return nt
 
 
+def ensure_not_polymorphism(ctx: TypingContext, t: Term,
+                            ty: Type) -> tuple[Term, Type]:
+    while isinstance(ty, TypePolymorphism):
+        u = UnificationVar(ctx.fresh_var())
+        ty = type_substitution(ty.body, ty.name, u)
+        t = TypeApplication(t, u)
+    return t, ty
+
+
 def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
     if isinstance(t, Literal):
         return t, t.type
@@ -212,10 +221,6 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
         x: Type | None = ctx.type_of(t.name)
         if x is None:
             raise UnificationException(f"Undefined variable {t}")
-        while isinstance(x, TypePolymorphism):
-            u = UnificationVar(ctx.fresh_var())
-            x = type_substitution(x.body, x.name, u)
-            t = TypeApplication(t, u)
         return (t, x)
 
     elif isinstance(t, Hole):
@@ -233,10 +238,14 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
 
     elif isinstance(t, TypeApplication):
         (inner, innert) = elaborate_synth(ctx, t.body)
-        assert isinstance(inner, TypeAbstraction)
         assert isinstance(innert, TypePolymorphism)
-        nty = type_substitution(innert.body, innert.name, t.type)
-        return (TypeApplication(inner, nty), nty)
+
+        u = UnificationVar(ctx.fresh_var())
+        u.upper.append(t.type)
+        u.lower.append(t.type)
+
+        nty = type_substitution(innert.body, innert.name, u)
+        return (TypeApplication(inner, t.type), nty)
     else:
         raise UnificationException(f"Could not infer the type of {t}")
 
@@ -294,6 +303,11 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     else:
         (c, s) = elaborate_synth(ctx, t)
+        if isinstance(
+                s, TypePolymorphism) and not isinstance(ty, TypePolymorphism):
+            u = UnificationVar(ctx.fresh_var())
+            c = TypeApplication(c, u)
+            s = type_substitution(s.body, s.name, u)
         unify(ctx, s, ty)
         return c
 
@@ -332,12 +346,12 @@ def replace_unification_variables(
     unions: list[Union] = []
     intersections: list[Intersection] = []
 
-    def go(ctx: TypingContext, ty: Type, polarity: bool):
+    def go(ctx: TypingContext, ty: Type, polarity: bool) -> Type:
         """The recursive part of the function."""
         if isinstance(ty, BaseType):
-            return (ty, [])
+            return ty
         elif isinstance(ty, TypeVar):
-            return (ty, [])
+            return ty
         elif isinstance(ty, AbstractionType):
             return AbstractionType(
                 ty.var_name,
@@ -459,11 +473,19 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         if isinstance(nt, Top):
             return TypeApplication(t.body, nt)
         else:
-            assert isinstance(nt, BaseType) or isinstance(nt, TypeVar)
-            new_var = ctx.fresh_var()
-            ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
-            new_type = RefinedType(new_var, nt, ref)
-            return TypeApplication(t.body, new_type)
+            if isinstance(nt, BaseType) or isinstance(nt, TypeVar):
+                new_var = ctx.fresh_var()
+                ref = LiquidHornApplication("k",
+                                            [(LiquidVar(new_var), str(nt))])
+                new_type = RefinedType(new_var, nt, ref)
+                return TypeApplication(t.body, new_type)
+            elif isinstance(nt, RefinedType):
+                ref = LiquidHornApplication(
+                    "k", [(LiquidVar(nt.name), str(nt.type))])
+                new_type = RefinedType(nt.name, nt.type, ref)
+                return TypeApplication(t.body, new_type)
+            else:
+                assert False
 
     elif isinstance(t, Abstraction):
         return Abstraction(

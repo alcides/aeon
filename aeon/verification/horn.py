@@ -196,7 +196,8 @@ def build_initial_assignment(c: Constraint) -> Assignment:
     holes = obtain_holes_constraint(c)
     assign: dict[str, list[LiquidTerm]] = {}
     for h in holes:
-        assign[h.name] = list(build_possible_assignment(h))
+        if h.name not in assign:
+            assign[h.name] = list(build_possible_assignment(h))
     return assign
 
 
@@ -285,9 +286,11 @@ def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> Liqu
 
 def apply_liquid(assign: Assignment, c: LiquidTerm) -> LiquidTerm:
     if isinstance(c, LiquidHornApplication):
-        assert c.name in assign
-        ne = assign[c.name]
-        return fill_horn_arguments(c, merge_assignments(ne))
+        if c.name in assign:
+            ne = assign[c.name]
+            return fill_horn_arguments(c, merge_assignments(ne))
+        else:
+            return c
     elif isinstance(c, LiquidApp):
         return LiquidApp(c.fun, [apply_liquid(assign, ci) for ci in c.args])
     else:
@@ -321,21 +324,18 @@ def extract_components_of_imp(
 
 def weaken(assign, c: Constraint) -> Assignment:
     (vs, (p, h)) = extract_components_of_imp(c)
-
-    # TODO: double check this assert
     assert isinstance(h, LiquidHornApplication)
     assert h.name in assign
     current_rep = assign[h.name]
 
     def keep(q: LiquidTerm) -> bool:
-        # TODO: double check this assert
         assert isinstance(h, LiquidHornApplication)
         qp = fill_horn_arguments(h, q)
         nc = constraint_builder(vs, imp(apply(assign, p), end(qp)))
         return smt_valid(nc)
 
     qsp = [q for q in current_rep if keep(q)]
-    return {h.name: qsp}
+    return {k: assign[k] if k != h.name else qsp for k in assign}
 
 
 def fixpoint(cs: list[Constraint], assign) -> Assignment:
@@ -343,7 +343,8 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
     if not ncs:
         return assign
     else:
-        return fixpoint(cs, weaken(assign, ncs[0]))
+        weakened_assignment = weaken(assign, ncs[0])
+        return fixpoint(cs, weakened_assignment)
 
 
 def solve(c: Constraint) -> bool:
@@ -360,6 +361,6 @@ def solve(c: Constraint) -> bool:
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
     v = apply(subst, merged_csps)
-    print("v", v, smt_valid(v))
+    print("validate", v, smt_valid(v))
     print("Note: I am debugging here. It seesm that this is false -> true")
     return smt_valid(v)
