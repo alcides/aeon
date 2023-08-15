@@ -169,7 +169,9 @@ class TypePolymorphism(Type):
 def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
     assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
         t, TypeVar)
-    if isinstance(t, RefinedType):
+    if isinstance(t, TypeVar):
+        return ("_", t_int, LiquidLiteralBool(True))
+    elif isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
         return (

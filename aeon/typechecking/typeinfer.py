@@ -354,7 +354,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
-        print("Constraint", t, ty, "|-", constraint)
+        print("Constraint", ctx, t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except TypeCheckingException as e:
         print("e", e)  # BUG: check this bug! -k poly

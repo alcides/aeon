@@ -356,6 +356,6 @@ def solve(c: Constraint) -> bool:
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
     v = apply(subst, merged_csps)
-    print("v", v, smt_valid(v))
+    print("validate", v, smt_valid(v))
     print("Note: I am debugging here. It seesm that this is false -> true")
     return smt_valid(v)
