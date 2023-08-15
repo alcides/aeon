@@ -18,6 +18,13 @@ class LiquidHole(LiquidTerm):
         return isinstance(other, self.__class__)
 
 
+def is_safe_for_application(x: LiquidTerm):
+    return (isinstance(x, LiquidVar) or isinstance(x, LiquidLiteralBool)
+            or isinstance(x, LiquidLiteralFloat)
+            or isinstance(x, LiquidLiteralInt)
+            or isinstance(x, LiquidLiteralString))
+
+
 class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: Sequence[tuple[LiquidTerm, str]]
@@ -31,7 +38,7 @@ class LiquidHornApplication(LiquidTerm):
         use (ensure_liqterm(a), b) for (a, b) in argtypes."""
         self.name = name
         self.argtypes = argtypes or []
-        assert all(isinstance(a, LiquidVar) for (a, b) in self.argtypes)
+        assert all(is_safe_for_application(a) for (a, b) in self.argtypes)
         # [(ensure_liqterm(a), b) for (a, b) in (argtypes or [])]
 
     def __repr__(self):
