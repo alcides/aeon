@@ -338,7 +338,7 @@ def wrap_checks(f):
 
 
 # patterm matching term
-@wrap_checks  # DEMO1
+# @wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(
         ty,
@@ -400,7 +400,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
-        print("Constraint", t, ty, "|-", constraint)
+        print("Constraint", ctx, t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except CouldNotGenerateConstraintException:
         return False

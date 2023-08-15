@@ -132,7 +132,6 @@ def flatten(c: Constraint, used_vars: list[str]) -> Generator[CanonicConstraint,
             assert isinstance(c, Implication)
         else:
             name = c.name
-
         for sub in flatten(c.seq, used_vars + [name]):
             yield CanonicConstraint(
                 binders=sub.binders + [(name, c.base)],
