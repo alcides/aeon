@@ -200,7 +200,7 @@ def test_sumTo():
     sumTo_def = """
         let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) =
         \\n ->
-            let b : {k:Bool | n <= 0} = n <= 0 in
+            let b : {k:Bool | k == (n <= 0)} = n <= 0 in
             if b then 0 else (
                 let n_minus_1 : {nm1:Int | nm1 == (n - 1) } = (n - 1) in
                 let sum_n_minus_1 : {s:Int| (s >= 0) && (s <= n_minus_1)} = sum n_minus_1 in

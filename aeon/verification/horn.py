@@ -188,6 +188,7 @@ def build_possible_assignment(hole: LiquidHornApplication):
 
 def build_initial_assignment(c: Constraint) -> Assignment:
     holes = obtain_holes_constraint(c)
+    print("holes of", c, holes)
     assign: dict[str, list[LiquidTerm]] = {}
     for h in holes:
         assign[h.name] = list(build_possible_assignment(h))
