@@ -15,7 +15,6 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
-from aeon.core.types import SoftRefinedType
 from aeon.core.types import t_int
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
@@ -24,13 +23,15 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.synthesis_grammar.fitness import extract_fitness_from_soft_constraint
+from aeon.synthesis_grammar.fitness import extract_fitness_from_definition
+from aeon.synthesis_grammar.fitness import Fitness
+from aeon.synthesis_grammar.fitness import transform_fitness_into_definition
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
+def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext, Fitness | None]:
     ctx = build_context(typing_vars)
     ectx = EvaluationContext(evaluation_vars)
 
@@ -53,7 +54,14 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
         type_decls = import_p.type_decls + type_decls
 
     d: Definition
-    fitness_function: Term = None
+
+    synth_d = next((item for item in defs if item.name.startswith("synth")), None)
+    fitness = None
+    if synth_d:
+        fitness = extract_fitness_from_definition(synth_d)
+        fitness_d = transform_fitness_into_definition(fitness)
+        defs.append(fitness_d)
+
     for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
             assert isinstance(d.type, AbstractionType)
@@ -67,24 +75,16 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
             )
         else:
             ty = d.type
-            fitness_function = (
-                extract_fitness_from_soft_constraint(d.type) if isinstance(d.type, SoftRefinedType) else None
-            )
-
-            if isinstance(d.type, SoftRefinedType):
-                ty = d.type.hard_constraint if d.type.hard_constraint else d.type.type
-
             body = d.body
             for a, t in d.args[::-1]:
                 ty = AbstractionType(a, t, ty)
                 body = Abstraction(a, body)
             prog = Rec(d.name, ty, body, prog)
-    # TODO add the fitness function to the prog before main function
 
     tydeclname: TypeDecl
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
-    return (prog, ctx, ectx)
+    return ((prog, ctx, ectx), (fitness))
 
 
 def handle_import(path: str) -> Program:
