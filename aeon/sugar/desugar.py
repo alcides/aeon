@@ -84,7 +84,7 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext, Fitness
     tydeclname: TypeDecl
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
-    return ((prog, ctx, ectx), (fitness))
+    return prog, ctx, ectx, fitness
 
 
 def handle_import(path: str) -> Program:
