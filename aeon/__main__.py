@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from geneticengine.core.grammar import Grammar
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 
 from aeon.backend.evaluator import eval
@@ -44,10 +45,26 @@ def process_code(core: bool, code: str) -> tuple:
     if core:
         context = build_context(typing_vars)
         evaluation_ctx = EvaluationContext(evaluation_vars)
-        return parse_term(code), context, evaluation_ctx
+        return parse_term(code), context, evaluation_ctx, None
     else:
         prog: Program = parse_program(code)
         return desugar(prog)
+
+
+def synthesize_solution(
+    synthesizer: Synthesizer,
+    file_path: str,
+    grammar: Grammar,
+    minimize: bool | list[bool],
+    **kwargs,
+):
+    return synthesizer.synthesize(
+        file_path=file_path,
+        grammar=grammar,
+        representation=TreeBasedRepresentation,
+        minimize=minimize,
+        **kwargs,
+    )
 
 
 if __name__ == "__main__":
@@ -62,28 +79,24 @@ if __name__ == "__main__":
 
     if not check_and_log_type_errors(ctx, p, top):
         synthesizer = Synthesizer(ctx, p, top, ectx)
-        if len(synthesizer.holes) > 1:
-            if fitness:
-                minimize = fitness.get_minimize()
-                grammar = synthesizer.get_grammar()
 
-                best_solution = synthesizer.synthesize(
-                    file_path=args.filename,
-                    grammar=grammar,
-                    representation=TreeBasedRepresentation,
-                    minimize=minimize,
-                    # minimize=[True for _ in range(200)],  # TODO: get a more elegant solution for this??
-                    max_depth=8,
-                    population_size=20,
-                    n_elites=1,
-                    target_fitness=0,
-                    timer_stop_criteria=True,
-                    timer_limit=60,
-                )
-                print(
-                    f"Best solution: {best_solution.genotype} ",
-                )
-            else:
-                raise Exception("Fitness not defined")
-        else:
+        if len(synthesizer.holes) <= 1:
             eval(p, ectx)
+            exit()
+
+        grammar = synthesizer.get_grammar()
+
+        minimize = fitness.get_minimize() if fitness else True
+
+        common_synthesize_args = {
+            "max_depth": 8,
+            "population_size": 20,
+            "n_elites": 1,
+            "target_fitness": 0,
+            "timer_stop_criteria": True,
+            "timer_limit": 60,
+        }
+
+        best_solution = synthesize_solution(synthesizer, args.filename, grammar, minimize, **common_synthesize_args)
+
+        print(f"Best solution: {best_solution.genotype}")
