@@ -57,27 +57,33 @@ if __name__ == "__main__":
     export_log(args.log, args.logfile, args.filename)
 
     aeon_code = read_file(args.filename)
-    p, ctx, ectx = process_code(args.core, aeon_code)
+    p, ctx, ectx, fitness = process_code(args.core, aeon_code)
     logger.info(p)
 
     if not check_and_log_type_errors(ctx, p, top):
         synthesizer = Synthesizer(ctx, p, top, ectx)
         if len(synthesizer.holes) > 1:
-            grammar = synthesizer.get_grammar()
-            best_solution = synthesizer.synthesize(
-                file_path=args.filename,
-                grammar=grammar,
-                representation=TreeBasedRepresentation,
-                minimize=[True for _ in range(200)],  # TODO: get a more elegant solution for this??
-                max_depth=8,
-                population_size=20,
-                n_elites=1,
-                target_fitness=0,
-                timer_stop_criteria=True,
-                timer_limit=60,
-            )
-            print(
-                f"Best solution: {best_solution.genotype} ",
-            )
+            if fitness:
+                minimize = fitness.get_minimize()
+                grammar = synthesizer.get_grammar()
+
+                best_solution = synthesizer.synthesize(
+                    file_path=args.filename,
+                    grammar=grammar,
+                    representation=TreeBasedRepresentation,
+                    minimize=minimize,
+                    # minimize=[True for _ in range(200)],  # TODO: get a more elegant solution for this??
+                    max_depth=8,
+                    population_size=20,
+                    n_elites=1,
+                    target_fitness=0,
+                    timer_stop_criteria=True,
+                    timer_limit=60,
+                )
+                print(
+                    f"Best solution: {best_solution.genotype} ",
+                )
+            else:
+                raise Exception("Fitness not defined")
         else:
             eval(p, ectx)
