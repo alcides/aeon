@@ -12,11 +12,6 @@ import Math;
 import PSB2;
 type Unit;
 
-#constants
-def constant_f0 : Float = 0.0;
-def constant_f1 : Float = 1.0;
-def constant_f2 : Float = 2.0;
-
 def bounciness_index : (starting_height: {x:Float | 1 <= x && x <= 100} ) -> ( bounce_height:{y:Float | 1 <= y && y <= 100} ) -> Float = \a -> \b-> b /. a;
 
 def calculate_distance_helper : (bounciness_index: Float) -> (height: Float) -> (n: Int) ->  (distance: Float) -> Float =
@@ -30,11 +25,11 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
 #(?hole:Float)
 #}
 
-def synth (a:Float , b:Float , c:Int)  : Float  { (?hole:Float)}
-
 def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
+
+def synth (a:Float , b:Float , c:Int)  : Float  { (?hole:Float)}
 
 def fitness () : Float  {
      mean_absolute_error (get_bb_synth_values input_list synth) (expected_values)
