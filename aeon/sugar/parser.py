@@ -39,11 +39,14 @@ class TreeToSugar(TreeToCore):
     def def_fun(self, args):
         if len(args) == 4:
             return Definition(args[0], args[1], args[2], args[3])
-        macros = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        if isinstance(args[0], Macro):
+            macros = [args[0]]
+        else:
+            macros = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
         return Definition(args[1], args[2], args[3], args[4], macros)
 
     def macro(self, args):
-        return Macro(args[1], args[2])
+        return Macro(args[0], args[1])
 
     def empty_list(self, args):
         return []
