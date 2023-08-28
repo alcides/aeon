@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from aeon.annotations import annotations
+from aeon.backend.evaluator import eval
+from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
 from aeon.core.types import BaseType
 from aeon.core.types import Type
 from aeon.sugar.program import Definition
+
+real_eval = eval
 
 
 class Fitness:
@@ -21,14 +25,24 @@ class Fitness:
         if len(self.minimize) == 1:
             return self.minimize[0]
         else:
-            # TODO: handle multiobjective problem fitness
-            return True
+            return self.minimize
 
 
 def extract_fitness_from_definition(d: Definition) -> Fitness:
-    macros = d.macros
-    minimize_list = [True if m.name == "minimize" else False for m in macros if m.name in ["minimize", "maximize"]]
-    expression_list = [(m.name, m.expression) for m in macros]
+    macro_list = d.macros
+    minimize_list = []
+    if any(macro.name in ("minimize", "maximize") for macro in macro_list):
+        minimize_list = [
+            True if m.name == "minimize" else False for m in macro_list if m.name in ["minimize", "maximize"]
+        ]
+    elif any(macro.name in ("multi_maximize", "multi_minimize") for macro in macro_list):
+        assert len(macro_list) == 1
+        multi_annotation = macro_list[0]
+        minimize_list_length = 200  # TODO: get this value dynamically
+        minimize = True if multi_annotation.name == "multi_minimize" else False
+        minimize_list = [minimize for _ in range(minimize_list_length)]
+    assert len(minimize_list) > 0
+    expression_list = [(m.name, m.expression) for m in macro_list]
     fitness_args = d.args
 
     return Fitness(minimize_list, fitness_args, expression_list)
