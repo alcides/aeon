@@ -31,60 +31,82 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext, Fitness | None]:
-    ctx = build_context(typing_vars)
-    ectx = EvaluationContext(evaluation_vars)
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Fitness | None]
 
-    prog: Term
+
+def desugar(p: Program) -> ProgramComponents:
+    ctx, ectx = build_context(typing_vars), EvaluationContext(evaluation_vars)
+    prog = determine_main_function(p)
+
+    defs, type_decls = p.definitions, p.type_decls
+    defs, type_decls = handle_imports(p.imports, defs, type_decls)
+
+    fitness = extract_and_add_fitness(defs)
+
+    prog = update_program_and_context(prog, defs, ctx, type_decls)
+
+    for tydeclname in type_decls:
+        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+
+    return prog, ctx, ectx, fitness
+
+
+def determine_main_function(p: Program) -> Term:
     if "main" in [d.name for d in p.definitions]:
-        prog = Application(Var("main"), Literal(1, type=t_int))
-    else:
-        # prog = Application(Var("print"), Hole("main"))
-        prog = Hole("main")
+        return Application(Var("main"), Literal(1, type=t_int))
+    return Hole("main")
 
-    defs: list[Definition] = p.definitions
-    type_decls: list[TypeDecl] = p.type_decls
-    imports: list[ImportAe] = p.imports
 
-    imp: ImportAe
+def handle_imports(
+    imports: list[ImportAe],
+    defs: list[Definition],
+    type_decls: list[TypeDecl],
+) -> tuple[list[Definition], list[TypeDecl]]:
     for imp in imports:
-        import_p: Program = handle_import(imp.path)
+        import_p = handle_import(imp.path)
+        defs += import_p.definitions
+        type_decls += import_p.type_decls
+    return defs, type_decls
 
-        defs = import_p.definitions + defs
-        type_decls = import_p.type_decls + type_decls
 
-    d: Definition
-
+def extract_and_add_fitness(defs: list[Definition]) -> Fitness | None:
     synth_d = next((item for item in defs if item.name.startswith("synth")), None)
-    fitness = None
     if synth_d:
         fitness = extract_fitness_from_definition(synth_d)
         fitness_d = transform_fitness_into_definition(fitness)
         defs.append(fitness_d)
+        return fitness
+    return None
 
-    for d in defs[::-1]:
+
+def update_program_and_context(
+    prog: Term,
+    defs: list[Definition],
+    ctx: TypingContext,
+    type_decls: list[TypeDecl],
+) -> Term:
+    for d in reversed(defs):
         if d.body == Var("uninterpreted"):
-            assert isinstance(d.type, AbstractionType)
-            d_type = d.type
-            for tyname in type_decls:
-                d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
-            ctx = UninterpretedBinder(
-                ctx,
-                d.name,
-                d_type,
-            )
+            ctx = handle_uninterpreted(ctx, d, type_decls)
         else:
-            ty = d.type
-            body = d.body
-            for a, t in d.args[::-1]:
-                ty = AbstractionType(a, t, ty)
-                body = Abstraction(a, body)
-            prog = Rec(d.name, ty, body, prog)
+            prog = bind_program_to_rec(prog, d)
+    return prog
 
-    tydeclname: TypeDecl
-    for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
-    return prog, ctx, ectx, fitness
+
+def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[TypeDecl]) -> TypingContext:
+    assert isinstance(d.type, AbstractionType)
+    d_type = d.type
+    for tyname in type_decls:
+        d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
+    return UninterpretedBinder(ctx, d.name, d_type)
+
+
+def bind_program_to_rec(prog: Term, d: Definition) -> Term:
+    ty, body = d.type, d.body
+    for arg_name, arg_type in reversed(d.args):
+        ty = AbstractionType(arg_name, arg_type, ty)
+        body = Abstraction(arg_name, body)
+    return Rec(d.name, ty, body, prog)
 
 
 def handle_import(path: str) -> Program:
