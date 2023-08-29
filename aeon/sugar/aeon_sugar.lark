@@ -14,7 +14,7 @@ type_decl : "type" ID ";"                            -> type_decl
 def : "def" ID ":" type "=" expression ";"                  -> def_cons
     | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
 
-soft_constraint : "@" ID "(" expression ")"                 -> macro
+soft_constraint : "@" ID "(" expression ("," expression)* ")"                 -> macro
 
 
 args :                          -> empty_list
