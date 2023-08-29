@@ -42,7 +42,7 @@ def extract_fitness_from_definition(d: Definition) -> Fitness:
         minimize = True if multi_annotation.name == "multi_minimize" else False
         minimize_list = [minimize for _ in range(minimize_list_length)]
     assert len(minimize_list) > 0
-    expression_list = [(m.name, m.expression) for m in macro_list]
+    expression_list = [(m.name, m.expressions) for m in macro_list]
     fitness_args = d.args
 
     return Fitness(minimize_list, fitness_args, expression_list)
