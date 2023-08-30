@@ -34,11 +34,11 @@ class TypeDecl(Node):
 @dataclass
 class Macro(Node):
     name: str
-    expressions: list[Term]
+    macro_args: list[Term]
 
     def __repr__(self):
-        expressions = ", ".join([f"{term}" for (term) in self.expressions])
-        return f"@{self.name}({expressions})"
+        macro_args = ", ".join([f"{term}" for (term) in self.macro_args])
+        return f"@{self.name}({macro_args})"
 
 
 @dataclass

@@ -48,6 +48,9 @@ class TreeToSugar(TreeToCore):
     def macro(self, args):
         return Macro(args[0], args[1])
 
+    def macro_args(self, args):
+        return args
+
     def empty_list(self, args):
         return []
 
