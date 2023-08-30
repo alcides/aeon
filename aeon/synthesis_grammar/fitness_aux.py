@@ -48,7 +48,7 @@ def get_holes_info_and_fitness_type(
             func_name = t.var_name
 
         if t.var_name == "fitness":
-            assert isinstance(t.var_type, BaseType)
+            assert isinstance(t.var_type, BaseType), f"t.vartype = {type(t.var_type)}"
             fitness_type = t.var_type
 
         ctx = ctx.with_var(t.var_name, t.var_type)
