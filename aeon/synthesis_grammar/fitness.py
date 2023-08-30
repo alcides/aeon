@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from aeon.annotations import annotations
-from aeon.backend.evaluator import eval
-from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
 from aeon.core.types import BaseType
 from aeon.core.types import Type
@@ -12,14 +10,12 @@ real_eval = eval
 
 
 class Fitness:
-    args: list[tuple[str, Type]]
+    definition: Definition
     minimize: list[bool]
-    expressions: list[tuple[str, Term]]
 
-    def __init__(self, minimize, args, expressions):
+    def __init__(self, definition: Definition, minimize: list[bool]):
+        self.definition = definition
         self.minimize = minimize
-        self.args = args
-        self.expressions = expressions
 
     def get_minimize(self):
         if len(self.minimize) == 1:
