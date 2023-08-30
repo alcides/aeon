@@ -5,8 +5,7 @@ from aeon.core.terms import Term
 from aeon.core.types import BaseType
 from aeon.core.types import Type
 from aeon.sugar.program import Definition
-
-real_eval = eval
+from aeon.sugar.program import Macro
 
 
 class Fitness:
@@ -24,33 +23,45 @@ class Fitness:
             return self.minimize
 
 
-def extract_fitness_from_definition(d: Definition) -> Fitness:
-    macro_list = d.macros
+def extract_fitness_from_synth(d: Definition) -> Fitness:
+    fitness_args: list[tuple[str, Type]] = d.args
+    macro_list: list[Macro] = d.macros
+
     minimize_list = []
-    if any(macro.name in ("minimize", "maximize") for macro in macro_list):
-        minimize_list = [
-            True if m.name == "minimize" else False for m in macro_list if m.name in ["minimize", "maximize"]
-        ]
-    elif any(macro.name in ("multi_maximize", "multi_minimize") for macro in macro_list):
-        assert len(macro_list) == 1
-        multi_annotation = macro_list[0]
-        minimize_list_length = 200  # TODO: get this value dynamically
-        minimize = True if multi_annotation.name == "multi_minimize" else False
-        minimize_list = [minimize for _ in range(minimize_list_length)]
+    fitness_terms = []
+    for macro in macro_list:
+        annotation_func = getattr(annotations, macro.name)
+        expr_term, minimize = annotation_func(macro.macro_args)
+
+        if minimize is not None:
+            add_to_list(minimize, minimize_list)
+        add_to_list(expr_term, fitness_terms)
+
     assert len(minimize_list) > 0
-    expression_list = [(m.name, m.expressions) for m in macro_list]
-    fitness_args = d.args
+    assert len(fitness_terms) > 0
 
-    return Fitness(minimize_list, fitness_args, expression_list)
+    fitness_return_type = BaseType("Float") if len(minimize_list) == 1 else BaseType("List")
+
+    fitness_function = generate_definition(fitness_args, fitness_return_type, fitness_terms)
+
+    return Fitness(fitness_function, minimize_list)
 
 
-def transform_fitness_into_definition(f: Fitness) -> Definition:
-    fitness_return_type = BaseType("Float") if len(f.minimize) == 1 else BaseType("List")
-    d = None
-    # TODO: adapt this to work with more than one expression
-    for expression in f.expressions:
-        annotation_func = getattr(annotations, expression[0])
-        d = Definition("fitness", [], fitness_return_type, annotation_func(expression[1]))
+def add_to_list(item: list[bool] | bool, my_list: list[bool]):
+    try:
+        my_list += item if isinstance(item, list) else [item]
+    except TypeError as e:
+        raise TypeError(f"An error occurred while adding to the list: {e}")
 
-    assert d, "Definition Term not defined"
-    return d
+    return my_list
+
+
+def generate_definition(
+    fitness_args: list[tuple[str, Type]],
+    fitness_return_type: BaseType,
+    fitness_terms: list[Term],
+) -> Definition:
+    if len(fitness_terms) == 1:
+        return Definition(name="fitness", args=[], type=fitness_return_type, body=fitness_terms[0])
+    else:
+        raise Exception("Not yet supported")
