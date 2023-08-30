@@ -64,8 +64,8 @@ def handle_imports(
 ) -> tuple[list[Definition], list[TypeDecl]]:
     for imp in imports:
         import_p = handle_import(imp.path)
-        defs += import_p.definitions
-        type_decls += import_p.type_decls
+        defs = import_p.definitions + defs
+        type_decls = import_p.type_decls + type_decls
     return defs, type_decls
 
 
