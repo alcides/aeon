@@ -23,9 +23,8 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.synthesis_grammar.fitness import extract_fitness_from_definition
+from aeon.synthesis_grammar.fitness import extract_fitness_from_synth
 from aeon.synthesis_grammar.fitness import Fitness
-from aeon.synthesis_grammar.fitness import transform_fitness_into_definition
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
@@ -72,9 +71,8 @@ def handle_imports(
 def extract_and_add_fitness(defs: list[Definition]) -> Fitness | None:
     synth_d = next((item for item in defs if item.name.startswith("synth")), None)
     if synth_d:
-        fitness = extract_fitness_from_definition(synth_d)
-        fitness_d = transform_fitness_into_definition(fitness)
-        defs.append(fitness_d)
+        fitness = extract_fitness_from_synth(synth_d)
+        defs.append(fitness.definition)
         return fitness
     return None
 
