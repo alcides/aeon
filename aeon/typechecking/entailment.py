@@ -12,12 +12,11 @@ from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
-from aeon.verification.helpers import pretty_print_constraint
+from aeon.verification.helpers import show_constraint
 from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from loguru import logger
 
 # from aeon.verification.smt import smt_valid
 
@@ -26,8 +25,7 @@ def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
         if not r:
-            logger.log("CONSTRAINT", "Could not show constrain:")
-            logger.log("CONSTRAINT", pretty_print_constraint(c))  # DEMO1
+            show_constraint(c) # DEMO1
             # print(c)
         return r
     elif isinstance(ctx, VariableBinder):
