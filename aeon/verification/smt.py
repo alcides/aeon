@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 from typing import Generator
-from typing import Tuple
 
 from z3 import Function
 from z3 import Int

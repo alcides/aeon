@@ -23,7 +23,7 @@ def setup_logger():
     return logger
 
 
-def export_log(logs: list, export_file: bool = False, logfile_name: str = None):
+def export_log(logs: list, export_file: bool = False, logfile_name: str = ""):
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
         return logger.add(logfile, filter=levels_filter(logs))

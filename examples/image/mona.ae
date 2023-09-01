@@ -39,12 +39,12 @@ def random_rect2:(x:ImageDraw) -> ImageDraw= \x -> (Image_draw_rectangle(x)(rand
 
 
 def multiple_random_rectangles(count: Int, img:ImageDraw) : ImageDraw {
-    if (count <= 0 ) then (img) 
+    if (count <= 0 ) then (img)
        else (multiple_random_rectangles(c-1)(random_rect2(img)))
 
 }
 
 
-def multiple_random_rectangles2:(count: Int)-> (x:ImageDraw) -> ImageDraw = 
-\c -> \img -> if (c <= 0 ) then (img) 
+def multiple_random_rectangles2:(count: Int)-> (x:ImageDraw) -> ImageDraw =
+\c -> \img -> if (c <= 0 ) then (img)
     else (multiple_random_rectangles2(c-1)(random_rect2(img)));

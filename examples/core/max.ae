@@ -1,4 +1,4 @@
-# TODO: resolve AssertationError - TypePolymorphism 
+# TODO: resolve AssertationError - TypePolymorphism
 let max : (forall a:B, (x:a) -> (y:a) -> a) = \x -> \y -> if x < y then y else x in
 let client : {v : Int | 0 < v } = let r = max 0 5 in r + 1 in
 client
