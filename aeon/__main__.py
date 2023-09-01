@@ -158,15 +158,15 @@ def main() -> None:
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
-<<<<<<< HEAD
-        incomplete_functions: list[tuple[
-            str, list[str], ]] = incomplete_functions_and_holes(
-                typing_ctx,
-                core_ast_anf,
-            )
-=======
-        incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
->>>>>>> f2d5d08 (Type Elaboration without errors)
+        incomplete_functions: list[
+            tuple[
+                str,
+                list[str],
+            ]
+        ] = incomplete_functions_and_holes(
+            typing_ctx,
+            core_ast_anf,
+        )
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
