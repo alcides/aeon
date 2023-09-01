@@ -13,7 +13,7 @@ from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
 from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
-from aeon.logger.logger import setup_logger
+from aeon.logger.logger import setup_logger, export_log
 
 
 def parse_arguments():
@@ -27,12 +27,12 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def read_file(filename):
+def read_file(filename: str) -> str:
     with open(filename) as file:
         return file.read()
 
 
-def process_code(core, code):
+def process_code(core: bool, code: str) -> tuple:
     if core:
         context = build_context(typing_vars)
         evaluation_ctx = EvaluationContext(evaluation_vars)
@@ -44,7 +44,9 @@ def process_code(core, code):
 
 if __name__ == "__main__":
     args = parse_arguments()
-    logger = setup_logger(args.log, args.logfile, args.filename)
+    logger = setup_logger()
+    export_log(args.log, args.logfile, args.filename)
+
     aeon_code = read_file(args.filename)
     p, ctx, ectx = process_code(args.core, aeon_code)
     logger.info(p)

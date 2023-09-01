@@ -10,17 +10,20 @@ def levels_filter(levels):
     return filter
 
 
-def setup_logger(logs: str = "", export_file = False, logfile_name: str = None):
+def setup_logger():
     logger.level("TYPECHECKER", no=35, color="<magenta>", icon="🔍")
     logger.level("CONSTRAINT", no=36, color="<cyan>", icon="🔒")
 
     # Setup the logger
     logger.remove()
     #logger.add(sys.stderr, level="DEBUG")
+    return logger
+
+
+def export_log(logs: str = "", export_file: bool = False, logfile_name: str = None):
+
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
-        logger.add(logfile, filter=levels_filter(logs))
+        return logger.add(logfile, filter=levels_filter(logs))
     else:
-        logger.add(sys.stderr, filter=levels_filter(logs))
-
-    return logger
+        return logger.add(sys.stderr, filter=levels_filter(logs))
