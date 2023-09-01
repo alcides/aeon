@@ -26,6 +26,12 @@ from aeon.verification.vcs import UninterpretedFunctionDeclaration
 def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
+<<<<<<< HEAD
+=======
+        if not r:
+            show_constraint(c) # DEMO1
+            # print(c)
+>>>>>>> 83bf53a (logger message for constraints)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

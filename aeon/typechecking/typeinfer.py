@@ -43,6 +43,7 @@ from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
+from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -50,6 +51,7 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
+from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -223,7 +225,6 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
     return RefinedType(new_name, ty.type, refinement)
 
 
-
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     if isinstance(t, Literal) and t.type == t_unit:
@@ -363,25 +364,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         assert False
 
 
-<<<<<<< HEAD
-def wrap_checks(f):
-    """Decorate that performs intermediate checks to the SMT solver."""
-
-    def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
-        k = f(ctx, t, ty)
-        ks = simplify_constraint(k)
-        if ks == LiquidConstraint(LiquidLiteralBool(False)):
-            raise FailedConstraintException(ctx, t, ty, ks)
-        else:
-            return k
-
-    return check_
-
-
-# patterm matching term
-# @wrap_checks  # DEMO1
-=======
->>>>>>> d2f2d27 (Type Elaboration without errors)
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(
         ty,
@@ -442,13 +424,9 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-<<<<<<< HEAD
     except CouldNotGenerateConstraintException:
         return False
     except FailedConstraintException:
-=======
-    except TypeCheckingException:
->>>>>>> d2f2d27 (Type Elaboration without errors)
         return False
 
 
