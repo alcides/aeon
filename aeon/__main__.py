@@ -20,9 +20,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
-    parser.add_argument("-l", "--log", nargs='+', default="",
-                        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
-                             "\nWARNINGS \nERROR \nCRITICAL")
+    parser.add_argument(
+        "-l",
+        "--log",
+        nargs="+",
+        default="",
+        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT " "\nWARNINGS \nERROR \nCRITICAL",
+    )
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
     return parser.parse_args()
 
