@@ -1,5 +1,5 @@
-# Given an integer n, return "Fizz" if n is divisible by 3, 
-# "Buzz" if n is divisible by 5, "FizzBuzz" if n is 
+# Given an integer n, return "Fizz" if n is divisible by 3,
+# "Buzz" if n is divisible by 5, "FizzBuzz" if n is
 # divisible by 3 and 5, and a string version of n if none of
 # the above hold (convert integer to string).
 # input : integer in [1, 1000000]

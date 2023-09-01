@@ -23,7 +23,7 @@ class ImportAe(Node):
 
 
 @dataclass
-class TypeDecl(Node): 
+class TypeDecl(Node):
     name: str
 
     def __repr__(self):
