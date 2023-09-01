@@ -27,7 +27,11 @@ def setup_logger():
     return logger
 
 
+<<<<<<< HEAD
 def export_log(logs: list, export_file: bool = False, logfile_name: str | None = None):
+=======
+def export_log(logs: list, export_file: bool = False, logfile_name: str = ""):
+>>>>>>> bcfd1bc (pre-commit run --all-files)
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
         return logger.add(logfile, filter=levels_filter(logs))
