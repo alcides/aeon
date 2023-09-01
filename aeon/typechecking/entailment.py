@@ -13,7 +13,7 @@ from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
-from aeon.verification.helpers import pretty_print_constraint
+from aeon.verification.helpers import show_constraint
 from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -26,9 +26,8 @@ def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
         if not r:
-            print("Could not show constrain:")
-            print(pretty_print_constraint(c))
-            print(c)
+            show_constraint(c) # DEMO1
+            # print(c)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

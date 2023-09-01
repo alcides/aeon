@@ -112,6 +112,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.idea/
 
 # Spyder project settings
 .spyderproject
@@ -144,3 +145,4 @@ experiments/ty_*/
 path/
 .DS_Store
 logs/
+csv/

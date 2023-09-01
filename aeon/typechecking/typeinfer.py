@@ -39,6 +39,7 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
+from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -46,6 +47,7 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
+from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -371,7 +373,9 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except TypeCheckingException:
+    except CouldNotGenerateConstraintException:
+        return False
+    except FailedConstraintException:
         return False
 
 
@@ -408,3 +412,20 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
+
+
+def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
+    errors = check_type_errors(ctx, p, top)
+    if errors:
+        log_typechecker_errors(errors)
+        return True
+    return False
+
+
+def log_typechecker_errors(errors):
+    logger.log("TYPECHECKER", "-------------------------------")
+    logger.log("TYPECHECKER", "+  Type Checking Error        +")
+    for error in errors:
+        logger.log("TYPECHECKER", "-------------------------------")
+        logger.log("TYPECHECKER", error)
+    logger.log("TYPECHECKER", "-------------------------------")
