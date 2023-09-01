@@ -23,6 +23,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from loguru import logger
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -342,8 +343,5 @@ def pretty_print_constraint(c: Constraint) -> str:
 
 
 def show_constraint(c: Constraint):
-    try:
-        logger.log("CONSTRAINT", "Could not show constrain:")
-        logger.log("CONSTRAINT", pretty_print_constraint(c))
-    except ValueError:
-        pass
+    print("Could not show constrain:")
+    print(pretty_print_constraint(c))

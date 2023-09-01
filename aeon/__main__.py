@@ -27,25 +27,23 @@ from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
+from aeon.typechecking.typeinfer import check_and_log_type_errors
+from aeon.utils.ctx_helpers import build_context
+from aeon.logger.logger import setup_logger, export_log
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "filename",
-        help="name of the aeon files to be synthesized",
-    )
-    parser.add_argument(
-        "--core",
-        action="store_true",
-        help="synthesize a aeon core file",
-    )
+
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
