@@ -10,8 +10,10 @@ def levels_filter(levels):
     return filter
 
 
-def setup_logger(logs: str, logfile_name: str = None):
+def setup_logger(logs: str = "", logfile_name: str = None):
     logger.level("TYPECHECKER", no=35, color="<magenta>", icon="🔍")
+    logger.level("CONSTRAINT", no=36, color="<cyan>", icon="🔒")
+
     # Setup the logger
     logger.remove()
     #logger.add(sys.stderr, level="DEBUG")
