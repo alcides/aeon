@@ -73,7 +73,7 @@ class LiquidLiteralInt(LiquidTerm):
 
     def __hash__(self) -> int:
         return hash(self.value)
-    
+
 
 class LiquidLiteralFloat(LiquidTerm):
     value: float

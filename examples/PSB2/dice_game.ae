@@ -1,10 +1,10 @@
 # Dice Game (PE) Peter has an n sided die and Colin has an m
 # sided die. If they both roll their dice at the same time, return
 # the probability that Peter rolls strictly higher than Colin.
-# input : 2 integers in [1, 1000] 
+# input : 2 integers in [1, 1000]
 # output : float
 # -- working--
-# need some work in aeon 
+# need some work in aeon
 
 def mult ( n:Int , m:Int ) : Int { n * m }
 

@@ -16,7 +16,7 @@ def test_anf():
         def gcd ( n:Int, z:Int) : Int {
             if z == 0 then n else (gcd(z)(n % z))
         }
-        
+
         def main (x:Top) : Int {
             gcd 15 5
         }
