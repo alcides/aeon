@@ -1,11 +1,5 @@
 import List;
-
-def random : Unit = native_import "random";
-
-def generateList : List = native "lambda num_samples=100, max_length=10: [[random.randint(0, 100) for _ in range(random.randint(0, max_length))]for _ in range(num_samples)]" ;
-
-#change this to use the reduce function from List library
-def forAllLists : (function:(a: List) -> Bool) -> Float = native "lambda f:  (sum(1 for lst in generateList() if f(lst)) / len(generateList())) * 100";
+import PropTesting;
 
 def reverse (xs: List) : List{
     List_reversed(xs)
