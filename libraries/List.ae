@@ -4,6 +4,8 @@ def functools : Bottom = native_import "functools";
 
 def List_size: (l:List) -> Int = uninterpreted;
 
+def List_length: (l:List) -> Int = native "lambda list: len(list)";
+
 def List_new : {x:List | List_size(x) == 0} = native "[]" ;
 
 def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
@@ -34,7 +36,7 @@ def List_extends: (l:List)->(l2:List)-> {x:List | List_size(x) == (List_size(l) 
 
 def List_sort: (l:List) -> {x:List | List_size(x) == List_size(l) } = native "lambda xs: sorted(xs, key=lambda x: x)";
 
-def List_reverse: (l: List)-> {x:List | List_size(x) == List_size(l) } = native "lambda xs : reverse(xs)";
+def List_reversed: (l: List)-> {x:List | List_size(x) == List_size(l) } = native "lambda xs : xs[::-1]";
 
 def List_count:(l:List) -> (i:Int) -> Int= native "lambda xs: lambda x: xs.count(x)";
 

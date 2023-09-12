@@ -61,23 +61,24 @@ if __name__ == "__main__":
     logger.info(p)
 
     if not check_and_log_type_errors(ctx, p, top):
-        synthesizer = Synthesizer(ctx, p, top, ectx)
-        if len(synthesizer.holes) > 1:
-            grammar = synthesizer.get_grammar()
-            best_solution = synthesizer.synthesize(
-                file_path=args.filename,
-                grammar=grammar,
-                representation=TreeBasedRepresentation,
-                minimize=[True for _ in range(200)],  # TODO: get a more elegant solution for this??
-                max_depth=8,
-                population_size=20,
-                n_elites=1,
-                target_fitness=0,
-                timer_stop_criteria=True,
-                timer_limit=60,
-            )
-            print(
-                f"Best solution: {best_solution.genotype} ",
-            )
-        else:
-            eval(p, ectx)
+        eval(p, ectx)
+        # synthesizer = Synthesizer(ctx, p, top, ectx)
+        # if len(synthesizer.holes) > 1:
+        #     grammar = synthesizer.get_grammar()
+        #     best_solution = synthesizer.synthesize(
+        #         file_path=args.filename,
+        #         grammar=grammar,
+        #         representation=TreeBasedRepresentation,
+        #         minimize=[True for _ in range(200)],  # TODO: get a more elegant solution for this??
+        #         max_depth=8,
+        #         population_size=20,
+        #         n_elites=1,
+        #         target_fitness=0,
+        #         timer_stop_criteria=True,
+        #         timer_limit=60,
+        #     )
+        #     print(
+        #         f"Best solution: {best_solution.genotype} ",
+        #     )
+        # else:
+        #     eval(p, ectx)
