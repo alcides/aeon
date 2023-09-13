@@ -54,7 +54,8 @@ def smt_base_type(ty: Type) -> str | None:
 def fresh(context: TypingContext, ty: Type) -> Type:
     if isinstance(ty, BaseType):
         return ty
-    elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
+    elif isinstance(ty, RefinedType) and isinstance(ty.refinement,
+                                                    LiquidHornApplication):
         id = context.fresh_var()
         v = f"v_{id}"
         args: list[tuple[LiquidTerm, str]] = []
@@ -85,7 +86,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
     if isinstance(t, LiquidHornApplication):
         return [t]
-    elif isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
+    elif isinstance(t, LiquidLiteralBool) or isinstance(
+            t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -110,7 +112,8 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
+    if isinstance(t, LiquidLiteralInt) or isinstance(
+            t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -138,12 +141,9 @@ def contains_horn_constraint(c: Constraint) -> bool:
 def wellformed_horn(predicate: LiquidTerm) -> bool:
     if not contains_horn(predicate):
         return True
-    elif (
-        isinstance(predicate, LiquidApp)
-        and predicate.fun == "&&"
-        and not contains_horn(predicate.args[0])
-        and isinstance(predicate.args[1], LiquidHornApplication)
-    ):
+    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
+          and not contains_horn(predicate.args[0])
+          and isinstance(predicate.args[1], LiquidHornApplication)):
         return True
     elif isinstance(predicate, LiquidHornApplication):
         return True
@@ -228,7 +228,8 @@ def build_forall_implication(
     return cf
 
 
-def simpl(vs: list[tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[str, Type]], p: LiquidTerm,
+          c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
@@ -271,7 +272,8 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
     assert False
 
 
-def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
+def fill_horn_arguments(h: LiquidHornApplication,
+                        candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
@@ -280,8 +282,6 @@ def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> Liqu
 
 def apply_liquid(assign: Assignment, c: LiquidTerm) -> LiquidTerm:
     if isinstance(c, LiquidHornApplication):
-        print(c.name)
-        print(assign.keys())
         if c.name in assign:
             ne = assign[c.name]
             return fill_horn_arguments(c, merge_assignments(ne))
@@ -320,8 +320,6 @@ def extract_components_of_imp(
 
 def weaken(assign, c: Constraint) -> Assignment:
     (vs, (p, h)) = extract_components_of_imp(c)
-
-    # BUG: There is a bug here!
     assert isinstance(h, LiquidHornApplication)
     assert h.name in assign
     current_rep = assign[h.name]
@@ -333,13 +331,11 @@ def weaken(assign, c: Constraint) -> Assignment:
         return smt_valid(nc)
 
     qsp = [q for q in current_rep if keep(q)]
-    return {h.name: qsp}
+    return {k: assign[k] if k != h.name else qsp for k in assign}
 
 
 def fixpoint(cs: list[Constraint], assign) -> Assignment:
-    print("B", assign.keys(), cs)
     ncs = [c for c in cs if not smt_valid(apply(assign, c))]
-    print("A")
     if not ncs:
         return assign
     else:

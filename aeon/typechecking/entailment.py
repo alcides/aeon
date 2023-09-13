@@ -47,10 +47,6 @@ def entailment(ctx: TypingContext, c: Constraint):
                 )
             elif isinstance(ctx.type, TypeVar):
                 assert False  # TypeVars are being replaced by Int
-                return entailment(
-                    ctx.prev,
-                    c,
-                )  # TODO: Double check this one as well.
             else:
                 assert False
 
