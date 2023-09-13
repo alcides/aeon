@@ -43,3 +43,8 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+    - name: Run Aeon Sugar Tests
+      run: |
+        for file in examples/tests/sugar/*; do
+          python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
+        done
