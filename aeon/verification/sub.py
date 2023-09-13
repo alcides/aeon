@@ -58,7 +58,6 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     elif isinstance(t, TypeVar):
         return implication_constraint(name, BaseType("Int"), c)
         # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
-
     elif isinstance(t, TypePolymorphism):
         return implication_constraint(t.name, t.body, c)
     assert False
