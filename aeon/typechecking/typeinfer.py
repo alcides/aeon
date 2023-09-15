@@ -229,6 +229,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         return (ctrue, bottom)
     else:
         print("Unhandled:", t)
+        print("Unhandled:", type(t))
         assert False
 
 
