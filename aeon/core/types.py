@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
+from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -143,7 +144,8 @@ class RefinedType(Type):
         self.name = name
         self.type = ty
         self.refinement = refinement
-        assert isinstance(ty, BaseType) or isinstance(ty, TypeVar)
+        # Disabled because of unification var
+        # assert isinstance(ty, BaseType) or isinstance(ty, TypeVar) or isinstance(ty, UnificationVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -190,8 +192,12 @@ def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
     if isinstance(t, BaseType):
         return True
+    elif isinstance(t, Top):
+        return True
+    elif isinstance(t, Bottom):
+        return True
     elif isinstance(t, RefinedType):
-        return t.refinement == LiquidHole()
+        return t.refinement == LiquidHole() or isinstance(t.refinement, LiquidHornApplication)
     elif isinstance(t, AbstractionType):
         return is_bare(t.var_type) and is_bare(t.type)
     elif isinstance(t, TypePolymorphism):
@@ -201,6 +207,7 @@ def is_bare(t: Type) -> bool:
 
 
 def base(ty: Type) -> Type:
+    """Returns the base type of a Refined Type"""
     if isinstance(ty, RefinedType):
         return ty.type
     return ty

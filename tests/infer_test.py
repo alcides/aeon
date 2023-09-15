@@ -197,7 +197,7 @@ def test_sumTo():
             let b : {k:Bool | k == (n <= 0)} = n <= 0 in
             if b then 0 else (
                 let n_minus_1 : {nm1:Int | nm1 == (n - 1) } = (n - 1) in
-                let sum_n_minus_1 : {s:Int| (s >= 0) && (s <= n_minus_1)} = sum n_minus_1 in
+                let sum_n_minus_1 : {s:Int| (s >= 0) && (n_minus_1 <= s)} = sum n_minus_1 in
                 n + sum_n_minus_1
             ) in 1
     """

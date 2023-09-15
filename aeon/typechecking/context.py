@@ -4,7 +4,7 @@ from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, BaseKind, BaseType, Bottom, RefinedType, Top, TypePolymorphism, TypeVar
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
@@ -26,6 +26,30 @@ class TypingContext(ABC):
             self.global_counter = 0
         self.global_counter += 1
         return f"fresh_{self.global_counter}"
+
+    def kind_of(self, ty) -> Kind | None:
+        if isinstance(ty, BaseType):
+            return BaseKind()
+        elif isinstance(ty, Top):
+            return BaseKind()
+        elif isinstance(ty, Bottom):
+            return BaseKind()
+        elif isinstance(ty, RefinedType) and not isinstance(ty.type, TypeVar):
+            return BaseKind()
+        elif isinstance(ty, TypePolymorphism):
+            return StarKind()
+        elif isinstance(ty, AbstractionType):
+            return StarKind()
+        elif isinstance(ty, TypeVar):
+            for t, k in self.typevars():
+                if t == ty:
+                    return k
+            return None
+        elif isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar):
+            assert (ty.type, BaseKind()) in self.typevars()
+            return BaseKind()
+        else:
+            assert False
 
     @abstractmethod
     def typevars(self) -> list[tuple[str, Kind]]:
