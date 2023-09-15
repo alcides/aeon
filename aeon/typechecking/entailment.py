@@ -28,7 +28,7 @@ def entailment(ctx: TypingContext, c: Constraint):
         if not r:
             print("Could not show constrain:")
             print(pretty_print_constraint(c))
-            # print(c)
+            print(c)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

@@ -352,11 +352,10 @@ def solve(c: Constraint) -> bool:
     csp = [c for c in cs if not has_k_head(c)]
     assignment0: Assignment = build_initial_assignment(c)
     subst = fixpoint(csk, assignment0)
+
     merged_csps: Constraint
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
     v = apply(subst, merged_csps)
-    print("validate", v, smt_valid(v))
-    print("Note: I am debugging here. It seesm that this is false -> true")
     return smt_valid(v)
