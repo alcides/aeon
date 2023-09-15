@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import liquid_free_vars
+from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -185,8 +185,13 @@ def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
     if isinstance(t, BaseType):
         return True
+    elif isinstance(t, Top):
+        return True
+    elif isinstance(t, Bottom):
+        return True
     elif isinstance(t, RefinedType):
-        return t.refinement == LiquidHole()
+        return t.refinement == LiquidHole() or isinstance(
+            t.refinement, LiquidHornApplication)
     elif isinstance(t, AbstractionType):
         return is_bare(t.var_type) and is_bare(t.type)
     elif isinstance(t, TypePolymorphism):

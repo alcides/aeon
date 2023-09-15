@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidApp, LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
@@ -23,7 +23,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import args_size_of_type
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
@@ -68,6 +68,25 @@ class FailedConstraintException(TypeCheckingException):
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
+
+
+@dataclass
+class TypeApplicationOnlyWorksOnBareTypesException(TypeCheckingException):
+    t: Term
+    ty: Type
+
+    def __str__(self):
+        return f"Cannot use bare types in type applications (type {self.ty} in {self.tt})."
+
+
+@dataclass
+class WrongKindInTypeApplication(TypeCheckingException):
+    t: Term
+    expected: Kind
+    actual: Kind | None
+
+    def __str__(self):
+        return f"Wrong kind in {self.t}. Expected {self.expected}, got {self.actual}."
 
 
 @dataclass
@@ -245,7 +264,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
-            print(type(ty), "should be abstype")
+            print(type(ty), "should be abstype in ", t)
             raise CouldNotGenerateConstraintException(
                 f"Application {t} is not a function.", )
     elif isinstance(t, Let):
@@ -268,10 +287,20 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         c = check(ctx, t.expr, ty)
         return (c, ty)
     elif isinstance(t, TypeApplication):
+        if not is_bare(t.type):
+            # Type Application only works on bare types.
+            raise TypeApplicationOnlyWorksOnBareTypesException(t, t.type)
         (c, tabs) = synth(ctx, t.body)
         assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
         ty = fresh(ctx, t.type)
         s = type_substitution(tabs.body, tabs.name, ty)
+        k = ctx.kind_of(ty)
+        if isinstance(ty, RefinedType) and isinstance(ty.refinement,
+                                                      LiquidHornApplication):
+            ty = ty.type
+            k = ctx.kind_of(ty)
+        if k is None or k != tabs.kind:
+            raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
         return (c, s)
     elif isinstance(t, Hole):
         return (ctrue, bottom)
@@ -354,7 +383,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
-        print("Constraint", ctx, t, ty, "|-", constraint)
         return entailment(ctx, constraint)
     except TypeCheckingException as e:
         print("e", e)  # BUG: check this bug! -k poly
