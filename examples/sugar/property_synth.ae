@@ -1,0 +1,14 @@
+import Prop_Testing;
+
+def negativeInt (x: Int) : Int {-x}
+
+def int_property_testing (y: Int) : Float {
+    property_base_test : (x:Int) -> Bool = \x-> (x + negativeInt(x)) == 0;
+    test_result = forAllInts( property_base_test );
+    test_result
+}
+
+@property( forAllInts(\x-> (x + synth_int(x)) == 0 ))
+def synth_int (x: Int) :Int {
+    (?hole:Int)
+}
