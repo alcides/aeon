@@ -41,7 +41,7 @@ def desugar(p: Program) -> ProgramComponents:
 
     minimize_flag = extract_and_add_fitness(defs)
 
-    prog = update_program_and_context(prog, defs, ctx, type_decls)
+    ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
@@ -88,13 +88,13 @@ def update_program_and_context(
     defs: list[Definition],
     ctx: TypingContext,
     type_decls: list[TypeDecl],
-) -> Term:
-    for d in reversed(defs):
+) -> tuple[TypingContext, Term]:
+    for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
             ctx = handle_uninterpreted(ctx, d, type_decls)
         else:
             prog = bind_program_to_rec(prog, d)
-    return prog
+    return ctx, prog
 
 
 def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[TypeDecl]) -> TypingContext:
@@ -107,7 +107,7 @@ def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[Typ
 
 def bind_program_to_rec(prog: Term, d: Definition) -> Term:
     ty, body = d.type, d.body
-    for arg_name, arg_type in reversed(d.args):
+    for arg_name, arg_type in d.args[::-1]:
         ty = AbstractionType(arg_name, arg_type, ty)
         body = Abstraction(arg_name, body)
     return Rec(d.name, ty, body, prog)
