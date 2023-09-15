@@ -24,13 +24,12 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.synthesis_grammar.fitness import extract_fitness_from_synth
-from aeon.synthesis_grammar.fitness import Fitness
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Fitness | None]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, list[bool] | None]
 
 
 def desugar(p: Program) -> ProgramComponents:
@@ -40,14 +39,14 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
-    fitness = extract_and_add_fitness(defs)
+    minimize_flag = extract_and_add_fitness(defs)
 
     prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
 
-    return prog, ctx, ectx, fitness
+    return prog, ctx, ectx, minimize_flag
 
 
 def determine_main_function(p: Program) -> Term:
@@ -68,12 +67,12 @@ def handle_imports(
     return defs, type_decls
 
 
-def extract_and_add_fitness(defs: list[Definition]) -> Fitness | None:
+def extract_and_add_fitness(defs: list[Definition]) -> list[bool] | None:
     synth_d = next((item for item in defs if item.name.startswith("synth")), None)
     if synth_d:
-        fitness = extract_fitness_from_synth(synth_d)
-        defs.append(fitness.definition)
-        return fitness
+        fitness_function, minimize_flag = extract_fitness_from_synth(synth_d)
+        defs.append(fitness_function)
+        return minimize_flag
     return None
 
 

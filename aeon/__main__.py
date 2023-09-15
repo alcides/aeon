@@ -16,6 +16,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.synthesis_grammar.fitness import get_minimize
 from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     export_log(args.log, args.logfile, args.filename)
 
     aeon_code = read_file(args.filename)
-    p, ctx, ectx, fitness = process_code(args.core, aeon_code)
+    p, ctx, ectx, minimize_flag = process_code(args.core, aeon_code)
     logger.info(p)
 
     if not check_and_log_type_errors(ctx, p, top):
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 
         grammar = synthesizer.get_grammar()
 
-        minimize = fitness.get_minimize() if fitness else True
+        minimize = get_minimize(minimize_flag) if minimize_flag else True
 
         common_synthesize_args = {
             "max_depth": 8,
