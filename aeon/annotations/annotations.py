@@ -32,7 +32,14 @@ def multi_maximize(terms: list[Term]) -> tuple[Term, list[bool]]:
     return handle_term(terms[0], [False] * terms[1].value)
 
 
-def property(terms: list[Term]) -> tuple[Term, list[bool]]:
+def property(terms: list[Term]) -> tuple[Term, bool]:
     assert len(terms) == 1
 
     return handle_term(terms[0], False)
+
+
+def properties(terms: list[Term]) -> tuple[Term, list[bool]]:
+    assert len(terms) > 1
+
+    return handle_mutiple_terms(terms, [False] * len(terms))
+    pass
