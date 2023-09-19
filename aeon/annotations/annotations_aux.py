@@ -51,29 +51,27 @@ def _transform_to_fitness_term(term: Let) -> Term:
 
 
 def _transform_to_aeon_list(handled_terms: list[Term]):
-    return_list_terms = []
-    for rec in handled_terms:
-        assert isinstance(rec, Rec) and isinstance(rec.body, Application)
-        return_list_terms.append(rec.body)
+    return_list_terms = [
+        rec.body for rec in handled_terms if isinstance(rec, Rec) and isinstance(rec.body, Application)
+    ]
 
+    # TODO: fix bug : ((List_append_float ((List_append_float (List_append_float List_new)) (forAllInts _anf_3))) (forAllInts _anf_6))));
     return_list = Application(Var("List_append_float"), Var("List_new"))
-    for return_list_term in return_list_terms:
-        return_list = Application(Application(Var("List_append_float"), return_list), return_list_term)
+    for term in return_list_terms:
+        return_list = Application(Application(Var("List_append_float"), return_list), term)
 
     nested_rec = return_list
-    for i in range(len(handled_terms) - 1, -1, -1):
-        current_rec = handled_terms[i]
+    for current_rec in reversed(handled_terms):
         nested_rec = Rec(current_rec.var_name, current_rec.var_type, current_rec.var_value, nested_rec)
 
     return nested_rec
 
 
-def handle_mutiple_terms(terms: list[Term], minimize_flag: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
-    handled_terms: list[Term] = []
-    for term, min_flag in zip(terms, minimize_flag):
-        handled_terms.append(handle_term(term, min_flag)[0])
+def handle_mutiple_terms(terms: list[Term], minimize_flags: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
+    handled_terms = [handle_term(term, flag)[0] for term, flag in zip(terms, minimize_flags)]
+
     fitness_body = _transform_to_aeon_list(handled_terms)
-    return fitness_body, minimize_flag
+    return fitness_body, minimize_flags
 
 
 def get_abstraction_type(term: Term) -> AbstractionType:
