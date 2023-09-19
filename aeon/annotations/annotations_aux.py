@@ -39,13 +39,8 @@ def _handle_let(term: Let, minimize_flag: bool | list[bool]) -> tuple[Term, bool
 
 def _transform_to_fitness_term(term: Let) -> Term:
     abs_type = get_abstraction_type(term.body.fun)
-    var_name_for_return = f"{term.body.fun}_return"
 
-    fitness_return = Let(
-        var_name=var_name_for_return,
-        var_value=Application(arg=Var(f"{term.var_name}"), fun=Var(f"{term.body.fun.name}")),
-        body=Var(var_name_for_return),
-    )
+    fitness_return = Application(arg=Var(f"{term.var_name}"), fun=Var(f"{term.body.fun.name}"))
 
     return Rec(
         var_name=f"{term.var_name}",
