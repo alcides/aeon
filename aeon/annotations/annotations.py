@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from aeon.annotations.annotations_aux import handle_mutiple_terms
 from aeon.annotations.annotations_aux import handle_term
 from aeon.core.terms import Literal
 from aeon.core.terms import Term
@@ -42,4 +43,3 @@ def properties(terms: list[Term]) -> tuple[Term, list[bool]]:
     assert len(terms) > 1
 
     return handle_mutiple_terms(terms, [False] * len(terms))
-    pass

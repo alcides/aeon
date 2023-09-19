@@ -55,32 +55,11 @@ def _transform_to_fitness_term(term: Let) -> Term:
     )
 
 
-def handle_term(term: Term, minimize_flag: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
-    if isinstance(term, Let):
-        if isinstance(term.body, Application):
-            if isinstance(term.var_value, Abstraction):
-                abs_type: AbstractionType = get_abstraction_type(term.body.fun)
-
-                fitness_return = Let(
-                    var_name=f" {term.body.fun}_return",
-                    var_value=Application(arg=Var(f"{term.var_name}"), fun=Var(f"{term.body.fun.name}")),
-                    body=Var(f" {term.body.fun}_return"),
-                )
-
-                fitness_term = Rec(
-                    var_name=f"{term.var_name}",
-                    var_type=abs_type,
-                    var_value=term.var_value,
-                    body=fitness_return,
-                )
-
-                return fitness_term, minimize_flag
-
-        return term, minimize_flag
-    elif isinstance(term, Var):
-        # TODO: handle Var type
-        pass
-    raise Exception(f"Term not handled by annotation: {type(term)}")
+def handle_mutiple_terms(terms: list[Term], minimize_flag: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
+    handled_terms = []
+    for term, min_flag in terms, minimize_flag:
+        handled_terms.append(handle_term(term, min_flag))
+    pass
 
 
 def get_abstraction_type(term: Term) -> AbstractionType:
