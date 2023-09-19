@@ -50,11 +50,30 @@ def _transform_to_fitness_term(term: Let) -> Term:
     )
 
 
+def _transform_to_aeon_list(handled_terms: list[Term]):
+    return_list_terms = []
+    for rec in handled_terms:
+        assert isinstance(rec, Rec) and isinstance(rec.body, Application)
+        return_list_terms.append(rec.body)
+
+    return_list = Application(Var("List_append_float"), Var("List_new"))
+    for return_list_term in return_list_terms:
+        return_list = Application(Application(Var("List_append_float"), return_list), return_list_term)
+
+    nested_rec = return_list
+    for i in range(len(handled_terms) - 1, -1, -1):
+        current_rec = handled_terms[i]
+        nested_rec = Rec(current_rec.var_name, current_rec.var_type, current_rec.var_value, nested_rec)
+
+    return nested_rec
+
+
 def handle_mutiple_terms(terms: list[Term], minimize_flag: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
-    handled_terms = []
-    for term, min_flag in terms, minimize_flag:
-        handled_terms.append(handle_term(term, min_flag))
-    pass
+    handled_terms: list[Term] = []
+    for term, min_flag in zip(terms, minimize_flag):
+        handled_terms.append(handle_term(term, min_flag)[0])
+    fitness_body = _transform_to_aeon_list(handled_terms)
+    return fitness_body, minimize_flag
 
 
 def get_abstraction_type(term: Term) -> AbstractionType:
