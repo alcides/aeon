@@ -56,12 +56,13 @@ def _transform_to_aeon_list(handled_terms: list[Term]):
     ]
 
     # TODO: fix bug : ((List_append_float ((List_append_float (List_append_float List_new)) (forAllInts _anf_3))) (forAllInts _anf_6))));
-    return_list = Application(Var("List_append_float"), Var("List_new"))
+    # ( (List_append_float( (List_append_float List_new) (forAllInts _anf_3)) ) (forAllInts _anf_6) )
+    return_aeon_list = Var("List_new")
     for term in return_list_terms:
-        return_list = Application(Application(Var("List_append_float"), return_list), term)
+        return_aeon_list = Application(Application(Var("List_append_float"), return_aeon_list), term)
 
-    nested_rec = return_list
-    for current_rec in reversed(handled_terms):
+    nested_rec = return_aeon_list
+    for current_rec in handled_terms[::-1]:
         nested_rec = Rec(current_rec.var_name, current_rec.var_type, current_rec.var_value, nested_rec)
 
     return nested_rec
