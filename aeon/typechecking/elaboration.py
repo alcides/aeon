@@ -20,7 +20,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, base
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
@@ -90,6 +90,10 @@ class UnificationVar(Type):
     name: str
     lower: list[Type] = field(default_factory=list)
     upper: list[Type] = field(default_factory=list)
+
+    def constrain_upper(self, ty):
+        bty = base(ty)
+        self.upper.append(bty)
 
 
 def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
@@ -246,6 +250,22 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
 
         nty = type_substitution(innert.body, innert.name, u)
         return (TypeApplication(inner, t.type), nty)
+    elif isinstance(t, Let):
+        u = UnificationVar(ctx.fresh_var())
+        nval = elaborate_check(ctx, t.var_value, u)
+        (nbody, nbody_type) = elaborate_synth(
+            ctx.with_var(t.var_name, u),
+            t.body,
+        )
+        return Let(t.var_name, nval, nbody), nbody_type
+    elif isinstance(t, If):
+        ncond = elaborate_check(ctx, t.cond, t_bool)
+        nthen, nthen_type = elaborate_synth(ctx, t.then)
+        nelse, nelse_type = elaborate_synth(ctx, t.otherwise)
+        u = UnificationVar(ctx.fresh_var())
+        unify(ctx, nthen_type, u)
+        unify(ctx, nelse_type, u)
+        return If(ncond, nthen, nelse), u
     else:
         raise UnificationException(f"Could not infer the type of {t}")
 
@@ -278,6 +298,7 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
             t.body,
             ty,
         )
+
         return Rec(t.var_name, t.var_type, nval, nbody)
 
     elif isinstance(t, If):
@@ -289,7 +310,7 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
         if t.kind != ty.kind:
             assert UnificationException(
-                f"Failed to unify the kind of {t} with kind fo type {ty}", )
+                f"Failed to unify the kind of {t} with kind of type {ty}", )
         nctx = ctx.with_typevar(t.name, t.kind)
         nty = type_substitution(ty.body, ty.name, TypeVar(t.name))
         nbody = elaborate_check(nctx, t.body, nty)
@@ -473,12 +494,24 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         if isinstance(nt, Top):
             return TypeApplication(t.body, nt)
         else:
+            should_be_refined = True
+            if isinstance(t.body, Var):
+                tat = ctx.type_of(t.body.name)
+                if tat is not None and isinstance(
+                        tat, TypePolymorphism) and tat.kind == BaseKind():
+                    should_be_refined = False
+
             if isinstance(nt, BaseType) or isinstance(nt, TypeVar):
-                new_var = ctx.fresh_var()
-                ref = LiquidHornApplication("k",
-                                            [(LiquidVar(new_var), str(nt))])
-                new_type = RefinedType(new_var, nt, ref)
+                new_type: Type
+                if should_be_refined:
+                    new_var = ctx.fresh_var()
+                    ref = LiquidHornApplication(
+                        "k", [(LiquidVar(new_var), str(nt))])
+                    new_type = RefinedType(new_var, nt, ref)
+                else:
+                    new_type = nt
                 return TypeApplication(t.body, new_type)
+
             elif isinstance(nt, RefinedType):
                 ref = LiquidHornApplication(
                     "k", [(LiquidVar(nt.name), str(nt.type))])
@@ -532,7 +565,11 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
 
 
 def elaborate(ctx: TypingContext, e: Term, expected_type: Type = top) -> Term:
+    print("e1", e)
     e2 = elaborate_foralls(e)
+    print("e2", e2)
     e3 = elaborate_check(ctx, e2, expected_type)
+    print("e3", e3)
     e4 = elaborate_remove_unification(ctx, e3)
+    print("e4", e4)
     return e4

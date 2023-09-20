@@ -305,7 +305,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Hole):
         return (ctrue, bottom)
     else:
-        print("Unhandled:", t)
+        print("Unhandled:", t, type(t))
         assert False
 
 
@@ -372,10 +372,12 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
-        cp_simplified = simplify_constraint(cp)
-        if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
-            print("failed", cp)
-            raise FailedSubtypingException(ctx, t, s, ty)
+        # cp_simplified = simplify_constraint(cp)
+        # if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
+        #     print("Failed", cp, "in", ctx, t)
+        #     print("C", c)
+        #     print("s", s, "t", t)
+        #     raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 

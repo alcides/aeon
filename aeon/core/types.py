@@ -142,7 +142,8 @@ class RefinedType(Type):
         self.name = name
         self.type = ty
         self.refinement = refinement
-        assert isinstance(ty, BaseType) or isinstance(ty, TypeVar)
+        # Disabled because of unification var
+        # assert isinstance(ty, BaseType) or isinstance(ty, TypeVar) or isinstance(ty, UnificationVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -201,6 +202,7 @@ def is_bare(t: Type) -> bool:
 
 
 def base(ty: Type) -> Type:
+    """Returns the base type of a Refined Type"""
     if isinstance(ty, RefinedType):
         return ty.type
     return ty
