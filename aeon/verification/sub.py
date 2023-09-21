@@ -29,6 +29,8 @@ def ensure_refined(t: Type) -> RefinedType:
         return t
     elif isinstance(t, BaseType):
         return RefinedType(f"singleton_{t}", t, LiquidLiteralBool(True))
+    elif isinstance(t, TypeVar):
+        return RefinedType(f"singleton_tv_{t}", t, LiquidLiteralBool(True))
     assert False
 
 
@@ -36,7 +38,7 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
         ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
         if isinstance(t.type, TypeVar):
-            t_ = BaseType("Int")  # TODO: Rethink this
+            t_ = BaseType("TypeVarPlaceHolder")  # TODO: Rethink this
         else:
             t_ = t.type
         assert isinstance(t_, BaseType)
@@ -57,7 +59,7 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     elif isinstance(t, Top):
         return c
     elif isinstance(t, TypeVar):
-        return implication_constraint(name, BaseType("Int"), c)
+        return implication_constraint(name, BaseType("TypeVarPlaceHolder"), c)
         # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
     elif isinstance(t, TypePolymorphism):
         return implication_constraint(t.name, t.body, c)
@@ -75,19 +77,22 @@ def sub(t1: Type, t2: Type) -> Constraint:
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
+            base_type = t1.type if isinstance(
+                t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
             t2_subs = substitution_in_liquid(
                 t2.refinement,
                 LiquidVar(t1.name),
                 t2.name,
             )
-            assert isinstance(t1.type, BaseType)  # TODO: check this
+            assert isinstance(base_type, BaseType)  # TODO: check this
             return Implication(
                 t1.name,
-                t1.type,
+                base_type,
                 t1.refinement,
                 LiquidConstraint(t2_subs),
             )
         else:
+            print("Failed subtyping", t1, t2)
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
@@ -109,4 +114,5 @@ def sub(t1: Type, t2: Type) -> Constraint:
     ):
         return ctrue
     else:
+        print("Failed subtyping by exhaustion", t1, t2)
         return cfalse
