@@ -241,27 +241,19 @@ def liquefy_app(app: Application) -> LiquidApp | None:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
-<<<<<<< HEAD
             return LiquidApp(
                 liquid_pseudo_fun.fun,
                 liquid_pseudo_fun.args + [arg],
             )
-=======
-            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
->>>>>>> 0b400c1 (Added polymorphism-related elaboration)
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
-<<<<<<< HEAD
                 substitution(
                     app.fun.body,
                     app.fun.var_value,
                     app.fun.var_name,
                 ),
-=======
-                substitution(app.fun.body, app.fun.var_value, app.fun.var_name),
->>>>>>> 0b400c1 (Added polymorphism-related elaboration)
                 app.arg,
             ),
         )

@@ -145,4 +145,3 @@ experiments/ty_*/
 path/
 .DS_Store
 logs/
-csv/
