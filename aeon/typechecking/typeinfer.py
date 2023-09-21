@@ -39,7 +39,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -68,6 +67,17 @@ class FailedConstraintException(TypeCheckingException):
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
+
+
+@dataclass
+class WrongKindException(TypeCheckingException):
+    expected: Kind
+    found: Kind
+    t: Term
+    ty: Type
+
+    def __str__(self):
+        return f"Expected kind {self.expected}, but found kind {self.found} in {self.t} of type {self.ty}."
 
 
 @dataclass
@@ -222,7 +232,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if not ty:
             raise CouldNotGenerateConstraintException(
                 f"Variable {t.name} not in context", )
-        if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
+        if isinstance(ty, BaseType) or isinstance(
+                ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
             assert ty.name != t.name
             # TODO if the names are equal , we must replace it for another variable
@@ -309,21 +320,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         assert False
 
 
-def wrap_checks(f):
-
-    def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
-        k = f(ctx, t, ty)
-        ks = simplify_constraint(k)
-        if ks == LiquidConstraint(LiquidLiteralBool(False)):
-            raise FailedConstraintException(ctx, t, ty, ks)
-        else:
-            return k
-
-    return check_
-
-
-# patterm matching term
-# @wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
@@ -367,17 +363,16 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
-            return LiquidConstraint(LiquidLiteralBool(False))
+            raise WrongKindException(found=ty_right.kind,
+                                     expected=ty_right.kind,
+                                     t=t,
+                                     ty=ty)
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
-        # cp_simplified = simplify_constraint(cp)
-        # if cp_simplified == LiquidConstraint(LiquidLiteralBool(False)):
-        #     print("Failed", cp, "in", ctx, t)
-        #     print("C", c)
-        #     print("s", s, "t", t)
-        #     raise FailedSubtypingException(ctx, t, s, ty)
+        if cp == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 
@@ -386,8 +381,7 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except TypeCheckingException as e:
-        print("e", e)  # BUG: check this bug! -k poly
+    except TypeCheckingException:
         return False
 
 

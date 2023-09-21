@@ -204,6 +204,8 @@ def get_sort(base: BaseType) -> Any:
         return Float32()
     elif base == t_string:
         return StringSort()
+    elif base.name == "TypeVarPlaceHolder":
+        return IntSort()
     elif isinstance(base, BaseType):
         if base.name not in sort_cache:
             sort_cache[base.name] = DeclareSort(base.name)

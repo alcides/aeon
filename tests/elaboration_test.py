@@ -69,6 +69,6 @@ def test_elaboration_unification():
     v = elaborate_check(EmptyContext(), t, parse_type("Int"))
     v2 = elaborate_remove_unification(EmptyContext(), v)
     expected = parse_term(
-        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[{fresh_1:Int| ?k }] 3; 1"
+        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1"
     )
     assert v2 == expected
