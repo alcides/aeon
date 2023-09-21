@@ -112,6 +112,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.idea/
 
 # Spyder project settings
 .spyderproject
@@ -141,3 +142,7 @@ cython_debug/
 experiments/plots/
 experiments/*.csv
 experiments/ty_*/
+path/
+.DS_Store
+logs/
+csv/

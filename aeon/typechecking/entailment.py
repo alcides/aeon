@@ -18,6 +18,7 @@ from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from loguru import logger
 
 # TODO: rename inner variables
 
@@ -26,9 +27,9 @@ def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
         if not r:
-            print("Could not show constrain:")
-            print(pretty_print_constraint(c))
-            print(c)
+            logger.error("Could not show constrain:")
+            logger.error(pretty_print_constraint(c))
+            logger.error(c)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

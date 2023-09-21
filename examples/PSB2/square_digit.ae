@@ -1,6 +1,6 @@
-# Given a positive integer, square each digit and 
+# Given a positive integer, square each digit and
 # concatenate the squares into a returned string.
-# input : integer in [0, 1000000] 
+# input : integer in [0, 1000000]
 # output : string
 # --working--
 
