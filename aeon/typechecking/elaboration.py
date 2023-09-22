@@ -565,11 +565,7 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
 
 
 def elaborate(ctx: TypingContext, e: Term, expected_type: Type = top) -> Term:
-    print("e1", e)
     e2 = elaborate_foralls(e)
-    print("e2", e2)
     e3 = elaborate_check(ctx, e2, expected_type)
-    print("e3", e3)
     e4 = elaborate_remove_unification(ctx, e3)
-    print("e4", e4)
     return e4

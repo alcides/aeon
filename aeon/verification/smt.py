@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 from typing import Generator
+from loguru import logger
 
 from z3 import Function
 from z3 import Int
@@ -187,7 +188,8 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
     for na, ref in reversed(variables):
         if na == name:
             return ref
-    print("Failed to load ", name, "from", [x[0] for x in variables])
+    vars = ", ".join([x[0] for x in variables])
+    logger.error(f"No variable {name} in the context: {vars}")
     assert False
 
 
@@ -209,7 +211,7 @@ def get_sort(base: BaseType) -> Any:
         if base.name not in sort_cache:
             sort_cache[base.name] = DeclareSort(base.name)
         return sort_cache[base.name]
-    print("No sort:", base)
+    logger.error(f"No sort implemented: {base}")
     assert False
 
 
@@ -242,8 +244,7 @@ def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
         input_types, output_type = uncurry(base)
         args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
         return Function(name, *args)
-
-    print("NO var:", name, base, type(base))
+    logger.error(f"No var: {name}, with base {base} of type {type(base)}")
     assert False
 
 
@@ -269,7 +270,7 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
                 if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
                     f = v[1]
         if f is None:
-            print("Failed to find t.fun", t.fun)
+            logger.error(f"Failed to find function {t.fun}.")
             assert False
         args = [translate_liq(a, variables) for a in t.args]
         return f(*args)
