@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -20,18 +19,10 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
-# TODO: rename inner variables
-
 
 def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
-<<<<<<< HEAD
-=======
-        if not r:
-            show_constraint(c) # DEMO1
-            # print(c)
->>>>>>> 83bf53a (logger message for constraints)
         return r
     elif isinstance(ctx, VariableBinder):
         if isinstance(ctx.type, AbstractionType):

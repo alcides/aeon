@@ -127,7 +127,6 @@ def is_used(n: str, c: Constraint) -> bool:
     elif isinstance(c, Conjunction):
         return is_used(n, c.c1) or is_used(n, c.c2)
     else:
-        print("Unsupported Constraint", c)
         assert False
 
 
@@ -161,7 +160,6 @@ def constraint_free_variables(c: Constraint) -> list[str]:
     elif isinstance(c, Conjunction):
         return constraint_free_variables(c.c1) + constraint_free_variables(c.c2)
     else:
-        print("Unsupported constraint", c)
         assert False
 
 

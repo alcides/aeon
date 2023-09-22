@@ -92,7 +92,7 @@ def sub(t1: Type, t2: Type) -> Constraint:
                 LiquidConstraint(t2_subs),
             )
         else:
-            print("Failed subtyping", t1, t2)
+            logger.error("Failed subtyping {t1} <: {t2}")
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
@@ -114,5 +114,5 @@ def sub(t1: Type, t2: Type) -> Constraint:
     ):
         return ctrue
     else:
-        print("Failed subtyping by exhaustion", t1, t2)
+        logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
         return cfalse
