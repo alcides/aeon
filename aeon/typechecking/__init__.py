@@ -9,8 +9,6 @@ def elaborate_and_check(ctx: TypingContext, term: Term,
                         expected_type: Type) -> bool:
     try:
         p = elaborate(ctx, term, expected_type)
-    except UnificationException as e:
-        print(e)
-        print("failed unification")
+    except UnificationException:
         return False
     return check_type(ctx, p, expected_type)

@@ -55,7 +55,6 @@ def substitute_vartype(t: Type, rep: Type, name: str):
         return it
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    print("Substitution", t, rep, name)
     assert False
 
 
@@ -297,5 +296,4 @@ def liquefy(rep: Term) -> LiquidTerm | None:
         return liquefy_if(rep)
     elif isinstance(rep, Annotation):
         return liquefy_ann(rep)
-    raise Exception(f"Unable to liquefy {rep}" + str(type(rep)))
-    assert False
+    raise Exception(f"Unable to liquefy {rep} {type(rep)}")

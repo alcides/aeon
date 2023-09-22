@@ -69,9 +69,6 @@ def test_soundness_liq() -> None:
                 ctx,
                 target_ty,
             )
-            print("..")
-            print(ctx)
-            print(s)
             gen = type_infer_liquid(ctx, s)
             assert gen == target_ty
         except NoMoreBudget:

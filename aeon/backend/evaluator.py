@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from loguru import logger
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -74,7 +75,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         return eval(t.expr, ctx)
     elif isinstance(t, Hole):
         args = ", ".join([str(n) for n in ctx.variables])
-        print(f"Context ({args})")
+        logger.info(f"Context ({args})")
         h = input(f"Enter value for hole {t} in Python: ")
         return real_eval(h, ctx.variables)
     assert False

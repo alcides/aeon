@@ -3,6 +3,8 @@ from __future__ import annotations
 from functools import wraps
 from time import process_time
 
+from loguru import logger
+
 
 def measure(func):
 
@@ -15,8 +17,7 @@ def measure(func):
             end_ = int(round(process_time() * 1000)) - start
             if end_ > 1:
                 end_s = end_ if end_ > 0 else 0
-                print(
-                    f"Total execution time {func.__name__}: {end_s} ms",
-                )
+                logger.info(
+                    f"Total execution time {func.__name__}: {end_s} ms")
 
     return _time_it

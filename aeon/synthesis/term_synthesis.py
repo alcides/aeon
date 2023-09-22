@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from loguru import logger
+
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
 from aeon.core.terms import If
@@ -55,7 +57,7 @@ def synth_literal(
             if k and check_type(ctx, k, ty):
                 return k
             else:
-                print("(d) does not typecheck", k, type(k), ty)
+                logger.error(f"{k} does not typecheck ({ty}).")
                 man.undo_choice()
         raise NoMoreBudget()
     else:

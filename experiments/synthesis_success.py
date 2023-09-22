@@ -172,9 +172,6 @@ def evaluate_term(
         f"{mang.__name__};{tries};{ty_name};{depth};{seed};{csuccesses};{time_consumed};{centropy};{ctreeedit};{avgdepth};{maxdepth}",
     )
     print("Stats done")
-    # print(successes)
-    # if isinstance(man, GrammaticalEvolutionManager):
-    #    print(man.probabilities)
 
 
 parser = OptionParser()
@@ -230,8 +227,6 @@ parser.add_option(
 
 (options, args) = parser.parse_args()
 filename = f"ty_{options.typename}_depth_{options.depth}_totaltries_{options.totaltries}_mode_{options.manager}_seed_{options.seed}"
-print(filename)
-print(options)
 
 fname = str(experiments_folder / f"{filename}.csv")
 ename = str(experiments_folder / f"{filename}.err")
