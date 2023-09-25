@@ -12,4 +12,4 @@ def forAllLists : (function:(a: List) -> Bool) -> Float = native "lambda f:  (su
 
 def forAllInts : (function:(a: Int) -> Bool) -> Float = native "lambda f:  (sum(1 for i in generateInt() if f(i)) / len(generateInt())) * 100";
 
-def forAllFloats : (function:(a: Int) -> Bool) -> Float = native "lambda f:  (sum(1 for i in generateFloat() if f(i)) / len(generateFloat())) * 100";
+def forAllFloats : (function:(a: Float) -> Bool) -> Float = native "lambda f:  (sum(1 for i in generateFloat() if f(i)) / len(generateFloat())) * 100";

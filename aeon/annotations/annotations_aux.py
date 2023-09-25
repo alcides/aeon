@@ -8,13 +8,29 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
-
+from aeon.utils.ast_helpers import ensure_anf_app
+from aeon.utils.ast_helpers import ensure_anf_rec
 
 forall_functions_types = {
     "forAllInts": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="Int")),
     "forAllFloats": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="Float")),
     "forAllLists": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="List")),
 }
+
+
+class FreshHelper:
+    def __init__(self):
+        self.counter = 0
+
+    def fresh(self) -> str:
+        self.counter += 1
+        return f"_anf_fitness_{self.counter}"
+
+    def __call__(self, *args, **kwargs):
+        return self.fresh()
+
+
+fresh = FreshHelper()
 
 
 def handle_term(term: Term, minimize_flag: bool | list[bool]) -> tuple[Term, bool | list[bool]]:
@@ -42,11 +58,13 @@ def _transform_to_fitness_term(term: Let) -> Term:
 
     fitness_return = Application(arg=Var(f"{term.var_name}"), fun=Var(f"{term.body.fun.name}"))
 
-    return Rec(
-        var_name=f"{term.var_name}",
-        var_type=abs_type,
-        var_value=term.var_value,
-        body=fitness_return,
+    return ensure_anf_rec(
+        Rec(
+            var_name=f"{term.var_name}",
+            var_type=abs_type,
+            var_value=term.var_value,
+            body=fitness_return,
+        ),
     )
 
 
@@ -54,12 +72,12 @@ def _transform_to_aeon_list(handled_terms: list[Term]):
     return_list_terms = [
         rec.body for rec in handled_terms if isinstance(rec, Rec) and isinstance(rec.body, Application)
     ]
-
-    # TODO: fix bug : ((List_append_float ((List_append_float (List_append_float List_new)) (forAllInts _anf_3))) (forAllInts _anf_6))));
-    # ( (List_append_float( (List_append_float List_new) (forAllInts _anf_3)) ) (forAllInts _anf_6) )
     return_aeon_list = Var("List_new")
     for term in return_list_terms:
-        return_aeon_list = Application(Application(Var("List_append_float"), return_aeon_list), term)
+        return_aeon_list = ensure_anf_app(
+            fresh,
+            Application(ensure_anf_app(fresh, Application(Var("List_append_float"), return_aeon_list)), term),
+        )
 
     nested_rec = return_aeon_list
     for current_rec in handled_terms[::-1]:
