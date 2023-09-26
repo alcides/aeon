@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseKind
+from aeon.core.types import AbstractionType, BaseKind, TypeConstructor
 from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import Kind
@@ -45,9 +45,18 @@ def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
                and (t.refinement == LiquidLiteralBool(True))
                and (t.type.name, k) in ctx.typevars())
 
+    wf_data = isinstance(t, TypeConstructor) and all(
+        wellformed(ctx, ta) for ta in t.args)
+    wf_data2 = (isinstance(t, RefinedType)
+                and isinstance(t.type, TypeConstructor)
+                and all(wellformed(ctx, ta) for ta in t.type.args)
+                and type_infer_liquid(ctx.with_var(t.name, t.type),
+                                      t.refinement) == t_bool)
+
     wf_all = (isinstance(t, TypePolymorphism) and k == StarKind()
               and wellformed(ctx.with_typevar(t.name, t.kind), t.body))
-    return wf_norefinement or wf_base or wf_fun or wf_kind or wf_var_base or wf_var or wf_var2 or wf_all
+    return (wf_norefinement or wf_base or wf_fun or wf_kind or wf_var_base
+            or wf_var or wf_var2 or wf_all or wf_data or wf_data2)
 
 
 def inhabited(ctx: TypingContext, ty: Type) -> bool:

@@ -208,6 +208,8 @@ def get_sort(base: BaseType) -> Any:
         return StringSort()
     elif base.name == "TypeVarPlaceHolder":
         return IntSort()
+    elif base.name == "TypeConstructorPlaceHolder":
+        return IntSort()
     elif isinstance(base, BaseType):
         if base.name not in sort_cache:
             sort_cache[base.name] = DeclareSort(base.name)

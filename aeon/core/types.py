@@ -132,18 +132,11 @@ class AbstractionType(Type):
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
 
 
+@dataclass
 class RefinedType(Type):
     name: str
-    type: BaseType | TypeVar
+    type: BaseType | TypeVar | TypeConstructor
     refinement: LiquidTerm
-
-    def __init__(self, name: str, ty: BaseType | TypeVar,
-                 refinement: LiquidTerm):
-        self.name = name
-        self.type = ty
-        self.refinement = refinement
-        # Disabled because of unification var
-        # assert isinstance(ty, BaseType) or isinstance(ty, TypeVar) or isinstance(ty, UnificationVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -167,7 +160,18 @@ class TypePolymorphism(Type):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
 
-def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+@dataclass
+class TypeConstructor(Type):
+    name: str
+    args: list[Type]
+
+    def __str__(self):
+        args = ", ".join(str(a) for a in self.args)
+        return f"{self.name} {args}"
+
+
+def extract_parts(
+    t: Type, ) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
     assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
         t, TypeVar)
     if isinstance(t, TypeVar):

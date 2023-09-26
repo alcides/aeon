@@ -2,6 +2,7 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                     -> polymorphism_t
      | ID                                                  -> simple_t
+     | ID type+                                            -> constructor_t
      | "(" type ")"                                        -> same
 
 expression : "-" expression_i                           -> minus

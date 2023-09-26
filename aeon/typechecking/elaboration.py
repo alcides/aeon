@@ -196,7 +196,7 @@ def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, RefinedType):
         innert = remove_unions_and_intersections(ctx, ty.type)
         assert isinstance(innert, BaseType) or isinstance(innert, TypeVar)
-        return RefinedType(name=ty.name, ty=innert, refinement=ty.refinement)
+        return RefinedType(name=ty.name, type=innert, refinement=ty.refinement)
     else:
         return ty
 

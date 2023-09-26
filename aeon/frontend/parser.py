@@ -19,7 +19,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import bottom
@@ -64,6 +64,9 @@ class TreeToCore(Transformer):
     def polymorphism_t(self, args):
         return TypePolymorphism(str(args[0]), args[1], args[2])
 
+    def constructor_t(self, args):
+        return TypeConstructor(str(args[0]), args[1:])
+
     def simple_t(self, args):
         n = str(args[0])
         if n == "Bottom":
@@ -92,7 +95,8 @@ class TreeToCore(Transformer):
         return ensure_anf_rec(Rec(str(args[0]), args[1], args[2], args[3]))
 
     def if_e(self, args):
-        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1], args[2]))
+        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1],
+                                                      args[2]))
 
     def nnot(self, args):
         return Application(Var("!"), args[0])
@@ -143,7 +147,8 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
     def application_e(self, args):
-        return ensure_anf_app(lambda: self.fresh(), Application(args[0], args[1]))
+        return ensure_anf_app(lambda: self.fresh(),
+                              Application(args[0], args[1]))
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])
