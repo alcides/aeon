@@ -55,14 +55,7 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
             t.var_name,
             t.var_type,
             implication_constraint(name, t.type, c),
-        )  # TODO: email Rahjit
-        """
-        TODO: email Rahjit
-
-        The rec_scope test fails.
-        A refined type in a Rec escapes to the remaining of the program.
-
-        """
+        )
     elif isinstance(t, Bottom):
         return c
     elif isinstance(t, Top):
