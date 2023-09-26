@@ -40,7 +40,7 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
     if "fitness" in [d.name for d in defs]:
-        minimize_flag = [True]
+        minimize_flag: list[bool] | None = [True]
     else:
         minimize_flag = extract_and_add_fitness(defs)
 

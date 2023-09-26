@@ -11,7 +11,7 @@ from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type
+from aeon.core.types import AbstractionType, Type, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import refined_to_unrefined_type
@@ -258,7 +258,12 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     )
 
     # class app_function_name
-    parent_class_name = str(parent_type) if isinstance(parent_type, (Top, Bottom)) else parent_type.name
+    if isinstance(parent_type, (Top, Bottom)):
+        parent_class_name: str = str(parent_type)
+    elif isinstance(parent_type, (BaseType, TypeVar)):
+        parent_class_name = parent_type.name
+    else:
+        raise Exception(f"parent class name not definied: {(parent_type)}")
     grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
@@ -294,7 +299,7 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     return grammar_nodes
 
 
-def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] = None) -> list[type]:
+def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] | None = None) -> list[type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,

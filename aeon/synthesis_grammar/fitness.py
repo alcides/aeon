@@ -24,9 +24,9 @@ def get_holes_info_and_fitness_type(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict[str, tuple[Type, TypingContext, str]] = None,
+    holes: dict[str, tuple[Type, TypingContext, str]] | None = None,
     func_name: str = "",
-    fitness_type: BaseType = None,
+    fitness_type: BaseType | None = None,
 ) -> tuple[dict[str, tuple[Type, TypingContext, str]], BaseType]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
@@ -91,6 +91,9 @@ def get_holes_info_and_fitness_type(
     elif isinstance(t, Hole):
         ty = refined_to_unrefined_type(ty)
         holes[t.name] = (ty, ctx, func_name)
+
+    if not fitness_type:
+        raise Exception("Fitness type is None")
 
     return holes, fitness_type
 
