@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 from dataclasses import dataclass
 
@@ -7,7 +8,7 @@ from aeon.core.types import t_string
 from aeon.core.types import Type
 
 
-class Term:
+class Term(ABC):
 
     def __hash__(self) -> int:
         return str(self).__hash__()
