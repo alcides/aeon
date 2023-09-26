@@ -7,12 +7,12 @@ from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_type
-from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.well_formed import inhabited
 from aeon.typechecking.well_formed import wellformed
 
-empty = EmptyContext()
+empty = TypingContext()
 
 
 def test_wf1():
@@ -41,7 +41,7 @@ def test_refined():
 def test_dependent():
     assert wellformed(empty, parse_type("(y:Int) -> {x:Int | x > y}"))
     assert wellformed(
-        VariableBinder(empty, "x", t_int),
+        empty + VariableBinder("x", t_int),
         parse_type("(y:Int) -> {z:Int | x > y}"),
     )
 

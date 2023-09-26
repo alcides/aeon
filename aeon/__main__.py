@@ -18,16 +18,23 @@ from aeon.logger.logger import setup_logger, export_log
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="name of the aeon files to be synthesized")
-    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT " "\nWARNINGS \nERROR \nCRITICAL",
+        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
+        "\nWARNINGS \nERROR \nCRITICAL",
     )
-    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
     return parser.parse_args()
 
 
@@ -55,5 +62,5 @@ if __name__ == "__main__":
     p, ctx, ectx = process_code(args.core, aeon_code)
     logger.info(p)
 
-    if not check_and_log_type_errors (ctx, p, top):
+    if not check_and_log_type_errors(ctx, p, top):
         eval(p, ectx)

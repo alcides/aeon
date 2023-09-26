@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 
-
 def curried(x, argc=None):
     if argc is None:
         argc = x.__code__.co_argcount

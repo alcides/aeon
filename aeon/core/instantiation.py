@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -25,7 +25,14 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
     elif isinstance(t, TypeVar) and t.name != alpha:
         return t
     elif isinstance(t, RefinedType):
-        return RefinedType(t.name, rec(t.type), t.refinement)
+        base_type = rec(t.type)
+        refinement = t.refinement
+        while isinstance(base_type, RefinedType):
+            nr = substitution_in_liquid(base_type.refinement,
+                                        LiquidVar(t.name), base_type.name)
+            refinement = LiquidApp("&&", [refinement, nr])
+            base_type = base_type.type
+        return RefinedType(t.name, base_type, refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
     elif isinstance(t, TypePolymorphism):
@@ -40,7 +47,7 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
         return TypePolymorphism(
             target.name,
             target.kind,
-            type_substitution(target.body, alpha, beta),
+            rec(target.body),
         )
     else:
         assert False
@@ -58,18 +65,15 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
         return beta
     elif isinstance(t, TypeVar) and t.name != alpha:
         return t
-    elif (
-        isinstance(t, RefinedType)
-        and isinstance(t.type, TypeVar)
-        and t.type.name == alpha
-        and isinstance(beta, RefinedType)
-    ):
+    elif (isinstance(t, RefinedType) and isinstance(t.type, TypeVar)
+          and t.type.name == alpha and isinstance(beta, RefinedType)):
         return RefinedType(
             t.name,
             beta.type,
             mk_liquid_and(
                 t.refinement,
-                substitution_in_liquid(beta.refinement, LiquidVar(t.name), beta.name),
+                substitution_in_liquid(beta.refinement, LiquidVar(t.name),
+                                       beta.name),
             ),
         )
     elif isinstance(t, RefinedType):

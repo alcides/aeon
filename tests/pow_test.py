@@ -3,12 +3,14 @@ from __future__ import annotations
 from aeon.sugar.desugar import desugar
 from aeon.core.types import top
 from aeon.sugar.parser import parse_program
+from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_type
 
-def check_compile(source, ty, res):
+
+def check_compile(source, ty):
     p, ctx, ectx = desugar(parse_program(source))
-    assert check_type(ctx, p, ty)
-    #assert eval(p, ectx) == res
+    p2 = elaborate(ctx, p)
+    assert check_type(ctx, p2, ty)
 
 
 def test_anf():
@@ -18,4 +20,4 @@ def test_anf():
         def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) -> (e:{d:Int | ((d >= 1) && (d <= 100))}) ->  Int = native "lambda x: lambda y: math.pow(x , y)";
 
 """
-    check_compile(source, top, 1)
+    check_compile(source, top)

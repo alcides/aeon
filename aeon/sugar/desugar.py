@@ -24,7 +24,7 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.context import UninterpretedFunctionBinder
 from aeon.utils.ctx_helpers import build_context
 
 
@@ -55,9 +55,9 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
             assert isinstance(d.type, AbstractionType)
             d_type = d.type
             for tyname in type_decls:
-                d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
-            ctx = UninterpretedBinder(
-                ctx,
+                d_type = substitute_vartype(d_type, BaseType(tyname.name),
+                                            tyname.name)
+            ctx += UninterpretedFunctionBinder(
                 d.name,
                 d_type,
             )
@@ -71,23 +71,22 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
 
     tydeclname: TypeDecl
     for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name),
+                                          tydeclname.name)
     return (prog, ctx, ectx)
 
 
 def handle_import(path: str) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
-    possible_containers = (
-        [Path.cwd()]
-        + [Path.cwd() / "libraries"]
-        + [Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str]
-    )
+    possible_containers = ([Path.cwd()] + [Path.cwd() / "libraries"] + [
+        Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str
+    ])
     for container in possible_containers:
         file = container / f"{path}.ae"
         if file.exists():
             contents = open(file).read()
             return mk_parser("program").parse(contents)
     raise Exception(
-        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
-    )
+        f"Could not import {path} in any of the following paths: " +
+        ";".join([str(p) for p in possible_containers]), )

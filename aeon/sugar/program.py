@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 from dataclasses import dataclass
 
@@ -6,7 +7,8 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 
 
-class Node:
+@dataclass
+class Node(Term, ABC):
     pass
 
 
