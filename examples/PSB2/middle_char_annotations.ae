@@ -1,0 +1,25 @@
+import String;
+import Math;
+import PSB2;
+
+def middle_char  (s: String) : String {
+    str_len:Int = String_len s;
+    if ((str_len % 2) == 0) then
+        #snd_mid_char_index: Int = str_len / 2;
+        snd_mid_char_index: Int = Math_floor(Math_toFloat(str_len) /. 2.0)+1;
+        fst_mid_char_index: Int = snd_mid_char_index - 2 ;
+        mid_chars = String_slice s fst_mid_char_index snd_mid_char_index;
+        mid_chars
+    else
+        mid_char_index: Int = Math_floor(Math_toFloat(str_len) /. 2.0);
+        m_char = String_slice s mid_char_index (mid_char_index+1);
+        m_char
+
+}
+
+def train: TrainData = extract_train_data (load_dataset "middle-character" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@minimize(String_distance (join_string_list(get_mc_synth_values input_list synth)) (join_string_list(expected_values)))
+def synth (s: String) : String {(?hole:String)}

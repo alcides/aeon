@@ -1,0 +1,25 @@
+# Dice Game (PE) Peter has an n sided die and Colin has an m
+# sided die. If they both roll their dice at the same time, return
+# the probability that Peter rolls strictly higher than Colin.
+# input : 2 integers in [1, 1000]
+# output : float
+
+import math;
+import PSB2;
+
+def mult ( n:Int , m:Int ) : Int { n * m }
+
+def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
+
+def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
+
+def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@minimize(mean_absolute_error  (get_dg_synth_values input_list synth)(expected_values))
+def synth ( n : Int , m : {b:Int | 1 <= b && b <= 10000}) : Float
+    {
+        (?hole:Float)
+    }
