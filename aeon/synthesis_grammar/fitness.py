@@ -26,7 +26,7 @@ def get_holes_info_and_fitness_type(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    holes: dict[str, tuple[Type, TypingContext, str]] | None = None,
+    holes: Union[dict[str, tuple[Type, TypingContext, str]], None] = None,
     func_name: str = "",
     fitness_type: Union[BaseType, None] = None,
 ) -> tuple[dict[str, tuple[Type, TypingContext, str]], Union[BaseType, None]]:
