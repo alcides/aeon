@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -25,11 +25,9 @@ def is_anf(t: Term) -> bool:
     elif isinstance(t, Rec):
         return is_anf(t.var_value) and is_anf(t.body)
     elif isinstance(t, Application):
-        return is_anf(t.fun) and (isinstance(t.arg, Var)
-                                  or isinstance(t.arg, Literal))
+        return is_anf(t.fun) and (isinstance(t.arg, Var) or isinstance(t.arg, Literal))
     elif isinstance(t, If):
-        return ((isinstance(t.cond, Var) or isinstance(t.cond, Literal))
-                and is_anf(t.then) and is_anf(t.otherwise))
+        return (isinstance(t.cond, Var) or isinstance(t.cond, Literal)) and is_anf(t.then) and is_anf(t.otherwise)
     elif isinstance(t, Annotation):
         return is_anf(t.expr)
     elif isinstance(t, Abstraction):
@@ -41,9 +39,10 @@ def is_anf(t: Term) -> bool:
 def ensure_anf_app(fresh: Callable[[], str], t: Application) -> Term:
     if isinstance(t.fun, Let):
         return Let(
-            t.fun.var_name,
-            t.fun.var_value,
-            ensure_anf_app(fresh, Application(t.fun.body, t.arg)),
+            var_name=t.fun.var_name,
+            var_value=t.fun.var_value,
+            body=ensure_anf_app(fresh, Application(t.fun.body, t.arg)),
+            source_location=t.source_location,
         )
     if isinstance(t.arg, Var) or isinstance(t.arg, Literal):
         return t

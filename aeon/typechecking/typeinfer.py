@@ -112,10 +112,14 @@ class FailedSubtypingException(TypeCheckingException):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar) or isinstance(
-        ty,
-        RefinedType,
-    ) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(
+            ty,
+            RefinedType,
+        )
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -146,11 +150,7 @@ def prim_op(t: str) -> Type:
                     t_bool,
                     LiquidApp(
                         "==",
-                        [
-                            LiquidVar("z"),
-                            LiquidApp(t, [LiquidVar("x"),
-                                          LiquidVar("y")])
-                        ],
+                        [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
                     ),
                 ),
             ),
@@ -172,11 +172,7 @@ def prim_op(t: str) -> Type:
                         TypeVar("n"),
                         LiquidApp(
                             "==",
-                            [
-                                LiquidVar("z"),
-                                LiquidApp(t, [LiquidVar("x"),
-                                              LiquidVar("y")])
-                            ],
+                            [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
                         ),
                     ),
                 ),
@@ -197,11 +193,7 @@ def prim_op(t: str) -> Type:
                         t_bool,
                         LiquidApp(
                             "==",
-                            [
-                                LiquidVar("z"),
-                                LiquidApp(t, [LiquidVar("x"),
-                                              LiquidVar("y")])
-                            ],
+                            [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
                         ),
                     ),
                 ),
@@ -232,9 +224,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = ctx.type_of(t.name)
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context", )
-        if isinstance(ty, BaseType) or isinstance(
-                ty, RefinedType) or isinstance(ty, TypeVar):
+                f"Variable {t.name} not in context",
+            )
+        if isinstance(ty, BaseType) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
             assert ty.name != t.name
             # TODO if the names are equal , we must replace it for another variable
@@ -277,7 +269,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.", )
+                f"Application {t} is not a function.",
+            )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -306,8 +299,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = fresh(ctx, t.type)
         s = type_substitution(tabs.body, tabs.name, ty)
         k = ctx.kind_of(ty)
-        if isinstance(ty, RefinedType) and isinstance(ty.refinement,
-                                                      LiquidHornApplication):
+        if isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
             ty = ty.type
             k = ctx.kind_of(ty)
         if k is None or k != tabs.kind:
@@ -321,7 +313,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
-        ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
+        ret = substitution_in_type(ty.type, Var(name=t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
         return implication_constraint(t.var_name, ty.var_type, c)
 
@@ -344,8 +336,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean")
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -362,10 +353,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
-            raise WrongKindException(found=ty_right.kind,
-                                     expected=ty_right.kind,
-                                     t=t,
-                                     ty=ty)
+            raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)

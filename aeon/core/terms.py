@@ -8,13 +8,24 @@ from aeon.core.types import t_string
 from aeon.core.types import Type
 
 
+@dataclass
+class SourceLocation:
+    filename: str
+    start_line: int
+    start_col: int
+    end_line: int
+    end_col: int
+
+
+@dataclass(kw_only=True)
 class Term(ABC):
+    source_location: SourceLocation | None
 
     def __hash__(self) -> int:
         return str(self).__hash__()
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Literal(Term):
     value: object
     type: Type
@@ -30,7 +41,7 @@ class Literal(Term):
             Literal) and self.value == other.value and self.type == other.type
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Var(Term):
     name: str
 
@@ -44,7 +55,7 @@ class Var(Term):
         return isinstance(other, Var) and self.name == other.name
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Annotation(Term):
     expr: Term
     type: Type
@@ -59,7 +70,7 @@ class Annotation(Term):
         return isinstance(other, Annotation) and self.expr == other.expr
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Hole(Term):
     name: str
 
@@ -73,7 +84,7 @@ class Hole(Term):
         return isinstance(other, Hole) and self.name == other.name
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Application(Term):
     fun: Term
     arg: Term
@@ -87,7 +98,7 @@ class Application(Term):
             Application) and self.fun == other.fun and self.arg == other.arg
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Abstraction(Term):
     var_name: str
     body: Term
@@ -101,7 +112,7 @@ class Abstraction(Term):
         ) and self.var_name == other.var_name and self.body == other.body
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Let(Term):
     var_name: str
     var_value: Term
@@ -116,7 +127,7 @@ class Let(Term):
                 and self.body == other.body)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Rec(Term):
     var_name: str
     var_type: Type
@@ -141,7 +152,7 @@ class Rec(Term):
                 and self.body == other.body)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class If(Term):
     cond: Term
     then: Term
@@ -156,7 +167,7 @@ class If(Term):
                 and self.otherwise == other.otherwise)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TypeAbstraction(Term):
     name: str
     kind: Kind
@@ -166,7 +177,7 @@ class TypeAbstraction(Term):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TypeApplication(Term):
     body: Term
     type: Type
