@@ -18,7 +18,7 @@ def List_cons: (l:List) -> (i:Int) -> {l2:List | List_size(l2) == (List_size(l) 
 
 def List_recursive: (l:List) -> (base:Int) -> (rec:(v:Int) -> (y:Int) -> Int) -> Int = native "lambda l: lambda cb: lambda rec: functools.reduce(lambda seed, next: rec(next)(seed), l, cb)";
 
-def List_sum : (l:List) -> Int = native "lambda xs: sum(xs, 0, lambda x, y: x + y)";
+def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
 
 def List_head: (l: {x:List | List_size(x) > 0 }) -> Int = native "lambda xs: xs[0]";
 

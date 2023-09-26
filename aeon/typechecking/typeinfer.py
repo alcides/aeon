@@ -302,9 +302,9 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except CouldNotGenerateConstraintException as e:
+    except CouldNotGenerateConstraintException:
         return False
-    except FailedConstraintException as e:
+    except FailedConstraintException:
         return False
 
 

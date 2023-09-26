@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Generator
-from typing import Tuple
 
 from loguru import logger
 

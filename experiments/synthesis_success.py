@@ -6,22 +6,18 @@ import pathlib
 import random
 import sys
 import time
-import typing
 from optparse import OptionParser
 from statistics import mean
 from typing import Any
 from typing import Callable
-from typing import List
 
-experiments_folder = pathlib.Path(__file__).parent
-sys.path.append(str(experiments_folder.parent.absolute()))
 
 import zstandard as zstd
 
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.typechecking.context import EmptyContext, VariableBinder
 from aeon.synthesis.sources import ListRandomSource
-from aeon.frontend.parser import parse_term, parse_type
+from aeon.frontend.parser import parse_type
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_type
 from aeon.core.distance import pairwise_distance, term_depth
@@ -34,6 +30,9 @@ from aeon.synthesis.choice_manager import (
     SemanticFilterManager,
 )
 from aeon.utils.ctx_helpers import build_context
+
+experiments_folder = pathlib.Path(__file__).parent
+sys.path.append(str(experiments_folder.parent.absolute()))
 
 type_tries = 100
 
@@ -132,7 +131,7 @@ def evaluate_term(
                 successes.append(t)
             else:
                 print(":(")
-        except NoMoreBudget as e:
+        except NoMoreBudget:
             print("out of budget", i)
             continue
         except RecursionError:

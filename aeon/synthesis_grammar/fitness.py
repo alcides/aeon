@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from aeon.annotations import annotations
+from aeon.aeon_annotations import aeon_annotations
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -19,6 +17,7 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import Macro
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
+
 
 # dict (hole_name , (hole_type, hole_typingContext, func_name))
 def get_holes_info_and_fitness_type(
@@ -107,10 +106,10 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Definition, list[bool]]:
     fitness_args: list[tuple[str, Type]] = d.args
     macro_list: list[Macro] = d.macros
 
-    minimize_list = []
-    fitness_terms = []
+    minimize_list: list[bool] = []
+    fitness_terms: list[Term] = []
     for macro in macro_list:
-        annotation_func = getattr(annotations, macro.name)
+        annotation_func = getattr(aeon_annotations, macro.name)
         expr_term, minimize = annotation_func(macro.macro_args)
 
         if minimize is not None:
@@ -127,7 +126,7 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Definition, list[bool]]:
     return fitness_function, minimize_list
 
 
-def add_to_list(item: list[bool] | bool, my_list: list[bool]):
+def add_to_list(item: list, my_list: list):
     try:
         my_list += item if isinstance(item, list) else [item]
     except TypeError as e:

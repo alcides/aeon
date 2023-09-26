@@ -1,25 +1,17 @@
 from __future__ import annotations
 
-import traceback
 from abc import ABC
 from dataclasses import make_dataclass
-from typing import Optional
+from typing import Protocol
+from typing import Type as TypingType
 
-from geneticengine.core.decorators import abstract
 from lark.lexer import Token
 
-from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction
-from aeon.core.terms import Annotation
 from aeon.core.terms import Application
-from aeon.core.terms import Hole
 from aeon.core.terms import If
-from aeon.core.terms import Let
 from aeon.core.terms import Literal
-from aeon.core.terms import Rec
-from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import refined_to_unrefined_type
@@ -29,11 +21,10 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import Top
-from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import synth
 
 prelude_ops = ["print", "native_import", "native"]
+
 
 aeon_prelude_ops_to_text = {
     "%": "mod",
@@ -59,14 +50,22 @@ grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 
-def mk_method_core(cls: type):
+# Protocol for classes that can have a get_core method
+class HasGetCore(Protocol):
+    def get_core(self):
+        ...
+
+
+classType = TypingType[HasGetCore]
+
+
+def mk_method_core(cls: classType) -> classType:
     def get_core(self):
         class_name = self.__class__.__name__
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
 
         if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
-
             op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
             var_values = []
             base = Var(op)
@@ -93,11 +92,11 @@ def mk_method_core(cls: type):
 
         return base
 
-    cls.get_core = get_core
+    setattr(cls, "get_core", get_core)
     return cls
 
 
-def mk_method_core_literal(cls: type):
+def mk_method_core_literal(cls: classType) -> classType:
     def get_core(self):
         class_name = self.__class__.__name__
         class_name_without_prefix = class_name[8:]
@@ -119,7 +118,7 @@ def mk_method_core_literal(cls: type):
         except Exception as e:
             raise Exception("no value\n ", e)
 
-    cls.get_core = get_core
+    setattr(cls, "get_core", get_core)
     return cls
 
 

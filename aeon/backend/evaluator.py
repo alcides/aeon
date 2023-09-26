@@ -34,7 +34,7 @@ class EvaluationContext:
         return self.variables[name]
 
 
-def is_native_var(t: Term):
+def is_native_var(t: Application):
     return isinstance(t.fun, Var) and t.fun.name == "native"
 
 

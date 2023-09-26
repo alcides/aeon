@@ -65,7 +65,8 @@ def handle_imports(
 ) -> tuple[list[Definition], list[TypeDecl]]:
     for imp in imports[::-1]:
         import_p = handle_import(imp.path)
-        defs_recursive, type_decls_recursive = [], []
+        defs_recursive: list[Definition] = []
+        type_decls_recursive: list[TypeDecl] = []
         if import_p.imports:
             defs_recursive, type_decls_recursive = handle_imports(
                 import_p.imports,

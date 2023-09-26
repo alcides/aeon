@@ -31,7 +31,7 @@ class StarKind(Kind):
 
 
 class Type(ABC):
-    pass
+    name: str | None
 
 
 class BaseType(Type):

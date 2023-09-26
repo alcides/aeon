@@ -27,7 +27,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest mypy
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f requirements.pip ]; then pip install -r requirements.pip; fi
     - name: Lint with mypy
       run: |
         mypy aeon
@@ -43,3 +43,15 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+    - name: Run Aeon Core Files
+      run: |
+        files=$(find examples/core -type f -name '*_main.ae')
+        for file in $files; do
+          python aeon $file --core --log INFO ERROR TYPECHECKER CONSTRAINT
+        done
+    - name: Run Aeon Sugar Files
+      run: |
+        files=$(find examples/sugar -type f -name '*_main.ae')
+        for file in $files; do
+          python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
+        done
