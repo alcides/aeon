@@ -32,7 +32,6 @@ class Synthesizer:
         ty: Type = top,
         ectx: EvaluationContext = EvaluationContext(),
     ):
-
         self.ctx: TypingContext = ctx
         self.p: Term = p
         self.ty: Type = ty
@@ -43,7 +42,6 @@ class Synthesizer:
 
     def get_grammar(self) -> Grammar | None:
         if len(self.holes) > 1:
-
             first_hole_name = next(iter(self.holes))
             hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
 
@@ -70,7 +68,7 @@ class Synthesizer:
 
         try:
             check_type_errors(self.ctx, nt, self.ty)
-        except Exception as e:
+        except Exception:
             # add loguru traceback
             # print(f"Check for type errors failed: {e}")
             # traceback.print_exception(e)
@@ -80,7 +78,7 @@ class Synthesizer:
             fitness_eval_term = Var("fitness")
             nt_e = substitution(nt, fitness_eval_term, "main")
             return eval(nt_e, self.ectx)
-        except Exception as e:
+        except Exception:
             # add loguru traceback
             # print(f"Evaluation failed: {e}")
             # traceback.print_exception(e)
@@ -117,7 +115,6 @@ class Synthesizer:
         timer_limit: int = 60,
         seed: int = 123,
     ) -> Individual:
-
         if file_path:
             file_name = os.path.basename(file_path)
             name_without_extension = os.path.splitext(file_name)[0]
