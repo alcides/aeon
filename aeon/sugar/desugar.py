@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os.path
 from pathlib import Path
+from typing import Union
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
@@ -29,7 +30,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, list[bool] | None]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Union[list[bool], None]]
 
 
 def desugar(p: Program) -> ProgramComponents:

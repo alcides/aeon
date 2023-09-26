@@ -1,3 +1,5 @@
+from typing import Union
+
 from aeon.aeon_annotations import aeon_annotations
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
@@ -26,8 +28,8 @@ def get_holes_info_and_fitness_type(
     ty: Type,
     holes: dict[str, tuple[Type, TypingContext, str]] | None = None,
     func_name: str = "",
-    fitness_type: BaseType | None = None,
-) -> tuple[dict[str, tuple[Type, TypingContext, str]], BaseType | None]:
+    fitness_type: Union[BaseType, None] = None,
+) -> tuple[dict[str, tuple[Type, TypingContext, str]], Union[BaseType, None]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
     This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
