@@ -39,7 +39,10 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
-    minimize_flag = extract_and_add_fitness(defs)
+    if "fitness" in [d.name for d in defs]:
+        minimize_flag = [True]
+    else:
+        minimize_flag = extract_and_add_fitness(defs)
 
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
