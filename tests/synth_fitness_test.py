@@ -21,9 +21,9 @@ def mock_literal_individual(value: int):
         def __init__(self, value: int):
             self.value = value
 
-    literal_int_instance = mk_method_core_literal(literal_Int)
+    literal_int_instance = mk_method_core_literal(literal_Int)  # type: ignore
 
-    return literal_int_instance(value)
+    return literal_int_instance(value)  # type: ignore
 
 
 def test_fitness():
@@ -33,7 +33,7 @@ def test_fitness():
         def fitness : Int  =  year - synth;
     """
     prog: Program = parse_program(code)
-    p, ctx, ectx = desugar(prog)
+    p, ctx, ectx, _ = desugar(prog)
     check_type_errors(ctx, p, top)
     synthesizer = Synthesizer(ctx, p, top, ectx)
 
