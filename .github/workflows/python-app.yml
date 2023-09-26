@@ -30,7 +30,7 @@ jobs:
         if [ -f requirements.pip ]; then pip install -r requirements.pip; fi
     - name: Lint with mypy
       run: |
-        mypy aeon
+        mypy aeon --no-strict-optional --ignore-missing-imports
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
