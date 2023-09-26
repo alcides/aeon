@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-from typing import Generator
+from collections.abc import Generator
 from loguru import logger
 
 from z3 import Function
@@ -79,19 +79,16 @@ class CanonicConstraint:
         return f"\\forall {self.binders}, {self.pre} => {self.pos}"
 
 
-def rename_constraint(c: Constraint, old_name: str,
-                      new_name: str) -> Constraint:
+def rename_constraint(c: Constraint, old_name: str, new_name: str) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
     if isinstance(c, Conjunction):
-        return Conjunction(rename_constraint(c.c1, old_name, new_name),
-                           rename_constraint(c.c2, old_name, new_name))
+        return Conjunction(rename_constraint(c.c1, old_name, new_name), rename_constraint(c.c2, old_name, new_name))
     elif isinstance(c, Implication):
         # If it shadows, leave it.
         if c.name == new_name:
             return c
         else:
-            npred = substitution_in_liquid(c.pred, LiquidVar(new_name),
-                                           old_name)
+            npred = substitution_in_liquid(c.pred, LiquidVar(new_name), old_name)
             nseq = rename_constraint(c.seq, old_name, new_name)
             return Implication(c.name, c.base, npred, nseq)
     elif isinstance(c, LiquidConstraint):
@@ -118,8 +115,7 @@ def get_new_name(name: str, used_vars: list[str]) -> None | str:
     return name
 
 
-def flatten(c: Constraint,
-            used_vars: list[str]) -> Generator[CanonicConstraint, None, None]:
+def flatten(c: Constraint, used_vars: list[str]) -> Generator[CanonicConstraint, None, None]:
     if isinstance(c, Conjunction):
         yield from flatten(c.c1, used_vars)
         yield from flatten(c.c2, used_vars)
@@ -137,9 +133,7 @@ def flatten(c: Constraint,
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[],
-                                pre=LiquidLiteralBool(True),
-                                pos=c.expr)
+        yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         name = get_new_name(c.name, used_vars)
         if name:
@@ -161,13 +155,11 @@ s = Solver()
 s.set(timeout=200),
 
 
-def smt_valid(constraint: Constraint,
-              foralls: None | list[tuple[str, Any]] = None) -> bool:
+def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = None) -> bool:
     """Verifies if a constraint is true using Z3."""
     if foralls is None:
         foralls = []
-    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
-                   if isinstance(f[1], BaseType)]
+    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
     cons: list[CanonicConstraint] = list(flatten(constraint, []))
     for c in cons:
         s.push()
@@ -285,7 +277,8 @@ def translate(
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
     variables = [
-        (name, make_variable(name, base)) for (name, base) in c.binders
+        (name, make_variable(name, base))
+        for (name, base) in c.binders
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)

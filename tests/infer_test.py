@@ -4,7 +4,7 @@ from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.prelude.prelude import typing_vars
 from aeon.typechecking import elaborate_and_check
-from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.entailment import entailment
 from aeon.typechecking.typeinfer import sub
@@ -128,17 +128,12 @@ def test_abs_f():
 
 
 def test_abs_if():
-    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0",
-                  "Int")
-    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0",
-              "Int")
+    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0", "Int")
+    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
 
 
 def test_sumSimple1():
-    assert tt("if b then 0 else sum 0", "Int", {
-        "b": "Bool",
-        "sum": "(x:Int) -> Int"
-    })
+    assert tt("if b then 0 else sum 0", "Int", {"b": "Bool", "sum": "(x:Int) -> Int"})
 
 
 def test_sumSimple2():
@@ -149,10 +144,7 @@ def test_sumSimple3():
     assert tt(
         "let k = sum b in if k then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -160,10 +152,7 @@ def test_sumSimple4():
     assert tt(
         "if sum b then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -171,10 +160,7 @@ def test_sumSimple5():
     assert tt(
         r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -227,7 +213,7 @@ def test_sub():
     subt = parse_type(r"(x:((z:{a:Int| a > 1 }) -> Int)) -> {k:Int | k > x}")
     supt = parse_type(r"(y:((m:{b:Int| b > 0 }) -> Int)) -> {z:Int | z >= y}")
     c = sub(subt, supt)
-    assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)
+    assert entailment(TypingContext() + VariableBinder("fresh_2", t_int), c)
 
 
 def test_sub_simple():
@@ -236,7 +222,7 @@ def test_sub_simple():
 
     c = sub(subt, supt)
     assert entailment(
-        VariableBinder(EmptyContext(), "plus", parse_type("(x:Int) -> Int")),
+        TypingContext() + VariableBinder("plus", parse_type("(x:Int) -> Int")),
         c,
     )
 
@@ -254,5 +240,4 @@ def test_capture_avoiding_subs():
 
 def test_max():
     max_type = "forall a:B, (x:a) -> (y:a) -> a"
-    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int",
-              {"max": max_type})
+    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int", {"max": max_type})

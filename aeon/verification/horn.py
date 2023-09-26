@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Sequence
+from collections.abc import Sequence
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHornApplication
@@ -23,7 +23,6 @@ from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.liquid import type_infer_liquid
@@ -54,8 +53,7 @@ def smt_base_type(ty: Type) -> str | None:
 def fresh(context: TypingContext, ty: Type) -> Type:
     if isinstance(ty, BaseType):
         return ty
-    elif isinstance(ty, RefinedType) and isinstance(ty.refinement,
-                                                    LiquidHornApplication):
+    elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
         id = context.fresh_var()
         v = f"v_{id}"
         args: list[tuple[LiquidTerm, str]] = []
@@ -86,8 +84,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
     if isinstance(t, LiquidHornApplication):
         return [t]
-    elif isinstance(t, LiquidLiteralBool) or isinstance(
-            t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
+    elif isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -112,8 +109,7 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, LiquidLiteralInt) or isinstance(
-            t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
+    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -141,9 +137,12 @@ def contains_horn_constraint(c: Constraint) -> bool:
 def wellformed_horn(predicate: LiquidTerm) -> bool:
     if not contains_horn(predicate):
         return True
-    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
-          and not contains_horn(predicate.args[0])
-          and isinstance(predicate.args[1], LiquidHornApplication)):
+    elif (
+        isinstance(predicate, LiquidApp)
+        and predicate.fun == "&&"
+        and not contains_horn(predicate.args[0])
+        and isinstance(predicate.args[1], LiquidHornApplication)
+    ):
         return True
     elif isinstance(predicate, LiquidHornApplication):
         return True
@@ -173,9 +172,9 @@ def reverse_type(t: str) -> Type:
 
 
 def build_possible_assignment(hole: LiquidHornApplication):
-    ctx: TypingContext = EmptyContext()
+    ctx: TypingContext = TypingContext()
     for i, (_, t) in enumerate(hole.argtypes):
-        ctx = VariableBinder(ctx, mk_arg(i), reverse_type(t))
+        ctx += VariableBinder(mk_arg(i), reverse_type(t))
     for opn, opt in all_ops:
         arity = len(opt) - 1
         for args in get_possible_args(hole.argtypes, arity):
@@ -228,8 +227,7 @@ def build_forall_implication(
     return cf
 
 
-def simpl(vs: list[tuple[str, Type]], p: LiquidTerm,
-          c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
@@ -272,8 +270,7 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
     assert False
 
 
-def fill_horn_arguments(h: LiquidHornApplication,
-                        candidate: LiquidTerm) -> LiquidTerm:
+def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
