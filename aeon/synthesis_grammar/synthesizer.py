@@ -9,6 +9,8 @@ from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import MultiObjectiveProblem
 from geneticengine.core.problems import SingleObjectiveProblem
 
+from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
+
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
@@ -25,12 +27,13 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 
 class Synthesizer:
+
     def __init__(
-        self,
-        ctx: TypingContext,
-        p: Term,
-        ty: Type = top,
-        ectx: EvaluationContext = EvaluationContext(),
+            self,
+            ctx: TypingContext,
+            p: Term,
+            ty: Type = top,
+            ectx: EvaluationContext = EvaluationContext(),
     ):
         self.ctx: TypingContext = ctx
         self.p: Term = p
@@ -64,7 +67,9 @@ class Synthesizer:
         individual_term = individual.get_core()
         first_hole_name = next(iter(self.holes))
         nt = substitution(self.p, individual_term, first_hole_name)
-        exception_return = 100000000 if not isinstance(minimize, list) else [100000000 for _ in range(len(minimize))]
+        exception_return = 100000000 if not isinstance(minimize, list) else [
+            100000000 for _ in range(len(minimize))
+        ]
 
         try:
             check_type_errors(self.ctx, nt, self.ty)
@@ -89,32 +94,43 @@ class Synthesizer:
             assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
+                fitness_function=lambda individual: self.evaluate_fitness(
+                    individual, minimize),
             )
 
         elif isinstance(minimize, list):
             assert self.fitness_type == BaseType("List")
             return MultiObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
+                fitness_function=lambda individual: self.evaluate_fitness(
+                    individual, minimize),
             )
 
     def synthesize(
         self,
         file_path: str | None,
-        grammar: Grammar,
-        representation: type,
         minimize: bool | list[bool],
-        max_depth: int,
-        population_size: int,
-        n_elites: int,
-        target_fitness: int,
+        max_depth: int = 8,
+        population_size: int = 20,
+        n_elites: int = 1,
+        target_fitness: int = 0,
+        representation: type = TreeBasedRepresentation,
         probability_mutation: float = 0.01,
         probability_crossover: float = 0.9,
         timer_stop_criteria: bool = True,
         timer_limit: int = 60,
         seed: int = 123,
     ) -> Individual:
+        # TODO Eduardo: Docstrings?
+
+        # TODO Eduardo: This function should have tests, no?
+
+        # TODO Eduardo: is log optional?
+
+        grammar = self.get_grammar()
+        # TODO Eduardo: I've delete this line, it seems to do nothing.
+        # minimize = get_minimize(minimize_flag) if minimize_flag else True
+
         if file_path:
             file_name = os.path.basename(file_path)
             name_without_extension = os.path.splitext(file_name)[0]
@@ -126,7 +142,8 @@ class Synthesizer:
             csv_file_path = None
 
         problem = self.get_problem_type(minimize)
-        parent_selection = ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
+        parent_selection = ("lexicase", ) if isinstance(
+            problem, MultiObjectiveProblem) else ("tournament", 5)
 
         alg = SimpleGP(
             seed=seed,

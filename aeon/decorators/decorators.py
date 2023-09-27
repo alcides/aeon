@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.aeon_annotations.annotations_aux import handle_mutiple_terms
-from aeon.aeon_annotations.annotations_aux import handle_term
+from aeon.decorators.decorators_aux import handle_mutiple_terms
+from aeon.decorators.decorators_aux import handle_term
 from aeon.core.terms import Literal
 from aeon.core.terms import Term
 from aeon.core.types import BaseType

@@ -1,6 +1,6 @@
 from typing import Union
 
-from aeon.aeon_annotations import aeon_annotations
+from aeon.decorators import decorators
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -52,7 +52,8 @@ def get_holes_info_and_fitness_type(
             func_name = t.var_name
 
         if t.var_name == "fitness":
-            assert isinstance(t.var_type, BaseType), f"t.vartype = {type(t.var_type)}"
+            assert isinstance(t.var_type,
+                              BaseType), f"t.vartype = {type(t.var_type)}"
             fitness_type = t.var_type
 
         ctx = ctx.with_var(t.var_name, t.var_type)
@@ -64,26 +65,34 @@ def get_holes_info_and_fitness_type(
             func_name,
             fitness_type,
         )
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Let):
         _, t1 = synth(ctx, t.var_value)
         ctx = ctx.with_var(t.var_name, t1)
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.var_value, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.var_value, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.body, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         ctx = ctx.with_var(t.var_name, ty.var_type)
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.body, ret, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.body, ret, holes, func_name, fitness_type)
 
     elif isinstance(t, If):
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.then, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.otherwise, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.then, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.otherwise, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Application):
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.fun, ty, holes, func_name, fitness_type)
-        holes, fitness_type = get_holes_info_and_fitness_type(ctx, t.arg, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.fun, ty, holes, func_name, fitness_type)
+        holes, fitness_type = get_holes_info_and_fitness_type(
+            ctx, t.arg, ty, holes, func_name, fitness_type)
 
     elif isinstance(t, Annotation) and isinstance(t.expr, Hole):
         synth_func_name = func_name
@@ -106,12 +115,12 @@ def get_minimize(minimize: list[bool]):
 
 def extract_fitness_from_synth(d: Definition) -> tuple[Definition, list[bool]]:
     fitness_args: list[tuple[str, Type]] = d.args
-    macro_list: list[Macro] = d.macros
+    macro_list: list[Macro] = d.decorators
 
     minimize_list: list[bool] = []
     fitness_terms: list[Term] = []
     for macro in macro_list:
-        annotation_func = getattr(aeon_annotations, macro.name)
+        annotation_func = getattr(decorators, macro.name)
         expr_term, minimize = annotation_func(macro.macro_args)
 
         if minimize is not None:
@@ -121,9 +130,11 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Definition, list[bool]]:
     assert len(minimize_list) > 0
     assert len(fitness_terms) > 0
 
-    fitness_return_type = BaseType("Float") if len(minimize_list) == 1 else BaseType("List")
+    fitness_return_type = BaseType("Float") if len(
+        minimize_list) == 1 else BaseType("List")
 
-    fitness_function = generate_definition(fitness_args, fitness_return_type, fitness_terms)
+    fitness_function = generate_definition(fitness_args, fitness_return_type,
+                                           fitness_terms)
 
     return fitness_function, minimize_list
 
@@ -143,6 +154,9 @@ def generate_definition(
     fitness_terms: list[Term],
 ) -> Definition:
     if len(fitness_terms) == 1:
-        return Definition(name="fitness", args=[], type=fitness_return_type, body=fitness_terms[0])
+        return Definition(name="fitness",
+                          args=[],
+                          type=fitness_return_type,
+                          body=fitness_terms[0])
     else:
         raise Exception("Not yet supported")

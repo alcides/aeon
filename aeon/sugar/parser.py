@@ -18,6 +18,7 @@ from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
+
     def list(self, args):
         return args
 
@@ -40,10 +41,13 @@ class TreeToSugar(TreeToCore):
         if len(args) == 4:
             return Definition(args[0], args[1], args[2], args[3])
         if isinstance(args[0], Macro):
-            macros = [args[0]]
+            decorators = [args[0]]
         else:
-            macros = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
-        return Definition(args[1], args[2], args[3], args[4], macros)
+            decorators = [
+                self.macro(macro_args.children) for macro_args in args[0]
+                if isinstance(macro_args, Tree)
+            ]
+        return Definition(args[1], args[2], args[3], args[4], decorators)
 
     def macro(self, args):
         return Macro(args[0], args[1])
@@ -74,7 +78,9 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
+        import_paths=[
+            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
+        ],
     )
 
 
