@@ -10,11 +10,13 @@ from aeon.core.liquid import LiquidTerm
 
 
 class Kind(ABC):
+
     def __repr__(self):
         return str(self)
 
 
 class BaseKind(Kind):
+
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -23,6 +25,7 @@ class BaseKind(Kind):
 
 
 class StarKind(Kind):
+
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -31,7 +34,7 @@ class StarKind(Kind):
 
 
 class Type(ABC):
-    name: str | None
+    pass
 
 
 class BaseType(Type):
@@ -67,6 +70,7 @@ class TypeVar(Type):
 
 
 class Top(Type):
+
     def __repr__(self):
         return "⊤"
 
@@ -81,6 +85,7 @@ class Top(Type):
 
 
 class Bottom(Type):
+
     def __repr__(self):
         return "⊥"
 
@@ -118,12 +123,10 @@ class AbstractionType(Type):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, AbstractionType)
-            and self.var_name == other.var_name
-            and self.var_type == other.var_type
-            and self.type == other.type
-        )
+        return (isinstance(other, AbstractionType)
+                and self.var_name == other.var_name
+                and self.var_type == other.var_type
+                and self.type == other.type)
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -134,7 +137,8 @@ class RefinedType(Type):
     type: BaseType | TypeVar
     refinement: LiquidTerm
 
-    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
+    def __init__(self, name: str, ty: BaseType | TypeVar,
+                 refinement: LiquidTerm):
         self.name = name
         self.type = ty
         self.refinement = refinement
@@ -143,12 +147,9 @@ class RefinedType(Type):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, RefinedType)
-            and self.name == other.name
-            and self.type == other.type
-            and self.refinement == other.refinement
-        )
+        return (isinstance(other, RefinedType) and self.name == other.name
+                and self.type == other.type
+                and self.refinement == other.refinement)
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -161,10 +162,9 @@ class TypePolymorphism(Type):
     body: Type
 
 
-def extract_parts(
-    t: Type,
-) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
+def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
+        t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -177,8 +177,10 @@ def extract_parts(
 
 def is_bare(ty: Type) -> bool:
     """Returns whether a type is bare or not."""
-    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
+    bare_base = isinstance(ty, RefinedType) and isinstance(
+        ty.refinement, LiquidHole)
+    dependent_function = isinstance(ty, AbstractionType) and is_bare(
+        ty.var_type) and is_bare(ty.type)
     type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
     return bare_base or dependent_function or type_polymorphism
 

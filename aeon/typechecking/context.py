@@ -11,6 +11,7 @@ from aeon.core.types import Type
 
 
 class TypingContext(ABC):
+
     def type_of(self, name: str) -> Type | None:
         assert False
 
@@ -23,9 +24,6 @@ class TypingContext(ABC):
     def fresh_var(self):
         return "fresh_"
 
-    def remove_last(self) -> TypingContext:
-        return self
-
     @abstractmethod
     def typevars(self) -> list[tuple[str, Kind]]:
         ...
@@ -36,6 +34,7 @@ class TypingContext(ABC):
 
 
 class EmptyContext(TypingContext):
+
     def __init__(self):
         self.counter = 0
 
@@ -88,9 +87,6 @@ class UninterpretedBinder(TypingContext):
     def typevars(self) -> list[tuple[str, Kind]]:
         return self.prev.typevars()
 
-    def remove_last(self) -> TypingContext:
-        return self.prev
-
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
@@ -130,9 +126,6 @@ class VariableBinder(TypingContext):
     def typevars(self) -> list[tuple[str, Kind]]:
         return self.prev.typevars()
 
-    def remove_last(self) -> TypingContext:
-        return self.prev
-
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
@@ -142,10 +135,10 @@ class TypeBinder(TypingContext):
     type_kind: Kind
 
     def __init__(
-        self,
-        prev: TypingContext,
-        type_name: str,
-        type_kind: Kind = StarKind(),
+            self,
+            prev: TypingContext,
+            type_name: str,
+            type_kind: Kind = StarKind(),
     ):
         self.prev = prev
         self.type_name = type_name
@@ -162,9 +155,6 @@ class TypeBinder(TypingContext):
 
     def typevars(self) -> list[tuple[str, Kind]]:
         return [(self.type_name, self.type_kind)] + self.prev.typevars()
-
-    def remove_last(self) -> TypingContext:
-        return self.prev
 
     def __repr__(self) -> str:
         return f"{self.prev},<{self.type_name}:{self.type_kind}>"

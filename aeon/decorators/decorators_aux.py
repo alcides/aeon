@@ -12,13 +12,25 @@ from aeon.utils.ast_helpers import ensure_anf_app
 from aeon.utils.ast_helpers import ensure_anf_rec
 
 forall_functions_types = {
-    "forAllInts": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="Int")),
-    "forAllFloats": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="Float")),
-    "forAllLists": AbstractionType(type=BaseType(name="Bool"), var_name="x", var_type=BaseType(name="List")),
+    "forAllInts":
+    AbstractionType(var_name="x",
+                    var_type=BaseType(name="Int"),
+                    type=BaseType(name="Bool")),
+    "forAllFloats":
+    AbstractionType(var_name="x",
+                    var_type=BaseType(name="Float"),
+                    type=BaseType(name="Bool")),
+    "forAllLists":
+    AbstractionType(var_name="x",
+                    var_type=BaseType(name="List"),
+                    type=BaseType(name="Bool")),
 }
+
+# TODO Eduardo: Docstrings. handle_term is not very understandable.
 
 
 class FreshHelper:
+
     def __init__(self):
         self.counter = 0
 
@@ -33,7 +45,8 @@ class FreshHelper:
 fresh = FreshHelper()
 
 
-def handle_term(term: Term, minimize_flag: list[bool]) -> tuple[Term, list[bool]]:
+def handle_term(term: Term,
+                minimize_flag: list[bool]) -> tuple[Term, list[bool]]:
     if isinstance(term, Let):
         return _handle_let(term, minimize_flag)
     elif isinstance(term, Var):
@@ -43,7 +56,8 @@ def handle_term(term: Term, minimize_flag: list[bool]) -> tuple[Term, list[bool]
     raise Exception(f"Term not handled by annotation: {type(term)}")
 
 
-def _handle_let(term: Let, minimize_flag: list[bool]) -> tuple[Term, list[bool]]:
+def _handle_let(term: Let,
+                minimize_flag: list[bool]) -> tuple[Term, list[bool]]:
     if isinstance(term.body, Application):
         if isinstance(term.var_value, Abstraction):
             return _transform_to_fitness_term(term), minimize_flag
@@ -59,7 +73,8 @@ def _transform_to_fitness_term(term: Let) -> Term:
     else:
         raise Exception(f"Not handled: {term.body}")
 
-    fitness_return = Application(arg=Var(f"{term.var_name}"), fun=Var(f"{term.body.fun.name}"))
+    fitness_return = Application(arg=Var(f"{term.var_name}"),
+                                 fun=Var(f"{term.body.fun.name}"))
 
     return ensure_anf_rec(
         Rec(
@@ -67,32 +82,42 @@ def _transform_to_fitness_term(term: Let) -> Term:
             var_type=abs_type,
             var_value=term.var_value,
             body=fitness_return,
-        ),
-    )
+        ), )
 
 
 def _transform_to_aeon_list(handled_terms: list[Term]):
     return_list_terms = [
-        rec.body for rec in handled_terms if isinstance(rec, Rec) and isinstance(rec.body, Application)
+        rec.body for rec in handled_terms
+        if isinstance(rec, Rec) and isinstance(rec.body, Application)
     ]
     return_aeon_list: Term = Var("List_new")
     for term in return_list_terms:
         return_aeon_list = ensure_anf_app(
             fresh,
-            Application(ensure_anf_app(fresh, Application(Var("List_append_float"), return_aeon_list)), term),
+            Application(
+                ensure_anf_app(
+                    fresh,
+                    Application(Var("List_append_float"), return_aeon_list)),
+                term),
         )
 
     nested_rec = return_aeon_list
     for current_rec in handled_terms[::-1]:
         if isinstance(current_rec, Rec):
-            nested_rec = Rec(current_rec.var_name, current_rec.var_type, current_rec.var_value, nested_rec)
+            nested_rec = Rec(current_rec.var_name, current_rec.var_type,
+                             current_rec.var_value, nested_rec)
         else:
             raise Exception(f"Not handled: {current_rec}")
     return nested_rec
 
 
-def handle_mutiple_terms(terms: list[Term], minimize_flags: list[bool]) -> tuple[Term, list[bool]]:
-    handled_terms = [handle_term(term, [flag])[0] for term, flag in zip(terms, minimize_flags)]
+def handle_mutiple_terms(
+        terms: list[Term],
+        minimize_flags: list[bool]) -> tuple[Term, list[bool]]:
+    handled_terms = [
+        handle_term(term, [flag])[0]
+        for term, flag in zip(terms, minimize_flags)
+    ]
 
     fitness_body = _transform_to_aeon_list(handled_terms)
     return fitness_body, minimize_flags
