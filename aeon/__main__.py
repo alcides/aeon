@@ -20,23 +20,18 @@ from aeon.utils.ctx_helpers import build_context
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename",
-                        help="name of the aeon files to be synthesized")
-    parser.add_argument("--core",
-                        action="store_true",
-                        help="synthesize a aeon core file")
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
-        "\nWARNINGS \nERROR \nCRITICAL",
+        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT " "\nWARNINGS \nERROR \nCRITICAL",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
+
+    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
     return parser.parse_args()
 
 
@@ -52,9 +47,7 @@ def process_code(core: bool, code: str) -> tuple:
         return parse_term(code), context, evaluation_ctx, None
     else:
         prog: Program = parse_program(code)
-        return desugar(
-            prog
-        )  # TODO Eduardo: This should return a list of Holes/Objectives
+        return desugar(prog)  # TODO Eduardo: This should return a list of Holes/Objectives
 
 
 if __name__ == "__main__":
@@ -80,8 +73,9 @@ if __name__ == "__main__":
         if len(synthesizer.holes) <= 1:
             eval(p, ectx)
         else:
+            file_name = args.filename if args.csv else None
             best_solution = synthesizer.synthesize(
-                args.filename,
+                file_name,
                 minimize_flag,
             )
 
