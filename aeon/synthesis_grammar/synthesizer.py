@@ -27,13 +27,12 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 
 class Synthesizer:
-
     def __init__(
-            self,
-            ctx: TypingContext,
-            p: Term,
-            ty: Type = top,
-            ectx: EvaluationContext = EvaluationContext(),
+        self,
+        ctx: TypingContext,
+        p: Term,
+        ty: Type = top,
+        ectx: EvaluationContext = EvaluationContext(),
     ):
         self.ctx: TypingContext = ctx
         self.p: Term = p
@@ -67,9 +66,7 @@ class Synthesizer:
         individual_term = individual.get_core()
         first_hole_name = next(iter(self.holes))
         nt = substitution(self.p, individual_term, first_hole_name)
-        exception_return = 100000000 if not isinstance(minimize, list) else [
-            100000000 for _ in range(len(minimize))
-        ]
+        exception_return = 100000000 if not isinstance(minimize, list) else [100000000 for _ in range(len(minimize))]
 
         try:
             check_type_errors(self.ctx, nt, self.ty)
@@ -94,16 +91,14 @@ class Synthesizer:
             assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(
-                    individual, minimize),
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
         elif isinstance(minimize, list):
             assert self.fitness_type == BaseType("List")
             return MultiObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(
-                    individual, minimize),
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
     def synthesize(
@@ -121,15 +116,33 @@ class Synthesizer:
         timer_limit: int = 60,
         seed: int = 123,
     ) -> Individual:
-        # TODO Eduardo: Docstrings?
+        """Synthesizes an individual based on the provided parameters and grammar.
+
+        Args:
+            file_path (str | None): Path to the file. If provided, results will be saved to a CSV file
+            minimize (bool | list[bool]): Determines if the objective is to minimize the fitness function
+                If a list is provided, it indicates multi-objective optimization.
+            max_depth (int): Maximum depth of the individual. (Defaults = 8)
+            population_size (int): Size of the population. (Defaults = 20)
+            n_elites (int): Number of elite individuals. (Defaults = 1)
+            target_fitness (int): Target fitness value. Evolution stops when this is reached. (Defaults = 0)
+            representation (type): Representation type of the individual. (Defaults = TreeBasedRepresentation)
+            probability_mutation (float): Probability of mutation. (Defaults = 0.01)
+            probability_crossover (float): Probability of crossover. (Defaults = 0.9)
+            timer_stop_criteria (bool): If True, evolution stops based on a timer. (Defaults = True)
+            timer_limit (int): Time limit in seconds for the evolution. (Defaults = 60)
+            seed (int): Seed for random number generation. (Defaults = 123)
+
+        Returns:
+            Individual: The best synthesized individual.
+
+        Raises:
+            Exception: If there are issues with type checking or evaluation during synthesis.
+        """
 
         # TODO Eduardo: This function should have tests, no?
 
-        # TODO Eduardo: is log optional?
-
         grammar = self.get_grammar()
-        # TODO Eduardo: I've delete this line, it seems to do nothing.
-        # minimize = get_minimize(minimize_flag) if minimize_flag else True
 
         if file_path:
             file_name = os.path.basename(file_path)
@@ -142,8 +155,7 @@ class Synthesizer:
             csv_file_path = None
 
         problem = self.get_problem_type(minimize)
-        parent_selection = ("lexicase", ) if isinstance(
-            problem, MultiObjectiveProblem) else ("tournament", 5)
+        parent_selection = ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
 
         alg = SimpleGP(
             seed=seed,

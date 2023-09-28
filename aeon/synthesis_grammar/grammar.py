@@ -204,7 +204,11 @@ def generate_class_components(
         parent_name += f"t_{attribute_type_name}_"
         class_type = refined_to_unrefined_type(class_type.type)
 
-    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    if isinstance(class_type, (Top, Bottom)):
+        class_type_str: str = str(class_type)
+    elif isinstance(class_type, (BaseType, TypeVar)):
+        class_type_str = class_type.name
+
     superclass_type_name = f"{parent_name}t_{class_type_str}"
 
     return grammar_nodes, fields, class_type, superclass_type_name
