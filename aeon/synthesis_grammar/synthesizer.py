@@ -40,7 +40,6 @@ class Synthesizer:
         self.ectx: EvaluationContext = ectx
         holes, fitness_type = get_holes_info_and_fitness_type(ctx, p, ty)
         self.holes: dict[str, tuple[Type, TypingContext, str]] = holes
-        assert isinstance(fitness_type, BaseType)
         self.fitness_type: BaseType = fitness_type
 
     def get_grammar(self) -> Grammar | None:
