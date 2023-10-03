@@ -14,13 +14,13 @@ class Node:
 @dataclass
 class ImportAe(Node):
     path: str
-    func_or_type: str
+    func: str
 
     def __repr__(self):
-        if not self.func_or_type:
+        if not self.func:
             return f"import {self.path};"
         else:
-            return f"import {self.func_or_type} from {self.path};"
+            return f"import {self.func} from {self.path};"
 
 
 @dataclass
