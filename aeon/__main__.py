@@ -48,6 +48,7 @@ def process_code(core: bool, code: str) -> tuple:
     else:
         prog: Program = parse_program(code)
         return desugar(prog)  # TODO Eduardo: This should return a list of Holes/Objectives
+        # the minimize_flag is useful for multi objective problems otherwise I dont know the objective list length
 
 
 if __name__ == "__main__":
@@ -73,7 +74,7 @@ if __name__ == "__main__":
         if len(synthesizer.holes) <= 1:
             eval(p, ectx)
         else:
-            file_name = args.filename if args.csv else None
+            file_name = args.filename if args.csv_synth else None
             best_solution = synthesizer.synthesize(
                 file_name,
                 minimize_flag,

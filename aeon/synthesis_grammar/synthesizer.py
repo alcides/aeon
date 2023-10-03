@@ -40,6 +40,7 @@ class Synthesizer:
         self.ectx: EvaluationContext = ectx
         holes, fitness_type = get_holes_info_and_fitness_type(ctx, p, ty)
         self.holes: dict[str, tuple[Type, TypingContext, str]] = holes
+        assert isinstance(fitness_type, BaseType)
         self.fitness_type: BaseType = fitness_type
 
     def get_grammar(self) -> Grammar | None:
@@ -86,20 +87,21 @@ class Synthesizer:
             # traceback.print_exception(e)
             return exception_return
 
-    def get_problem_type(self, minimize: list[bool]):
-        assert len(minimize) > 0
-        if len(minimize) == 1:
+    def get_problem_type(self, minimize_list: list[bool]):
+        assert len(minimize_list) > 0
+        if len(minimize_list) == 1:
+            minimize = minimize_list[0]
             assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize_list),
             )
 
-        elif len(minimize) > 1:
+        elif len(minimize_list) > 1:
             assert self.fitness_type == BaseType("List")
             return MultiObjectiveProblem(
-                minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
+                minimize=minimize_list,
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize_list),
             )
 
     def synthesize(
@@ -141,7 +143,7 @@ class Synthesizer:
             Exception: If there are issues with type checking or evaluation during synthesis.
         """
 
-        # TODO Eduardo: This function should have tests, no?
+        # TODO Eduardo: Test
 
         grammar = self.get_grammar()
 
