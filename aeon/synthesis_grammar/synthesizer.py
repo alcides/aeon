@@ -86,15 +86,16 @@ class Synthesizer:
             # traceback.print_exception(e)
             return exception_return
 
-    def get_problem_type(self, minimize: bool | list[bool]):
-        if isinstance(minimize, bool):
+    def get_problem_type(self, minimize: list[bool]):
+        assert len(minimize) > 0
+        if len(minimize) == 1:
             assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
                 fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
-        elif isinstance(minimize, list):
+        elif len(minimize) > 1:
             assert self.fitness_type == BaseType("List")
             return MultiObjectiveProblem(
                 minimize=minimize,
@@ -104,7 +105,7 @@ class Synthesizer:
     def synthesize(
         self,
         file_path: str | None,
-        minimize: bool | list[bool],
+        minimize: list[bool],
         max_depth: int = 8,
         population_size: int = 20,
         n_elites: int = 1,
