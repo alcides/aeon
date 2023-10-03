@@ -1,0 +1,14 @@
+#def ff : (z:Int) -> (f: (a:{n:Int | 0 <=n}) ->( b:{m:Int | 0 <=m} ) -> Int ) -> Int = native "lambda a: lambda b: a+ b(2)(3)";
+def ff : (z:Int) -> (f: (a:{n:Int | 1 <= n && n <= 10000}) ->( b:{m:Int | 0 <=m} ) -> Int ) -> Int = \b-> \a-> b+ a(2)(3);
+
+#def ff : (z:Int) -> (f: (a:Int) ->( b:Int ) -> Int ) -> Int = \x -> \y -> x + y;
+#def ff : (z:Int) -> (f: (u:Int) ->( i:Int ) -> Int ) -> Int = native "lambda a: lambda b: a+ b(2)(3)";
+
+def fff : (a:{n:Int | 1 <= n && n <= 10000}) ->( b:{m:Int | 0 <=m} ) -> Int = \x -> \y -> x + y;
+#def fff : (a:{n:Int | 0 <=n}) ->( b:{m:Int | 0 <=m} ) -> Int = \x -> \y -> x + y;
+#def fff : (a:Int) ->( b:Int ) -> Int = \x -> \y -> x + y;
+
+def main (i:Int) : Unit {
+    w: Int = ff 1 fff;
+    print (w)
+}
