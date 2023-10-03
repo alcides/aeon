@@ -94,7 +94,7 @@ class Synthesizer:
             assert self.fitness_type == BaseType("Float")
             return SingleObjectiveProblem(
                 minimize=minimize,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize_list),
+                fitness_function=lambda individual: self.evaluate_fitness(individual, minimize),
             )
 
         elif len(minimize_list) > 1:
