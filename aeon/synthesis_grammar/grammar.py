@@ -25,7 +25,6 @@ from aeon.typechecking.context import TypingContext
 
 prelude_ops = ["print", "native_import", "native"]
 
-
 aeon_prelude_ops_to_text = {
     "%": "mod",
     "/": "div",
@@ -47,11 +46,17 @@ aeon_prelude_ops_to_text = {
 text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
 grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
-aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
+aeon_to_python_types = {
+    "Int": int,
+    "Bool": bool,
+    "String": str,
+    "Float": float
+}
 
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
+
     def get_core(self):
         ...
 
@@ -60,6 +65,7 @@ classType = TypingType[HasGetCore]
 
 
 def mk_method_core(cls: classType) -> classType:
+
     def get_core(self):
         class_name = self.__class__.__name__
         # the prefix is either "var_" or "app_"
@@ -97,6 +103,7 @@ def mk_method_core(cls: classType) -> classType:
 
 
 def mk_method_core_literal(cls: classType) -> classType:
+
     def get_core(self):
         class_name = self.__class__.__name__
         class_name_without_prefix = class_name[8:]
@@ -122,7 +129,8 @@ def mk_method_core_literal(cls: classType) -> classType:
     return cls
 
 
-def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list[type], type]:
+def find_class_by_name(class_name: str,
+                       grammar_nodes: list[type]) -> tuple[list[type], type]:
     """This function iterates over the provided list of grammar nodes and
     returns the node whose name matches the provided name. If no match is found
     it creates a new abstract class and a new data class, adds them to the
@@ -139,14 +147,14 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
     if class_name in list(aeon_to_python_types.keys()):
-        new_abs_class = make_dataclass("t_" + class_name, [], bases=(ABC,))
+        new_abs_class = make_dataclass("t_" + class_name, [], bases=(ABC, ))
         # new_abs_class = type("t_"+class_name, (), {})
         # new_abs_class = abstract(new_abs_class)
         grammar_nodes.append(new_abs_class)
         new_class = make_dataclass(
             "literal_" + class_name,
             [("value", aeon_to_python_types[class_name])],
-            bases=(new_abs_class,),
+            bases=(new_abs_class, ),
         )
 
         new_class = mk_method_core_literal(new_class)
@@ -154,14 +162,16 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         grammar_nodes.append(new_class)
 
     else:
-        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
-        new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
+        class_name = class_name if class_name.startswith("t_") else (
+            "t_" + class_name)
+        new_abs_class = make_dataclass(class_name, [], bases=(ABC, ))
         grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
 
 
 def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
+    return class_name not in prelude_ops and not class_name.startswith(
+        ("_anf_", "target"))
 
 
 def get_attribute_type_name(attribute_type, parent_name=None):
@@ -169,7 +179,8 @@ def get_attribute_type_name(attribute_type, parent_name=None):
     while isinstance(attribute_type, AbstractionType):
         attribute_type = refined_to_unrefined_type(attribute_type.type)
         parent_name += f"t_{get_attribute_type_name(attribute_type, parent_name)}_"
-    return parent_name + attribute_type.name if isinstance(attribute_type, BaseType) else parent_name
+    return parent_name + attribute_type.name if isinstance(
+        attribute_type, BaseType) else parent_name
 
 
 def generate_class_components(
@@ -190,21 +201,27 @@ def generate_class_components(
     fields = []
     parent_name = ""
     while isinstance(class_type, AbstractionType):
-        attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
-        attribute_type = (
-            refined_to_unrefined_type(class_type.var_type)
-            if isinstance(class_type.var_type, RefinedType)
-            else class_type.var_type
-        )
+        attribute_name = class_type.var_name.value if isinstance(
+            class_type.var_name, Token) else class_type.var_name
+        attribute_type = (refined_to_unrefined_type(class_type.var_type)
+                          if isinstance(class_type.var_type, RefinedType) else
+                          class_type.var_type)
         attribute_type_name = get_attribute_type_name(attribute_type)
 
-        grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes)
+        grammar_nodes, cls = find_class_by_name(attribute_type_name,
+                                                grammar_nodes)
         fields.append((attribute_name, cls))
 
         parent_name += f"t_{attribute_type_name}_"
         class_type = refined_to_unrefined_type(class_type.type)
 
-    class_type_str = str(class_type) if isinstance(class_type, (Top, Bottom)) else class_type.name
+    if isinstance(class_type, Top) or isinstance(class_type, Bottom):
+        class_type_str = str(class_type)
+    elif isinstance(class_type, BaseType):
+        class_type_str = class_type.name
+    else:
+        assert False
+
     superclass_type_name = f"{parent_name}t_{class_type_str}"
 
     return grammar_nodes, fields, class_type, superclass_type_name
@@ -219,13 +236,14 @@ def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
     """Creates a new class with the given name, parent class, and fields."""
     if fields is None:
         fields = []
-    new_class = make_dataclass(class_name, fields, bases=(parent_class,))
+    new_class = make_dataclass(class_name, fields, bases=(parent_class, ))
     new_class = mk_method_core(new_class)
 
     return new_class
 
 
-def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[type]:
+def create_class_from_ctx_var(var: tuple,
+                              grammar_nodes: list[type]) -> list[type]:
     """Creates a new class based on a context variable and adds it to the list
     of grammar nodes.
 
@@ -264,14 +282,16 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         parent_class_name = parent_type.name
     else:
         raise Exception(f"parent class name not definied: {(parent_type)}")
-    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name,
+                                                     grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
     grammar_nodes.append(new_class_app)
 
     # class var_function_name
     if isinstance(class_type, AbstractionType):
-        grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
+        grammar_nodes, parent_class = find_class_by_name(
+            abstraction_type_class_name, grammar_nodes)
 
         new_class_var = create_new_class(f"var_{class_name}", parent_class)
         grammar_nodes.append(new_class_var)
@@ -279,11 +299,14 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     return grammar_nodes
 
 
-def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list[type]) -> list[type]:
+def create_if_class(class_name: str, parent_class_name: str,
+                    grammar_nodes: list[type]) -> list[type]:
     grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
-    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name,
+                                                     grammar_nodes)
 
-    fields = [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)]
+    fields = [("cond", cond_class), ("then", parent_class),
+              ("otherwise", parent_class)]
 
     if_class = create_new_class(class_name, parent_class, fields)
     grammar_nodes.append(if_class)
@@ -295,11 +318,14 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
     for base_type in grammar_base_types:
         if base_type in grammar_nodes_names_set:
-            grammar_nodes = create_if_class(f"If_{base_type}", base_type, grammar_nodes)
+            grammar_nodes = create_if_class(f"If_{base_type}", base_type,
+                                            grammar_nodes)
     return grammar_nodes
 
 
-def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] | None = None) -> list[type]:
+def gen_grammar_nodes(ctx: TypingContext,
+                      synth_func_name: str,
+                      grammar_nodes: list[type] | None = None) -> list[type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,
@@ -334,9 +360,7 @@ def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
     Returns:
         type: The node with the matching name
     """
-    return next(
-        (n for n in nodes if n.__name__ == node_name),
-    )
+    return next((n for n in nodes if n.__name__ == node_name), )
 
 
 def convert_to_term(inp):
