@@ -1,11 +1,11 @@
-# Dice Game (PE) Peter has an n sided die and Colin has an m
-# sided die. If they both roll their dice at the same time, return
-# the probability that Peter rolls strictly higher than Colin.
-# input : 2 integers in [1, 1000]
-# output : float
-
-import math;
-import PSB2;
+import Math;
+import extract_train_data from PSB2;
+import load_dataset from PSB2;
+import get_input_list from PSB2;
+import unpack_train_data from PSB2;
+import get_output_list from PSB2;
+import get_dg_synth_values from PSB2;
+import mean_absolute_error from PSB2;
 
 def mult ( n:Int , m:Int ) : Int { n * m }
 
