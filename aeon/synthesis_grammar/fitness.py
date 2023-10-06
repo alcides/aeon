@@ -19,6 +19,10 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import Macro
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
+from aeon.utils.ast_helpers import ensure_anf_rec
+
+singleObjectiveDecorators = ["minimize", "maximize", "assert_property"]
+multiObjectiveDecorators = ["multi_minimize", "multi_maximize", "assert_properties"]
 
 
 # dict (hole_name , (hole_type, hole_typingContext, func_name))
@@ -113,30 +117,34 @@ def get_minimize(minimize: list[bool]):
         return minimize
 
 
-def extract_fitness_from_synth(d: Definition) -> tuple[Definition, list[bool]]:
-    fitness_args: list[tuple[str, Type]] = d.args
-    macro_list: list[Macro] = d.decorators
+def get_type_from_decorators(macro_list) -> BaseType:
+    if len(macro_list) == 1:
+        if macro_list[0].name in singleObjectiveDecorators:
+            return BaseType("Float")
+        elif macro_list[0].name in multiObjectiveDecorators:
+            return BaseType("List")
+        else:
+            raise Exception("decorator not in lists single and multi objective decorators")
+    else:
+        raise Exception("Not yet supported")
 
-    minimize_list: list[bool] = []
+
+def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Macro]]:
+    decorators_list: list[Macro] = d.decorators
+    assert len(decorators_list) > 0
+
     fitness_terms: list[Term] = []
-    for macro in macro_list:
-        annotation_func = getattr(decorators, macro.name)
-        expr_term, minimize = annotation_func(macro.macro_args)
-
-        if minimize is not None:
-            add_to_list(minimize, minimize_list)
+    for dec in decorators_list:
+        annotation_func = getattr(decorators, dec.name)
+        expr_term = annotation_func(dec.macro_args)
         add_to_list(expr_term, fitness_terms)
 
-    assert len(minimize_list) > 0
     assert len(fitness_terms) > 0
 
-    fitness_return_type = BaseType("Float") if len(
-        minimize_list) == 1 else BaseType("List")
+    fitness_return_type = get_type_from_decorators(decorators_list)
+    fitness_function = generate_term(d.name, fitness_return_type, fitness_terms)
 
-    fitness_function = generate_definition(fitness_args, fitness_return_type,
-                                           fitness_terms)
-
-    return fitness_function, minimize_list
+    return fitness_function, decorators_list
 
 
 def add_to_list(item: list, my_list: list):
@@ -154,9 +162,25 @@ def generate_definition(
     fitness_terms: list[Term],
 ) -> Definition:
     if len(fitness_terms) == 1:
-        return Definition(name="fitness",
-                          args=[],
-                          type=fitness_return_type,
-                          body=fitness_terms[0])
+        return Definition(name="fitness", args=[], type=fitness_return_type, body=fitness_terms[0])
+    else:
+        raise Exception("Not yet supported")
+
+
+def generate_term(
+    fitness_name: str,
+    fitness_return_type: BaseType,
+    fitness_terms: list[Term],
+) -> Term:
+    if len(fitness_terms) == 1:
+        rec_name = f"fitness_{fitness_name}"
+        return ensure_anf_rec(
+            Rec(
+                var_name=rec_name,
+                var_type=fitness_return_type,
+                var_value=fitness_terms[0],
+                body=Var(rec_name),
+            )
+        )
     else:
         raise Exception("Not yet supported")
