@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from aeon.decorators.decorators_aux import handle_multiple_terms
 from aeon.decorators.decorators_aux import handle_term
-from aeon.core.terms import Literal
 from aeon.core.terms import Term
-from aeon.core.types import BaseType
 
 
-def minimize(terms: list[Term]) -> tuple[Term, bool]:
+def minimize(terms: list[Term]) -> Term:
     """Minimizes a term.
 
     Args:
@@ -20,10 +18,10 @@ def minimize(terms: list[Term]) -> tuple[Term, bool]:
         AssertionError: If the length of terms is not 1.
     """
     assert len(terms) == 1
-    return handle_term(terms[0]), True
+    return handle_term(terms[0])
 
 
-def maximize(terms: list[Term]) -> tuple[Term, bool]:
+def maximize(terms: list[Term]) -> Term:
     """Maximizes a term.
 
     Args:
@@ -36,10 +34,11 @@ def maximize(terms: list[Term]) -> tuple[Term, bool]:
         AssertionError: If the length of terms is not 1.
     """
     assert len(terms) == 1
-    return handle_term(terms[0]), False
+
+    return handle_term(terms[0])
 
 
-def multi_minimize(terms: list[Term]) -> tuple[Term, list[bool]]:
+def multi_minimize(terms: list[Term]) -> Term:
     """Minimizes a term multiple times based on the value of the second term.
 
     Args:
@@ -53,14 +52,11 @@ def multi_minimize(terms: list[Term]) -> tuple[Term, list[bool]]:
         AssertionError: If the length of terms is not 2 or the second term is not a positive integer Literal.
     """
     assert len(terms) == 2
-    term_literal = terms[1]
-    assert isinstance(term_literal, Literal) and term_literal.type == BaseType("Int")
-    assert term_literal.value > 0  # type: ignore[operator]
 
-    return handle_term(terms[0]), [True] * term_literal.value  # type: ignore[operator]
+    return handle_term(terms[0])
 
 
-def multi_maximize(terms: list[Term]) -> tuple[Term, list[bool]]:
+def multi_maximize(terms: list[Term]) -> Term:
     """Maximizes a term multiple times based on the value of the second term.
 
     Args:
@@ -74,14 +70,11 @@ def multi_maximize(terms: list[Term]) -> tuple[Term, list[bool]]:
         AssertionError: If the length of terms is not 2 or the second term is not a positive integer Literal.
     """
     assert len(terms) == 2
-    term_literal = terms[1]
-    assert isinstance(term_literal, Literal) and term_literal.type == BaseType("Int")
-    assert term_literal.value > 0  # type: ignore[operator]
 
-    return handle_term(terms[0]), [False] * term_literal.value  # type: ignore[operator]
+    return handle_term(terms[0])
 
 
-def assert_property(terms: list[Term]) -> tuple[Term, bool]:
+def assert_property(terms: list[Term]) -> Term:
     """Term inside the property decorator is subject of a property-based testing.
 
     Args:
@@ -95,10 +88,10 @@ def assert_property(terms: list[Term]) -> tuple[Term, bool]:
     """
     assert len(terms) == 1
 
-    return handle_term(terms[0]), False
+    return handle_term(terms[0])
 
 
-def assert_properties(terms: list[Term]) -> tuple[Term, list[bool]]:
+def assert_properties(terms: list[Term]) -> Term:
     """Terms inside the properties decorator are subject of property-based testing.
 
     Args:
@@ -112,4 +105,4 @@ def assert_properties(terms: list[Term]) -> tuple[Term, list[bool]]:
     """
     assert len(terms) > 1
 
-    return handle_multiple_terms(terms), [False] * len(terms)
+    return handle_multiple_terms(terms)
