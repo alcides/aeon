@@ -19,7 +19,7 @@ from aeon.core.types import t_int
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition, Macro
+from aeon.sugar.program import Definition, Decorator
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
@@ -29,7 +29,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Macro]]]]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Decorator]]]]
 
 
 def desugar(p: Program) -> ProgramComponents:
@@ -42,16 +42,16 @@ def desugar(p: Program) -> ProgramComponents:
     if "fitness" in [d.name for d in defs]:
         # default
         fitness_term: Term = Var("fitness")
-        objectives_list = {"synth": (fitness_term, [Macro("minimize", [])])}
+        objectives_dict = {"synth": (fitness_term, [Decorator("minimize", [])])}
     else:
-        objectives_list = extract_objectives_list(defs)
+        objectives_dict = extract_objectives_dict(defs)
 
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
 
-    return prog, ctx, ectx, objectives_list
+    return prog, ctx, ectx, objectives_dict
 
 
 def determine_main_function(p: Program) -> Term:
@@ -84,7 +84,7 @@ def handle_imports(
     return defs, type_decls
 
 
-def extract_objectives_list(defs: list[Definition]) -> dict[str, tuple[Term, list[Macro]]]:
+def extract_objectives_dict(defs: list[Definition]) -> dict[str, tuple[Term, list[Decorator]]]:
     synth_defs_list = [item for item in defs if item.name.startswith("synth")]
     objectives_dict = {}
     if synth_defs_list:

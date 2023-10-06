@@ -12,13 +12,12 @@ from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
-from aeon.sugar.program import Macro
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
-
     def list(self, args):
         return args
 
@@ -40,17 +39,14 @@ class TreeToSugar(TreeToCore):
     def def_fun(self, args):
         if len(args) == 4:
             return Definition(args[0], args[1], args[2], args[3])
-        if isinstance(args[0], Macro):
+        if isinstance(args[0], Decorator):
             decorators = [args[0]]
         else:
-            decorators = [
-                self.macro(macro_args.children) for macro_args in args[0]
-                if isinstance(macro_args, Tree)
-            ]
+            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
         return Definition(args[1], args[2], args[3], args[4], decorators)
 
     def macro(self, args):
-        return Macro(args[0], args[1])
+        return Decorator(args[0], args[1])
 
     def macro_args(self, args):
         return args
@@ -78,9 +74,7 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[
-            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
-        ],
+        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
     )
 
 

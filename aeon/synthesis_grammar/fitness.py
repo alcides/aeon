@@ -16,7 +16,7 @@ from aeon.core.types import BaseType
 from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import Type
 from aeon.sugar.program import Definition
-from aeon.sugar.program import Macro
+from aeon.sugar.program import Decorator
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.utils.ast_helpers import ensure_anf_rec
@@ -113,8 +113,8 @@ def get_type_from_decorators(macro_list) -> BaseType:
         raise Exception("Not yet supported")
 
 
-def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Macro]]:
-    decorators_list: list[Macro] = d.decorators
+def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Decorator]]:
+    decorators_list: list[Decorator] = d.decorators
     assert len(decorators_list) > 0
 
     fitness_terms: list[Term] = []

@@ -13,7 +13,7 @@ from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program, Macro
+from aeon.sugar.program import Program, Decorator
 from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
@@ -44,15 +44,14 @@ def read_file(filename: str) -> str:
 
 def process_code(
     core: bool, code: str
-) -> tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Macro]]]]:
+) -> tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Decorator]]]]:
     if core:
         context = build_context(typing_vars)
         evaluation_ctx = EvaluationContext(evaluation_vars)
         return parse_term(code), context, evaluation_ctx, {}
     else:
         prog: Program = parse_program(code)
-        return desugar(prog)  # TODO Eduardo: This should return a list of Holes/Objectives
-        # the minimize_flag is useful for multi objective problems otherwise I dont know the objective list length
+        return desugar(prog)
 
 
 if __name__ == "__main__":
@@ -61,7 +60,7 @@ if __name__ == "__main__":
     export_log(args.log, args.logfile, args.filename)
 
     aeon_code = read_file(args.filename)
-    p, ctx, ectx, objectives_list = process_code(args.core, aeon_code)
+    p, ctx, ectx, objectives_dict = process_code(args.core, aeon_code)
     logger.info(p)
 
     errors = check_type_errors(ctx, p, top)
@@ -73,12 +72,12 @@ if __name__ == "__main__":
             logger.error("TYPECHECKER", error)
         logger.error("TYPECHECKER", "-------------------------------")
     else:
-        if objectives_list:
+        if objectives_dict:
             synthesizer = Synthesizer(ctx, p, top, ectx)
             file_name = args.filename if args.csv_synth else None
             best_solution = synthesizer.synthesize(
                 file_name,
-                objectives_list,
+                objectives_dict,
             )
 
             print(f"Best solution: {best_solution.genotype}")

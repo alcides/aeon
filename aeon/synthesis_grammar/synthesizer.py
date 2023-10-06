@@ -18,7 +18,7 @@ from aeon.core.terms import Term, Let, Literal, Rec
 from aeon.core.types import BaseType
 from aeon.core.types import top
 from aeon.core.types import Type
-from aeon.sugar.program import Macro
+from aeon.sugar.program import Decorator
 from aeon.synthesis_grammar.fitness import get_holes_info
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes
 from aeon.synthesis_grammar.grammar import get_grammar_node
@@ -35,7 +35,7 @@ def is_valid_term_literal(term_literal: Term) -> bool:
     )
 
 
-def extract_minimize_list_from_decorators(decorators: list[Macro]) -> list[bool]:
+def extract_minimize_list_from_decorators(decorators: list[Decorator]) -> list[bool]:
     minimize_list = []
 
     for decorator in decorators:
@@ -126,7 +126,7 @@ class Synthesizer:
         ):
             raise ValueError(f"Invalid fitness term or type. Expected {expected_type}")
 
-    def get_problem_type(self, synth_def_info: tuple[Term, list[Macro]]):
+    def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]]):
         fitness_term = synth_def_info[0]
 
         minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
@@ -148,7 +148,7 @@ class Synthesizer:
     def synthesize(
         self,
         file_path: str | None,
-        objectives: dict[str, tuple[Term, list[Macro]]],
+        objectives: dict[str, tuple[Term, list[Decorator]]],
         max_depth: int = 8,
         population_size: int = 20,
         n_elites: int = 1,
@@ -164,7 +164,7 @@ class Synthesizer:
 
         Args:
             file_path (str | None): Path to the file. If provided, results will be saved to a CSV file
-            objectives (dict[str, tuple[Term, list[Macro]]]): Determines if the objective is to minimize the fitness function
+            objectives (dict[str, tuple[Term, list[Decorator]]]): Determines if the objective is to minimize the fitness function
             max_depth (int): Maximum depth of the individual. (Defaults = 8)
             population_size (int): Size of the population. (Defaults = 20)
             n_elites (int): Number of elite individuals. (Defaults = 1)

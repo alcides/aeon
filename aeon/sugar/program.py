@@ -32,7 +32,7 @@ class TypeDecl(Node):
 
 
 @dataclass
-class Macro(Node):
+class Decorator(Node):
     name: str
     macro_args: list[Term]
 
@@ -47,7 +47,7 @@ class Definition(Node):
     args: list[tuple[str, Type]]
     type: Type
     body: Term  # TODO: replace with custom Sugar Expr
-    decorators: list[Macro] = field(default_factory=list)
+    decorators: list[Decorator] = field(default_factory=list)
 
     def __repr__(self):
         if not self.args:
