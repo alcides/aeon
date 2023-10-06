@@ -7,12 +7,12 @@ import get_output_list from PSB2;
 import get_dg_synth_values from PSB2;
 import mean_absolute_error from PSB2;
 
-def mult ( n:Int , m:Int ) : Int { n * m }
+#def mult ( n:Int , m:Int ) : Int { n * m }
 
-def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
+#def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
-    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
+#def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+#    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
 
 def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
