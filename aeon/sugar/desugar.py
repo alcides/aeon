@@ -39,7 +39,12 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
-    objectives_list = extract_objectives_list(defs)
+    if "fitness" in [d.name for d in defs]:
+        # default
+        fitness_term: Term = Var("fitness")
+        objectives_list = {"synth": (fitness_term, [Macro("minimize", [])])}
+    else:
+        objectives_list = extract_objectives_list(defs)
 
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
@@ -82,10 +87,10 @@ def handle_imports(
 def extract_objectives_list(defs: list[Definition]) -> dict[str, tuple[Term, list[Macro]]]:
     synth_defs_list = [item for item in defs if item.name.startswith("synth")]
     objectives_dict = {}
-    assert synth_defs_list
-    for def_ in synth_defs_list:
-        fitness_function, macros = extract_fitness_from_synth(def_)
-        objectives_dict[def_.name] = (fitness_function, macros)
+    if synth_defs_list:
+        for def_ in synth_defs_list:
+            fitness_function, macros = extract_fitness_from_synth(def_)
+            objectives_dict[def_.name] = (fitness_function, macros)
 
     return objectives_dict
 

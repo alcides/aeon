@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from abc import ABC
 
+from aeon.core.terms import Var
 from aeon.core.types import top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import Synthesizer
 from aeon.typechecking.typeinfer import check_type_errors
@@ -32,7 +32,7 @@ def test_fitness():
         def synth : Int = (?hole: Int) * 7;
         def fitness : Int  =  year - synth;
     """
-    prog: Program = parse_program(code)
+    prog = parse_program(code)
     p, ctx, ectx, _ = desugar(prog)
     check_type_errors(ctx, p, top)
     synthesizer = Synthesizer(ctx, p, top, ectx)
@@ -43,5 +43,5 @@ def test_fitness():
     expected_output1 = 1995
     expected_output2 = 0
 
-    assert synthesizer.evaluate_fitness(individual1, True) == expected_output1
-    assert synthesizer.evaluate_fitness(individual2, True) == expected_output2
+    assert synthesizer.evaluate_fitness(individual1, Var("fitness"), True) == expected_output1
+    assert synthesizer.evaluate_fitness(individual2, Var("fitness"), True) == expected_output2

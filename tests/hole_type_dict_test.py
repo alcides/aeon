@@ -12,7 +12,7 @@ def check_hole_type(source, hole_name, expected_type):
     p, ctx, _, _ = desugar(parse_program(source))
     holes = get_holes_info(ctx, p, top)
 
-    assert holes[0][hole_name][0] == expected_type
+    assert holes[hole_name][0] == expected_type
 
 
 def test_type_int():
