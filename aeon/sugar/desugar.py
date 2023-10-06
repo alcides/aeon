@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os.path
 from pathlib import Path
-from typing import Union
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
@@ -20,7 +19,7 @@ from aeon.core.types import t_int
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition
+from aeon.sugar.program import Definition, Macro
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
@@ -30,7 +29,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Union[list[bool], None]]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Macro]]]]
 
 
 def desugar(p: Program) -> ProgramComponents:
@@ -40,17 +39,14 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
-    if "fitness" in [d.name for d in defs]:
-        minimize_flag: list[bool] | None = [True]
-    else:
-        minimize_flag = extract_and_add_fitness(defs)
+    objectives_list = extract_objectives_list(defs)
 
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
 
-    return prog, ctx, ectx, minimize_flag
+    return prog, ctx, ectx, objectives_list
 
 
 def determine_main_function(p: Program) -> Term:
@@ -83,13 +79,15 @@ def handle_imports(
     return defs, type_decls
 
 
-def extract_and_add_fitness(defs: list[Definition]) -> list[bool] | None:
-    synth_d = next((item for item in defs if item.name.startswith("synth")), None)
-    if synth_d:
-        fitness_function, minimize_flag = extract_fitness_from_synth(synth_d)
-        defs.append(fitness_function)
-        return minimize_flag
-    return None
+def extract_objectives_list(defs: list[Definition]) -> dict[str, tuple[Term, list[Macro]]]:
+    synth_defs_list = [item for item in defs if item.name.startswith("synth")]
+    objectives_dict = {}
+    assert synth_defs_list
+    for def_ in synth_defs_list:
+        fitness_function, macros = extract_fitness_from_synth(def_)
+        objectives_dict[def_.name] = (fitness_function, macros)
+
+    return objectives_dict
 
 
 def update_program_and_context(
