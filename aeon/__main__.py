@@ -80,6 +80,6 @@ if __name__ == "__main__":
                 objectives_dict,
             )
 
-            print(f"Best solution: {best_solution.genotype}")
+            print(f"Best solution: {best_solution}")
         else:
             eval(p, ectx)

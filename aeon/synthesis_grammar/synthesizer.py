@@ -5,7 +5,6 @@ import os
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar
-from geneticengine.core.grammar import Grammar
 from geneticengine.core.problems import MultiObjectiveProblem
 from geneticengine.core.problems import SingleObjectiveProblem
 
@@ -69,30 +68,33 @@ class Synthesizer:
         holes = get_holes_info(ctx, p, ty)
         self.holes: dict[str, tuple[Type, TypingContext, str]] = holes
 
-    def get_grammar(self) -> Grammar | None:
-        if len(self.holes) > 1:
-            first_hole_name = next(iter(self.holes))
-            hole_type, hole_ctx, synth_func_name = self.holes[first_hole_name]
+    @staticmethod
+    def get_grammar_components(
+        hole_data: tuple[Type, TypingContext, str], grammar_nodes: list[type]
+    ) -> tuple[list[type], type]:
+        hole_type, hole_ctx, synth_func_name = hole_data
+        grammar_nodes = gen_grammar_nodes(hole_ctx, synth_func_name, grammar_nodes)
 
-            grammar_n = gen_grammar_nodes(hole_ctx, synth_func_name)
+        assert len(grammar_nodes) > 0
+        assert isinstance(hole_type, BaseType)
+        starting_node = get_grammar_node("t_" + hole_type.name, grammar_nodes)
+        assert starting_node is not None, "Starting Node is None"
 
-            assert len(grammar_n) > 0
-            assert isinstance(hole_type, BaseType)
-            starting_node = get_grammar_node("t_" + hole_type.name, grammar_n)
-            assert starting_node is not None, "Starting Node is None"
+        # grammar = extract_grammar(grammar_nodes, starting_node)
+        # print("g: ", grammar)
 
-            grammar = extract_grammar(grammar_n, starting_node)
-            # print("g: ", grammar)
+        return grammar_nodes, starting_node
 
-            return grammar
-
-        else:
-            return None
-
-    def evaluate_fitness(self, individual, fitness_term: Term, minimize: bool | list[bool]) -> float | list[float]:
+    def evaluate_fitness(
+        self,
+        individual,
+        fitness_term: Term,
+        minimize: bool | list[bool],
+        program: Term,
+    ) -> float | list[float]:
         individual_term = individual.get_core()
         first_hole_name = next(iter(self.holes))
-        nt = substitution(self.p, individual_term, first_hole_name)
+        nt = substitution(program, individual_term, first_hole_name)
         exception_return: float | list[float] = (
             100000000 if not isinstance(minimize, list) else [100000000 for _ in range(len(minimize))]
         )
@@ -126,7 +128,7 @@ class Synthesizer:
         ):
             raise ValueError(f"Invalid fitness term or type. Expected {expected_type}")
 
-    def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]]):
+    def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]], program: Term):
         fitness_term = synth_def_info[0]
 
         minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
@@ -135,15 +137,50 @@ class Synthesizer:
             self.validate_fitness_term(fitness_term, BaseType("Float"))
             return SingleObjectiveProblem(
                 minimize=minimize_list[0],
-                fitness_function=lambda individual: self.evaluate_fitness(individual, fitness_term, minimize_list[0]),
+                fitness_function=lambda individual: self.evaluate_fitness(
+                    individual, fitness_term, minimize_list[0], program
+                ),
             )
 
         elif len(minimize_list) > 1:
             self.validate_fitness_term(fitness_term, BaseType("List"))
             return MultiObjectiveProblem(
                 minimize=minimize_list,
-                fitness_function=lambda individual: self.evaluate_fitness(individual, fitness_term, minimize_list),
+                fitness_function=lambda individual: self.evaluate_fitness(
+                    individual, fitness_term, minimize_list, program
+                ),
             )
+
+    @staticmethod
+    def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str = "") -> str | None:
+        """
+        Generate a csv file path based on provided file_path, representation and seed.
+
+        Args:
+            file_path (str): The original file path.
+            representation (type): Representation type of the individual.
+            seed (int): Seed for random number generation.
+
+        Returns:
+            str | None: Generated CSV file path or None if no file_path is provided.
+        """
+        if not file_path:
+            return None
+
+        file_name = os.path.basename(file_path)
+        name_without_extension = os.path.splitext(file_name)[0]
+        directory = f"csv/{name_without_extension}/{representation.__name__}"
+
+        os.makedirs(directory, exist_ok=True)
+
+        if hole_name:
+            return f"{directory}/{name_without_extension}_{hole_name}_{seed}.csv"
+
+        return f"{directory}/{name_without_extension}_{seed}.csv"
+
+    @staticmethod
+    def determine_parent_selection_type(problem):
+        return ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
 
     def synthesize(
         self,
@@ -159,7 +196,7 @@ class Synthesizer:
         timer_stop_criteria: bool = True,
         timer_limit: int = 60,
         seed: int = 123,
-    ) -> Individual:
+    ) -> Term:
         """Synthesizes an individual based on the provided parameters and grammar.
 
         Args:
@@ -186,44 +223,42 @@ class Synthesizer:
         # TODO Eduardo: Test
         assert len(objectives) + 1 == len(self.holes)
 
-        grammar = self.get_grammar()
+        ##############################################################################################################
 
-        # grammar.get_all_symbols()
+        holes_names = list(self.holes.keys())
+        grammar_nodes: list[type] = list()
+        program_to_synth = self.p
+        for i in range(len(objectives)):
+            hole_name = holes_names[i]
+            csv_file_path = self.get_csv_file_path(file_path, representation, seed, hole_name)
 
-        if file_path:
-            file_name = os.path.basename(file_path)
-            name_without_extension = os.path.splitext(file_name)[0]
-            directory = f"csv/{name_without_extension}/{representation.__name__}"
+            hole_data = self.holes[hole_name]
+            grammar_nodes, starting_node = self.get_grammar_components(hole_data, grammar_nodes)
+            grammar = extract_grammar(grammar_nodes, starting_node)
 
-            os.makedirs(directory, exist_ok=True)
-            csv_file_path = f"{directory}/{name_without_extension}_{seed}.csv"
-        else:
-            csv_file_path = None
+            synth_objective = objectives[hole_data[2]]
 
-        # for synth_function in objectives.keys():
-        # currently only working with one ?hole
-        first_objective = next(iter(objectives))
-        problem = self.get_problem_type(objectives[first_objective])
+            problem = self.get_problem_type(synth_objective, program_to_synth)
+            parent_selection = self.determine_parent_selection_type(problem)
 
-        # problem = self.get_problem_type(minimize)
-        parent_selection = ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
+            alg = SimpleGP(
+                seed=seed,
+                grammar=grammar,
+                representation=representation,
+                problem=problem,
+                selection_method=parent_selection,
+                max_depth=max_depth,
+                population_size=population_size,
+                n_elites=n_elites,
+                verbose=2,
+                target_fitness=target_fitness,
+                probability_mutation=probability_mutation,
+                probability_crossover=probability_crossover,
+                timer_stop_criteria=timer_stop_criteria,
+                timer_limit=timer_limit,
+                save_to_csv=csv_file_path,
+            )
+            best: Individual = alg.evolve()
+            program_to_synth = substitution(program_to_synth, best.genotype.get_core(), hole_name)
 
-        alg = SimpleGP(
-            seed=seed,
-            grammar=grammar,
-            representation=representation,
-            problem=problem,
-            selection_method=parent_selection,
-            max_depth=max_depth,
-            population_size=population_size,
-            n_elites=n_elites,
-            verbose=2,
-            target_fitness=target_fitness,
-            probability_mutation=probability_mutation,
-            probability_crossover=probability_crossover,
-            timer_stop_criteria=timer_stop_criteria,
-            timer_limit=timer_limit,
-            save_to_csv=csv_file_path,
-        )
-        best = alg.evolve()
-        return best
+        return program_to_synth
