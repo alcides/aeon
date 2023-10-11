@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aeon.decorators.decorators_aux import handle_multiple_terms
+from aeon.decorators.decorators_aux import handle_multi_property_based_test
 from aeon.decorators.decorators_aux import handle_term
 from aeon.core.terms import Term
 
@@ -87,7 +87,6 @@ def assert_property(terms: list[Term]) -> Term:
         AssertionError: If the length of terms is not 1.
     """
     assert len(terms) == 1
-
     return handle_term(terms[0])
 
 
@@ -105,4 +104,4 @@ def assert_properties(terms: list[Term]) -> Term:
     """
     assert len(terms) > 1
 
-    return handle_multiple_terms(terms)
+    return handle_multi_property_based_test(terms)

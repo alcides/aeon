@@ -126,6 +126,7 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Decorator]]:
     assert len(fitness_terms) > 0
 
     fitness_return_type = get_type_from_decorators(decorators_list)
+
     fitness_function = generate_term(d.name, fitness_return_type, fitness_terms)
 
     return fitness_function, decorators_list
