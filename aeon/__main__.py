@@ -54,6 +54,15 @@ def process_code(
         return desugar(prog)
 
 
+def log_type_errors(errors: list[Exception | str]):
+    logger.log("TYPECHECKER", "-------------------------------")
+    logger.log("TYPECHECKER", "+     Type Checking Error     +")
+    for error in errors:
+        logger.log("TYPECHECKER", "-------------------------------")
+        logger.log("TYPECHECKER", error)
+    logger.log("TYPECHECKER", "-------------------------------")
+
+
 if __name__ == "__main__":
     args = parse_arguments()
     logger = setup_logger()
@@ -63,14 +72,9 @@ if __name__ == "__main__":
     p, ctx, ectx, objectives_dict = process_code(args.core, aeon_code)
     logger.info(p)
 
-    errors = check_type_errors(ctx, p, top)
-    if errors:
-        logger.error("TYPECHECKER", "-------------------------------")
-        logger.error(f"+  Type Checking Error{ errors}        +")
-        for error in errors:
-            logger.error("TYPECHECKER", "-------------------------------")
-            logger.error("TYPECHECKER", error)
-        logger.error("TYPECHECKER", "-------------------------------")
+    type_errors = check_type_errors(ctx, p, top)
+    if type_errors:
+        log_type_errors(type_errors)
     else:
         if objectives_dict:
             synthesizer = Synthesizer(ctx, p, top, ectx)
