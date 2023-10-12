@@ -16,6 +16,7 @@ from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
+
     def list(self, args):
         return args
 
@@ -29,7 +30,8 @@ class TreeToSugar(TreeToCore):
         return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
-        return TypeDecl(args[0])
+        assert isinstance(args[1], list)
+        return TypeDecl(args[0], args[1])
 
     def def_cons(self, args):
         return Definition(args[0], [], args[1], args[2])
@@ -39,6 +41,12 @@ class TreeToSugar(TreeToCore):
 
     def empty_list(self, args):
         return []
+
+    def targs(self, args):
+        return args
+
+    def targ(self, args):
+        return (args[0], args[1])
 
     def args(self, args):
         return args
@@ -60,7 +68,9 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
+        import_paths=[
+            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
+        ],
     )
 
 

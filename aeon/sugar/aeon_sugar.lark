@@ -9,7 +9,12 @@ type_decls : type_decl*                              -> list
 
 defs : def*                                          -> list
 
-type_decl : "type" ID ";"                            -> type_decl
+type_decl : "type" ID targs ";"                            -> type_decl
+
+targs :                                            -> empty_list
+      | targ ("," targ)*                           -> targs
+
+targ : ID ":" kind                                 -> targ
 
 def : "def" ID ":" type "=" expression ";"          -> def_cons
     | "def" ID "(" args ")" ":" type "{" expression "}" -> def_fun
