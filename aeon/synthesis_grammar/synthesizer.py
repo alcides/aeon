@@ -21,6 +21,8 @@ from aeon.sugar.program import Decorator
 from aeon.synthesis_grammar.fitness import get_holes_info
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes
 from aeon.synthesis_grammar.grammar import get_grammar_node
+from aeon.synthesis_grammar.identification import get_hole_type, iterate_top_level
+from aeon.synthesis_grammar.utils import fitness_function_name_for
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 
@@ -113,7 +115,7 @@ class Synthesizer:
         fitness_term = synth_def_info[0]
 
         # minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
-        minimize_list = []
+        minimize_list : list[bool] = []
         assert len(minimize_list) > 0, "Minimize list cannot be empty"
         if len(minimize_list) == 1:
             self.validate_fitness_term(fitness_term, BaseType("Float"))
@@ -250,10 +252,20 @@ def synthesize_single_function(
     ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str, holes: list[str]
 ) -> Term:
     # TODO: This function is not working yet
+
+    # Step 1. Get fitness function
+    fitness_function_name = fitness_function_name_for(fun_name)
+    [ fun.var_type for fun in iterate_top_level(term) if fun.name == fitness_function_name ][0]
+    # TODO: Create Objective.
+
+    # Step 2. Get Hole Type.
+    [ (h, get_hole_type(ctx, h, term)) for h in holes  ]
+    # TODO: Also extract TypingContext
+
     return term
 
 
-def synthesize(ctx: TypingContext, ectx: EvaluationContext, term: Term, targets=list[tuple[str, list[str]]]) -> Term:
+def synthesize(ctx: TypingContext, ectx: EvaluationContext, term: Term, targets=list[tuple[str, list[str]]], filename:str | None=None) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     for name, holes in targets:
         term = synthesize_single_function(ctx, ectx, term, name, holes)

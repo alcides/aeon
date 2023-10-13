@@ -108,7 +108,7 @@ if __name__ == "__main__":
         file_name = args.filename if args.csv_synth else None
 
         synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf,
-                                      incomplete_functions)
+                                      incomplete_functions, file_name)
 
         print(f"Best solution: {synthesis_result}")
         sys.exit(1)

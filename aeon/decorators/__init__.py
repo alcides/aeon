@@ -1,7 +1,3 @@
-from typing import Callable
-from aeon.core.terms import Term
-from aeon.decorators.optimization import minimize_int
-from aeon.sugar.program import Definition
 """
 A decorator represents the modification of the program around a function. Consider the following example:
 
@@ -12,6 +8,11 @@ The decorator implementation will receive the list [decorator_arg, decorator_arg
 Then the implementation should return a tuple of the (possibly modified) definition, as well as a list of
 eventual complementary definitions.
 """
+
+from typing import Callable
+from aeon.core.terms import Term
+from aeon.sugar.program import Definition
+from aeon.synthesis_grammar.decorators import minimize_int
 
 DecoratorType = Callable[[list[Term], Definition], tuple[Definition,
                                                          list[Definition]]]

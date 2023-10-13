@@ -1,3 +1,4 @@
+from typing import Optional
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -12,7 +13,44 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
+from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
+
+
+
+def get_hole_type(ctx:TypingContext, name:str, term: Term) -> Optional[Type]:
+    """Returns the names of holes in a particular term."""
+    def rec(t:Term):
+        return get_hole_type(ctx, name, t)
+    match term:
+        case Annotation(expr=Hole(name=hname), type=ty):
+            if name == hname:
+                return ty
+        case Hole(name=hname):
+            pass
+        case Literal(_):
+            pass
+        case Var(_):
+            pass
+        case Annotation(expr=expr, type=_):
+            return rec(expr)
+        case Application(fun=fun, arg=arg):
+            return rec(fun) or rec(arg)
+        case If(cond=cond, then=then, otherwise=otherwise):
+            return rec(cond) or rec(then) or rec(otherwise)
+        case Abstraction(var_name=_, body=body):
+            return rec(body)
+        case Let(var_name=_, var_value=value, body=body):
+            return rec(value) or rec(body)
+        case Rec(var_name=_, var_type=_, var_value=value, body=body):
+            return rec(value) or rec(body)
+        case TypeApplication(body=body, type=_):
+            return rec(body)
+        case TypeAbstraction(name=_, kind=_, body=body):
+            return rec(body)
+        case _:
+            assert False
+    return None
 
 
 def get_holes(term: Term) -> list[str]:
