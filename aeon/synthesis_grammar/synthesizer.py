@@ -34,25 +34,6 @@ def is_valid_term_literal(term_literal: Term) -> bool:
     )
 
 
-def extract_minimize_list_from_decorators(decorators: list[Decorator]) -> list[bool]:
-    minimize_list = []
-
-    for decorator in decorators:
-        if decorator.name == "minimize":
-            minimize_list.append(True)
-        elif decorator.name in {"maximize", "assert_property"}:
-            minimize_list.append(False)
-        elif decorator.name in {"multi_minimize", "multi_maximize"}:
-            term_literal = decorator.macro_args[1]
-            assert is_valid_term_literal(term_literal)
-            is_minimize = decorator.name == "multi_minimize"
-            minimize_list = [is_minimize] * term_literal.value  # type: ignore
-        elif decorator.name == "assert_properties":
-            minimize_list = [False] * len(decorator.macro_args)
-
-    return minimize_list
-
-
 class Synthesizer:
     def __init__(
         self,
@@ -131,7 +112,8 @@ class Synthesizer:
     def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]], program: Term):
         fitness_term = synth_def_info[0]
 
-        minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
+        # minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
+        minimize_list = []
         assert len(minimize_list) > 0, "Minimize list cannot be empty"
         if len(minimize_list) == 1:
             self.validate_fitness_term(fitness_term, BaseType("Float"))
@@ -262,3 +244,17 @@ class Synthesizer:
             program_to_synth = substitution(program_to_synth, best.genotype.get_core(), hole_name)
 
         return program_to_synth
+
+
+def synthesize_single_function(
+    ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str, holes: list[str]
+) -> Term:
+    # TODO: This function is not working yet
+    return term
+
+
+def synthesize(ctx: TypingContext, ectx: EvaluationContext, term: Term, targets=list[tuple[str, list[str]]]) -> Term:
+    """Synthesizes code for multiple functions, each with multiple holes."""
+    for name, holes in targets:
+        term = synthesize_single_function(ctx, ectx, term, name, holes)
+    return term

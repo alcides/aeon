@@ -1,6 +1,6 @@
 from typing import Union
 
-from aeon.decorators import decorators
+from aeon.decorators import decorators_environment
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -119,7 +119,7 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Decorator]]:
 
     fitness_terms: list[Term] = []
     for dec in decorators_list:
-        annotation_func = getattr(decorators, dec.name)
+        annotation_func = getattr(decorators_environment, dec.name)
         expr_term = annotation_func(dec.macro_args)
         add_to_list(expr_term, fitness_terms)
 

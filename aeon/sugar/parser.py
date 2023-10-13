@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Callable
 
 from lark import Lark
 from lark import Tree
@@ -9,6 +10,7 @@ from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.types import AbstractionType
 from aeon.core.types import TypeVar
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
@@ -78,4 +80,22 @@ def mk_parser(rule="start", start_counter=0):
     )
 
 
-parse_program = mk_parser("program").parse
+parse_program: Callable[[str], Program] = mk_parser("program").parse
+
+
+def ensure_anf_definition(d: Definition):
+    match d:
+        case Definition(name=name, args=args, type=type, body=body, decorators=decorators):
+            new_body = ensure_anf(body)
+            return Definition(name, args, type, new_body, decorators)
+        case _:
+            assert False
+
+
+def ensure_anf_sugar(p: Program) -> Program:
+    match p:
+        case Program(imports=imp, type_decls=type_decls, definitions=definitions):
+            new_definitions = [ensure_anf_definition(d) for d in definitions]
+            return Program(imports=imp, type_decls=type_decls, definitions=new_definitions)
+        case _:
+            assert False

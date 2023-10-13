@@ -55,6 +55,7 @@ def desugar(p: Program) -> ProgramComponents:
 
 
 def determine_main_function(p: Program) -> Term:
+    print("def", p.definitions)
     if "main" in [d.name for d in p.definitions]:
         return Application(Var("main"), Literal(1, type=t_int))
     return Hole("main")
