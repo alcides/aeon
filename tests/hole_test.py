@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+from aeon.__main__ import apply_decorators_in_program
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
@@ -10,7 +9,8 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 def extract_target_functions(source):
     prog = parse_program(source)
-    core, ctx, ectx = desugar(prog)
+    prog = apply_decorators_in_program(prog)
+    core, ctx, _ = desugar(prog)
     core_anf = ensure_anf(core)
     check_type_errors(ctx, core_anf, top)
     return incomplete_functions_and_holes(ctx, core_anf)
