@@ -100,9 +100,9 @@ if __name__ == "__main__":
         log_type_errors(type_errors)
         sys.exit(1)
 
-    incomplete_functions: list[tuple(
+    incomplete_functions: list[tuple[
         str,
-        list[str])] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+        list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         file_name = args.filename if args.csv_synth else None

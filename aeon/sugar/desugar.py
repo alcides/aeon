@@ -29,7 +29,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, dict[str, tuple[Term, list[Decorator]]]]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext]
 
 
 def desugar(p: Program) -> ProgramComponents:
@@ -39,19 +39,12 @@ def desugar(p: Program) -> ProgramComponents:
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
-    if "fitness" in [d.name for d in defs]:
-        # default
-        fitness_term: Term = Var("fitness")
-        objectives_dict = {"synth": (fitness_term, [Decorator("minimize", [])])}
-    else:
-        objectives_dict = extract_objectives_dict(defs)
-
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
 
-    return prog, ctx, ectx, objectives_dict
+    return prog, ctx, ectx
 
 
 def determine_main_function(p: Program) -> Term:
