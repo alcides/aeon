@@ -8,7 +8,7 @@ from aeon.typechecking.typeinfer import check_type
 
 
 def check_compile(source, ty):
-    p, ctx, ectx, _ = desugar(parse_program(source))
+    p, ctx, ectx = desugar(parse_program(source))
     assert check_type(ctx, p, ty)
     assert eval(p, ectx) == 2
 

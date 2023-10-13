@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from loguru import logger
+
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
@@ -42,10 +44,14 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
             t.var_type,
             implication_constraint(name, t.type, c),
         )  # TODO: email Rahjit
+    elif isinstance(t, TypeVar):
+        # TODO: We are using Int here, but it could have been a singleton.
+        return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
     elif isinstance(t, Bottom):
         return c
     elif isinstance(t, Top):
         return c
+    logger.debug(f"{name} : {t} => {c} ({type(t)})")
     assert False
 
 

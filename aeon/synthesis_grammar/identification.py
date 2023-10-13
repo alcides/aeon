@@ -1,11 +1,11 @@
-from ast import If
-from typing import Literal
 from aeon.core.terms import (
     Abstraction,
     Annotation,
     Application,
     Hole,
+    If,
     Let,
+    Literal,
     Rec,
     Term,
     TypeAbstraction,
@@ -49,9 +49,12 @@ def get_holes(term: Term) -> list[str]:
 def incomplete_functions_and_holes(ctx: TypingContext, term: Term) -> list[tuple[str, list[str]]]:
     """Given a typing context and a term, this function identifies which top-level functions have holes, and returns a list of holes in each function."""
     match term:
-        case Rec(name=name, type=_, value=value, body=body):
+        case Rec(var_name=name, var_type=_, var_value=value, body=body):
             holes: list[str] = get_holes(value)
             if holes:
                 return [(name, holes)] + incomplete_functions_and_holes(ctx, body)
+            else:
+                return incomplete_functions_and_holes(ctx, body)
         case _:
+            print("unknown", term)
             return []

@@ -7,7 +7,7 @@ from aeon.typechecking.typeinfer import check_type
 
 
 def check_compile(source, ty):
-    p, ctx, _, _ = desugar(parse_program(source))
+    p, ctx, _ = desugar(parse_program(source))
     assert check_type(ctx, p, ty)
 
 

@@ -33,7 +33,7 @@ def test_fitness():
         def fitness : Int  =  year - synth;
     """
     prog = parse_program(code)
-    p, ctx, ectx, _ = desugar(prog)
+    p, ctx, ectx = desugar(prog)
     check_type_errors(ctx, p, top)
     synthesizer = Synthesizer(ctx, p, top, ectx)
 
@@ -45,29 +45,3 @@ def test_fitness():
 
     assert synthesizer.evaluate_fitness(individual1, Var("fitness"), True, p) == expected_output1
     assert synthesizer.evaluate_fitness(individual2, Var("fitness"), True, p) == expected_output2
-
-
-def test_fitness_annotation():
-    code = """
-            def year : Int = 2023;
-            def minus : (a:Int) -> (b:Int )-> Int = \\x -> \\y -> x - y;
-            @minimize( year - (synth 7) )
-            def synth(a: Int) : Int { (?hole:Int) * a}
-        """
-    prog = parse_program(code)
-    p, ctx, ectx, objectives = desugar(prog)
-    check_type_errors(ctx, p, top)
-    synthesizer = Synthesizer(ctx, p, top, ectx)
-
-    assert len(objectives) + 1 == len(synthesizer.holes)
-
-    fitness_term = objectives["synth"][0]
-
-    individual1 = mock_literal_individual(value=4)
-    individual2 = mock_literal_individual(value=289)
-
-    expected_output1 = 1995
-    expected_output2 = 0
-
-    assert synthesizer.evaluate_fitness(individual1, fitness_term, True, p) == expected_output1
-    assert synthesizer.evaluate_fitness(individual2, fitness_term, True, p) == expected_output2

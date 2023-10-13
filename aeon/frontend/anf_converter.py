@@ -49,7 +49,6 @@ class ANFConverter:
                     )
                 else:
                     v = self.fresh()
-                    print("app app", fun, arg, v)
                     return self.convert(Let(v, fun, Application(Var(v), arg)))
 
                 arg = self.convert(arg)
@@ -87,35 +86,13 @@ class ANFConverter:
             case Rec(var_name=name, var_type=type, var_value=value, body=body):
                 value = self.convert(value)
                 body = self.convert(body)
-                match value:
-                    case Let(var_name=vname, var_value=vvalue, body=vbody):
-                        assert name != vname
-                        vvalue = self.convert(vvalue)
-                        vbody = self.convert(vbody)
-                        return Let(
-                            vname,
-                            vvalue,
-                            self.convert(Rec(name, type, vbody, body)),
-                        )
-                    case Rec(var_name=vname, var_type=vtype, var_value=vvalue, body=vbody):
-                        assert name != vname
-                        vvalue = self.convert(vvalue)
-                        vbody = self.convert(vbody)
-                        return Rec(
-                            vname,
-                            vtype,
-                            vvalue,
-                            self.convert(Rec(name, type, vbody, body)),
-                        )
-                    case _:
-                        return Rec(name, type, value, body)
-
+                return Rec(name, type, value, body)
             case Abstraction(var_name=name, body=body):
                 body = self.convert(body)
                 return Abstraction(var_name=name, body=body)
-            case Annotation(expr=expr, type=t):
+            case Annotation(expr=expr, type=ty):
                 expr = self.convert(expr)
-                return Annotation(expr=expr, type=t)
+                return Annotation(expr=expr, type=ty)
             case TypeAbstraction(name=name, kind=kind, body=body):
                 body = self.convert(body)
                 return TypeAbstraction(name, kind, body)
@@ -123,7 +100,6 @@ class ANFConverter:
                 body = self.convert(body)
                 return TypeApplication(body, type)
             case _:
-                print("unknown type", t)
                 return t
 
 
