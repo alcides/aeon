@@ -38,8 +38,7 @@ def ensure_refined(t: Type) -> RefinedType:
 
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name),
-                                          t.name)
+        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
         if isinstance(t.type, TypeVar):
             t_ = BaseType("TypeVarPlaceHolder")  # TODO: Rethink this
         elif isinstance(t.type, TypeConstructor):
@@ -63,9 +62,7 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     elif isinstance(t, TypeVar):
         return implication_constraint(name, BaseType("TypeVarPlaceHolder"), c)
     elif isinstance(t, TypeConstructor):
-        return implication_constraint(name,
-                                      BaseType("TypeConstructorPlaceHolder"),
-                                      c)
+        return implication_constraint(name, BaseType("TypeConstructorPlaceHolder"), c)
         # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
     elif isinstance(t, TypePolymorphism):
         return implication_constraint(t.name, t.body, c)
@@ -75,11 +72,9 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
 def sub(t1: Type, t2: Type) -> Constraint:
     if isinstance(t2, Top) or isinstance(t1, Bottom):
         return ctrue
-    if isinstance(t1, BaseType) or isinstance(t1, TypeVar) or isinstance(
-            t1, TypeConstructor):
+    if isinstance(t1, BaseType) or isinstance(t1, TypeVar) or isinstance(t1, TypeConstructor):
         t1 = ensure_refined(t1)
-    if isinstance(t2, BaseType) or isinstance(t1, TypeVar) or isinstance(
-            t2, TypeConstructor):
+    if isinstance(t2, BaseType) or isinstance(t1, TypeVar) or isinstance(t2, TypeConstructor):
         t2 = ensure_refined(t2)
     if isinstance(t1, RefinedType) and isinstance(t2, RefinedType):
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
@@ -92,18 +87,17 @@ def sub(t1: Type, t2: Type) -> Constraint:
             if t1.type.name != t2.type.name:
                 return cfalse
             base_type = BaseType("TypeVarPlaceHolder")
-        elif isinstance(t1.type, TypeConstructor) and isinstance(
-                t2.type, TypeConstructor):
+        elif isinstance(t1.type, TypeConstructor) and isinstance(t2.type, TypeConstructor):
             if t1.type.name != t2.type.name:
                 return cfalse
             for it1, it2 in zip(t1.type.args, t2.type.args):
-                if it1 != it2:
+                if (
+                    it1 != it2
+                ):  # TODO Polytypes: This should be a subtyping relationship, according to polarities, which are not clear yet.
                     return cfalse
             base_type = BaseType("TypeConstructorPlaceHolder")
         else:
-            logger.error(
-                f"Could not subtype: {t1} <: {t2} because of non-refined type."
-            )
+            logger.error(f"Could not subtype: {t1} <: {t2} because of non-refined type.")
             return cfalse
         assert isinstance(base_type, BaseType)
 

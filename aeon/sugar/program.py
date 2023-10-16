@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 from aeon.core.terms import Term
 from aeon.core.types import Kind, Type
@@ -22,13 +23,20 @@ class ImportAe(Node):
             return f"import {self.func_or_type} from {self.path};"
 
 
+class Polarity(Enum):
+    NEITHER = 1
+    POSITIVE = 2
+    NEGATIVE = 3
+    BOTH = 4
+
+
 @dataclass
 class TypeDecl(Node):
     name: str
-    type_arguments: list[tuple[str, Kind]]
+    type_arguments: list[tuple[str, Kind, Polarity]]
 
     def __repr__(self):
-        targs = ",".join(f"{t}:{k}" for (t, k) in self.type_arguments)
+        targs = ",".join(f"{t}:{k}" for (t, k, p) in self.type_arguments)
         return f"type {self.name} {targs};"
 
 

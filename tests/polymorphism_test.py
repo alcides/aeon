@@ -1,9 +1,11 @@
 from __future__ import annotations
+from aeon.core.types import StarKind
 
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.sugar.parser import parse_program
 from aeon.prelude.prelude import typing_vars
+from aeon.sugar.program import Polarity, TypeDecl
 from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.ctx_helpers import build_context
@@ -38,5 +40,4 @@ def test_poly():
 
 
 def test_sugar():
-    print(parse_program("type List a:*;"))
-    assert parse_program("type List a:*;") is None
+    assert TypeDecl("List", [("a", StarKind(), Polarity.POSITIVE)]) in parse_program("type List a:*;").type_decls
