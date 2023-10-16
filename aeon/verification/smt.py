@@ -94,7 +94,9 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
                 pos=sub.pos,
             )
     elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[], pre=LiquidLiteralBool(True), pos=c.expr)
+        yield CanonicConstraint(binders=[],
+                                pre=LiquidLiteralBool(True),
+                                pos=c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         for sub in flatten(c.seq):
             yield CanonicConstraint(
@@ -110,12 +112,13 @@ s = Solver()
 s.set(timeout=200),
 
 
-def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:
+def smt_valid(constraint: Constraint,
+              foralls: list[tuple[str, Any]] = []) -> bool:
     """Verifies if a constraint is true using Z3."""
     cons: list[CanonicConstraint] = list(flatten(constraint))
-    print("cons", cons)
 
-    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls if isinstance(f[1], BaseType)]
+    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
+                   if isinstance(f[1], BaseType)]
     for c in cons:
         s.push()
         smt_c = translate(c, extra=forall_vars)
@@ -220,7 +223,6 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             print("Failed to find t.fun", t.fun)
             assert False
         args = [translate_liq(a, variables) for a in t.args]
-        print("DEBUG", f, type(f), args, [type(a) for a in args])
         return f(*args)
     assert False
 
@@ -230,8 +232,7 @@ def translate(
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
     variables = [
-        (name, make_variable(name, base))
-        for (name, base) in c.binders
+        (name, make_variable(name, base)) for (name, base) in c.binders
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)

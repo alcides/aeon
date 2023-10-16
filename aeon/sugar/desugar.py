@@ -28,7 +28,6 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
-
 ProgramComponents = tuple[Term, TypingContext, EvaluationContext]
 
 
@@ -42,13 +41,13 @@ def desugar(p: Program) -> ProgramComponents:
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name),
+                                          tydeclname.name)
 
     return prog, ctx, ectx
 
 
 def determine_main_function(p: Program) -> Term:
-    print("def", p.definitions)
     if "main" in [d.name for d in p.definitions]:
         return Application(Var("main"), Literal(1, type=t_int))
     return Hole("main")
@@ -71,14 +70,17 @@ def handle_imports(
                 import_p.type_decls,
             )
         if imp.func:
-            import_p_definitions = [d for d in import_p_definitions if str(d.name) == imp.func]
+            import_p_definitions = [
+                d for d in import_p_definitions if str(d.name) == imp.func
+            ]
 
         defs = defs_recursive + import_p_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
     return defs, type_decls
 
 
-def extract_objectives_dict(defs: list[Definition]) -> dict[str, tuple[Term, list[Decorator]]]:
+def extract_objectives_dict(
+        defs: list[Definition]) -> dict[str, tuple[Term, list[Decorator]]]:
     synth_defs_list = [item for item in defs if item.name.startswith("synth")]
     objectives_dict = {}
     if synth_defs_list:
@@ -103,7 +105,8 @@ def update_program_and_context(
     return ctx, prog
 
 
-def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[TypeDecl]) -> TypingContext:
+def handle_uninterpreted(ctx: TypingContext, d: Definition,
+                         type_decls: list[TypeDecl]) -> TypingContext:
     assert isinstance(d.type, AbstractionType)
     d_type = d.type
     for tyname in type_decls:
@@ -122,16 +125,14 @@ def bind_program_to_rec(prog: Term, d: Definition) -> Term:
 def handle_import(path: str) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
-    possible_containers = (
-        [Path.cwd()]
-        + [Path.cwd() / "libraries"]
-        + [Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str]
-    )
+    possible_containers = ([Path.cwd()] + [Path.cwd() / "libraries"] + [
+        Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str
+    ])
     for container in possible_containers:
         file = container / f"{path}.ae"
         if file.exists():
             contents = open(file).read()
             return mk_parser("program").parse(contents)
     raise Exception(
-        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
-    )
+        f"Could not import {path} in any of the following paths: " +
+        ";".join([str(p) for p in possible_containers]), )

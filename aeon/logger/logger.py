@@ -7,6 +7,7 @@ from loguru import logger
 
 
 def levels_filter(levels):
+
     def filter(record):
         return record["level"].name in levels
 
@@ -19,11 +20,13 @@ def setup_logger():
 
     # Setup the logger
     logger.remove()
-    # logger.add(sys.stderr, level="DEBUG")
+    logger.add(sys.stderr, level="DEBUG")
     return logger
 
 
-def export_log(logs: list, export_file: bool = False, logfile_name: str | None = None):
+def export_log(logs: list,
+               export_file: bool = False,
+               logfile_name: str | None = None):
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
         return logger.add(logfile, filter=levels_filter(logs))

@@ -80,7 +80,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHole]:
     if isinstance(t, LiquidHole):
         return [t]
-    elif isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
+    elif isinstance(t, LiquidLiteralBool) or isinstance(
+            t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -105,7 +106,8 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
+    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString,
+                      LiquidLiteralFloat)):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -133,12 +135,9 @@ def contains_horn_constraint(c: Constraint):
 def wellformed_horn(predicate: LiquidTerm):
     if not contains_horn(predicate):
         return True
-    elif (
-        isinstance(predicate, LiquidApp)
-        and predicate.fun == "&&"
-        and not contains_horn(predicate.args[0])
-        and isinstance(predicate.args[1], LiquidHole)
-    ):
+    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
+          and not contains_horn(predicate.args[0])
+          and isinstance(predicate.args[1], LiquidHole)):
         return True
     elif isinstance(predicate, LiquidHole):
         return True
@@ -222,7 +221,8 @@ def build_forall_implication(
     return cf
 
 
-def simpl(vs: list[tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[str, Type]], p: LiquidTerm,
+          c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
@@ -338,6 +338,7 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
 def solve(c: Constraint) -> bool:
     # Performance improvement
     if not contains_horn_constraint(c):
+        print("Validating", c)
         return smt_valid(c)
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
