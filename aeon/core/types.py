@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from functools import reduce
 
 from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
 from aeon.core.liquid import LiquidHole
@@ -239,18 +240,25 @@ def args_size_of_type(t: Type) -> int:
 
 
 def get_type_vars(t: Type) -> set[TypeVar]:
-    if isinstance(t, BaseType):
-        return set()
-    elif isinstance(t, TypeVar):
-        return {t}
-    elif isinstance(t, AbstractionType):
-        return get_type_vars(t.var_type).union(get_type_vars(t.type))
-    elif isinstance(t, RefinedType):
-        return get_type_vars(t.type)
-    elif isinstance(t, TypePolymorphism):
-        return {t1 for t1 in get_type_vars(t.body) if t1.name != t.name}
-    else:
-        assert False
+    match t:
+        case Bottom():
+            return set()
+        case Top():
+            return set()
+        case BaseType(name=_):
+            return set()
+        case TypeVar(name=_):
+            return {t}
+        case AbstractionType(var_name=_, var_type=vty, type=ty):
+            return get_type_vars(vty).union(get_type_vars(ty))
+        case RefinedType(name=_, type=ty, refinement=_):
+            return get_type_vars(t)
+        case TypePolymorphism(name=_, kind=_, body=e):
+            return {t1 for t1 in get_type_vars(e) if t1.name != t.name}
+        case TypeConstructor(name=_, args=args):
+            return reduce(lambda x, y: x.union(y), [get_type_vars(a) for a in args])
+        case _:
+            assert False, f"TypeVar does not support {type(t)}"
 
 
 def extract_typelevel_freevars(ty: Type) -> list[str]:

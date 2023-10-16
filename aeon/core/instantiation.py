@@ -56,7 +56,9 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             )
         case TypeConstructor(name=n, args=args):
             return TypeConstructor(name=n, args=[rec(a) for a in args])
-    assert False
+        case _:
+            # The only other case is UnificationVar, which cannot be imported due to circularity
+            return t
 
 
 def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
