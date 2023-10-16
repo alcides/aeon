@@ -63,7 +63,8 @@ def substitute_vartype(t: Type, rep: Type, name: str):
                 return TypePolymorphism(n, k, rec(ty))
         case TypeConstructor(name=n, args=args):
             return TypeConstructor(name=n, args=[rec(a) for a in args])
-    assert False
+        case _:
+            assert False
 
 
 def substitute_vartype_in_term(t: Term, rep: Type, name: str):

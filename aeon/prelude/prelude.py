@@ -14,11 +14,10 @@ def native_import(name):
     return importlib.import_module(name)
 
 
-# TODO: polymorphic signatures
 prelude = [
     ("native", "(x:String) -> Bottom", eval),
     ("native_import", "(x:String) -> Bottom", native_import),
-    ("print", "forall a:B, (x:a) -> Unit", p),
+    ("print", "(x:Top) -> Unit", p),
     ("==", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x == y),
     ("!=", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x != y),
     ("<", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x < y),

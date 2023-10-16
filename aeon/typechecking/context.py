@@ -35,7 +35,7 @@ class TypeBinder(TypingContextEntry):
 @dataclass
 class UninterpretedFunctionBinder(TypingContextEntry):
     name: str
-    type: AbstractionType
+    type: AbstractionType | TypePolymorphism
 
     def __str__(self):
         return f"fun {self.name}:{self.type}"
@@ -56,10 +56,7 @@ class TypingContext:
         return "ø" + ", ".join(str(e) for e in self.entries)
 
     def type_of(self, name: str) -> Type | None:
-        candidates = [
-            te for te in self.entries
-            if isinstance(te, VariableBinder) and te.name == name
-        ]
+        candidates = [te for te in self.entries if isinstance(te, VariableBinder) and te.name == name]
         return candidates[-1].type if candidates else None
 
     def with_var(self, name: str, type: Type) -> TypingContext:
@@ -69,12 +66,10 @@ class TypingContext:
         return self + TypeBinder(name, kind)
 
     def typevars(self) -> list[tuple[str, Kind]]:
-        return [(te.name, te.kind) for te in self.entries
-                if isinstance(te, TypeBinder)]
+        return [(te.name, te.kind) for te in self.entries if isinstance(te, TypeBinder)]
 
     def vars(self) -> list[tuple[str, Type]]:
-        return [(te.name, te.type) for te in self.entries
-                if isinstance(te, VariableBinder)]
+        return [(te.name, te.type) for te in self.entries if isinstance(te, VariableBinder)]
 
     def fresh_var(self):
         x = len(self.entries)

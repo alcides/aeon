@@ -37,7 +37,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseType
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
@@ -214,8 +214,11 @@ def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
     current: Type = base
     inputs = []
     while isinstance(current, AbstractionType):
-        assert isinstance(current.var_type, BaseType)
-        inputs.append(current.var_type)
+        vtype = current.var_type
+        if isinstance(vtype, TypeConstructor):
+            vtype = BaseType("TypeConstructorPlaceHolder")
+        assert isinstance(vtype, BaseType)
+        inputs.append(vtype)
         current = current.type
     assert isinstance(current, BaseType)
     return (inputs, current)

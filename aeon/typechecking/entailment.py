@@ -3,9 +3,10 @@ from __future__ import annotations
 from loguru import logger
 
 from aeon.core.liquid import LiquidLiteralBool, LiquidVar
-from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
+from aeon.core.substitutions import substitute_vartype, substitution_in_liquid
+from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseType
+from aeon.core.types import Type
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
@@ -14,11 +15,23 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.verification.helpers import pretty_print_constraint
 from aeon.verification.horn import solve
-from aeon.verification.vcs import Constraint
+from aeon.verification.vcs import Constraint, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Implication
 
 ctrue = LiquidLiteralBool(True)
 t_int = BaseType("Int")  # TODO: Create a Singleton for Monomorphic
+
+
+def monomorphise(ty: AbstractionType | TypePolymorphism) -> Type:
+    """Converts a (possibly) polymorphic function into monomorphic."""
+    match ty:
+        case TypePolymorphism(name=n, kind=_, body=b):
+            b2 = substitute_vartype(b, BaseType("TypePolymorphismPlaceHolder"), n)
+            return monomorphise(b2)
+        case TypeConstructor(name=n, args=_):
+            return BaseType(n)
+        case _:
+            return ty
 
 
 def entailment(ctx: TypingContext, c: Constraint):
@@ -26,8 +39,10 @@ def entailment(ctx: TypingContext, c: Constraint):
         match entry:
             case TypeBinder(name=_, kind=_):
                 pass
-            case UninterpretedFunctionBinder(name=_, type=_):
-                pass
+            case UninterpretedFunctionBinder(name=n, type=ty):
+                monoty = monomorphise(ty)
+                assert isinstance(monoty, AbstractionType)
+                c = UninterpretedFunctionDeclaration(n, monoty, c)
             case VariableBinder(name=_, type=TypePolymorphism(name=_, kind=_, body=_)):
                 pass
             case VariableBinder(name=_, type=AbstractionType(var_name=_, var_type=_, type=_)):
