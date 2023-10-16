@@ -1,9 +1,11 @@
 from __future__ import annotations
+from abc import ABC
+from dataclasses import dataclass
 
-from typing import Sequence
+from collections.abc import Sequence
 
 
-class LiquidTerm:
+class LiquidTerm(ABC):
     pass
 
 
@@ -13,6 +15,7 @@ def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
     return a
 
 
+@dataclass
 class LiquidHole(LiquidTerm):
 
     def __eq__(self, other):
@@ -26,6 +29,7 @@ def is_safe_for_application(x: LiquidTerm):
             or isinstance(x, LiquidLiteralString))
 
 
+@dataclass(init=False)
 class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: Sequence[tuple[LiquidTerm, str]]
@@ -54,11 +58,9 @@ class LiquidHornApplication(LiquidTerm):
         return hash(self.name)
 
 
+@dataclass
 class LiquidLiteralBool(LiquidTerm):
     value: bool
-
-    def __init__(self, value: bool):
-        self.value = value
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -71,11 +73,9 @@ class LiquidLiteralBool(LiquidTerm):
         return hash(self.value)
 
 
+@dataclass
 class LiquidLiteralInt(LiquidTerm):
     value: int
-
-    def __init__(self, value: int):
-        self.value = value
 
     def __repr__(self):
         return f"{self.value}"
@@ -88,11 +88,9 @@ class LiquidLiteralInt(LiquidTerm):
         return hash(self.value)
 
 
+@dataclass
 class LiquidLiteralFloat(LiquidTerm):
     value: float
-
-    def __init__(self, value: float):
-        self.value = value
 
     def __repr__(self):
         return f"{self.value}"
@@ -105,11 +103,9 @@ class LiquidLiteralFloat(LiquidTerm):
         return hash(self.value)
 
 
+@dataclass
 class LiquidLiteralString(LiquidTerm):
     value: str
-
-    def __init__(self, value: str):
-        self.value = value
 
     def __repr__(self):
         return f"{self.value}"
@@ -122,12 +118,9 @@ class LiquidLiteralString(LiquidTerm):
         return hash(self.value)
 
 
+@dataclass
 class LiquidVar(LiquidTerm):
     name: str
-
-    def __init__(self, name: str):
-        assert isinstance(name, str)
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -139,15 +132,10 @@ class LiquidVar(LiquidTerm):
         return hash(self.name)
 
 
+@dataclass
 class LiquidApp(LiquidTerm):
     fun: str
     args: list[LiquidTerm]
-
-    def __init__(self, fun: str, args: list[LiquidTerm]):
-        self.fun = fun
-        self.args = args
-        for a in self.args:
-            assert isinstance(a, LiquidTerm)
 
     def __repr__(self):
         if all([not c.isalnum() for c in self.fun]) and len(self.args) == 2:

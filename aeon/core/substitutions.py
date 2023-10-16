@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
@@ -100,29 +100,32 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
     """Substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
-    if isinstance(t, LiquidLiteralInt):
-        return t
-    elif isinstance(t, LiquidLiteralBool):
-        return t
-    elif isinstance(t, LiquidLiteralString):
-        return t
-    elif isinstance(t, LiquidVar):
-        if t.name == name:
-            return rep
-        else:
+    match t:
+        case LiquidLiteralInt(value=_):
             return t
-    elif isinstance(t, LiquidApp):
-        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
-    elif isinstance(t, LiquidHornApplication):
-        if t.name == name:
-            return rep
-        else:
-            return LiquidHornApplication(
-                t.name,
-                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
-            )
-    else:
-        assert False
+        case LiquidLiteralBool(value=_):
+            return t
+        case LiquidLiteralFloat(value=_):
+            return t
+        case LiquidLiteralString(value=_):
+            return t
+        case LiquidVar(name=n):
+            if n == name:
+                return rep
+            else:
+                return t
+        case LiquidApp(fun=fun, args=args):
+            return LiquidApp(fun, [substitution_in_liquid(a, rep, name) for a in args])
+        case LiquidHornApplication(name, argtypes):
+            if t.name == name:
+                return rep
+            else:
+                return LiquidHornApplication(
+                    name,
+                    [(substitution_in_liquid(a, rep, name), t) for (a, t) in argtypes],
+                )
+        case _:
+            assert False, f"{t} is not a supported type."
 
 
 def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
