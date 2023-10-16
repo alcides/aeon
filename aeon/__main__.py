@@ -11,6 +11,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.logger.logger import setup_logger, export_log
@@ -61,6 +62,6 @@ if __name__ == "__main__":
     aeon_code = read_file(args.filename)
     p, ctx, ectx = process_code(args.core, aeon_code)
     logger.info(p)
-
-    if not check_and_log_type_errors(ctx, p, top):
+    core_ast = elaborate(ctx, p, top)
+    if not check_and_log_type_errors(ctx, core_ast, top):
         eval(p, ectx)
