@@ -58,7 +58,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
             return ty
         case BaseType(_):
             return ty
-        case RefinedType(name=_, type=ity, refinement=LiquidHornApplication()):
+        case RefinedType(name=_, type=ity, refinement=LiquidHornApplication(name=_, argtypes=_)):
             id = context.fresh_var()
             v = f"v_{id}"
             args: list[tuple[LiquidTerm, str]] = []

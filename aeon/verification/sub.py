@@ -106,6 +106,7 @@ def sub(t1: Type, t2: Type) -> Constraint:
             LiquidVar(t1.name),
             t2.name,
         )
+
         return Implication(
             t1.name,
             base_type,

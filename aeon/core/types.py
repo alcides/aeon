@@ -252,7 +252,7 @@ def get_type_vars(t: Type) -> set[TypeVar]:
         case AbstractionType(var_name=_, var_type=vty, type=ty):
             return get_type_vars(vty).union(get_type_vars(ty))
         case RefinedType(name=_, type=ty, refinement=_):
-            return get_type_vars(t)
+            return get_type_vars(ty)
         case TypePolymorphism(name=_, kind=_, body=e):
             return {t1 for t1 in get_type_vars(e) if t1.name != t.name}
         case TypeConstructor(name=_, args=args):

@@ -117,12 +117,12 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidT
                 return t
         case LiquidApp(fun=fun, args=args):
             return LiquidApp(fun, [substitution_in_liquid(a, rep, name) for a in args])
-        case LiquidHornApplication(name, argtypes):
-            if t.name == name:
+        case LiquidHornApplication(n, argtypes):
+            if n == name:
                 return rep
             else:
                 return LiquidHornApplication(
-                    name,
+                    n,
                     [(substitution_in_liquid(a, rep, name), t) for (a, t) in argtypes],
                 )
         case _:
