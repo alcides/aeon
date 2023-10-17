@@ -162,7 +162,10 @@ class TypeConstructor(Type):
 
     def __str__(self):
         args = ", ".join(f"{a}" for a in self.args)
-        return f"{self.name} {args}"
+        return f"{self.name}[{args}]"
+
+    def __repr__(self):
+        return str(self)
 
 
 def extract_parts(

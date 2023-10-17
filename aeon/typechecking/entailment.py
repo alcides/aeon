@@ -21,12 +21,14 @@ from aeon.verification.vcs import Implication
 ctrue = LiquidLiteralBool(True)
 t_int = BaseType("Int")  # TODO: Create a Singleton for Monomorphic
 
+MONOMORPHIC_PLACEHOLDER = BaseType("TypePolymorphismPlaceHolder")
+
 
 def monomorphise(ty: AbstractionType | TypePolymorphism) -> Type:
     """Converts a (possibly) polymorphic function into monomorphic."""
     match ty:
         case TypePolymorphism(name=n, kind=_, body=b):
-            b2 = substitute_vartype(b, BaseType("TypePolymorphismPlaceHolder"), n)
+            b2 = substitute_vartype(b, MONOMORPHIC_PLACEHOLDER, n)
             return monomorphise(b2)
         case TypeConstructor(name=n, args=_):
             return BaseType(n)

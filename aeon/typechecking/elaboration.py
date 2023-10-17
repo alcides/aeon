@@ -33,10 +33,11 @@ from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import Polarity, TypingContext
 
 
 def elaborate_foralls(e: Term) -> Term:
+    """Takes a core term and expands recursive definitions to have TypeAbstraction and TypePolymorphism."""
     if isinstance(e, Literal):
         return e
     elif isinstance(e, Hole):
@@ -127,8 +128,20 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         return []
 
     elif isinstance(sub, TypeConstructor) and isinstance(sup, TypeConstructor) and sub.name == sup.name:
-        for s, u in zip(sub.args, sup.args):
-            unify(ctx, s, u)  # TODO Polytypes: Consider polarities here.
+        argtypes = ctx.type_constructor_named(sub.name)
+        if not argtypes:
+            raise UnificationException(f"Type constructor {sub.name} is of type unknown")
+        for s, u, (name, kind, polarity) in zip(sub.args, sup.args, argtypes):
+            match polarity:
+                case Polarity.NEITHER:
+                    pass
+                case Polarity.POSITIVE:
+                    unify(ctx, s, u)
+                case Polarity.NEGATIVE:
+                    unify(ctx, u, s)
+                case Polarity.BOTH:
+                    unify(ctx, u, s)
+                    unify(ctx, s, u)
         return []
 
     elif isinstance(sub, TypePolymorphism):
@@ -156,7 +169,7 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         )
 
 
-def simple_subtype(ctx: TypingContext, a: Type, b: Type):
+def simple_subtype(ctx: TypingContext, a: Type, b: Type) -> bool:
     """Returns whether a <: b, in the HM typesystem."""
     # TODO: missing proper subtyping
     if isinstance(b, Top):
@@ -167,7 +180,7 @@ def simple_subtype(ctx: TypingContext, a: Type, b: Type):
         return False
 
 
-def type_lub(ctx: TypingContext, u: Type, t: Type):
+def type_lub(ctx: TypingContext, u: Type, t: Type) -> Type:
     """Returns the smallest of two types."""
     if simple_subtype(ctx, u, t):
         return u
@@ -175,7 +188,7 @@ def type_lub(ctx: TypingContext, u: Type, t: Type):
         return t
 
 
-def type_glb(ctx: TypingContext, u: Type, t: Type):
+def type_glb(ctx: TypingContext, u: Type, t: Type) -> Type:
     """Returns the largest of two types."""
     if simple_subtype(ctx, u, t):
         return t
@@ -185,9 +198,11 @@ def type_glb(ctx: TypingContext, u: Type, t: Type):
 
 def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
     if isinstance(ty, Union):
-        return reduce(lambda a, b: type_lub(ctx, a, b), ty.united, top)
+        neutral: Type = top
+        return reduce(lambda a, b: type_lub(ctx, a, b), ty.united, neutral)
     elif isinstance(ty, Intersection):
-        return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected, bottom)
+        neutrali: Type = bottom
+        return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected, neutrali)
     elif isinstance(ty, AbstractionType):
         return AbstractionType(
             var_name=ty.var_name,
@@ -203,6 +218,8 @@ def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
                 ty.body,
             ),
         )
+    elif isinstance(ty, TypeConstructor):
+        return TypeConstructor(ty.name, [remove_unions_and_intersections(ctx, a) for a in ty.args])
     elif isinstance(ty, RefinedType):
         innert = remove_unions_and_intersections(ctx, ty.type)
         assert isinstance(innert, BaseType) or isinstance(innert, TypeVar)
@@ -334,11 +351,12 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     else:
         (c, s) = elaborate_synth(ctx, t)
-        if isinstance(s, TypePolymorphism) and not isinstance(ty, TypePolymorphism):
+        while isinstance(s, TypePolymorphism) and not isinstance(ty, TypePolymorphism):
+            # Supports multiple nested foralls
             u = UnificationVar(ctx.fresh_var())
             c = TypeApplication(c, u)
             s = type_substitution(s.body, s.name, u)
-        unify(ctx, s, ty)
+            unify(ctx, s, ty)
         return c
 
 
@@ -403,6 +421,8 @@ def replace_unification_variables(
                 return Union(list(extract_direction(ty, True)))
             else:
                 return Intersection(list(extract_direction(ty, False)))
+        elif isinstance(ty, TypeConstructor):
+            return TypeConstructor(ty.name, [go(ctx, a, polarity) for a in ty.args])
         else:
             assert False
 
@@ -441,6 +461,7 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
     elif isinstance(t, TypeApplication):
         # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
         nt, unions, intersections = replace_unification_variables(ctx, t.type)
+        body = elaborate_remove_unification(ctx, t.body)
 
         # 1. Removal of polar variable
         all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
@@ -487,11 +508,11 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         )
         nt = remove_unions_and_intersections(ctx, nt)
         if isinstance(nt, Top):
-            return TypeApplication(t.body, nt)
+            return TypeApplication(body, nt)
         else:
             should_be_refined = True
-            if isinstance(t.body, Var):
-                tat = ctx.type_of(t.body.name)
+            if isinstance(body, Var):
+                tat = ctx.type_of(body.name)
                 if tat is not None and isinstance(tat, TypePolymorphism) and tat.kind == BaseKind():
                     should_be_refined = False
 
@@ -503,12 +524,12 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
                     new_type = RefinedType(new_var, nt, ref)
                 else:
                     new_type = nt
-                return TypeApplication(t.body, new_type)
+                return TypeApplication(body, new_type)
 
             elif isinstance(nt, RefinedType):
                 ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
                 new_type = RefinedType(nt.name, nt.type, ref)
-                return TypeApplication(t.body, new_type)
+                return TypeApplication(body, new_type)
             else:
                 assert False
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 
 from aeon.core.terms import Term
 from aeon.core.types import Kind, Type
+from aeon.typechecking.context import Polarity
 
 
 class Node:
@@ -21,13 +21,6 @@ class ImportAe(Node):
             return f"import {self.path};"
         else:
             return f"import {self.func_or_type} from {self.path};"
-
-
-class Polarity(Enum):
-    NEITHER = 1
-    POSITIVE = 2
-    NEGATIVE = 3
-    BOTH = 4
 
 
 @dataclass

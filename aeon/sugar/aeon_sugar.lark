@@ -81,10 +81,13 @@ expression_simple : "(" expression ")"                       -> same
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
-     | "forall" ID ":" kind "," type                     -> polymorphism_t // TODO: desugar
+     | "forall" ID ":" kind "," type                     -> polymorphism_t
      | ID                                                  -> simple_t
-     | ID "[" type ("," type)* "]"                                 -> constructor_t
+     | ID "[" tcargs "]"                                 -> constructor_t
      | "(" type ")"                                        -> same
+
+tcargs : type                     -> tcargs_singleton
+       | type "," tcargs             ->  tcargs_rec
 
 kind : "B" -> base_kind
      | "*" -> star_kind

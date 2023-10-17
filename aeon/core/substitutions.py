@@ -179,7 +179,10 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
                 t.type,
                 substitution_in_liquid(t.refinement, replacement, name),
             )
-    assert False
+    elif isinstance(t, TypeConstructor):
+        return TypeConstructor(t.name, [rec(a) for a in t.args])
+    else:
+        assert False, f"Could not handle {t} in substition ({type(t)})"
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:

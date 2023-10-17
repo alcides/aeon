@@ -91,7 +91,7 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
         return RefinedType(t.name, rec(t.type), t.refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, TypePolymorphism):  # Todo: alpha renaming?
+    elif isinstance(t, TypePolymorphism):
         target = t
         while target.name == alpha:
             new_name = target.name + "_fresh_"

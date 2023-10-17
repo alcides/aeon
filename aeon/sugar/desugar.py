@@ -72,7 +72,12 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
 
     tydeclname: TypeDecl
     for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        if not tydeclname.type_arguments:
+            # Just an opaque type for FFI.
+            prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        else:
+            ctx = ctx.with_typeconstructor(tydeclname.name, tydeclname.type_arguments)
+
     return (prog, ctx, ectx)
 
 

@@ -65,7 +65,7 @@ class TreeToCore(Transformer):
         return TypePolymorphism(str(args[0]), args[1], args[2])
 
     def constructor_t(self, args):
-        return TypeConstructor(str(args[0]), args[1:])
+        return TypeConstructor(str(args[0]), args[1])
 
     def simple_t(self, args):
         n = str(args[0])
@@ -77,6 +77,12 @@ class TreeToCore(Transformer):
             return BaseType(n)
         else:
             return TypeVar(n)
+
+    def tcargs_singleton(self, args):
+        return [args[0]]
+
+    def tcargs_rec(self, args):
+        return [args[0]] + args[1]
 
     # Expressions
 

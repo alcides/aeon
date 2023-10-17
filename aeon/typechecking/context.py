@@ -3,11 +3,19 @@ from __future__ import annotations
 from abc import ABC
 from copy import copy
 from dataclasses import dataclass
+from enum import Enum
 
 from aeon.core.types import AbstractionType, BaseKind, BaseType, Bottom, RefinedType, Top, TypePolymorphism, TypeVar
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
+
+
+class Polarity(Enum):
+    NEITHER = 1
+    POSITIVE = 2
+    NEGATIVE = 3
+    BOTH = 4
 
 
 class TypingContextEntry(ABC):
@@ -41,6 +49,16 @@ class UninterpretedFunctionBinder(TypingContextEntry):
         return f"fun {self.name}:{self.type}"
 
 
+@dataclass
+class TypeConstructorBinder(TypingContextEntry):
+    name: str
+    type_parameters: list[tuple[str, Kind, Polarity]]
+
+    def __str__(self):
+        tp = ", ".join([f"{name}:{kind}{polarity}" for name, kind, polarity in self.type_parameters])
+        return f"{self.name}[{tp}]"
+
+
 class TypingContext:
     """Represents the Typing Context of the program at a given point."""
 
@@ -70,6 +88,16 @@ class TypingContext:
 
     def vars(self) -> list[tuple[str, Type]]:
         return [(te.name, te.type) for te in self.entries if isinstance(te, VariableBinder)]
+
+    def with_typeconstructor(self, name: str, type_parameters: list[tuple[str, Kind, Polarity]]) -> TypingContext:
+        return self + TypeConstructorBinder(name, type_parameters)
+
+    def type_constructor_named(self, name: str) -> list[tuple[str, Kind, Polarity]] | None:
+        candidates = [e for e in self.entries if isinstance(e, TypeConstructorBinder) and e.name == name]
+        if candidates:
+            return candidates[0].type_parameters
+        else:
+            return None
 
     def fresh_var(self):
         x = len(self.entries)
