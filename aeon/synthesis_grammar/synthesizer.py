@@ -9,7 +9,8 @@ from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.problems import MultiObjectiveProblem
 from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.core.problems import Problem
-from geneticengine.core.grammar import extract_grammar
+from geneticengine.core.grammar import extract_grammar, Grammar
+from geneticengine.core.random.sources import RandomSource
 
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
@@ -23,12 +24,12 @@ from aeon.core.types import BaseType, Top
 from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.sugar.program import Decorator
-from aeon.synthesis.sources import SeededRandomSource
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes, get_grammar_node
 from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
 from aeon.synthesis_grammar.utils import fitness_function_name_for
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
+from aeon.frontend.anf_converter import ensure_anf
 
 
 class SynthesisError(Exception):
@@ -177,6 +178,8 @@ def create_evaluator(ctx: TypingContext, ectx: EvaluationContext,
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         first_hole_name = holes[0]
         individual_term = individual.get_core()
+        individual_term = ensure_anf(individual_term,
+                                     10000000)  # TODO: Global counter?
         new_program = substitution(program_template, individual_term,
                                    first_hole_name)
 
@@ -203,13 +206,12 @@ def problem_for_fitness_function(
                                         hole_names)
     is_multiobjective = fitness_function_type == BaseType(
         "List")  # TODO: replace when merging polymorphic types
-
     if is_multiobjective:
         return MultiObjectiveProblem(
-            [False],
-            fitness_function)  # TODO: Repeat [False] for number of objectivos
+            fitness_function,
+            [False])  # TODO: Repeat [False] for number of objectivos
     else:
-        return SingleObjectiveProblem(False, fitness_function)
+        return SingleObjectiveProblem(fitness_function, False)
 
 
 def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
@@ -234,6 +236,21 @@ def create_grammar(holes: dict[str, tuple[Type, TypingContext]],
     return extract_grammar(grammar_nodes, starting_node)  # noqa: F821
 
 
+def random_search_synthesis(grammar: Grammar,
+                            problem: Problem,
+                            budget: int = 1000) -> Term:
+    """Performs a synthesis procedure with Random Search"""
+    MAX_DEPTH = 5
+    rep = TreeBasedRepresentation(grammar, MAX_DEPTH)
+    r = RandomSource(42)
+
+    population = [rep.create_individual(r, MAX_DEPTH) for _ in range(budget)]
+    population_with_score = [(problem.evaluate(phenotype),
+                              phenotype.get_core())
+                             for phenotype in population]
+    return min(population_with_score)[0]
+
+
 def synthesize_single_function(
         ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str,
         holes: dict[str, tuple[Type, TypingContext]]) -> Term:
@@ -251,8 +268,10 @@ def synthesize_single_function(
         )
 
     # Step 1.2 Create a Single or Multi-Objective Problem instance.
-    problem_for_fitness_function(ctx, ectx, term, fitness_function_name,
-                                 candidate_function[0], list(holes.keys()))
+    problem = problem_for_fitness_function(ctx, ectx, term,
+                                           fitness_function_name,
+                                           candidate_function[0],
+                                           list(holes.keys()))
 
     # Step 2.1 Get Hole Type.
 
@@ -260,16 +279,7 @@ def synthesize_single_function(
     grammar = create_grammar(holes, fun_name)
 
     # Step 3 Synthesize an element
-    MAX_DEPTH = 5
-    rep = TreeBasedRepresentation(grammar, MAX_DEPTH)
-    r = SeededRandomSource(42)
-    phenotype = rep.create_individual(r, MAX_DEPTH)
-    term = phenotype.get_core()
-
-    # print(grammar)
-    # print(objective)
-
-    return term
+    return random_search_synthesis(grammar, problem)
 
 
 def synthesize(
