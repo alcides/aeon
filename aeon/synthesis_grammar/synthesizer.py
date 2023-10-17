@@ -6,10 +6,10 @@ from typing import Callable
 
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
-from geneticengine.core.grammar import extract_grammar
 from geneticengine.core.problems import MultiObjectiveProblem
 from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.core.problems import Problem
+from geneticengine.core.grammar import extract_grammar
 
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
@@ -24,8 +24,7 @@ from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.sugar.program import Decorator
 from aeon.synthesis.sources import SeededRandomSource
-from aeon.synthesis_grammar.grammar import gen_grammar_nodes
-from aeon.synthesis_grammar.grammar import get_grammar_node
+from aeon.synthesis_grammar.grammar import gen_grammar_nodes, get_grammar_node
 from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
 from aeon.synthesis_grammar.utils import fitness_function_name_for
 from aeon.typechecking.context import TypingContext
@@ -37,16 +36,16 @@ class SynthesisError(Exception):
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
-    return (
-        isinstance(term_literal, Literal)
-        and term_literal.type == BaseType("Int")
-        and isinstance(term_literal.value, int)
-        and term_literal.value > 0
-    )
+    return (isinstance(term_literal, Literal)
+            and term_literal.type == BaseType("Int")
+            and isinstance(term_literal.value, int) and term_literal.value > 0)
 
 
 # TODO: Port
-def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str = "") -> str | None:
+def get_csv_file_path(file_path: str,
+                      representation: type,
+                      seed: int,
+                      hole_name: str = "") -> str | None:
     """
     Generate a csv file path based on provided file_path, representation and seed.
 
@@ -75,7 +74,8 @@ def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name
 
 # TODO: port
 def determine_parent_selection_type(problem):
-    return ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
+    return ("lexicase", ) if isinstance(
+        problem, MultiObjectiveProblem) else ("tournament", 5)
 
 
 # TODO port
@@ -127,10 +127,12 @@ def synthesize_old(
     program_to_synth = self.p
     for i in range(len(objectives)):
         hole_name = holes_names[i]
-        csv_file_path = self.get_csv_file_path(file_path, representation, seed, hole_name)
+        csv_file_path = self.get_csv_file_path(file_path, representation, seed,
+                                               hole_name)
 
         hole_data = self.holes[hole_name]
-        grammar_nodes, starting_node = self.get_grammar_components(hole_data, grammar_nodes)
+        grammar_nodes, starting_node = self.get_grammar_components(
+            hole_data, grammar_nodes)
         grammar = extract_grammar(grammar_nodes, starting_node)
 
         synth_objective = objectives[hole_data[2]]
@@ -156,24 +158,27 @@ def synthesize_old(
             save_to_csv=csv_file_path,
         )
         best: Individual = alg.evolve()
-        program_to_synth = substitution(program_to_synth, best.genotype.get_core(), hole_name)
+        program_to_synth = substitution(program_to_synth,
+                                        best.genotype.get_core(), hole_name)
 
     return program_to_synth
 
 
-def create_evaluator(
-    ctx: TypingContext, ectx: EvaluationContext, program: Term, fitness_function_name: str, holes: list[str]
-) -> Callable[[Individual], Any]:
+def create_evaluator(ctx: TypingContext, ectx: EvaluationContext,
+                     program: Term, fitness_function_name: str,
+                     holes: list[str]) -> Callable[[Individual], Any]:
     """Creates the fitness function for a given synthesis context."""
 
-    program_template = substitution(program, Var(fitness_function_name), "main")
+    program_template = substitution(program, Var(fitness_function_name),
+                                    "main")
 
     def evaluator(individual: Individual) -> Any:
         """Evaluates an individual"""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         first_hole_name = holes[0]
         individual_term = individual.get_core()
-        new_program = substitution(program_template, individual_term, first_hole_name)
+        new_program = substitution(program_template, individual_term,
+                                   first_hole_name)
 
         try:
             check_type_errors(ctx, new_program, Top())
@@ -194,11 +199,15 @@ def problem_for_fitness_function(
     hole_names: list[str],
 ) -> Problem:
     """Creates a problem for a particular function, based on the name and type of its fitness function."""
-    fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name, hole_names)
-    is_multiobjective = fitness_function_type == BaseType("List")  # TODO: replace when merging polymorphic types
+    fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name,
+                                        hole_names)
+    is_multiobjective = fitness_function_type == BaseType(
+        "List")  # TODO: replace when merging polymorphic types
 
     if is_multiobjective:
-        return MultiObjectiveProblem([False], fitness_function)  # TODO: Repeat [False] for number of objectivos
+        return MultiObjectiveProblem(
+            [False],
+            fitness_function)  # TODO: Repeat [False] for number of objectivos
     else:
         return SingleObjectiveProblem(False, fitness_function)
 
@@ -213,30 +222,37 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str):
-    assert len(holes) == 1, "More than one hole per function is not supported at the moment."
+def create_grammar(holes: dict[str, tuple[Type, TypingContext]],
+                   fun_name: str):
+    assert len(
+        holes
+    ) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
     grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name)
-    return extract_grammar(grammar_nodes, starting_node)
+    return extract_grammar(grammar_nodes, starting_node)  # noqa: F821
 
 
 def synthesize_single_function(
-    ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str, holes: dict[str, tuple[Type, TypingContext]]
-) -> Term:
+        ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str,
+        holes: dict[str, tuple[Type, TypingContext]]) -> Term:
     # TODO: This function is not working yet
 
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
-    candidate_function = [fun.var_type for fun in iterate_top_level(term) if fun.var_name == fitness_function_name]
+    candidate_function = [
+        fun.var_type for fun in iterate_top_level(term)
+        if fun.var_name == fitness_function_name
+    ]
     if not candidate_function:
         raise SynthesisError(
             f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}"
         )
 
     # Step 1.2 Create a Single or Multi-Objective Problem instance.
-    problem_for_fitness_function(ctx, ectx, term, fitness_function_name, candidate_function[0], list(holes.keys()))
+    problem_for_fitness_function(ctx, ectx, term, fitness_function_name,
+                                 candidate_function[0], list(holes.keys()))
 
     # Step 2.1 Get Hole Type.
 
@@ -272,6 +288,7 @@ def synthesize(
 
     for name, holes_names in targets:
         term = synthesize_single_function(
-            ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}
-        )
+            ctx, ectx, term, name,
+            {h: v
+             for h, v in program_holes.items() if h in holes_names})
     return term
