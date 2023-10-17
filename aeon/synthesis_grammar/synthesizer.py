@@ -254,8 +254,6 @@ def random_search_synthesis(grammar: Grammar,
 def synthesize_single_function(
         ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str,
         holes: dict[str, tuple[Type, TypingContext]]) -> Term:
-    # TODO: This function is not working yet
-
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
     candidate_function = [
@@ -277,6 +275,8 @@ def synthesize_single_function(
 
     # Step 2.2 Create grammar object.
     grammar = create_grammar(holes, fun_name)
+
+    # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure to use (e.g., Random Search, Genetic Programming, others...)
 
     # Step 3 Synthesize an element
     return random_search_synthesis(grammar, problem)
