@@ -313,7 +313,9 @@ def synthesize_single_function(ctx: TypingContext, ectx: EvaluationContext,
 
     objective: Problem
     if is_multiobjective:
-        objective = MultiObjectiveProblem([False], fitness_function)
+        objective = MultiObjectiveProblem(
+            [False],
+            fitness_function)  # TODO: Repeat [False] for number of objectivos
     else:
         objective = SingleObjectiveProblem(False, fitness_function)
 
