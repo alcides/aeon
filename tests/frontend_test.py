@@ -19,6 +19,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.utils.ast_helpers import false
@@ -68,7 +69,8 @@ def test_refinedtypes():
             "==",
             [
                 LiquidVar("y"),
-                LiquidApp("+", [LiquidLiteralInt(1), LiquidLiteralInt(1)]),
+                LiquidApp("+", [LiquidLiteralInt(1),
+                                LiquidLiteralInt(1)]),
             ],
         ),
     )
@@ -87,15 +89,18 @@ def test_operators():
 
     assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
     assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
-    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true, true)
-    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true, true)
+    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true,
+                                                  true)
+    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true,
+                                                  true)
 
     assert parse_term("0 < 1") == mk_binop(lambda: "t", "<", i0, i1)
     assert parse_term("0 > 1") == mk_binop(lambda: "t", ">", i0, i1)
     assert parse_term("0 <= 1") == mk_binop(lambda: "t", "<=", i0, i1)
     assert parse_term("0 >= 1") == mk_binop(lambda: "t", ">=", i0, i1)
 
-    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true, false)
+    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true,
+                                                    false)
 
     assert parse_term("1 + 1") == mk_binop(lambda: "t", "+", i1, i1)
     assert parse_term("1 - 1") == mk_binop(lambda: "t", "-", i1, i1)
@@ -106,7 +111,8 @@ def test_operators():
 
 def test_precedence():
     t1 = parse_term("1 + 2 * 0")
-    assert is_anf(t1)
+    at1 = ensure_anf(t1)
+    assert is_anf(at1)
 
 
 def test_let():
@@ -137,7 +143,8 @@ def test_poly_parse():
 
 
 def test_poly_abs():
-    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(), parse_term("1"))
+    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(),
+                                                      parse_term("1"))
 
 
 def test_poly_abs_plus():

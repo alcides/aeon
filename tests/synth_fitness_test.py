@@ -4,6 +4,7 @@ from abc import ABC
 
 from aeon.core.terms import Var
 from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
@@ -12,6 +13,7 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 
 def mock_literal_individual(value: int):
+
     class t_Int(ABC):
         pass
 
@@ -34,6 +36,7 @@ def test_fitness():
     """
     prog = parse_program(code)
     p, ctx, ectx = desugar(prog)
+    p = ensure_anf(p)
     check_type_errors(ctx, p, top)
     synthesizer = Synthesizer(ctx, p, top, ectx)
 
@@ -43,5 +46,7 @@ def test_fitness():
     expected_output1 = 1995
     expected_output2 = 0
 
-    assert synthesizer.evaluate_fitness(individual1, Var("fitness"), True, p) == expected_output1
-    assert synthesizer.evaluate_fitness(individual2, Var("fitness"), True, p) == expected_output2
+    assert synthesizer.evaluate_fitness(individual1, Var("fitness"), True,
+                                        p) == expected_output1
+    assert synthesizer.evaluate_fitness(individual2, Var("fitness"), True,
+                                        p) == expected_output2
