@@ -14,7 +14,7 @@ from geneticengine.core.random.sources import RandomSource
 
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
-from pyparsing import Any
+from typing import Any
 
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
