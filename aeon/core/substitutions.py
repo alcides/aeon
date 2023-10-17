@@ -23,6 +23,7 @@ from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
+from aeon.core.types import t_float
 from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
@@ -277,27 +278,39 @@ def liquefy_ann(t: Annotation) -> LiquidTerm | None:
 
 # patterm matching term
 def liquefy(rep: Term) -> LiquidTerm | None:
-    if isinstance(rep, Literal) and rep.type == t_int:
-        assert isinstance(rep.value, int)
-        return LiquidLiteralInt(rep.value)
-    elif isinstance(rep, Literal) and rep.type == t_bool:
-        assert isinstance(rep.value, bool)
-        return LiquidLiteralBool(rep.value)
-    elif isinstance(rep, Literal) and rep.type == t_string:
-        assert isinstance(rep.value, str)
-        return LiquidLiteralString(rep.value)
-    elif isinstance(rep, Application):
-        return liquefy_app(rep)
-    elif isinstance(rep, Var):
-        return LiquidVar(rep.name)
-    elif isinstance(rep, Hole):
-        return LiquidHornApplication(rep.name)
-    elif isinstance(rep, Let):
-        return liquefy_let(rep)
-    elif isinstance(rep, Rec):
-        return liquefy_rec(rep)
-    elif isinstance(rep, If):
-        return liquefy_if(rep)
-    elif isinstance(rep, Annotation):
-        return liquefy_ann(rep)
-    raise Exception(f"Unable to liquefy {rep} {type(rep)}")
+    match rep:
+        case Literal(value=_, type=ty):
+            if ty == t_int:
+                assert isinstance(rep.value, int)
+                return LiquidLiteralInt(rep.value)
+            elif ty == t_bool:
+                assert isinstance(rep.value, bool)
+                return LiquidLiteralBool(rep.value)
+            elif ty == t_float:
+                assert isinstance(rep.value, float)
+                return LiquidLiteralFloat(rep.value)
+            elif ty == t_string:
+                assert isinstance(rep.value, str)
+                return LiquidLiteralString(rep.value)
+            else:
+                assert False, "Literal {rep} has a type {ty} that is not supported."
+        case Var(name=n):
+            return LiquidVar(n)
+        case Hole(name=n):
+            return LiquidHornApplication(n)
+        case Annotation(expr=e, type=_):
+            return liquefy_ann(rep)
+        case Application(fun=_, arg=_):
+            return liquefy_app(rep)
+        case Let(var_name=_, var_value=_, body=_):
+            return liquefy_let(rep)
+        case Rec(var_name=_, var_type=_, var_value=_, body=_):
+            return liquefy_rec(rep)
+        case If(cond=_, then=_, otherwise=_):
+            return liquefy_if(rep)
+        case TypeApplication(body=e, type=ty):
+            return liquefy(e)
+        case TypeAbstraction(name=_, kind=_, body=e):
+            return liquefy(e)
+        case _:
+            raise Exception(f"Unable to liquefy {rep} {type(rep)}")

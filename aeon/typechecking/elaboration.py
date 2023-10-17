@@ -20,7 +20,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, base
+from aeon.core.types import AbstractionType, TypeConstructor, base
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
@@ -124,6 +124,11 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
     elif isinstance(sup, TypePolymorphism):
         u = UnificationVar(ctx.fresh_var())
         unify(ctx, sub, type_substitution(sup.body, sup.name, u))
+        return []
+
+    elif isinstance(sub, TypeConstructor) and isinstance(sup, TypeConstructor) and sub.name == sup.name:
+        for s, u in zip(sub.args, sup.args):
+            unify(ctx, s, u)  # TODO Polytypes: Consider polarities here.
         return []
 
     elif isinstance(sub, TypePolymorphism):

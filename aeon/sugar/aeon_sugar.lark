@@ -83,7 +83,7 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                     -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
-     | ID "[" type+ "]"                                     -> constructor_t
+     | ID "[" type ("," type)* "]"                                 -> constructor_t
      | "(" type ")"                                        -> same
 
 kind : "B" -> base_kind
