@@ -2,6 +2,7 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.types import TypeConstructor
 from aeon.frontend.parser import parse_type
 from aeon.logger.logger import setup_logger
+from aeon.typechecking.context import TypingContext
 from aeon.verification.sub import sub
 from aeon.verification.vcs import LiquidConstraint
 from aeon.sugar.parser import parse_program
@@ -20,14 +21,15 @@ def sugar_test_pipeline(code: str, fail: bool = False):
 
 
 def test_polytype():
+    ctx = TypingContext()
     t = parse_type("List[Int]")
     assert isinstance(t, TypeConstructor)
 
     t2 = parse_type("List[Int]")
-    assert sub(t, t2)
+    assert sub(ctx, t, t2)
 
     t3 = parse_type("List[Float]")
-    assert sub(t, t3) == LiquidConstraint(LiquidLiteralBool(False))
+    assert sub(ctx, t, t3) == LiquidConstraint(LiquidLiteralBool(False))
 
 
 def test_polyfun():

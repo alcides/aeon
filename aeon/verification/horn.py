@@ -19,6 +19,8 @@ from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
+from aeon.core.types import t_float
+from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -170,7 +172,7 @@ def get_possible_args(vars: Sequence[tuple[LiquidTerm, str]], arity: int):
 
 
 def reverse_type(t: str) -> Type:
-    return {"Int": t_int, "Bool": t_bool}[t]
+    return {"Int": t_int, "Bool": t_bool, "Float": t_float, "String": t_string}[t]
 
 
 def build_possible_assignment(hole: LiquidHornApplication):

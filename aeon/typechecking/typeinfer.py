@@ -357,7 +357,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)
-        cp = sub(s, ty)
+        cp = sub(ctx, s, ty)
         if cp == LiquidConstraint(LiquidLiteralBool(False)):
             raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
@@ -402,7 +402,7 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
         return True
     if isinstance(subt, RefinedType) and subt.type == supt:
         return True
-    c = sub(subt, supt)
+    c = sub(ctx, subt, supt)
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)

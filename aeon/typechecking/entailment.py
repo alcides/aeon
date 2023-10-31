@@ -10,7 +10,7 @@ from aeon.core.types import Type
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typechecking.context import TypeBinder, UninterpretedFunctionBinder
+from aeon.typechecking.context import TypeBinder, TypeConstructorBinder, UninterpretedFunctionBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.verification.helpers import pretty_print_constraint
@@ -58,6 +58,8 @@ def entailment(ctx: TypingContext, c: Constraint):
                     c = Implication(name, base, ncond, c)
                 else:
                     assert False
+            case TypeConstructorBinder(name=name, type_parameters=_):
+                pass
             case _:
                 assert False
 

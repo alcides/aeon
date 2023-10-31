@@ -210,19 +210,21 @@ def test_let_let():
 
 
 def test_sub():
+    ctx = TypingContext() + VariableBinder("fresh_2", t_int)
     subt = parse_type(r"(x:((z:{a:Int| a > 1 }) -> Int)) -> {k:Int | k > x}")
     supt = parse_type(r"(y:((m:{b:Int| b > 0 }) -> Int)) -> {z:Int | z >= y}")
-    c = sub(subt, supt)
-    assert entailment(TypingContext() + VariableBinder("fresh_2", t_int), c)
+    c = sub(ctx, subt, supt)
+    assert entailment(ctx, c)
 
 
 def test_sub_simple():
+    ctx = TypingContext() + VariableBinder("plus", parse_type("(x:Int) -> Int"))
     subt = parse_type(r"(_fresh_3:Int) -> Int")
     supt = parse_type(r"(y:Int) -> Int")
 
-    c = sub(subt, supt)
+    c = sub(ctx, subt, supt)
     assert entailment(
-        TypingContext() + VariableBinder("plus", parse_type("(x:Int) -> Int")),
+        ctx,
         c,
     )
 

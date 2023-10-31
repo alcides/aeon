@@ -15,6 +15,7 @@ from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.typechecking.context import Polarity, TypingContext
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -69,13 +70,15 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
     assert False
 
 
-def sub(t1: Type, t2: Type) -> Constraint:
+def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
     if isinstance(t2, Top) or isinstance(t1, Bottom):
         return ctrue
     if isinstance(t1, BaseType) or isinstance(t1, TypeVar) or isinstance(t1, TypeConstructor):
         t1 = ensure_refined(t1)
     if isinstance(t2, BaseType) or isinstance(t1, TypeVar) or isinstance(t2, TypeConstructor):
         t2 = ensure_refined(t2)
+
+    base_condition: Constraint = ctrue
     if isinstance(t1, RefinedType) and isinstance(t2, RefinedType):
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
@@ -90,11 +93,22 @@ def sub(t1: Type, t2: Type) -> Constraint:
         elif isinstance(t1.type, TypeConstructor) and isinstance(t2.type, TypeConstructor):
             if t1.type.name != t2.type.name:
                 return cfalse
-            for it1, it2 in zip(t1.type.args, t2.type.args):
-                if (
-                    it1 != it2
-                ):  # TODO Polytypes: This should be a subtyping relationship, according to polarities, which are not clear yet.
-                    return cfalse
+            typed_parameters = ctx.type_constructor_named(t1.type.name)
+            if not typed_parameters:
+                logger.error(f"Could not subtype: {t1} <: {t2} because type constructors do not match.")
+                return cfalse
+
+            for it1, it2, (name, kind, polarity) in zip(t1.type.args, t2.type.args, typed_parameters):
+                match polarity:
+                    case Polarity.NEITHER:
+                        pass
+                    case Polarity.POSITIVE:
+                        base_condition = Conjunction(base_condition, sub(ctx, it1, it2))
+                    case Polarity.NEGATIVE:
+                        base_condition = Conjunction(base_condition, sub(ctx, it2, it1))
+                    case Polarity.BOTH:
+                        base_condition = Conjunction(base_condition, sub(ctx, it1, it2))
+                        base_condition = Conjunction(base_condition, sub(ctx, it2, it1))
             base_type = BaseType("TypeConstructorPlaceHolder")
         else:
             logger.error(f"Could not subtype: {t1} <: {t2} because of non-refined type.")
@@ -107,15 +121,19 @@ def sub(t1: Type, t2: Type) -> Constraint:
             t2.name,
         )
 
-        return Implication(
-            t1.name,
-            base_type,
-            t1.refinement,
-            LiquidConstraint(t2_subs),
+        return Conjunction(
+            base_condition,
+            Implication(
+                t1.name,
+                base_type,
+                t1.refinement,
+                LiquidConstraint(t2_subs),
+            ),
         )
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
-        c0 = sub(t2.var_type, t1.var_type)
+        c0 = sub(ctx, t2.var_type, t1.var_type)
         c1 = sub(
+            ctx,
             substitution_in_type(t1.type, Var(t2.var_name), t1.var_name),
             t2.type,
         )
