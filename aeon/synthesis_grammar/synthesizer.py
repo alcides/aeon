@@ -23,7 +23,6 @@ from aeon.core.terms import Term, Literal, Var
 from aeon.core.types import BaseType, Top
 from aeon.core.types import top
 from aeon.core.types import Type
-from aeon.sugar.program import Decorator
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes, get_grammar_node
 from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
 from aeon.synthesis_grammar.utils import fitness_function_name_for
@@ -37,151 +36,51 @@ class SynthesisError(Exception):
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
-    return (isinstance(term_literal, Literal)
-            and term_literal.type == BaseType("Int")
-            and isinstance(term_literal.value, int) and term_literal.value > 0)
+    return (
+        isinstance(term_literal, Literal)
+        and term_literal.type == BaseType("Int")
+        and isinstance(term_literal.value, int)
+        and term_literal.value > 0
+    )
 
 
-# TODO: Port
-def get_csv_file_path(file_path: str,
-                      representation: type,
-                      seed: int,
-                      hole_name: str = "") -> str | None:
+def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str = "") -> str | None:
     """
-    Generate a csv file path based on provided file_path, representation and seed.
-
-    Args:
-        file_path (str): The original file path.
-        representation (type): Representation type of the individual.
-        seed (int): Seed for random number generation.
-
-    Returns:
-        str | None: Generated CSV file path or None if no file_path is provided.
+    Generate a CSV file path based on the provided file_path, representation, and seed.
+    If file_path is empty, returns None.
     """
     if not file_path:
         return None
 
     file_name = os.path.basename(file_path)
-    name_without_extension = os.path.splitext(file_name)[0]
-    directory = f"csv/{name_without_extension}/{representation.__name__}"
-
+    name_without_extension, _ = os.path.splitext(file_name)
+    directory = os.path.join("csv", name_without_extension, representation.__name__)
     os.makedirs(directory, exist_ok=True)
 
-    if hole_name:
-        return f"{directory}/{name_without_extension}_{hole_name}_{seed}.csv"
+    hole_suffix = f"_{hole_name}" if hole_name else ""
+    csv_file_name = f"{name_without_extension}{hole_suffix}_{seed}.csv"
 
-    return f"{directory}/{name_without_extension}_{seed}.csv"
+    return os.path.join(directory, csv_file_name)
 
 
-# TODO: port
 def determine_parent_selection_type(problem):
-    return ("lexicase", ) if isinstance(
-        problem, MultiObjectiveProblem) else ("tournament", 5)
+    return ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
 
 
-# TODO port
-def synthesize_old(
-    self,
-    file_path: str | None,
-    objectives: dict[str, tuple[Term, list[Decorator]]],
-    max_depth: int = 8,
-    population_size: int = 20,
-    n_elites: int = 1,
-    target_fitness: int = 0,
-    representation: type = TreeBasedRepresentation,
-    probability_mutation: float = 0.01,
-    probability_crossover: float = 0.9,
-    timer_stop_criteria: bool = True,
-    timer_limit: int = 60,
-    seed: int = 123,
-) -> Term:
-    """Synthesizes an individual based on the provided parameters and grammar.
-
-    Args:
-        file_path (str | None): Path to the file. If provided, results will be saved to a CSV file
-        objectives (dict[str, tuple[Term, list[Decorator]]]): Determines if the objective is to minimize the fitness function
-        max_depth (int): Maximum depth of the individual. (Defaults = 8)
-        population_size (int): Size of the population. (Defaults = 20)
-        n_elites (int): Number of elite individuals. (Defaults = 1)
-        target_fitness (int): Target fitness value. Evolution stops when this is reached. (Defaults = 0)
-        representation (type): Representation type of the individual. (Defaults = TreeBasedRepresentation)
-        probability_mutation (float): Probability of mutation. (Defaults = 0.01)
-        probability_crossover (float): Probability of crossover. (Defaults = 0.9)
-        timer_stop_criteria (bool): If True, evolution stops based on a timer. (Defaults = True)
-        timer_limit (int): Time limit in seconds for the evolution. (Defaults = 60)
-        seed (int): Seed for random number generation. (Defaults = 123)
-
-    Returns:
-        Individual: The best synthesized individual.
-
-    Raises:
-        Exception: If there are issues with type checking or evaluation during synthesis.
-    """
-
-    # TODO Eduardo: Test
-    assert len(objectives) + 1 == len(self.holes)
-
-    ##############################################################################################################
-
-    holes_names = list(self.holes.keys())
-    grammar_nodes: list[type] = list()
-    program_to_synth = self.p
-    for i in range(len(objectives)):
-        hole_name = holes_names[i]
-        csv_file_path = self.get_csv_file_path(file_path, representation, seed,
-                                               hole_name)
-
-        hole_data = self.holes[hole_name]
-        grammar_nodes, starting_node = self.get_grammar_components(
-            hole_data, grammar_nodes)
-        grammar = extract_grammar(grammar_nodes, starting_node)
-
-        synth_objective = objectives[hole_data[2]]
-
-        problem = self.get_problem_type(synth_objective, program_to_synth)
-        parent_selection = self.determine_parent_selection_type(problem)
-
-        alg = SimpleGP(
-            seed=seed,
-            grammar=grammar,
-            representation=representation,
-            problem=problem,
-            selection_method=parent_selection,
-            max_depth=max_depth,
-            population_size=population_size,
-            n_elites=n_elites,
-            verbose=2,
-            target_fitness=target_fitness,
-            probability_mutation=probability_mutation,
-            probability_crossover=probability_crossover,
-            timer_stop_criteria=timer_stop_criteria,
-            timer_limit=timer_limit,
-            save_to_csv=csv_file_path,
-        )
-        best: Individual = alg.evolve()
-        program_to_synth = substitution(program_to_synth,
-                                        best.genotype.get_core(), hole_name)
-
-    return program_to_synth
-
-
-def create_evaluator(ctx: TypingContext, ectx: EvaluationContext,
-                     program: Term, fitness_function_name: str,
-                     holes: list[str]) -> Callable[[Individual], Any]:
+def create_evaluator(
+    ctx: TypingContext, ectx: EvaluationContext, program: Term, fitness_function_name: str, holes: list[str]
+) -> Callable[[Individual], Any]:
     """Creates the fitness function for a given synthesis context."""
 
-    program_template = substitution(program, Var(fitness_function_name),
-                                    "main")
+    program_template = substitution(program, Var(fitness_function_name), "main")
 
     def evaluator(individual: Individual) -> Any:
         """Evaluates an individual"""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         first_hole_name = holes[0]
         individual_term = individual.get_core()
-        individual_term = ensure_anf(individual_term,
-                                     10000000)  # TODO: Global counter?
-        new_program = substitution(program_template, individual_term,
-                                   first_hole_name)
+        individual_term = ensure_anf(individual_term, 10000000)  # TODO: Global counter?
+        new_program = substitution(program_template, individual_term, first_hole_name)
 
         try:
             check_type_errors(ctx, new_program, Top())
@@ -202,14 +101,11 @@ def problem_for_fitness_function(
     hole_names: list[str],
 ) -> Problem:
     """Creates a problem for a particular function, based on the name and type of its fitness function."""
-    fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name,
-                                        hole_names)
-    is_multiobjective = fitness_function_type == BaseType(
-        "List")  # TODO: replace when merging polymorphic types
+    fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name, hole_names)
+    is_multiobjective = fitness_function_type == BaseType("List")  # TODO: replace when merging polymorphic types
     if is_multiobjective:
-        return MultiObjectiveProblem(
-            fitness_function,
-            [False])  # TODO: Repeat [False] for number of objectivos
+        return MultiObjectiveProblem(fitness_function, [False])  # TODO: Repeat [False] for number of objectivos
+
     else:
         return SingleObjectiveProblem(fitness_function, False)
 
@@ -224,11 +120,8 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]],
-                   fun_name: str):
-    assert len(
-        holes
-    ) == 1, "More than one hole per function is not supported at the moment."
+def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str):
+    assert len(holes) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
@@ -236,40 +129,70 @@ def create_grammar(holes: dict[str, tuple[Type, TypingContext]],
     return extract_grammar(grammar_nodes, starting_node)  # noqa: F821
 
 
-def random_search_synthesis(grammar: Grammar,
-                            problem: Problem,
-                            budget: int = 1000) -> Term:
+def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 1000) -> Term:
     """Performs a synthesis procedure with Random Search"""
     MAX_DEPTH = 5
     rep = TreeBasedRepresentation(grammar, MAX_DEPTH)
     r = RandomSource(42)
 
     population = [rep.create_individual(r, MAX_DEPTH) for _ in range(budget)]
-    population_with_score = [(problem.evaluate(phenotype),
-                              phenotype.get_core())
-                             for phenotype in population]
+    population_with_score = [(problem.evaluate(phenotype), phenotype.get_core()) for phenotype in population]
     return min(population_with_score)[0]
 
 
+def geneticengine_synthesis(
+    grammar: Grammar,
+    problem: Problem,
+    file_path: str | None,
+    hole_name: str,
+) -> Term:
+    """Performs a synthesis procedure with GeneticEngine"""
+
+    # TODO add information about hole name
+    csv_file_path = get_csv_file_path(file_path, TreeBasedRepresentation, 123, hole_name)
+
+    parent_selection = determine_parent_selection_type(problem)
+    alg = SimpleGP(
+        seed=123,
+        grammar=grammar,
+        representation=TreeBasedRepresentation,
+        problem=problem,
+        selection_method=parent_selection,
+        max_depth=8,
+        population_size=20,
+        n_elites=1,
+        verbose=2,
+        target_fitness=0,
+        probability_mutation=0.01,
+        probability_crossover=0.9,
+        timer_stop_criteria=True,
+        timer_limit=60,
+        save_to_csv=csv_file_path,
+    )
+    best: Individual = alg.evolve()
+    return best.phenotype.get_core()
+
+
 def synthesize_single_function(
-        ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str,
-        holes: dict[str, tuple[Type, TypingContext]]) -> Term:
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    term: Term,
+    fun_name: str,
+    holes: dict[str, tuple[Type, TypingContext]],
+    filename: str,
+) -> Term:
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
-    candidate_function = [
-        fun.var_type for fun in iterate_top_level(term)
-        if fun.var_name == fitness_function_name
-    ]
+    candidate_function = [fun.var_type for fun in iterate_top_level(term) if fun.var_name == fitness_function_name]
     if not candidate_function:
         raise SynthesisError(
             f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}"
         )
 
     # Step 1.2 Create a Single or Multi-Objective Problem instance.
-    problem = problem_for_fitness_function(ctx, ectx, term,
-                                           fitness_function_name,
-                                           candidate_function[0],
-                                           list(holes.keys()))
+    problem = problem_for_fitness_function(
+        ctx, ectx, term, fitness_function_name, candidate_function[0], list(holes.keys())
+    )
 
     # Step 2.1 Get Hole Type.
 
@@ -279,6 +202,7 @@ def synthesize_single_function(
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure to use (e.g., Random Search, Genetic Programming, others...)
 
     # Step 3 Synthesize an element
+    # return geneticengine_synthesis(grammar, problem, filename)
     return random_search_synthesis(grammar, problem)
 
 
@@ -290,6 +214,7 @@ def synthesize(
     filename: str | None = None,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
+    # neste momento esta a permitir recursao
     program_holes = get_holes_info(
         ctx,
         term,
@@ -298,7 +223,6 @@ def synthesize(
 
     for name, holes_names in targets:
         term = synthesize_single_function(
-            ctx, ectx, term, name,
-            {h: v
-             for h, v in program_holes.items() if h in holes_names})
+            ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}, filename
+        )
     return term
