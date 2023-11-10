@@ -1,7 +1,8 @@
-import Math;
+type List;
 
-# def synth : Int = (?hole: Int) * 289;
-# def fitness : Int = 2023 - synth;
+def id (x:Int) : Int { x}
 
-def synth (i:Int) : Int  {(?hole: Int) * i}
-def fitness : Int =  2023 - synth(289);
+@minimize_int(2023 - fun(289))
+def fun (i:Int) : Int  {
+    (?hole: Int) * i
+}
