@@ -210,7 +210,7 @@ def synthesize(
     ctx: TypingContext,
     ectx: EvaluationContext,
     term: Term,
-    targets=list[tuple[str, list[str]]],
+    targets: list[tuple[str, list[str]]],
     filename: str | None = None,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
@@ -219,6 +219,7 @@ def synthesize(
         ctx,
         term,
         top,
+        targets,
     )
 
     for name, holes_names in targets:
