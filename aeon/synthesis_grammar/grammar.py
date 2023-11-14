@@ -298,10 +298,13 @@ def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list
 
 
 def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
-    grammar_nodes_names_set = {cls.__name__ for cls in grammar_nodes}
-    for base_type in grammar_base_types:
-        if base_type in grammar_nodes_names_set:
-            grammar_nodes = create_if_class(f"If_{base_type}", base_type, grammar_nodes)
+    types_names_set = {
+        cls.__name__
+        for cls in grammar_nodes
+        if cls.__base__ is ABC and not any(issubclass(cls, other) and cls is not other for other in grammar_nodes)
+    }
+    for ty_name in types_names_set:
+        grammar_nodes = create_if_class(f"If_{ty_name}", ty_name, grammar_nodes)
     return grammar_nodes
 
 
@@ -327,7 +330,7 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
-    print_grammar_nodes(grammar_nodes)
+    ##print_grammar_nodes(grammar_nodes)
     return grammar_nodes
 
 
