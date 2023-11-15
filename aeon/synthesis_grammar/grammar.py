@@ -79,7 +79,7 @@ def mk_method_core(cls: classType) -> classType:
             if_dict = {}
             for attr_name, _ in cls.__annotations__.items():
                 value = getattr(self, attr_name, None)
-                if_dict[attr_name] = value.get_core
+                if_dict[attr_name] = value.get_core()
 
             base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
 
