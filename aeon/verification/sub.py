@@ -112,6 +112,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             base_type = BaseType("TypeConstructorPlaceHolder")
         else:
             logger.error(f"Could not subtype: {t1} <: {t2} because of non-refined type.")
+            raise Exception()
             return cfalse
         assert isinstance(base_type, BaseType)
 

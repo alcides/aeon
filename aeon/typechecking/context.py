@@ -10,6 +10,9 @@ from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
 
+KEY = "KEY"
+COUNTER: dict[str, int] = {KEY: 0}
+
 
 class Polarity(Enum):
     NEITHER = 1
@@ -100,8 +103,9 @@ class TypingContext:
             return None
 
     def fresh_var(self):
-        x = len(self.entries)
-        return f"fresh_{x}"
+        y = COUNTER[KEY]
+        COUNTER[KEY] += 1
+        return f"fresh_{y}"
 
     def kind_of(self, ty) -> Kind | None:
         if isinstance(ty, BaseType):

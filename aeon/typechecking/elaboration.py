@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import reduce
 from itertools import combinations
+from loguru import logger
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidHornApplication
@@ -308,12 +309,16 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     elif isinstance(t, Let):
         u = UnificationVar(ctx.fresh_var())
+        if t.var_name == "r":
+            logger.error(f"debug: {u} {t} {ty}")
         nval = elaborate_check(ctx, t.var_value, u)
         nbody = elaborate_check(
             ctx.with_var(t.var_name, u),
             t.body,
             ty,
         )
+        if t.var_name == "r":
+            logger.error(f"debug: {u}")
         return Let(t.var_name, nval, nbody)
 
     elif isinstance(t, Rec):
