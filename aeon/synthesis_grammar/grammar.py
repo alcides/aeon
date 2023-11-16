@@ -14,18 +14,18 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
-from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import RefinedType
+from aeon.core.types import Top
+from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Top
 from aeon.typechecking.context import TypingContext
 
-prelude_ops = ["print", "native_import", "native"]
+prelude_ops: list[str] = ["print", "native_import", "native"]
 
-aeon_prelude_ops_to_text = {
+aeon_prelude_ops_to_text: dict[str, str] = {
     "%": "mod",
     "/": "div",
     "*": "mult",
@@ -330,7 +330,7 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
-    ##print_grammar_nodes(grammar_nodes)
+    print_grammar_nodes(grammar_nodes)
     return grammar_nodes
 
 
