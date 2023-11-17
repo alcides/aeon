@@ -50,59 +50,6 @@ def pretty_print_term(term: Term):
     print(term_str)
 
 
-def replace_application_with_abstraction(term: Term, counter: int = 0) -> tuple[Term, int]:
-    prelude_operations: dict[str, str] = aeon_prelude_ops_to_text
-    match term:
-        case Application(fun=Var(name=var_name), arg=arg) if var_name in prelude_operations.keys():
-            counter += 1
-            new_var_name = f"__{prelude_operations[var_name]}_{counter}__"  # add a counter to the end of the string
-            new_var = Var(new_var_name)
-            new_application = Application(Application(Var(name=var_name), arg), new_var)
-            return Abstraction(new_var_name, new_application), counter
-
-        case Application(fun=fun, arg=arg):
-            new_fun, counter = replace_application_with_abstraction(fun)
-            new_arg, counter = replace_application_with_abstraction(arg)
-            return Application(new_fun, new_arg), counter
-
-        case Annotation(expr=expr, type=type):
-            new_expr, counter = replace_application_with_abstraction(expr)
-            return Annotation(new_expr, type), counter
-
-        case Abstraction(var_name=var_name, body=body):
-            new_body, counter = replace_application_with_abstraction(body)
-            return Abstraction(var_name, new_body), counter
-
-        case Let(var_name=var_name, var_value=var_value, body=body):
-            new_var_value, counter = replace_application_with_abstraction(var_value)
-            new_body, counter = replace_application_with_abstraction(body)
-            return Let(var_name, new_var_value, new_body), counter
-
-        case Rec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
-            new_var_value, counter = replace_application_with_abstraction(var_value)
-            new_body, counter = replace_application_with_abstraction(body)
-            return Rec(var_name, var_type, new_var_value, new_body), counter
-
-        case If(cond=cond, then=then, otherwise=otherwise):
-            new_cond, counter = replace_application_with_abstraction(cond)
-            new_then, counter = replace_application_with_abstraction(then)
-            new_otherwise, counter = replace_application_with_abstraction(otherwise)
-            return If(new_cond, new_then, new_otherwise), counter
-
-        case TypeAbstraction(name=name, kind=kind, body=body):
-            new_body, counter = replace_application_with_abstraction(body)
-            return TypeAbstraction(name, kind, new_body), counter
-
-        case TypeApplication(body=body, type=type):
-            new_body, counter = replace_application_with_abstraction(body)
-            return TypeApplication(new_body, type), counter
-
-        case Literal(_, _) | Var(_) | Hole(_):
-            # Return these terms as they are
-            return term, counter
-    return term, counter
-
-
 def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[str, int]:
     prelude_operations: dict[str, str] = aeon_prelude_ops_to_text
     match term:
