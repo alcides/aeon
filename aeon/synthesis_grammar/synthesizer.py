@@ -85,6 +85,14 @@ def create_evaluator(
             check_type_errors(ctx, new_program, Top())
             return eval(new_program, ectx)
         except Exception as e:
+            # if type_errors:
+            #     print("TYPECHECKER", "-------------------------------")
+            #     print("TYPECHECKER", "+     Type Checking Error     +")
+            #     for error in type_errors:
+            #         print("TYPECHECKER", "-------------------------------")
+            #         print("TYPECHECKER", error)
+            #     print("TYPECHECKER", "-------------------------------")
+            #     log_type_errors(type_errors)
             logger.error("Failed in the fitness function:", e)
             return -(sys.maxsize - 1)
 

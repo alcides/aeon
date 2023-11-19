@@ -7,7 +7,7 @@ from typing import Type as TypingType
 
 from lark.lexer import Token
 
-from aeon.core.terms import Application
+from aeon.core.terms import Application, Annotation
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
@@ -77,9 +77,10 @@ def mk_method_core(cls: classType) -> classType:
             assert len(var_values) == 2
         elif class_name.startswith("If"):
             if_dict = {}
-            for attr_name, _ in cls.__annotations__.items():
+            for attr_name, ty in cls.__annotations__.items():
                 value = getattr(self, attr_name, None)
-                if_dict[attr_name] = value.get_core()
+                aeon_type = ty.__name__[2:]
+                if_dict[attr_name] = Annotation(value.get_core(), BaseType(aeon_type))
 
             base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
 
