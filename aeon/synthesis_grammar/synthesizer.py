@@ -2,33 +2,32 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Any
 from typing import Callable
 
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
-from geneticengine.core.problems import MultiObjectiveProblem
-from geneticengine.core.problems import SingleObjectiveProblem
-from geneticengine.core.problems import Problem
 from geneticengine.core.grammar import extract_grammar, Grammar
+from geneticengine.core.problems import MultiObjectiveProblem
+from geneticengine.core.problems import Problem
+from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.core.random.sources import RandomSource
-
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
-from typing import Any
 
-from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
+from aeon.backend.evaluator import eval
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Literal, Var
 from aeon.core.types import BaseType, Top
-from aeon.core.types import top
 from aeon.core.types import Type
+from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.synthesis_grammar.grammar import gen_grammar_nodes, get_grammar_node
 from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
 from aeon.synthesis_grammar.utils import fitness_function_name_for
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
-from aeon.frontend.anf_converter import ensure_anf
 
 
 class SynthesisError(Exception):

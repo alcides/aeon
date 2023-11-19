@@ -8,9 +8,7 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import Decorator
 
 singleObjectiveDecorators = ["minimize", "maximize", "assert_property"]
-multiObjectiveDecorators = [
-    "multi_minimize", "multi_maximize", "assert_properties"
-]
+multiObjectiveDecorators = ["multi_minimize", "multi_maximize", "assert_properties"]
 
 
 def get_minimize(minimize: list[bool]):
@@ -27,8 +25,7 @@ def get_type_from_decorators(macro_list) -> BaseType:
         elif macro_list[0].name in multiObjectiveDecorators:
             return BaseType("List")
         else:
-            raise Exception(
-                "decorator not in lists single and multi objective decorators")
+            raise Exception("decorator not in lists single and multi objective decorators")
     else:
         raise Exception("Not yet supported")
 
@@ -47,8 +44,7 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Decorator]]:
 
     fitness_return_type = get_type_from_decorators(decorators_list)
 
-    fitness_function = generate_term(d.name, fitness_return_type,
-                                     fitness_terms)
+    fitness_function = generate_term(d.name, fitness_return_type, fitness_terms)
 
     return fitness_function, decorators_list
 
@@ -68,10 +64,7 @@ def generate_definition(
     fitness_terms: list[Term],
 ) -> Definition:
     if len(fitness_terms) == 1:
-        return Definition(name="fitness",
-                          args=[],
-                          type=fitness_return_type,
-                          body=fitness_terms[0])
+        return Definition(name="fitness", args=[], type=fitness_return_type, body=fitness_terms[0])
     else:
         raise Exception("Not yet supported")
 
