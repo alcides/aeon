@@ -10,15 +10,16 @@ eventual complementary definitions.
 """
 
 from typing import Callable
+
 from aeon.core.terms import Term
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int
+from aeon.synthesis_grammar.decorators import minimize_int, minimize_float
 
-DecoratorType = Callable[[list[Term], Definition], tuple[Definition,
-                                                         list[Definition]]]
+DecoratorType = Callable[[list[Term], Definition], tuple[Definition, list[Definition]]]
 
 decorators_environment: dict[str, DecoratorType] = {
-    "minimize_int": minimize_int
+    "minimize_int": minimize_int,
+    "minimize_float": minimize_float,
 }
 
 
@@ -27,9 +28,7 @@ def apply_decorators(fun: Definition) -> tuple[Definition, list[Definition]]:
     total_extra = []
     for decorator in fun.decorators:
         if decorator.name not in decorators_environment:
-            raise Exception(
-                f"Unknown decorator named {decorator.name}, in function {fun.name}."
-            )
+            raise Exception(f"Unknown decorator named {decorator.name}, in function {fun.name}.")
         decorator_processor = decorators_environment[decorator.name]
         (fun, extra) = decorator_processor(decorator.macro_args, fun)
         total_extra.extend(extra)

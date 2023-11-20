@@ -373,4 +373,5 @@ def print_grammar_nodes(grammar_nodes: list[type]):
                 print(f"\t {var_name}: {var_type.__name__}")
         else:
             print("\t pass")
-        print("---------------------------------------------------")
+        print()
+        # print("---------------------------------------------------")
