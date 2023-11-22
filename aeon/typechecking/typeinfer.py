@@ -202,7 +202,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)
-        assert t.var_name not in type_free_term_vars(t2)
+        term_vars = type_free_term_vars(t1)
+        assert t.var_name not in term_vars
         r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
         return r
     elif isinstance(t, Rec):
