@@ -32,5 +32,5 @@ def train: TrainData = extract_train_data (load_dataset "square-digit" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
 
-@minimize(String_distance (join_string_list(get_sd_synth_values input_list synth)) (join_string_list(expected_values)))
+@minimize_float(String_distance (join_string_list(get_sd_synth_values input_list synth)) (join_string_list(expected_values)))
 def synth ( n : Int) : String {(?hole:String)}
