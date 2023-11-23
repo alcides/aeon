@@ -93,23 +93,38 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
+INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
+FLOAT_ARITHMETIC_OPERATORS = ["+.", "*.", "-.", "/.", "%."]
+COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
+LOGICAL_OPERATORS = ["&&", "||"]
+EQUALITY_OPERATORS = ["==", "!="]
+
+ALL_OPS = (
+    INTEGER_ARITHMETIC_OPERATORS
+    + FLOAT_ARITHMETIC_OPERATORS
+    + COMPARISON_OPERATORS
+    + LOGICAL_OPERATORS
+    + EQUALITY_OPERATORS
+)
+
+
 def prim_op(t: str) -> Type:
-    # TODO add suport to floats
     i1: Type
     i2: Type
     o: Type
-    if t in ["+", "*", "-", "/", "%"]:
+
+    if t in INTEGER_ARITHMETIC_OPERATORS:
         i1 = i2 = t_int
         o = t_int
-    elif t in ["+.", "*.", "-.", "/.", "%."]:
+    elif t in FLOAT_ARITHMETIC_OPERATORS:
         i1 = i2 = t_float
         o = t_float
-    elif t in ["<", ">", "<=", ">="]:
+    elif t in COMPARISON_OPERATORS:
         i1 = i2 = t_int
         o = t_bool
-    elif t in ["&&", "||"]:
+    elif t in LOGICAL_OPERATORS:
         i1 = i2 = o = t_bool
-    elif t in ["==", "!="]:
+    elif t in EQUALITY_OPERATORS:
         i1 = TypeVar("_op_1")
         i2 = TypeVar("_op_2")
         o = t_bool

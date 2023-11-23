@@ -3,20 +3,18 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import liquid_free_vars
 
 
 class Kind(ABC):
-
     def __repr__(self):
         return str(self)
 
 
 class BaseKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -25,7 +23,6 @@ class BaseKind(Kind):
 
 
 class StarKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -70,7 +67,6 @@ class TypeVar(Type):
 
 
 class Top(Type):
-
     def __repr__(self):
         return "⊤"
 
@@ -85,7 +81,6 @@ class Top(Type):
 
 
 class Bottom(Type):
-
     def __repr__(self):
         return "⊥"
 
@@ -123,10 +118,12 @@ class AbstractionType(Type):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractionType)
-                and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.type == other.type)
+        return (
+            isinstance(other, AbstractionType)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.type == other.type
+        )
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -137,8 +134,7 @@ class RefinedType(Type):
     type: BaseType | TypeVar
     refinement: LiquidTerm
 
-    def __init__(self, name: str, ty: BaseType | TypeVar,
-                 refinement: LiquidTerm):
+    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
         self.name = name
         self.type = ty
         self.refinement = refinement
@@ -147,9 +143,12 @@ class RefinedType(Type):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
-        return (isinstance(other, RefinedType) and self.name == other.name
-                and self.type == other.type
-                and self.refinement == other.refinement)
+        return (
+            isinstance(other, RefinedType)
+            and self.name == other.name
+            and self.type == other.type
+            and self.refinement == other.refinement
+        )
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -162,9 +161,10 @@ class TypePolymorphism(Type):
     body: Type
 
 
-def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
-        t, TypeVar)
+def extract_parts(
+    t: Type,
+) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -177,10 +177,8 @@ def extract_parts(t: Type, ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
 
 def is_bare(ty: Type) -> bool:
     """Returns whether a type is bare or not."""
-    bare_base = isinstance(ty, RefinedType) and isinstance(
-        ty.refinement, LiquidHole)
-    dependent_function = isinstance(ty, AbstractionType) and is_bare(
-        ty.var_type) and is_bare(ty.type)
+    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
+    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
     type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
     return bare_base or dependent_function or type_polymorphism
 
@@ -192,6 +190,8 @@ def base(ty: Type) -> Type:
 
 
 def type_free_term_vars(t: Type) -> list[str]:
+    from aeon.typechecking.typeinfer import ALL_OPS
+
     if isinstance(t, BaseType):
         return []
     elif isinstance(t, TypeVar):
@@ -199,11 +199,11 @@ def type_free_term_vars(t: Type) -> list[str]:
     elif isinstance(t, AbstractionType):
         afv = type_free_term_vars(t.var_type)
         rfv = type_free_term_vars(t.type)
-        return [x for x in afv + rfv if x != t.var_name]
+        return [x for x in afv + rfv if x != t.var_name and x not in ALL_OPS]
     elif isinstance(t, RefinedType):
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
-        return [x for x in ifv + rfv if x != t.name]
+        return [x for x in ifv + rfv if x != t.name and x not in ALL_OPS]
     return []
 
 
