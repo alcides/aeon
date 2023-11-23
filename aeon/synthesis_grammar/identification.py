@@ -1,3 +1,4 @@
+from aeon.core.substitutions import substitute_vartype, substitution_in_type
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -12,12 +13,10 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import Type
-from aeon.typechecking.context import TypingContext
-
-from aeon.core.substitutions import substitute_vartype, substitution_in_type
 from aeon.core.types import AbstractionType, TypePolymorphism
+from aeon.core.types import Type
 from aeon.core.types import refined_to_unrefined_type
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 
 
@@ -42,10 +41,10 @@ def get_holes_info(
     match t:
         case Annotation(expr=Hole(name=hname), type=ty):
             ty = refined_to_unrefined_type(ty)
-            return {hname: (ty, ctx)}
+            return {hname: (ty, ctx)} if hname != "main" else {}
         case Hole(name=hname):
             ty = refined_to_unrefined_type(ty)
-            return {t.name: (ty, ctx)}
+            return {hname: (ty, ctx)} if hname != "main" else {}
         case Literal(_, _):
             return {}
         case Var(_):

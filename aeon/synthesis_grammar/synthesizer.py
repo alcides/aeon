@@ -228,6 +228,7 @@ def synthesize(
         top,
         targets,
     )
+    assert len(program_holes) == len(targets), "No support for function with more than one hole"
 
     for name, holes_names in targets:
         term = synthesize_single_function(
