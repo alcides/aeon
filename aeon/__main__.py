@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import sys
 
-from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
+from aeon.backend.evaluator import eval
 from aeon.core.types import top
 from aeon.decorators import apply_decorators
 from aeon.frontend.anf_converter import ensure_anf
@@ -24,28 +24,18 @@ from aeon.utils.ctx_helpers import build_context
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename",
-                        help="name of the aeon files to be synthesized")
-    parser.add_argument("--core",
-                        action="store_true",
-                        help="synthesize a aeon core file")
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
-        "\nWARNINGS \nERROR \nCRITICAL",
+        help="set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nCONSTRAINT \n SYNTHESIZER \nERROR \nCRITICAL",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
-    parser.add_argument("-csv",
-                        "--csv-synth",
-                        action="store_true",
-                        help="export synthesis csv file")
+    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
     return parser.parse_args()
 
 
@@ -100,14 +90,11 @@ if __name__ == "__main__":
         log_type_errors(type_errors)
         sys.exit(1)
 
-    incomplete_functions: list[tuple[
-        str,
-        list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+    incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         file_name = args.filename if args.csv_synth else None
-        synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf,
-                                      incomplete_functions, file_name)
+        synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf, incomplete_functions, file_name)
         print(f"Best solution: {synthesis_result}")
         sys.exit(1)
 
