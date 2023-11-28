@@ -162,7 +162,7 @@ def geneticengine_synthesis(
         problem=problem,
         selection_method=parent_selection,
         max_depth=8,
-        population_size=50,
+        population_size=100,
         n_elites=1,
         verbose=2,
         target_fitness=0,
@@ -231,6 +231,7 @@ def synthesize(
     )
     assert len(program_holes) == len(targets), "No support for function with more than one hole"
 
+    print("Starting synthesis...")
     for name, holes_names in targets:
         term = synthesize_single_function(
             ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}, filename
