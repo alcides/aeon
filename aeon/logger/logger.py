@@ -20,7 +20,7 @@ def setup_logger():
 
     # Setup the logger
     logger.remove()
-    logger.add(sys.stderr, level="DEBUG")
+    # logger.add(sys.stderr, level="DEBUG")
     return logger
 
 
