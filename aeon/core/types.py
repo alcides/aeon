@@ -190,7 +190,7 @@ def base(ty: Type) -> Type:
 
 
 def type_free_term_vars(t: Type) -> list[str]:
-    from aeon.typechecking.typeinfer import ALL_OPS
+    from aeon.prelude.prelude import ALL_OPS
 
     if isinstance(t, BaseType):
         return []

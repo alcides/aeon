@@ -37,6 +37,13 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
+from aeon.prelude.prelude import (
+    INTEGER_ARITHMETIC_OPERATORS,
+    FLOAT_ARITHMETIC_OPERATORS,
+    COMPARISON_OPERATORS,
+    LOGICAL_OPERATORS,
+    EQUALITY_OPERATORS,
+)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.helpers import simplify_constraint
@@ -91,21 +98,6 @@ def prim_litfloat(t: float) -> RefinedType:
         t_float,
         LiquidApp("==", [LiquidVar("v"), LiquidLiteralFloat(t)]),
     )
-
-
-INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
-FLOAT_ARITHMETIC_OPERATORS = ["+.", "*.", "-.", "/.", "%."]
-COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
-LOGICAL_OPERATORS = ["&&", "||"]
-EQUALITY_OPERATORS = ["==", "!="]
-
-ALL_OPS = (
-    INTEGER_ARITHMETIC_OPERATORS
-    + FLOAT_ARITHMETIC_OPERATORS
-    + COMPARISON_OPERATORS
-    + LOGICAL_OPERATORS
-    + EQUALITY_OPERATORS
-)
 
 
 def prim_op(t: str) -> Type:
@@ -243,15 +235,28 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         return ctrue, bottom
     # TODO: add if term
     # elif isinstance(t, If):
+    #     y = ctx.fresh_var()
     #     (c0, t0) = synth(ctx, t.cond)
     #     if not check_type(ctx, t.cond, t_bool):
     #         raise CouldNotGenerateConstraintException("If condition not boolean")
+    #
     #     (c1, t1) = synth(ctx, t.then)
     #     (c2, t2) = synth(ctx, t.otherwise)
-    #     assert t1 == t2  # limitation
-    #     return Conjunction(c0, Conjunction(c1, c2)), t1
+    #     t1 = ensure_refined(t1)
+    #     t2 = ensure_refined(t2)
+    #     assert t1.type == t2.type
+    #     # t1s = substitution_in_liquid(t1.refinement, LiquidVar(y), t1.name)
+    #     # t2s = substitution_in_liquid(t2.refinement, LiquidVar(y), t2.name)
+    #     # print(t1s)
+    #     # print(t2s)
+    #     liquid_term_if = liquefy_if(t)
+    #     print("term----", t)
+    #     print("liquidterm----", liquid_term_if)
+    #     x = Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, liquid_term_if)
+    #     print(x)
+    #     # return Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, LiquidApp("||", [t1s, t2s]))
+    #     return x
     else:
-
         print("Unhandled:", t)
         print("Unhandled:", type(t))
         assert False
@@ -272,7 +277,9 @@ def wrap_checks(f):
 # patterm matching term
 @wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
-    if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
+    if isinstance(t, Abstraction) and isinstance(
+        ty, AbstractionType
+    ):  # ??? (\__equal_1__ -> (let _anf_1 = (== _anf_1) in(_anf_1 __equal_1__))) , basetype INT
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
         return implication_constraint(t.var_name, ty.var_type, c)
