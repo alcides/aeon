@@ -13,13 +13,14 @@ from typing import Callable
 
 from aeon.core.terms import Term
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int, minimize_float
+from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float
 
 DecoratorType = Callable[[list[Term], Definition], tuple[Definition, list[Definition]]]
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
     "minimize_float": minimize_float,
+    "multi_minimize_float": multi_minimize_float,
 }
 
 

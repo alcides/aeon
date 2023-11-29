@@ -32,3 +32,17 @@ def minimize_float(args: list[Term], fun: Definition) -> tuple[Definition, list[
         name=fitness_function_name_for(fun.name), args=[], type=BaseType("Float"), body=args[0]
     )
     return (fun, [fitness_function])
+
+
+def multi_minimize_float(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+    """
+    This decorator expects a single argument (the body of the definition).
+
+    It does not modify the original definition, but appends a new definition to the program.
+    This new definition has the name "_fitness_function", prefixed by the original definition's name
+    """
+    assert len(args) == 1
+    fitness_function = Definition(
+        name=fitness_function_name_for(fun.name), args=[], type=BaseType("List"), body=args[0]
+    )
+    return (fun, [fitness_function])
