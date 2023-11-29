@@ -7,7 +7,7 @@ from typing import Type as TypingType
 
 from lark.lexer import Token
 
-from aeon.core.terms import Application, Annotation
+from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
@@ -69,7 +69,7 @@ def mk_method_core(cls: classType) -> classType:
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
 
-        parents = [base.__name__ for base in self.__class__.__bases__]
+        # TODO add an issue for every type checking problem  10 examples
 
         if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
             op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
@@ -98,7 +98,7 @@ def mk_method_core(cls: classType) -> classType:
 
                 base = Application(base, value.get_core())
 
-        return Annotation(base, BaseType("".join(parents)))
+        return base
 
     setattr(cls, "get_core", get_core)
     return cls

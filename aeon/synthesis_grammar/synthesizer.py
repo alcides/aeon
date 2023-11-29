@@ -86,12 +86,14 @@ def create_evaluator(
         new_program = substitution(program_template, individual_term, first_hole_name)
 
         try:
+            # TODO porposal synth example
             check_type_errors(ctx, new_program, Top())
             return eval(new_program, ectx)
         except Exception as e:
             # import traceback
             # logger.log("SYNTHESIZER", f"Failed in the fitness function: {traceback.format_exc()}")
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
+            # this is raises an error for multiobjective problem, because it does not return an list
             return ERROR_FITNESS
 
     return evaluator

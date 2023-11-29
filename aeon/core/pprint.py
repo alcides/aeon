@@ -70,10 +70,6 @@ ops_to_abstraction: dict[str, str] = {
 }
 
 
-def type_str(type) -> str:
-    return str(type)[2:] if str(type).startswith("t_") else str(type)
-
-
 def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[str, int]:
     prelude_operations: dict[str, str] = aeon_prelude_ops_to_text
     match term:
@@ -93,7 +89,7 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
 
         case Annotation(expr=expr, type=type):
             expr_str, counter = custom_preludes_ops_representation(expr, counter)
-            return f"({expr_str} : {type_str(type)})", counter
+            return f"({expr_str} : {type})", counter
 
         case Abstraction(var_name=var_name, body=body):
             body_str, counter = custom_preludes_ops_representation(body, counter)
@@ -108,7 +104,7 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
         case Rec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
             var_value_str, counter = custom_preludes_ops_representation(var_value, counter)
             body_str, counter = custom_preludes_ops_representation(body, counter)
-            return f"(let {var_name} : {type_str(var_type)} = {var_value_str} in\n {body_str})", counter
+            return f"(let {var_name} : {var_type} = {var_value_str} in\n {body_str})", counter
 
         case If(cond=cond, then=then, otherwise=otherwise):
             cond_str, counter = custom_preludes_ops_representation(cond, counter)
@@ -122,7 +118,7 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
 
         case TypeApplication(body=body, type=type):
             body_str, counter = custom_preludes_ops_representation(body, counter)
-            return f"({body_str})[{type_str(type)}]", counter
+            return f"({body_str})[{type}]", counter
 
         case Literal(_, _) | Var(_) | Hole(_):
             return str(term), counter
