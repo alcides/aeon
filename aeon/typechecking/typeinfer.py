@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from loguru import logger
+
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
@@ -257,8 +259,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     #     # return Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, LiquidApp("||", [t1s, t2s]))
     #     return x
     else:
-        print("Unhandled:", t)
-        print("Unhandled:", type(t))
+        logger.log("SYNTH_TYPE", ("Unhandled:", t))
+        logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
         assert False
 
 

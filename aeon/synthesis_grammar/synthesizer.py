@@ -90,9 +90,12 @@ def create_evaluator(
             check_type_errors(ctx, new_program, Top())
             return eval(new_program, ectx)
         except Exception as e:
-            # import traceback
+            # import tracebac
             # logger.log("SYNTHESIZER", f"Failed in the fitness function: {traceback.format_exc()}")
+
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
+            # logger.log("SYNTHESIZER", f"With the individual term: {individual_term}")
+
             # this is raises an error for multiobjective problem, because it does not return an list
             return ERROR_FITNESS
 
@@ -163,7 +166,7 @@ def geneticengine_synthesis(
         representation=TreeBasedRepresentation,
         problem=problem,
         selection_method=parent_selection,
-        max_depth=8,
+        max_depth=4,
         population_size=100,
         n_elites=1,
         verbose=2,

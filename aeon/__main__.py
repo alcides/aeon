@@ -5,6 +5,7 @@ import sys
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
+from aeon.core.pprint import pretty_print_term
 from aeon.core.types import top
 from aeon.decorators import apply_decorators
 from aeon.frontend.anf_converter import ensure_anf
@@ -31,7 +32,8 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help="set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nCONSTRAINT \n SYNTHESIZER \nERROR \nCRITICAL",
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+                \nERROR \nCRITICAL""",
     )
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
@@ -96,8 +98,8 @@ if __name__ == "__main__":
         file_name = args.filename if args.csv_synth else None
         synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf, incomplete_functions, file_name)
         print(f"Best solution:{synthesis_result}")
-        # print()
-        # pretty_print_term(synthesis_result)
+        print()
+        pretty_print_term(ensure_anf(synthesis_result, 200))
         sys.exit(1)
 
     eval(core_ast, evaluation_ctx)
