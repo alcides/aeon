@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import multiprocessing
 import os
 import sys
+from multiprocessing import Queue
 from typing import Any
 from typing import Callable
 
@@ -75,29 +77,41 @@ def create_evaluator(
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
 
+    TIMEOUT_DURATION = 300  # seconds
+
     program_template = substitution(program, Var(fitness_function_name), "main")
 
-    def evaluator(individual: classType) -> Any:
-        """Evaluates an individual"""
-        assert len(holes) == 1, "Only 1 hole per function is supported now"
-        first_hole_name = holes[0]
-        individual_term = individual.get_core()  # type: ignore
-        individual_term = ensure_anf(individual_term, 10000000)  # TODO: Global counter?
-        new_program = substitution(program_template, individual_term, first_hole_name)
-
+    def evaluate_individual(individual: classType, result_queue: Queue) -> Any:
+        """Function to run in a separate process. Puts result in a Queue."""
         try:
-            # TODO porposal synth example
+            first_hole_name = holes[0]
+            individual_term = individual.get_core()  # type: ignore
+            individual_term = ensure_anf(individual_term, 10000000)
+            new_program = substitution(program_template, individual_term, first_hole_name)
             check_type_errors(ctx, new_program, Top())
-            return eval(new_program, ectx)
+            result = eval(new_program, ectx)
         except Exception as e:
-            # import tracebac
-            # logger.log("SYNTHESIZER", f"Failed in the fitness function: {traceback.format_exc()}")
+            logger.error("SYNTHESIZER", f"Failed in the fitness function: {e}")
+            result = ERROR_FITNESS
+        result_queue.put(result)
 
-            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
-            # logger.log("SYNTHESIZER", f"With the individual term: {individual_term}")
+    def evaluator(individual: classType) -> Any:
+        """Evaluates an individual with a timeout."""
+        assert len(holes) == 1, "Only 1 hole per function is supported now"
 
-            # this is raises an error for multiobjective problem, because it does not return an list
+        result_queue: Queue = multiprocessing.Queue()
+
+        eval_process = multiprocessing.Process(target=evaluate_individual, args=(individual, result_queue))
+        eval_process.start()
+
+        eval_process.join(timeout=TIMEOUT_DURATION)
+
+        if eval_process.is_alive():
+            eval_process.terminate()
+            eval_process.join()
             return ERROR_FITNESS
+        else:
+            return result_queue.get()
 
     return evaluator
 
@@ -166,7 +180,7 @@ def geneticengine_synthesis(
         representation=TreeBasedRepresentation,
         problem=problem,
         selection_method=parent_selection,
-        max_depth=4,
+        max_depth=8,
         population_size=100,
         n_elites=1,
         verbose=2,
