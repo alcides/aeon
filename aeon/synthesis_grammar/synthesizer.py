@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import multiprocessing
+import builtins
 import os
 import sys
-from multiprocessing import Queue
 from typing import Any
 from typing import Callable
 
+import multiprocess as mp
+from configparser import SectionProxy
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -14,6 +15,13 @@ from geneticengine.core.problems import MultiObjectiveProblem
 from geneticengine.core.problems import Problem
 from geneticengine.core.problems import SingleObjectiveProblem
 from geneticengine.core.random.sources import RandomSource
+from geneticengine.core.representations.grammatical_evolution.dynamic_structured_ge import (
+    DynamicStructuredGrammaticalEvolutionRepresentation,
+)
+from geneticengine.core.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
+from geneticengine.core.representations.grammatical_evolution.structured_ge import (
+    StructuredGrammaticalEvolutionRepresentation,
+)
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
 
@@ -38,6 +46,13 @@ class SynthesisError(Exception):
 
 MINIMIZE_OBJECTIVE = True
 ERROR_FITNESS = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
+
+representations = {
+    "tree": TreeBasedRepresentation,
+    "ge": GrammaticalEvolutionRepresentation,
+    "sge": StructuredGrammaticalEvolutionRepresentation,
+    "dsge": DynamicStructuredGrammaticalEvolutionRepresentation,
+}
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
@@ -81,7 +96,7 @@ def create_evaluator(
 
     program_template = substitution(program, Var(fitness_function_name), "main")
 
-    def evaluate_individual(individual: classType, result_queue: Queue) -> Any:
+    def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
         """Function to run in a separate process. Puts result in a Queue."""
         try:
             first_hole_name = holes[0]
@@ -91,7 +106,7 @@ def create_evaluator(
             check_type_errors(ctx, new_program, Top())
             result = eval(new_program, ectx)
         except Exception as e:
-            logger.error("SYNTHESIZER", f"Failed in the fitness function: {e}")
+            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
             result = ERROR_FITNESS
         result_queue.put(result)
 
@@ -99,9 +114,9 @@ def create_evaluator(
         """Evaluates an individual with a timeout."""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
 
-        result_queue: Queue = multiprocessing.Queue()
+        result_queue = mp.Queue()
 
-        eval_process = multiprocessing.Process(target=evaluate_individual, args=(individual, result_queue))
+        eval_process = mp.Process(target=evaluate_individual, args=(individual, result_queue))
         eval_process.start()
 
         eval_process.join(timeout=TIMEOUT_DURATION)
@@ -165,32 +180,28 @@ def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 10
 
 
 def geneticengine_synthesis(
-    grammar: Grammar,
-    problem: Problem,
-    file_path: str | None,
-    hole_name: str,
+    grammar: Grammar, problem: Problem, file_path: str | None, hole_name: str, gp_config: SectionProxy
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine"""
-    csv_file_path = get_csv_file_path(file_path, TreeBasedRepresentation, 123, hole_name)
+    representation_name = gp_config.pop("representation")
+    assert isinstance(representation_name, str)
+    representation: type = representations[representation_name]
+
+    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name)
 
     parent_selection = determine_parent_selection_type(problem)
+
+    gp_params = {k: builtins.eval(v) for k, v in gp_config.items()}  # Use eval with caution!
+
     alg = SimpleGP(
-        seed=123,
         grammar=grammar,
-        representation=TreeBasedRepresentation,
+        representation=representation,
         problem=problem,
         selection_method=parent_selection,
-        max_depth=8,
-        population_size=100,
-        n_elites=1,
-        verbose=2,
-        target_fitness=0,
-        probability_mutation=0.01,
-        probability_crossover=0.9,
-        timer_stop_criteria=True,
-        timer_limit=60,
         save_to_csv=csv_file_path,
+        **gp_params,
     )
+
     best: Individual = alg.evolve()
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
@@ -205,6 +216,7 @@ def synthesize_single_function(
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
     filename: str,
+    synth_config: SectionProxy,
 ) -> Term:
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
@@ -227,7 +239,7 @@ def synthesize_single_function(
     #  to use (e.g., Random Search, Genetic Programming, others...)
 
     # Step 3 Synthesize an element
-    synthesized_element = geneticengine_synthesis(grammar, problem, filename, hole_name)
+    synthesized_element = geneticengine_synthesis(grammar, problem, filename, hole_name, synth_config)
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
@@ -239,7 +251,8 @@ def synthesize(
     ectx: EvaluationContext,
     term: Term,
     targets: list[tuple[str, list[str]]],
-    filename: str | None = None,
+    filename: str,
+    synth_config: SectionProxy,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     program_holes = get_holes_info(
@@ -253,7 +266,7 @@ def synthesize(
     print("Starting synthesis...")
     for name, holes_names in targets:
         term = synthesize_single_function(
-            ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}, filename
+            ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}, filename, synth_config
         )
 
     return term

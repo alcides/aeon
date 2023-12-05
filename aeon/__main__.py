@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 import sys
 
+import configparser
+from configparser import SectionProxy
+
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.pprint import pretty_print_term
@@ -38,6 +41,13 @@ def parse_arguments():
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
     parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
+
+    parser.add_argument(
+        "-gp", "--gp-config", help="path to the GP configuration file", default="aeon/synthesis_grammar/gpconfig.gengy"
+    )
+    parser.add_argument(
+        "-csec", "--config-section", help="section name in the GP configuration file", default="DEFAULT"
+    )
     return parser.parse_args()
 
 
@@ -63,6 +73,12 @@ def log_type_errors(errors: list[Exception | str]):
         logger.log("TYPECHECKER", "-------------------------------")
         logger.log("TYPECHECKER", error)
     logger.log("TYPECHECKER", "-------------------------------")
+
+
+def parse_config(gp_config_file: str, config_section: str) -> SectionProxy:
+    config = configparser.ConfigParser()
+    config.read(gp_config_file)
+    return config[config_section]
 
 
 if __name__ == "__main__":
@@ -96,7 +112,10 @@ if __name__ == "__main__":
 
     if incomplete_functions:
         file_name = args.filename if args.csv_synth else None
-        synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf, incomplete_functions, file_name)
+        synth_config = parse_config(args.gp_config, args.config_section)
+        synthesis_result = synthesize(
+            typing_ctx, evaluation_ctx, core_ast_anf, incomplete_functions, file_name, synth_config
+        )
         print(f"Best solution:{synthesis_result}")
         print()
         pretty_print_term(ensure_anf(synthesis_result, 200))
