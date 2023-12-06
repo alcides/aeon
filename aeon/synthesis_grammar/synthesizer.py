@@ -6,6 +6,7 @@ import sys
 from typing import Any
 from typing import Callable
 
+import configparser
 import multiprocess as mp
 from configparser import SectionProxy
 from geneticengine.algorithms.gp.individual import Individual
@@ -53,6 +54,18 @@ representations = {
     "sge": StructuredGrammaticalEvolutionRepresentation,
     "dsge": DynamicStructuredGrammaticalEvolutionRepresentation,
 }
+
+
+def parse_config(gp_config: tuple[str, str] | None = None) -> SectionProxy:
+    config = configparser.ConfigParser()
+    if gp_config:
+        gp_config_file = gp_config[0]
+        config_section = gp_config[1]
+    else:
+        gp_config_file = "aeon/synthesis_grammar/gpconfig.gengy"
+        config_section = "DEFAULT"
+    config.read(gp_config_file)
+    return config[config_section]
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
@@ -180,10 +193,11 @@ def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 10
 
 
 def geneticengine_synthesis(
-    grammar: Grammar, problem: Problem, file_path: str | None, hole_name: str, gp_config: SectionProxy
+    grammar: Grammar, problem: Problem, file_path: str | None, hole_name: str, gp_config: tuple[str, str] | None = None
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine"""
-    representation_name = gp_config.pop("representation")
+    config = parse_config(gp_config)
+    representation_name = config.pop("representation")
     assert isinstance(representation_name, str)
     representation: type = representations[representation_name]
 
@@ -191,7 +205,7 @@ def geneticengine_synthesis(
 
     parent_selection = determine_parent_selection_type(problem)
 
-    gp_params = {k: builtins.eval(v) for k, v in gp_config.items()}  # Use eval with caution!
+    gp_params = {k: builtins.eval(v) for k, v in config.items()}  # Use eval with caution!
 
     alg = SimpleGP(
         grammar=grammar,
@@ -216,7 +230,7 @@ def synthesize_single_function(
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
     filename: str,
-    synth_config: SectionProxy,
+    synth_config: tuple[str, str] | None = None,
 ) -> Term:
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
@@ -252,7 +266,7 @@ def synthesize(
     term: Term,
     targets: list[tuple[str, list[str]]],
     filename: str,
-    synth_config: SectionProxy,
+    synth_config: tuple[str, str] | None = None,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     program_holes = get_holes_info(
