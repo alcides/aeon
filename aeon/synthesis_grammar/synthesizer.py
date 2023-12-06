@@ -77,7 +77,7 @@ def is_valid_term_literal(term_literal: Term) -> bool:
     )
 
 
-def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str = "") -> str | None:
+def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str, config_name: str) -> str | None:
     """
     Generate a CSV file path based on the provided file_path, representation, and seed.
     If file_path is empty, returns None.
@@ -91,7 +91,7 @@ def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name
     os.makedirs(directory, exist_ok=True)
 
     hole_suffix = f"_{hole_name}" if hole_name else ""
-    csv_file_name = f"{name_without_extension}{hole_suffix}_{seed}.csv"
+    csv_file_name = f"{name_without_extension}{hole_suffix}_{seed}_{config_name}.csv"
 
     return os.path.join(directory, csv_file_name)
 
@@ -201,7 +201,7 @@ def geneticengine_synthesis(
     assert isinstance(representation_name, str)
     representation: type = representations[representation_name]
 
-    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name)
+    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name, config.name)
 
     parent_selection = determine_parent_selection_type(problem)
 

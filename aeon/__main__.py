@@ -101,8 +101,7 @@ if __name__ == "__main__":
     if incomplete_functions:
         file_name = args.filename if args.csv_synth else None
         synth_config = None
-        if args.gp_config and args.config_section:
-            synth_config = (args.gp_config, args.config_section)
+        synth_config = (args.gp_config, args.config_section) if args.gp_config and args.config_section else None
         synthesis_result = synthesize(
             typing_ctx, evaluation_ctx, core_ast_anf, incomplete_functions, file_name, synth_config
         )
