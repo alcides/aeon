@@ -10,3 +10,6 @@ git+https://github.com/alcides/GeneticEngine.git@619d625bf1892a2161047c981ae2732
 textdistance
 loguru
 numpy
+argparse
+configparser
+multiprocess
