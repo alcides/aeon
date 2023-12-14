@@ -52,6 +52,8 @@ class SynthesisError(Exception):
 
 MINIMIZE_OBJECTIVE = True
 ERROR_FITNESS = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
+TIMEOUT_DURATION: int = 300  # seconds
+
 
 representations = {
     "tree": TreeBasedRepresentation,
@@ -60,12 +62,32 @@ representations = {
     "dsge": DynamicStructuredGrammaticalEvolutionRepresentation,
 }
 
+gengy_default_config = {
+    "seed": 123,
+    "max_depth": 5,
+    "population_size": 25,
+    "n_elites": 1,
+    "verbose": 2,
+    "target_fitness": 0,
+    "probability_mutation": 0.01,
+    "probability_crossover": 0.9,
+    "timer_stop_criteria": True,
+    "timer_limit": 60,
+    "representation": "tree",
+    "config_name": "DEFAULT",
+}
+
 
 def parse_config(config_file: str, section: str) -> dict[str, Any]:
     config = configparser.ConfigParser()
-    config.read(config_file)
-    config_sec = config[section]
-    gp_params = {k: builtins.eval(v) for k, v in config_sec.items()}
+    try:
+        config.read(config_file)
+    except Exception as e:
+        raise OSError(f"An error occurred while reading the file: {e}")
+
+    assert section in config, f"Section '{section}' not found in the configuration file"
+    gp_params = {}
+    gp_params = {k: builtins.eval(v) for k, v in config[section].items()}
     gp_params["config_name"] = section
 
     return gp_params
@@ -111,8 +133,6 @@ def create_evaluator(
     holes: list[str],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
-
-    TIMEOUT_DURATION = 300  # seconds
 
     program_template = substitution(program, Var(fitness_function_name), "main")
 
@@ -203,18 +223,23 @@ def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 10
 def geneticengine_synthesis(
     grammar: Grammar,
     problem: Problem,
-    file_path: str | None,
+    filename: str | None,
     hole_name: str,
     gp_params: dict[str, Any] | None = None,
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine"""
-    gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT")
+    # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT")
+    gp_params = gp_params or gengy_default_config
+
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
     assert isinstance(representation_name, str)
+    assert isinstance(config_name, str)
     representation: type = representations[representation_name]
 
-    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name, config_name)
+    if filename:
+        csv_file_path = get_csv_file_path(filename, representation, 123, hole_name, config_name)
+        gp_params["save_to_csv"] = csv_file_path
 
     parent_selection = determine_parent_selection_type(problem)
 
@@ -223,7 +248,6 @@ def geneticengine_synthesis(
         representation=representation,
         problem=problem,
         selection_method=parent_selection,
-        save_to_csv=csv_file_path,
         **gp_params,
     )
 
@@ -240,7 +264,7 @@ def synthesize_single_function(
     term: Term,
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
-    filename: str,
+    filename: str | None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
     # Step 1.1 Get fitness function name, and type
@@ -281,7 +305,7 @@ def synthesize(
     ectx: EvaluationContext,
     term: Term,
     targets: list[tuple[str, list[str]]],
-    filename: str,
+    filename: str | None = None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
