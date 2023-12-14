@@ -3,7 +3,7 @@ name = "Aeon"
 version = "4.0.0a"
 description = "Language with Refinement Types"
 authors = [
-    {name = "Alcides Fonseca", email = "me@alcidesfonseca.com"}
+    { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
 ]
 readme = "Readme.md"
 requires-python = "~=3.10"
@@ -11,9 +11,9 @@ requires-python = "~=3.10"
 keywords = ["programming language, liquid types"]
 
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11"
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
 ]
 
 [project.urls]
@@ -28,6 +28,7 @@ text = "https://opensource.org/licenses/MIT"
 build-backend = 'setuptools.build_meta'
 requires = [
     'setuptools >= 43.0.0',
+    'dill, >=0.3.7',
 ]
 
 [tool.docformatter]
@@ -77,7 +78,7 @@ exclude = [
     "node_modules",
     "venv",
 ]
-per-file-ignores = {}
+per-file-ignores = { }
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

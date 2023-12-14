@@ -26,9 +26,7 @@ from aeon.utils.ctx_helpers import build_context
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="name of the aeon files to be synthesized")
-    parser.add_argument(
-        "--core", action="store_true", help="synthesize a aeon core file"
-    )
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
@@ -39,15 +37,11 @@ def parse_arguments():
     )
     parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
-    parser.add_argument(
-        "-csv", "--csv-synth", action="store_true", help="export synthesis csv file"
-    )
+    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
 
     parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
 
-    parser.add_argument(
-        "-csec", "--config-section", help="section name in the GP configuration file"
-    )
+    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
     return parser.parse_args()
 
 
@@ -102,16 +96,12 @@ if __name__ == "__main__":
         log_type_errors(type_errors)
         sys.exit(1)
 
-    incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(
-        typing_ctx, core_ast_anf
-    )
+    incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
 
     if incomplete_functions:
-        file_name = args.filename if args.csv_synth else None
+        filename = args.filename if args.csv_synth else None
         synth_config = (
-            parse_config(args.gp_config, args.config_section)
-            if args.gp_config and args.config_section
-            else None
+            parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
         )
 
         synthesis_result = synthesize(
@@ -119,7 +109,7 @@ if __name__ == "__main__":
             evaluation_ctx,
             core_ast_anf,
             incomplete_functions,
-            file_name,
+            filename,
             synth_config,
         )
         print(f"Best solution:{synthesis_result}")
