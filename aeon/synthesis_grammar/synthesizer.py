@@ -8,7 +8,6 @@ from typing import Callable
 
 import configparser
 import multiprocess as mp
-from configparser import SectionProxy
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -19,7 +18,9 @@ from geneticengine.core.random.sources import RandomSource
 from geneticengine.core.representations.grammatical_evolution.dynamic_structured_ge import (
     DynamicStructuredGrammaticalEvolutionRepresentation,
 )
-from geneticengine.core.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
+from geneticengine.core.representations.grammatical_evolution.ge import (
+    GrammaticalEvolutionRepresentation,
+)
 from geneticengine.core.representations.grammatical_evolution.structured_ge import (
     StructuredGrammaticalEvolutionRepresentation,
 )
@@ -34,7 +35,11 @@ from aeon.core.types import BaseType, Top
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
-from aeon.synthesis_grammar.grammar import gen_grammar_nodes, get_grammar_node, classType
+from aeon.synthesis_grammar.grammar import (
+    gen_grammar_nodes,
+    get_grammar_node,
+    classType,
+)
 from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
 from aeon.synthesis_grammar.utils import fitness_function_name_for
 from aeon.typechecking.context import TypingContext
@@ -56,16 +61,14 @@ representations = {
 }
 
 
-def parse_config(gp_config: tuple[str, str] | None = None) -> SectionProxy:
+def parse_config(config_file: str, section: str) -> dict[str, Any]:
     config = configparser.ConfigParser()
-    if gp_config:
-        gp_config_file = gp_config[0]
-        config_section = gp_config[1]
-    else:
-        gp_config_file = "aeon/synthesis_grammar/gpconfig.gengy"
-        config_section = "DEFAULT"
-    config.read(gp_config_file)
-    return config[config_section]
+    config.read(config_file)
+    config_sec = config[section]
+    gp_params = {k: builtins.eval(v) for k, v in config_sec.items()}
+    gp_params["config_name"] = section
+
+    return gp_params
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
@@ -101,7 +104,11 @@ def determine_parent_selection_type(problem):
 
 
 def create_evaluator(
-    ctx: TypingContext, ectx: EvaluationContext, program: Term, fitness_function_name: str, holes: list[str]
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    program: Term,
+    fitness_function_name: str,
+    holes: list[str],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
 
@@ -140,6 +147,7 @@ def create_evaluator(
             return ERROR_FITNESS
         else:
             return result_queue.get()
+            # evaluate_individual(individual, result_queue)
 
     return evaluator
 
@@ -193,19 +201,22 @@ def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 10
 
 
 def geneticengine_synthesis(
-    grammar: Grammar, problem: Problem, file_path: str | None, hole_name: str, gp_config: tuple[str, str] | None = None
+    grammar: Grammar,
+    problem: Problem,
+    file_path: str | None,
+    hole_name: str,
+    gp_params: dict[str, Any] | None = None,
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine"""
-    config = parse_config(gp_config)
-    representation_name = config.pop("representation")
+    gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT")
+    representation_name = gp_params.pop("representation")
+    config_name = gp_params.pop("config_name")
     assert isinstance(representation_name, str)
     representation: type = representations[representation_name]
 
-    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name, config.name)
+    csv_file_path = get_csv_file_path(file_path, representation, 123, hole_name, config_name)
 
     parent_selection = determine_parent_selection_type(problem)
-
-    gp_params = {k: builtins.eval(v) for k, v in config.items()}  # Use eval with caution!
 
     alg = SimpleGP(
         grammar=grammar,
@@ -230,7 +241,7 @@ def synthesize_single_function(
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
     filename: str,
-    synth_config: tuple[str, str] | None = None,
+    synth_config: dict[str, Any] | None = None,
 ) -> Term:
     # Step 1.1 Get fitness function name, and type
     fitness_function_name = fitness_function_name_for(fun_name)
@@ -242,7 +253,12 @@ def synthesize_single_function(
 
     # Step 1.2 Create a Single or Multi-Objective Problem instance.
     problem = problem_for_fitness_function(
-        ctx, ectx, term, fitness_function_name, candidate_function[0], list(holes.keys())
+        ctx,
+        ectx,
+        term,
+        fitness_function_name,
+        candidate_function[0],
+        list(holes.keys()),
     )
 
     # Step 2 Create grammar object.
@@ -266,7 +282,7 @@ def synthesize(
     term: Term,
     targets: list[tuple[str, list[str]]],
     filename: str,
-    synth_config: tuple[str, str] | None = None,
+    synth_config: dict[str, Any] | None = None,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     program_holes = get_holes_info(
@@ -280,7 +296,13 @@ def synthesize(
     print("Starting synthesis...")
     for name, holes_names in targets:
         term = synthesize_single_function(
-            ctx, ectx, term, name, {h: v for h, v in program_holes.items() if h in holes_names}, filename, synth_config
+            ctx,
+            ectx,
+            term,
+            name,
+            {h: v for h, v in program_holes.items() if h in holes_names},
+            filename,
+            synth_config,
         )
 
     return term

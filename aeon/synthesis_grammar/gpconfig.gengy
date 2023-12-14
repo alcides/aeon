@@ -1,7 +1,22 @@
 [DEFAULT]
 seed = 123
-max_depth = 5
-population_size = 50
+max_depth = 8
+population_size = 100
+n_elites = 1
+verbose = 2
+target_fitness = 0
+probability_mutation = 0.01
+probability_crossover = 0.9
+timer_stop_criteria = True
+timer_limit = 60
+representation = "tree"
+config_name = "DEFAULT"
+
+
+[DEFAULT2]
+seed = 123
+max_depth = 8
+population_size = 100
 n_elites = 1
 verbose = 2
 target_fitness = 0
