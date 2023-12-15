@@ -242,6 +242,7 @@ def geneticengine_synthesis(
     if filename:
         csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
         gp_params["save_to_csv"] = csv_file_path
+        gp_params["only_record_best_inds"] = False
 
     parent_selection = determine_parent_selection_type(problem)
 
