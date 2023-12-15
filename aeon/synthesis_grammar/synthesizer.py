@@ -233,12 +233,14 @@ def geneticengine_synthesis(
 
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
+    seed = gp_params["seed"]
     assert isinstance(representation_name, str)
     assert isinstance(config_name, str)
+    assert isinstance(seed, int)
     representation: type = representations[representation_name]
 
     if filename:
-        csv_file_path = get_csv_file_path(filename, representation, 123, hole_name, config_name)
+        csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
         gp_params["save_to_csv"] = csv_file_path
 
     parent_selection = determine_parent_selection_type(problem)
