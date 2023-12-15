@@ -28,7 +28,6 @@ text = "https://opensource.org/licenses/MIT"
 build-backend = 'setuptools.build_meta'
 requires = [
     'setuptools >= 43.0.0',
-    'dill, >=0.3.7',
 ]
 
 [tool.docformatter]
