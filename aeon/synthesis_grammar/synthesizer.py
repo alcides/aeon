@@ -8,6 +8,7 @@ from typing import Callable
 
 import configparser
 import multiprocess as mp
+import numpy as np
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -148,6 +149,7 @@ def create_evaluator(
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
             result = ERROR_FITNESS
+        result = ERROR_FITNESS if np.isnan(result) else result
         result_queue.put(result)
 
     def evaluator(individual: classType) -> Any:
