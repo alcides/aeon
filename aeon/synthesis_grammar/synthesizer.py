@@ -127,11 +127,13 @@ def determine_parent_selection_type(problem):
 
 
 def filter_nan_values(result):
-    # NaN is the only value in Python that is not equal to itself.
+    def isnan(obj):
+        return obj != obj
+
     if isinstance(result, (float | int)):
-        return ERROR_FITNESS if result != result else result
+        return ERROR_FITNESS if isnan(result) else result
     elif isinstance(result, list):
-        return [ERROR_NUMBER if x != x else x for x in result]
+        return [ERROR_NUMBER if isnan(x) else x for x in result]
     else:
         return result
 
