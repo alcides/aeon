@@ -8,7 +8,6 @@ from typing import Callable
 
 import configparser
 import multiprocess as mp
-import numpy as np
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -52,7 +51,8 @@ class SynthesisError(Exception):
 
 
 MINIMIZE_OBJECTIVE = True
-ERROR_FITNESS = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
+ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
+ERROR_FITNESS = ERROR_NUMBER
 TIMEOUT_DURATION: int = 300  # seconds
 
 
@@ -126,6 +126,16 @@ def determine_parent_selection_type(problem):
     return ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
 
 
+def filter_nan_values(result):
+    # NaN is the only value in Python that is not equal to itself.
+    if isinstance(result, (float | int)):
+        return ERROR_FITNESS if result != result else result
+    elif isinstance(result, list):
+        return [ERROR_NUMBER if x != x else x for x in result]
+    else:
+        return result
+
+
 def create_evaluator(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -149,13 +159,12 @@ def create_evaluator(
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
             result = ERROR_FITNESS
-        result = ERROR_FITNESS if np.isnan(result) else result
+        result = filter_nan_values(result)
         result_queue.put(result)
 
     def evaluator(individual: classType) -> Any:
         """Evaluates an individual with a timeout."""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
-
         result_queue = mp.Queue()
 
         eval_process = mp.Process(target=evaluate_individual, args=(individual, result_queue))
@@ -166,7 +175,7 @@ def create_evaluator(
         if eval_process.is_alive():
             eval_process.terminate()
             eval_process.join()
-            return ERROR_FITNESS
+            return ERROR_FITNESS  # doe sthis work with lexicase selection???
         else:
             return result_queue.get()
             # evaluate_individual(individual, result_queue)
@@ -263,6 +272,17 @@ def geneticengine_synthesis(
     return best.phenotype.get_core()
 
 
+def set_error_fitness(candidate_function):
+    assert len(candidate_function) == 1
+    global ERROR_FITNESS
+    if candidate_function[0] == (BaseType("List")):
+        ERROR_FITNESS = [ERROR_NUMBER]
+    elif candidate_function[0] == (BaseType("Float")):
+        ERROR_FITNESS = ERROR_NUMBER
+    else:
+        assert False
+
+
 def synthesize_single_function(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -280,6 +300,7 @@ def synthesize_single_function(
             f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}"
         )
 
+    set_error_fitness(candidate_function)
     # Step 1.2 Create a Single or Multi-Objective Problem instance.
     problem = problem_for_fitness_function(
         ctx,
@@ -292,7 +313,6 @@ def synthesize_single_function(
 
     # Step 2 Create grammar object.
     grammar = create_grammar(holes, fun_name)
-
     hole_name = list(holes.keys())[0]
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
     #  to use (e.g., Random Search, Genetic Programming, others...)
