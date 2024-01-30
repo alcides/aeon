@@ -65,8 +65,8 @@ representations = {
 
 gengy_default_config = {
     "seed": 123,
-    "max_depth": 5,
-    "population_size": 25,
+    "max_depth": 8,
+    "population_size": 100,
     "n_elites": 1,
     "verbose": 2,
     "target_fitness": 0,
@@ -177,7 +177,7 @@ def create_evaluator(
         if eval_process.is_alive():
             eval_process.terminate()
             eval_process.join()
-            return ERROR_FITNESS  # doe sthis work with lexicase selection???
+            return ERROR_FITNESS
         else:
             return result_queue.get()
             # evaluate_individual(individual, result_queue)
@@ -241,7 +241,7 @@ def geneticengine_synthesis(
     gp_params: dict[str, Any] | None = None,
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine"""
-    # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT")
+    # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
     gp_params = gp_params or gengy_default_config
 
     representation_name = gp_params.pop("representation")
@@ -276,13 +276,17 @@ def geneticengine_synthesis(
 
 def set_error_fitness(candidate_function):
     assert len(candidate_function) == 1
+    type_to_fitness = {
+        BaseType("List"): [ERROR_NUMBER],
+        BaseType("Float"): ERROR_NUMBER,
+        BaseType("Int"): ERROR_NUMBER,
+    }
+    candidate_type = candidate_function[0]
     global ERROR_FITNESS
-    if candidate_function[0] == (BaseType("List")):
-        ERROR_FITNESS = [ERROR_NUMBER]
-    elif candidate_function[0] == (BaseType("Float")):
-        ERROR_FITNESS = ERROR_NUMBER
+    if candidate_type in type_to_fitness:
+        ERROR_FITNESS = type_to_fitness[candidate_type]
     else:
-        assert False
+        raise ValueError(f"Unsupported type: {candidate_type}")
 
 
 def synthesize_single_function(
