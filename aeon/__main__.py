@@ -5,7 +5,6 @@ import sys
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
-from aeon.core.pprint import pretty_print_term
 from aeon.core.types import top
 from aeon.decorators import apply_decorators
 from aeon.frontend.anf_converter import ensure_anf
@@ -113,8 +112,8 @@ if __name__ == "__main__":
             synth_config,
         )
         print(f"Best solution:{synthesis_result}")
-        print()
-        pretty_print_term(ensure_anf(synthesis_result, 200))
+        # print()
+        # pretty_print_term(ensure_anf(synthesis_result, 200))
         sys.exit(1)
 
     eval(core_ast, evaluation_ctx)
