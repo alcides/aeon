@@ -243,7 +243,7 @@ def geneticengine_synthesis(
     """Performs a synthesis procedure with GeneticEngine"""
     # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
     gp_params = gp_params or gengy_default_config
-
+    gp_params = dict(gp_params)
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
     seed = gp_params["seed"]
