@@ -336,7 +336,8 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
     if grammar_nodes is None:
         grammar_nodes = []
     for var in ctx.vars():
-        if var[0] != synth_func_name:
+        var_name = var[0]
+        if var_name != synth_func_name and not var_name.startswith("__internal__"):
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
