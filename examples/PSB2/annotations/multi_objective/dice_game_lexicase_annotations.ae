@@ -1,25 +1,11 @@
 import Math;
-import psb2 from PSB2;
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
-import get_input_list from PSB2;
-import unpack_train_data from PSB2;
-import get_output_list from PSB2;
-import get_dg_synth_values from PSB2;
-import calculate_list_errors from PSB2;
+import PSB2;
 
-#def mult ( n:Int , m:Int ) : Int { n * m }
+def __internal__train: TrainData = __internal__extract_train_data (__internal__load_dataset "dice-game" 200 200);
+def __internal__input_list : List = __internal__get_input_list (__internal__unpack_train_data __internal__train);
+def __internal__expected_values : List = __internal__get_output_list (__internal__unpack_train_data __internal__train);
 
-#def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
-
-#def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
-#    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
-
-def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
-def input_list : List = get_input_list (unpack_train_data train);
-def expected_values : List = get_output_list (unpack_train_data train);
-
-@multi_minimize_float(calculate_list_errors  (get_dg_synth_values input_list synth)(expected_values))
+@multi_minimize_float(__internal__calculate_list_errors  (__internal__get_dg_synth_values __internal__input_list synth)(__internal__expected_values))
 def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float
     {
         (?hole:Float)
