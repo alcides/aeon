@@ -25,6 +25,8 @@ from aeon.typechecking.context import TypingContext
 
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
+internal_functions: list[str] = []
+
 aeon_prelude_ops_to_text: dict[str, str] = {
     "%": "mod",
     "/": "div",
@@ -337,7 +339,11 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
         grammar_nodes = []
     for var in ctx.vars():
         var_name = var[0]
-        if var_name != synth_func_name and not var_name.startswith("__internal__"):
+        if (
+            var_name != synth_func_name
+            and not var_name.startswith("__internal__")
+            and var_name not in internal_functions
+        ):
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
