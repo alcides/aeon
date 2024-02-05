@@ -11,7 +11,7 @@ defs : def*                                          -> list
 
 type_decl : "type" TYPENAME ";"                            -> type_decl
 
-def : "def" ID ":" type "=" expression ";"                  -> def_cons
+def : (soft_constraint)* "def" ID ":" type "=" expression ";"                  -> def_cons
     | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
 
 soft_constraint : "@" ID "(" macro_args ")"                 -> macro
