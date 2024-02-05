@@ -1,11 +1,16 @@
 import Math;
 import PSB2;
 
-def __internal__train: TrainData = __internal__extract_train_data (__internal__load_dataset "dice-game" 200 200);
-def __internal__input_list : List = __internal__get_input_list (__internal__unpack_train_data __internal__train);
-def __internal__expected_values : List = __internal__get_output_list (__internal__unpack_train_data __internal__train);
+@ignore()
+def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
 
-@multi_minimize_float(__internal__calculate_list_errors  (__internal__get_dg_synth_values __internal__input_list synth)(__internal__expected_values))
+@ignore()
+def input_list : List = get_input_list (unpack_train_data train);
+
+@ignore()
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@multi_minimize_float(calculate_list_errors  (get_dg_synth_values input_list synth)(expected_values))
 def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float
     {
         (?hole:Float)

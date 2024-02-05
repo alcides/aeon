@@ -17,9 +17,9 @@ def middle_char  (s: String) : String {
 
 }
 
-def __internal__train: TrainData = __internal__extract_train_data (__internal__load_dataset "middle-character" 200 200);
-def __internal__input_list : List = __internal__get_input_list (__internal__unpack_train_data __internal__train);
-def __internal__expected_values : List = __internal__get_output_list (__internal__unpack_train_data __internal__train);
+def  train: TrainData =  extract_train_data ( load_dataset "middle-character" 200 200);
+def  input_list : List =  get_input_list ( unpack_train_data  train);
+def  expected_values : List =  get_output_list ( unpack_train_data  train);
 
-@minimize_float(String_distance (__internal__join_string_list(__internal__get_mc_synth_values __internal__input_list synth)) (__internal__join_string_list(__internal__expected_values)))
+@minimize_float(String_distance ( join_string_list( get_mc_synth_values  input_list synth)) ( join_string_list( expected_values)))
 def synth (s: String) : String {(?hole:String)}

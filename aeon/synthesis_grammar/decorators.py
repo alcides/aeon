@@ -49,7 +49,7 @@ def multi_minimize_float(args: list[Term], fun: Definition) -> tuple[Definition,
     return fun, [fitness_function]
 
 
-def ignore(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:  # TODO
+def ignore(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
     """
     This decorator expects a zero argument .
 
