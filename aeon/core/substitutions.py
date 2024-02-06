@@ -22,13 +22,13 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
+from aeon.core.types import Top
+from aeon.core.types import Type
+from aeon.core.types import TypeVar
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Top
-from aeon.core.types import Type
-from aeon.core.types import TypeVar
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):

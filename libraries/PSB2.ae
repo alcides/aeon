@@ -5,13 +5,13 @@ type List;
 type Tuple;
 
 @ignore()
-def psb2 : Unit = native_import "psb2";
+def psb2_aeon : Unit = native_import "psb2";
 
 @ignore()
-def textdistance : Unit = native_import "textdistance";
+def textdistance_aeon : Unit = native_import "textdistance";
 
 @ignore()
-def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
+def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2_aeon.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
 
 @ignore()
 def extract_train_data : (ds:Dataset) -> TrainData = native "lambda ds: ds[0]";

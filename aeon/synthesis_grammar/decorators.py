@@ -50,6 +50,7 @@ def multi_minimize_float(args: list[Term], fun: Definition) -> tuple[Definition,
 
 
 def ignore(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+    # @grammar_skip
     """
     This decorator expects a zero argument .
 

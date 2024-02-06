@@ -6,7 +6,6 @@ import sys
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.decorators import apply_decorators
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
@@ -49,16 +48,6 @@ def read_file(filename: str) -> str:
         return file.read()
 
 
-def apply_decorators_in_program(p: Program) -> Program:
-    """We apply the decorators meta-programming code to each definition in the program."""
-    new_definitions = []
-    for definition in p.definitions:
-        new_def, other_defs = apply_decorators(definition)
-        new_definitions.append(new_def)
-        new_definitions.extend(other_defs)
-    return Program(p.imports, p.type_decls, new_definitions)
-
-
 def log_type_errors(errors: list[Exception | str]):
     logger.log("TYPECHECKER", "-------------------------------")
     logger.log("TYPECHECKER", "+     Type Checking Error     +")
@@ -81,7 +70,6 @@ if __name__ == "__main__":
         core_ast = parse_term(aeon_code)
     else:
         prog: Program = parse_program(aeon_code)
-        prog = apply_decorators_in_program(prog)
         (
             core_ast,
             typing_ctx,
