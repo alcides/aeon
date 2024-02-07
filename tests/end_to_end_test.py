@@ -55,3 +55,8 @@ def test_annotation_anf():
 def test_annotation_anf2():
     source = r"""let j : {x:Int | x == 3} = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : {x:Int | x == 3} = (let k : {x:Int | x == 3} = 3 in k) in f a) in j"""
     check_compile(source, parse_type("{x:Int | x == 3}"), 3)
+
+
+def test_annotation_anf3():
+    source = r"""3 % 2"""
+    check_compile(source, parse_type("{x:Int | x == 3}"), 3)
