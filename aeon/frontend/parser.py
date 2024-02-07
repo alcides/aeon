@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Callable
+from collections.abc import Callable
 
 from lark import Lark
 from lark import Transformer
@@ -19,7 +19,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import bottom
@@ -64,6 +64,9 @@ class TreeToCore(Transformer):
     def polymorphism_t(self, args):
         return TypePolymorphism(str(args[0]), args[1], args[2])
 
+    def constructor_t(self, args):
+        return TypeConstructor(str(args[0]), args[1])
+
     def simple_t(self, args):
         n = str(args[0])
         if n == "Bottom":
@@ -74,6 +77,12 @@ class TreeToCore(Transformer):
             return BaseType(n)
         else:
             return TypeVar(n)
+
+    def tcargs_singleton(self, args):
+        return [args[0]]
+
+    def tcargs_rec(self, args):
+        return [args[0]] + args[1]
 
     # Expressions
 

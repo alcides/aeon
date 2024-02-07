@@ -6,14 +6,13 @@ from pathlib import Path
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitute_vartype_in_term
-from aeon.core.terms import Abstraction
-from aeon.core.terms import Application
+from aeon.core.terms import Abstraction, Application
 from aeon.core.terms import Hole
 from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypePolymorphism
 from aeon.core.types import BaseType
 from aeon.core.types import t_int
 from aeon.prelude.prelude import evaluation_vars
@@ -24,7 +23,7 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.context import UninterpretedFunctionBinder
 from aeon.utils.ctx_helpers import build_context
 
 
@@ -36,7 +35,10 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     if "main" in [d.name for d in p.definitions]:
         prog = Application(Var("main"), Literal(1, type=t_int))
     else:
-        prog = Application(Var("print"), Hole("main"))
+        prog = Application(
+            Var("print"),
+            Hole("main"),
+        )
 
     defs: list[Definition] = p.definitions
     type_decls: list[TypeDecl] = p.type_decls
@@ -52,12 +54,11 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
     d: Definition
     for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
-            assert isinstance(d.type, AbstractionType)
+            assert isinstance(d.type, AbstractionType) or isinstance(d.type, TypePolymorphism)
             d_type = d.type
             for tyname in type_decls:
                 d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
-            ctx = UninterpretedBinder(
-                ctx,
+            ctx += UninterpretedFunctionBinder(
                 d.name,
                 d_type,
             )
@@ -71,7 +72,12 @@ def desugar(p: Program) -> tuple[Term, TypingContext, EvaluationContext]:
 
     tydeclname: TypeDecl
     for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        if not tydeclname.type_arguments:
+            # Just an opaque type for FFI.
+            prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+        else:
+            ctx = ctx.with_typeconstructor(tydeclname.name, tydeclname.type_arguments)
+
     return (prog, ctx, ectx)
 
 

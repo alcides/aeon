@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from functools import reduce
 
-from aeon.core.liquid import liquid_free_vars
+from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -34,11 +35,9 @@ class Type(ABC):
     pass
 
 
+@dataclass
 class BaseType(Type):
     name: str
-
-    def __init__(self, name):
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -50,11 +49,9 @@ class BaseType(Type):
         return hash(self.name)
 
 
+@dataclass
 class TypeVar(Type):
     name: str
-
-    def __init__(self, name):
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -66,6 +63,7 @@ class TypeVar(Type):
         return hash(self.name)
 
 
+@dataclass
 class Top(Type):
     def __repr__(self):
         return "⊤"
@@ -80,6 +78,7 @@ class Top(Type):
         return hash("Top")
 
 
+@dataclass
 class Bottom(Type):
     def __repr__(self):
         return "⊥"
@@ -104,15 +103,11 @@ top = Top()
 bottom = Bottom()
 
 
+@dataclass
 class AbstractionType(Type):
     var_name: str
     var_type: Type
     type: Type
-
-    def __init__(self, var_name: str, var_type: Type, type: Type):
-        self.var_name = var_name
-        self.var_type = var_type
-        self.type = type
 
     def __repr__(self):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
@@ -129,15 +124,11 @@ class AbstractionType(Type):
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
 
 
+@dataclass
 class RefinedType(Type):
     name: str
-    type: BaseType | TypeVar
+    type: BaseType | TypeVar | TypeConstructor
     refinement: LiquidTerm
-
-    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
-        self.name = name
-        self.type = ty
-        self.refinement = refinement
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -160,12 +151,30 @@ class TypePolymorphism(Type):
     kind: Kind
     body: Type
 
+    def __str__(self):
+        return f"forall {self.name}:{self.kind}, {self.body}"
+
+
+@dataclass
+class TypeConstructor(Type):
+    name: str
+    args: list[Type]
+
+    def __str__(self):
+        args = ", ".join(f"{a}" for a in self.args)
+        return f"{self.name}[{args}]"
+
+    def __repr__(self):
+        return str(self)
+
 
 def extract_parts(
     t: Type,
-) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
     assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
-    if isinstance(t, RefinedType):
+    if isinstance(t, TypeVar):
+        return ("_", t_int, LiquidLiteralBool(True))
+    elif isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
         return (
@@ -175,15 +184,26 @@ def extract_parts(
         )  # None could be a fresh name from context
 
 
-def is_bare(ty: Type) -> bool:
-    """Returns whether a type is bare or not."""
-    bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
-    type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
-    return bare_base or dependent_function or type_polymorphism
+def is_bare(t: Type) -> bool:
+    """Returns whether the type is bare."""
+    if isinstance(t, BaseType):
+        return True
+    elif isinstance(t, Top):
+        return True
+    elif isinstance(t, Bottom):
+        return True
+    elif isinstance(t, RefinedType):
+        return t.refinement == LiquidHole() or isinstance(t.refinement, LiquidHornApplication)
+    elif isinstance(t, AbstractionType):
+        return is_bare(t.var_type) and is_bare(t.type)
+    elif isinstance(t, TypePolymorphism):
+        return is_bare(t.body)
+    else:
+        return False
 
 
 def base(ty: Type) -> Type:
+    """Returns the base type of a Refined Type"""
     if isinstance(ty, RefinedType):
         return ty.type
     return ty
@@ -202,6 +222,8 @@ def type_free_term_vars(t: Type) -> list[str]:
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
         return [x for x in ifv + rfv if x != t.name]
+    elif isinstance(t, TypePolymorphism):
+        return type_free_term_vars(t.body)
     return []
 
 
@@ -214,5 +236,33 @@ def args_size_of_type(t: Type) -> int:
         return 0
     elif isinstance(t, AbstractionType):
         return 1 + args_size_of_type(t.type)
+    elif isinstance(t, TypePolymorphism):
+        return args_size_of_type(t.body)
     else:
         assert False
+
+
+def get_type_vars(t: Type) -> set[TypeVar]:
+    match t:
+        case Bottom():
+            return set()
+        case Top():
+            return set()
+        case BaseType(name=_):
+            return set()
+        case TypeVar(name=_):
+            return {t}
+        case AbstractionType(var_name=_, var_type=vty, type=ty):
+            return get_type_vars(vty).union(get_type_vars(ty))
+        case RefinedType(name=_, type=ty, refinement=_):
+            return get_type_vars(ty)
+        case TypePolymorphism(name=_, kind=_, body=e):
+            return {t1 for t1 in get_type_vars(e) if t1.name != t.name}
+        case TypeConstructor(name=_, args=args):
+            return reduce(lambda x, y: x.union(y), [get_type_vars(a) for a in args])
+        case _:
+            assert False, f"TypeVar does not support {type(t)}"
+
+
+def extract_typelevel_freevars(ty: Type) -> list[str]:
+    return [v.name for v in get_type_vars(ty)]

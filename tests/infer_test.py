@@ -2,17 +2,23 @@ from __future__ import annotations
 from aeon.core.types import t_int
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
-from aeon.typechecking.context import EmptyContext
+from aeon.prelude.prelude import typing_vars
+from aeon.typechecking import elaborate_and_check
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.entailment import entailment
-from aeon.typechecking.typeinfer import check_type
 from aeon.typechecking.typeinfer import sub
 from aeon.utils.ctx_helpers import build_context
 
 
-def tt(e: str, t: str, vars: dict[str, str] = {}):
-    ctx = build_context({k: parse_type(v) for (k, v) in vars.items()})
-    return check_type(ctx, parse_term(e), parse_type(t))
+def tt(e: str, t: str, vars: None | dict[str, str] = None):
+    base_dict = typing_vars.copy()
+    if vars is not None:
+        base_dict.update({k: parse_type(v) for (k, v) in vars.items()})
+
+    ctx = build_context(base_dict)
+    expected_type = parse_type(t)
+    return elaborate_and_check(ctx, parse_term(e), expected_type)
 
 
 def test_one_is_int():
@@ -41,7 +47,7 @@ def test_a_is_not_bool():
 
 
 def test_abs_is_int():
-    # assert tt("\\x -> x", "(x:Int) -> Int")
+    assert tt("\\x -> x", "(x:Int) -> Int")
     assert not tt("\\x -> x", "(x:Bool) -> Int")
 
 
@@ -180,10 +186,10 @@ def test_sumTo():
     sumTo_def = """
         let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) =
         \\n ->
-            let b : {k:Bool | n <= 0} = n <= 0 in
+            let b : {k:Bool | k == (n <= 0)} = n <= 0 in
             if b then 0 else (
                 let n_minus_1 : {nm1:Int | nm1 == (n - 1) } = (n - 1) in
-                let sum_n_minus_1 : {s:Int| (s >= 0) && (s <= n_minus_1)} = sum n_minus_1 in
+                let sum_n_minus_1 : {s:Int| (s >= 0) && (n_minus_1 <= s)} = sum n_minus_1 in
                 n + sum_n_minus_1
             ) in 1
     """
@@ -204,19 +210,21 @@ def test_let_let():
 
 
 def test_sub():
+    ctx = TypingContext() + VariableBinder("fresh_2", t_int)
     subt = parse_type(r"(x:((z:{a:Int| a > 1 }) -> Int)) -> {k:Int | k > x}")
     supt = parse_type(r"(y:((m:{b:Int| b > 0 }) -> Int)) -> {z:Int | z >= y}")
-    c = sub(subt, supt)
-    assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)
+    c = sub(ctx, subt, supt)
+    assert entailment(ctx, c)
 
 
 def test_sub_simple():
+    ctx = TypingContext() + VariableBinder("plus", parse_type("(x:Int) -> Int"))
     subt = parse_type(r"(_fresh_3:Int) -> Int")
     supt = parse_type(r"(y:Int) -> Int")
 
-    c = sub(subt, supt)
+    c = sub(ctx, subt, supt)
     assert entailment(
-        VariableBinder(EmptyContext(), "plus", parse_type("(x:Int) -> Int")),
+        ctx,
         c,
     )
 

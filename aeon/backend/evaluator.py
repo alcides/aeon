@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from typing import Any
+from loguru import logger
 
-from aeon.core.terms import Abstraction
+from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -52,8 +53,12 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Let):
         return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
     elif isinstance(t, Rec):
-        if isinstance(t.var_value, Abstraction):
-            fun = t.var_value
+        vvalue = t.var_value
+        while isinstance(vvalue, TypeAbstraction):
+            vvalue = vvalue.body
+
+        if isinstance(vvalue, Abstraction):
+            fun = vvalue
 
             def v(x):
                 return eval(
@@ -62,7 +67,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
                 )
 
         else:
-            v = eval(t.var_value, ctx)
+            v = eval(vvalue, ctx)
         return eval(t.body, ctx.with_var(t.var_name, v))
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
@@ -74,7 +79,12 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         return eval(t.expr, ctx)
     elif isinstance(t, Hole):
         args = ", ".join([str(n) for n in ctx.variables])
-        print(f"Context ({args})")
+        logger.info(f"Context ({args})")
         h = input(f"Enter value for hole {t} in Python: ")
         return real_eval(h, ctx.variables)
-    assert False
+    elif isinstance(t, TypeApplication):
+        return eval(t.body, ctx)
+    elif isinstance(t, TypeAbstraction):
+        return eval(t.body, ctx)
+    else:
+        assert False, f"Evaluator does not support {t} ({type(t)})"

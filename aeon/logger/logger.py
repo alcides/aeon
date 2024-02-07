@@ -18,7 +18,7 @@ def setup_logger():
     logger.level("CONSTRAINT", no=36, color="<cyan>", icon="🔒")
 
     # Setup the logger
-    logger.remove()
+    # logger.remove()
     # logger.add(sys.stderr, level="DEBUG")
     return logger
 
