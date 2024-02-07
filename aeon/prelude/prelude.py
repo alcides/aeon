@@ -4,6 +4,20 @@ import importlib
 
 from aeon.frontend.parser import parse_type
 
+INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
+FLOAT_ARITHMETIC_OPERATORS = ["+.", "*.", "-.", "/.", "%."]
+COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
+LOGICAL_OPERATORS = ["&&", "||"]
+EQUALITY_OPERATORS = ["==", "!="]
+
+ALL_OPS = (
+    INTEGER_ARITHMETIC_OPERATORS
+    + FLOAT_ARITHMETIC_OPERATORS
+    + COMPARISON_OPERATORS
+    + LOGICAL_OPERATORS
+    + EQUALITY_OPERATORS
+)
+
 
 def p(x):
     print(str(x))

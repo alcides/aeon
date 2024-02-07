@@ -14,18 +14,18 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
-from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import RefinedType
+from aeon.core.types import Top
+from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Top
 from aeon.typechecking.context import TypingContext
 
-prelude_ops = ["print", "native_import", "native"]
+prelude_ops: list[str] = ["print", "native_import", "native"]
 
-aeon_prelude_ops_to_text = {
+aeon_prelude_ops_to_text: dict[str, str] = {
     "%": "mod",
     "/": "div",
     "*": "mult",
@@ -50,6 +50,10 @@ grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
 
 
+class GrammarError(Exception):
+    pass
+
+
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
     def get_core(self):
@@ -65,6 +69,8 @@ def mk_method_core(cls: classType) -> classType:
         # the prefix is either "var_" or "app_"
         class_name_without_prefix = class_name[4:]
 
+        # TODO add an issue for every type checking problem  10 examples
+
         if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
             op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
             var_values = []
@@ -77,9 +83,11 @@ def mk_method_core(cls: classType) -> classType:
             assert len(var_values) == 2
         elif class_name.startswith("If"):
             if_dict = {}
-            for attr_name, _ in cls.__annotations__.items():
+            for attr_name, ty in cls.__annotations__.items():
                 value = getattr(self, attr_name, None)
-                if_dict[attr_name] = value.get_core
+                # aeon_type = ty.__name__[2:]
+                if_dict[attr_name] = value.get_core()
+                # if_dict[attr_name] = Annotation(value.get_core(), BaseType(aeon_type))
 
             base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
 
@@ -113,10 +121,12 @@ def mk_method_core_literal(cls: classType) -> classType:
                 elif class_name_without_prefix == "String":
                     v = str(value)[1:-1]
                     base = Literal(str(v), type=t_string)
+                else:
+                    assert False
 
                 return base
         except Exception as e:
-            raise Exception("no value\n ", e)
+            raise GrammarError("no value\n ", e)
 
     setattr(cls, "get_core", get_core)
     return cls
@@ -269,7 +279,7 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     elif isinstance(parent_type, (BaseType, TypeVar)):
         parent_class_name = parent_type.name
     else:
-        raise Exception(f"parent class name not definied: {(parent_type)}")
+        raise GrammarError(f"parent class name not definied: {parent_type}")
     grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
@@ -330,7 +340,7 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
-    ##print_grammar_nodes(grammar_nodes)
+    # print_grammar_nodes(grammar_nodes)
     return grammar_nodes
 
 
@@ -359,17 +369,18 @@ def convert_to_term(inp):
         return Literal(inp, type=t_bool)
     elif isinstance(inp, float):
         return Literal(inp, type=t_float)
-    raise Exception(f"unable to converto to term : {type(inp)}")
+    raise GrammarError(f"Unable to converto to term : {type(inp)}")
 
 
 def print_grammar_nodes(grammar_nodes: list[type]):
     for cls in grammar_nodes:
         parents = [base.__name__ for base in cls.__bases__]
-        print(f"class {cls.__name__} ({', '.join(parents)}):")
+        print(f"class {cls.__name__} ({''.join(parents)}):")
         class_vars = cls.__annotations__
         if class_vars:
             for var_name, var_type in class_vars.items():
                 print(f"\t {var_name}: {var_type.__name__}")
         else:
             print("\t pass")
-        print("---------------------------------------------------")
+        print()
+        # print("---------------------------------------------------")

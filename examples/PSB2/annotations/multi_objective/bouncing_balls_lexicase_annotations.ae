@@ -1,0 +1,16 @@
+# currently this is not working
+import Math;
+import PSB2;
+type Unit;
+type List;
+
+
+def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@multi_minimize_float(calculate_list_errors (get_bb_synth_values input_list synth) (expected_values))
+def synth (a:Float , b:Float , c:Int) : Float
+    {
+        (?hole:Float)
+    }

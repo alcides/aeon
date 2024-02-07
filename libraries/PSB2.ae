@@ -24,10 +24,12 @@ def mean_absolute_error : (true_values : List) -> (expected_values : List) ->  F
 # add a refinement to make sure that the lists are all the same size
 def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [abs(p - r) for p, r in zip(t, e)]";
 
-def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
-
 # maybe move this method to string lib
 def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
+
+def calculate_str_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]";
+
+def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
 
 def get_bb_synth_values : (input : List) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
 
@@ -44,3 +46,7 @@ def get_snowd_synth_values : (input : List) -> (f:(a: Int) ->( b:Float ) -> (c:F
 def get_sd_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
 def get_tt_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+#def train: TrainData = extract_train_data (load_dataset "gcd" 200 200);
+#def input_list : List = get_input_list (unpack_train_data train);
+#def expected_values : List = get_output_list (unpack_train_data train);
