@@ -1,0 +1,16 @@
+type List;
+
+def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
+def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+
+def map_Int_Int_List: (function:(a: Int) -> Int) -> (l: List) -> List = native "lambda f, xs: map(f, xs)";
+
+def fuel_cost  (xs: List) : Int {
+ sum(
+    map_Int_Int_List(
+        ( \x : Int -> Math_max (Math_floor_division(x)(3 - 2)) (0)) (xs))
+        )
+ }
+
+# Type not freshable: ?t <class 'aeon.core.types.TypeVar'>
