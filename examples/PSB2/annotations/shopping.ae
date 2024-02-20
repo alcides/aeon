@@ -1,0 +1,16 @@
+type List;
+
+def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
+def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def map_Int_Int_Int_List_List: (function: (a: Int) -> (b: Int) -> Int) -> (l: List) -> (l2: List) -> List = native "lambda f, xs: map(f, xs)";
+
+def shopping  (prices: List, discounts: List) : Int {
+ sum(
+    map_Int_Int_Int_List_List(
+        ( \x : Int -> \y : Int -> x * (1 - d / 100)) (prices) (discounts)
+        )
+    )
+ }
+
+# Type not freshable: ?t <class 'aeon.core.types.TypeVar'>
