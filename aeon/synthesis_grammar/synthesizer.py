@@ -53,7 +53,7 @@ class SynthesisError(Exception):
 MINIMIZE_OBJECTIVE = True
 ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
 ERROR_FITNESS = ERROR_NUMBER
-TIMEOUT_DURATION: int = 300  # seconds
+TIMEOUT_DURATION: int = 1  # seconds
 
 
 representations = {
@@ -151,6 +151,7 @@ def create_evaluator(
 
     def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
         """Function to run in a separate process. Puts result in a Queue."""
+        new_program = None
         try:
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
@@ -159,7 +160,9 @@ def create_evaluator(
             check_type_errors(ctx, new_program, Top())
             result = eval(new_program, ectx)
         except Exception as e:
-            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}")
+            #import traceback
+            #traceback.print_exc()
+            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}, {id(new_program)}")
             result = ERROR_FITNESS
         result = filter_nan_values(result)
         result_queue.put(result)
