@@ -160,8 +160,8 @@ def create_evaluator(
             check_type_errors(ctx, new_program, Top())
             result = eval(new_program, ectx)
         except Exception as e:
-            #import traceback
-            #traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}, {id(new_program)}")
             result = ERROR_FITNESS
         result = filter_nan_values(result)
