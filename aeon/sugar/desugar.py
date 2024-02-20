@@ -180,7 +180,7 @@ def rename_internal_functions(t):
 def bind_program_to_rec(prog: Term, d: Definition) -> Term:
     ty, body = d.type, d.body
     def_name = f"__internal__{d.name}" if d.name in grammar.internal_functions else d.name
-    body = rename_internal_functions(body)
+    # body = rename_internal_functions(body)
     for arg_name, arg_type in d.args[::-1]:
         ty = AbstractionType(arg_name, arg_type, ty)
         body = Abstraction(arg_name, body)
