@@ -1,7 +1,7 @@
 type List;
 
-def get_fst: (l:String) -> Int = native "lambda xs: xs[0]";
-def get_snd: (l:String) -> Int = native "lambda xs: xs[1]";
+def get_fst: (l:String) -> String = native "lambda xs: xs[0]";
+def get_snd: (l:String) -> String = native "lambda xs: xs[1]";
 
 def String_len : (i:String) -> Int = native "lambda i: len(i)";
 def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
@@ -17,9 +17,10 @@ def map_String_Int_List: (function:(a: String) -> Int) -> (l: List) -> List = na
 
 def paired_digits (nums: String) : Int {
     pairs: List = String_to_List(String_zip (nums)(String_slice(nums)(1)(String_len(nums))));
-    matching_pairs : List = filter2 (\x:String -> get_fst(x) == get_snd(x)) (pairs);
-    total_sum : Int = sum(map_String_Int_List (\x:String -> String_to_Int(get_fst(x))) (matching_pairs));
+    matching_pairs : List = filter2 ((\x -> get_fst(x) == get_snd(x)):((x:String) -> Bool)) (pairs);
+    total_sum : Int = sum(map_String_Int_List ((\x -> String_to_Int(get_fst(x))) : (x: String) -> Int) (matching_pairs));
     total_sum
  }
 
-# Type not freshable: ?t <class 'aeon.core.types.TypeVar'>
+# Type not freshable: ?t <class 'aeon.core.types.TypeVar'> [FIXED]
+# z3.z3types.Z3Exception: sort mismatch
