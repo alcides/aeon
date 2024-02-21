@@ -1,0 +1,25 @@
+type List;
+
+def get_fst: (l:String) -> Int = native "lambda xs: xs[0]";
+def get_snd: (l:String) -> Int = native "lambda xs: xs[1]";
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+def String_zip : (i:String) -> (j:String) -> String = native "lambda i: lambda j: zip(i,j)";
+def String_to_List : (i:String) -> List = native "lambda i: list(i)";
+def String_to_Int : (i:String) -> Int = native "lambda i: int(i)";
+
+def filter :  (f: (s:String) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+def filter2 :  (f: (s:String) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: filter(f, xs)";
+
+def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
+def map_String_Int_List: (function:(a: String) -> Int) -> (l: List) -> List = native "lambda f, xs: map(f, xs)";
+
+def paired_digits (nums: String) : Int {
+    pairs: List = String_to_List(String_zip (nums)(String_slice(nums)(1)(String_len(nums))));
+    matching_pairs : List = filter2 (\x:String -> get_fst(x) == get_snd(x)) (pairs);
+    total_sum : Int = sum(map_String_Int_List (\x:String -> String_to_Int(get_fst(x))) (matching_pairs));
+    total_sum
+ }
+
+# Type not freshable: ?t <class 'aeon.core.types.TypeVar'>
