@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 
-from aeon.__main__ import apply_decorators_in_program
 from aeon.core.terms import Term
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
@@ -51,7 +50,6 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     prog = parse_program(code)
-    prog = apply_decorators_in_program(prog)
     p, ctx, ectx = desugar(prog)
     p = ensure_anf(p)
     check_type_errors(ctx, p, top)

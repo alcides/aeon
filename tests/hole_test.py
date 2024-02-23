@@ -1,7 +1,6 @@
-from aeon.__main__ import apply_decorators_in_program
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
-from aeon.sugar.desugar import desugar
+from aeon.sugar.desugar import desugar, apply_decorators_in_program
 from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.typechecking.typeinfer import check_type_errors
@@ -49,5 +48,4 @@ def test_hole3():
         def g: Int = 1;
         def e: Int = (?q:Int) + (?c:Int);
     """
-    assert extract_target_functions(source) == [("d", ["r", "p"]),
-                                                ("e", ["q", "c"])]
+    assert extract_target_functions(source) == [("d", ["r", "p"]), ("e", ["q", "c"])]

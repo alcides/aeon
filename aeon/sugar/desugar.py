@@ -79,6 +79,13 @@ def handle_imports(
     return defs, type_decls
 
 
+def apply_decorators_in_program(prog: Program) -> Program:
+    """We apply the decorators meta-programming code to each definition in the program."""
+    return Program(
+        imports=prog.imports, type_decls=prog.type_decls, definitions=apply_decorators_in_definitions(prog.definitions)
+    )
+
+
 def apply_decorators_in_definitions(definitions: list[Definition]) -> list[Definition]:
     """We apply the decorators meta-programming code to each definition in the program."""
     new_definitions = []

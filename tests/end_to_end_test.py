@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
+from aeon.backend.evaluator import eval
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
@@ -59,4 +59,4 @@ def test_annotation_anf2():
 
 def test_annotation_anf3():
     source = r"""3 % 2"""
-    check_compile(source, parse_type("{x:Int | x == 3}"), 3)
+    check_compile(source, parse_type("{x:Int | x == 1}"), 1)

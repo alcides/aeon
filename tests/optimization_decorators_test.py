@@ -1,4 +1,3 @@
-from aeon.__main__ import apply_decorators_in_program
 from aeon.core.terms import Term
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
@@ -8,9 +7,8 @@ from aeon.synthesis_grammar.identification import iterate_top_level
 from aeon.typechecking.typeinfer import check_type_errors
 
 
-def extract_core(source:str) -> Term:
+def extract_core(source: str) -> Term:
     prog = parse_program(source)
-    prog = apply_decorators_in_program(prog)
     core, ctx, _ = desugar(prog)
     core_anf = ensure_anf(core)
     check_type_errors(ctx, core_anf, top)
