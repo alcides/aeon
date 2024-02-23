@@ -16,7 +16,7 @@ def accumulate_prefix_sum: (l:List)-> (i:Int) -> List = \l -> \i ->
       List_append(List_append(List_new)(get_fst(l)+get_snd(l)))(get_snd(l))
 ;
 
-def aeon_reduce: (function: (a: List) -> (b: Int) -> List) -> (l: List) -> (l2: List) -> List = native "lambda f: lambda xs: lambda ys: __import__('functools').reduce(f, xs, ys)";
+def aeon_reduce: (function: (a: List) -> (b: Int) -> List) -> (l: List) -> (l2: List) -> List = native "lambda f: lambda xs: lambda ys: __import__('functools').reduce(lambda x, y:f(x)(y), xs, ys)";
 
 def basement (nums: List) : Int {
     get_snd(
