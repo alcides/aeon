@@ -9,20 +9,24 @@ def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(
 def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
 def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
 def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
-def Map_Int_Int_Int_List_List: (function: (a: Int) -> (b: Int) -> Int) -> (l: List) -> (l2: List) -> Map = native "lambda f: lambda xs: map(f, xs)";
-def Map_to_list: (m: Map) -> List = native "lambda m: list(m)";
+
+def Map_Int_Int_Int_List_List: (function: (a: Int) -> (b: Int) -> Int) ->
+                               (l: List) ->
+                               (l2: List) ->
+                               List =
+    native "lambda f: lambda xs: lambda ys: list(map(lambda x, y: f(x)(y), xs, ys))";
 
 def shopping  (prices: List, discounts: List) : Int {
-    m: Map= Map_Int_Int_Int_List_List(( \x -> (\y -> x * (1 - y / 100))): (x:Int) -> (y:Int) -> Int) (prices) (discounts);
-    l: List = Map_to_list(m);
+    f: (x:Int) -> (y:Int) -> Int = \x -> \y -> x * (1 - y / 100);
+    l: List = Map_Int_Int_Int_List_List f prices discounts;
     sum(l)
 
  }
 
 def main (args:Int) : Unit {
-    l1: List = List_append(List_append(List_new) (50)) (0);
-    l2: List = List_append(List_append(List_new) (10)) (0);
-    print (shopping(l1)(l2))
+    l1: List = List_append (List_append List_new 50) 0;
+    l2: List = List_append (List_append List_new 10) 0;
+    print (shopping l1 l2)
 }
 
 # TypeError: 'map' object is not callable
