@@ -32,6 +32,8 @@ prelude = [
     ("native", "(x:String) -> Bottom", eval),
     ("native_import", "(x:String) -> Bottom", native_import),
     ("print", "(x:Top) -> Unit", p),
+    ("&&", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x and y),
+    ("||", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x or y),
     ("==", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x == y),
     ("!=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x != y),
     ("<", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x < y),
