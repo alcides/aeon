@@ -10,20 +10,28 @@ def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(
 
 def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
 
-def Map_Int_Int_Int_List_Range_List: (function:(a: Int) -> (b:Int) -> Int) -> (l: List) -> (r:Range) -> Map = native "lambda f:lambda xs: lambda r: map(f, xs, r)";
-def Map_to_list: (m: Map) -> List = native "lambda m: list(m)";
+def Map_Int_Int_Int_List_Range_List: (function:(a: Int) -> (b:Int) -> Int) -> (l: List) -> (r:Range) -> List = native "lambda f:lambda xs: lambda r: list(map(lambda x, y:f(x)(y), xs, r))";
+
 def Range: (a:Int) ->  (b:Int) -> Range = native "lambda a: lambda b: range(a,b)";
 
 #ToDo refinement input (vector of 16 digits)
+
+def even : (n:Int) -> Bool = \n -> n % 2 == 0;
+
+def map_digit (x:Int, i:Int) : Int {
+    #if i % 2 != 0 then ( if x * 2 > 9 then (x*2 - 9) else (x*2) : Int) else x
+    if (i % 2 != 0 : Bool) && (x * 2 > 9 : Bool) then 1 else 2
+}
+
 def luhn (digits: List) : Int {
-    transformed_digits: Map = Map_Int_Int_Int_List_Range_List( (\x -> \y -> if ((y % 2 != 0) && (x * 2 > 9)) then (x * 2 - 9) else (if (y % 2 != 0) then (x*2) else (x))) :(a: Int)-> (b:Int) -> Int) (digits) (Range(0)(List_length(digits)));
-    sum( Map_to_list(transformed_digits))
+    transformed_digits: List = Map_Int_Int_Int_List_Range_List map_digit digits (Range 0 (List_length digits));
+    sum transformed_digits
 
  }
 def repeated_list: (n:Int) -> (x:Int) -> List = native "lambda n: lambda x: [x]*n";
 
-def main (args:Int) : Unit {
-    print (luhn(repeated_list(16)(9)))
-}
+#def main (args:Int) : Unit {
+#    print (luhn(repeated_list(16)(9)))
+#}
 
 #z3.z3types.Z3Exception: b'Sort mismatch at argument #1 for function (declare-fun and (Bool Bool) Bool) supplied sort is Int'
