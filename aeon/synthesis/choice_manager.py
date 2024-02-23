@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 from typing import Callable
 
+from loguru import logger
+
 from aeon.core.types import args_size_of_type
 from aeon.core.types import Type
 from aeon.synthesis.exceptions import NoMoreBudget
@@ -47,19 +49,14 @@ class ChoiceManager:
         while self.budget > 0:
             f = self.make_choice(r, options, depth)
             if self.debug:
-                print(
-                    "Made choice, "
-                    + str(f.__name__)
-                    + ", from: "
-                    + str([str(f.__name__) for f in options])
-                    + " at "
-                    + str(depth),
-                )
+                origin = str([str(f.__name__) for f in options])
+                logger.info(
+                    f"Made choice {f.__name__}, from {origin} at {depth}.")
             t = f()
             if t and validate(t):
                 return t
             else:
-                print("failed with ", f, "at", depth)
+                logger.error(f"Failed with {f} at {depth}")
                 self.undo_choice()
         raise NoMoreBudget()
 
@@ -90,6 +87,7 @@ class ChoiceManager:
 
 
 class GrammaticalEvolutionManager(ChoiceManager):
+
     def make_choice(self, r: RandomSource, options: list[Any], depth: int):
         return r.choose(options)
 
@@ -188,7 +186,8 @@ class AdaptiveProbabilityManager(SemanticFilterManager):
     def reinforce(self):
         return
         for successful_choice in self.choices:
-            self.probabilities[successful_choice] = self.probabilities[successful_choice] * 1.1
+            self.probabilities[successful_choice] = self.probabilities[
+                successful_choice] * 1.1
 
     def reset(self):
         super().reset()

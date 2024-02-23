@@ -1,4 +1,5 @@
 from __future__ import annotations
+from loguru import logger
 
 import z3
 
@@ -37,7 +38,7 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         elif isinstance(ctx.type, AbstractionType):
             return translate(ctx.prev, t, vars)
         else:
-            print("ERROR HERE", ctx.type, type(ctx.type))
+            logger.error("ERROR HERE", ctx.type, type(ctx.type))
             assert False
 
         return translate(ctx.prev, t, vars)
@@ -46,7 +47,8 @@ def translate(ctx: TypingContext, t: LiquidTerm, vars=[]):
         return translate(ctx.prev, t)
 
 
-def smt_synth_int_lit(ctx: TypingContext, t: RefinedType, seed: int) -> int | None:
+def smt_synth_int_lit(ctx: TypingContext, t: RefinedType,
+                      seed: int) -> int | None:
     assert t.type == t_int
     s = z3.Solver()
     s.set(":random-seed", seed)
@@ -62,5 +64,4 @@ def smt_synth_int_lit(ctx: TypingContext, t: RefinedType, seed: int) -> int | No
             # This is the case where the model has no variables
             return seed
     else:
-        print("No")
         return None
