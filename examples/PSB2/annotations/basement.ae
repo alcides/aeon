@@ -16,16 +16,17 @@ def accumulate_prefix_sum: (l:List)-> (i:Int) -> List = \l -> \i ->
       List_append(List_append(List_new)(get_fst(l)+get_snd(l)))(get_snd(l))
 ;
 
-
 def aeon_reduce: (function: (a: List) -> (b: Int) -> List) -> (l: List) -> (l2: List) -> List = native "lambda f: lambda xs: lambda ys: __import__('functools').reduce(f, xs, ys)";
 
 def basement (nums: List) : Int {
     get_snd(
-        aeon_reduce
-            accumulate_prefix_sum
-            (nums)
-            (List_append (List_append List_new 0) 0)
+        aeon_reduce(accumulate_prefix_sum) (nums) (List_append (List_append List_new 0) 0)
         )
  }
+
+
+def main (args:Int): Unit {
+    print(aeon_reduce(accumulate_prefix_sum) (List_append(List_new)(0)) (List_append (List_append(List_new)(0)) (0) ))
+}
 
 #TypeError: eval.<locals>.v() takes 1 positional argument but 2 were given

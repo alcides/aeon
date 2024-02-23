@@ -13,14 +13,14 @@ def filter :  (f: (s:String) -> Bool) -> (l:List) -> List = native "lambda f: la
 def filter2 :  (f: (s:String) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: filter(f, xs)";
 
 def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
-def map_String_Int_List: (function:(a: String) -> Int) -> (l: List) -> List = native "lambda f, xs: map(f, xs)";
+def map_String_Int_List: (function:(a: String) -> Int) -> (l: List) -> List = native "lambda f: lambda xs: map(f, xs)";
 
 def paired_digits (nums: String) : Int {
     pairs: List = String_to_List(String_zip (nums)(String_slice(nums)(1)(String_len(nums))));
-    matching_pairs : List = filter2 ((\x -> get_fst(x) == get_snd(x)):((x:String) -> Bool)) (pairs);
+    matching_pairs : List = filter2 ((\x -> get_fst(x) == get_snd(x)):((x:String) -> Bool)) (pairs); # z3.z3types.Z3Exception: sort mismatch
     total_sum : Int = sum(map_String_Int_List ((\x -> String_to_Int(get_fst(x))) : (x: String) -> Int) (matching_pairs));
     total_sum
  }
-
-# Type not freshable: ?t <class 'aeon.core.types.TypeVar'> [FIXED]
-# z3.z3types.Z3Exception: sort mismatch
+def main (args:Int) : Unit {
+    print (paired_digits("99"))
+}
