@@ -229,7 +229,7 @@ def translate(
 ) -> BoolRef | bool:
     variables = [
         (name, make_variable(name, base))
-        for (name, base) in c.binders
+        for (name, base) in c.binders[::-1]
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)
