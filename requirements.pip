@@ -2,8 +2,14 @@ pytest
 flake8
 black
 lark
+psb2
 zstandard==0.15.2
 zss
 z3-solver
-toml
+geneticengine @ git+https://github.com/alcides/GeneticEngine.git@619d625bf1892a2161047c981ae2732dd45d0e29#egg=geneticengine
+textdistance
 loguru
+numpy
+argparse
+configparser
+multiprocess
