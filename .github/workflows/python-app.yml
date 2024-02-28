@@ -28,12 +28,15 @@ jobs:
           python -m pip install --upgrade uv
           uv venv
           source .venv/bin/activate
-          uv pip install flake8 pytest mypy
+          uv pip install flake8 pytest mypy pre-commit
           if [ -f requirements.pip ]; then uv pip install -r requirements.pip; fi
       - name: Activate virtualenv
         run: |
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
+      - name: Lint with pre-commit
+        run: |
+          pre-commit run --all-files
       - name: Lint with mypy
         run: |
           mypy aeon --no-strict-optional --ignore-missing-imports
