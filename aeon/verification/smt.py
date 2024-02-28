@@ -107,7 +107,7 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 
 s = Solver()
-s.set(timeout=200),
+(s.set(timeout=200),)
 
 
 def smt_valid(constraint: Constraint, foralls: list[tuple[str, Any]] = []) -> bool:

@@ -133,12 +133,14 @@ def get_holes(term: Term) -> list[str]:
 
 
 def iterate_top_level(term: Term):
-    """Iterates through a program, and returns the top-level functions"""
+    """Iterates through a program, and returns the top-level functions."""
     while isinstance(term, Rec):
         yield term
         term = term.body
 
 
 def incomplete_functions_and_holes(ctx: TypingContext, term: Term) -> list[tuple[str, list[str]]]:
-    """Given a typing context and a term, this function identifies which top-level functions have holes, and returns a list of holes in each function."""
+    """Given a typing context and a term, this function identifies which top-
+    level functions have holes, and returns a list of holes in each
+    function."""
     return [(rec.var_name, get_holes(rec.var_value)) for rec in iterate_top_level(term) if get_holes(rec.var_value)]

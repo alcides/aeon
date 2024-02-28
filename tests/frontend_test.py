@@ -69,8 +69,13 @@ def test_refinedtypes():
             "==",
             [
                 LiquidVar("y"),
-                LiquidApp("+", [LiquidLiteralInt(1),
-                                LiquidLiteralInt(1)]),
+                LiquidApp(
+                    "+",
+                    [
+                        LiquidLiteralInt(1),
+                        LiquidLiteralInt(1),
+                    ],
+                ),
             ],
         ),
     )
@@ -89,18 +94,30 @@ def test_operators():
 
     assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
     assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
-    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true,
-                                                  true)
-    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true,
-                                                  true)
+    assert parse_term("true && true") == mk_binop(
+        lambda: "t",
+        "&&",
+        true,
+        true,
+    )
+    assert parse_term("true || true") == mk_binop(
+        lambda: "t",
+        "||",
+        true,
+        true,
+    )
 
     assert parse_term("0 < 1") == mk_binop(lambda: "t", "<", i0, i1)
     assert parse_term("0 > 1") == mk_binop(lambda: "t", ">", i0, i1)
     assert parse_term("0 <= 1") == mk_binop(lambda: "t", "<=", i0, i1)
     assert parse_term("0 >= 1") == mk_binop(lambda: "t", ">=", i0, i1)
 
-    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true,
-                                                    false)
+    assert parse_term("true --> false") == mk_binop(
+        lambda: "t",
+        "-->",
+        true,
+        false,
+    )
 
     assert parse_term("1 + 1") == mk_binop(lambda: "t", "+", i1, i1)
     assert parse_term("1 - 1") == mk_binop(lambda: "t", "-", i1, i1)
@@ -143,8 +160,11 @@ def test_poly_parse():
 
 
 def test_poly_abs():
-    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(),
-                                                      parse_term("1"))
+    assert parse_term("Λa:B => 1") == TypeAbstraction(
+        "a",
+        BaseKind(),
+        parse_term("1"),
+    )
 
 
 def test_poly_abs_plus():

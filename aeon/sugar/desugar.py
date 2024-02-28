@@ -80,14 +80,18 @@ def handle_imports(
 
 
 def apply_decorators_in_program(prog: Program) -> Program:
-    """We apply the decorators meta-programming code to each definition in the program."""
+    """We apply the decorators meta-programming code to each definition in the
+    program."""
     return Program(
-        imports=prog.imports, type_decls=prog.type_decls, definitions=apply_decorators_in_definitions(prog.definitions)
+        imports=prog.imports,
+        type_decls=prog.type_decls,
+        definitions=apply_decorators_in_definitions(prog.definitions),
     )
 
 
 def apply_decorators_in_definitions(definitions: list[Definition]) -> list[Definition]:
-    """We apply the decorators meta-programming code to each definition in the program."""
+    """We apply the decorators meta-programming code to each definition in the
+    program."""
     new_definitions = []
     for definition in definitions:
         new_def, other_defs = apply_decorators(definition)

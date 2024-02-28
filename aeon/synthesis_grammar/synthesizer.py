@@ -104,8 +104,9 @@ def is_valid_term_literal(term_literal: Term) -> bool:
 
 
 def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str, config_name: str) -> str | None:
-    """
-    Generate a CSV file path based on the provided file_path, representation, and seed.
+    """Generate a CSV file path based on the provided file_path,
+    representation, and seed.
+
     If file_path is empty, returns None.
     """
     if not file_path:
@@ -150,7 +151,10 @@ def create_evaluator(
     program_template = substitution(program, Var(fitness_function_name), "main")
 
     def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
-        """Function to run in a separate process. Puts result in a Queue."""
+        """Function to run in a separate process.
+
+        Puts result in a Queue.
+        """
         new_program = None
         try:
             first_hole_name = holes[0]
@@ -196,7 +200,8 @@ def problem_for_fitness_function(
     fitness_function_type: Type,
     hole_names: list[str],
 ) -> Problem:
-    """Creates a problem for a particular function, based on the name and type of its fitness function."""
+    """Creates a problem for a particular function, based on the name and type
+    of its fitness function."""
     fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name, hole_names)
     is_multiobjective = fitness_function_type == BaseType("List")  # TODO: replace when merging polymorphic types
     if is_multiobjective:
@@ -226,7 +231,7 @@ def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str):
 
 
 def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 1000) -> Term:
-    """Performs a synthesis procedure with Random Search"""
+    """Performs a synthesis procedure with Random Search."""
     max_depth = 5
     rep = TreeBasedRepresentation(grammar, max_depth)
     r = RandomSource(42)
@@ -243,7 +248,7 @@ def geneticengine_synthesis(
     hole_name: str,
     gp_params: dict[str, Any] | None = None,
 ) -> Term:
-    """Performs a synthesis procedure with GeneticEngine"""
+    """Performs a synthesis procedure with GeneticEngine."""
     # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
     gp_params = gp_params or gengy_default_config
     gp_params = dict(gp_params)
@@ -306,7 +311,7 @@ def synthesize_single_function(
     candidate_function = [fun.var_type for fun in iterate_top_level(term) if fun.var_name == fitness_function_name]
     if not candidate_function:
         raise SynthesisError(
-            f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}"
+            f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}",
         )
 
     set_error_fitness(candidate_function)

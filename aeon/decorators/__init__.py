@@ -1,5 +1,5 @@
-"""
-A decorator represents the modification of the program around a function. Consider the following example:
+"""A decorator represents the modification of the program around a function.
+Consider the following example:
 
 @decorator_name(decorator_arg, decorator_arg2)
 def fun(...) { ... }
