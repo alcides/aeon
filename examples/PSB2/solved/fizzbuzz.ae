@@ -1,0 +1,13 @@
+type List;
+
+def div3 ( n: Int) : Bool { if ((n % 3) == 0) then true else false}
+def div5 ( n : Int) : Bool  {if ((n % 5) == 0)  then true else false}
+def div15 ( n : Int) : Bool {if ((n % 15) == 0)  then true else false}
+
+def fizzbuzz ( n :Int) : String {
+    if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
+}
+
+def main (args:Int) : Unit {
+    print(fizzbuzz 15 )
+}
