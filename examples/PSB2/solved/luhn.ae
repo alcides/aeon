@@ -19,9 +19,8 @@ def Range: (a:Int) ->  (b:Int) -> Range = native "lambda a: lambda b: range(a,b)
 def even : (n:Int) -> Bool = \n -> n % 2 == 0;
 
 def map_digit (x:Int, i:Int) : Int {
-    #if i % 2 != 0 then ( if x * 2 > 9 then (x*2 - 9) else (x*2) : Int) else x
-    if (i % 2 != 0 : Bool) && (x * 2 > 9 : Bool) then 1 else 2
-}
+    if i % 2 != 0 then ( if x * 2 > 9 then (x*2 - 9) else (x*2) : Int) else x
+    }
 
 def luhn (digits: List) : Int {
     transformed_digits: List = Map_Int_Int_Int_List_Range_List map_digit digits (Range 0 (List_length digits));
