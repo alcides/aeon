@@ -10,7 +10,6 @@ def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)"
 def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
 
 def Map_Int_Int_List: (function:(a: Int) -> Int) -> (l: List) -> List = native "lambda f:lambda xs: map(f, xs)";
-def Map_to_list: (m: Map) -> List = native "lambda m: list(m)";
 
 def fuel_cost  (xs: List) : Int {
  sum(
