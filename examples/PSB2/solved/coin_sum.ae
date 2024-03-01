@@ -2,21 +2,21 @@ type List;
 
 def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
 
-def List_size: (l:List) -> Int = uninterpreted;
+def List_size : (l:List) -> Int = uninterpreted;
 
 def List_new : {x:List | List_size(x) == 0} = native "[]" ;
 
-def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
+def List_append : (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
 
 
 def coin_sum (cents: Int) : List {
-  quarters:Int = Math_floor_division (cents)(25);
-  dimes:Int = Math_floor_division (cents % 25)(10);
-  nickels:Int = Math_floor_division ((cents % 25) % 10)(5);
+  quarters:Int = Math_floor_division cents 25;
+  dimes:Int = Math_floor_division (cents % 25) 10;
+  nickels:Int = Math_floor_division ((cents % 25) % 10) 5;
   pennies:Int = ((cents % 25) % 10) % 5;
-  List_append(List_append (List_append ( List_append(List_new)(quarters)) (dimes)) (nickels))(pennies)
+  List_append (List_append (List_append ( List_append List_new quarters) dimes) nickels) pennies
  }
 
  def main (args:Int): Unit {
-    print( coin_sum(5))
+    print (coin_sum 5)
     }
