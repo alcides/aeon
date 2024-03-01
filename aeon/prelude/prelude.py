@@ -27,10 +27,15 @@ prelude = [
     (">", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x > y),
     (">=", "(x:Int) -> (y:Int) -> Bool", lambda x: lambda y: x >= y),
     ("+", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x + y),
+    ("+.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x + y),
     ("-", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x - y),
+    ("-.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x - y),
     ("*", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x * y),
+    ("*.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x * y),
     ("/", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x / y),
+    ("/.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x / y),
     ("%", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x % y),
+    ("%.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x % y),
 ]
 
 typing_vars = {}

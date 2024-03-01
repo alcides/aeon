@@ -6,6 +6,7 @@ from typing import Sequence
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
@@ -104,7 +105,7 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
+    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
         return False
     elif isinstance(t, LiquidVar):
         return False

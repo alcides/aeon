@@ -4,6 +4,7 @@ from __future__ import annotations
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
@@ -30,6 +31,7 @@ from aeon.core.types import bottom
 from aeon.core.types import extract_parts
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
+from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_unit
 from aeon.core.types import Type
@@ -85,6 +87,14 @@ def prim_litint(t: int) -> RefinedType:
     )
 
 
+def prim_litfloat(t: float) -> RefinedType:
+    return RefinedType(
+        "v",
+        t_float,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralFloat(t)]),
+    )
+
+
 def prim_op(t: str) -> Type:
     # TODO add suport to floats
     i1: Type
@@ -93,6 +103,9 @@ def prim_op(t: str) -> Type:
     if t in ["+", "*", "-", "/", "%"]:
         i1 = i2 = t_int
         o = t_int
+    elif t in ["+.", "*.", "-.", "/.", "%."]:
+        i1 = i2 = t_float
+        o = t_float
     elif t in ["<", ">", "<=", ">="]:
         i1 = i2 = t_int
         o = t_bool
@@ -103,7 +116,7 @@ def prim_op(t: str) -> Type:
         i2 = TypeVar("_op_2")
         o = t_bool
     else:
-        print(t)
+        print(">>", t)
         assert False
 
     return AbstractionType(
@@ -137,6 +150,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Literal) and t.type == t_int:
         assert isinstance(t.value, int)
         return (ctrue, prim_litint(t.value))
+    elif isinstance(t, Literal) and t.type == t_float:
+        assert isinstance(t.value, float)
+        return (ctrue, prim_litfloat(t.value))
     elif isinstance(t, Literal):
         return (ctrue, t.type)
     elif isinstance(t, Var):
