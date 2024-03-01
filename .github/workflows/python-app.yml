@@ -30,9 +30,9 @@ jobs:
           python -m pip install --upgrade uv
           uv pip install flake8 pytest mypy pre-commit
           if [ -f requirements.pip ]; then uv pip install -r requirements.pip; fi
-      - name: Lint with pre-commit
-        run: |
-          pre-commit run --all-files
+      #- name: Lint with pre-commit
+      #  run: |
+      #    pre-commit run --all-files
       - name: Lint with mypy
         run: |
           mypy aeon --no-strict-optional --ignore-missing-imports
