@@ -1,12 +1,5 @@
-type List;
-
-def math : Unit = native_import "math";
-
-def Math_gcd: (a : Int) -> (b : Int) -> Int = native "lambda a: lambda b: math.gcd(a, b)";
-
-# most programming languages today has the gcd function built-in
-def gcd ( n :Int, m: Int) : Int {
-    Math_gcd n m
+def gcd ( n:Int, z:Int) : Int {
+    if z == 0 then n else (gcd(z)(n % z))
 }
 
 def main (args:Int) : Unit {
