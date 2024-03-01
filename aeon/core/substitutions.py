@@ -3,6 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
@@ -22,6 +23,7 @@ from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
+from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import Top
@@ -88,11 +90,7 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
 def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
-    if isinstance(t, LiquidLiteralInt):
-        return t
-    elif isinstance(t, LiquidLiteralBool):
-        return t
-    elif isinstance(t, LiquidLiteralString):
+    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
         return t
     elif isinstance(t, LiquidVar):
         if t.name == name:
@@ -204,6 +202,8 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
         return Rec(t.var_name, t.var_type, n_value, n_body)
     elif isinstance(t, Annotation):
         return Annotation(rec(t.expr), t.type)
+    elif isinstance(t, If):
+        return If(t.cond, t.then, t.otherwise)
     assert False
 
 
@@ -262,6 +262,9 @@ def liquefy(rep: Term) -> LiquidTerm | None:
     if isinstance(rep, Literal) and rep.type == t_int:
         assert isinstance(rep.value, int)
         return LiquidLiteralInt(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_float:
+        assert isinstance(rep.value, float)
+        return LiquidLiteralFloat(rep.value)
     elif isinstance(rep, Literal) and rep.type == t_bool:
         assert isinstance(rep.value, bool)
         return LiquidLiteralBool(rep.value)
