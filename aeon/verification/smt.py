@@ -6,8 +6,8 @@ from typing import Generator
 
 from z3 import Function
 from z3 import Int
-from z3 import sat
 from z3 import Solver
+from z3 import sat
 from z3 import unknown
 from z3.z3 import And
 from z3.z3 import Bool
@@ -15,10 +15,10 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float64
-from z3.z3 import ForAll
 from z3.z3 import FP
 from z3.z3 import FPSort
+from z3.z3 import Float64
+from z3.z3 import ForAll
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import Not
@@ -37,11 +37,11 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
+from aeon.core.types import Type
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -229,7 +229,7 @@ def translate(
 ) -> BoolRef | bool:
     variables = [
         (name, make_variable(name, base))
-        for (name, base) in c.binders[::-1]
+        for (name, base) in c.binders
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)
