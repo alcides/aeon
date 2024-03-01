@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install flake8 pytest mypy pre-commit
+          uv pip install flake8 pytest mypy pre-commit setuptools
           if [ -f requirements.pip ]; then uv pip install -r requirements.pip; fi
       - name: Lint with pre-commit
         run: |
