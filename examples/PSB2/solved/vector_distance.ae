@@ -15,14 +15,15 @@ def List_sum_Float : (l:List) -> Float = native "lambda xs: sum(xs)";
 
 def List_size: (l:List) -> Int = uninterpreted;
 
-def List_new : {x:List | List_size(x) == 0} = native "[]" ;
+def List_new : {x:List | List_size x == 0} = native "[]" ;
 
-def List_append_float: (l:List) -> (i: Float) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
+def List_append_float: (l:List) -> (i: Float) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
 
 
 
 def vector_distance  (vector1: List, vector2: List) : Float {
-    squared_diffs: List = Map_Float_Float_Float_List_List ((\x -> \y ->  Math_pow_Float (x -. y) 2.0) : (x:Float) -> (y:Float) -> Float) vector1 vector2;
+    mapper : (x:Float) -> (y:Float) -> Float = \x -> \y ->  Math_pow_Float (x -. y) 2.0;
+    squared_diffs: List = Map_Float_Float_Float_List_List mapper vector1 vector2;
     distance = Math_sqrt_Float (List_sum_Float squared_diffs);
     distance
  }
