@@ -1,0 +1,21 @@
+type List;
+
+def math : Unit = native_import "math";
+def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)" ;
+def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+
+def peter_wins (n:Int, m:Int) : Int {
+    if m == 0 then 0 else Math_max 0 (n - m) + peter_wins n (m - 1)
+}
+
+def dice_game (n:{x:Int | 1 <= x && x <= 10000}, m:{y:Int | 1 <= y && y <= 10000}) : Float {
+     a : Float = Math_toFloat (peter_wins n m);
+     b : Float = Math_toFloat (n * m);
+     c : Float = a /. b;
+     c
+}
+
+
+def main (args:Int) : Unit {
+    print (dice_game 100 99)
+}
