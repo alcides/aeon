@@ -1,0 +1,28 @@
+type List;
+
+def List_size: (l:List) -> Int = uninterpreted;
+
+def List_new : {x:List | List_size(x) == 0} = native "[]" ;
+
+def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
+
+def get_fst: (l:List) -> Int = native "lambda xs: xs[0]";
+def get_snd: (l:List) -> Int = native "lambda xs: xs[1]";
+
+def accumulate_prefix_sum: (l:List)-> (i:Int) -> List = \l -> \i ->
+    extra : Int = if get_fst l + get_snd l >= 0 then 1 else 0;
+    List_append (List_append List_new (get_fst l + get_snd l)) (get_snd l + extra)
+;
+
+def aeon_reduce: (function: (a: List) -> (b: Int) -> List) -> (l: List) -> (l2: List) -> List = native "lambda f: lambda xs: lambda ys: __import__('functools').reduce(lambda x, y:f(x)(y), xs, ys)";
+
+def basement (nums: List) : Int {
+    get_snd (
+        aeon_reduce accumulate_prefix_sum nums (List_append (List_append List_new 0) 0)
+        )
+ }
+
+
+def main (args:Int): Unit {
+    print (aeon_reduce (accumulate_prefix_sum) (List_append List_new 0) (List_append (List_append List_new 0) 0 ))
+}

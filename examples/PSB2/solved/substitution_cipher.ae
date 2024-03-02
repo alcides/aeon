@@ -1,0 +1,22 @@
+type List;
+type Zip;
+type Dict;
+
+def Zip_String_String : (l1: String) -> (l2: String) -> Zip = native "lambda xs: lambda ys: zip(xs, ys)";
+def Dict_zip : (l: Zip) -> Dict = native "lambda xs: dict(xs)";
+def String_list_to_String : (l:List) -> String = native "lambda l: ''.join(l)";
+def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = native "lambda d: lambda k: lambda y: d.get(k, y)";
+
+
+def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = native "lambda f:lambda xs: map(f, xs)";
+
+def cipher (cipher_from: String, cypher_to: String, msg: String) : String {
+ cipher_dict: Dict = Dict_zip (Zip_String_String cipher_from cypher_to);
+ mapper : (x:String) -> String = \x -> Dict_get cipher_dict x x;
+ deciphered_chars: List = Map_String_String mapper msg;
+ String_list_to_String deciphered_chars
+ }
+
+def main (args:Int) : Unit {
+    print (cipher "e" "l" "eeeeeeeeeeee")
+}
