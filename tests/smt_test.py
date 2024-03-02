@@ -19,7 +19,8 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)])),
+    LiquidConstraint(LiquidApp(
+        "==", [LiquidVar("x"), LiquidLiteralInt(3)])),
 )
 
 
@@ -35,7 +36,8 @@ example2 = Implication(
         "y",
         BaseType("a"),
         LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
-        LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidVar("y")])),
+        LiquidConstraint(LiquidApp(
+            "==", [LiquidVar("x"), LiquidVar("y")])),
     ),
 )
 
@@ -44,18 +46,38 @@ def test_other_sorts():
     assert smt_valid(example2)
 
 
-# this test fails with def List_new : {x:List | List_size(x) == 0} ,
-# but with def List_new : {u:List | List_size(u) == 0} works fine
+# this test fails with def List_new : {x:List | List_size x == 0} ,
+# but with def List_new : {u:List | List_size u == 0} works fine
 def test_uninterpreted():
     aeon_code = """
 type List;
 def List_size: (l:List) -> Int = uninterpreted;
 
-def List_new : {x:List | List_size(x) == 0} = native "[]" ;
+def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
 
-#def List_new : {u:List | List_size(u) == 0} = native "[]" ;
+def main (x:Int) : Unit {
+    empty = List_new;
+    one = List_append empty 3;
+    print(one)
+}"""
+    prog: Program = parse_program(aeon_code)
+    (
+        core_ast,
+        typing_ctx,
+        evaluation_ctx,
+    ) = desugar(prog)
 
-def List_append: (l:List) -> (i: Int) -> {l2:List | List_size(l2) == (List_size(l) + 1)} = native "lambda xs: lambda x: xs + [x]";
+    type_errors = check_type_errors(typing_ctx, core_ast, top)
+    assert len(type_errors) == 0
+
+
+def test_uninterpreted2():
+    aeon_code = """
+type List;
+def List_size: (l:List) -> Int = uninterpreted;
+def List_new : {u:List | List_size u == 0} = native "[]" ;
+def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
 
 def main (x:Int) : Unit {
     empty = List_new;
