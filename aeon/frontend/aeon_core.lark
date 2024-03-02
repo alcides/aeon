@@ -1,32 +1,32 @@
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
-     | "forall" ID ":" kind "," type                     -> polymorphism_t
+     | "forall" ID ":" kind "," type                       -> polymorphism_t
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
 
-expression : "-" expression_i                           -> minus
-           | expression_i                              -> same
+expression : "-" expression_i                              -> minus
+           | expression_i                                  -> same
 
 
-expression_i : "let" ID "=" expression ("in"|";") expression     -> let_e
+expression_i : "let" ID "=" expression ("in"|";") expression            -> let_e
           |  "let" ID ":" type "=" expression ("in"|";") expression     -> rec_e
-          | "if" expression "then" expression "else" expression -> if_e
-          | expression_un                                -> same
+          | "if" expression "then" expression "else" expression         -> if_e
+          | expression_un                                               -> same
 
 
-expression_un : expression_bool                               -> same
-           | "!" expression_un                               -> nnot
-           | expression_bool "==" expression_un               -> binop_eq
-           | expression_bool "!=" expression_un               -> binop_neq
-           | expression_bool "&&" expression_un               -> binop_and
-           | expression_bool _DOUBLEPIPE expression_un               -> binop_or
+expression_un : expression_bool                                 -> same
+           | "!" expression_un                                  -> nnot
+           | expression_bool "==" expression_un                 -> binop_eq
+           | expression_bool "!=" expression_un                 -> binop_neq
+           | expression_bool "&&" expression_un                 -> binop_and
+           | expression_bool _DOUBLEPIPE expression_un          -> binop_or
 
 
-expression_bool : expression_plus                                -> same
-                | expression_plus "<" expression_bool             -> binop_lt
-                | expression_plus "<=" expression_bool             -> binop_le
-                | expression_plus ">" expression_bool             -> binop_gt
-                | expression_plus ">=" expression_bool             -> binop_ge
+expression_bool : expression_plus                                   -> same
+                | expression_plus "<" expression_bool               -> binop_lt
+                | expression_plus "<=" expression_bool              -> binop_le
+                | expression_plus ">" expression_bool               -> binop_gt
+                | expression_plus ">=" expression_bool              -> binop_ge
                 | expression_plus "-->" expression_bool             -> binop_imp
 
 expression_plus : expression_fact                           -> same
@@ -50,19 +50,19 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
 application_t : application_t "[" type "]"                    -> type_application_e
-              | expression_simple                                 -> same
+              | expression_simple                             -> same
 
-application : application expression_simple                      -> application_e
+application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
-expression_simple : "(" expression ")"                       -> same
-             | "(" expression ":" type ")"                       -> annotation
+expression_simple : "(" expression ")"                          -> same
+             | "(" expression ":" type ")"                      -> annotation
              | INTLIT                                           -> int_lit
-             | FLOATLIT                                        -> float_lit
-             | BOOLLIT                                         -> bool_lit
-             | STRINGLIT                                      -> string_lit
-             | ID                                             -> var
-             | "?" ID                                         -> hole
+             | FLOATLIT                                         -> float_lit
+             | BOOLLIT                                          -> bool_lit
+             | STRINGLIT                                        -> string_lit
+             | ID                                               -> var
+             | "?" ID                                           -> hole
 
 
 kind : "B" -> base_kind

@@ -1,0 +1,29 @@
+# currently this is not working
+import Math;
+import extract_train_data from PSB2;
+import load_dataset from PSB2;
+import get_input_list from PSB2;
+import unpack_train_data from PSB2;
+import get_output_list from PSB2;
+import get_bb_synth_values from PSB2;
+import mean_absolute_error from PSB2;
+
+type Unit;
+
+def bounciness_index : (starting_height: {x:Float | 1 <= x && x <= 100} ) -> ( bounce_height:{y:Float | 1 <= y && y <= 100} ) -> Float = \a -> \b-> b /. a;
+
+def calculate_distance_helper : (bounciness_index: Float) -> (height: Float) -> (n: Int) ->  (distance: Float) -> Float =
+\b -> \h -> \n-> \d-> if n == 0 then d else calculate_distance_helper b (b *.h) (n-1) (d +. h +. b *.h) ;
+
+def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> ( bounce_height:{y:Float | 1.0 <= y && y <= 100.0} ) -> ( bounces:{z:Int | 1 <= z && z <= 20}) -> Float =
+   \a -> \b-> \c -> calculate_distance_helper (bounciness_index a b) a c  0.0 ;
+
+def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@minimize( mean_absolute_error (get_bb_synth_values input_list synth) (expected_values))
+def synth (a:Float , b:Float , c:Int) : Float
+    {
+        (?hole:Float)
+    }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -25,7 +26,7 @@ def entailment(ctx: TypingContext, c: Constraint):
     if isinstance(ctx, EmptyContext):
         r = solve(c)
         if not r:
-            show_constraint(c) # DEMO1
+            show_constraint(c)  # DEMO1
             # print(c)
         return r
     elif isinstance(ctx, VariableBinder):

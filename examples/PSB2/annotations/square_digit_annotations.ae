@@ -1,0 +1,36 @@
+# Given a positive integer, square each digit and
+# concatenate the squares into a returned string.
+# input : integer in [0, 1000000]
+# output : string
+
+
+import String;
+import Math;
+import PSB2;
+
+#def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
+#    if n == 0 then
+#        ""
+#    else
+#        digit = n % 10;
+#        square = digit * digit;
+#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
+#        result
+#}
+
+def square_digit_unsafe  ( n : Int) : String {
+    if n == 0 then
+        ""
+    else
+        digit = n % 10;
+        square = digit * digit;
+        result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
+        result
+}
+
+def train: TrainData = extract_train_data (load_dataset "square-digit" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@minimize(String_distance (join_string_list(get_sd_synth_values input_list synth)) (join_string_list(expected_values)))
+def synth ( n : Int) : String {(?hole:String)}

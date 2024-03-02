@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
@@ -13,13 +14,13 @@ class Node:
 @dataclass
 class ImportAe(Node):
     path: str
-    func_or_type: str
+    func: str
 
     def __repr__(self):
-        if not self.func_or_type:
+        if not self.func:
             return f"import {self.path};"
         else:
-            return f"import {self.func_or_type} from {self.path};"
+            return f"import {self.func} from {self.path};"
 
 
 @dataclass
@@ -31,11 +32,22 @@ class TypeDecl(Node):
 
 
 @dataclass
+class Decorator(Node):
+    name: str
+    macro_args: list[Term]
+
+    def __repr__(self):
+        macro_args = ", ".join([f"{term}" for (term) in self.macro_args])
+        return f"@{self.name}({macro_args})"
+
+
+@dataclass
 class Definition(Node):
     name: str
     args: list[tuple[str, Type]]
     type: Type
     body: Term  # TODO: replace with custom Sugar Expr
+    decorators: list[Decorator] = field(default_factory=list)
 
     def __repr__(self):
         if not self.args:

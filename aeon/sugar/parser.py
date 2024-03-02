@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Callable
 
 from lark import Lark
+from lark import Tree
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.types import AbstractionType
 from aeon.core.types import TypeVar
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
@@ -35,7 +39,19 @@ class TreeToSugar(TreeToCore):
         return Definition(args[0], [], args[1], args[2])
 
     def def_fun(self, args):
-        return Definition(args[0], args[1], args[2], args[3])
+        if len(args) == 4:
+            return Definition(args[0], args[1], args[2], args[3])
+        if isinstance(args[0], Decorator):
+            decorators = [args[0]]
+        else:
+            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        return Definition(args[1], args[2], args[3], args[4], decorators)
+
+    def macro(self, args):
+        return Decorator(args[0], args[1])
+
+    def macro_args(self, args):
+        return args
 
     def empty_list(self, args):
         return []
@@ -64,4 +80,22 @@ def mk_parser(rule="start", start_counter=0):
     )
 
 
-parse_program = mk_parser("program").parse
+parse_program: Callable[[str], Program] = mk_parser("program").parse
+
+
+def ensure_anf_definition(d: Definition):
+    match d:
+        case Definition(name=name, args=args, type=type, body=body, decorators=decorators):
+            new_body = ensure_anf(body)
+            return Definition(name, args, type, new_body, decorators)
+        case _:
+            assert False
+
+
+def ensure_anf_sugar(p: Program) -> Program:
+    match p:
+        case Program(imports=imp, type_decls=type_decls, definitions=definitions):
+            new_definitions = [ensure_anf_definition(d) for d in definitions]
+            return Program(imports=imp, type_decls=type_decls, definitions=new_definitions)
+        case _:
+            assert False

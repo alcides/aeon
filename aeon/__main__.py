@@ -6,28 +6,29 @@ import sys
 from aeon.backend.evaluator import eval
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.types import top
+from aeon.decorators import apply_decorators
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
+from aeon.logger.logger import export_log
+from aeon.logger.logger import setup_logger
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
-from aeon.typechecking.typeinfer import check_and_log_type_errors
+from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
+from aeon.synthesis_grammar.synthesizer import synthesize
+from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
-from aeon.logger.logger import setup_logger, export_log
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "filename",
-        help="name of the aeon files to be synthesized",
-    )
-    parser.add_argument(
-        "--core",
-        action="store_true",
-        help="synthesize a aeon core file",
-    )
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
@@ -36,12 +37,16 @@ def parse_arguments():
         help="set log level: \nTRACE \nDEBUG \nINFO \nTYPECHECKER \nCONSTRAINT "
         "\nWARNINGS \nERROR \nCRITICAL",
     )
-    parser.add_argument(
-        "-f",
-        "--logfile",
-        action="store_true",
-        help="export log file",
-    )
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
+
+    parser.add_argument("-csv",
+                        "--csv-synth",
+                        action="store_true",
+                        help="export synthesis csv file")
+
     parser.add_argument(
         "-d",
         "--debug",
@@ -56,14 +61,23 @@ def read_file(filename: str) -> str:
         return file.read()
 
 
-def process_code(core: bool, code: str) -> tuple:
-    if core:
-        context = build_context(typing_vars)
-        evaluation_ctx = EvaluationContext(evaluation_vars)
-        return parse_term(code), context, evaluation_ctx
-    else:
-        prog: Program = parse_program(code)
-        return desugar(prog)
+def apply_decorators_in_program(p: Program) -> Program:
+    """We apply the decorators meta-programming code to each definition in the program."""
+    new_definitions = []
+    for definition in p.definitions:
+        new_def, other_defs = apply_decorators(definition)
+        new_definitions.append(new_def)
+        new_definitions.extend(other_defs)
+    return Program(p.imports, p.type_decls, new_definitions)
+
+
+def log_type_errors(errors: list[Exception | str]):
+    logger.log("TYPECHECKER", "-------------------------------")
+    logger.log("TYPECHECKER", "+     Type Checking Error     +")
+    for error in errors:
+        logger.log("TYPECHECKER", "-------------------------------")
+        logger.log("TYPECHECKER", error)
+    logger.log("TYPECHECKER", "-------------------------------")
 
 
 if __name__ == "__main__":
@@ -74,7 +88,38 @@ if __name__ == "__main__":
         logger.add(sys.stderr)
 
     aeon_code = read_file(args.filename)
-    p, ctx, ectx = process_code(args.core, aeon_code)
-    logger.info(p)
-    if not check_and_log_type_errors(ctx, p, top):
-        eval(p, ectx)
+
+    if args.core:
+        typing_ctx = build_context(typing_vars)
+        evaluation_ctx = EvaluationContext(evaluation_vars)
+        core_ast = parse_term(aeon_code)
+    else:
+        prog: Program = parse_program(aeon_code)
+        prog = apply_decorators_in_program(prog)
+        (
+            core_ast,
+            typing_ctx,
+            evaluation_ctx,
+        ) = desugar(prog)
+    logger.info(core_ast)
+
+    core_ast_anf = ensure_anf(core_ast)
+    type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    if type_errors:
+        log_type_errors(type_errors)
+        sys.exit(1)
+
+    incomplete_functions: list[tuple[
+        str,
+        list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+
+    if incomplete_functions:
+        file_name = args.filename if args.csv_synth else None
+
+        synthesis_result = synthesize(typing_ctx, evaluation_ctx, core_ast_anf,
+                                      incomplete_functions)
+
+        print(f"Best solution: {synthesis_result}")
+        sys.exit(1)
+
+    eval(core_ast, evaluation_ctx)

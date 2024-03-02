@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Generator
 
+from loguru import logger
+
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
@@ -21,7 +23,6 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from loguru import logger
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -345,5 +346,4 @@ def show_constraint(c: Constraint):
         logger.log("CONSTRAINT", "Could not show constrain:")
         logger.log("CONSTRAINT", pretty_print_constraint(c))
     except ValueError:
-        print("Could not show constrain:")
-        print(pretty_print_constraint(c))
+        pass

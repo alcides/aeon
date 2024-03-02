@@ -5,7 +5,6 @@ from time import process_time
 
 
 def measure(func):
-
     @wraps(func)
     def _time_it(*args, **kwargs):
         start = int(round(process_time() * 1000))

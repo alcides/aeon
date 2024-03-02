@@ -37,6 +37,7 @@ from aeon.core.types import Type
 from aeon.core.types import type_free_term_vars
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.helpers import simplify_constraint
@@ -68,10 +69,10 @@ class FailedConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return isinstance(ty, TypeVar) or isinstance(
+    return (isinstance(ty, TypeVar) or isinstance(
         ty,
         RefinedType,
-    ) and isinstance(ty.type, TypeVar)
+    ) and isinstance(ty.type, TypeVar))
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -243,6 +244,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         return (ctrue, bottom)
     else:
         print("Unhandled:", t)
+        print("Unhandled:", type(t))
         assert False
 
 
@@ -316,6 +318,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
+        t = ensure_anf(t)
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
     except CouldNotGenerateConstraintException:
@@ -331,6 +334,7 @@ def check_type_errors(
 ) -> list[Exception | str]:
     """Checks whether t as type ty in ctx, but returns a list of errors."""
     try:
+        t = ensure_anf(t)
         constraint = check(ctx, t, ty)
         r = entailment(ctx, constraint)
         if r:

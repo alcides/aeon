@@ -1,0 +1,33 @@
+# Given an integer n, return "Fizz" if n is divisible by 3,
+# "Buzz" if n is divisible by 5, "FizzBuzz" if n is
+# divisible by 3 and 5, and a string version of n if none of
+# the above hold (convert integer to string).
+# input : integer in [1, 1000000]
+# output : string
+# --not working properly--
+import PSB2;
+
+def constant_i : Int = 0;
+def constant_i3 : Int = 3;
+def constant_i5 : Int = 5;
+def constant_FizzBuzz : String = "FizzBuzz";
+def constant_Buzz : String = "Buzz";
+def constant_Fizz : String = "Fizz";
+
+def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool { if ((n % 3) == 0) then true else false}
+def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool  {if ((n % 5) == 0)  then true else false}
+def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool {if ((n % 15) == 0)  then true else false}
+
+def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
+    if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
+}
+
+def train: TrainData = extract_train_data (load_dataset "fizz-buzz" 200 200);
+def input_list : List = get_input_list (unpack_train_data train);
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@minimize(String_distance (join_string_list(get_fb_synth_values input_list synth)) (join_string_list(expected_values)))
+def synth (n : Int) : String {
+    (?hole:String)
+
+}

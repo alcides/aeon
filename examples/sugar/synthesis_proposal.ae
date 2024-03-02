@@ -1,0 +1,3 @@
+
+@minimize_int(forAllInteger (\x -> fun x))
+def fun (x:Int) : {y:Int | y > x} { ?hole }
