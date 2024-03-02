@@ -1,6 +1,0 @@
-# TODO: resolve Type Checking failed because of print
-let fib : (x:Int) -> Int = \n -> if n < 2 then 1 else (fib (n-1)) + (fib (n-2)) in
-# let _1 = print("Fib 7:") in
-# let a = print(fib 7) in
-let a = (fib 7) in
-0

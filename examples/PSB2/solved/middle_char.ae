@@ -1,0 +1,37 @@
+type List;
+
+def math : Unit = native_import "math";
+def Math_floor : (i:Float) -> Int = native "lambda i: math.floor(i)";
+def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)";
+def Math_toInt : (i:Float) -> Int = native "lambda i: int(i)";
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+
+
+def equal_int : (a: Int) -> (b: Int) -> Bool = native "lambda x: lambda y : x == y";
+
+def middle_char  (s: String) : String {
+    str_len : Int = String_len s;
+    a : Int = (str_len / 2);
+    b : Bool = equal_int a 0;
+    if (b) then
+        x: Float = Math_toFloat str_len;
+        y: Float = (x /. 2.0);
+        snd_mid_char_index : Int = (Math_floor y) + 1;
+        fst_mid_char_index : Int = snd_mid_char_index - 2 ;
+        mid_chars = String_slice s fst_mid_char_index snd_mid_char_index;
+        mid_chars
+    else
+        x: Float = Math_toFloat str_len;
+        y: Float = (x /. 2.0);
+        mid_char_index: Int = (Math_floor y);
+        m_char = String_slice s mid_char_index (mid_char_index+1);
+        m_char
+}
+
+
+
+def main (args:Int) : Unit {
+    print (middle_char "ola")
+}

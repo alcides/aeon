@@ -34,6 +34,10 @@ class EvaluationContext:
         return self.variables[name]
 
 
+def is_native_var(t: Application):
+    return isinstance(t.fun, Var) and t.fun.name == "native"
+
+
 # pattern match term
 def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     if isinstance(t, Literal):
@@ -45,7 +49,9 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
     elif isinstance(t, Application):
         f = eval(t.fun, ctx)
         arg = eval(t.arg, ctx)
-        e = f(arg)
+        # e = real_eval(arg, __globals=ctx.variables) if is_native_var(t) else f(arg)
+        e = real_eval(arg, ctx.variables) if is_native_var(t) else f(arg)
+
         if isinstance(t.fun, Var) and t.fun.name == "native_import":
             globals()[arg] = e
         return e
@@ -66,7 +72,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         return eval(t.body, ctx.with_var(t.var_name, v))
     elif isinstance(t, If):
         c = eval(t.cond, ctx)
-        return bool(c) and eval(t.cond, ctx) or eval(t.otherwise, ctx)
+        if c:
+            return eval(t.then, ctx)
+        else:
+            return eval(t.otherwise, ctx)
     elif isinstance(t, Annotation):
         return eval(t.expr, ctx)
     elif isinstance(t, Hole):

@@ -1,6 +1,5 @@
 type List;
 
-def length(l:List) : Int { uninterpreted }
+def length : (l:List) -> Int = uninterpreted;
 
-
-def create(i:Int) : List { native "[]" }
+def create(i:Int) : {l:List | length l == 0} { native "[]" }

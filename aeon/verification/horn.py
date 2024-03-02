@@ -6,6 +6,7 @@ from typing import Sequence
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
@@ -33,6 +34,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
 Assignment = dict[str, list[LiquidTerm]]
 
@@ -71,7 +73,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, Bottom):
         return ty
     else:
-        print(ty)
+        print("Type not freshable:", ty, type(ty))
         assert False
 
 
@@ -103,7 +105,7 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHole]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
+    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -122,6 +124,8 @@ def contains_horn_constraint(c: Constraint):
         return contains_horn_constraint(c.c1) or contains_horn_constraint(c.c2)
     elif isinstance(c, Implication):
         return contains_horn(c.pred) or contains_horn_constraint(c.seq)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        return contains_horn_constraint(c.seq)
     else:
         assert False
 
@@ -129,9 +133,12 @@ def contains_horn_constraint(c: Constraint):
 def wellformed_horn(predicate: LiquidTerm):
     if not contains_horn(predicate):
         return True
-    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
-          and not contains_horn(predicate.args[0])
-          and isinstance(predicate.args[1], LiquidHole)):
+    elif (
+        isinstance(predicate, LiquidApp)
+        and predicate.fun == "&&"
+        and not contains_horn(predicate.args[0])
+        and isinstance(predicate.args[1], LiquidHole)
+    ):
         return True
     elif isinstance(predicate, LiquidHole):
         return True
@@ -341,4 +348,5 @@ def solve(c: Constraint) -> bool:
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
-    return smt_valid(apply(subst, merged_csps))
+    v = apply(subst, merged_csps)
+    return smt_valid(v)

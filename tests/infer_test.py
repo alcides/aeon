@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from aeon.core.types import t_int
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.typechecking.context import EmptyContext
@@ -12,13 +14,20 @@ from aeon.utils.ctx_helpers import build_context
 
 def tt(e: str, t: str, vars: dict[str, str] = {}):
     ctx = build_context({k: parse_type(v) for (k, v) in vars.items()})
-    return check_type(ctx, parse_term(e), parse_type(t))
+    term = ensure_anf(parse_term(e))
+    return check_type(ctx, term, parse_type(t))
 
 
 def test_one_is_int():
     assert tt("1", "Int")
     assert tt("1", "{x:Int|x == 1}")
     assert tt("1", "{x:Int|x > 0}")
+
+
+def test_one_is_float():
+    assert tt("1.0", "Float")
+    assert tt("1.0", "{x:Float|x == 1.0}")
+    assert tt("1.0", "{x:Float|x > 0}")
 
 
 def test_true_is_bool():

@@ -33,10 +33,6 @@ from aeon.core.types import top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.utils.ast_helpers import ensure_anf_app
-from aeon.utils.ast_helpers import ensure_anf_if
-from aeon.utils.ast_helpers import ensure_anf_let
-from aeon.utils.ast_helpers import ensure_anf_rec
 from aeon.utils.ast_helpers import i0
 from aeon.utils.ast_helpers import mk_binop
 
@@ -70,7 +66,7 @@ class TreeToCore(Transformer):
             return bottom
         elif n == "Top":
             return top
-        elif n in ["Int", "Bool", "Float", "String"]:
+        elif n in ["Unit", "Int", "Bool", "Float", "String"]:
             return BaseType(n)
         else:
             return TypeVar(n)
@@ -86,13 +82,13 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), "-", i0, args[0])
 
     def let_e(self, args):
-        return ensure_anf_let(Let(str(args[0]), args[1], args[2]))
+        return Let(str(args[0]), args[1], args[2])
 
     def rec_e(self, args):
-        return ensure_anf_rec(Rec(str(args[0]), args[1], args[2], args[3]))
+        return Rec(str(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
-        return ensure_anf_if(lambda: self.fresh(), If(args[0], args[1], args[2]))
+        return If(args[0], args[1], args[2])
 
     def nnot(self, args):
         return Application(Var("!"), args[0])
@@ -139,11 +135,26 @@ class TreeToCore(Transformer):
     def binop_mod(self, args):
         return self.binop(args, "%")
 
+    def binop_plus_f(self, args):
+        return self.binop(args, "+.")
+
+    def binop_minus_f(self, args):
+        return self.binop(args, "-.")
+
+    def binop_mult_f(self, args):
+        return self.binop(args, "*.")
+
+    def binop_div_f(self, args):
+        return self.binop(args, "/.")
+
+    def binop_mod_f(self, args):
+        return self.binop(args, "%.")
+
     def binop(self, args, op):
         return mk_binop(lambda: self.fresh(), op, args[0], args[1])
 
     def application_e(self, args):
-        return ensure_anf_app(lambda: self.fresh(), Application(args[0], args[1]))
+        return Application(args[0], args[1])
 
     def abstraction_e(self, args):
         return Abstraction(str(args[0]), args[1])
@@ -155,7 +166,7 @@ class TreeToCore(Transformer):
         return TypeApplication(args[0], args[1])
 
     def var(self, args):
-        return Var(str(args[0]))
+        return Var(str(args[0]).strip())
 
     def hole(self, args):
         return Hole(str(args[0]))

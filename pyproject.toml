@@ -3,10 +3,18 @@ name = "Aeon"
 version = "4.0.0a"
 description = "Language with Refinement Types"
 authors = [
-    {name = "Alcides Fonseca", email = "me@alcidesfonseca.com"}
+    { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
 ]
 readme = "Readme.md"
-requires-python = "~=3.9"
+requires-python = "~=3.10"
+
+keywords = ["programming language, liquid types"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
+]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
@@ -42,10 +50,8 @@ all = true
 [tool.ruff]
 line-length = 120
 
-
-# Enable Pyflakes `E` and `F` codes by default.
-select = ["E", "F"]
-ignore = ["E741", "E501"]
+# Assume Python 3.10.
+target-version = "py310"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -69,21 +75,24 @@ exclude = [
     "node_modules",
     "venv",
 ]
-per-file-ignores = {}
+
+[tool.ruff.lint]
+# Enable Pyflakes `E` and `F` codes by default.
+select = ["E", "F"]
+ignore = ["E741", "E501"]
+per-file-ignores = { }
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.10.
-target-version = "py310"
 
-[tool.ruff.flake8-import-conventions.aliases]
+[tool.ruff.lint.flake8-import-conventions.aliases]
 altair = "alt"
 "matplotlib.pyplot" = "plt"
 numpy = "np"
 pandas = "pd"
 seaborn = "sns"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10

@@ -15,7 +15,6 @@ class RandomSource:
 
 
 class SeededRandomSource(RandomSource):
-
     def __init__(self, seed):
         self.r = Random()
         self.r.seed(seed)
@@ -47,4 +46,4 @@ class ListRandomSource(RandomSource):
         return v
 
     def __str__(self):
-        return str(self.values[self.index:])
+        return str(self.values[self.index :])

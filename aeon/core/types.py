@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import liquid_free_vars
 
 
 class Kind(ABC):
@@ -164,9 +164,7 @@ class TypePolymorphism(Type):
 def extract_parts(
     t: Type,
 ) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert (
-        isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
-    )
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)
     else:
@@ -180,9 +178,7 @@ def extract_parts(
 def is_bare(ty: Type) -> bool:
     """Returns whether a type is bare or not."""
     bare_base = isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHole)
-    dependent_function = (
-        isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
-    )
+    dependent_function = isinstance(ty, AbstractionType) and is_bare(ty.var_type) and is_bare(ty.type)
     type_polymorphism = isinstance(ty, TypePolymorphism) and is_bare(ty.body)
     return bare_base or dependent_function or type_polymorphism
 
@@ -194,6 +190,8 @@ def base(ty: Type) -> Type:
 
 
 def type_free_term_vars(t: Type) -> list[str]:
+    from aeon.prelude.prelude import ALL_OPS
+
     if isinstance(t, BaseType):
         return []
     elif isinstance(t, TypeVar):
@@ -201,11 +199,11 @@ def type_free_term_vars(t: Type) -> list[str]:
     elif isinstance(t, AbstractionType):
         afv = type_free_term_vars(t.var_type)
         rfv = type_free_term_vars(t.type)
-        return [x for x in afv + rfv if x != t.var_name]
+        return [x for x in afv + rfv if x != t.var_name and x not in ALL_OPS]
     elif isinstance(t, RefinedType):
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
-        return [x for x in ifv + rfv if x != t.name]
+        return [x for x in ifv + rfv if x != t.name and x not in ALL_OPS]
     return []
 
 
@@ -220,3 +218,9 @@ def args_size_of_type(t: Type) -> int:
         return 1 + args_size_of_type(t.type)
     else:
         assert False
+
+
+def refined_to_unrefined_type(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty

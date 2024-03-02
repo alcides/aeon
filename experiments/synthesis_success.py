@@ -6,22 +6,18 @@ import pathlib
 import random
 import sys
 import time
-import typing
 from optparse import OptionParser
 from statistics import mean
 from typing import Any
 from typing import Callable
-from typing import List
 
-experiments_folder = pathlib.Path(__file__).parent
-sys.path.append(str(experiments_folder.parent.absolute()))
 
 import zstandard as zstd
 
 from aeon.synthesis.exceptions import NoMoreBudget
 from aeon.typechecking.context import EmptyContext, VariableBinder
 from aeon.synthesis.sources import ListRandomSource
-from aeon.frontend.parser import parse_term, parse_type
+from aeon.frontend.parser import parse_type
 from aeon.synthesis.term_synthesis import synth_term
 from aeon.synthesis.type_synthesis import synth_type
 from aeon.core.distance import pairwise_distance, term_depth
@@ -34,6 +30,9 @@ from aeon.synthesis.choice_manager import (
     SemanticFilterManager,
 )
 from aeon.utils.ctx_helpers import build_context
+
+experiments_folder = pathlib.Path(__file__).parent
+sys.path.append(str(experiments_folder.parent.absolute()))
 
 type_tries = 100
 
@@ -63,10 +62,7 @@ def generate_lists(n, seed=1234):
         yield [r.randint(-256, 256) for _ in range(size)]
 
 
-def evaluate_type(mang: Callable[[], ChoiceManager],
-                  depth=5,
-                  tries=100,
-                  seed=1234):
+def evaluate_type(mang: Callable[[], ChoiceManager], depth=5, tries=100, seed=1234):
     successes = 0
     man = mang()
     list_of_sources = list(generate_lists(tries, seed))
@@ -84,43 +80,27 @@ def evaluate_type(mang: Callable[[], ChoiceManager],
 
 base_ctx = build_context(
     {
-        "plus":
-        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x + y) }"),
-        "minus":
-        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x - y) }"),
-        "times":
-        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x * y) }"),
-        "div":
-        parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x / y) }"),
-        "abs":
-        parse_type(
+        "plus": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x + y) }"),
+        "minus": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x - y) }"),
+        "times": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x * y) }"),
+        "div": parse_type(r"(x:Int) -> (y:Int) -> {z:Int | z == (x / y) }"),
+        "abs": parse_type(
             r"(x:Int) -> (y:Int) -> {z:Int | (z == x) && (x > y) || (z == y) && (y >= x) }",
         ),
-        "not":
-        parse_type("(x:Bool) -> Bool"),
-        "eqInt":
-        parse_type("(x:Int) -> (y:Int) -> Int"),
-        "eqBool":
-        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "and":
-        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "or":
-        parse_type("(x:Bool) -> (y:Bool) -> Bool"),
-        "gt":
-        parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "gte":
-        parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "lt":
-        parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "lte":
-        parse_type("(x:Int) -> (y:Int) -> Bool"),
-        "isPositive":
-        parse_type("(x:Int) -> Bool"),
-        "isNegative":
-        parse_type("(x:Int) -> Bool"),
-        "toInt":
-        parse_type("(x:Bool) -> Int"),
-    }, )
+        "not": parse_type("(x:Bool) -> Bool"),
+        "eqInt": parse_type("(x:Int) -> (y:Int) -> Int"),
+        "eqBool": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "and": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "or": parse_type("(x:Bool) -> (y:Bool) -> Bool"),
+        "gt": parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "gte": parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "lt": parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "lte": parse_type("(x:Int) -> (y:Int) -> Bool"),
+        "isPositive": parse_type("(x:Int) -> Bool"),
+        "isNegative": parse_type("(x:Int) -> Bool"),
+        "toInt": parse_type("(x:Bool) -> Int"),
+    },
+)
 for i in range(2):
     name = f"x_{i}"
     base_ctx = VariableBinder(base_ctx, name, t_int)
@@ -151,7 +131,7 @@ def evaluate_term(
                 successes.append(t)
             else:
                 print(":(")
-        except NoMoreBudget as e:
+        except NoMoreBudget:
             print("out of budget", i)
             continue
         except RecursionError:
@@ -225,8 +205,7 @@ parser.add_option(
     "-m",
     "--manager",
     dest="manager",
-    help=
-    "Class to use as ChoiceManager. One of GrammaticalEvolution, SemanticFilter, Adaptive, DepthAwareAdaptive",
+    help="Class to use as ChoiceManager. One of GrammaticalEvolution, SemanticFilter, Adaptive, DepthAwareAdaptive",
     metavar="MANAGER",
 )
 

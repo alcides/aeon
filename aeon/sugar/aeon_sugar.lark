@@ -1,70 +1,81 @@
-program :  aeimport type_decls defs                         -> program
+program :  aeimport type_decls defs                     -> program
 
-aeimport : import*                                  -> list
+aeimport : import*                                      -> list
 
-import: "import" (CNAME | PATH) ";"               -> regular_imp
-      | "import" CNAME "from" (CNAME | PATH) ";"       -> function_imp
+import: "import" (CNAME | PATH) ";"                     -> regular_imp
+      | "import" CNAME "from" (CNAME | PATH) ";"        -> function_imp
 
 type_decls : type_decl*                              -> list
 
 defs : def*                                          -> list
 
-type_decl : "type" ID ";"                            -> type_decl
+type_decl : "type" TYPENAME ";"                            -> type_decl
 
-def : "def" namespace ":" type "=" expression ";"          -> def_cons
-    | "def" namespace "(" args ")" ":" type "{" expression "}" -> def_fun
+def : (soft_constraint)* "def" namespace ":" type "=" expression ";"          -> def_cons
+    | (soft_constraint)* "def" namespace "(" args ")" ":" type "{" expression "}" -> def_fun
+
+soft_constraint : "@" ID "(" macro_args ")"                 -> macro
+
+macro_args :                           -> empty_list
+     | expression ("," expression)*    -> macro_args
 
 
 namespace : ID                     -> same
           | ID "." namespace       -> namespace
 
 args :                          -> empty_list
-     | arg ("," arg)*          -> args
+     | arg ("," arg)*           -> args
 
 arg : ID ":" type               -> arg
 
+
 expression : "-" expression_i                           -> minus
-           | expression_i                              -> same
+           | expression_i                               -> same
 
-expression_i :  ID "=" expression ("in"|";") expression     -> let_e
-          |  ID ":" type "=" expression ("in"|";") expression     -> rec_e
-          | "if" expression "then" expression "else" expression -> if_e
-          | expression_un                                -> same
+expression_i :  ID "=" expression ("in "|";") expression           -> let_e
+          |  ID ":" type "=" expression ("in "|";") expression     -> rec_e
+          | "if" expression "then" expression "else" expression    -> if_e
+          | expression_un                                          -> same
 
-expression_un : expression_bool                               -> same
-           | "!" expression_un                               -> nnot
-           | expression_bool "==" expression_un               -> binop_eq
-           | expression_bool "!=" expression_un               -> binop_neq
-           | expression_bool "&&" expression_un               -> binop_and
+expression_un : expression_bool                                      -> same
+           | "!" expression_un                                       -> nnot
+           | expression_bool "==" expression_un                      -> binop_eq
+           | expression_bool "!=" expression_un                      -> binop_neq
+           | expression_bool "&&" expression_un                      -> binop_and
            | expression_bool _DOUBLEPIPE expression_un               -> binop_or
 
 
-expression_bool : expression_plus                                -> same
-                | expression_plus "<" expression_bool             -> binop_lt
+expression_bool : expression_plus                                  -> same
+                | expression_plus "<" expression_bool              -> binop_lt
                 | expression_plus "<=" expression_bool             -> binop_le
-                | expression_plus ">" expression_bool             -> binop_gt
+                | expression_plus ">" expression_bool              -> binop_gt
                 | expression_plus ">=" expression_bool             -> binop_ge
-                | expression_plus "-->" expression_bool             -> binop_imp
+                | expression_plus "-->" expression_bool            -> binop_imp
 
 expression_plus : expression_fact                           -> same
                 | expression_fact "+" expression_plus       -> binop_plus
                 | expression_fact "-" expression_plus       -> binop_minus
+                | expression_fact "+." expression_plus      -> binop_plus_f
+                | expression_fact "-." expression_plus      -> binop_minus_f
 
 expression_fact : expression_b                           -> same
                 | expression_b "*" expression_fact       -> binop_mult
                 | expression_b "/" expression_fact       -> binop_div
                 | expression_b "%" expression_fact       -> binop_mod
+                | expression_b "*." expression_fact      -> binop_mult_f
+                | expression_b "/." expression_fact      -> binop_div_f
+                | expression_b "%." expression_fact      -> binop_mod_f
 
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
-             | "\\" ID ":" type "->" expression                      -> abstraction_et
+             | "\\" ID ":" type "->" expression             -> abstraction_et
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
 application_t : application_t "[" type "]"                    -> type_application_e
-              | expression_simple                                 -> same
+              | expression_simple                             -> same
 
-application : application expression_simple                      -> application_e
+application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
@@ -80,7 +91,7 @@ expression_simple : "(" expression ")"                       -> same
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
-     | "forall" ID ":" kind "," type                     -> polymorphism_t // TODO: desugar
+     | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
      | "(" type ")"                                        -> same
 
@@ -93,6 +104,7 @@ INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 STRINGLIT : ESCAPED_STRING
 
+TYPENAME : /[a-zA-Z0-9]+/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
 PATH : (".." | ID )* "/" ID
 

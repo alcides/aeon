@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Callable
 
 from lark import Lark
+from lark import Tree
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -10,6 +12,7 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Namespace
@@ -25,16 +28,37 @@ class TreeToSugar(TreeToCore):
         return Program(args[0], args[1], args[2])
 
     def regular_imp(self, args):
-        return ImportAe(args[0])
+        return ImportAe(args[0], [])
+
+    def function_imp(self, args):
+        return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
         return TypeDecl(args[0])
 
     def def_cons(self, args):
-        return Definition(args[0], [], args[1], args[2])
+        if len(args) == 3:
+            return Definition(args[0], [], args[1], args[2])
+        if isinstance(args[0], Decorator):
+            decorators = [args[0]]
+        else:
+            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        return Definition(args[1], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
-        return Definition(args[0], args[1], args[2], args[3])
+        if len(args) == 4:
+            return Definition(args[0], args[1], args[2], args[3])
+        if isinstance(args[0], Decorator):
+            decorators = [args[0]]
+        else:
+            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        return Definition(args[1], args[2], args[3], args[4], decorators)
+
+    def macro(self, args):
+        return Decorator(args[0], args[1])
+
+    def macro_args(self, args):
+        return args
 
     def empty_list(self, args):
         return []
@@ -69,4 +93,4 @@ def mk_parser(rule="start", start_counter=0):
     )
 
 
-parse_program = mk_parser("program").parse
+parse_program: Callable[[str], Program] = mk_parser("program").parse

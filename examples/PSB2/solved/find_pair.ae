@@ -1,0 +1,31 @@
+type List;
+
+def itertools : Unit = native_import "itertools";
+def combinations : (n:List) -> (m:Int) -> List = native "lambda n: lambda m: list(itertools.combinations(n, m))";
+
+def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)" ;
+def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+
+def List_filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+
+def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
+def List_head : (l: List) -> List = native "lambda xs: xs[0]";
+def List_size : (l:List) -> Int = uninterpreted;
+def List_length : (l:List) -> Int = native "lambda list: len(list)";
+def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_append : (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
+
+#assuming that the list always has at least 2 elements that sum to the target
+def find_pair (numbers: List, target: Int) : List {
+    pairs : List = combinations numbers 2;
+    pred : (s:List) -> Bool = \pair -> List_sum pair == target;
+    matching_pairs : List = List_filter pred pairs;
+    List_head matching_pairs
+}
+
+
+def main (args:Int) : Unit {
+    l : List = List_append (List_append List_new 5) 7;
+    p : List = find_pair l 12;
+    print p
+}
