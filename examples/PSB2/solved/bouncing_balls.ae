@@ -2,5 +2,8 @@ type Unit;
 
 def math : Unit = native_import "math";
 
-def bouncing_balls : (starting_height:{x:Float | 1 <= x && x <= 100} ) -> ( bounce_height:{y:Float | 1 <= y && y <= 100} ) -> ( bounces:{z:Int | 1 <= z && z <= 20}) -> Float =
+def bouncing_balls : (starting_height:{x:Float | 1 <= x && x <= 100} )
+                  -> (bounce_height:{y:Float | 1 <= y && y <= 100} )
+                  -> (bounces:{z:Int | 1 <= z && z <= 20})
+                  -> Float =
      native "lambda x: lambda y: lambda z: 2 * x * (1 - math.pow((y / x) , z)) / (1 - (y / x))" ;
