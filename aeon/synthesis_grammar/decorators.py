@@ -6,8 +6,12 @@ from aeon.core.types import BaseType
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.utils import fitness_function_name_for
 
+from aeon.decorators.api import Metadata
 
-def minimize_int(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+
+def minimize_int(
+    args: list[Term], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a single argument (the body of the definition).
 
     It does not modify the original definition, but appends a new
@@ -16,10 +20,12 @@ def minimize_int(args: list[Term], fun: Definition) -> tuple[Definition, list[De
     """
     assert len(args) == 1
     fitness_function = Definition(name=fitness_function_name_for(fun.name), args=[], type=BaseType("Int"), body=args[0])
-    return fun, [fitness_function]
+    return fun, [fitness_function], metadata
 
 
-def minimize_float(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+def minimize_float(
+    args: list[Term], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a single argument (the body of the definition).
 
     It does not modify the original definition, but appends a new
@@ -33,10 +39,12 @@ def minimize_float(args: list[Term], fun: Definition) -> tuple[Definition, list[
         type=BaseType("Float"),
         body=args[0],
     )
-    return fun, [fitness_function]
+    return fun, [fitness_function], metadata
 
 
-def multi_minimize_float(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+def multi_minimize_float(
+    args: list[Term], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a single argument (the body of the definition).
 
     It does not modify the original definition, but appends a new
@@ -50,10 +58,10 @@ def multi_minimize_float(args: list[Term], fun: Definition) -> tuple[Definition,
         type=BaseType("List"),
         body=args[0],
     )
-    return fun, [fitness_function]
+    return fun, [fitness_function], metadata
 
 
-def ignore(args: list[Term], fun: Definition) -> tuple[Definition, list[Definition]]:
+def ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
     # @grammar_skip
     """This decorator expects a zero argument .
 
@@ -63,4 +71,4 @@ def ignore(args: list[Term], fun: Definition) -> tuple[Definition, list[Definiti
     assert len(args) == 0
     grammar.internal_functions.append(fun.name)
     # internal_function = Definition(name=internal_name_for(fun.name), args=fun.args, type=fun.type, body=fun.body)
-    return fun, []
+    return fun, [], metadata

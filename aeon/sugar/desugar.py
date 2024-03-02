@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os.path
 from pathlib import Path
+from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
@@ -92,9 +93,10 @@ def apply_decorators_in_program(prog: Program) -> Program:
 def apply_decorators_in_definitions(definitions: list[Definition]) -> list[Definition]:
     """We apply the decorators meta-programming code to each definition in the
     program."""
+    metadata: dict[str, Any] = {}
     new_definitions = []
     for definition in definitions:
-        new_def, other_defs = apply_decorators(definition)
+        new_def, other_defs, metadata = apply_decorators(definition, metadata)
         new_definitions.append(new_def)
         new_definitions.extend(other_defs)
     return new_definitions
