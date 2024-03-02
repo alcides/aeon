@@ -8,7 +8,7 @@ def peter_wins (n:Int, m:Int) : Int {
     if m == 0 then 0 else Math_max 0 (n - m) + peter_wins n (m - 1)
 }
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+def dice_game (n:{x:Int | 1 <= x && x <= 10000}, m:{y:Int | 1 <= y && y <= 10000}) : Float {
      a : Float = Math_toFloat (peter_wins n m);
      b : Float = Math_toFloat (n * m);
      c : Float = a /. b;
