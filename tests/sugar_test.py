@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aeon.core.types import BaseType
+from aeon.core.types import Top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking.typeinfer import check_type
@@ -16,5 +16,5 @@ def test_sugar():
     """, )
 
     t, ctx, _ = desugar(p)
-    x = check_type(ctx, t, BaseType("Int"))
+    x = check_type(ctx, t, Top)
     assert bool(x)
