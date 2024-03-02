@@ -2,17 +2,17 @@ type List;
 
 def String_len : (i:String) -> Int = native "lambda i: len(i)";
 def String_list_to_String : (l:List) -> String = native "lambda l: ' '.join(l)";
-def map_String_String_List: (function:(a: String) -> String) -> (l: List) -> List = native "lambda f: lambda xs: map(f, xs)";
-def String_split : (i:String) -> (j:String) ->  List = native "lambda i: lambda j: i.split(j)" ;
+def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = native "lambda f: lambda xs: map(f, xs)";
+def String_split : (i:String) -> (j:String) -> List = native "lambda i: lambda j: i.split(j)" ;
 def String_reverse : (i:String) -> String = native "lambda i: i[::-1]";
 
 def spin_words (phrase: String) : String {
-    words: List = String_split(phrase)(" ");
-    reversed_words: List = map_String_String_List ((\x -> if (String_len(x) >= 5) then String_reverse(x) else x):(x:String)->String) (words);
-
-    String_list_to_String(reversed_words)
+    words: List = String_split phrase " ";
+    rev : (x:String) -> String = \x -> if String_len(x) >= 5 then String_reverse x else x;
+    reversed_words : List = map_String_String_List rev words;
+    String_list_to_String reversed_words
  }
 
 def main (args:Int) : Unit {
-    print (spin_words("this is another test"))
+    print (spin_words "this is another test")
 }
