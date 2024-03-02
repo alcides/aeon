@@ -26,21 +26,19 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
-    return (
-        isinstance(term_literal, Literal)
-        and term_literal.type == BaseType("Int")
-        and isinstance(term_literal.value, int)
-        and term_literal.value > 0
-    )
+    return (isinstance(term_literal, Literal)
+            and term_literal.type == BaseType("Int")
+            and isinstance(term_literal.value, int) and term_literal.value > 0)
 
 
 class Synthesizer:
+
     def __init__(
-        self,
-        ctx: TypingContext,
-        p: Term,
-        ty: Type = top,
-        ectx: EvaluationContext = EvaluationContext(),
+            self,
+            ctx: TypingContext,
+            p: Term,
+            ty: Type = top,
+            ectx: EvaluationContext = EvaluationContext(),
     ):
         self.ctx: TypingContext = ctx
         self.p: Term = p
@@ -51,10 +49,11 @@ class Synthesizer:
 
     @staticmethod
     def get_grammar_components(
-        hole_data: tuple[Type, TypingContext, str], grammar_nodes: list[type]
-    ) -> tuple[list[type], type]:
+            hole_data: tuple[Type, TypingContext, str],
+            grammar_nodes: list[type]) -> tuple[list[type], type]:
         hole_type, hole_ctx, synth_func_name = hole_data
-        grammar_nodes = gen_grammar_nodes(hole_ctx, synth_func_name, grammar_nodes)
+        grammar_nodes = gen_grammar_nodes(hole_ctx, synth_func_name,
+                                          grammar_nodes)
 
         assert len(grammar_nodes) > 0
         assert isinstance(hole_type, BaseType)
@@ -76,9 +75,8 @@ class Synthesizer:
         individual_term = individual.get_core()
         first_hole_name = next(iter(self.holes))
         nt = substitution(program, individual_term, first_hole_name)
-        exception_return: float | list[float] = (
-            100000000 if not isinstance(minimize, list) else [100000000 for _ in range(len(minimize))]
-        )
+        exception_return: float | list[float] = (100000000 if not isinstance(
+            minimize, list) else [100000000 for _ in range(len(minimize))])
 
         try:
             check_type_errors(self.ctx, nt, self.ty)
@@ -100,28 +98,28 @@ class Synthesizer:
             return exception_return
 
     @staticmethod
-    def validate_fitness_term(fitness_term: Term, expected_type: BaseType) -> None:
-        if (
-            not isinstance(fitness_term, Let)
-            or not isinstance(fitness_term.body, Rec)
-            or not isinstance(fitness_term.body.var_type, BaseType)
-            or fitness_term.body.var_type != expected_type
-        ):
-            raise ValueError(f"Invalid fitness term or type. Expected {expected_type}")
+    def validate_fitness_term(fitness_term: Term,
+                              expected_type: BaseType) -> None:
+        if (not isinstance(fitness_term, Let)
+                or not isinstance(fitness_term.body, Rec)
+                or not isinstance(fitness_term.body.var_type, BaseType)
+                or fitness_term.body.var_type != expected_type):
+            raise ValueError(
+                f"Invalid fitness term or type. Expected {expected_type}")
 
-    def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]], program: Term):
+    def get_problem_type(self, synth_def_info: tuple[Term, list[Decorator]],
+                         program: Term):
         fitness_term = synth_def_info[0]
 
         # minimize_list = extract_minimize_list_from_decorators(synth_def_info[1])
-        minimize_list = []
+        minimize_list: list[bool] = []
         assert len(minimize_list) > 0, "Minimize list cannot be empty"
         if len(minimize_list) == 1:
             self.validate_fitness_term(fitness_term, BaseType("Float"))
             return SingleObjectiveProblem(
                 minimize=minimize_list[0],
                 fitness_function=lambda individual: self.evaluate_fitness(
-                    individual, fitness_term, minimize_list[0], program
-                ),
+                    individual, fitness_term, minimize_list[0], program),
             )
 
         elif len(minimize_list) > 1:
@@ -129,12 +127,14 @@ class Synthesizer:
             return MultiObjectiveProblem(
                 minimize=minimize_list,
                 fitness_function=lambda individual: self.evaluate_fitness(
-                    individual, fitness_term, minimize_list, program
-                ),
+                    individual, fitness_term, minimize_list, program),
             )
 
     @staticmethod
-    def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str = "") -> str | None:
+    def get_csv_file_path(file_path: str,
+                          representation: type,
+                          seed: int,
+                          hole_name: str = "") -> str | None:
         """
         Generate a csv file path based on provided file_path, representation and seed.
 
@@ -162,7 +162,8 @@ class Synthesizer:
 
     @staticmethod
     def determine_parent_selection_type(problem):
-        return ("lexicase",) if isinstance(problem, MultiObjectiveProblem) else ("tournament", 5)
+        return ("lexicase", ) if isinstance(
+            problem, MultiObjectiveProblem) else ("tournament", 5)
 
     def synthesize(
         self,
@@ -212,10 +213,12 @@ class Synthesizer:
         program_to_synth = self.p
         for i in range(len(objectives)):
             hole_name = holes_names[i]
-            csv_file_path = self.get_csv_file_path(file_path, representation, seed, hole_name)
+            csv_file_path = self.get_csv_file_path(file_path, representation,
+                                                   seed, hole_name)
 
             hole_data = self.holes[hole_name]
-            grammar_nodes, starting_node = self.get_grammar_components(hole_data, grammar_nodes)
+            grammar_nodes, starting_node = self.get_grammar_components(
+                hole_data, grammar_nodes)
             grammar = extract_grammar(grammar_nodes, starting_node)
 
             synth_objective = objectives[hole_data[2]]
@@ -241,19 +244,24 @@ class Synthesizer:
                 save_to_csv=csv_file_path,
             )
             best: Individual = alg.evolve()
-            program_to_synth = substitution(program_to_synth, best.genotype.get_core(), hole_name)
+            program_to_synth = substitution(program_to_synth,
+                                            best.genotype.get_core(),
+                                            hole_name)
 
         return program_to_synth
 
 
-def synthesize_single_function(
-    ctx: TypingContext, ectx: EvaluationContext, term: Term, fun_name: str, holes: list[str]
-) -> Term:
+def synthesize_single_function(ctx: TypingContext, ectx: EvaluationContext,
+                               term: Term, fun_name: str,
+                               holes: list[str]) -> Term:
     # TODO: This function is not working yet
     return term
 
 
-def synthesize(ctx: TypingContext, ectx: EvaluationContext, term: Term, targets=list[tuple[str, list[str]]]) -> Term:
+def synthesize(ctx: TypingContext,
+               ectx: EvaluationContext,
+               term: Term,
+               targets=list[tuple[str, list[str]]]) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     for name, holes in targets:
         term = synthesize_single_function(ctx, ectx, term, name, holes)
