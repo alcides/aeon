@@ -44,7 +44,7 @@ jobs:
           flake8 --extend-exclude .venv . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Check install
         run: |
-          pip install -e .
+          uv pip install -e .
       - name: Test with pytest
         run: |
           pytest
