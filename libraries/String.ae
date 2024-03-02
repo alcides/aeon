@@ -16,6 +16,6 @@ def String_lower : (i:String)  ->  String = native "lambda i: i.lower()" ;
 
 def String_replace : (i:String) -> (j:String) -> (l:String)-> String = native "lambda i: lambda j: lambda l: i.replace(j, l)";
 
-# def String_split : (i:String) -> (j:String) ->  List[String] = native "lambda i: lambda j: i.split(j)" ;
+def String_split : (i:String) -> (j:String) ->  List = native "lambda i: lambda j: i.split(j)" ;
 
 def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";

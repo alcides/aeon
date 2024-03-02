@@ -46,6 +46,13 @@ def parse_arguments():
                         "--csv-synth",
                         action="store_true",
                         help="export synthesis csv file")
+
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Show debug information",
+    )
     return parser.parse_args()
 
 
@@ -77,6 +84,8 @@ if __name__ == "__main__":
     args = parse_arguments()
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
+    if args.debug:
+        logger.add(sys.stderr)
 
     aeon_code = read_file(args.filename)
 

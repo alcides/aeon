@@ -69,8 +69,10 @@ class FailedConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return isinstance(ty, TypeVar) or isinstance(
-        ty, RefinedType) and isinstance(ty.type, TypeVar)
+    return (isinstance(ty, TypeVar) or isinstance(
+        ty,
+        RefinedType,
+    ) and isinstance(ty.type, TypeVar))
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -134,7 +136,9 @@ def prim_op(t: str) -> Type:
                     [
                         LiquidVar("z"),
                         LiquidApp(
-                            t, [LiquidVar("x"), LiquidVar("y")])
+                            t,
+                            [LiquidVar("x"), LiquidVar("y")],
+                        ),
                     ],
                 ),
             ),
@@ -176,9 +180,13 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     "&&",
                     [
                         ty.refinement,
-                        LiquidApp("==",
-                                  [LiquidVar(ty.name),
-                                   LiquidVar(t.name)]),
+                        LiquidApp(
+                            "==",
+                            [
+                                LiquidVar(ty.name),
+                                LiquidVar(t.name),
+                            ],
+                        ),
                     ],
                 ),
             )
@@ -206,7 +214,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.")
+                f"Application {t} is not a function.", )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -241,6 +249,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 
 def wrap_checks(f):
+    """Decorate that performs intermediate checks to the SMT solver."""
 
     def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         k = f(ctx, t, ty)
@@ -281,7 +290,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
             raise CouldNotGenerateConstraintException(
-                "If condition not boolean")
+                "If condition not boolean", )
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -318,8 +327,11 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         return False
 
 
-def check_type_errors(ctx: TypingContext, t: Term,
-                      ty: Type) -> list[Exception | str]:
+def check_type_errors(
+    ctx: TypingContext,
+    t: Term,
+    ty: Type,
+) -> list[Exception | str]:
     """Checks whether t as type ty in ctx, but returns a list of errors."""
     try:
         t = ensure_anf(t)
@@ -329,8 +341,10 @@ def check_type_errors(ctx: TypingContext, t: Term,
             return []
         else:
             return [
-                "Could not prove typing relation.", f"Context: {ctx}",
-                f"Term: {t}", f"Type: {ty}"
+                "Could not prove typing relation.",
+                f"Context: {ctx}",
+                f"Term: {t}",
+                f"Type: {ty}",
             ]
     except CouldNotGenerateConstraintException as e:
         return [e]
@@ -349,3 +363,14 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
+
+
+def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
+    """This method is designed to be called from the CLI, so it contains prints
+    instead of a logger."""
+    errors = check_type_errors(ctx, p, top)
+    if errors:
+        for error in errors:
+            print(error)
+        return True
+    return False
