@@ -23,23 +23,48 @@ from aeon.utils.ctx_helpers import build_context
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="name of the aeon files to be synthesized")
-    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    parser.add_argument(
+        "filename",
+        help="name of the aeon files to be synthesized",
+    )
+    parser.add_argument(
+        "--core",
+        action="store_true",
+        help="synthesize a aeon core file",
+    )
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help=
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL""",
     )
-    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
 
-    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
+    parser.add_argument("-csv",
+                        "--csv-synth",
+                        action="store_true",
+                        help="export synthesis csv file")
 
-    parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
+    parser.add_argument("-gp",
+                        "--gp-config",
+                        help="path to the GP configuration file")
 
-    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
+    parser.add_argument("-csec",
+                        "--config-section",
+                        help="section name in the GP configuration file")
+
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Show debug information",
+    )
     return parser.parse_args()
 
 
@@ -61,6 +86,8 @@ if __name__ == "__main__":
     args = parse_arguments()
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
+    if args.debug:
+        logger.add(sys.stderr)
 
     aeon_code = read_file(args.filename)
 
@@ -83,13 +110,14 @@ if __name__ == "__main__":
         log_type_errors(type_errors)
         sys.exit(1)
 
-    incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+    incomplete_functions: list[tuple[
+        str,
+        list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
-        synth_config = (
-            parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-        )
+        synth_config = (parse_config(args.gp_config, args.config_section)
+                        if args.gp_config and args.config_section else None)
 
         synthesis_result = synthesize(
             typing_ctx,
