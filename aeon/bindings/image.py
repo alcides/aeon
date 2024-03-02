@@ -25,7 +25,7 @@ def Image_draw_rectangle(im, x, y, w, h, c):
 
 @curried
 def Image_diff(im1, im2):
-    s = sum((a - b) ** 2 for a, b in zip(im1.histogram(), im2.histogram()))
+    s = sum((a - b)**2 for a, b in zip(im1.histogram(), im2.histogram()))
     return math.sqrt(s)
 
 

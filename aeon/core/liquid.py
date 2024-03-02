@@ -50,7 +50,8 @@ class LiquidLiteralBool(LiquidTerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralBool) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralBool) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -66,7 +67,8 @@ class LiquidLiteralInt(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralInt) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralInt) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -82,7 +84,8 @@ class LiquidLiteralFloat(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralFloat) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralFloat) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -98,7 +101,8 @@ class LiquidLiteralString(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralString) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralString) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -140,11 +144,8 @@ class LiquidApp(LiquidTerm):
         return f"{self.fun}({fargs})"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, LiquidApp)
-            and other.fun == self.fun
-            and all(x == y for (x, y) in zip(self.args, other.args))
-        )
+        return (isinstance(other, LiquidApp) and other.fun == self.fun
+                and all(x == y for (x, y) in zip(self.args, other.args)))
 
     def __hash__(self) -> int:
         return hash(self.fun) + sum(hash(a) for a in self.args)

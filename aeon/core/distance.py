@@ -42,7 +42,8 @@ def term_label_dist(s1: str, s2: str):
 
 
 def distance_terms(t1: Term, t2: Term):
-    return zss.simple_distance(t1, t2, term_children, term_label, term_label_dist)
+    return zss.simple_distance(t1, t2, term_children, term_label,
+                               term_label_dist)
 
 
 def pairwise_distance(ts: list[Term]):
@@ -65,6 +66,7 @@ def term_depth(t: Term):
     elif isinstance(t, Let):
         return 1 + max(term_depth(t.var_value), term_depth(t.body))
     elif isinstance(t, If):
-        return 1 + max(term_depth(t.cond), term_depth(t.then), term_depth(t.otherwise))
+        return 1 + max(term_depth(t.cond), term_depth(t.then),
+                       term_depth(t.otherwise))
     else:
         return 1

@@ -8,12 +8,14 @@ from lark import Tree
 
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
+from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Decorator
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
+from aeon.sugar.program import Namespace
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
@@ -72,6 +74,12 @@ class TreeToSugar(TreeToCore):
             Abstraction(args[0], args[2]),
             AbstractionType(args[0], args[1], TypeVar("?t")),
         )
+
+    def namespace(self, args):
+        return Namespace(args[0], args[1])
+
+    def dot(self, args):
+        return Var(f"{args[0]}.{args[1]}")
 
 
 def mk_parser(rule="start", start_counter=0):

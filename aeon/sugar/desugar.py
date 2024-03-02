@@ -20,8 +20,10 @@ from aeon.decorators import apply_decorators
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition, Decorator
+from aeon.sugar.program import Definition
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import ImportAe
+from aeon.sugar.program import Namespace
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.synthesis_grammar import grammar
@@ -29,6 +31,14 @@ from aeon.synthesis_grammar.fitness import extract_fitness_from_synth
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
+
+
+def flatten_namespace(n: Namespace | str) -> str:
+    if isinstance(n, str):
+        return n
+    else:
+        return f"{n.base}.{n.other}"
+
 
 ProgramComponents = tuple[Term, TypingContext, EvaluationContext]
 

@@ -11,14 +11,17 @@ defs : def*                                          -> list
 
 type_decl : "type" TYPENAME ";"                            -> type_decl
 
-def : (soft_constraint)* "def" ID ":" type "=" expression ";"                  -> def_cons
-    | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
+def : (soft_constraint)* "def" namespace ":" type "=" expression ";"          -> def_cons
+    | (soft_constraint)* "def" namespace "(" args ")" ":" type "{" expression "}" -> def_fun
 
 soft_constraint : "@" ID "(" macro_args ")"                 -> macro
 
 macro_args :                           -> empty_list
      | expression ("," expression)*    -> macro_args
 
+
+namespace : ID                     -> same
+          | ID "." namespace       -> namespace
 
 args :                          -> empty_list
      | arg ("," arg)*           -> args
@@ -76,13 +79,15 @@ application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
 expression_simple : "(" expression ")"                       -> same
-        | "(" expression ":" type ")"                        -> annotation
-        | INTLIT                                             -> int_lit
-        | FLOATLIT                                           -> float_lit
-        | BOOLLIT                                            -> bool_lit
-        | STRINGLIT                                          -> string_lit
-        | ID                                                 -> var
-        | "?" ID                                             -> hole
+        | "(" expression ":" type ")"                       -> annotation
+        | INTLIT                                           -> int_lit
+        | FLOATLIT                                        -> float_lit
+        | BOOLLIT                                         -> bool_lit
+        | STRINGLIT                                      -> string_lit
+        | ID                                             -> var
+        | expression_simple "." expression_simple        -> dot
+        | "?" ID                                         -> hole
+
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
