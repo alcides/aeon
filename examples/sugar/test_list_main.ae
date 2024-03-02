@@ -1,5 +1,5 @@
 import List;
-def consume : (l: {x:List | List_size(x) == 1}) -> Int = \n -> 0;
+def consume : (l: {x:List | List_size x == 1}) -> Int = \n -> 0;
 
 # def neg1 : Int = consume(List_new);
 

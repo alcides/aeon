@@ -14,8 +14,10 @@ def levels_filter(levels):
 
 
 def setup_logger():
-    logger.level("TYPECHECKER", no=35, color="<magenta>", icon="🔍")
-    logger.level("CONSTRAINT", no=36, color="<cyan>", icon="🔒")
+    logger.level("TYPECHECKER", no=35, color="<magenta>")
+    logger.level("SYNTH_TYPE", no=36, color="<magenta>")
+    logger.level("CONSTRAINT", no=37, color="<cyan>")
+    logger.level("SYNTHESIZER", no=38, color="<red>")
 
     # Setup the logger
     logger.remove()

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from abc import ABC
 
-from aeon.core.terms import Var
+from aeon.core.terms import Term
 from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
+from aeon.logger.logger import setup_logger
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
-from aeon.synthesis_grammar.synthesizer import Synthesizer
+from aeon.synthesis_grammar.synthesizer import synthesize
 from aeon.typechecking.typeinfer import check_type_errors
+
+setup_logger()
 
 
 def mock_literal_individual(value: int):
@@ -27,21 +31,28 @@ def mock_literal_individual(value: int):
 
 
 def test_fitness():
-    code = """
-        def year : Int = 2023;
-        def synth : Int = (?hole: Int) * 7;
-        def fitness : Int  =  year - synth;
+    code = """def year : Int = 2023;
+        def synth (i: Int): Int { (?hole: Int) * i}
+        def __internal__fitness_function_synth : Int  =  year - synth(7);
     """
     prog = parse_program(code)
     p, ctx, ectx = desugar(prog)
+    p = ensure_anf(p)
     check_type_errors(ctx, p, top)
-    synthesizer = Synthesizer(ctx, p, top, ectx)
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
 
-    individual1 = mock_literal_individual(value=4)
-    individual2 = mock_literal_individual(value=289)
+    assert isinstance(term, Term)
 
-    expected_output1 = 1995
-    expected_output2 = 0
 
-    assert synthesizer.evaluate_fitness(individual1, Var("fitness"), True, p) == expected_output1
-    assert synthesizer.evaluate_fitness(individual2, Var("fitness"), True, p) == expected_output2
+def test_fitness2():
+    code = """def year : Int = 2023;
+            @minimize_int( year - synth(7) )
+            def synth (i:Int) : Int {(?hole: Int) * i}
+        """
+    prog = parse_program(code)
+    p, ctx, ectx = desugar(prog)
+    p = ensure_anf(p)
+    check_type_errors(ctx, p, top)
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
+
+    assert isinstance(term, Term)

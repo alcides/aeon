@@ -11,7 +11,6 @@ from aeon.core.types import Type
 
 
 class TypingContext(ABC):
-
     def type_of(self, name: str) -> Type | None:
         assert False
 
@@ -34,7 +33,6 @@ class TypingContext(ABC):
 
 
 class EmptyContext(TypingContext):
-
     def __init__(self):
         self.counter = 0
 
@@ -135,10 +133,10 @@ class TypeBinder(TypingContext):
     type_kind: Kind
 
     def __init__(
-            self,
-            prev: TypingContext,
-            type_name: str,
-            type_kind: Kind = StarKind(),
+        self,
+        prev: TypingContext,
+        type_name: str,
+        type_kind: Kind = StarKind(),
     ):
         self.prev = prev
         self.type_name = type_name

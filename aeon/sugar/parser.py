@@ -10,11 +10,10 @@ from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.types import AbstractionType
 from aeon.core.types import TypeVar
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import TreeToCore
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
-from aeon.sugar.program import Decorator
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
@@ -36,7 +35,13 @@ class TreeToSugar(TreeToCore):
         return TypeDecl(args[0])
 
     def def_cons(self, args):
-        return Definition(args[0], [], args[1], args[2])
+        if len(args) == 3:
+            return Definition(args[0], [], args[1], args[2])
+        if isinstance(args[0], Decorator):
+            decorators = [args[0]]
+        else:
+            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
+        return Definition(args[1], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
         if len(args) == 4:
@@ -81,21 +86,3 @@ def mk_parser(rule="start", start_counter=0):
 
 
 parse_program: Callable[[str], Program] = mk_parser("program").parse
-
-
-def ensure_anf_definition(d: Definition):
-    match d:
-        case Definition(name=name, args=args, type=type, body=body, decorators=decorators):
-            new_body = ensure_anf(body)
-            return Definition(name, args, type, new_body, decorators)
-        case _:
-            assert False
-
-
-def ensure_anf_sugar(p: Program) -> Program:
-    match p:
-        case Program(imports=imp, type_decls=type_decls, definitions=definitions):
-            new_definitions = [ensure_anf_definition(d) for d in definitions]
-            return Program(imports=imp, type_decls=type_decls, definitions=new_definitions)
-        case _:
-            assert False

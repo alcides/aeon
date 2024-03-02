@@ -15,10 +15,10 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float64
-from z3.z3 import ForAll
 from z3.z3 import FP
 from z3.z3 import FPSort
+from z3.z3 import ForAll
+from z3.z3 import Float64
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import Not
@@ -109,14 +109,13 @@ def flatten(c: Constraint) -> Generator[CanonicConstraint, None, None]:
 
 
 s = Solver()
-s.set(timeout=200),
+(s.set(timeout=200), )
 
 
 def smt_valid(constraint: Constraint,
               foralls: list[tuple[str, Any]] = []) -> bool:
     """Verifies if a constraint is true using Z3."""
     cons: list[CanonicConstraint] = list(flatten(constraint))
-    print("cons", cons)
 
     forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
                    if isinstance(f[1], BaseType)]
@@ -137,7 +136,7 @@ def smt_valid(constraint: Constraint,
 
 
 def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
-    for na, ref in variables:
+    for na, ref in reversed(variables):
         if na == name:
             return ref
     print("Failed to load ", name, "from", [x[0] for x in variables])
@@ -233,7 +232,7 @@ def translate(
     extra=list[tuple[str, Any]],
 ) -> BoolRef | bool:
     variables = [
-        (name, make_variable(name, base)) for (name, base) in c.binders
+        (name, make_variable(name, base)) for (name, base) in c.binders[::-1]
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
     e1 = translate_liq(c.pre, variables)

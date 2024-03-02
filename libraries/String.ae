@@ -1,7 +1,5 @@
 type Unit;
 
-def math : Unit = native_import "math";
-
 def String_len : (i:String) -> Int = native "lambda i: len(i)";
 
 def String_intToString : (i:Int) -> String = native "lambda i: str(i)";

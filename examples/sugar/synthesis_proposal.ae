@@ -1,3 +1,2 @@
-
-@minimize_int(forAllInteger (\x -> fun x))
+@minimize_int( if (fun 3) == 4 then 0 else 1)
 def fun (x:Int) : {y:Int | y > x} { ?hole }

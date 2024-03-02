@@ -14,7 +14,7 @@ from aeon.core.terms import (
 
 
 class ANFConverter:
-    """Recursive visitor that applies ANF transformation"""
+    """Recursive visitor that applies ANF transformation."""
 
     def __init__(self, starting_counter: int = 0):
         self.counter = starting_counter
@@ -24,7 +24,7 @@ class ANFConverter:
         return f"_anf_{self.counter}"
 
     def convert(self, t: Term):
-        """Converts term to ANF form"""
+        """Converts term to ANF form."""
 
         match t:
             case If(cond=cond, then=then, otherwise=otherwise):

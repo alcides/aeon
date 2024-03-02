@@ -9,9 +9,9 @@ type_decls : type_decl*                              -> list
 
 defs : def*                                          -> list
 
-type_decl : "type" ID ";"                            -> type_decl
+type_decl : "type" TYPENAME ";"                            -> type_decl
 
-def : "def" ID ":" type "=" expression ";"                  -> def_cons
+def : (soft_constraint)* "def" ID ":" type "=" expression ";"                  -> def_cons
     | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
 
 soft_constraint : "@" ID "(" macro_args ")"                 -> macro
@@ -99,6 +99,7 @@ INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 STRINGLIT : ESCAPED_STRING
 
+TYPENAME : /[a-zA-Z0-9]+/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
 PATH : (".." | ID )* "/" ID
 

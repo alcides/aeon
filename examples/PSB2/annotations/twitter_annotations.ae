@@ -18,9 +18,9 @@ def validate_tweet (tweet: String) : String {
             String_concat (String_concat "Your tweet has " tweet_length_str)   " characters"
     }
 
-def train: TrainData = extract_train_data (load_dataset "twitter" 200 200);
-def input_list : List = get_input_list (unpack_train_data train);
-def expected_values : List = get_output_list (unpack_train_data train);
+def  train: TrainData =  extract_train_data ( load_dataset "twitter" 200 200);
+def  input_list : List =  get_input_list ( unpack_train_data  train);
+def  expected_values : List =  get_output_list ( unpack_train_data  train);
 
-@minimize(String_distance (join_string_list(get_tt_synth_values input_list synth)) (join_string_list(expected_values)))
+@minimize_float(String_distance ( join_string_list( get_tt_synth_values  input_list synth)) ( join_string_list( expected_values)))
 def synth (tweet:String) : String {(?hole:String)}
