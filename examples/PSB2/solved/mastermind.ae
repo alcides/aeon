@@ -1,0 +1,44 @@
+type List;
+type Counter;
+
+def itertools : Unit = native_import "itertools";
+def collections : Unit = native_import "collections";
+
+def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
+def Map : (f: (s:List) -> String) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+
+def String_eq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
+def String_toList : (s:String) -> List = native "lambda s: list(s)";
+def String_Zip : (xs:String) -> (ys:String) -> List = native "lambda xs: lambda ys: (zip(xs, ys))";
+def List_get_fst : (s: List) -> String = native "lambda s: s[0]";
+def List_get_snd : (s: List) -> String = native "lambda s: s[1]";
+def String_neq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i != j";
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+def Counter : (l:List) -> Counter = native "lambda xs: collections.Counter(xs)";
+def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = native "lambda c1: lambda c2: c1 & c2";
+def Counter_values : (c:Counter) -> List = native "lambda c: list(c.values())";
+def Tuple : (a:Int) -> (b:Int) -> List = native "lambda a: lambda b: [a,b]";
+
+def mastermind ( code : String, guess: String ) : List {
+    items_eq : (x:List) -> Int = \x -> if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
+    black_map : List = Map_bool items_eq (String_Zip code guess);
+    black_pegs : Int = List_sum black_map;
+
+    paired: List = Zip (String_toList code) (String_toList guess);
+    unmatched: List = Filter ((\z -> String_neq (List_get_fst z) (List_get_snd z)):(s:List) -> Bool) paired;
+
+    code_unmatched: List = Map List_get_fst unmatched;
+    guess_unmatched: List = Map List_get_snd unmatched;
+
+    white_pegs_f : (x:List) -> (y:List) -> Int = \c -> \g -> List_sum (Counter_values (Counter_intersection (Counter c) (Counter g)));
+    white_pegs :Int = white_pegs_f code_unmatched guess_unmatched;
+
+    Tuple white_pegs black_pegs
+}
+
+
+def main (args:Int) : Unit {
+    print(mastermind "GGGB" "BGGG")
+}
