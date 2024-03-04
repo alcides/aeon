@@ -1,6 +1,5 @@
 type List;
 
-
 def itertools : Unit = native_import "itertools";
 
 def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda start: lambda end: lambda step: list(range(start, end, step ))";
@@ -13,17 +12,14 @@ def List_length: (l:List) -> Int = native "lambda list: len(list)";
 def List_new : List = native "[]" ;
 def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
 
-
 def Accumulate : (xs:List) -> List = native "lambda xs: list(itertools.accumulate(xs))";
-def List_min : (xs:List) -> Int = native "lambda xs: min(xs)";
 def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
 def Enumerate : (xs:List) -> List = native "lambda xs: list(enumerate(xs))";
 def Map : (f: (s:List) -> List) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
 def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
 def Tuple : (i:Int) -> (j:Int) -> List = native "lambda i: lambda j: (i, j)";
 def Tuple_list : (i:List) -> (j:List) -> List = native "lambda i: lambda j: (i, j)";
-def min_list : (i:List) -> (f: (xs:List) -> Int) -> List = native "lambda i: lambda f: min(i,f)";
-
+def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = native "lambda i: lambda f: min(i,key=f)";
 
 def get_fst : (i:List) -> Int = native "lambda i: i[0]";
 def get_snd : (i:List) -> Int = native "lambda i: i[1]";
@@ -39,15 +35,15 @@ def cut_vector ( ls : List ) : List {
                         (Enumerate (Zip inits tails)));
     cut_position: Int = get_snd (min_list diffs ((\xs -> get_fst xs):(xs:List) -> Int));
 
-    #cut_position: Int = 1;
-    vec1 : List = List_slice ls 0 (cut_position + 1);
-    vec2 : List = List_slice ls (cut_position+1) (List_length ls);
+    vec1 : List = List_slice ls 0 (cut_position );
+    vec2 : List = List_slice ls (cut_position ) (List_length ls);
 
     Tuple_list vec1 vec2
 }
 
 def main (args:Int) : Unit {
+    #vec: List = List_append (List_append List_new 1) 2;
     vec: List = Range 0 10 1;
-    print(cut_vector vec )
+    print(cut_vector vec)
 
 }
