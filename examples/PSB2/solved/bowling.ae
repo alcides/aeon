@@ -1,0 +1,60 @@
+type List;
+
+
+def List_sum : (l:List) -> Int = native "sum";
+
+def List_map: (function: (a: Int) -> Int) ->
+                               (l: List) ->
+                               List =
+    native "lambda f: lambda xs: list(map(f, xs))";
+
+
+def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = native "lambda x: lambda y: lambda z: x.replace(y, z)";
+def String_length: (l:String) -> Int = native "lambda list: len(list)";
+def String_get : (l:String) -> (i:Int) -> String = native "lambda l: lambda i: l[i]";
+def String_to_int : (s:String) -> Int = native "int";
+def String_eq : (s:String) -> (s2:String) -> Bool = native "lambda s: lambda s2: s == s2";
+
+def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = native "lambda s: lambda e: lambda st: list(range(s, e, st))";
+
+def create_mapper (scores:String, i:Int) : Int {
+    current : String = String_get scores i;
+    next : String = String_get scores (i+1);
+    if String_eq current "X" then
+        next_frame1 : String = String_get scores (i+2);
+        next_frame2 : String = String_get scores (i+3);
+        if String_eq next_frame2 "/" then
+            20
+        else if String_eq next_frame1 "X" then
+            next_next_frame1 : String = String_get scores (i+4);
+            inc : Int = if String_eq next_next_frame1 "X" then 10 else String_to_int next_next_frame1;
+            20 + inc
+        else
+            10 + String_to_int next_frame1 + String_to_int next_frame2
+
+    else if String_eq next "/" then
+        10 + String_to_int (String_get scores (i+2))
+    else
+        String_to_int current + String_to_int next
+}
+
+
+def bowling_score (scores: String) : Int {
+    scores_right_size = String_replace scores "X" "X_";
+    scores_zero = String_replace scores_right_size "-" "0";
+    r : List = List_range_step 0 20 2;
+    mapper : (i:Int) -> Int = create_mapper scores_zero;
+    components : List = List_map mapper r;
+    List_sum components
+ }
+
+def main (args:Int) : Unit {
+    example : String = "23232323232323232323"; # 50
+    example : String = "2/232323232323232323"; # 57
+    example : String = "X232323232323232323"; # 60
+    example : String = "X2/2323232323232323"; # 20 + 12 + 40 = 72
+    example : String = "--------------------"; # 0
+    example : String = "XXXXXXXXXXXX"; # 300
+    example : String = "2323232323232323232/1"; # 55
+    print (bowling_score example)
+}
