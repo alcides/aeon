@@ -60,3 +60,9 @@ jobs:
           for file in $files; do
             python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
           done
+      - name: Run PSB2 Solved Problems
+        run: |
+          files=$(find examples/PSB2/solved -type f -name '*.ae')
+          for file in $files; do
+            python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
+          done
