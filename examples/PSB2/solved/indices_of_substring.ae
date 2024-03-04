@@ -21,6 +21,6 @@ def indices_of_substring ( text :String, target: String) : List {
 }
 
 def main (args:Int) : Unit {
-    print(indice_of_substring "hello world" "lo" )
+    print(indices_of_substring "hello world" "lo" )
 
 }
