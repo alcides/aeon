@@ -18,5 +18,5 @@ def bouncing_balls (s_height: Float, b_height:Float , b:Int) : Float{
 
 
 def main (x: Int) : Unit {
-    print(bouncing_balls 100.0 100.0 3)
+    print(bouncing_balls 60.567 37.053 1)
  }
