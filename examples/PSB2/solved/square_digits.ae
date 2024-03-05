@@ -1,0 +1,20 @@
+
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+
+
+def square_digits ( n : Int) : String {
+    if n == 0 then
+        ""
+    else
+        digit = n % 10;
+        square = digit * digit;
+        result = String_concat (square_digits(Math_floor_division n 10)) (String_intToString(square));
+        result
+}
+
+def main (n : Int) : Unit {
+    print (square_digits 44 )
+}
