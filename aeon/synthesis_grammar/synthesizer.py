@@ -8,6 +8,23 @@ from typing import Callable
 
 import configparser
 import multiprocess as mp
+from aeon.backend.evaluator import EvaluationContext
+from aeon.backend.evaluator import eval
+from aeon.core.substitutions import substitution
+from aeon.core.terms import Term, Literal, Var
+from aeon.core.types import BaseType, Top
+from aeon.core.types import Type
+from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
+from aeon.synthesis_grammar.grammar import (
+    gen_grammar_nodes,
+    get_grammar_node,
+    classType,
+)
+from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
+from aeon.synthesis_grammar.utils import fitness_function_name_for
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type_errors
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -26,24 +43,6 @@ from geneticengine.core.representations.grammatical_evolution.structured_ge impo
 )
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
-
-from aeon.backend.evaluator import EvaluationContext
-from aeon.backend.evaluator import eval
-from aeon.core.substitutions import substitution
-from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top
-from aeon.core.types import Type
-from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.synthesis_grammar.grammar import (
-    gen_grammar_nodes,
-    get_grammar_node,
-    classType,
-)
-from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
-from aeon.synthesis_grammar.utils import fitness_function_name_for
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
 
 
 class SynthesisError(Exception):
@@ -326,6 +325,7 @@ def synthesize_single_function(
     )
 
     # Step 2 Create grammar object.
+    # TODO Synthesis: grammar should also receive metadata from the decorator
     grammar = create_grammar(holes, fun_name)
     hole_name = list(holes.keys())[0]
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
