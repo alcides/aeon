@@ -13,3 +13,5 @@ numpy
 argparse
 configparser
 multiprocess
+pillow
+scikit-image
