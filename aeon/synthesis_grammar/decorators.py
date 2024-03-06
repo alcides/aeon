@@ -1,6 +1,5 @@
 """Meta-programming code for optimization-related decorators."""
 
-import aeon.synthesis_grammar.grammar as grammar
 from aeon.core.terms import Term, Var
 from aeon.core.types import BaseType
 from aeon.decorators.api import Metadata
@@ -62,19 +61,6 @@ def multi_minimize_float(
         body=args[0],
     )
     return fun, [fitness_function], metadata
-
-
-def ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
-    # @grammar_skip
-    """This decorator expects a zero argument .
-
-    It does not modify the original definition. It makes sure that no
-    grammar node is generated from this function.
-    """
-    assert len(args) == 0
-    grammar.internal_functions.append(fun.name)
-    # internal_function = Definition(name=internal_name_for(fun.name), args=fun.args, type=fun.type, body=fun.body)
-    return fun, [], metadata
 
 
 def syn_ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:

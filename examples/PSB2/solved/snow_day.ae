@@ -1,7 +1,7 @@
 def isZero : (n: Int) -> Bool = \n -> n == 0;
 
 def snow_day ( n: Int, m: Float, t: Float, p: Float) : Float {
-    if isZero 0 then
+    if  n == 0  then
         m
     else
         a: Float = m +. t;

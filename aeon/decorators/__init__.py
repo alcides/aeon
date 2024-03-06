@@ -12,13 +12,12 @@ eventual complementary definitions.
 from aeon.decorators.api import DecoratorType
 from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, ignore, syn_ignore
+from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, syn_ignore
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
     "minimize_float": minimize_float,
     "multi_minimize_float": multi_minimize_float,
-    "ignore": ignore,
     "syn_ignore": syn_ignore,
 }
 

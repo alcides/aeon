@@ -7,26 +7,29 @@
 # input : integer in [0, 20], float in [0.0, 20.0], float in [0.0, 10.0], float in [0.0, 1.0]
 # output : float
 import Math;
-import PSB2;
 
-#def snow_day ( n : {x:Int | 0 <= x && x <= 20} ,
-#                m : {y:Float | 0.0 <= y && y <= 20.0},
-#                t : {z:Float | 0.0 <= z && z <= 10.0},
-#                p : {w:Float | 0.0 <= w && w <= 10.0}) : Float {
-#    if n == 0 then m else snow_day (n - 1) ((1.0 -. p) *. (m +. t)) (t) (p)
-#}
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_snowd_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+import mean_absolute_error from PSB2;
 
-#def snow_day ( n :Int  ,
-#                m :Float ,
-#                t :Float ,
-#                p :Float) : Float {
-#    if n == 0 then m else snow_day (n - 1) ((1.0 -. p) *. (m +. t)) (t) (p)
-#}
 
 def  train: TrainData =  extract_train_data ( load_dataset "snow-day" 200 200);
 def  input_list : List =  get_input_list ( unpack_train_data  train);
 def  expected_values : List =  get_output_list ( unpack_train_data  train);
 
+
+@syn_ignore(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_snowd_synth_values,
+            calculate_list_errors)
 @minimize_float(  mean_absolute_error ( get_snowd_synth_values  input_list synth) ( expected_values))
 def synth ( n :Int  ,
                 m :Float ,

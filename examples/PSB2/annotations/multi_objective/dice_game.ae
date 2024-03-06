@@ -1,17 +1,28 @@
 import Math;
-import PSB2;
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_dg_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
 
-@ignore()
+
 def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
 
-@ignore()
 def input_list : List = get_input_list (unpack_train_data train);
 
-@ignore()
 def expected_values : List = get_output_list (unpack_train_data train);
 
+@syn_ignore(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_dg_synth_values,
+            calculate_list_errors)
 @multi_minimize_float(calculate_list_errors  (get_dg_synth_values input_list synth)(expected_values))
-def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float
+def synth (n: Int, m: Int) : Float
     {
         (?hole:Float)
     }

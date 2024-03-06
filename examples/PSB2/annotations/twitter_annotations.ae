@@ -1,22 +1,6 @@
-# Given two integers, return the largest integer that
-# divides each of the integers evenly.
-# input : 2 integers in [1, 1000000]
-# output : integer
-
 import String;
 import PSB2;
 
-def validate_tweet (tweet: String) : String {
-    tweet_length = String_len(tweet);
-    if tweet_length == 0 then
-        "You didn’t type anything"
-    else
-        if tweet_length > 140 then
-            "Too many characters"
-        else
-            tweet_length_str = String_intToString(tweet_length);
-            String_concat (String_concat "Your tweet has " tweet_length_str)   " characters"
-    }
 
 def  train: TrainData =  extract_train_data ( load_dataset "twitter" 200 200);
 def  input_list : List =  get_input_list ( unpack_train_data  train);
