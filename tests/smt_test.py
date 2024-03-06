@@ -20,7 +20,7 @@ from aeon.verification.vcs import LiquidConstraint
 
 def extract_core(source: str) -> Term:
     prog = parse_program(source)
-    core, ctx, _ = desugar(prog)
+    core, ctx, _, _ = desugar(prog)
     core_anf = ensure_anf(core)
     check_type_errors(ctx, core_anf, top)
     return core_anf
@@ -30,8 +30,7 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp(
-        "==", [LiquidVar("x"), LiquidLiteralInt(3)])),
+    LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)])),
 )
 
 
@@ -47,8 +46,7 @@ example2 = Implication(
         "y",
         BaseType("a"),
         LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
-        LiquidConstraint(LiquidApp(
-            "==", [LiquidVar("x"), LiquidVar("y")])),
+        LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidVar("y")])),
     ),
 )
 
@@ -80,6 +78,7 @@ def main (x:Int) : Unit {
         core_ast,
         typing_ctx,
         evaluation_ctx,
+        metadata,
     ) = desugar(prog)
 
     core_ast_anf = ensure_anf(core_ast)
@@ -104,6 +103,7 @@ def main (x:Int) : Unit {
         core_ast,
         typing_ctx,
         evaluation_ctx,
+        metadata,
     ) = desugar(prog)
 
     core_ast_anf = ensure_anf(core_ast)

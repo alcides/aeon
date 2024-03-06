@@ -36,10 +36,10 @@ def test_fitness():
         def __internal__fitness_function_synth : Int  =  year - synth(7);
     """
     prog = parse_program(code)
-    p, ctx, ectx = desugar(prog)
+    p, ctx, ectx, _ = desugar(prog)
     p = ensure_anf(p)
     check_type_errors(ctx, p, top)
-    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])], {})
 
     assert isinstance(term, Term)
 
@@ -50,9 +50,9 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     prog = parse_program(code)
-    p, ctx, ectx = desugar(prog)
+    p, ctx, ectx, _ = desugar(prog)
     p = ensure_anf(p)
     check_type_errors(ctx, p, top)
-    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])], {})
 
     assert isinstance(term, Term)
