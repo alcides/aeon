@@ -11,10 +11,14 @@ defs : def*                                          -> list
 
 type_decl : "type" TYPENAME ";"                            -> type_decl
 
-def : (soft_constraint)* "def" ID ":" type "=" expression ";"                  -> def_cons
-    | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
+def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
+    | soft_constraint "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
 
-soft_constraint : "@" ID "(" macro_args ")"                 -> macro
+
+soft_constraint :                      -> empty_list
+            | macro (macro)*           -> macros
+
+macro : "@" ID "(" macro_args ")"      -> macro
 
 macro_args :                           -> empty_list
      | expression ("," expression)*    -> macro_args

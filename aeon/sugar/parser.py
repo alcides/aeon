@@ -3,9 +3,6 @@ from __future__ import annotations
 import pathlib
 from typing import Callable
 
-from lark import Lark
-from lark import Tree
-
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.types import AbstractionType
@@ -16,6 +13,7 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
+from lark import Lark
 
 
 class TreeToSugar(TreeToCore):
@@ -37,20 +35,19 @@ class TreeToSugar(TreeToCore):
     def def_cons(self, args):
         if len(args) == 3:
             return Definition(args[0], [], args[1], args[2])
-        if isinstance(args[0], Decorator):
-            decorators = [args[0]]
         else:
-            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
-        return Definition(args[1], [], args[2], args[3], decorators)
+            decorators = args[0]
+            return Definition(args[1], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
         if len(args) == 4:
             return Definition(args[0], args[1], args[2], args[3])
-        if isinstance(args[0], Decorator):
-            decorators = [args[0]]
         else:
-            decorators = [self.macro(macro_args.children) for macro_args in args[0] if isinstance(macro_args, Tree)]
-        return Definition(args[1], args[2], args[3], args[4], decorators)
+            decorators = args[0]
+            return Definition(args[1], args[2], args[3], args[4], decorators)
+
+    def macros(self, args):
+        return args
 
     def macro(self, args):
         return Decorator(args[0], args[1])
