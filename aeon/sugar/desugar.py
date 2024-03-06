@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os.path
 from pathlib import Path
-from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
@@ -17,7 +16,7 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import t_int
-from aeon.decorators import apply_decorators
+from aeon.decorators import apply_decorators, Metadata
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
@@ -31,7 +30,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
 
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext]
+ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Metadata]
 
 
 def desugar(p: Program) -> ProgramComponents:
@@ -40,14 +39,14 @@ def desugar(p: Program) -> ProgramComponents:
 
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
-    defs = apply_decorators_in_definitions(defs)
+    defs, metadata = apply_decorators_in_definitions(defs)
 
     ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
 
     for tydeclname in type_decls:
         prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
 
-    return prog, ctx, ectx
+    return prog, ctx, ectx, metadata
 
 
 def determine_main_function(p: Program) -> Term:
@@ -83,23 +82,24 @@ def handle_imports(
 def apply_decorators_in_program(prog: Program) -> Program:
     """We apply the decorators meta-programming code to each definition in the
     program."""
+    defs, _ = apply_decorators_in_definitions(prog.definitions)
     return Program(
         imports=prog.imports,
         type_decls=prog.type_decls,
-        definitions=apply_decorators_in_definitions(prog.definitions),
+        definitions=defs,
     )
 
 
-def apply_decorators_in_definitions(definitions: list[Definition]) -> list[Definition]:
+def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
     """We apply the decorators meta-programming code to each definition in the
     program."""
-    metadata: dict[str, Any] = {}
+    metadata: Metadata = {}
     new_definitions = []
     for definition in definitions:
         new_def, other_defs, metadata = apply_decorators(definition, metadata)
         new_definitions.append(new_def)
         new_definitions.extend(other_defs)
-    return new_definitions
+    return new_definitions, metadata
 
 
 def extract_objectives_dict(defs: list[Definition]) -> dict[str, tuple[Term, list[Decorator]]]:
@@ -192,8 +192,6 @@ def rename_internal_functions(t):
 
 def bind_program_to_rec(prog: Term, d: Definition) -> Term:
     ty, body = d.type, d.body
-    # def_name = f"__internal__{d.name}" if d.name in grammar.internal_functions else d.name
-    # body = rename_internal_functions(body)
     for arg_name, arg_type in d.args[::-1]:
         ty = AbstractionType(arg_name, arg_type, ty)
         body = Abstraction(arg_name, body)

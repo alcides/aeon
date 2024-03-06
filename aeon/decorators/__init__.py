@@ -9,31 +9,29 @@ Then the implementation should return a tuple of the (possibly modified) definit
 eventual complementary definitions.
 """
 
-from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, ignore
-from aeon.decorators.api import Metadata
 from aeon.decorators.api import DecoratorType
+from aeon.decorators.api import Metadata
+from aeon.sugar.program import Definition
+from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, ignore, syn_ignore
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
     "minimize_float": minimize_float,
     "multi_minimize_float": multi_minimize_float,
     "ignore": ignore,
+    "syn_ignore": syn_ignore,
 }
 
 
-def apply_decorators(
-        fun: Definition,
-        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
     "Applies each decorator in order, and returns the cumulative list of possible new definitions."
+    if not metadata:
+        metadata = {}
     total_extra = []
     for decorator in fun.decorators:
         if decorator.name not in decorators_environment:
-            raise Exception(
-                f"Unknown decorator named {decorator.name}, in function {fun.name}."
-            )
+            raise Exception(f"Unknown decorator named {decorator.name}, in function {fun.name}.")
         decorator_processor = decorators_environment[decorator.name]
-        (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun,
-                                                     metadata)
+        (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
         total_extra.extend(extra)
-    return (fun, total_extra, metadata)
+    return fun, total_extra, metadata

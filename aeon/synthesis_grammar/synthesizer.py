@@ -15,6 +15,7 @@ from aeon.core.terms import Term, Literal, Var
 from aeon.core.types import BaseType, Top
 from aeon.core.types import Type
 from aeon.core.types import top
+from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
@@ -210,8 +211,8 @@ def problem_for_fitness_function(
         return SingleObjectiveProblem(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE)
 
 
-def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
-    grammar_nodes = gen_grammar_nodes(ctx, fun_name, [])
+def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata: Metadata):
+    grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
     assert isinstance(ty, BaseType)  # TODO Synthesis: Support other types?
@@ -220,12 +221,12 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str):
+def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str, metadata: dict[str, Any]):
     assert len(holes) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
-    grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name)
+    grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name, metadata)
     return extract_grammar(grammar_nodes, starting_node)
 
 
@@ -302,6 +303,7 @@ def synthesize_single_function(
     term: Term,
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
+    metadata: Metadata,
     filename: str | None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
@@ -325,8 +327,9 @@ def synthesize_single_function(
     )
 
     # Step 2 Create grammar object.
-    # TODO Synthesis: grammar should also receive metadata from the decorator
-    grammar = create_grammar(holes, fun_name)
+    # TODO Synthesis: grammar should also receive metadata from the decoratormains
+    grammar = create_grammar(holes, fun_name, metadata)
+    print(grammar)
     hole_name = list(holes.keys())[0]
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
     #  to use (e.g., Random Search, Genetic Programming, others...)
@@ -344,6 +347,7 @@ def synthesize(
     ectx: EvaluationContext,
     term: Term,
     targets: list[tuple[str, list[str]]],
+    metadata: Metadata,
     filename: str | None = None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
@@ -364,6 +368,7 @@ def synthesize(
             term,
             name,
             {h: v for h, v in program_holes.items() if h in holes_names},
+            metadata,
             filename,
             synth_config,
         )

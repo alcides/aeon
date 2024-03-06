@@ -5,8 +5,6 @@ from dataclasses import make_dataclass
 from typing import Protocol
 from typing import Type as TypingType
 
-from lark.lexer import Token
-
 from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
@@ -21,7 +19,9 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
+from aeon.decorators import Metadata
 from aeon.typechecking.context import TypingContext
+from lark.lexer import Token
 
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
@@ -58,8 +58,7 @@ class GrammarError(Exception):
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
-    def get_core(self):
-        ...
+    def get_core(self): ...
 
 
 classType = TypingType[HasGetCore]
@@ -320,7 +319,9 @@ def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     return grammar_nodes
 
 
-def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: list[type] | None = None) -> list[type]:
+def gen_grammar_nodes(
+    ctx: TypingContext, synth_func_name: str, metadata: Metadata, grammar_nodes: list[type] | None = None
+) -> list[type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,
@@ -335,15 +336,12 @@ def gen_grammar_nodes(ctx: TypingContext, synth_func_name: str, grammar_nodes: l
     Returns:
         list[type]: The list of generated grammar nodes.
     """
+    vars_to_ignore = metadata[synth_func_name]["syn_ignore"]
     if grammar_nodes is None:
         grammar_nodes = []
     for var in ctx.vars():
         var_name = var[0]
-        if (
-            var_name != synth_func_name
-            and not var_name.startswith("__internal__")
-            and var_name not in internal_functions
-        ):
+        if var_name != synth_func_name and not var_name.startswith("__internal__") and var_name not in vars_to_ignore:
             grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 

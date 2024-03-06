@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import argparse
 import sys
 
+import argparse
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
+from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
@@ -37,27 +38,16 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL""",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
-    parser.add_argument("-csv",
-                        "--csv-synth",
-                        action="store_true",
-                        help="export synthesis csv file")
+    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
 
-    parser.add_argument("-gp",
-                        "--gp-config",
-                        help="path to the GP configuration file")
+    parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
 
-    parser.add_argument("-csec",
-                        "--config-section",
-                        help="section name in the GP configuration file")
+    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
 
     parser.add_argument(
         "-d",
@@ -95,12 +85,14 @@ if __name__ == "__main__":
         typing_ctx = build_context(typing_vars)
         evaluation_ctx = EvaluationContext(evaluation_vars)
         core_ast = parse_term(aeon_code)
+        metadata: Metadata = {}
     else:
         prog: Program = parse_program(aeon_code)
         (
             core_ast,
             typing_ctx,
             evaluation_ctx,
+            metadata,
         ) = desugar(prog)
     logger.info(core_ast)
 
@@ -110,20 +102,20 @@ if __name__ == "__main__":
         log_type_errors(type_errors)
         sys.exit(1)
 
-    incomplete_functions: list[tuple[
-        str,
-        list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+    incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
-        synth_config = (parse_config(args.gp_config, args.config_section)
-                        if args.gp_config and args.config_section else None)
+        synth_config = (
+            parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+        )
 
         synthesis_result = synthesize(
             typing_ctx,
             evaluation_ctx,
             core_ast_anf,
             incomplete_functions,
+            metadata,
             filename,
             synth_config,
         )
