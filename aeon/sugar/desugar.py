@@ -6,7 +6,7 @@ from pathlib import Path
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitute_vartype_in_term
-from aeon.core.terms import Abstraction, If, Let, Annotation, TypeAbstraction, TypeApplication
+from aeon.core.terms import Abstraction
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
 from aeon.core.terms import Literal
@@ -20,12 +20,10 @@ from aeon.decorators import apply_decorators, Metadata
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition, Decorator
+from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.synthesis_grammar import grammar
-from aeon.synthesis_grammar.fitness import extract_fitness_from_synth
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.utils.ctx_helpers import build_context
@@ -102,17 +100,6 @@ def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list
     return new_definitions, metadata
 
 
-def extract_objectives_dict(defs: list[Definition]) -> dict[str, tuple[Term, list[Decorator]]]:
-    synth_defs_list = [item for item in defs if item.name.startswith("synth")]
-    objectives_dict = {}
-    if synth_defs_list:
-        for def_ in synth_defs_list:
-            fitness_function, macros = extract_fitness_from_synth(def_)
-            objectives_dict[def_.name] = (fitness_function, macros)
-
-    return objectives_dict
-
-
 def update_program_and_context(
     prog: Term,
     defs: list[Definition],
@@ -133,61 +120,6 @@ def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[Typ
     for tyname in type_decls:
         d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
     return UninterpretedBinder(ctx, d.name, d_type)
-
-
-def rename_internal_functions(t):
-    def process_phrase(phrase: str) -> str:
-        for word in grammar.internal_functions:
-            if word in phrase:
-                return phrase.replace(word, f"__internal__{word}")
-
-        return phrase
-
-    match t:
-        case Literal(value=value, type=_type):
-            if _type == BaseType("String"):
-                assert isinstance(value, str)
-                value = process_phrase(value)
-            return Literal(value=value, type=_type)
-        case Var(name=name):
-            if name in grammar.internal_functions:
-                name = f"__internal__{name}"
-            return Var(name)
-        case If(cond=cond, then=then, otherwise=otherwise):
-            cond = rename_internal_functions(cond)
-            then = rename_internal_functions(then)
-            otherwise = rename_internal_functions(otherwise)
-            return If(cond, then, otherwise)
-        case Application(fun=fun, arg=arg):
-            # fun = self.convert(fun)
-            fun = rename_internal_functions(fun)
-            arg = rename_internal_functions(arg)
-            return Application(fun, arg)
-        case Let(var_name=name, var_value=value, body=body):
-            name = rename_internal_functions(name)
-            value = rename_internal_functions(value)
-            body = rename_internal_functions(body)
-            return Let(name, value, body)
-        case Rec(var_name=name, var_type=type, var_value=value, body=body):
-            name = rename_internal_functions(name)
-            value = rename_internal_functions(value)
-            body = rename_internal_functions(body)
-            return Rec(name, type, value, body)
-        case Abstraction(var_name=name, body=body):
-            name = rename_internal_functions(name)
-            body = rename_internal_functions(body)
-            return Abstraction(var_name=name, body=body)
-        case Annotation(expr=expr, type=ty):
-            expr = rename_internal_functions(expr)
-            return Annotation(expr=expr, type=ty)
-        case TypeAbstraction(name=name, kind=kind, body=body):
-            body = rename_internal_functions(body)
-            return TypeAbstraction(name, kind, body)
-        case TypeApplication(body=body, type=type):
-            body = rename_internal_functions(body)
-            return TypeApplication(body, type)
-        case _:
-            return t
 
 
 def bind_program_to_rec(prog: Term, d: Definition) -> Term:

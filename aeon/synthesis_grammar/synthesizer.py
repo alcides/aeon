@@ -329,7 +329,6 @@ def synthesize_single_function(
     # Step 2 Create grammar object.
     # TODO Synthesis: grammar should also receive metadata from the decoratormains
     grammar = create_grammar(holes, fun_name, metadata)
-    print(grammar)
     hole_name = list(holes.keys())[0]
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
     #  to use (e.g., Random Search, Genetic Programming, others...)
