@@ -4,66 +4,66 @@ type TestData;
 type List;
 type Tuple;
 
-@ignore()
+
 def psb2_aeon : Unit = native_import "psb2";
 
-@ignore()
+
 def textdistance_aeon : Unit = native_import "textdistance";
 
-@ignore()
+
 def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2_aeon.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
 
-@ignore()
+
 def extract_train_data : (ds:Dataset) -> TrainData = native "lambda ds: ds[0]";
 
-@ignore()
+
 def unpack_train_data : (td:TrainData) -> Tuple = native "lambda td: list(map(list, zip(*td)))";
 
-@ignore()
+
 def get_input_list : (t:Tuple) -> List = native "lambda t: t[0]";
 
-@ignore()
+
 def get_output_list : (t:Tuple) -> List = native "lambda t: sum(t[1], [])";
 
-@ignore()
+
 def extract_test_data : (ds:Dataset) -> TestData = native "lambda ds: ds[1]";
 
-@ignore()
+
 def mean_absolute_error : (true_values : List) -> (expected_values : List) ->  Float = native "lambda t: lambda e: __import__('numpy').mean(__import__('numpy').abs(__import__('numpy').array(t) - __import__('numpy').array(e)))";
 
 # add a refinement to make sure that the lists are all the same size
-@ignore()
+
 def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [abs(p - r) for p, r in zip(t, e)]";
 
 # maybe move this method to string lib
 def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
 
-@ignore()
+
 def calculate_str_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]";
 
-@ignore()
+
 def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
 
-@ignore()
+
 def get_bb_synth_values : (input : List) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
 
-@ignore()
+
 def get_dg_synth_values : (input : List) -> (f: (a:Int) ->( b:Int ) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
 
-@ignore()
+
 def get_fb_synth_values : (input : List) -> (f: (a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
-@ignore()
+
 def get_gcd_synth_values : (input : List) -> (f:(a: Int) -> (b: Int)->  Int ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x,y in inputs]";
 
-@ignore()
+
 def get_mc_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
-@ignore()
+
 def get_snowd_synth_values : (input : List) -> (f:(a: Int) ->( b:Float ) -> (c:Float) ->(d:Float)  -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z)(w) for x, y, z, w in inputs]";
 
-@ignore()
+
 def get_sd_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
-@ignore()
+
 def get_tt_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
