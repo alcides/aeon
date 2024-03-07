@@ -6,7 +6,6 @@ from aeon.core.terms import Term, Var
 from aeon.core.types import BaseType
 from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.utils import fitness_function_name_for
 
 
 def raise_decorator_error(name: str) -> None:
@@ -54,14 +53,16 @@ def minimize_float(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert len(args) == 1
-    fitness_function = Definition(
-        name=fitness_function_name_for(fun.name),
-        args=[],
-        type=BaseType("Float"),
-        body=args[0],
+    assert len(args) == 1, "minimize_float decorator expects a single argument"
+
+    n_decorators = len(metadata.get(fun.name, {}).get("minimize_float", []))
+    minimize_function_name = f"__internal__minimize_float_{fun.name}_{n_decorators}"
+    minimize_function = Definition(name=minimize_function_name, args=[], type=BaseType("Float"), body=args[0])
+
+    metadata = metadata_update(
+        metadata, fun, {"minimize_float": metadata.get(fun.name, {}).get("minimize_float", []) + [minimize_function]}
     )
-    return fun, [fitness_function], metadata
+    return fun, [minimize_function], metadata
 
 
 def multi_minimize_float(
@@ -73,14 +74,18 @@ def multi_minimize_float(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert len(args) == 1
-    fitness_function = Definition(
-        name=fitness_function_name_for(fun.name),
-        args=[],
-        type=BaseType("List"),
-        body=args[0],
+    assert len(args) == 1, "multi_minimize_float decorator expects a single argument"
+
+    n_decorators = len(metadata.get(fun.name, {}).get("multi_minimize_float", []))
+    minimize_function_name = f"__internal__multi_minimize_float_{fun.name}_{n_decorators}"
+    minimize_function = Definition(name=minimize_function_name, args=[], type=BaseType("List"), body=args[0])
+
+    metadata = metadata_update(
+        metadata,
+        fun,
+        {"multi_minimize_float": metadata.get(fun.name, {}).get("multi_minimize_float", []) + [minimize_function]},
     )
-    return fun, [fitness_function], metadata
+    return fun, [minimize_function], metadata
 
 
 def syn_ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
