@@ -24,7 +24,7 @@ def test_hole_minimize_int():
             def synth(a: Int) : Int { (?hole:Int) * a}
         """
     core = extract_core(code)
-    assert len(list(iterate_top_level(core))) == 4
+    assert len(list(iterate_top_level(core))) == 5
 
 
 def test_eq():
