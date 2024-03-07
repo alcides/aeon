@@ -20,9 +20,6 @@ from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
-    def fresh_var(self, var_name: str) -> str:
-        self.counter += 1
-        return f"_inner_{var_name}_{self.counter}"
 
     def list(self, args):
         return args
@@ -73,7 +70,6 @@ class TreeToSugar(TreeToCore):
         return (args[0], args[1])
 
     def refined_arg(self, args):
-        name = self.fresh_var(args[0])
         return args[0], RefinedType(args[0], args[1], liquefy(args[2]))
 
     def abstraction_refined_t(self, args):
