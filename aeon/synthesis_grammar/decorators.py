@@ -1,5 +1,7 @@
 """Meta-programming code for optimization-related decorators."""
 
+from typing import Any
+
 from aeon.core.terms import Term, Var
 from aeon.core.types import BaseType
 from aeon.decorators.api import Metadata
@@ -11,6 +13,16 @@ def raise_decorator_error(name: str) -> None:
     raise Exception(f"Exception in decorator named {name}.")
 
 
+def metadata_update(metadata: Metadata, fun: Definition, aux_dict: dict[str, Any] = None) -> Metadata:
+    if not aux_dict:
+        aux_dict = {}
+    if fun.name in metadata.keys():
+        metadata[(str(fun.name))].update(aux_dict)
+    else:
+        metadata[(str(fun.name))] = aux_dict
+    return metadata
+
+
 def minimize_int(
     args: list[Term], fun: Definition, metadata: Metadata
 ) -> tuple[Definition, list[Definition], Metadata]:
@@ -20,9 +32,18 @@ def minimize_int(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert len(args) == 1
-    fitness_function = Definition(name=fitness_function_name_for(fun.name), args=[], type=BaseType("Int"), body=args[0])
-    return fun, [fitness_function], metadata
+    assert len(args) == 1, "minimize_int decorator expects a single argument"
+
+    metadata = metadata_update(metadata, fun)
+    minimize_int_entries = metadata[fun.name].get("minimize_int", [])
+
+    n_decorator = len(minimize_int_entries)
+    minimize_function_name = f"__internal__minimize_int_{fun.name}_{n_decorator}"
+
+    minimize_function = Definition(name=minimize_function_name, args=[], type=BaseType("Int"), body=args[0])
+
+    metadata = metadata_update(metadata, fun, {"minimize_int": minimize_int_entries + [minimize_function]})
+    return fun, [minimize_function], metadata
 
 
 def minimize_float(
@@ -80,10 +101,6 @@ def syn_ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[D
 
     # rethink this
     aux_dict = {"syn_ignore": [get_var_name(arg) for arg in args]}
-    assert isinstance(fun.name, str)
-    if fun.name in metadata.keys():
-        metadata[(str(fun.name))].update(aux_dict)
-    else:
-        metadata[(str(fun.name))] = aux_dict
+    metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
