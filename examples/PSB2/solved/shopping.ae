@@ -16,7 +16,7 @@ def List_map_Int_Int_Int_List: (function: (a: Int) -> (b: Int) -> Int) ->
                                List =
     native "lambda f: lambda xs: lambda ys: list(map(lambda x, y: f(x)(y), xs, ys))";
 
-def shopping  (prices: List, discounts: List) : Int {
+def shopping  (prices: List) (discounts: List) : Int {
     f: (x:Int) -> (y:Int) -> Int = \x -> \y -> x * (1 - y / 100);
     l: List = List_map_Int_Int_Int_List f prices discounts;
     List_sum l

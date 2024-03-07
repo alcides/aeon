@@ -21,7 +21,7 @@ def List_append_float: (l:List) -> (i: Float) -> {l2:List | List_size l2 == List
 
 
 
-def vector_distance  (vector1: List, vector2: List) : Float {
+def vector_distance  (vector1: List) (vector2: List) : Float {
     mapper : (x:Float) -> (y:Float) -> Float = \x -> \y ->  Math_pow_Float (x -. y) 2.0;
     squared_diffs: List = Map_Float_Float_Float_List_List mapper vector1 vector2;
     distance = Math_sqrt_Float (List_sum_Float squared_diffs);

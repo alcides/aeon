@@ -10,7 +10,7 @@ def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = native 
 
 def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = native "lambda f:lambda xs: map(f, xs)";
 
-def cipher (cipher_from: String, cypher_to: String, msg: String) : String {
+def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String {
  cipher_dict: Dict = Dict_zip (Zip_String_String cipher_from cypher_to);
  mapper : (x:String) -> String = \x -> Dict_get cipher_dict x x;
  deciphered_chars: List = Map_String_String mapper msg;

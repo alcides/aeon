@@ -21,7 +21,7 @@ def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = native "lam
 def Counter_values : (c:Counter) -> List = native "lambda c: list(c.values())";
 def Tuple : (a:Int) -> (b:Int) -> List = native "lambda a: lambda b: [a,b]";
 
-def mastermind ( code : String, guess: String ) : List {
+def mastermind ( code : String) (guess: String ) : List {
     items_eq : (x:List) -> Int = \x -> if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
     black_map : List = Map_bool items_eq (String_Zip code guess);
     black_pegs : Int = List_sum black_map;
