@@ -34,15 +34,14 @@ def minimize_int(
     """
     assert len(args) == 1, "minimize_int decorator expects a single argument"
 
-    metadata = metadata_update(metadata, fun)
-    minimize_int_entries = metadata[fun.name].get("minimize_int", [])
+    n_decorators = len(metadata.get(fun.name, {}).get("minimize_int", []))
 
-    n_decorator = len(minimize_int_entries)
-    minimize_function_name = f"__internal__minimize_int_{fun.name}_{n_decorator}"
-
+    minimize_function_name = f"__internal__minimize_int_{fun.name}_{n_decorators}"
     minimize_function = Definition(name=minimize_function_name, args=[], type=BaseType("Int"), body=args[0])
 
-    metadata = metadata_update(metadata, fun, {"minimize_int": minimize_int_entries + [minimize_function]})
+    metadata = metadata_update(
+        metadata, fun, {"minimize_int": metadata.get(fun.name, {}).get("minimize_int", []) + [minimize_function]}
+    )
     return fun, [minimize_function], metadata
 
 
