@@ -12,7 +12,7 @@ defs : def*                                          -> list
 type_decl : "type" TYPENAME ";"                            -> type_decl
 
 def : (soft_constraint)* "def" ID ":" type "=" expression ";"                  -> def_cons
-    | (soft_constraint)* "def" ID "(" args ")" ":" type "{" expression "}"     -> def_fun
+    | (soft_constraint)* "def" ID  args ":" type "{" expression "}"     -> def_fun
 
 soft_constraint : "@" ID "(" macro_args ")"                 -> macro
 
@@ -21,9 +21,18 @@ macro_args :                           -> empty_list
 
 
 args :                          -> empty_list
-     | arg ("," arg)*           -> args
+     | arg (arg)*           -> args
 
-arg : ID ":" type               -> arg
+arg : "(" ID ":" type ")"                       -> arg
+    | "(" ID ":" type _PIPE expression ")"      -> refined_arg
+
+
+type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO delete later
+     | "(" ID ":" type ")" "->" type                       -> abstraction_t
+     | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
+     | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
+     | ID                                                  -> simple_t
+     | "(" type ")"                                        -> same
 
 
 expression : "-" expression_i                           -> minus
@@ -84,11 +93,6 @@ expression_simple : "(" expression ")"                       -> same
         | ID                                                 -> var
         | "?" ID                                             -> hole
 
-type : "{" ID ":" type _PIPE expression "}"                -> refined_t
-     | "(" ID ":" type ")" "->" type                       -> abstraction_t
-     | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
-     | ID                                                  -> simple_t
-     | "(" type ")"                                        -> same
 
 kind : "B" -> base_kind
      | "*" -> star_kind
