@@ -6,9 +6,10 @@ from typing import Callable
 from lark import Lark
 from lark import Tree
 
+from aeon.core.substitutions import liquefy
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, RefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Decorator
@@ -19,6 +20,7 @@ from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
+
     def list(self, args):
         return args
 
@@ -66,6 +68,13 @@ class TreeToSugar(TreeToCore):
 
     def arg(self, args):
         return (args[0], args[1])
+
+    def refined_arg(self, args):
+        return args[0], RefinedType(args[0], args[1], liquefy(args[2]))
+
+    def abstraction_refined_t(self, args):
+        type = RefinedType(args[0], args[1], liquefy(args[2]))
+        return AbstractionType(str(args[0]), type, args[3])
 
     def abstraction_et(self, args):
         return Annotation(

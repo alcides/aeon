@@ -17,7 +17,7 @@ def String_eq : (s:String) -> (s2:String) -> Bool = native "lambda s: lambda s2:
 
 def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = native "lambda s: lambda e: lambda st: list(range(s, e, st))";
 
-def create_mapper (scores:String, i:Int) : Int {
+def create_mapper (scores:String) (i:Int) : Int {
     current : String = String_get scores i;
     next : String = String_get scores (i+1);
     if String_eq current "X" then

@@ -10,7 +10,7 @@ def List_cons : (v:Int) ->
 
 
 def List_extract_from_singleton :
-    (l: {l:List | List_length l == 1}) ->
+    (l:List | List_length l == 1) ->
     Int = native "lambda l: l[0]";
 
 def main (i:Int) : Unit {

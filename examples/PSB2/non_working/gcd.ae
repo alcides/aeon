@@ -5,11 +5,11 @@
 # --not- working - recursion problem--
 # RecursionError: maximum recursion depth exceeded in comparison
 
-def gcd ( n:Int, z:Int) : Int {
-    if z == 0 then n else (gcd(z)(n % z))
+def gcd (n:Int) (z:Int) : Int {
+    if z == 0 then n else gcd z (n % z)
 }
 
-def synth_gcd ( n:Int, z:Int) : Int {
+def synth_gcd (n:Int) (z:Int) : Int {
     (?hole:Int)
 }
 # def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) : Int { gcd n m }
