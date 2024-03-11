@@ -10,7 +10,7 @@ def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j
 
 def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
 
-def indices_of_substring ( text :String, target: String) : List {
+def indices_of_substring ( text :String) (target: String) : List {
     start: Int = 0;
     end: Int = (String_len text) - (String_len target) + 1 ;
     step: Int = 1;

@@ -3,7 +3,7 @@ from __future__ import annotations
 from loguru import logger
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidApp, LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -28,16 +28,16 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_unit
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.types import args_size_of_type
 from aeon.core.types import bottom
 from aeon.core.types import extract_parts
+from aeon.core.types import t_bool
+from aeon.core.types import t_float
+from aeon.core.types import t_int
+from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
 from aeon.prelude.prelude import (
     INTEGER_ARITHMETIC_OPERATORS,
@@ -77,10 +77,14 @@ class FailedConstraintException(Exception):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar) or isinstance(
-        ty,
-        RefinedType,
-    ) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(
+            ty,
+            RefinedType,
+        )
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -154,6 +158,46 @@ def prim_op(t: str) -> Type:
     )
 
 
+def rename_liquid_term(refinement, old_name, new_name):
+    if isinstance(refinement, LiquidVar):
+        if refinement.name == old_name:
+            return LiquidVar(new_name)
+        else:
+            return refinement
+    elif isinstance(refinement, LiquidLiteralBool):
+        return refinement
+    elif isinstance(refinement, LiquidLiteralInt):
+        return refinement
+    elif isinstance(refinement, LiquidLiteralFloat):
+        return refinement
+    elif isinstance(refinement, LiquidApp):
+        return LiquidApp(
+            refinement.fun,
+            [rename_liquid_term(x, old_name, new_name) for x in refinement.args],
+        )
+    elif isinstance(refinement, LiquidHole):
+        if refinement.name == old_name:
+            return LiquidHole(
+                new_name,
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
+            )
+        else:
+            return LiquidHole(
+                refinement.name,
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
+            )
+    else:
+        assert False
+
+
+def renamed_refined_type(ty: RefinedType) -> RefinedType:
+    old_name = ty.name
+    new_name = "_inner_" + old_name
+
+    refinement = rename_liquid_term(ty.refinement, old_name, new_name)
+    return RefinedType(new_name, ty.type, refinement)
+
+
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     if isinstance(t, Literal) and t.type == t_unit:
@@ -178,8 +222,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = ctx.type_of(t.name)
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
             ty = ensure_refined(ty)
-            assert ty.name != t.name
-            # TODO if the names are equal , we must replace it for another variable
+            # assert ty.name != t.name
+            if ty.name == t.name:
+                ty = renamed_refined_type(ty)
             # Self
             ty = RefinedType(
                 ty.name,
@@ -200,7 +245,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             )
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context", )
+                f"Variable {t.name} not in context",
+            )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
@@ -222,7 +268,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.", )
+                f"Application {t} is not a function.",
+            )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -298,8 +345,8 @@ def wrap_checks(f):
 @wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(
-            ty,
-            AbstractionType,
+        ty,
+        AbstractionType,
     ):  # ??? (\__equal_1__ -> (let _anf_1 = (== _anf_1) in(_anf_1 __equal_1__))) , basetype INT
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
@@ -325,7 +372,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
             raise CouldNotGenerateConstraintException(
-                "If condition not boolean", )
+                "If condition not boolean",
+            )
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,

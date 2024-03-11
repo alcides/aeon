@@ -9,7 +9,7 @@ import load_dataset from PSB2;
 import mean_absolute_error from PSB2;
 
 
-def gcd ( n:Int, z:Int) : Int {
+def gcd (n:Int) (z:Int) : Int {
     if z == 0 then n else (gcd(z)(n % z))
 }
 
@@ -26,6 +26,6 @@ def  expected_values : List =  get_output_list ( unpack_train_data  train);
             get_gcd_synth_values,
             calculate_list_errors)
 @minimize_float(  mean_absolute_error ( get_gcd_synth_values  input_list synth) ( expected_values))
-def synth ( n:Int, z:Int) : Int {
+def synth (n:Int) (z:Int) : Int {
     (?hole:Int)
 }

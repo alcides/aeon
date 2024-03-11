@@ -40,7 +40,7 @@ def abs (i:Int) : Int {
     if i > 0 then i else -i
 }
 
-def midpoint(a:Int, b:Int) : Int {
+def midpoint (a:In) (b:Int) : Int {
     (a + b) / 2
 }
 

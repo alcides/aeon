@@ -54,7 +54,7 @@ class Definition(Node):
             return f"def {self.name} : {self.type} = {self.body};"
         else:
             args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
-            return f"def {self.name} ({args}) -> {self.type} {{\n {self.body} \n}}"
+            return f"def {self.name} {args} -> {self.type} {{\n {self.body} \n}}"
 
 
 @dataclass
