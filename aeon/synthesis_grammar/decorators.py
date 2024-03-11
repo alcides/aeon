@@ -1,25 +1,13 @@
 """Meta-programming code for optimization-related decorators."""
 
-from typing import Any
-
 from aeon.core.terms import Term, Var
 from aeon.core.types import BaseType
-from aeon.decorators.api import Metadata
+from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Definition
 
 
 def raise_decorator_error(name: str) -> None:
     raise Exception(f"Exception in decorator named {name}.")
-
-
-def metadata_update(metadata: Metadata, fun: Definition, aux_dict: dict[str, Any] = None) -> Metadata:
-    if not aux_dict:
-        aux_dict = {}
-    if fun.name in metadata.keys():
-        metadata[(str(fun.name))].update(aux_dict)
-    else:
-        metadata[(str(fun.name))] = aux_dict
-    return metadata
 
 
 def minimize_int(

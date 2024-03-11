@@ -5,6 +5,8 @@ from dataclasses import make_dataclass
 from typing import Protocol
 from typing import Type as TypingType
 
+from lark.lexer import Token
+
 from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
@@ -21,7 +23,6 @@ from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
 from aeon.typechecking.context import TypingContext
-from lark.lexer import Token
 
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
@@ -331,6 +332,7 @@ def gen_grammar_nodes(
     Args:
         ctx (TypingContext): The TypingContext to extract variables from.
         synth_func_name (str) : The name of the function where the hole is located
+        metadata (Metadata): The metadata of the program.
         grammar_nodes (list[type]): Initial list of grammar nodes. Defaults to an empty list.
 
     Returns:
