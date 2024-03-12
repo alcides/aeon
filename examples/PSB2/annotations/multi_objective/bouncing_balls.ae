@@ -9,6 +9,7 @@ import load_dataset from PSB2;
 
 type List;
 
+def isZero : (n: Int) -> Bool = \n -> n == 0;
 
 def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
 
@@ -24,7 +25,7 @@ def expected_values : List = get_output_list (unpack_train_data train);
             get_bb_synth_values,
             calculate_list_errors)
 @multi_minimize_float(calculate_list_errors (get_bb_synth_values input_list synth) (expected_values))
-def synth (a:Float , b:Float , c:Int) : Float
+def synth (a:Float) (b:Float) (c:Int) : Float
     {
         (?hole:Float)
     }
