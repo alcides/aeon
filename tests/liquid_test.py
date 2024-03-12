@@ -14,7 +14,7 @@ from aeon.utils.ast_helpers import i1
 
 
 def check_compile(source, ty, res):
-    p, ctx, ectx = desugar(parse_program(source))
+    p, ctx, ectx, _ = desugar(parse_program(source))
     assert check_type(ctx, p, ty)
 
 
