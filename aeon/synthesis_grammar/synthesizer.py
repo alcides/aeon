@@ -216,7 +216,7 @@ def problem_for_fitness_function(
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name]]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
     assert used_decorators, "No valid fitness decorators found."
 
     set_error_fitness(used_decorators)
