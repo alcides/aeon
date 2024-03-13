@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sys
+import time
 
 import argparse
+
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
@@ -87,7 +89,10 @@ if __name__ == "__main__":
         core_ast = parse_term(aeon_code)
         metadata: Metadata = {}
     else:
+        start = time.time()
         prog: Program = parse_program(aeon_code)
+        end = time.time()
+        print(f"Time to parse: {end - start}")
         (
             core_ast,
             typing_ctx,
