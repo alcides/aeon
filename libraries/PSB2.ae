@@ -11,7 +11,7 @@ def psb2_aeon : Unit = native_import "psb2";
 def textdistance_aeon : Unit = native_import "textdistance";
 
 
-def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: psb2_aeon.fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
+def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: __import__('psb2').fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
 
 
 def extract_train_data : (ds:Dataset) -> TrainData = native "lambda ds: ds[0]";
@@ -34,9 +34,12 @@ def mean_absolute_error : (true_values : List) -> (expected_values : List) ->  F
 # maybe move this method to string lib
 def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
 
-# add a refinement to make sure that the lists are all the same size
 
+# add a refinement to make sure that the lists are all the same siz
 def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [abs(p - r) for p, r in zip(t, e)]";
+
+
+def calculate_list_difference : (true_values : List) -> (expected_values : List) ->  List =  native "lambda x: lambda y: [0 if a == b else 1 for a, b in zip(x, y)]";
 
 
 def calculate_String_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [String_distance(p)(r) for p, r in zip(t, e)]";
@@ -60,7 +63,16 @@ def get_bowling_synth_values : (input : List) -> (f:(a: String) -> Int ) -> List
 def get_c_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
 
 
+def get_cs_synth_values : (input : List) -> (f:(a: Int) -> List ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_cv_synth_values : (input : List) -> (f:(a: List) -> List ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
 def get_dg_synth_values : (input : List) -> (f: (a:Int) ->( b:Int ) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+
+def get_fp_synth_values : (input : List) -> (f: (a:List) ->( b:Int ) -> List ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
 
 
 def get_fb_synth_values : (input : List) -> (f: (a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
