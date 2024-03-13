@@ -14,7 +14,7 @@ def coin_sum (cents: Int) : List {
   dimes:Int = Math_floor_division (cents % 25) 10;
   nickels:Int = Math_floor_division ((cents % 25) % 10) 5;
   pennies:Int = ((cents % 25) % 10) % 5;
-  List_append (List_append (List_append ( List_append List_new quarters) dimes) nickels) pennies
+  List_append (List_append (List_append ( List_append List_new pennies) nickels) dimes) quarters;
  }
 
 def main (args:Int): Unit {
