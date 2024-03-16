@@ -13,7 +13,7 @@ def equal_int : (a: Int) -> (b: Int) -> Bool = native "lambda x: lambda y : x ==
 
 def middle_char  (s: String) : String {
     str_len : Int = String_len s;
-    a : Int = (str_len / 2);
+    a : Int = (str_len % 2);
     b : Bool = equal_int a 0;
     if (b) then
         x: Float = Math_toFloat str_len;

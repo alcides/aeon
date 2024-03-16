@@ -3,7 +3,6 @@ type List;
 def itertools : Unit = native_import "itertools";
 
 def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
-def List_reversed: (l: List)-> List = native "lambda xs : xs[::1]";
 def List_new : List = native "[]" ;
 def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
 def List_get: (l:List) -> (i:Int) -> Int = native "lambda xs: lambda i: xs[i]";
