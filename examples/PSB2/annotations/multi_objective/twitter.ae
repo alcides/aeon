@@ -3,28 +3,26 @@ import psb2_aeon from PSB2;
 import get_input_list from PSB2;
 import get_output_list from PSB2;
 import calculate_str_list_errors from PSB2;
-import get_fb_synth_values from PSB2;
+import get_tt_synth_values from PSB2;
 import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 
-type List;
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
 
-def div3 (n:Int) : Bool {if ((n % 3) == 0) then true else false}
-def div5 (n:Int) : Bool {if ((n % 5) == 0) then true else false}
-def div15 (n:Int) : Bool {if ((n % 15) == 0) then true else false}
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
 
-def toString : (n:Int) -> String = native "str";
+def const1 : String = "You didn't type anything";
+def const2 : String = "Too many characters";
+def const3 : String = "Your tweet has ";
+def const4 : String = " characters";
 
-def const1 : String = "Fizz";
-def const2 : String = "Buzz";
-def const3 : String = "FizzBuzz";
 
-def train: TrainData = extract_train_data (load_dataset "fizz-buzz" 200 200);
+def train: TrainData = extract_train_data (load_dataset "twitter" 200 200);
 
 def input_list : List = get_input_list (unpack_train_data train);
 
 def expected_values : List = get_output_list (unpack_train_data train);
-
 def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
 
 
@@ -34,13 +32,12 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
             unpack_train_data,
             load_dataset,
             get_b_synth_values,
-            String_distance,
-            calculate_str_list_errors,
+            calculate_list_errors,
             train,
             input_list,
             expected_values,
             flatten_list )
-@multi_minimize_float(calculate_str_list_errors (get_fb_synth_values ( flatten_list input_list) synth) expected_values)
-def synth (n:Int) : String {
+@multi_minimize_float(calculate_str_list_errors (get_tt_synth_values ( flatten_list input_list) synth) expected_values)
+def synth (tweet: String) : String {
     (?hole:String)
     }

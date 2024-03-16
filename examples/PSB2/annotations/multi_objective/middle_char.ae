@@ -1,0 +1,47 @@
+
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_str_list_errors from PSB2;
+import get_mc_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+type List;
+
+def math : Unit = native_import "math";
+def Math_floor : (i:Float) -> Int = native "lambda i: math.floor(i)";
+def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)";
+def Math_toInt : (i:Float) -> Int = native "lambda i: int(i)";
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+
+
+def equal_int : (a: Int) -> (b: Int) -> Bool = native "lambda x: lambda y : x == y";
+
+
+
+def train: TrainData = extract_train_data (load_dataset "middle-character" 200 200);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
+
+@syn_ignore(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_b_synth_values,
+            calculate_list_errors,
+            train,
+            input_list,
+            expected_values,
+            flatten_list )
+@multi_minimize_float(calculate_str_list_errors (get_mc_synth_values (flatten_list input_list) synth) expected_values)
+def synth(s: String) : String {
+    (?hole:String)
+}

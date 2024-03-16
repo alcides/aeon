@@ -2,8 +2,7 @@ import psb2_aeon from PSB2;
 import extract_train_data from PSB2;
 import get_input_list from PSB2;
 import get_output_list from PSB2;
-import String_distance from PSB2;
-import calculate_String_list_errors from PSB2;
+import calculate_str_list_errors from PSB2;
 import get_c_synth_values from PSB2;
 import unpack_train_data from PSB2;
 import load_dataset from PSB2;
@@ -40,7 +39,7 @@ def expected_values : List = get_output_list (unpack_train_data train);
             load_dataset,
             get_bb_synth_values,
             calculate_list_errors)
-@multi_minimize_float(calculate_String_list_errors (get_c_synth_values input_list synth) (expected_values))
+@multi_minimize_float(calculate_str_list_errors (get_c_synth_values input_list synth) (expected_values))
 def synth (s:String) : String {
     (?hole:String)
 }

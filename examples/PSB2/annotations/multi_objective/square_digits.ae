@@ -1,5 +1,3 @@
-import String;
-import Math;
 import extract_train_data from PSB2;
 import get_input_list from PSB2;
 import get_output_list from PSB2;
@@ -8,10 +6,20 @@ import get_sd_synth_values from PSB2;
 import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 import calculate_str_list_errors from PSB2;
+type List;
+
+
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+
 
 def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
 
 @syn_ignore(extract_train_data,
             get_input_list,
@@ -20,5 +28,7 @@ def expected_values : List = get_output_list (unpack_train_data train);
             load_dataset,
             get_sd_synth_values,
             calculate_list_errors)
-@multi_minimize_float(calculate_str_list_errors (get_sd_synth_values input_list synth) (expected_values))
-def synth ( n : Int) : String {(?hole:String)}
+@multi_minimize_float(calculate_str_list_errors (get_sd_synth_values (flatten_list input_list) synth) (expected_values))
+def synth ( n : Int) : String {
+(?hole:String)
+        }

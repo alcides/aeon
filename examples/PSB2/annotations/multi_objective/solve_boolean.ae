@@ -1,0 +1,57 @@
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_difference from PSB2;
+import get_sbool_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+type List;
+
+def String_split : (s:String) -> (sep:String) -> List = native "lambda s: lambda sep: s.split(sep, 1)";
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+
+def Map_string : (f: (s:String) -> String) -> (l:String) -> String = native "lambda f: lambda xs: str(map(f, xs))";
+def String_join : (l:List) -> (s:String) -> String = native "lambda l:lambda s:  s.join(l)";
+def String_tail:(l:String) -> String = native "lambda xs: xs[1:]";
+def String_contains:(s:String) -> (c:String) -> Bool = native "lambda s: lambda c: c in s";
+def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def List_get: (l:List) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]";
+
+
+def train: TrainData = extract_train_data (load_dataset "solve-boolean" 50 50);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
+
+def synth ( s : String ) : Bool {
+    if (String_equal s "t") then
+        true
+    else
+        if (String_equal s  "f") then
+            false
+        else
+             if (String_contains s  "&") then
+                operands: List = String_split s  "&";
+                synth (List_get operands 0) && synth (List_get operands 1)
+             else
+                operands: List = String_split s  "|";
+                synth (List_get operands 0) || synth (List_get operands 1)
+
+        }
+
+
+
+def main (args:Int) : Unit {
+    _ = print (synth "t|t|f|t|t");
+    _ = print ( flatten_list input_list);
+    _ = print "---";
+    _ = print ((get_sbool_synth_values (flatten_list input_list) synth));
+    _ = print "---";
+    _ = print (calculate_list_difference (get_sbool_synth_values (flatten_list input_list) synth) expected_values);
+    _ = print "---";
+    print(expected_values)
+}

@@ -19,6 +19,5 @@ def expected_values : List = get_output_list (unpack_train_data train);
             calculate_list_errors)
 @multi_minimize_float( calculate_list_errors (get_gcd_synth_values input_list synth) (expected_values))
 def synth (n:Int) (z:Int) : Int {
-    (?hole:Int)
+    (?hole: Int)
 }
-# def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) : Int { gcd n m }

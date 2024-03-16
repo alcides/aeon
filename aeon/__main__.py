@@ -92,7 +92,7 @@ if __name__ == "__main__":
         start = time.time()
         prog: Program = parse_program(aeon_code)
         end = time.time()
-        print(f"Time to parse: {end - start}")
+        logger.info(f"Time to parse: {end - start}")
         (
             core_ast,
             typing_ctx,
