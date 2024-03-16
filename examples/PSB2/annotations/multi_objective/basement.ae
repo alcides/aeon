@@ -39,8 +39,12 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
             get_output_list,
             unpack_train_data,
             load_dataset,
+            train,
+            input_list,
+            expected_values,
             get_b_synth_values,
-            calculate_list_errors)
+            calculate_list_errors,
+            flatten_list)
 @multi_minimize_float(calculate_list_errors (get_b_synth_values (flatten_list input_list) synth) expected_values)
 def synth (nums: List) : Int {
     (?hole : Int)

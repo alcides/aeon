@@ -50,8 +50,12 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
             get_output_list,
             unpack_train_data,
             load_dataset,
-            get_b_synth_values,
-            calculate_list_errors)
+            train,
+            input_list,
+            expected_values,
+            get_cv_synth_values,
+            calculate_list_difference,
+            flatten_list)
 @multi_minimize_float(calculate_list_difference (flatten_list(get_cv_synth_values (flatten_list input_list) synth)) expected_values)
 def synth ( ls : List ) : List {
     if (List_length ls == 1) then

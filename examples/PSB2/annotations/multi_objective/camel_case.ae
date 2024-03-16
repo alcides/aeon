@@ -37,9 +37,12 @@ def expected_values : List = get_output_list (unpack_train_data train);
             get_output_list,
             unpack_train_data,
             load_dataset,
-            get_bb_synth_values,
-            calculate_list_errors)
-@multi_minimize_float(calculate_str_list_errors (get_c_synth_values input_list synth) (expected_values))
+            train,
+            input_list,
+            expected_values,
+            get_c_synth_values,
+            calculate_str_list_errors)
+@multi_minimize_float(calculate_str_list_errors (get_c_synth_values input_list synth) expected_values)
 def synth (s:String) : String {
     (?hole:String)
 }

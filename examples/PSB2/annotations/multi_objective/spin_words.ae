@@ -26,7 +26,7 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
             get_output_list,
             unpack_train_data,
             load_dataset,
-            get_b_synth_values,
+            get_sw_synth_values,
             calculate_list_errors,
             train,
             input_list,

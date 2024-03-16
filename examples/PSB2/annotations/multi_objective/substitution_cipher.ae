@@ -30,13 +30,13 @@ def expected_values : List = get_output_list (unpack_train_data train);
             get_output_list,
             unpack_train_data,
             load_dataset,
-            get_b_synth_values,
+            get_sc_synth_values,
             calculate_list_errors,
             train,
             input_list,
             expected_values,
             flatten_list )
 @multi_minimize_float(calculate_str_list_errors (get_sc_synth_values input_list synth) expected_values)
-def synth (cipher_from: String) ( cypher_to: String) (msg: String) : String {
+def synth (cipher_from: String) (cypher_to: String) (msg: String) : String {
  (?hole:String)
  }
