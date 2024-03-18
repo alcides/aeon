@@ -14,7 +14,7 @@ def train: TrainData = extract_train_data (load_dataset "snow-day" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
 
-@syn_ignore(extract_train_data,
+@hide(extract_train_data,
             get_input_list,
             get_output_list,
             unpack_train_data,

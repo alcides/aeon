@@ -76,7 +76,7 @@ def multi_minimize_float(
     return fun, [minimize_function], metadata
 
 
-def syn_ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+def hide(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a zero argument .
 
     It does not modify the original definition. It makes sure that no
@@ -89,10 +89,10 @@ def syn_ignore(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[D
         if isinstance(arg, Var):
             return arg.name
         else:
-            raise_decorator_error("syn_ignore")
+            raise_decorator_error("hide")
 
     # rethink this
-    aux_dict = {"syn_ignore": [get_var_name(arg) for arg in args]}
+    aux_dict = {"hide": [get_var_name(arg) for arg in args]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata

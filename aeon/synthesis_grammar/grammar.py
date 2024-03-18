@@ -339,8 +339,8 @@ def gen_grammar_nodes(
         list[type]: The list of generated grammar nodes.
     """
     vars_to_ignore = (
-        metadata[synth_func_name]["syn_ignore"]
-        if synth_func_name in metadata and "syn_ignore" in metadata[synth_func_name].keys()
+        metadata[synth_func_name]["hide"]
+        if synth_func_name in metadata and "hide" in metadata[synth_func_name].keys()
         else []
     )
     if grammar_nodes is None:

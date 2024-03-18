@@ -35,7 +35,7 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
 
 
 
-@syn_ignore(extract_train_data,
+@hide(extract_train_data,
             get_input_list,
             get_output_list,
             unpack_train_data,
