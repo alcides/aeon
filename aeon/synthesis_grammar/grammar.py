@@ -22,7 +22,7 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypingContext, UninterpretedBinder, EmptyContext, VariableBinder
 
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
@@ -345,10 +345,20 @@ def gen_grammar_nodes(
     )
     if grammar_nodes is None:
         grammar_nodes = []
-    for var in ctx.vars():
-        var_name = var[0]
-        if var_name != synth_func_name and not var_name.startswith("__internal__") and var_name not in vars_to_ignore:
-            grammar_nodes = create_class_from_ctx_var(var, grammar_nodes)
+    n_ctx = ctx
+    while not isinstance(n_ctx, EmptyContext) and n_ctx.prev is not None:  # type: ignore
+        assert isinstance(n_ctx, (UninterpretedBinder | VariableBinder))
+        ctx_var = n_ctx.vars()[0]
+        var_name = ctx_var[0]
+        if (
+            var_name != synth_func_name
+            and not var_name.startswith("__internal__")
+            and var_name not in vars_to_ignore
+            and not isinstance(n_ctx, UninterpretedBinder)
+        ):
+            grammar_nodes = create_class_from_ctx_var(ctx_var, grammar_nodes)
+
+        n_ctx = n_ctx.prev
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
     # print_grammar_nodes(grammar_nodes)
