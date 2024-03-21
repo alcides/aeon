@@ -92,28 +92,44 @@ if __name__ == "__main__":
         start = time.time()
         prog: Program = parse_program(aeon_code)
         end = time.time()
-        logger.info(f"Time to parse: {end - start}")
+        logger.info(f"Parsing time: {end - start}")
+        start = time.time()
         (
             core_ast,
             typing_ctx,
             evaluation_ctx,
             metadata,
         ) = desugar(prog)
+        end = time.time()
+        logger.info(f"Desugaring time: {end - start} seconds")
     logger.info(core_ast)
-
+    start = time.time()
     core_ast_anf = ensure_anf(core_ast)
+    print(core_ast_anf)
+    end = time.time()
+    logger.info(f"ANF conversion time: {end - start} seconds")
+
+    start = time.time()
     type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    end = time.time()
+    logger.info(f"Type checking time: {end - start} seconds")
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
 
+    start = time.time()
     incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+    end = time.time()
+    logger.info(f"Incomplete Functions identification time: {end - start} seconds")
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
+        start = time.time()
         synth_config = (
             parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
         )
+        end = time.time()
+        logger.info(f"Config parsing time: {end - start} seconds")
 
         synthesis_result = synthesize(
             typing_ctx,
@@ -128,5 +144,7 @@ if __name__ == "__main__":
         # print()
         # pretty_print_term(ensure_anf(synthesis_result, 200))
         sys.exit(1)
-
+    start = time.time()
     eval(core_ast, evaluation_ctx)
+    end = time.time()
+    logger.info(f"Evaluation time: {end - start} seconds")

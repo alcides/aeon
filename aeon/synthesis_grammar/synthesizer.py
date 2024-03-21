@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins
 import os
 import sys
+import time
 from typing import Any
 from typing import Callable
 
@@ -47,6 +48,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 
 
+# TODO add timer to synthesis
 class SynthesisError(Exception):
     pass
 
@@ -55,7 +57,7 @@ MINIMIZE_OBJECTIVE = True
 # TODO remove this if else statement if we invert the result of the maximize decorators
 ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
 ERROR_FITNESS = ERROR_NUMBER
-TIMEOUT_DURATION: int = 1  # seconds
+TIMEOUT_DURATION: int = 60  # seconds
 
 
 representations = {
@@ -68,7 +70,7 @@ representations = {
 gengy_default_config = {
     "seed": 123,
     "max_depth": 8,
-    "population_size": 100,
+    "population_size": 30,
     "n_elites": 1,
     "verbose": 2,
     "target_fitness": 0,
@@ -169,6 +171,7 @@ def create_evaluator(
     def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
         """Function to run in a separate process and places the result in a Queue."""
         try:
+            start = time.time()
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
             individual_term = ensure_anf(individual_term, 10000000)
@@ -177,6 +180,8 @@ def create_evaluator(
             result = results if len(results) > 1 else results[0]
             result = filter_nan_values(result)
             result_queue.put(result)
+            end = time.time()
+            logger.info(f"Individual evaluation time: {end-start} ")
 
         except Exception as e:
             # import traceback
@@ -193,6 +198,7 @@ def create_evaluator(
         eval_process.join(timeout=TIMEOUT_DURATION)
 
         if eval_process.is_alive():
+            logger.log("SYNTHESIZER", "Timeout exceeded")
             eval_process.terminate()
             eval_process.join()
             return ERROR_FITNESS
