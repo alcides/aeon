@@ -6,6 +6,7 @@ def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda
 
 def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = native "lambda i: lambda j: lambda l: i[j:l]" ;
 def List_remove_last : (i:List) -> List = native "lambda i: i[:-1]";
+def List_remove_first : (i:List) -> List = native "lambda i: i[1:]";
 def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
 
 def List_length: (l:List) -> Int = native "lambda list: len(list)";
@@ -27,7 +28,7 @@ def get_zip : (i:List) -> List = native "lambda i: i[1]";
 
 def cut_vector ( ls : List ) : List {
     inits: List = Accumulate (List_remove_last ls);
-    tails: List = List_remove_last (List_reversed (Accumulate (List_reversed ls)));
+    tails: List = List_remove_first (List_reversed (Accumulate (List_reversed ls)));
     mapper : (s:List) -> List = \x -> Tuple
                         (Math_abs ((get_fst (get_zip x)) - (get_snd (get_zip x))))
                         (get_fst x);

@@ -15,6 +15,7 @@ def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda
 
 def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = native "lambda i: lambda j: lambda l: i[j:l]" ;
 def List_remove_last : (i:List) -> List = native "lambda i: i[:-1]";
+def List_remove_first : (i:List) -> List = native "lambda i: i[1:]";
 def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
 
 def List_length: (l:List) -> Int = native "lambda list: len(list)";
@@ -36,7 +37,7 @@ def get_zip : (i:List) -> List = native "lambda i: i[1]";
 
 #PSB2 functions
 
-def train: TrainData = extract_train_data (load_dataset "cut-vector" 50 50);
+def train: TrainData = extract_train_data (load_dataset "cut-vector" 20 20);
 
 def input_list : List = get_input_list (unpack_train_data train);
 
@@ -58,29 +59,5 @@ def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').
             flatten_list)
 @multi_minimize_float(calculate_list_difference (flatten_list(get_cv_synth_values (flatten_list input_list) synth)) expected_values)
 def synth ( ls : List ) : List {
-    if (List_length ls == 1) then
-        Tuple_list ls List_new
-    else
-    inits: List = Accumulate (List_remove_last ls);
-    tails: List = List_remove_last (List_reversed (Accumulate (List_reversed ls)));
-    mapper : (s:List) -> List = \x -> Tuple
-                        (Math_abs ((get_fst (get_zip x)) - (get_snd (get_zip x))))
-                        (get_fst x);
-    diffs: List = Map mapper (Enumerate (Zip inits tails));
-    l : List = min_list diffs ((\xs -> get_fst xs):(xs:List) -> Int);
-    cut_position: Int = get_snd l;
-
-    vec1: List = List_slice ls 0 (cut_position +1);
-    vec2: List = List_slice ls (cut_position ) (List_length ls);
-
-    Tuple_list vec1 vec2
-}
-
-
-def main (args:Int) : Unit {
-    _ = print (flatten_list input_list);
-    _ = print (flatten_list(get_cv_synth_values (flatten_list input_list) synth));
-    _ = print (calculate_list_difference (flatten_list(get_cv_synth_values (flatten_list input_list) synth)) expected_values);
-    print(expected_values)
-
+    (?hole:List)
 }
