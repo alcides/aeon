@@ -8,29 +8,31 @@ def String_join : (l:List) -> (s:String) -> String = native "lambda l:lambda s: 
 def String_tail:(l:String) -> String = native "lambda xs: xs[1:]";
 def String_contains:(s:String) -> (c:String) -> Bool = native "lambda s: lambda c: c in s";
 def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def String_get: (l:String) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]";
+def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = native "lambda s: lambda start: lambda end: s[start:end]";
+def String_length: (s:String) -> Int = native "lambda s: len(s)";
 def List_get: (l:List) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]";
 
 def solve_boolean ( s : String ) : Bool {
     if (String_equal s "t") then
         true
     else
-        if (String_equal s  "f") then
+        if (String_equal s "f") then
             false
         else
-             if (String_contains s  "&") then
-                operands: List = String_split s  "&";
-                solve_boolean (List_get operands 0) && solve_boolean (List_get operands 1)
+             if (String_equal (String_get s (-2))  "&") then
+                operand1: String = String_slice s 0 (-2);
+                operand2: String = String_slice s (-1) (String_length s);
+                solve_boolean operand1 && solve_boolean operand2
              else
-                if (String_contains s  "|") then
-                    operands: List = String_split s  "|";
-                    solve_boolean (List_get operands 0) || solve_boolean (List_get operands 1)
-                else
-                    false
+                operand1: String = String_slice s 0 (-2);
+                operand2: String = String_slice s (-1) (String_length s);
+                solve_boolean operand1 || solve_boolean operand2
+
         }
 
 
 
-
 def main (args:Int) : Unit {
-    print(solve_boolean "t&t")
+    print (solve_boolean "f&f|t")
 }

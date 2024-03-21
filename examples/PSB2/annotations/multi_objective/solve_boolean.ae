@@ -16,10 +16,13 @@ def String_join : (l:List) -> (s:String) -> String = native "lambda l:lambda s: 
 def String_tail:(l:String) -> String = native "lambda xs: xs[1:]";
 def String_contains:(s:String) -> (c:String) -> Bool = native "lambda s: lambda c: c in s";
 def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def String_get: (l:String) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]";
+def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = native "lambda s: lambda start: lambda end: s[start:end]";
+def String_length: (s:String) -> Int = native "lambda s: len(s)";
 def List_get: (l:List) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]";
 
 
-def train: TrainData = extract_train_data (load_dataset "solve-boolean" 50 50);
+def train: TrainData = extract_train_data (load_dataset "solve-boolean" 200 200);
 
 def input_list : List = get_input_list (unpack_train_data train);
 
@@ -27,31 +30,8 @@ def expected_values : List = get_output_list (unpack_train_data train);
 def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
 
 
+
+@multi_minimize_float(calculate_list_difference (get_sbool_synth_values (flatten_list input_list) synth) expected_values)
 def synth ( s : String ) : Bool {
-    if (String_equal s "t") then
-        true
-    else
-        if (String_equal s  "f") then
-            false
-        else
-             if (String_contains s  "&") then
-                operands: List = String_split s  "&";
-                synth (List_get operands 0) && synth (List_get operands 1)
-             else
-                operands: List = String_split s  "|";
-                synth (List_get operands 0) || synth (List_get operands 1)
-
-        }
-
-
-
-def main (args:Int) : Unit {
-    _ = print (synth "t|t|f|t|t");
-    _ = print ( flatten_list input_list);
-    _ = print "---";
-    _ = print ((get_sbool_synth_values (flatten_list input_list) synth));
-    _ = print "---";
-    _ = print (calculate_list_difference (get_sbool_synth_values (flatten_list input_list) synth) expected_values);
-    _ = print "---";
-    print(expected_values)
+    (?hole:Bool);
 }
