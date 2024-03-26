@@ -120,7 +120,7 @@ def get_vd_synth_values : (input : List) -> (f:(a: List) -> (b: List) -> Float )
 def calculate_basement_errors : (train : TrainData) -> (f:(a: List) -> Int ) -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
 
 
-def calculate_bouncing_balls_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]";
+def calculate_bouncing_balls_psb2_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1])(x[2]) - y[0]) for x , y in data]";
 
 
 def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
