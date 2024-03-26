@@ -3,28 +3,12 @@ from __future__ import annotations
 import builtins
 import os
 import sys
+import time
 from typing import Any
 from typing import Callable
 
 import configparser
 import multiprocess as mp
-from aeon.backend.evaluator import EvaluationContext
-from aeon.backend.evaluator import eval
-from aeon.core.substitutions import substitution
-from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top
-from aeon.core.types import Type
-from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.synthesis_grammar.grammar import (
-    gen_grammar_nodes,
-    get_grammar_node,
-    classType,
-)
-from aeon.synthesis_grammar.identification import get_holes_info, iterate_top_level
-from aeon.synthesis_grammar.utils import fitness_function_name_for
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
 from geneticengine.algorithms.gp.individual import Individual
 from geneticengine.algorithms.gp.simplegp import SimpleGP
 from geneticengine.core.grammar import extract_grammar, Grammar
@@ -44,15 +28,36 @@ from geneticengine.core.representations.grammatical_evolution.structured_ge impo
 from geneticengine.core.representations.tree.treebased import TreeBasedRepresentation
 from loguru import logger
 
+from aeon.backend.evaluator import EvaluationContext
+from aeon.backend.evaluator import eval
+from aeon.core.substitutions import substitution
+from aeon.core.terms import Term, Literal, Var
+from aeon.core.types import BaseType, Top
+from aeon.core.types import Type
+from aeon.core.types import top
+from aeon.decorators import Metadata
+from aeon.frontend.anf_converter import ensure_anf
+from aeon.sugar.program import Definition
+from aeon.synthesis_grammar.grammar import (
+    gen_grammar_nodes,
+    get_grammar_node,
+    classType,
+)
+from aeon.synthesis_grammar.identification import get_holes_info
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type_errors
 
+
+# TODO add timer to synthesis
 class SynthesisError(Exception):
     pass
 
 
 MINIMIZE_OBJECTIVE = True
+# TODO remove this if else statement if we invert the result of the maximize decorators
 ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
 ERROR_FITNESS = ERROR_NUMBER
-TIMEOUT_DURATION: int = 1  # seconds
+TIMEOUT_DURATION: int = 60  # seconds
 
 
 representations = {
@@ -65,7 +70,7 @@ representations = {
 gengy_default_config = {
     "seed": 123,
     "max_depth": 8,
-    "population_size": 100,
+    "population_size": 30,
     "n_elites": 1,
     "verbose": 2,
     "target_fitness": 0,
@@ -138,80 +143,98 @@ def filter_nan_values(result):
         return result
 
 
+def individual_type_check(ctx, program, first_hole_name, individual_term):
+    new_program = substitution(program, individual_term, first_hole_name)
+    check_type_errors(ctx, new_program, Top())
+
+
 def create_evaluator(
     ctx: TypingContext,
     ectx: EvaluationContext,
     program: Term,
-    fitness_function_name: str,
+    fun_name: str,
+    metadata: Metadata,
     holes: list[str],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
+    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name]]
+    assert used_decorators, "No fitness decorators used in metadata for function."
 
-    program_template = substitution(program, Var(fitness_function_name), "main")
+    objectives_list: list[Definition] = [
+        objective for decorator in used_decorators for objective in metadata[fun_name][decorator]
+    ]
+    programs_to_evaluate: list[Term] = [
+        substitution(program, Var(objective.name), "main") for objective in objectives_list
+    ]
 
     def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
-        """Function to run in a separate process.
-
-        Puts result in a Queue.
-        """
-        new_program = None
+        """Function to run in a separate process and places the result in a Queue."""
         try:
+            start = time.time()
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
             individual_term = ensure_anf(individual_term, 10000000)
-            new_program = substitution(program_template, individual_term, first_hole_name)
-            check_type_errors(ctx, new_program, Top())
-            result = eval(new_program, ectx)
+            individual_type_check(ctx, program, first_hole_name, individual_term)
+            results = [eval(substitution(p, individual_term, first_hole_name), ectx) for p in programs_to_evaluate]
+            result = results if len(results) > 1 else results[0]
+            result = filter_nan_values(result)
+            result_queue.put(result)
+            end = time.time()
+            logger.info(f"Individual evaluation time: {end-start} ")
+
         except Exception as e:
             # import traceback
             # traceback.print_exc()
-            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}, {id(new_program)}")
-            result = ERROR_FITNESS
-        result = filter_nan_values(result)
-        result_queue.put(result)
+            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
+            result_queue.put(ERROR_FITNESS)
 
     def evaluator(individual: classType) -> Any:
         """Evaluates an individual with a timeout."""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         result_queue = mp.Queue()
-
         eval_process = mp.Process(target=evaluate_individual, args=(individual, result_queue))
         eval_process.start()
-
         eval_process.join(timeout=TIMEOUT_DURATION)
 
         if eval_process.is_alive():
+            logger.log("SYNTHESIZER", "Timeout exceeded")
             eval_process.terminate()
             eval_process.join()
             return ERROR_FITNESS
-        else:
-            return result_queue.get()
-            # evaluate_individual(individual, result_queue)
+        return result_queue.get()
 
     return evaluator
+
+
+def is_multiobjective(used_decorators: list[str]) -> bool:
+    return len(used_decorators) > 1 or used_decorators[0].startswith("multi")
 
 
 def problem_for_fitness_function(
     ctx: TypingContext,
     ectx: EvaluationContext,
     term: Term,
-    fitness_function_name: str,
-    fitness_function_type: Type,
+    fun_name: str,
+    metadata: Metadata,
     hole_names: list[str],
 ) -> Problem:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
-    fitness_function = create_evaluator(ctx, ectx, term, fitness_function_name, hole_names)
-    is_multiobjective = fitness_function_type == BaseType("List")  # TODO: replace when merging polymorphic types
-    if is_multiobjective:
-        return MultiObjectiveProblem(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE)
+    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
+    assert used_decorators, "No valid fitness decorators found."
 
-    else:
-        return SingleObjectiveProblem(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE)
+    set_error_fitness(used_decorators)
+
+    fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
+    problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
+
+    return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE)
 
 
-def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
-    grammar_nodes = gen_grammar_nodes(ctx, fun_name, [])
+def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata: Metadata):
+    grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
     assert isinstance(ty, BaseType)  # TODO Synthesis: Support other types?
@@ -220,12 +243,12 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str):
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str):
+def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str, metadata: dict[str, Any]):
     assert len(holes) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
-    grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name)
+    grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name, metadata)
     return extract_grammar(grammar_nodes, starting_node)
 
 
@@ -281,19 +304,12 @@ def geneticengine_synthesis(
     return best.phenotype.get_core()
 
 
-def set_error_fitness(candidate_function):
-    assert len(candidate_function) == 1
-    type_to_fitness = {
-        BaseType("List"): [ERROR_NUMBER],
-        BaseType("Float"): ERROR_NUMBER,
-        BaseType("Int"): ERROR_NUMBER,
-    }
-    candidate_type = candidate_function[0]
+def set_error_fitness(decorators):
     global ERROR_FITNESS
-    if candidate_type in type_to_fitness:
-        ERROR_FITNESS = type_to_fitness[candidate_type]
+    if is_multiobjective(decorators):
+        ERROR_FITNESS = [ERROR_NUMBER]
     else:
-        raise ValueError(f"Unsupported type: {candidate_type}")
+        ERROR_FITNESS = ERROR_NUMBER
 
 
 def synthesize_single_function(
@@ -302,31 +318,23 @@ def synthesize_single_function(
     term: Term,
     fun_name: str,
     holes: dict[str, tuple[Type, TypingContext]],
+    metadata: Metadata,
     filename: str | None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
-    # Step 1.1 Get fitness function name, and type
-    fitness_function_name = fitness_function_name_for(fun_name)
-    candidate_function = [fun.var_type for fun in iterate_top_level(term) if fun.var_name == fitness_function_name]
-    if not candidate_function:
-        raise SynthesisError(
-            f"No fitness function name {fitness_function_name} to automatically synthesize function {fun_name}",
-        )
+    # Step 1 Create a Single or Multi-Objective Problem instance.
 
-    set_error_fitness(candidate_function)
-    # Step 1.2 Create a Single or Multi-Objective Problem instance.
     problem = problem_for_fitness_function(
         ctx,
         ectx,
         term,
-        fitness_function_name,
-        candidate_function[0],
+        fun_name,
+        metadata,
         list(holes.keys()),
     )
 
     # Step 2 Create grammar object.
-    # TODO Synthesis: grammar should also receive metadata from the decorator
-    grammar = create_grammar(holes, fun_name)
+    grammar = create_grammar(holes, fun_name, metadata)
     hole_name = list(holes.keys())[0]
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
     #  to use (e.g., Random Search, Genetic Programming, others...)
@@ -344,6 +352,7 @@ def synthesize(
     ectx: EvaluationContext,
     term: Term,
     targets: list[tuple[str, list[str]]],
+    metadata: Metadata,
     filename: str | None = None,
     synth_config: dict[str, Any] | None = None,
 ) -> Term:
@@ -364,6 +373,7 @@ def synthesize(
             term,
             name,
             {h: v for h, v in program_holes.items() if h in holes_names},
+            metadata,
             filename,
             synth_config,
         )

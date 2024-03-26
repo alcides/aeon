@@ -1,23 +1,28 @@
 import Math;
-import PSB2;
-#def mult ( n:Int , m:Int ) : Int { n * m }
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_dg_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+import mean_absolute_error from PSB2;
 
-#def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
-
-#def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
-#    Math_toFloat(peter_wins n  m ) /. Math_toFloat(mult n m)  }
-
-@ignore()
 def  train: TrainData =  extract_train_data ( load_dataset "dice-game" 200 200);
 
-@ignore()
 def  input_list : List =  get_input_list ( unpack_train_data  train);
 
-@ignore()
 def  expected_values : List =  get_output_list ( unpack_train_data  train);
 
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_dg_synth_values,
+            calculate_list_errors)
 @minimize_float(mean_absolute_error  (get_dg_synth_values input_list synth)(expected_values))
-def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float
+def synth (n: Int , m: Int) : Float
     {
         (?hole:Float)
     }

@@ -1,0 +1,38 @@
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_str_list_errors from PSB2;
+import get_sw_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+type List;
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_list_to_String : (l:List) -> String = native "lambda l: ' '.join(l)";
+def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = native "lambda f: lambda xs: map(f, xs)";
+def String_split : (i:String) -> (j:String) -> List = native "lambda i: lambda j: i.split(j)" ;
+def String_reverse : (i:String) -> String = native "lambda i: i[::-1]";
+
+def train: TrainData = extract_train_data (load_dataset "spin-words" 200 200);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_sw_synth_values,
+            calculate_list_errors,
+            train,
+            input_list,
+            expected_values,
+            flatten_list )
+@multi_minimize_float(calculate_str_list_errors (get_sw_synth_values (flatten_list input_list) synth) expected_values)
+def synth (phrase: String) : String {
+    (?hole:String)
+ }

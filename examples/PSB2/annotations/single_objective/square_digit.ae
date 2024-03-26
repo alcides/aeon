@@ -1,41 +1,27 @@
-# Given a positive integer, square each digit and
-# concatenate the squares into a returned string.
-# input : integer in [0, 1000000]
-# output : string
-
-
 import String;
 import Math;
-import PSB2;
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_sd_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+import join_string_list from PSB2;
+import String_distance from PSB2;
 
-#def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
-#    if n == 0 then
-#        ""
-#    else
-#        digit = n % 10;
-#        square = digit * digit;
-#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
-#        result
-#}
-
-def square_digit_unsafe  ( n : Int) : String {
-    if n == 0 then
-        ""
-    else
-        digit = n % 10;
-        square = digit * digit;
-        result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
-        result
-}
-
-@ignore
 def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200);
 
-@ignore
 def input_list : List = get_input_list (unpack_train_data train);
 
-@ignore
 def expected_values : List = get_output_list (unpack_train_data train);
 
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_sd_synth_values,
+            calculate_list_errors)
 @minimize_float(String_distance (join_string_list(get_sd_synth_values input_list synth)) (join_string_list(  expected_values)))
 def synth ( n : Int) : String {(?hole:String)}

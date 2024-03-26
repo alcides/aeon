@@ -1,9 +1,3 @@
-# Given an integer n, return "Fizz" if n is divisible by 3,
-# "Buzz" if n is divisible by 5, "FizzBuzz" if n is
-# divisible by 3 and 5, and a string version of n if none of
-# the above hold (convert integer to string).
-# input : integer in [1, 1000000]
-# output : string
 # --not working properly--
 import PSB2;
 
@@ -22,13 +16,10 @@ def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
     if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
 }
 
-@ignore()
 def  train: TrainData =  extract_train_data ( load_dataset "fizz-buzz" 200 200);
 
-@ignore()
 def  input_list : List =  get_input_list ( unpack_train_data  train);
 
-@ignore()
 def  expected_values : List =  get_output_list ( unpack_train_data  train);
 
 @minimize_float(String_distance ( join_string_list( get_fb_synth_values input_list synth)) ( join_string_list( expected_values)))

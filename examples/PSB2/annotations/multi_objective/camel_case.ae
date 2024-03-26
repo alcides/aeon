@@ -1,0 +1,48 @@
+import psb2_aeon from PSB2;
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_str_list_errors from PSB2;
+import get_c_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+type List;
+
+
+def String_split : (s:String) -> (sep:String) -> List = native "lambda s: lambda sep: s.split(sep)";
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+
+def Map_string_string : (f: (s:String) -> String) -> (l:String) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Map_string_list : (f: (s:String) -> String) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Map_list_list : (f: (s:String) -> List) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+
+def String_join : (l:List) -> (s:String) -> String = native "lambda l:lambda s:  s.join(l)";
+def String_tail:(l:String) -> String = native "lambda xs: xs[1:]";
+def String_capitalize : (s:String) -> String = native "lambda s: s.capitalize()";
+def String_get : (s:String) -> (i:Int) -> String = native "lambda s: lambda i: s[i]";
+def String_tail:(l:String) -> String = native "lambda xs: xs[1:]";
+
+def const1 : String = "-";
+def const1 : String = " ";
+
+def train: TrainData = extract_train_data (load_dataset "camel-case" 200 200);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+
+
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            train,
+            input_list,
+            expected_values,
+            get_c_synth_values,
+            calculate_str_list_errors)
+@multi_minimize_float(calculate_str_list_errors (get_c_synth_values input_list synth) expected_values)
+def synth (s:String) : String {
+    (?hole:String)
+}

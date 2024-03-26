@@ -1,19 +1,26 @@
-# Given two integers, return the largest integer that
-# divides each of the integers evenly.
-# input : 2 integers in [1, 1000000]
-# output : integer
-import PSB2;
-
-def gcd (n:Int) (z:Int) : Int {
-    if z == 0 then n else gcd z (n % z)
-}
+import extract_train_data from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_gcd_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
 
 def train: TrainData = extract_train_data (load_dataset "gcd" 200 200);
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
 
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            train,
+            input_list,
+            expected_values,
+            get_gcd_synth_values,
+            calculate_list_errors)
 @multi_minimize_float( calculate_list_errors (get_gcd_synth_values input_list synth) (expected_values))
 def synth (n:Int) (z:Int) : Int {
-    (?hole:Int)
+    (?hole: Int)
 }
-# def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) : Int { gcd n m }

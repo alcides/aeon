@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 
-from aeon.core.terms import Term
-from aeon.core.types import top
+from aeon.core.terms import Term, Application, Literal, Var
+from aeon.core.types import top, BaseType
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.logger.logger import setup_logger
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
+from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import synthesize
 from aeon.typechecking.typeinfer import check_type_errors
@@ -33,13 +34,18 @@ def mock_literal_individual(value: int):
 def test_fitness():
     code = """def year : Int = 2023;
         def synth (i: Int): Int { (?hole: Int) * i}
-        def __internal__fitness_function_synth : Int  =  year - synth(7);
     """
     prog = parse_program(code)
-    p, ctx, ectx = desugar(prog)
+    p, ctx, ectx, _ = desugar(prog)
     p = ensure_anf(p)
     check_type_errors(ctx, p, top)
-    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
+    internal_minimize = Definition(
+        name="__internal__minimize_int_synth_0",
+        args=[],
+        type=BaseType("Int"),
+        body=Application(Application(Var("synth"), Literal(7, BaseType("Int"))), Application(Var("-"), Var("synth"))),
+    )
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])], {"synth": {"minimize_int": [internal_minimize]}})
 
     assert isinstance(term, Term)
 
@@ -50,9 +56,9 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     prog = parse_program(code)
-    p, ctx, ectx = desugar(prog)
+    p, ctx, ectx, metadata = desugar(prog)
     p = ensure_anf(p)
     check_type_errors(ctx, p, top)
-    term = synthesize(ctx, ectx, p, [("synth", ["hole"])])
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
 
     assert isinstance(term, Term)

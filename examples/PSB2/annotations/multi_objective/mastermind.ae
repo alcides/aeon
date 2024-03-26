@@ -1,0 +1,55 @@
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_errors from PSB2;
+import get_mm_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+
+type List;
+type Counter;
+
+def itertools : Unit = native_import "itertools";
+def collections : Unit = native_import "collections";
+
+def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
+def Map : (f: (s:List) -> String) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+
+def String_eq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
+def String_toList : (s:String) -> List = native "lambda s: list(s)";
+def String_Zip : (xs:String) -> (ys:String) -> List = native "lambda xs: lambda ys: (zip(xs, ys))";
+def List_get_fst : (s: List) -> String = native "lambda s: s[0]";
+def List_get_snd : (s: List) -> String = native "lambda s: s[1]";
+def String_neq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i != j";
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+def Counter : (l:List) -> Counter = native "lambda xs: collections.Counter(xs)";
+def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = native "lambda c1: lambda c2: c1 & c2";
+def Counter_values : (c:Counter) -> List = native "lambda c: list(c.values())";
+def Tuple : (a:Int) -> (b:Int) -> List = native "lambda a: lambda b: [a,b]";
+
+def train: TrainData = extract_train_data (load_dataset "mastermind" 200 200);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
+
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_mm_synth_values,
+            calculate_list_errors,
+            train,
+            input_list,
+            expected_values,
+            flatten_list )
+@multi_minimize_float(calculate_list_errors (flatten_list (get_mm_synth_values input_list synth)) expected_values)
+def synth ( code : String) (guess: String ) : List {
+    (?hole:List)
+}

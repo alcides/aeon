@@ -1,3 +1,12 @@
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_list_difference from PSB2;
+import get_cv_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+
 type List;
 
 def itertools : Unit = native_import "itertools";
@@ -19,31 +28,36 @@ def Enumerate : (xs:List) -> List = native "lambda xs: list(enumerate(xs))";
 def Map : (f: (s:List) -> List) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
 def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
 def Tuple : (i:Int) -> (j:Int) -> List = native "lambda i: lambda j: (i, j)";
-def Tuple_list : (i:List) -> (j:List) -> List = native "lambda i: lambda j: (i, j)";
+def Tuple_list : (i:List) -> (j:List) -> List = native "lambda i: lambda j: [i, j]";
 def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = native "lambda i: lambda f: min(i,key=f)";
 
 def get_fst : (i:List) -> Int = native "lambda i: i[0]";
-def get_snd : (i:List) -> Int = native "lambda i: i[1]";
+def get_snd : (i:List) -> Int = native "lambda i: i[1] if len(i) > 1 else i[0]";
 def get_zip : (i:List) -> List = native "lambda i: i[1]";
 
-def cut_vector ( ls : List ) : List {
-    inits: List = Accumulate (List_remove_last ls);
-    tails: List = List_remove_first (List_reversed (Accumulate (List_reversed ls)));
-    mapper : (s:List) -> List = \x -> Tuple
-                        (Math_abs ((get_fst (get_zip x)) - (get_snd (get_zip x))))
-                        (get_fst x);
-    diffs: List = Map mapper (Enumerate (Zip inits tails));
-    cut_position: Int = get_snd (min_list diffs ((\xs -> get_fst xs):(xs:List) -> Int));
+#PSB2 functions
 
-    vec1: List = List_slice ls 0 (cut_position +1);
-    vec2: List = List_slice ls (cut_position +1) (List_length ls);
+def train: TrainData = extract_train_data (load_dataset "cut-vector" 20 20);
 
-    Tuple_list vec1 vec2
-}
+def input_list : List = get_input_list (unpack_train_data train);
 
-def main (args:Int) : Unit {
-    vec: List = List_append (List_append List_new 1) 2;
-    #vec: List = Range 0 10 1;
-    print(cut_vector vec)
+def expected_values : List = get_output_list (unpack_train_data train);
 
+def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+
+
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            train,
+            input_list,
+            expected_values,
+            get_cv_synth_values,
+            calculate_list_difference,
+            flatten_list)
+@multi_minimize_float(calculate_list_difference (flatten_list(get_cv_synth_values (flatten_list input_list) synth)) expected_values)
+def synth ( ls : List ) : List {
+    (?hole:List)
 }

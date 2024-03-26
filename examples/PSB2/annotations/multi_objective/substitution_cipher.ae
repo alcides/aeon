@@ -1,0 +1,42 @@
+import extract_train_data from PSB2;
+import psb2_aeon from PSB2;
+import get_input_list from PSB2;
+import get_output_list from PSB2;
+import calculate_str_list_errors from PSB2;
+import get_sc_synth_values from PSB2;
+import unpack_train_data from PSB2;
+import load_dataset from PSB2;
+type List;
+type Zip;
+type Dict;
+
+def Zip_String_String : (l1: String) -> (l2: String) -> Zip = native "lambda xs: lambda ys: zip(xs, ys)";
+def Dict_zip : (l: Zip) -> Dict = native "lambda xs: dict(xs)";
+def String_list_to_String : (l:List) -> String = native "lambda l: ''.join(l)";
+def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = native "lambda d: lambda k: lambda y: d.get(k, y)";
+
+
+def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = native "lambda f:lambda xs: map(f, xs)";
+
+
+def train: TrainData = extract_train_data (load_dataset "substitution-cipher" 200 200);
+
+def input_list : List = get_input_list (unpack_train_data train);
+
+def expected_values : List = get_output_list (unpack_train_data train);
+
+@hide(extract_train_data,
+            get_input_list,
+            get_output_list,
+            unpack_train_data,
+            load_dataset,
+            get_sc_synth_values,
+            calculate_list_errors,
+            train,
+            input_list,
+            expected_values,
+            flatten_list )
+@multi_minimize_float(calculate_str_list_errors (get_sc_synth_values input_list synth) expected_values)
+def synth (cipher_from: String) (cypher_to: String) (msg: String) : String {
+ (?hole:String)
+ }
