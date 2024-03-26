@@ -1,10 +1,4 @@
 import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_vd_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 type List;
 
@@ -35,19 +29,14 @@ def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
 def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
 
+def calculate_vector_distance_errors : (train : TrainData) -> (f:(a: List) -> (b: List) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1]) - y[0]) for x , y in data]";
+
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
-            get_vd_synth_values,
-            calculate_list_errors,
-            train,
-            input_list,
-            expected_values,
-            flatten_list )
-@multi_minimize_float(calculate_list_errors (get_vd_synth_values input_list synth) expected_values)
+            calculate_vector_distance_errors,
+            train)
+@multi_minimize_float(calculate_vector_distance_errors train synth)
 def synth  (vector1: List) (vector2: List) : Float {
     (?hole:Float)
  }
