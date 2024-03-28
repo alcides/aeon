@@ -5,7 +5,7 @@
 # output : float
 # -- working--
 
-import math;
+import "Math.ae";
 import PSB2;
 
 #constants

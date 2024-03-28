@@ -4,8 +4,8 @@
 # output : string
 # --working--
 
-import String;
-import Math;
+import "String.ae";
+import "Math.ae";
 import PSB2;
 
 #def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {

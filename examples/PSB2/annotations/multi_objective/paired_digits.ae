@@ -1,5 +1,5 @@
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 type List;
 
 def get_fst: (l:String) -> String = native "lambda xs: xs[0]";

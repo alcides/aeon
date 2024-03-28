@@ -7,7 +7,7 @@
 # input : integer in [0, 20], float in [0.0, 20.0], float in [0.0, 10.0], float in [0.0, 1.0]
 # output : float
 
-import math;
+import "Math.ae";
 import PSB2;
 
 #constants

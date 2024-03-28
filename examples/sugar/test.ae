@@ -1,4 +1,4 @@
-import calculate_bouncing_balls_psb2_errors from PSB2;
+import calculate_bouncing_balls_psb2_errors from "PSB2.ae";
 type TrainData;
 type List;
 
