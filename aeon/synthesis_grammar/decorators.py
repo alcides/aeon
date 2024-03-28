@@ -77,10 +77,10 @@ def multi_minimize_float(
 
 
 def hide(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects a zero argument .
+    """This decorator expects more than zero arguments.
 
     It does not modify the original definition. It makes sure that no
-    grammar node is generated from this function.
+    grammar nodes are generated from the var names passed as arguments.
     """
     assert len(args) != 0
 
@@ -93,6 +93,22 @@ def hide(args: list[Term], fun: Definition, metadata: Metadata) -> tuple[Definit
 
     # rethink this
     aux_dict = {"hide": [get_var_name(arg) for arg in args]}
+    metadata = metadata_update(metadata, fun, aux_dict)
+
+    return fun, [], metadata
+
+
+def allow_recursion(
+    args: list[Term], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects a zero argument .
+
+    It does not modify the original definition. It makes sure that
+    recursion can be used during synthesis
+    """
+    assert len(args) == 0
+
+    aux_dict = {"recursion": True}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata

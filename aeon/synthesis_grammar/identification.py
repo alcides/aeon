@@ -79,14 +79,9 @@ def get_holes_info(
                 hs2 = get_holes_info(ctx, t.body, ty, targets)
             return hs1 | hs2
         case Rec(var_name=vname, var_type=vtype, var_value=value, body=body):
-            if any(tup[0] == vname for tup in targets):
-                hs1 = get_holes_info(ctx, value, vtype, targets)
-                ctx = ctx.with_var(vname, vtype)
-                hs2 = get_holes_info(ctx, body, ty, targets)
-            else:
-                ctx = ctx.with_var(vname, vtype)
-                hs1 = get_holes_info(ctx, value, vtype, targets)
-                hs2 = get_holes_info(ctx, body, ty, targets)
+            ctx = ctx.with_var(vname, vtype)
+            hs1 = get_holes_info(ctx, value, vtype, targets)
+            hs2 = get_holes_info(ctx, body, ty, targets)
 
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):

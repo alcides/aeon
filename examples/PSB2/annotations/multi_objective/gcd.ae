@@ -20,6 +20,7 @@ def expected_values : List = get_output_list (unpack_train_data train);
             expected_values,
             get_gcd_synth_values,
             calculate_list_errors)
+@allow_recursion()
 @multi_minimize_float( calculate_list_errors (get_gcd_synth_values input_list synth) (expected_values))
 def synth (n:Int) (z:Int) : Int {
     (?hole: Int)
