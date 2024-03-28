@@ -1,6 +1,6 @@
-import Math;
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
+import "Math.ae";
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 
 def isZero : (n: Int) -> Bool = \n -> n == 0;
 

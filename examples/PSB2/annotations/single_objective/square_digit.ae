@@ -1,14 +1,14 @@
-import String;
-import Math;
-import extract_train_data from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_sd_synth_values from PSB2;
-import unpack_train_data from PSB2;
-import load_dataset from PSB2;
-import join_string_list from PSB2;
-import String_distance from PSB2;
+import "String.ae";
+import "Math.ae";
+import extract_train_data from "PSB2.ae";
+import get_input_list from "PSB2.ae";
+import get_output_list from "PSB2.ae";
+import calculate_list_errors from "PSB2.ae";
+import get_sd_synth_values from "PSB2.ae";
+import unpack_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+import join_string_list from "PSB2.ae";
+import String_distance from "PSB2.ae";
 
 def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200);
 

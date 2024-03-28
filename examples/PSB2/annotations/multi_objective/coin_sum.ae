@@ -1,6 +1,6 @@
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
-import calculate_coin_sum_errors from PSB2;
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+import calculate_coin_sum_errors from "PSB2.ae";
 
 type List;
 type Tuple;

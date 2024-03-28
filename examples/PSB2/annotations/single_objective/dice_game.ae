@@ -1,12 +1,12 @@
-import Math;
-import extract_train_data from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_dg_synth_values from PSB2;
-import unpack_train_data from PSB2;
-import load_dataset from PSB2;
-import mean_absolute_error from PSB2;
+import "Math.ae";
+import extract_train_data from "PSB2.ae";
+import get_input_list from "PSB2.ae";
+import get_output_list from "PSB2.ae";
+import calculate_list_errors from "PSB2.ae";
+import get_dg_synth_values from "PSB2.ae";
+import unpack_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+import mean_absolute_error from "PSB2.ae";
 
 def  train: TrainData =  extract_train_data ( load_dataset "dice-game" 200 200);
 

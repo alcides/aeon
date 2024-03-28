@@ -1,4 +1,4 @@
-import List;
+import "List.ae";
 import Prop_Testing;
 
 def reverse (xs: List) : List {

@@ -5,7 +5,7 @@
 # --not- working - recursion problem--
 # RecursionError: maximum recursion depth exceeded in comparison
 
-import String;
+import "String.ae";
 import PSB2;
 
 #constants

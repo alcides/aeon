@@ -1,6 +1,6 @@
-import psb2_aeon from PSB2;
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
+import psb2_aeon from "PSB2.ae";
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 type List;
 
 def calculate_camel_case_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]";
