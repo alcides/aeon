@@ -1,10 +1,4 @@
 import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_difference from PSB2;
-import get_sbool_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 type List;
 
@@ -24,14 +18,14 @@ def List_get: (l:List) -> (i:Int) -> String = native "lambda xs: lambda i: xs[i]
 
 def train: TrainData = extract_train_data (load_dataset "solve-boolean" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
 
-def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> List  =  native "lambda data: lambda func:[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
 
-
-
-@multi_minimize_float(calculate_list_difference (get_sbool_synth_values (flatten_list input_list) synth) expected_values)
+@hide(extract_train_data,
+            load_dataset,
+            train,
+            calculate_solve_boolean_errors)
+@multi_minimize_float(calculate_solve_boolean_errors train synth )
 def synth ( s : String ) : Bool {
-    (?hole:Bool);
+    (?hole:Bool)
 }

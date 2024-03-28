@@ -22,7 +22,7 @@ def camel_case (s:String) : String {
                            (String_get group 0)
                            (String_join
                                   (Map_string_string ((\x-> String_capitalize x):(s:String) -> String) (String_tail group))
-                                  " "
+                                  ""
                            )
                      )
          ) : (s:String) -> String)

@@ -350,8 +350,13 @@ def gen_grammar_nodes(
         assert isinstance(n_ctx, (UninterpretedBinder | VariableBinder))
         ctx_var = n_ctx.vars()[0]
         var_name = ctx_var[0]
+        recursion: bool = (
+            metadata[synth_func_name]["recursion"]
+            if synth_func_name in metadata and "recursion" in metadata[synth_func_name].keys()
+            else False
+        )
         if (
-            var_name != synth_func_name
+            (var_name != synth_func_name or recursion)
             and not var_name.startswith("__internal__")
             and var_name not in vars_to_ignore
             and not isinstance(n_ctx, UninterpretedBinder)

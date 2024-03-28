@@ -1,11 +1,4 @@
-
 import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_str_list_errors from PSB2;
-import get_mc_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 type List;
 
@@ -21,27 +14,17 @@ def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i:
 def equal_int : (a: Int) -> (b: Int) -> Bool = native "lambda x: lambda y : x == y";
 
 
-
 def train: TrainData = extract_train_data (load_dataset "middle-character" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
 
-def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
 
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
-            get_mc_synth_values,
-            calculate_str_list_errors,
-            train,
-            input_list,
-            expected_values,
-            flatten_list )
-@multi_minimize_float(calculate_str_list_errors (get_mc_synth_values (flatten_list input_list) synth) expected_values)
+            calculate_middle_char_errors,
+            train )
+@multi_minimize_float(calculate_middle_char_errors train synth)
 def synth(s: String) : String {
     (?hole:String)
 }

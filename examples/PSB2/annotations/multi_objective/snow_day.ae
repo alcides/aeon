@@ -1,30 +1,18 @@
 import Math;
 import extract_train_data from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_snowd_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 
 def isZero : (n: Int) -> Bool = \n -> n == 0;
 
-
 def train: TrainData = extract_train_data (load_dataset "snow-day" 200 200);
-def input_list : List = get_input_list (unpack_train_data train);
-def expected_values : List = get_output_list (unpack_train_data train);
+def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float) -> (c: Float) -> (d: Float) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1])(x[2])(x[3]) - y[0]) for x , y in data]";
+
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
             train,
-            input_list,
-            expected_values,
-            get_snowd_synth_values,
-            calculate_list_errors)
-@multi_minimize_float( calculate_list_errors (get_snowd_synth_values input_list synth) expected_values)
+            calculate_snow_day_errors)
+@multi_minimize_float(calculate_snow_day_errors train synth)
 def synth ( n :Int) (m :Float) (t :Float) (p :Float) : Float {
     (?hole:Float)
 }

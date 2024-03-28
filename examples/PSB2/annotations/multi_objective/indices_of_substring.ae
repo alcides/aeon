@@ -1,10 +1,4 @@
 import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_difference from PSB2;
-import get_is_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
 
 type List;
@@ -22,24 +16,16 @@ def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i:
 
 def train: TrainData = extract_train_data (load_dataset "indices-of-substring" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
 
-def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+def calculate_indices_of_substring_errors : (train : TrainData) -> (f:(a: String) -> (b: String) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]";
 
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
-            get_is_synth_values,
-            calculate_list_difference,
-            train,
-            input_list,
-            expected_values,
-            flatten_list )
-@multi_minimize_float(calculate_list_difference (get_is_synth_values input_list synth) expected_values)
+            calculate_indices_of_substring_errors,
+            train )
+@multi_minimize_float(calculate_indices_of_substring_errors train synth)
 def synth ( text :String) (target: String) : List {
     (?hole:List)
+
 }

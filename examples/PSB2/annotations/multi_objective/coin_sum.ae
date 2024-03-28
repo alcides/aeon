@@ -1,12 +1,6 @@
 import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-#import flatten_list_of_a_single_element_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_cs_synth_values from PSB2;
-import unpack_train_data from PSB2;
 import load_dataset from PSB2;
+import calculate_coin_sum_errors from PSB2;
 
 type List;
 type Tuple;
@@ -19,30 +13,14 @@ def List_new : {x:List | List_size x == 0} = native "[]" ;
 
 def List_append : (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
 
-
-#PSB2 functions
-
 def train: TrainData = extract_train_data (load_dataset "coin-sums" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
-
-def expected_values : List = get_output_list (unpack_train_data train);
-
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
-
-
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
             train,
-            input_list,
-            expected_values,
-            get_cs_synth_values,
-            calculate_list_errors,
-            flatten_list)
-@multi_minimize_float(calculate_list_errors (flatten_list (get_cs_synth_values (flatten_list input_list) synth)) expected_values)
+            calculate_coin_sum_errors
+            )
+@multi_minimize_float(calculate_coin_sum_errors train synth)
 def synth (cents: Int) : List {
   (?hole:List)
  }

@@ -7,12 +7,15 @@ def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
 
 def square_digits ( n : Int) : String {
     if n == 0 then
-        ""
+        "0"
     else
         digit = n % 10;
         square = digit * digit;
-        result = String_concat (square_digits(Math_floor_division n 10)) (String_intToString(square));
-        result
+        floor = Math_floor_division n 10;
+        if floor == 0 then
+            String_intToString(square)
+        else
+            String_concat (square_digits(Math_floor_division n 10)) (String_intToString(square))
 }
 
 def main (n : Int) : Unit {
