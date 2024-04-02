@@ -50,7 +50,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
         f = eval(t.fun, ctx)
         arg = eval(t.arg, ctx)
         # e = real_eval(arg, __globals=ctx.variables) if is_native_var(t) else f(arg)
-        e = real_eval(arg, ctx.variables) if is_native_var(t) else f(arg)
+        if is_native_var(t):
+            e = real_eval(arg, ctx.variables)
+        else:
+            e = f(arg)
 
         if isinstance(t.fun, Var) and t.fun.name == "native_import":
             globals()[arg] = e

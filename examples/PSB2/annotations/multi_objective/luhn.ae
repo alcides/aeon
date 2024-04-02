@@ -1,11 +1,5 @@
-import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_luhn_synth_values from PSB2;
-import unpack_train_data from PSB2;
-import load_dataset from PSB2;
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 
 type List;
 type Range;
@@ -40,23 +34,14 @@ def map_digit (x:Int) (i:Int) : Int {
 #PSB2
 def train: TrainData = extract_train_data (load_dataset "luhn" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
+def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0]) - y[0]) for x , y  in data]";
 
-def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
-            get_luhn_synth_values,
-            calculate_list_errors,
-            train,
-            input_list,
-            expected_values,
-            flatten_list )
-@multi_minimize_float(calculate_list_errors (get_luhn_synth_values (flatten_list input_list) synth) expected_values)
+            calculate_luhn_errors,
+            train )
+@multi_minimize_float(calculate_luhn_errors train synth)
 def synth (digits: List) : Int {
     (?hole: Int)
 }

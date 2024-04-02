@@ -1,12 +1,16 @@
-import extract_train_data from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_bowling_synth_values from PSB2;
-import unpack_train_data from PSB2;
-import load_dataset from PSB2;
+import extract_train_data from "PSB2.ae";
+import get_input_list from "PSB2.ae";
+import get_output_list from "PSB2.ae";
+import calculate_list_errors from "PSB2.ae";
+import get_bowling_synth_values from "PSB2.ae";
+import unpack_train_data from "PSB2.ae";
+import calculate_bowling_errors from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+
 
 type List;
+
+#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
 
 def List_sum : (l:List) -> Int = native "sum";
 
@@ -45,5 +49,41 @@ def expected_values : List = get_output_list (unpack_train_data train);
             calculate_list_errors)
 @multi_minimize_float(calculate_list_errors (get_bowling_synth_values input_list synth) expected_values)
 def synth (scores: String) : Int {
-    (?hole: Int)
+    #(?hole: Int)
+ 1}
+
+
+def create_mapper (scores:String) (i:Int) : Int {
+    current : String = String_get scores i;
+    next : String = String_get scores (i+1);
+    if String_eq current "X" then
+        next_frame1 : String = String_get scores (i+2);
+        next_frame2 : String = String_get scores (i+3);
+        if String_eq next_frame2 "/" then
+            20
+        else if String_eq next_frame1 "X" then
+            next_next_frame1 : String = String_get scores (i+4);
+            inc : Int = if String_eq next_next_frame1 "X" then 10 else String_to_int next_next_frame1;
+            20 + inc
+        else
+            10 + String_to_int next_frame1 + String_to_int next_frame2
+
+    else if String_eq next "/" then
+        10 + String_to_int (String_get scores (i+2))
+    else
+        String_to_int current + String_to_int next
+}
+
+
+def bowling_score (scores: String) : Int {
+    scores_right_size = String_replace scores "X" "X_";
+    scores_zero = String_replace scores_right_size "-" "0";
+    r : List = List_range_step 0 20 2;
+    mapper : (i:Int) -> Int = create_mapper scores_zero;
+    components : List = List_map mapper r;
+    List_sum components
  }
+
+def main (scores: Int) : Unit {
+    print (calculate_bowling_errors train bowling_score)
+}
