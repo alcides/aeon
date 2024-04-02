@@ -129,15 +129,11 @@ class AbstractionType(Type):
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
 
 
+@dataclass
 class RefinedType(Type):
     name: str
-    type: BaseType | TypeVar
+    type: BaseType | TypeVar | Bottom | Top
     refinement: LiquidTerm
-
-    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
-        self.name = name
-        self.type = ty
-        self.refinement = refinement
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -155,6 +151,16 @@ class RefinedType(Type):
 
 
 @dataclass
+class ExistentialType(Type):
+    var_name: str
+    var_type: Type
+    type: Type
+
+    def __str__(self) -> str:
+        return f"∃{self.var_name}:{self.var_type}, {self.type}"
+
+
+@dataclass
 class TypePolymorphism(Type):
     name: str  # alpha
     kind: Kind
@@ -163,7 +169,7 @@ class TypePolymorphism(Type):
 
 def extract_parts(
     t: Type,
-) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+) -> tuple[str, BaseType | TypeVar | Top | Bottom, LiquidTerm]:
     assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     if isinstance(t, RefinedType):
         return (t.name, t.type, t.refinement)

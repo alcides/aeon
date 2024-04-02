@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
+
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.prelude.prelude import evaluation_vars
@@ -17,12 +17,11 @@ ectx = EvaluationContext(evaluation_vars)
 
 def check_compile(source, ty, res):
     p = parse_term(source)
-    p = ensure_anf(p)
     assert check_type(ctx, p, ty)
     assert eval(p, ectx) == res
 
 
-def test_anf():
+def test_multiple_applications():
     source = r"""let f : (x:Int) -> (y:Int) -> Int = (\x -> (\y -> x)) in
            let r = f (f 1 2) (f 2 3) in
            r"""

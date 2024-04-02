@@ -1,6 +1,6 @@
 from aeon.core.terms import Term
 from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
+
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
@@ -10,10 +10,9 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 def extract_core(source: str) -> Term:
     prog = parse_program(source)
-    core, ctx, _, _ = desugar(prog)
-    core_anf = ensure_anf(core)
-    check_type_errors(ctx, core_anf, top)
-    return core_anf
+    core, ctx, _ = desugar(prog)
+    check_type_errors(ctx, core, top)
+    return core
 
 
 def test_hole_minimize_int():
@@ -44,6 +43,7 @@ def test_eq():
         metadata,
     ) = desugar(prog)
 
-    core_ast_anf = ensure_anf(core_ast)
-    type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    type_errors = check_type_errors(typing_ctx, core_ast, top)
+    for te in type_errors:
+        print(te)
     assert len(type_errors) == 0

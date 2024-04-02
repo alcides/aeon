@@ -21,15 +21,18 @@ from geneticengine.prelude import GeneticProgramming, NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.random.sources import RandomSource
 from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
-    DynamicStructuredGrammaticalEvolutionRepresentation, )
+    DynamicStructuredGrammaticalEvolutionRepresentation,
+)
 from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
 from geneticengine.representations.grammatical_evolution.structured_ge import (
-    StructuredGrammaticalEvolutionRepresentation, )
+    StructuredGrammaticalEvolutionRepresentation,
+)
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.elitism import ElitismStep
 from geneticengine.algorithms.gp.operators.initializers import (
-    StandardInitializer, )
+    StandardInitializer,
+)
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
 from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
@@ -47,7 +50,6 @@ from aeon.core.types import BaseType, Top
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
@@ -116,13 +118,15 @@ def parse_config(config_file: str, section: str) -> dict[str, Any]:
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
-    return (isinstance(term_literal, Literal)
-            and term_literal.type == BaseType("Int")
-            and isinstance(term_literal.value, int) and term_literal.value > 0)
+    return (
+        isinstance(term_literal, Literal)
+        and term_literal.type == BaseType("Int")
+        and isinstance(term_literal.value, int)
+        and term_literal.value > 0
+    )
 
 
-def get_csv_file_path(file_path: str, representation: type, seed: int,
-                      hole_name: str, config_name: str) -> str | None:
+def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name: str, config_name: str) -> str | None:
     """Generate a CSV file path based on the provided file_path,
     representation, and seed.
 
@@ -133,8 +137,7 @@ def get_csv_file_path(file_path: str, representation: type, seed: int,
 
     file_name = os.path.basename(file_path)
     name_without_extension, _ = os.path.splitext(file_name)
-    directory = os.path.join("csv", name_without_extension,
-                             representation.__name__)
+    directory = os.path.join("csv", name_without_extension, representation.__name__)
     os.makedirs(directory, exist_ok=True)
 
     hole_suffix = f"_{hole_name}" if hole_name else ""
@@ -170,57 +173,37 @@ def create_evaluator(
     holes: list[str],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
-    fitness_decorators = [
-        "minimize_int", "minimize_float", "multi_minimize_float"
-    ]
-    used_decorators = [
-        decorator for decorator in fitness_decorators
-        if decorator in metadata[fun_name]
-    ]
+    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name]]
     assert used_decorators, "No fitness decorators used in metadata for function."
 
     objectives_list: list[Definition] = [
-        objective for decorator in used_decorators
-        for objective in metadata[fun_name][decorator]
+        objective for decorator in used_decorators for objective in metadata[fun_name][decorator]
     ]
     programs_to_evaluate: list[Term] = [
-        substitution(program, Var(objective.name), "main")
-        for objective in objectives_list
+        substitution(program, Var(objective.name), "main") for objective in objectives_list
     ]
 
-    def evaluate_individual(individual: classType,
-                            result_queue: mp.Queue) -> Any:
+    def evaluate_individual(individual: classType, result_queue: mp.Queue) -> Any:
         """Function to run in a separate process and places the result in a Queue."""
         try:
             start = time.time()
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
-            individual_term = ensure_anf(individual_term, 10000000)
-            individual_type_check(ctx, program, first_hole_name,
-                                  individual_term)
-            results = [
-                eval(substitution(p, individual_term, first_hole_name), ectx)
-                for p in programs_to_evaluate
-            ]
-            result = results if len(results) > 1 else results[0]
-            result = filter_nan_values(result)
-            result_queue.put(result)
-            end = time.time()
-            logger.info(f"Individual evaluation time: {end-start} ")
-
+            new_program = substitution(program_template, individual_term, first_hole_name)
+            check_type_errors(ctx, new_program, Top())
+            result = eval(new_program, ectx)
         except Exception as e:
             # import traceback
             # traceback.print_exc()
-            logger.log("SYNTHESIZER",
-                       f"Failed in the fitness function: {e}, {type(e)}")
+            logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
             result_queue.put(ERROR_FITNESS)
 
     def evaluator(individual: classType) -> Any:
         """Evaluates an individual with a timeout."""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         result_queue = mp.Queue()
-        eval_process = mp.Process(target=evaluate_individual,
-                                  args=(individual, result_queue))
+        eval_process = mp.Process(target=evaluate_individual, args=(individual, result_queue))
         eval_process.start()
         eval_process.join(timeout=TIMEOUT_DURATION)
 
@@ -248,33 +231,23 @@ def problem_for_fitness_function(
 ) -> Tuple[Problem, Any]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
-    fitness_decorators = [
-        "minimize_int", "minimize_float", "multi_minimize_float"
-    ]
+    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
 
     if fun_name in metadata:
-        used_decorators = [
-            decorator for decorator in fitness_decorators
-            if decorator in metadata[fun_name].keys()
-        ]
+        used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
         assert used_decorators, "No valid fitness decorators found."
 
         set_error_fitness(used_decorators)
 
-        fitness_function = create_evaluator(ctx, ectx, term, fun_name,
-                                            metadata, hole_names)
-        problem_type = MultiObjectiveProblem if is_multiobjective(
-            used_decorators) else SingleObjectiveProblem
+        fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
+        problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
 
-        return problem_type(fitness_function=fitness_function,
-                            minimize=MINIMIZE_OBJECTIVE), None
+        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), None
     else:
-        return SingleObjectiveProblem(fitness_function=lambda x: 0,
-                                      minimize=True), 0
+        return SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0
 
 
-def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str,
-                           metadata: Metadata):
+def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata: Metadata):
     grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
@@ -284,31 +257,23 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str,
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str,
-                   metadata: dict[str, Any]):
-    assert len(
-        holes
-    ) == 1, "More than one hole per function is not supported at the moment."
+def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str, metadata: dict[str, Any]):
+    assert len(holes) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
-    grammar_nodes, starting_node = get_grammar_components(
-        ctx, ty, fun_name, metadata)
+    grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name, metadata)
     return extract_grammar(grammar_nodes, starting_node)
 
 
-def random_search_synthesis(grammar: Grammar,
-                            problem: Problem,
-                            budget: int = 1000) -> Term:
+def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 1000) -> Term:
     """Performs a synthesis procedure with Random Search."""
     max_depth = 5
     rep = TreeBasedRepresentation(grammar, max_depth)
     r = RandomSource(42)
 
     population = [rep.create_individual(r, max_depth) for _ in range(budget)]
-    population_with_score = [(problem.evaluate(phenotype),
-                              phenotype.get_core())
-                             for phenotype in population]
+    population_with_score = [(problem.evaluate(phenotype), phenotype.get_core()) for phenotype in population]
     return min(population_with_score, key=lambda x: x[0])[1]
 
 
@@ -333,8 +298,7 @@ def create_gp_step(problem: Problem, gp_params: dict[str, Any]):
         weights=[
             gp_params["n_elites"],
             gp_params["novelty"],
-            gp_params["population_size"] - gp_params["n_elites"] -
-            gp_params["novelty"],
+            gp_params["population_size"] - gp_params["n_elites"] - gp_params["novelty"],
         ],
     )
 
@@ -357,27 +321,20 @@ def geneticengine_synthesis(
     assert isinstance(representation_name, str)
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
-    representation: type = representations[representation_name](
-        grammar, max_depth=gp_params["max_depth"])
+    representation: type = representations[representation_name](grammar, max_depth=gp_params["max_depth"])
 
     tracker: ProgressTracker
 
     recorders = []
     if filename:
-        csv_file_path = get_csv_file_path(filename, representation, seed,
-                                          hole_name, config_name)
+        csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
         recorders.append(
-            CSVSearchRecorder(
-                csv_file_path,
-                problem,
-                only_record_best_individuals=gp_params["only_record_best_inds"]
-            ))
+            CSVSearchRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"])
+        )
     if isinstance(problem, SingleObjectiveProblem):
-        tracker = SingleObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
+        tracker = SingleObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
     else:
-        tracker = MultiObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
+        tracker = MultiObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
 
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
@@ -436,9 +393,7 @@ def synthesize_single_function(
     #  to use (e.g., Random Search, Genetic Programming, others...)
 
     # Step 3 Synthesize an element
-    synthesized_element = geneticengine_synthesis(grammar, problem, filename,
-                                                  hole_name, target_fitness,
-                                                  synth_config)
+    synthesized_element = geneticengine_synthesis(grammar, problem, filename, hole_name, target_fitness, synth_config)
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
@@ -461,8 +416,7 @@ def synthesize(
         top,
         targets,
     )
-    assert len(program_holes) == len(
-        targets), "No support for function with more than one hole"
+    assert len(program_holes) == len(targets), "No support for function with more than one hole"
 
     print("Starting synthesis...")
     for name, holes_names in targets:
@@ -471,8 +425,7 @@ def synthesize(
             ectx,
             term,
             name,
-            {h: v
-             for h, v in program_holes.items() if h in holes_names},
+            {h: v for h, v in program_holes.items() if h in holes_names},
             metadata,
             filename,
             synth_config,

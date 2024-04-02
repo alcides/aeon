@@ -7,8 +7,6 @@ import argparse
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.decorators import Metadata
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
@@ -40,27 +38,16 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
 
-    parser.add_argument("-csv",
-                        "--csv-synth",
-                        action="store_true",
-                        help="export synthesis csv file")
+    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
 
-    parser.add_argument("-gp",
-                        "--gp-config",
-                        help="path to the GP configuration file")
+    parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
 
-    parser.add_argument("-csec",
-                        "--config-section",
-                        help="section name in the GP configuration file")
+    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
 
     parser.add_argument(
         "-d",
@@ -123,33 +110,27 @@ def main():
 
     logger.debug(core_ast)
 
-    with RecordTime("ANF conversion"):
-        core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast)
-
     with RecordTime("TypeChecking"):
-        type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+        type_errors = check_type_errors(typing_ctx, core_ast, top)
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[
-            str, list[str]]] = incomplete_functions_and_holes(
-                typing_ctx, core_ast_anf)
+        incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (parse_config(args.gp_config, args.config_section)
-                            if args.gp_config and args.config_section else
-                            None)
+            synth_config = (
+                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+            )
 
         with RecordTime("Synthesis"):
             synthesis_result = synthesize(
                 typing_ctx,
                 evaluation_ctx,
-                core_ast_anf,
+                core_ast,
                 incomplete_functions,
                 metadata,
                 filename,

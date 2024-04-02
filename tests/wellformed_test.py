@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aeon.core.types import BaseKind
+from aeon.core.types import BaseKind, ExistentialType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
@@ -60,4 +60,11 @@ def test_poly():
         empty,
         TypePolymorphism("a", StarKind(), TypeVar("a")),
         BaseKind(),
+    )
+
+
+def test_wf_existential():
+    assert wellformed(
+        empty,
+        TypePolymorphism("a", BaseKind(), ExistentialType(var_name="x", var_type=parse_type("Int"), type=TypeVar("a"))),
     )

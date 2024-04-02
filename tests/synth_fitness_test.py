@@ -4,7 +4,9 @@ from abc import ABC
 
 from aeon.core.terms import Term, Application, Literal, Var
 from aeon.core.types import top, BaseType
-from aeon.frontend.anf_converter import ensure_anf
+from aeon.core.terms import Term
+from aeon.core.types import top
+
 from aeon.logger.logger import setup_logger
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
@@ -36,8 +38,7 @@ def test_fitness():
         def synth (i: Int): Int { (?hole: Int) * i}
     """
     prog = parse_program(code)
-    p, ctx, ectx, _ = desugar(prog)
-    p = ensure_anf(p)
+    p, ctx, ectx = desugar(prog)
     check_type_errors(ctx, p, top)
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
@@ -56,8 +57,7 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     prog = parse_program(code)
-    p, ctx, ectx, metadata = desugar(prog)
-    p = ensure_anf(p)
+    p, ctx, ectx = desugar(prog)
     check_type_errors(ctx, p, top)
     term = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
 

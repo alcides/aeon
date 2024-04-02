@@ -1,9 +1,10 @@
 from __future__ import annotations
+from typing import Tuple
 
 from loguru import logger
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp, LiquidHole
+from aeon.core.liquid import LiquidApp, LiquidHole, LiquidTerm
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -24,7 +25,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, Bottom, ExistentialType, Top
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
@@ -50,7 +51,6 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
-from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
 from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
@@ -76,6 +76,38 @@ class FailedConstraintException(Exception):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
 
 
+def eq_ref(var_name: str, type_name: str) -> LiquidTerm:
+    return LiquidApp(
+        "==",
+        [
+            LiquidVar(var_name),
+            LiquidVar(type_name),
+        ],
+    )
+
+
+def and_ref(cond1: LiquidTerm, cond2: LiquidTerm) -> LiquidTerm:
+    return LiquidApp("&&", [cond1, cond2])
+
+
+def refine_type(ctx: TypingContext, ty: Type, vname: str):
+    """The refine function is the selfication with support for existentials"""
+    match ty:
+        case BaseType(name=_) | Top() | Bottom():
+            name = ctx.fresh_var()
+            return RefinedType(name, ty, eq_ref(name, vname))
+        case RefinedType(name=name, type=ty, refinement=cond):
+            name = ctx.fresh_var()
+            assert name != vname
+            return RefinedType(name, ty, and_ref(cond, eq_ref(name, vname)))
+        case ExistentialType(var_name=var_name, var_type=var_type, type=ity):
+            return ExistentialType(var_name, var_type, refine_type(ctx, ity, vname))
+        case AbstractionType(var_name=var_name, var_type=var_type, type=type):
+            return ty
+        case _:
+            assert False
+
+
 def argument_is_typevar(ty: Type):
     return (
         isinstance(ty, TypeVar)
@@ -85,6 +117,15 @@ def argument_is_typevar(ty: Type):
         )
         and isinstance(ty.type, TypeVar)
     )
+
+
+def extract_abstraction_type(ty: Type) -> Tuple[AbstractionType, list[Tuple[str, Type]]]:
+    binders = []
+    while isinstance(ty, ExistentialType):
+        binders.append((ty.var_name, ty.var_type))
+        ty = ty.type
+    assert isinstance(ty, AbstractionType)
+    return ty, binders
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -220,52 +261,51 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
-        if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
-            ty = ensure_refined(ty)
-            # assert ty.name != t.name
-            if ty.name == t.name:
-                ty = renamed_refined_type(ty)
-            # Self
-            ty = RefinedType(
-                ty.name,
-                ty.type,
-                LiquidApp(
-                    "&&",
-                    [
-                        ty.refinement,
-                        LiquidApp(
-                            "==",
-                            [
-                                LiquidVar(ty.name),
-                                LiquidVar(t.name),
-                            ],
-                        ),
-                    ],
-                ),
-            )
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
-            )
-        return (ctrue, ty)
+        if ty is not None:
+            return (ctrue, refine_type(ctx, ty, t.name))
+        raise CouldNotGenerateConstraintException(
+            f"Variable {t.name} not in context",
+        )
     elif isinstance(t, Application):
-        (c, ty) = synth(ctx, t.fun)
-        if isinstance(ty, AbstractionType):
-            # This is the solution to handle polymorphic "==" in refinements.
-            if argument_is_typevar(ty.var_type):
-                (_, b, _) = extract_parts(ty.var_type)
+        (c1, ty1) = synth(ctx, t.fun)
+        (c2, ty2) = synth(ctx, t.arg)
+
+        abstraction_type, binders = extract_abstraction_type(ty1)
+
+        if isinstance(abstraction_type, AbstractionType):
+            argument_type = abstraction_type.var_type
+            return_type = abstraction_type.type
+
+            if argument_is_typevar(argument_type):
+                (_, b, _) = extract_parts(argument_type)
                 assert isinstance(b, TypeVar)
-                (cp, at) = synth(ctx, t.arg)
-                if isinstance(at, RefinedType):
-                    at = at.type  # This is a hack before inference
-                return_type = substitute_vartype(ty.type, at, b.name)
+                argument_type = substitute_vartype(argument_type, ty2, b.name)
+                return_type = substitute_vartype(return_type, ty2, b.name)
+                c3 = ctrue
             else:
-                cp = check(ctx, t.arg, ty.var_type)
-                return_type = ty.type
-            t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-            c0 = Conjunction(c, cp)
-            # vs: list[str] = list(variables_free_in(c0))
-            return (c0, t_subs)
+                c3 = sub(ty2, argument_type)
+            new_name = ctx.fresh_var()
+            return_type = type_substitution(return_type, abstraction_type.var_name, new_name)
+            nt = ExistentialType(var_name=new_name, var_type=argument_type, type=return_type)
+            for aname, aty in binders[::-1]:
+                nt = ExistentialType(aname, aty, nt)
+            return Conjunction(Conjunction(c1, c2), c3), nt
+
+            # This is the solution to handle polymorphic "==" in refinements.
+            # if argument_is_typevar(ty.var_type):
+            #     (_, b, _) = extract_parts(ty.var_type)
+            #     assert isinstance(b, TypeVar)
+            #     (cp, at) = synth(ctx, t.arg)
+            #     if isinstance(at, RefinedType):
+            #         at = at.type  # This is a hack before inference
+            #     return_type = substitute_vartype(ty.type, at, b.name)
+            # else:
+            #     cp = check(ctx, t.arg, ty.var_type)
+            #     return_type = ty.type
+            # t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
+            # c0 = Conjunction(c, cp)
+            # # vs: list[str] = list(variables_free_in(c0))
+            # return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
                 f"Application {t} is not a function.",
@@ -342,7 +382,7 @@ def wrap_checks(f):
 
 
 # patterm matching term
-@wrap_checks  # DEMO1
+# @wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(
         ty,
@@ -398,35 +438,45 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         return Conjunction(c, cp)
 
 
+
+
 def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
         return entailment(ctx, constraint)
-    except CouldNotGenerateConstraintException:
+    except CouldNotGenerateConstraintException as e:
+        logger.info(f"Could not generate constraint: f{e}")
         return False
-    except FailedConstraintException:
+    except FailedConstraintException as e:
+        logger.info(f"Could not prove constraint: f{e}")
         return False
+
+
+class CouldNotProveTypingRelation(Exception):
+    def __init__(self, context: TypingContext, term: Term, type: Type):
+        self.context = context
+        self.term = term
+        self.type = type
+
+    def __str__(self):
+        return f"Could not prove typing relation (Context: {self.context}) (Term: {self.term}) (Type: {self.type})."
 
 
 def check_type_errors(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-) -> list[Exception | str]:
+) -> list[Exception]:
     """Checks whether t as type ty in ctx, but returns a list of errors."""
     try:
         constraint = check(ctx, t, ty)
+        print(f"Constraint: {constraint}")
         r = entailment(ctx, constraint)
         if r:
             return []
         else:
-            return [
-                "Could not prove typing relation.",
-                f"Context: {ctx}",
-                f"Term: {t}",
-                f"Type: {ty}",
-            ]
+            return [CouldNotProveTypingRelation(ctx, t, ty)]
     except CouldNotGenerateConstraintException as e:
         return [e]
     except FailedConstraintException as e:
@@ -434,6 +484,7 @@ def check_type_errors(
 
 
 def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
+    assert not isinstance(supt, ExistentialType)
     if args_size_of_type(subt) != args_size_of_type(supt):
         return False
     if subt == supt:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, ExistentialType
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
@@ -42,6 +42,15 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             target.kind,
             type_substitution(target.body, alpha, beta),
         )
+    elif isinstance(t, ExistentialType):
+        new_name = t.var_name
+        new_type = t.type
+        while new_name == alpha:
+            old_name = new_name
+            new_name = new_name + "_fresh"
+            new_type = type_substitution(new_type, old_name, TypeVar(new_name))
+
+        return ExistentialType(new_name, t.var_type, new_type)
     else:
         assert False
 

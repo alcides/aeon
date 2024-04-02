@@ -1,5 +1,5 @@
 from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
+
 from aeon.sugar.desugar import desugar, apply_decorators_in_program
 from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
@@ -9,10 +9,9 @@ from aeon.typechecking.typeinfer import check_type_errors
 def extract_target_functions(source):
     prog = parse_program(source)
     prog = apply_decorators_in_program(prog)
-    core, ctx, _, _ = desugar(prog)
-    core_anf = ensure_anf(core)
-    check_type_errors(ctx, core_anf, top)
-    return incomplete_functions_and_holes(ctx, core_anf)
+    core, ctx, _ = desugar(prog)
+    check_type_errors(ctx, core, top)
+    return incomplete_functions_and_holes(ctx, core)
 
 
 def test_hole_identification():
