@@ -1,5 +1,5 @@
-import extract_train_data from PSB2;
-import load_dataset from PSB2;
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 
 def String_len : (i:String) -> Int = native "lambda i: len(i)";
 def String_intToString : (i:Int) -> String = native "lambda i: str(i)";

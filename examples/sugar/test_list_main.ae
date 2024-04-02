@@ -1,4 +1,4 @@
-import List;
+import "List.ae";
 def consume : (l: {x:List | List_size x == 1}) -> Int = \n -> 0;
 def consume : (l:List | List_size l == 1) -> Int = \n -> 0;
 

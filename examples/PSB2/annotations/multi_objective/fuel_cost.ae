@@ -1,11 +1,11 @@
-import extract_train_data from PSB2;
-import psb2_aeon from PSB2;
-import get_input_list from PSB2;
-import get_output_list from PSB2;
-import calculate_list_errors from PSB2;
-import get_fc_synth_values from PSB2;
-import unpack_train_data from PSB2;
-import load_dataset from PSB2;
+import extract_train_data from "PSB2.ae";
+import psb2_aeon from "PSB2.ae";
+import get_input_list from "PSB2.ae";
+import get_output_list from "PSB2.ae";
+import calculate_list_errors from "PSB2.ae";
+import get_fc_synth_values from "PSB2.ae";
+import unpack_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
 
 type List;
 

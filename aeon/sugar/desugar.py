@@ -136,10 +136,10 @@ def handle_import(path: str) -> Program:
     possible_containers = (
         [Path.cwd()]
         + [Path.cwd() / "libraries"]
-        + [Path(str) for str in os.environ.get("AEONPATH", ";").split(";") if str]
+        + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
     )
     for container in possible_containers:
-        file = container / f"{path}.ae"
+        file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
             return mk_parser("program").parse(contents)

@@ -2,8 +2,8 @@ program :  aeimport type_decls defs                     -> program
 
 aeimport : import*                                      -> list
 
-import: "import" (CNAME | PATH) ";"                     -> regular_imp
-      | "import" CNAME "from" (CNAME | PATH) ";"        -> function_imp
+import: "import" ESCAPED_STRING ";"                     -> regular_imp
+      | "import" CNAME "from" ESCAPED_STRING ";"        -> function_imp
 
 type_decls : type_decl*                              -> list
 
@@ -93,7 +93,7 @@ expression_simple : "(" expression ")"                       -> same
         | INTLIT                                             -> int_lit
         | FLOATLIT                                           -> float_lit
         | BOOLLIT                                            -> bool_lit
-        | STRINGLIT                                          -> string_lit
+        | ESCAPED_STRING                                     -> string_lit
         | ID                                                 -> var
         | "?" ID                                             -> hole
 
@@ -105,11 +105,9 @@ kind : "B" -> base_kind
 BOOLLIT.5 : "true" | "false"
 INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
-STRINGLIT : ESCAPED_STRING
 
 TYPENAME : /[a-zA-Z0-9]+/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
-PATH : (".." | ID )* "/" ID
 
 _PIPE.10 : "where" | "|"
 _DOUBLEPIPE.11 : "||"
