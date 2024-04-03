@@ -18,10 +18,10 @@ def : soft_constraint "def" ID ":" type "=" expression ";"                  -> d
 soft_constraint :                      -> empty_list
             | macro (macro)*           -> macros
 
-macro : "@" ID "(" macro_args ")"      -> macro
+macro : "@" ID  macro_args       -> macro
 
 macro_args :                           -> empty_list
-     | expression ("," expression)*    -> macro_args
+     | "(" expression ("," expression)* ")"    -> macro_args
 
 
 args :                          -> empty_list
