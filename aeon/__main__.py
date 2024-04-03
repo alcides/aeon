@@ -92,7 +92,7 @@ def log_type_errors(errors: list[Exception | str]):
     print("TYPECHECKER", "-------------------------------")
 
 
-if __name__ == "__main__":
+def main():
     args = parse_arguments()
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
@@ -161,3 +161,7 @@ if __name__ == "__main__":
         sys.exit(1)
     with RecordTime("Evaluation"):
         eval(core_ast, evaluation_ctx)
+
+
+if __name__ == "__main__":
+    main()
