@@ -18,8 +18,7 @@ classifiers = [
 
 scripts.aeon = "aeon.__main__:main"
 
-dependencies = [
-  'lark',
+dependencies = [  'lark',
   'z3-solver >= 4',
   'loguru',
   'geneticengine@https://github.com/alcides/GeneticEngine/archive/619d625bf1892a2161047c981ae2732dd45d0e29.zip',
@@ -36,8 +35,7 @@ text = "https://opensource.org/licenses/MIT"
 [build-system]
 build-backend = 'setuptools.build_meta'
 requires = [
-    'setuptools >= 43.0.0',
-]
+    'setuptools >= 43.0.0']
 
 [tool.docformatter]
 syntax = 'google'
