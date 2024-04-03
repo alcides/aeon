@@ -25,6 +25,8 @@ dependencies = [  'lark',
   'multiprocess',
   'textdistance',
   'numpy',
+  'configparser',
+  'argparse',
 ]
 
 [project.urls]
