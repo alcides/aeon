@@ -17,7 +17,7 @@ classifiers = [
 ]
 
 [project.scripts]
-aeon = "aeon"
+aeon = "aeon.__main__"
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
