@@ -16,8 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11"
 ]
 
-[project.scripts]
-aeon = "aeon.__main__.main"
+scripts.pipx = "aeon.__main__:main"
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
