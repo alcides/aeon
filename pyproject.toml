@@ -24,6 +24,7 @@ dependencies = [  'lark',
   'geneticengine@https://github.com/alcides/GeneticEngine/archive/619d625bf1892a2161047c981ae2732dd45d0e29.zip',
   'multiprocess',
   'textdistance',
+  'numpy',
 ]
 
 [project.urls]
