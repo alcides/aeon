@@ -15,9 +15,7 @@ def main (args:Int) : Unit {
 }
 ```
 
-To execute this program, you can run:
-
-`python -m aeon examples/hello_world.ae`
+The documentation is available at [https://alcides.github.io/aeon](https://alcides.github.io/aeon).
 
 
 ### Liquid Types
@@ -28,24 +26,7 @@ In this example, you can see the refined type `{x:Int | x > 0}` that represents 
 def sqrt : (i: {x:Int | x > 0} ) -> Float = native "__import__('math').sqrt";
 
 def main (i:Int) : Unit {
-    print (sqrt 25)
-}
-```
-
-
-### Math
-
-```
-def abs (i:Int) : Int {
-    if i > 0 then i else -i
-}
-
-def midpoint (a:In) (b:Int) : Int {
-    (a + b) / 2
-}
-
-def main (i:Int) : Unit {
-    print (abs (-3) + midpoint 1 5)
+    print (sqrt (-25)) # This is a type-checking error!
 }
 ```
 
