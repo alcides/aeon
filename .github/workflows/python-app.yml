@@ -46,31 +46,6 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
-      - name: Run Aeon Core Files
+      - name: Run Benchmarks
         run: |
-          files=$(find examples/core -type f -name '*_main.ae')
-          for file in $files; do
-            echo "Running $file"
-            python aeon $file --core --log INFO ERROR TYPECHECKER CONSTRAINT
-          done
-      - name: Run Aeon Syntax Files
-        run: |
-          files=$(find examples/syntax -type f -name '*_main.ae')
-          for file in $files; do
-            echo "Running $file"
-            python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
-          done
-      - name: Run Aeon Synthesis Files
-        run: |
-          files=$(find examples/synthesis -type f -name '*_main.ae')
-          for file in $files; do
-            echo "Running $file"
-            python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
-          done
-      - name: Run PSB2 Solved Problems
-        run: |
-          files=$(find examples/PSB2/solved -type f -name '*.ae')
-          for file in $files; do
-            echo "Running $file"
-            python aeon $file --log INFO ERROR TYPECHECKER CONSTRAINT
-          done
+          bash run_examples.sh
