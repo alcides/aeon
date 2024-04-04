@@ -1,0 +1,4 @@
+@minimize_int(-(fun 3 - fun 5))
+def fun (i:Int | i > 0) : {j:Int | j > i} {
+    (?todo : {j:Int | j > i})
+}
