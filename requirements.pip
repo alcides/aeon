@@ -6,7 +6,7 @@ psb2
 zstandard==0.15.2
 zss
 z3-solver
-geneticengine @ https://github.com/alcides/GeneticEngine/archive/94f2fee9b16567e12b49f338832f66bee3597f3d.zip
+geneticengine @ https://github.com/alcides/GeneticEngine/archive/7cf6d9af830acb7f0b3c075f31956fdcfc9c185b.zip
 textdistance
 loguru
 numpy
