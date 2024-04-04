@@ -37,10 +37,9 @@ def main (args:Int) : Unit {
 
 Main returns Unit, which is the singleton type. It can be used like void in C.
 
-> [!WARNING]
-> args should be an array of strings. This is pending.
+> args should be an array of strings. This is not yet implemented.
 
-`print`receives a string and returns Unit, allowing it to be used inside a main block.
+`print`receives a string and returns Unit, allowing it to be used inside a main block. Just like in Scala, the last value of a block is its return value.
 
 
 ## Basic Syntax
@@ -58,34 +57,134 @@ Just like in Python, any line starting with # is a comment.
 | Float   | ..., -2.0, -1.0, 0.0, 1.0, 2.0, ... |
 | String  | "", "a", "ab", ... |
 
-### let bindings
+### Expressions
 
+Aeon supports most operators that exist in mainstream languages.
 
+```
+let a = 1;
+let b = a + (b * (c / d));
+let c = (a == 1) || ((b => 2) && (a > b));
+let d = if a == 1 then 2 else 2;
+let e = Math_max 2 5; # function application uses spaces.
+True
+```
+
+Operators for floats have their own syntax, like in OCam:
+
+```
+let a = 1.0 +. 2.0;
+let a = 1.0 -. 2.0;
+```
+
+> Float-specific operators are temporary and will be removed once polymorphism support is complete.
 
 
 ## Functions
 
-Todo.
+```
+def plus (x:Int) (y:Int) : Int {
+    x + y
+}
+
+def plus : (x:Int) -> (y:Int) -> Int = \x -> \y -> x+y;
+```
+
+The above top-level definitions are equal to each-other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
+
+
+```\x -> x + 1``` is an annonymous lambda function, which can be annotated with the type ```(x:Int) -> Int```.
 
 
 ## Types
 
-Todo.
+Types in Aeon can be very expressive:
+
+```
+let x : Int = 1;
+let y : {z:Int | z > >} = 2; # 0 would raise a type error!
+
+def plus (x:Int | x > 0) (y:Int | y > 0) : {z:Int | z > x && z > y} {
+    x + y
+}
+
+let k = 2; # inferred to be {k:Int | k == 2}
+let g = plus k x; # inferred to be {g:Int | g > 2 && g > 1}
+```
 
 
 ## Imports
 
-Todo.
+Currently, Aeon allows to include other files in the current file, similarly to C's include statement.
+
+```
+import "otherfile.ae";
+```
 
 ## Polymorphism
 
-Todo.
+Polymorphism is under development. Stay tuned.
 
 <a name="FFI"></a>
 ## Foreign Function interfaces
 
-Todo.
+Aeon supports interacting with the Python interpreter via the following functions:
+
+```
+native : String -> Bottom
+native_import : String -> Bottom
+```
+
+Bottom is a special type that is a subtype of any other type. As such, you can use native to obtain anything you want:
+
+```
+let x : {x:Int | x > 0} = native "1+2";
+let x : List = native "[1,2,3]";
+```
+
+Using native allows you to convert any Python expression in a string to an Aeon object. Note that this is not type-checked statically, so you may write invalid code that will crash like `(native "2+2" : Float)`.
+
+`let numpy = native_import "numpy";` allows developers to import Python modules directly.
 
 ## Libraries
 
-Todo.
+There are a few libraries available, but unstable as they are under development:
+
+* Image.ae
+* List.ae
+* Math.ae
+* String.ae
+* Tuple.ae
+
+
+## Command-line options
+
+| Flag    |  Description     |
+|--------:|:--------------|
+| -d      | Prints debug information |
+| -t     | Prints timing information about the different steps of the compiler |
+| --core | Parses the input file as being the Core language, instead of the surface aeon |
+
+
+## Synthesis
+
+Aeon supports the automatic synthesis of incomplete code. Take the following example:
+
+```
+def fun (i:Int | i > 0) : (j:Int | j > i) {
+    (?todo : Int)
+}
+```
+
+This function is incomplete: there is a hole in the program (`?todo`) name todo. If you run this program, the compiler will try to search for an expression to replace the hole with, that has the proper type.
+
+Because liquid types are limited, you can define your target function:
+
+```
+@minimize(fun 3 + fun 5)
+def fun (i:Int | i > 0) : (j:Int | j > i) {
+    (?todo : Int)
+}
+```
+
+The minimize decorator will define that the goal of this function is to minimize the sum of `fun 3` and `fun 5`. This allows developers to define targets for their functions, and let the compiler discover proper programs.
