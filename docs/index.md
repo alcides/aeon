@@ -20,12 +20,47 @@ To install aeon, you can just run
 
 `pipx install "aeon @ https://github.com/alcides/aeon/archive/master.zip"`
 
-To execute aeon, you can just pass it the name of the file you want to run: `aeon file.ae` where file.ae is your program.
+To execute aeon, you can just pass it the name of the file you want to run (file.ae):
+
+`aeon file.ae`
+
+
+## Hello World
+
+If your aeon file contains a function named `main`, it will be the entrypoint to the program.
+
+```
+def main (args:Int) : Unit {
+    print "Hello World"
+}
+```
+
+Main returns Unit, which is the singleton type. It can be used like void in C.
+
+> [!WARNING]
+> args should be an array of strings. This is pending.
+
+`print`receives a string and returns Unit, allowing it to be used inside a main block.
 
 
 ## Basic Syntax
 
-Todo.
+### Comments
+
+Just like in Python, any line starting with # is a comment.
+
+### Literals
+
+| Type    |  Literals     |
+|--------:|:--------------|
+| Unit    |               |
+| Int     | ..., -2, -1, 0, 1, 2, ...   |
+| Float   | ..., -2.0, -1.0, 0.0, 1.0, 2.0, ... |
+| String  | "", "a", "ab", ... |
+
+### let bindings
+
+
 
 
 ## Functions
