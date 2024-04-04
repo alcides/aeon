@@ -7,3 +7,8 @@ def append : (p:Path) -> (e:String) -> Path = native "lambda x: lambda y: x / y"
 def mkPath : (s:String) -> Path = native "lambda x:pathlib.Path(x)";
 
 def example_ola : Path = append cwd "ola";
+
+
+def main (args:Int) : Unit {
+    print "hello"
+}

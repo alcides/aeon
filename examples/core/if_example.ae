@@ -1,6 +1,0 @@
-(let fun : (x:Int) -> { y:Int | (y > x) } = (\x -> = (: (__mod_3__:Int) -> Int = (\__mod_3__ -> = (: (__mod_1__:Int) -> Int = (\__mod_1__ -> 4 % __mod_1__) = (: (__add_2__:Int) -> Int = (\__add_2__ -> x + __add_2__) x)) % __mod_3__) = (: (__mult_4__:Int) -> Int = (\__mult_4__ -> x * __mult_4__) x))) in
- (let __internal__fitness_function_fun : Int = (let _anf_1 = (fun 3) in
- (let _anf_2 : (__equal_5__:Int) -> Bool = (\__equal_5__ -> _anf_1 == __equal_5__) in
- (let _anf_3 = (_anf_2 4) in
- (if _anf_3 then 0 else 1)))) in
- ?main))

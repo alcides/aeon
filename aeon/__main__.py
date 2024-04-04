@@ -158,7 +158,7 @@ def main():
             print(f"{synthesis_result}")
             # print()
             # pretty_print_term(ensure_anf(synthesis_result, 200))
-        sys.exit(1)
+        sys.exit(0)
     with RecordTime("Evaluation"):
         eval(core_ast, evaluation_ctx)
 

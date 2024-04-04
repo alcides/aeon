@@ -16,11 +16,10 @@ def key_example (steps:Int) : Image {
 
 def k : Image = key_example 1;
 
-#def keyshow : Unit = Image_show k;
-#def keysave : Unit = Image_save k "examples/image/key.jpg";
-
-#def main (x:Int) : Unit { keysave }
-
 def synth : Image = (?hole: Image);
 
 def fitness : Float = Image_diff synth target;
+
+# def keyshow : Unit = Image_show k;
+# def keysave : Unit = Image_save k "examples/image/key.jpg";
+# def main (x:Int) : Unit { keysave }

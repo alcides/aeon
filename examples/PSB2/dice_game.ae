@@ -6,7 +6,7 @@
 # -- working--
 
 import "Math.ae";
-import PSB2;
+import "PSB2.ae";
 
 #constants
 def constant_f0 : Float = 0.0;
@@ -21,7 +21,7 @@ def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <=
 
 def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
 
-def fitness () : Float  {
+def fitness : Float  {
     ds = load_dataset "dice-game" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;

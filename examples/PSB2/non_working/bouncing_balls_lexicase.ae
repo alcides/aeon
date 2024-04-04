@@ -1,5 +1,5 @@
 import "Math.ae";
-import PSB2;
+import "PSB2.ae";
 type Unit;
 type List;
 
@@ -22,9 +22,9 @@ def bouncing_balls : (starting_height: {x:Float | 1.0 <= x && x <= 100.0} ) -> (
 #(?hole:Float)
 #}
 
-def synth (a:Float , b:Float , c:Int)  : Float  { (?hole:Float)}
+def synth (a:Float) (b:Float) (c:Int)  : Float  { (?hole:Float)}
 
-def fitness () : List  {
+def fitness : List  {
     ds = load_dataset "bouncing-balls" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;
