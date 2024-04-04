@@ -21,7 +21,7 @@ scripts.aeon = "aeon.__main__:main"
 dependencies = [  'lark',
   'z3-solver >= 4',
   'loguru',
-  'geneticengine@https://github.com/alcides/GeneticEngine/archive/619d625bf1892a2161047c981ae2732dd45d0e29.zip',
+  'geneticengine@https://github.com/alcides/GeneticEngine/archive/7eae3c667d7e683a71384df3e7a15d23ec388491.zip',
   'multiprocess',
   'textdistance',
   'numpy',
