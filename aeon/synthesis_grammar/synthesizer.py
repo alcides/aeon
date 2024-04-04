@@ -4,12 +4,12 @@ import builtins
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, Tuple
 from typing import Callable
 
 import configparser
 from geneticengine.evaluation import SequentialEvaluator
-from geneticengine.evaluation.budget import TimeBudget
+from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf
 from geneticengine.evaluation.recorder import CSVSearchRecorder
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
@@ -245,27 +245,32 @@ def problem_for_fitness_function(
     fun_name: str,
     metadata: Metadata,
     hole_names: list[str],
-) -> Problem:
+) -> Tuple[Problem, Any]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = [
         "minimize_int", "minimize_float", "multi_minimize_float"
     ]
-    used_decorators = [
-        decorator for decorator in fitness_decorators
-        if decorator in metadata[fun_name].keys()
-    ]
-    assert used_decorators, "No valid fitness decorators found."
 
-    set_error_fitness(used_decorators)
+    if fun_name in metadata:
+        used_decorators = [
+            decorator for decorator in fitness_decorators
+            if decorator in metadata[fun_name].keys()
+        ]
+        assert used_decorators, "No valid fitness decorators found."
 
-    fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata,
-                                        hole_names)
-    problem_type = MultiObjectiveProblem if is_multiobjective(
-        used_decorators) else SingleObjectiveProblem
+        set_error_fitness(used_decorators)
 
-    return problem_type(fitness_function=fitness_function,
-                        minimize=MINIMIZE_OBJECTIVE)
+        fitness_function = create_evaluator(ctx, ectx, term, fun_name,
+                                            metadata, hole_names)
+        problem_type = MultiObjectiveProblem if is_multiobjective(
+            used_decorators) else SingleObjectiveProblem
+
+        return problem_type(fitness_function=fitness_function,
+                            minimize=MINIMIZE_OBJECTIVE), None
+    else:
+        return SingleObjectiveProblem(fitness_function=lambda x: 0,
+                                      minimize=True), 0
 
 
 def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str,
@@ -339,6 +344,7 @@ def geneticengine_synthesis(
     problem: Problem,
     filename: str | None,
     hole_name: str,
+    target_fitness: Any,
     gp_params: dict[str, Any] | None = None,
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine."""
@@ -374,6 +380,8 @@ def geneticengine_synthesis(
             problem, evaluator=SequentialEvaluator(), recorders=recorders)
 
     budget = TimeBudget(time=gp_params["timer_limit"])
+    if target_fitness is not None:
+        budget = AnyOf(budget, TargetFitness(target_fitness))
     alg = GeneticProgramming(
         problem=problem,
         budget=budget,
@@ -412,7 +420,7 @@ def synthesize_single_function(
 ) -> Term:
     # Step 1 Create a Single or Multi-Objective Problem instance.
 
-    problem = problem_for_fitness_function(
+    problem, target_fitness = problem_for_fitness_function(
         ctx,
         ectx,
         term,
@@ -429,7 +437,8 @@ def synthesize_single_function(
 
     # Step 3 Synthesize an element
     synthesized_element = geneticengine_synthesis(grammar, problem, filename,
-                                                  hole_name, synth_config)
+                                                  hole_name, target_fitness,
+                                                  synth_config)
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
