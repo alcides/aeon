@@ -6,7 +6,7 @@ psb2
 zstandard==0.15.2
 zss
 z3-solver
-geneticengine @ https://github.com/alcides/GeneticEngine/archive/619d625bf1892a2161047c981ae2732dd45d0e29.zip
+geneticengine @ https://github.com/alcides/GeneticEngine/archive/94f2fee9b16567e12b49f338832f66bee3597f3d.zip
 textdistance
 loguru
 numpy
@@ -15,3 +15,4 @@ configparser
 multiprocess
 pillow
 scikit-image
+pathos
