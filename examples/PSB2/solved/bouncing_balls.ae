@@ -5,9 +5,9 @@ def calculate_distance_helper (b_index: Float) (h: Float) (n: Int) (distance: Fl
 if isZero n then
     distance
 else
-    a: Float = b_index *. h;
+    a: Float = h /. b_index;
     n1: Int = n - 1;
-    d1: Float = distance +. h +. b_index *. h;
+    d1: Float = (distance +. h) +. a;
     calculate_distance_helper b_index a n1 d1
 }
 
@@ -18,5 +18,5 @@ def bouncing_balls (s_height: Float) (b_height:Float) (b:Int) : Float{
 
 
 def main (x: Int) : Unit {
-    print(bouncing_balls 60.567 37.053 1)
+    print(bouncing_balls 15.319 5.635 1) # 20.954
  }
