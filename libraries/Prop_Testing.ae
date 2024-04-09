@@ -1,4 +1,4 @@
-import List;
+import "List.ae";
 
 def random : Unit = native_import "random";
 

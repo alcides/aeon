@@ -1,0 +1,17 @@
+def ff : (z:Int) -> (f: (a:{n:Int | 1 <= n && n <= 10000}) ->( b:{ m:Int | 0 <=m }) -> Int) -> Int = \b-> \a-> b+ a(2)(3);
+#def fff : (z:Int) -> (f: (a:{n:Int | 0 <= n }) ->( b:{m:Int | 0 <= m }) -> Int) -> Int = native "lambda a: lambda b: a+ b(2)(3)";
+def fff : (z:Int) -> (f: (a:{k:Int | 1 <= k && k <= 10000}) ->( b:{ m:Int | 0 <= m } ) -> Int) -> Int = \b-> \a-> b+ a(2)(3);
+def fff : (z:Int) -> (f: (a:Int | 1 <= a && a <= 10000) -> ( b:Int | 0 <= b ) -> Int) -> Int = \b-> \a-> b+ a(2)(3);
+
+
+#def fff : (z:Int) -> (f: (a:Int) -> (b:Int) -> Int) -> Int = \x -> \y -> x + y;
+#def fff : (z:Int) -> (f: (u:Int) -> (i:Int) -> Int) -> Int = native "lambda a: lambda b: a+ b(2)(3)";
+
+def ffff : (a:{n:Int | 1 <= n && n <= 10000}) -> (b:{ m:Int | 0 <= m }) -> Int = \x -> \y -> x + y;
+#def ffff : (a:{n:Int | 0 <= n}) -> (b:{ m:Int | 0 <= m }) -> Int = \x -> \y -> x + y;
+#def ffff : (a:Int) -> (b:Int) -> Int = \x -> \y -> x + y;
+
+def main (i:Int) : Unit {
+    w: Int = fff 1 ffff;
+    print (w)
+}

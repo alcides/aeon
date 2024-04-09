@@ -1,8 +1,0 @@
-import Prop_Testing;
-
-def negativeInt (x: Int) : Int {-x}
-
-@assert_property( forAllInts(\x-> (x + synth_int(x)) == 0 ))
-def synth_int (x: Int) :Int {
-    (?hole:Int)
-}

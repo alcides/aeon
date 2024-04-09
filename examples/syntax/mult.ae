@@ -1,0 +1,14 @@
+# 4 ways of writing the same function
+
+def mult : (n:Int) -> (m:Int) -> Int = \x -> \y -> x * y  ;
+
+def mult2  (n:Int) (m:Int) : Int { n * m }
+
+def mult3  (n:Int)  : (m:Int) -> {y:Int | true } { \m -> m * n }
+
+def mult4 : (n:Int)  -> (m:Int) -> {y:Int | true } = native "lambda x: lambda y: x * y " ;
+
+
+def main (args:Int) : Unit {
+    print "Hello World"
+}

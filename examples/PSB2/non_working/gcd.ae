@@ -14,7 +14,7 @@ def synth_gcd (n:Int) (z:Int) : Int {
 }
 # def largest_common_divisor ( n :{x:Int | 1 <= x && x <= 1000000},  m :{y:Int | 1 <= y && y <= 1000000}) : Int { gcd n m }
 
-def fitness () : Float  {
+def fitness : Float  {
     ds = load_dataset "gcd" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;

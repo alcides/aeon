@@ -1,0 +1,11 @@
+import Math_pow from "Math.ae";
+
+def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) ->
+          (e:{d:Int | ((d >= 1) && (d <= 100))}) ->
+          Int = Math_pow;
+
+
+def main (args:Int) : Unit {
+    int_to_string : (x:Int) -> String = native "str";
+    print (int_to_string (pow 3 4))
+}

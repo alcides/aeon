@@ -1,12 +1,14 @@
 import "List.ae";
-import Prop_Testing;
+import "Prop_Testing.ae";
 
 def reverse (xs: List) : List {
     List_reversed(xs)
 }
-def negativeInt (x: Int) : Int {-x}
+def negativeInt (x: Int) : Int {
+    -x
+}
 
-def list_property_testing (y: Int) : Float{
+def list_property_testing (y: Int) : Float {
     property_base_test : (xs:List) -> Bool = \xs-> List_length(xs) == List_length(reverse(xs));
     test_result = forAllLists( property_base_test );
     test_result

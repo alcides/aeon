@@ -6,7 +6,7 @@
 # RecursionError: maximum recursion depth exceeded in comparison
 
 import "String.ae";
-import PSB2;
+import "PSB2.ae";
 
 #constants
 def constant_i0 : Int = 0;

@@ -8,7 +8,7 @@
 # output : float
 
 import "Math.ae";
-import PSB2;
+import "PSB2.ae";
 
 #constants
 def constant_i0 : Int = 0;
@@ -40,7 +40,7 @@ def synth_snow_day ( n :Int  ,
     (?hole:Float)
 }
 
-def fitness () : Float  {
+def fitness : Float  {
     ds = load_dataset "snow-day" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;

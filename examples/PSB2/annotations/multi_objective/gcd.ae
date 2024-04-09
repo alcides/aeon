@@ -10,7 +10,7 @@ def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: Int) -> (b: Int) 
             load_dataset,
             train,
             calculate_fuel_cost_errors)
-@allow_recursion()
+@allow_recursion
 @multi_minimize_float(calculate_fuel_cost_errors train synth)
 def synth (n:Int) (z:Int) : Int {
     (?hole: Int)
