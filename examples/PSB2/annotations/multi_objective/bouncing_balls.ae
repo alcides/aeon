@@ -2,8 +2,6 @@ import "Math.ae";
 
 import extract_train_data from "PSB2.ae";
 import load_dataset from "PSB2.ae";
-#import get_input_list_llist_llist from "PSB2.ae";
-
 
 type List;
 
