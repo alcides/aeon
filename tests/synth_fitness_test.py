@@ -19,6 +19,7 @@ setup_logger()
 
 
 def mock_literal_individual(value: int):
+
     class t_Int(ABC):
         pass
 
@@ -45,9 +46,14 @@ def test_fitness():
         name="__internal__minimize_int_synth_0",
         args=[],
         type=BaseType("Int"),
-        body=Application(Application(Var("synth"), Literal(7, BaseType("Int"))), Application(Var("-"), Var("synth"))),
+        body=Application(
+            Application(Var("synth"), Literal(7, BaseType("Int"))),
+            Application(Var("-"), Var("synth"))),
     )
-    term = synthesize(ctx, ectx, p, [("synth", ["hole"])], {"synth": {"minimize_int": [internal_minimize]}})
+    term = synthesize(ctx, ectx, p, [("synth", ["hole"])],
+                      {"synth": {
+                          "minimize_int": [internal_minimize]
+                      }})
 
     assert isinstance(term, Term)
 
@@ -59,7 +65,7 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     prog = parse_program(code)
-    p, ctx, ectx, _ = desugar(prog)
+    p, ctx, ectx, metadata = desugar(prog)
     check_type_errors(ctx, p, top)
     term = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
 
