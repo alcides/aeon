@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_type
+from aeon.core.terms import Var
 from aeon.core.types import ExistentialType
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
@@ -71,7 +72,7 @@ def test_substitution_autorename_ref():
 
 def test_substitution_type_exist():
     ty = ExistentialType(var_name="z", var_type=parse_type("Int"), type=parse_type(r"(y:Int) -> {x : Int | x > z}"))
-    subs = substitution_in_type(ty, parse_term("3"), "z")
+    subs = substitution_in_type(ty, Var("z"), "y")
 
     assert subs.var_name != "z"  # alpha renaming
     assert "3" not in str(subs)

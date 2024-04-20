@@ -10,7 +10,7 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 def extract_core(source: str) -> Term:
     prog = parse_program(source)
-    core, ctx, _ = desugar(prog)
+    core, ctx, _, _ = desugar(prog)
     check_type_errors(ctx, core, top)
     return core
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from loguru import logger
 
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
@@ -31,31 +30,30 @@ def ensure_refined(t: Type) -> RefinedType:
 
 
 def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
-    if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
-        # print(t.type, BaseType)
-        assert isinstance(t.type, BaseType)
-        return Implication(name, t.type, ref_subs, c)
-    elif isinstance(t, BaseType):
-        return Implication(name, t, LiquidLiteralBool(True), c)
-    elif isinstance(t, AbstractionType):
-        return implication_constraint(
-            t.var_name,
-            t.var_type,
-            implication_constraint(name, t.type, c),
-        )  # TODO: email Rahjit
-    elif isinstance(t, TypeVar):
-        # TODO: We are using Int here, but it could have been a singleton.
-        return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
-    elif isinstance(t, Bottom):
-        return c
-    elif isinstance(t, Top):
-        return c
-    elif isinstance(t, ExistentialType):
-        # TODO: Existential
-        pass
-    logger.debug(f"{name} : {t} => {c} ({type(t)})")
-    assert False
+    match t:
+        case Bottom():
+            return c
+        case Top():
+            return c
+        case BaseType(name=_):
+            return Implication(name, t, LiquidLiteralBool(True), c)
+        case RefinedType(name=rname, type=ty, refinement=refinement):
+            ref_subs = substitution_in_liquid(refinement, LiquidVar(name), rname)
+            return Implication(name, ty, ref_subs, c)
+        case AbstractionType(var_name=var_name, var_type=var_type, type=ty):
+            return implication_constraint(
+                var_name,  # TODO: Double-check if this needs to be a base type!
+                var_type,
+                implication_constraint(name, ty, c),
+            )
+        case TypeVar(name=_):
+            # TODO: We should create a custom sort instead of Int.
+            return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
+        case ExistentialType(var_name=var_name, var_type=var_type, type=ty):
+            return implication_constraint(var_name, var_type, implication_constraint(name, ty, c))
+        case _:
+            print(f"{name} : {t} => {c} ({type(t)})")
+            assert False
 
 
 def ensure_safe_type(t: Type) -> BaseType:

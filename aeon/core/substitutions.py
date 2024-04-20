@@ -124,53 +124,62 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
 
     renamed: Type
 
-    if isinstance(t, Top):
-        return t
-    elif isinstance(t, Bottom):
-        return t
-    elif isinstance(t, BaseType):
-        return t
-    elif isinstance(t, TypeVar):
-        return t
-    elif isinstance(t, AbstractionType):
-        if isinstance(rep, Var) and rep.name == t.var_name:
-            nname = t.var_name + "1"
-            renamed = AbstractionType(
-                nname,
-                t.var_type,
-                substitution_in_type(t.type, Var(nname), t.var_name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif name == t.var_name:
+    match t:
+        case Top():
             return t
-        else:
-            return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, RefinedType):
-        if isinstance(rep, Var) and rep.name == t.name:
-            nname = t.name + "1"
-            renamed = RefinedType(
-                nname,
-                t.type,
-                substitution_in_liquid(t.refinement, LiquidVar(nname), t.name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif t.name == name:
+        case Bottom():
             return t
-        else:
-            return RefinedType(
-                t.name,
-                t.type,
-                substitution_in_liquid(t.refinement, replacement, name),
-            )
-    elif isinstance(t, ExistentialType):
-        if name == t.var_name:
-            new_name = t.var_name + "_"  # TODO: Fresh name
-            nt = ExistentialType(new_name, t.var_type, substitution_in_type(t.type, Var(new_name), t.var_name))
-        else:
-            nt = t
-        return ExistentialType(nt.var_name, nt.var_type, substitution_in_type(nt.type, rep, name))
-
-    assert False
+        case BaseType(name=_):
+            return t
+        case TypeVar(name=_):
+            return t
+        case AbstractionType(var_name=var_name, var_type=var_type, type=ity):
+            if isinstance(rep, Var) and rep.name == var_name:
+                nname = var_name + "1"
+                renamed = AbstractionType(
+                    nname,
+                    var_type,
+                    substitution_in_type(ity, Var(nname), var_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif name == var_name:
+                return t
+            else:
+                return AbstractionType(var_name, rec(var_type), rec(ity))
+        case RefinedType(name=ref_name, type=type, refinement=refinement):
+            # alpha renaming to avoid clashes
+            if isinstance(rep, Var) and rep.name == ref_name:
+                nname = ref_name + "1"
+                renamed = RefinedType(
+                    nname,
+                    type,
+                    substitution_in_liquid(refinement, LiquidVar(nname), ref_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif name == ref_name:
+                return t
+            else:
+                return RefinedType(
+                    ref_name,
+                    type,
+                    substitution_in_liquid(refinement, replacement, name),
+                )
+        case ExistentialType(var_name=var_name, var_type=var_type, type=ity):
+            # alpha renaming to avoid clashes
+            if isinstance(rep, Var) and rep.name == var_name:
+                nname = name + "1"
+                renamed = ExistentialType(
+                    nname,
+                    var_type,
+                    substitution_in_type(ity, Var(nname), var_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            if name == t.var_name:
+                return t
+            else:
+                return ExistentialType(var_name, var_type, substitution_in_type(ity, rep, name))
+        case _:
+            assert False
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:

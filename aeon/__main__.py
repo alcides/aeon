@@ -7,6 +7,7 @@ import argparse
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
+from aeon.decorators.api import Metadata
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
@@ -38,16 +39,27 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help=
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
 
-    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
+    parser.add_argument("-csv",
+                        "--csv-synth",
+                        action="store_true",
+                        help="export synthesis csv file")
 
-    parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
+    parser.add_argument("-gp",
+                        "--gp-config",
+                        help="path to the GP configuration file")
 
-    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
+    parser.add_argument("-csec",
+                        "--config-section",
+                        help="section name in the GP configuration file")
 
     parser.add_argument(
         "-d",
@@ -70,7 +82,7 @@ def read_file(filename: str) -> str:
         return file.read()
 
 
-def log_type_errors(errors: list[Exception | str]):
+def log_type_errors(errors: list[Exception]):
     print("TYPECHECKER", "-------------------------------")
     print("TYPECHECKER", "+     Type Checking Error     +")
     for error in errors:
@@ -79,7 +91,7 @@ def log_type_errors(errors: list[Exception | str]):
     print("TYPECHECKER", "-------------------------------")
 
 
-def main():
+def main() -> None:
     args = parse_arguments()
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
@@ -117,14 +129,16 @@ def main():
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast)
+        incomplete_functions: list[tuple[
+            str,
+            list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (
-                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-            )
+            synth_config = (parse_config(args.gp_config, args.config_section)
+                            if args.gp_config and args.config_section else
+                            None)
 
         with RecordTime("Synthesis"):
             synthesis_result = synthesize(

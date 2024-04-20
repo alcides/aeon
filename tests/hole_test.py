@@ -9,7 +9,7 @@ from aeon.typechecking.typeinfer import check_type_errors
 def extract_target_functions(source):
     prog = parse_program(source)
     prog = apply_decorators_in_program(prog)
-    core, ctx, _ = desugar(prog)
+    core, ctx, _, _ = desugar(prog)
     check_type_errors(ctx, core, top)
     return incomplete_functions_and_holes(ctx, core)
 
