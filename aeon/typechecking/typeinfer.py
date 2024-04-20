@@ -103,7 +103,7 @@ def refine_type(ctx: TypingContext, ty: Type, vname: str):
                 return ty
         case ExistentialType(var_name=var_name, var_type=var_type, type=ity):
             return ExistentialType(var_name, var_type, refine_type(ctx, ity, vname))
-        case AbstractionType(var_name=var_name, var_type=var_type, type=type):
+        case AbstractionType(var_name=var_name, var_type=var_type, type=_):
             return ty
         case TypePolymorphism(name=name, kind=kind, body=body):
             return TypePolymorphism(name, kind, refine_type(ctx, body, vname))
