@@ -97,8 +97,10 @@ def refine_type(ctx: TypingContext, ty: Type, vname: str):
             name = ctx.fresh_var()
             return RefinedType(name, ty, eq_ref(name, vname))
         case RefinedType(name=name, type=ty, refinement=cond):
-            assert name != vname
-            return RefinedType(name, ty, and_ref(cond, eq_ref(name, vname)))
+            if name != vname:
+                return RefinedType(name, ty, and_ref(cond, eq_ref(name, vname)))
+            else:
+                return ty
         case ExistentialType(var_name=var_name, var_type=var_type, type=ity):
             return ExistentialType(var_name, var_type, refine_type(ctx, ity, vname))
         case AbstractionType(var_name=var_name, var_type=var_type, type=type):
@@ -290,34 +292,23 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (_, b, _) = extract_parts(parameter_type)
             assert isinstance(b, TypeVar)
             parameter_type = substitute_vartype(parameter_type, ty2, b.name)
+            # This is an hack to handle ad-hoc polymorphism, so == works
+            if isinstance(ty2, RefinedType):
+                ty2 = ty2.type  # This is a hack before inference
             return_type = substitute_vartype(return_type, ty2, b.name)
             c3 = ctrue
         else:
             c3 = sub(ty2, parameter_type)
-
         new_name = ctx.fresh_var()
 
         return_type = substitution_in_type(return_type, Var(new_name), parameter_name)
         nt = ExistentialType(var_name=new_name, var_type=argument_type, type=return_type)
+
+        conj: Constraint = Conjunction(Conjunction(c1, c2), c3)
         for aname, aty in binders1 + binders2:
             nt = ExistentialType(aname, aty, nt)
-        return Conjunction(Conjunction(c1, c2), c3), nt
-
-        # This is the solution to handle polymorphic "==" in refinements.
-        # if argument_is_typevar(ty.var_type):
-        #     (_, b, _) = extract_parts(ty.var_type)
-        #     assert isinstance(b, TypeVar)
-        #     (cp, at) = synth(ctx, t.arg)
-        #     if isinstance(at, RefinedType):
-        #         at = at.type  # This is a hack before inference
-        #     return_type = substitute_vartype(ty.type, at, b.name)
-        # else:
-        #     cp = check(ctx, t.arg, ty.var_type)
-        #     return_type = ty.type
-        # t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-        # c0 = Conjunction(c, cp)
-        # # vs: list[str] = list(variables_free_in(c0))
-        # return (c0, t_subs)
+            conj = implication_constraint(aname, aty, conj)
+        return conj, nt
 
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
@@ -325,16 +316,19 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         (c2, t2) = synth(nctx, t.body)
         term_vars = type_free_term_vars(t1)
         assert t.var_name not in term_vars
-        r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
+        r = (
+            Conjunction(c1, implication_constraint(t.var_name, t1, c2)),
+            ExistentialType(var_name=t.var_name, var_type=t1, type=t2),
+        )
         return r
     elif isinstance(t, Rec):
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
         (c2, t2) = synth(nrctx, t.body)
-
         c1 = implication_constraint(t.var_name, t.var_type, c1)
         c2 = implication_constraint(t.var_name, t.var_type, c2)
-        return Conjunction(c1, c2), t2
+
+        return Conjunction(c1, c2), ExistentialType(var_name=t.var_name, var_type=t.var_type, type=t2)
     elif isinstance(t, Annotation):
         ty = fresh(ctx, t.type)
         c = check(ctx, t.expr, ty)
@@ -415,25 +409,35 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         c2 = implication_constraint(t.var_name, t1, c2)
         return Conjunction(c1, c2)
     elif isinstance(t, If):
-        y = ctx.fresh_var()
+        # TODO: ANF to Existentials broke here on liquefy. This should replace applications, and it's just translating the application!
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
             raise CouldNotGenerateConstraintException(
                 "If condition not boolean",
             )
+
+        cond_name = ctx.fresh_var()
+        cond = LiquidVar(cond_name)
+
+        y = ctx.fresh_var()
+
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
-            RefinedType("branch_", t_int, liq_cond),
+            RefinedType("branch_", t_int, cond),
             check(ctx, t.then, ty),
         )
         c2 = implication_constraint(
             y,
-            RefinedType("branch_", t_int, LiquidApp("!", [liq_cond])),
+            RefinedType("branch_", t_int, LiquidApp("!", [cond])),
             check(ctx, t.otherwise, ty),
         )
-        return Conjunction(c0, Conjunction(c1, c2))
+
+        constraint = Conjunction(c0, Conjunction(c1, c2))
+        eq = LiquidApp("==", [LiquidVar(cond_name), liq_cond])
+        return implication_constraint(cond_name, RefinedType(cond_name, t_bool, eq), constraint)
+
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
         ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
         assert isinstance(ty_right, TypePolymorphism)
@@ -450,8 +454,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
     """Returns whether expression t has type ty in context ctx."""
     try:
         constraint = check(ctx, t, ty)
-        print("ctx", ctx)
-        print("Constraint", constraint)
         return entailment(ctx, constraint)
     except CouldNotGenerateConstraintException as e:
         logger.info(f"Could not generate constraint: f{e}")

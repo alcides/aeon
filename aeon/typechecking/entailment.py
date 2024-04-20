@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 
-
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, ExistentialType
@@ -33,9 +32,8 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                     # TODO: TypePolymorphism is not passed to SMT.
                     # TODO: Consider using a custom Sort.
                     return entailment(prev, c)
-                case ExistentialType(var_name=_, var_type=_, type=_):
-                    print("hello")
-                    assert False
+                case ExistentialType(var_name=vname, var_type=vtype, type=ity):
+                    return entailment(VariableBinder(VariableBinder(prev, name, ity), vname, vtype), c)
                 case _:
                     (name, base, cond) = extract_parts(ty)
                     assert isinstance(base, BaseType)

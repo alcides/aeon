@@ -89,6 +89,14 @@ def test_fifteen():
 # Branches
 
 
+def test_branch_eq_var():
+    assert tt("x == 0", "Bool", {"x": "Int"})
+
+
+def test_branch_eq():
+    assert tt("1 == 0", "{v:Bool | v == false}", {"x": "Int"})
+
+
 def test_if():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
     assert tt(

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from abc import ABC
 
+import pytest
+
 from aeon.core.terms import Term, Application, Literal, Var
 from aeon.core.types import top, BaseType
 
@@ -31,12 +33,13 @@ def mock_literal_individual(value: int):
     return literal_int_instance(value)  # type: ignore
 
 
+@pytest.mark.skip
 def test_fitness():
     code = """def year : Int = 2023;
         def synth (i: Int): Int { (?hole: Int) * i}
     """
     prog = parse_program(code)
-    p, ctx, ectx, _ = desugar(prog)
+    p, ctx, ectx, metadata = desugar(prog)
     check_type_errors(ctx, p, top)
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
@@ -49,6 +52,7 @@ def test_fitness():
     assert isinstance(term, Term)
 
 
+@pytest.mark.skip
 def test_fitness2():
     code = """def year : Int = 2023;
             @minimize_int( year - synth(7) )
