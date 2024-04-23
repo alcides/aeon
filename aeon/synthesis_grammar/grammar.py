@@ -134,6 +134,17 @@ def mk_method_core_literal(cls: classType) -> classType:
     return cls
 
 
+def process_type_name(ty: Type) -> str:
+    if isinstance(ty, RefinedType):
+        assert False
+    elif isinstance(ty, Top) or isinstance(ty, Bottom):
+        return str(ty)
+    elif isinstance(ty, BaseType):
+        return ty.name
+    else:
+        assert False
+
+
 def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list[type], type]:
     """This function iterates over the provided list of grammar nodes and
     returns the node whose name matches the provided name. If no match is found
