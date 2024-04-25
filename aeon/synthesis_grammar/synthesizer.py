@@ -420,12 +420,8 @@ def synthesize(
     refined_grammar: bool = False,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
-    program_holes = get_holes_info(
-        ctx,
-        term,
-        top,
-        targets,
-    )
+
+    program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
     assert len(program_holes) == len(targets), "No support for function with more than one hole"
 
     print("Starting synthesis...")

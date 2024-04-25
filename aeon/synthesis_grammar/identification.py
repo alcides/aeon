@@ -13,9 +13,8 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, TypePolymorphism
+from aeon.core.types import AbstractionType, TypePolymorphism, refined_to_unrefined_type
 from aeon.core.types import Type
-from aeon.core.types import refined_to_unrefined_type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 
@@ -26,6 +25,7 @@ def get_holes_info(
     t: Term,
     ty: Type,
     targets: list[tuple[str, list[str]]],
+    refined_types: bool,
 ) -> dict[str, tuple[Type, TypingContext]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
@@ -37,61 +37,66 @@ def get_holes_info(
         t (Term): The term to analyze.
         ty (Type): The current type.
         targets (list(tuple(str, list(str)))): List of tuples functions names that contains holes and the name holes
+        refined_types (bool): Whether to use refined types.
     """
+    ty = ty if refined_types else refined_to_unrefined_type(ty)
     match t:
-        case Annotation(expr=Hole(name=hname), type=ty):
-            ty = refined_to_unrefined_type(ty)
-            return {hname: (ty, ctx)} if hname != "main" else {}
+        case Annotation(expr=Hole(name=hname), type=hty):
+            hty = hty if refined_types else refined_to_unrefined_type(hty)
+            return {hname: (hty, ctx)} if hname != "main" else {}
         case Hole(name=hname):
-            ty = refined_to_unrefined_type(ty)
             return {hname: (ty, ctx)} if hname != "main" else {}
         case Literal(_, _):
             return {}
         case Var(_):
             return {}
         case Annotation(expr=expr, type=ty):
-            return get_holes_info(ctx, expr, ty, targets)
+            ty = ty if refined_types else refined_to_unrefined_type(ty)
+            return get_holes_info(ctx, expr, ty, targets, refined_types)
         case Application(fun=fun, arg=arg):
-            hs1 = get_holes_info(ctx, fun, ty, targets)
-            hs2 = get_holes_info(ctx, arg, ty, targets)
+            hs1 = get_holes_info(ctx, fun, ty, targets, refined_types)
+            hs2 = get_holes_info(ctx, arg, ty, targets, refined_types)
             return hs1 | hs2
         case If(cond=cond, then=then, otherwise=otherwise):
-            hs1 = get_holes_info(ctx, cond, ty, targets)
-            hs2 = get_holes_info(ctx, then, ty, targets)
-            hs3 = get_holes_info(ctx, otherwise, ty, targets)
+            hs1 = get_holes_info(ctx, cond, ty, targets, refined_types)
+            hs2 = get_holes_info(ctx, then, ty, targets, refined_types)
+            hs3 = get_holes_info(ctx, otherwise, ty, targets, refined_types)
             return hs1 | hs2 | hs3
         case Abstraction(var_name=vname, body=body):
             if isinstance(ty, AbstractionType):
                 ret = substitution_in_type(ty.type, Var(vname), ty.var_name)
                 ctx = ctx.with_var(vname, ty.var_type)
-                return get_holes_info(ctx, body, ret, targets)
+                return get_holes_info(ctx, body, ret, targets, refined_types)
             else:
                 assert False, f"Synthesis cannot infer the type of {t}"
         case Let(var_name=vname, var_value=value, body=body):
             _, t1 = synth(ctx, value)
+            t1 = t1 if refined_types else refined_to_unrefined_type(t1)
             if not isinstance(value, Hole) and not (isinstance(value, Annotation) and isinstance(value.expr, Hole)):
                 ctx = ctx.with_var(vname, t1)
-                hs1 = get_holes_info(ctx, t.var_value, ty, targets)
-                hs2 = get_holes_info(ctx, t.body, ty, targets)
+                hs1 = get_holes_info(ctx, t.var_value, ty, targets, refined_types)
+                hs2 = get_holes_info(ctx, t.body, ty, targets, refined_types)
             else:
-                hs1 = get_holes_info(ctx, t.var_value, ty, targets)
+                hs1 = get_holes_info(ctx, t.var_value, ty, targets, refined_types)
                 ctx = ctx.with_var(vname, t1)
-                hs2 = get_holes_info(ctx, t.body, ty, targets)
+                hs2 = get_holes_info(ctx, t.body, ty, targets, refined_types)
             return hs1 | hs2
         case Rec(var_name=vname, var_type=vtype, var_value=value, body=body):
+            vtype = vtype if refined_types else refined_to_unrefined_type(vtype)
             ctx = ctx.with_var(vname, vtype)
-            hs1 = get_holes_info(ctx, value, vtype, targets)
-            hs2 = get_holes_info(ctx, body, ty, targets)
-
+            hs1 = get_holes_info(ctx, value, vtype, targets, refined_types)
+            hs2 = get_holes_info(ctx, body, ty, targets, refined_types)
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):
+            argty = argty if refined_types else refined_to_unrefined_type(argty)
             if isinstance(ty, TypePolymorphism):
                 ntype = substitute_vartype(ty.body, argty, ty.name)
-                return get_holes_info(ctx, body, ntype, targets)
+                ntype = ntype if refined_types else refined_to_unrefined_type(ntype)
+                return get_holes_info(ctx, body, ntype, targets, refined_types)
             else:
                 assert False, f"Synthesis cannot infer the type of {t}"
         case TypeAbstraction(name=n, kind=k, body=body):
-            return get_holes_info(ctx.with_typevar(n, k), body, ty, targets)
+            return get_holes_info(ctx.with_typevar(n, k), body, ty, targets, refined_types)
         case _:
             assert False, f"Could not infer the type of {t} for synthesis."
 
