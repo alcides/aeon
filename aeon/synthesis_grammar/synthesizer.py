@@ -46,7 +46,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top
+from aeon.core.types import BaseType, Top, RefinedType
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
@@ -259,7 +259,7 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata
     grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
-    assert isinstance(ty, BaseType)  # TODO Synthesis: Support other types?
+    assert isinstance(ty, (BaseType, RefinedType))  # TODO Synthesis: Support other types?
     hole_type_name = process_type_name(ty)
     grammar_nodes, starting_node = find_class_by_name(hole_type_name, grammar_nodes)
     assert starting_node is not None, "Starting Node is None"
@@ -417,6 +417,7 @@ def synthesize(
     metadata: Metadata,
     filename: str | None = None,
     synth_config: dict[str, Any] | None = None,
+    refined_grammar: bool = False,
 ) -> Term:
     """Synthesizes code for multiple functions, each with multiple holes."""
     program_holes = get_holes_info(
