@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import sys
 from abc import ABC
 from dataclasses import make_dataclass
-from typing import Protocol
+from typing import Protocol, Annotated, Any
 from typing import Type as TypingType
 
+from geneticengine.grammar.metahandlers.floats import FloatRange
+from geneticengine.grammar.metahandlers.ints import IntRange
+from geneticengine.grammar.metahandlers.strings import StringSizeBetween
 from lark.lexer import Token
 
+from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar, LiquidLiteralInt, LiquidLiteralString, LiquidLiteralFloat
 from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
@@ -51,6 +56,13 @@ text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
 
 aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
+
+aeon_to_gengy_metahandlers = {"Int": IntRange, "String": StringSizeBetween, "Float": FloatRange}
+
+aeon_to_liquid_terms = {"Int": LiquidLiteralInt, "String": LiquidLiteralString, "Float": LiquidLiteralFloat}
+
+max_number = sys.maxsize - 1
+min_number = -(sys.maxsize - 1)
 
 
 class GrammarError(Exception):
@@ -134,9 +146,60 @@ def mk_method_core_literal(cls: classType) -> classType:
     return cls
 
 
+def mk_method_core_literal_refined(cls: classType) -> classType:
+    def get_core(self):
+        class_name = self.__class__.__name__
+        class_name_without_prefix: str = class_name[16:]
+        value = getattr(self, "value", None)
+        try:
+            if value is not None:
+                if class_name_without_prefix.startswith("Int"):
+                    base = Literal(int(value), type=t_int)
+                elif class_name_without_prefix.startswith("Float"):
+                    base = Literal(float(value), type=t_float)
+                elif class_name_without_prefix.startswith("Bool"):
+                    value = str(value) == "true"
+                    base = Literal(value, type=t_bool)
+                elif class_name_without_prefix.startswith("String"):
+                    v = str(value)[1:-1]
+                    base = Literal(str(v), type=t_string)
+                else:
+                    assert False
+
+                return base
+        except Exception as e:
+            raise GrammarError("no value\n ", e)
+
+    setattr(cls, "get_core", get_core)
+    return cls
+
+
+def liquid_term_to_str(ty: RefinedType) -> str:
+    var: str = ty.name
+    base_type_str: str = ty.type.name
+    refinement: LiquidTerm = ty.refinement
+    if isinstance(refinement, LiquidApp):
+        refinement_fun_str = refinement.fun
+        refined_type_str = (
+            str(ty.refinement)
+            .replace(var, base_type_str)
+            .replace("(", "")
+            .replace(")", "")
+            .replace(" ", "_")
+            .replace(refinement_fun_str, aeon_prelude_ops_to_text[refinement_fun_str])
+        )
+    else:
+        assert False
+    return refined_type_str
+
+
 def process_type_name(ty: Type) -> str:
     if isinstance(ty, RefinedType):
-        assert False
+        refinement_str = liquid_term_to_str(ty)
+
+        refined_type_name = f"t_Refined_{refinement_str}"
+        return refined_type_name
+
     elif isinstance(ty, Top) or isinstance(ty, Bottom):
         return str(ty)
     elif isinstance(ty, BaseType):
@@ -145,7 +208,28 @@ def process_type_name(ty: Type) -> str:
         assert False
 
 
-def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list[type], type]:
+def refined_to_metahandler(ty: RefinedType) -> Any:
+    base_type_str = ty.type.name
+    python_type = aeon_to_python_types[base_type_str]
+    gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
+    metahandler = None
+
+    ref = ty.refinement
+    if isinstance(ref, LiquidApp):
+        if ref.fun == ">":
+            assert len(ref.args) == 2
+            assert isinstance(ref.args[0], LiquidVar)
+            assert isinstance(ref.args[1], aeon_to_liquid_terms[base_type_str])
+
+            max_range = max_number  # or 2 ** 31 - 1
+            min_range = ref.args[1].value + 1  # type: ignore
+
+            metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
+
+    return metahandler
+
+
+def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | None = None) -> tuple[list[type], type]:
     """This function iterates over the provided list of grammar nodes and
     returns the node whose name matches the provided name. If no match is found
     it creates a new abstract class and a new data class, adds them to the
@@ -154,6 +238,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
     Args:
         class_name (str): The name of the class to find.
         grammar_nodes (list[type]): A list of grammar nodes to search through.
+        ty
 
     Returns:
         tuple[list[type], type]: A tuple containing the updated list of grammar nodes and the found or newly created class.
@@ -175,6 +260,23 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type]) -> tuple[list
         new_class = mk_method_core_literal(new_class)
 
         grammar_nodes.append(new_class)
+    elif ty is not None and isinstance(ty, RefinedType):
+        new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
+
+        grammar_nodes.append(new_abs_class)
+
+        metahandler_type = refined_to_metahandler(ty)
+
+        new_class = make_dataclass(
+            "literal_" + class_name[2:],
+            [("value", metahandler_type)],
+            bases=(new_abs_class,),
+        )
+
+        new_class = mk_method_core_literal_refined(new_class)
+
+        grammar_nodes.append(new_class)
+        # print_grammar_nodes(grammar_nodes)
 
     else:
         class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
@@ -190,6 +292,7 @@ def is_valid_class_name(class_name: str) -> bool:
 def get_attribute_type_name(attribute_type, parent_name=None):
     parent_name = parent_name or ""
     while isinstance(attribute_type, AbstractionType):
+        # TODO handle refined types
         attribute_type = refined_to_unrefined_type(attribute_type.type)
         parent_name += f"t_{get_attribute_type_name(attribute_type, parent_name)}_"
     return parent_name + attribute_type.name if isinstance(attribute_type, BaseType) else parent_name
@@ -214,17 +317,15 @@ def generate_class_components(
     parent_name = ""
     while isinstance(class_type, AbstractionType):
         attribute_name = class_type.var_name.value if isinstance(class_type.var_name, Token) else class_type.var_name
-        attribute_type = (
-            refined_to_unrefined_type(class_type.var_type)
-            if isinstance(class_type.var_type, RefinedType)
-            else class_type.var_type
-        )
+        attribute_type = class_type.var_type
+
         attribute_type_name = get_attribute_type_name(attribute_type)
 
         grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes)
         fields.append((attribute_name, cls))
 
         parent_name += f"t_{attribute_type_name}_"
+        # TODO handle refined types
         class_type = refined_to_unrefined_type(class_type.type)
 
     if isinstance(class_type, Top) or isinstance(class_type, Bottom):
@@ -272,7 +373,6 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         or the original list if no class was added.
     """
     class_name, class_type = var
-    class_type = refined_to_unrefined_type(class_type)
 
     class_name = process_class_name(class_name)
 

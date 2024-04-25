@@ -261,7 +261,7 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata
     assert len(grammar_nodes) > 0
     assert isinstance(ty, (BaseType, RefinedType))  # TODO Synthesis: Support other types?
     hole_type_name = process_type_name(ty)
-    grammar_nodes, starting_node = find_class_by_name(hole_type_name, grammar_nodes)
+    grammar_nodes, starting_node = find_class_by_name(hole_type_name, grammar_nodes, ty)
     assert starting_node is not None, "Starting Node is None"
     return grammar_nodes, starting_node
 
