@@ -21,7 +21,7 @@ from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf
-from geneticengine.evaluation.recorder import CSVSearchRecorder
+from geneticengine.evaluation.recorder import CSVSearchRecorder, SearchRecorder
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
     ProgressTracker,
@@ -250,7 +250,7 @@ def problem_for_fitness_function(
         fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
 
-        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), None
+        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), 0
     else:
         return SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0
 
@@ -338,12 +338,19 @@ def geneticengine_synthesis(
     if filename:
         csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
         recorders.append(
-            CSVSearchRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"])
+            CSVSearchRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"]),
         )
     if isinstance(problem, SingleObjectiveProblem):
         tracker = SingleObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
     else:
         tracker = MultiObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
+
+    class StdOutRecorder(SearchRecorder):
+        def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=True):
+            if is_best:
+                logger.info(f"Fitness: {individual.get_fitness(problem)} | Phenotype: {individual.get_phenotype()}")
+
+    recorders.append(StdOutRecorder())
 
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
