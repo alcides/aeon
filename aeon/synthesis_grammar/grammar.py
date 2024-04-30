@@ -480,22 +480,6 @@ def gen_grammar_nodes(
     return grammar_nodes
 
 
-def get_grammar_node(node_name: str, nodes: list[type]) -> type | None:
-    """Returns the node from the provided list of nodes whose name matches the
-    provided name. If no match is found, the function returns None.
-
-    Args:
-        node_name (str): The name of the node to retrieve.
-        nodes (list[type]): A list of nodes to search through.
-
-    Returns:
-        type: The node with the matching name
-    """
-    return next(
-        (n for n in nodes if n.__name__ == node_name),
-    )
-
-
 def convert_to_term(inp):
     if isinstance(inp, str):
         return Literal(inp, type=t_string)
