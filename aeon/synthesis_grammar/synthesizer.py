@@ -57,6 +57,7 @@ from aeon.synthesis_grammar.grammar import (
     classType,
     find_class_by_name,
     process_type_name,
+    build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
@@ -261,8 +262,9 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata
     assert len(grammar_nodes) > 0
     assert isinstance(ty, (BaseType, RefinedType))  # TODO Synthesis: Support other types?
     hole_type_name = process_type_name(ty)
-    grammar_nodes, starting_node = find_class_by_name(hole_type_name, grammar_nodes, ty)
+    grammar_nodes, starting_node = find_class_by_name("t_" + hole_type_name, grammar_nodes, ty)
     assert starting_node is not None, "Starting Node is None"
+    grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
     return grammar_nodes, starting_node
 
 

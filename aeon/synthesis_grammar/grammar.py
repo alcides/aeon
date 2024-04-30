@@ -475,7 +475,6 @@ def gen_grammar_nodes(
             grammar_nodes = create_class_from_ctx_var(ctx_var, grammar_nodes)
 
         n_ctx = n_ctx.prev
-    grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
 
     # print_grammar_nodes(grammar_nodes)
     return grammar_nodes
