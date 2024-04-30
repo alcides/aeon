@@ -16,12 +16,11 @@ from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypeVar
+from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
-from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -65,6 +64,14 @@ max_number = sys.maxsize - 1
 min_number = -(sys.maxsize - 1)
 
 
+def extract_class_name(class_name: str) -> str:
+    prefixes = ["var_", "app_", "refined_app_", "refined_var_", "literal_Refined_", "literal_"]
+    for prefix in prefixes:
+        if class_name.startswith(prefix):
+            return class_name[len(prefix) :]
+    return class_name
+
+
 class GrammarError(Exception):
     pass
 
@@ -80,10 +87,8 @@ classType = TypingType[HasGetCore]
 def mk_method_core(cls: classType) -> classType:
     def get_core(self):
         class_name = self.__class__.__name__
-        # the prefix is either "var_" or "app_"
-        class_name_without_prefix = class_name[4:]
-
-        # TODO add an issue for every type checking problem  10 examples
+        # the prefix is either "var_", "app_", "refined_app" or "refined_var"
+        class_name_without_prefix = extract_class_name(class_name)
 
         if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
             op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
@@ -121,46 +126,18 @@ def mk_method_core(cls: classType) -> classType:
 def mk_method_core_literal(cls: classType) -> classType:
     def get_core(self):
         class_name = self.__class__.__name__
-        class_name_without_prefix = class_name[8:]
+        class_name_without_prefix = extract_class_name(class_name)
         value = getattr(self, "value", None)
         try:
             if value is not None:
-                if class_name_without_prefix == "Int":
+                if class_name_without_prefix == "Int" or class_name_without_prefix.startswith("Int"):
                     base = Literal(int(value), type=t_int)
-                elif class_name_without_prefix == "Float":
+                elif class_name_without_prefix == "Float" or class_name_without_prefix.startswith("Float"):
                     base = Literal(float(value), type=t_float)
-                elif class_name_without_prefix == "Bool":
+                elif class_name_without_prefix == "Bool" or class_name_without_prefix.startswith("Bool"):
                     value = str(value) == "true"
                     base = Literal(value, type=t_bool)
-                elif class_name_without_prefix == "String":
-                    v = str(value)[1:-1]
-                    base = Literal(str(v), type=t_string)
-                else:
-                    assert False
-
-                return base
-        except Exception as e:
-            raise GrammarError("no value\n ", e)
-
-    setattr(cls, "get_core", get_core)
-    return cls
-
-
-def mk_method_core_literal_refined(cls: classType) -> classType:
-    def get_core(self):
-        class_name = self.__class__.__name__
-        class_name_without_prefix: str = class_name[16:]
-        value = getattr(self, "value", None)
-        try:
-            if value is not None:
-                if class_name_without_prefix.startswith("Int"):
-                    base = Literal(int(value), type=t_int)
-                elif class_name_without_prefix.startswith("Float"):
-                    base = Literal(float(value), type=t_float)
-                elif class_name_without_prefix.startswith("Bool"):
-                    value = str(value) == "true"
-                    base = Literal(value, type=t_bool)
-                elif class_name_without_prefix.startswith("String"):
+                elif class_name_without_prefix == "String" or class_name_without_prefix.startswith("String"):
                     v = str(value)[1:-1]
                     base = Literal(str(v), type=t_string)
                 else:
@@ -196,8 +173,7 @@ def liquid_term_to_str(ty: RefinedType) -> str:
 def process_type_name(ty: Type) -> str:
     if isinstance(ty, RefinedType):
         refinement_str = liquid_term_to_str(ty)
-
-        refined_type_name = f"t_Refined_{refinement_str}"
+        refined_type_name = f"Refined_{refinement_str}"
         return refined_type_name
 
     elif isinstance(ty, Top) or isinstance(ty, Bottom):
@@ -238,10 +214,11 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
     Args:
         class_name (str): The name of the class to find.
         grammar_nodes (list[type]): A list of grammar nodes to search through.
-        ty
+        ty (Type): Aeon type of the class we are trying to find or create
 
     Returns:
-        tuple[list[type], type]: A tuple containing the updated list of grammar nodes and the found or newly created class.
+        tuple[list[type], type]: A tuple containing the updated list of grammar nodes and the found or
+        newly created class.
     """
     for cls in grammar_nodes:
         if cls.__name__ in [class_name, "t_" + class_name]:
@@ -261,8 +238,8 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
 
         grammar_nodes.append(new_class)
     elif ty is not None and isinstance(ty, RefinedType):
+        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
         new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
-
         grammar_nodes.append(new_abs_class)
 
         metahandler_type = refined_to_metahandler(ty)
@@ -272,11 +249,10 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
             [("value", metahandler_type)],
             bases=(new_abs_class,),
         )
-
-        new_class = mk_method_core_literal_refined(new_class)
-
+        new_class = mk_method_core_literal(new_class)
         grammar_nodes.append(new_class)
-        # print_grammar_nodes(grammar_nodes)
+        base_type_name = process_type_name(ty.type)
+        grammar_nodes, _ = find_class_by_name(base_type_name, grammar_nodes)
 
     else:
         class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
@@ -291,11 +267,10 @@ def is_valid_class_name(class_name: str) -> bool:
 
 def get_attribute_type_name(attribute_type, parent_name=None):
     parent_name = parent_name or ""
+    attribute_type_name = process_type_name(attribute_type)
     while isinstance(attribute_type, AbstractionType):
-        # TODO handle refined types
-        attribute_type = refined_to_unrefined_type(attribute_type.type)
         parent_name += f"t_{get_attribute_type_name(attribute_type, parent_name)}_"
-    return parent_name + attribute_type.name if isinstance(attribute_type, BaseType) else parent_name
+    return parent_name + attribute_type_name
 
 
 def generate_class_components(
@@ -321,19 +296,13 @@ def generate_class_components(
 
         attribute_type_name = get_attribute_type_name(attribute_type)
 
-        grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes)
+        grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes, attribute_type)
         fields.append((attribute_name, cls))
 
         parent_name += f"t_{attribute_type_name}_"
-        # TODO handle refined types
-        class_type = refined_to_unrefined_type(class_type.type)
+        class_type = class_type.type
 
-    if isinstance(class_type, Top) or isinstance(class_type, Bottom):
-        class_type_str = str(class_type)
-    elif isinstance(class_type, BaseType):
-        class_type_str = class_type.name
-    else:
-        assert False
+    class_type_str = process_type_name(class_type)
 
     superclass_type_name = f"{parent_name}t_{class_type_str}"
 
@@ -373,7 +342,6 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         or the original list if no class was added.
     """
     class_name, class_type = var
-
     class_name = process_class_name(class_name)
 
     if not is_valid_class_name(class_name):
@@ -387,13 +355,15 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
     )
 
     # class app_function_name
-    if isinstance(parent_type, (Top, Bottom)):
-        parent_class_name: str = str(parent_type)
-    elif isinstance(parent_type, (BaseType, TypeVar)):
-        parent_class_name = parent_type.name
-    else:
-        raise GrammarError(f"parent class name not definied: {parent_type}")
-    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
+    parent_class_name = process_type_name(parent_type)
+
+    grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes, parent_type)
+
+    if isinstance(class_type, RefinedType):
+        new_class_app = create_new_class(f"refined_app_{class_name}", parent_class, fields)
+        grammar_nodes.append(new_class_app)
+        parent_base_type_name = process_type_name(class_type.type)
+        grammar_nodes, parent_class = find_class_by_name(parent_base_type_name, grammar_nodes, class_type.type)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
     grammar_nodes.append(new_class_app)
