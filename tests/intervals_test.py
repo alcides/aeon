@@ -33,7 +33,25 @@ def test_gt_zero():
 
     assert isinstance(n, grammar_nodes[0])  # t_Refined_Int_greater_than_0
     assert n.value > 0
-    assert isinstance(n, grammar_nodes[1])  # literal_Refined_Int_greater_than_0
+    assert isinstance(n, grammar_nodes[1])
+
+
+def test_gt_zero2():
+    # (i:{g:Int | g > 0})
+    refined_ty = RefinedType("g", t_int, LiquidApp("<", [LiquidLiteralInt(0), LiquidVar("g")]))
+    ctx_var = ("i", refined_ty)
+
+    grammar_nodes, root = get_grammar_nodes(ctx_var)
+    g = extract_grammar(grammar_nodes, root)
+    r = NativeRandomSource(seed=1)
+    n = random_node(r, g, 4, root)
+
+    assert isinstance(n, grammar_nodes[0])  # t_Refined_Int_greater_than_0
+    assert n.value > 0
+    assert isinstance(n, grammar_nodes[1])
+
+
+# literal_Refined_Int_greater_than_0
 
 
 def test_gt_zero_and_lt_ten():
