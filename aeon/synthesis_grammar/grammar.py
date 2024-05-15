@@ -3,15 +3,15 @@ from __future__ import annotations
 import sys
 from abc import ABC
 from dataclasses import make_dataclass
-from typing import Protocol, Annotated, Any
+from typing import Protocol, Annotated
 from typing import Type as TypingType
 
-from geneticengine.grammar.metahandlers.floats import FloatRange
-from geneticengine.grammar.metahandlers.ints import IntRange
-from geneticengine.grammar.metahandlers.strings import StringSizeBetween
+from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from lark.lexer import Token
+from sympy.core.numbers import Infinity, NegativeInfinity
+from sympy.sets.sets import EmptySet
 
-from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar, LiquidLiteralInt, LiquidLiteralString, LiquidLiteralFloat
+from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
@@ -26,39 +26,20 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
+from aeon.synthesis_grammar.bounds import (
+    refined_to_sympy_expression,
+    sympy_exp_to_bounded_interval,
+    flatten_conditions,
+    conditional_to_interval,
+)
+from aeon.synthesis_grammar.utils import (
+    text_to_aeon_prelude_ops,
+    aeon_prelude_ops_to_text,
+    aeon_to_python_types,
+    aeon_to_gengy_metahandlers,
+    prelude_ops,
+)
 from aeon.typechecking.context import TypingContext, UninterpretedBinder, EmptyContext, VariableBinder
-
-prelude_ops: list[str] = ["print", "native_import", "native"]
-
-internal_functions: list[str] = []
-
-aeon_prelude_ops_to_text: dict[str, str] = {
-    "%": "mod",
-    "/": "div",
-    "*": "mult",
-    "-": "sub",
-    "+": "add",
-    "%.": "mod_f",
-    "/.": "div_f",
-    "*.": "mult_f",
-    "-.": "sub_f",
-    "+.": "add_f",
-    ">=": "greater_equal",
-    ">": "greater_than",
-    "<=": "less_equal",
-    "<": "less_than",
-    "!=": "not_equal",
-    "==": "equal",
-}
-text_to_aeon_prelude_ops = {v: k for k, v in aeon_prelude_ops_to_text.items()}
-
-grammar_base_types = ["t_Float", "t_Int", "t_String", "t_Bool"]
-
-aeon_to_python_types = {"Int": int, "Bool": bool, "String": str, "Float": float}
-
-aeon_to_gengy_metahandlers = {"Int": IntRange, "String": StringSizeBetween, "Float": FloatRange}
-
-aeon_to_liquid_terms = {"Int": LiquidLiteralInt, "String": LiquidLiteralString, "Float": LiquidLiteralFloat}
 
 max_number = sys.maxsize - 1
 min_number = -(sys.maxsize - 1)
@@ -184,23 +165,34 @@ def process_type_name(ty: Type) -> str:
         assert False
 
 
-def refined_to_metahandler(ty: RefinedType) -> Any:
+def refined_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator:
     base_type_str = ty.type.name
     python_type = aeon_to_python_types[base_type_str]
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
     metahandler = None
 
     ref = ty.refinement
+    name = ty.name
+
+    sympy_exp = refined_to_sympy_expression(ref)
+    bounded_interval = sympy_exp_to_bounded_interval(sympy_exp)
+    cond = flatten_conditions(bounded_interval)
+    interval = conditional_to_interval(cond, name)
+    assert not isinstance(interval, EmptySet)
+    assert interval is not None
+    # TODO verify LOpen, ROpen
+    # TODO se o objeto de retorno for um conjunto de intervalos, dar fold com o metahandler Union
+    # TODO add other Comparison Operators
     if isinstance(ref, LiquidApp):
-        if ref.fun == ">":
-            assert len(ref.args) == 2
-            assert isinstance(ref.args[0], LiquidVar)
-            assert isinstance(ref.args[1], aeon_to_liquid_terms[base_type_str])
 
-            max_range = max_number  # or 2 ** 31 - 1
-            min_range = ref.args[1].value + 1  # type: ignore
+        max_range = max_number if isinstance(interval.sup, Infinity) else interval.sup  # or 2 ** 31 - 1
 
-            metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
+        min_range = min_number if isinstance(interval.inf, NegativeInfinity) else interval.inf  # or -2 ** 31
+        print("max-", max_range, ref, interval)
+        print("min-", min_range, ref, interval)
+        metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
+    else:
+        assert False
 
     return metahandler
 
