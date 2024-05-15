@@ -37,7 +37,7 @@ def test_gt_zero():
 
 
 def test_gt_zero2():
-    # (i:{g:Int | g > 0})
+    # (i:{g:Int | 0 < g})
     refined_ty = RefinedType("g", t_int, LiquidApp("<", [LiquidLiteralInt(0), LiquidVar("g")]))
     ctx_var = ("i", refined_ty)
 

@@ -9,7 +9,7 @@ from typing import Type as TypingType
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from lark.lexer import Token
 from sympy.core.numbers import Infinity, NegativeInfinity
-from sympy.sets.sets import EmptySet, Interval
+from sympy.sets.sets import EmptySet, Interval, Union
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.terms import Application
@@ -180,21 +180,23 @@ def refined_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator:
     interval = conditional_to_interval(cond, name)
     assert not isinstance(interval, EmptySet)
     assert interval is not None
-    assert isinstance(interval, Interval)
-    # TODO se o objeto de retorno for um conjunto de intervalos, dar fold com o metahandler Union
-    # TODO add other Comparison Operators
-    if isinstance(ref, LiquidApp):
-
-        max_range = max_number if isinstance(interval.sup, Infinity) else interval.sup  # or 2 ** 31 - 1
-        max_range = max_range - 1 if interval.right_open else max_range
-
-        min_range = min_number if isinstance(interval.inf, NegativeInfinity) else interval.inf  # or -2 ** 31
-        min_range = min_range + 1 if interval.left_open else min_range
-        print("max-", max_range, ref, interval)
-        print("min-", min_range, ref, interval)
-        metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
-    else:
+    assert isinstance(interval, Interval) or isinstance(interval, Union)
+    if isinstance(interval, Union):
+        # TODO metahandler Union
         assert False
+    elif isinstance(interval, Interval):
+        if isinstance(ref, LiquidApp):
+
+            max_range = max_number if isinstance(interval.sup, Infinity) else interval.sup  # or 2 ** 31 - 1
+            max_range = max_range - 1 if interval.right_open else max_range
+
+            min_range = min_number if isinstance(interval.inf, NegativeInfinity) else interval.inf  # or -2 ** 31
+            min_range = min_range + 1 if interval.left_open else min_range
+            print("max-", max_range, ref, interval)
+            print("min-", min_range, ref, interval)
+            metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
+        else:
+            assert False
 
     return metahandler
 
