@@ -22,7 +22,7 @@ def get_grammar_nodes(ctx_var: tuple) -> tuple[list[type], type]:
 
 
 def test_gt_zero():
-
+    # (i:{g:Int | g > 0})
     refined_ty = RefinedType("g", t_int, LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
     ctx_var = ("i", refined_ty)
 
@@ -37,7 +37,7 @@ def test_gt_zero():
 
 
 def test_gt_zero_and_lt_ten():
-
+    # (i:{g:Int | g > 0 && g < 10})
     refined_ty = RefinedType(
         "g",
         t_int,
@@ -63,7 +63,7 @@ def test_gt_zero_and_lt_ten():
 
 
 def test_gt_zero_and_lt_ten_or_gt_twenty_and_lt_thirty():
-
+    # (i:{g:Int | (g > 0 && g < 10) || (g > 20 && g < 30)})
     refined_ty = RefinedType(
         "g",
         t_int,
