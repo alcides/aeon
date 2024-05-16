@@ -203,7 +203,6 @@ def intervals_to_metahandlers(
 
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
     base_type_str = ty.type.name
-    python_type = aeon_to_python_types[base_type_str]
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
     name, ref = ty.name, ty.refinement
 
