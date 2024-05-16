@@ -3,13 +3,13 @@ from __future__ import annotations
 import sys
 from abc import ABC
 from dataclasses import make_dataclass
-from typing import Protocol, Annotated
+from typing import Annotated, Union, Protocol, Any
 from typing import Type as TypingType
 
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from lark.lexer import Token
 from sympy.core.numbers import Infinity, NegativeInfinity
-from sympy.sets.sets import EmptySet, Interval, Union
+from sympy.sets.sets import Interval
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.terms import Application
@@ -165,40 +165,54 @@ def process_type_name(ty: Type) -> str:
         assert False
 
 
-def refined_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator:
+def split_or_intervals(bounded_intervals, name, intervals_list=None):
+    intervals_list = [] if intervals_list is None else intervals_list
+    # if it is a tuple, it is an Or Interval
+    if isinstance(bounded_intervals, tuple):
+        for b_interval in bounded_intervals:
+            split_or_intervals(b_interval, name, intervals_list)
+    elif isinstance(bounded_intervals, list):
+        cond = flatten_conditions(bounded_intervals)
+        interval = conditional_to_interval(cond, name)
+        intervals_list.append(interval)
+    return intervals_list
+
+
+def intervals_to_metahandlers(
+    gengy_metahandler: Any, intervals_list: list, base_type_str: str, ref: LiquidTerm
+) -> list[MetaHandlerGenerator]:
+    metahandler_list: list[MetaHandlerGenerator] = []
+    python_type: type = aeon_to_python_types[base_type_str]
+    for interval in intervals_list:
+        if isinstance(interval, Interval):
+            if isinstance(ref, LiquidApp):
+                max_range = max_number if isinstance(interval.sup, Infinity) else interval.sup  # or 2 ** 31 - 1
+                max_range = max_range - 1 if interval.right_open else max_range
+
+                min_range = min_number if isinstance(interval.inf, NegativeInfinity) else interval.inf  # or -2 ** 31
+                min_range = min_range + 1 if interval.left_open else min_range
+
+                metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]  # type:ignore
+                metahandler_list.append(metahandler)
+            else:
+                assert False
+        else:
+            assert False
+    return metahandler_list
+
+
+def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
     base_type_str = ty.type.name
     python_type = aeon_to_python_types[base_type_str]
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
-    metahandler = None
-
-    ref = ty.refinement
-    name = ty.name
+    name, ref = ty.name, ty.refinement
 
     sympy_exp = refined_to_sympy_expression(ref)
-    bounded_interval = sympy_exp_to_bounded_interval(sympy_exp)
-    cond = flatten_conditions(bounded_interval)
-    interval = conditional_to_interval(cond, name)
-    assert not isinstance(interval, EmptySet)
-    assert interval is not None
-    assert isinstance(interval, Interval) or isinstance(interval, Union)
-    if isinstance(interval, Union):
-        # TODO metahandler Union
-        assert False
-    elif isinstance(interval, Interval):
-        if isinstance(ref, LiquidApp):
+    bounded_intervals = sympy_exp_to_bounded_interval(sympy_exp)
+    intervals_list = split_or_intervals(bounded_intervals, name)
+    metahandler_list = intervals_to_metahandlers(gengy_metahandler, intervals_list, base_type_str, ref)
 
-            max_range = max_number if isinstance(interval.sup, Infinity) else interval.sup  # or 2 ** 31 - 1
-            max_range = max_range - 1 if interval.right_open else max_range
-
-            min_range = min_number if isinstance(interval.inf, NegativeInfinity) else interval.inf  # or -2 ** 31
-            min_range = min_range + 1 if interval.left_open else min_range
-            print("max-", max_range, ref, interval)
-            print("min-", min_range, ref, interval)
-            metahandler = Annotated[python_type, gengy_metahandler(min_range, max_range)]
-        else:
-            assert False
-
-    return metahandler
+    return metahandler_list[0] if len(metahandler_list) == 1 else Union[*metahandler_list]
 
 
 def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | None = None) -> tuple[list[type], type]:
@@ -238,7 +252,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
         new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
         grammar_nodes.append(new_abs_class)
 
-        metahandler_type = refined_to_metahandler(ty)
+        metahandler_type = refined_type_to_metahandler(ty)
 
         new_class = make_dataclass(
             "literal_" + class_name[2:],

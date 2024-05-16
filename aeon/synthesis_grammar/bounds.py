@@ -99,7 +99,7 @@ def flatten_conditions(lista: list) -> list:
     return [item for sublist in lista for item in flatten_conditions(sublist)]
 
 
-def conditional_to_interval(cond: list[Basic], name: str) -> Set:
+def conditional_to_interval(cond: list, name: str) -> Set:
     try:
         return reduce_rational_inequalities([cond], Symbol(name), relational=False)
     except Exception as err:
@@ -111,7 +111,7 @@ def sympy_exp_to_bounded_interval(exp: Expr) -> Any:
     if isinstance(exp, And):
         return [sympy_exp_to_bounded_interval(x) for x in exp.args]
     elif isinstance(exp, Or):
-        return [sympy_exp_to_bounded_interval(x) for x in exp.args]
+        return tuple(sympy_exp_to_bounded_interval(x) for x in exp.args)
     elif isinstance(exp, Not):
         # Propagate the not
         exp = to_cnf(exp)
