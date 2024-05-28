@@ -47,7 +47,6 @@ from aeon.core.types import BaseType, Top
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
@@ -195,7 +194,6 @@ def create_evaluator(
             start = time.time()
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
-            individual_term = ensure_anf(individual_term, 10000000)
             individual_type_check(ctx, program, first_hole_name,
                                   individual_term)
             results = [
