@@ -16,23 +16,23 @@ prelude_ops: list[str] = ["print", "native_import", "native"]
 
 internal_functions: list[str] = []
 
-aeon_prelude_ops_to_text: dict[str, str] = {
+aeon_prelude_ops_to_text = {
     "%": "mod",
     "/": "div",
-    "*": "mult",
+    "*": "mul",
     "-": "sub",
     "+": "add",
-    "%.": "mod_f",
-    "/.": "div_f",
-    "*.": "mult_f",
-    "-.": "sub_f",
-    "+.": "add_f",
-    ">=": "greater_equal",
-    ">": "greater_than",
-    "<=": "less_equal",
-    "<": "less_than",
-    "!=": "not_equal",
-    "==": "equal",
+    "%.": "modf",
+    "/.": "divf",
+    "*.": "mulf",
+    "-.": "subf",
+    "+.": "addf",
+    ">=": "gte",
+    ">": "gt",
+    "<=": "lte",
+    "<": "lt",
+    "!=": "ne",
+    "==": "eq",
     "&&": "and",
     "||": "or",
 }
