@@ -9,7 +9,9 @@ from typing import Type as TypingType
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from lark.lexer import Token
 from sympy.core.numbers import Infinity, NegativeInfinity
-from sympy.sets.sets import Interval
+from sympy.logic.boolalg import to_dnf
+from sympy.sets.sets import Interval, EmptySet
+from sympy.simplify.simplify import simplify
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.terms import Application
@@ -29,8 +31,8 @@ from aeon.decorators import Metadata
 from aeon.synthesis_grammar.bounds import (
     refined_to_sympy_expression,
     sympy_exp_to_bounded_interval,
-    flatten_conditions,
     conditional_to_interval,
+    flatten_conditions,
 )
 from aeon.synthesis_grammar.utils import (
     text_to_aeon_prelude_ops,
@@ -137,15 +139,11 @@ def liquid_term_to_str(ty: RefinedType) -> str:
     base_type_str: str = ty.type.name
     refinement: LiquidTerm = ty.refinement
     if isinstance(refinement, LiquidApp):
-        refinement_fun_str = refinement.fun
         refined_type_str = (
-            str(ty.refinement)
-            .replace(var, base_type_str)
-            .replace("(", "")
-            .replace(")", "")
-            .replace(" ", "_")
-            .replace(refinement_fun_str, aeon_prelude_ops_to_text[refinement_fun_str])
+            str(ty.refinement).replace(var, base_type_str).replace("(", "").replace(")", "").replace(" ", "_")
         )
+        for op, op_str in aeon_prelude_ops_to_text.items():
+            refined_type_str = refined_type_str.replace(op, op_str)
     else:
         assert False
     return refined_type_str
@@ -165,16 +163,33 @@ def process_type_name(ty: Type) -> str:
         assert False
 
 
+def replace_tuples_with_lists(structure):
+    if isinstance(structure, tuple):
+        return [replace_tuples_with_lists(item) for item in structure]
+    elif isinstance(structure, list):
+        return [replace_tuples_with_lists(item) for item in structure]
+    else:
+        return structure
+
+
+def contains_tuples(lst):
+    return any(isinstance(item, tuple) for item in lst)
+
+
 def split_or_intervals(bounded_intervals, name, intervals_list=None):
     intervals_list = [] if intervals_list is None else intervals_list
     # if it is a tuple, it is an Or Interval
     if isinstance(bounded_intervals, tuple):
         for b_interval in bounded_intervals:
-            split_or_intervals(b_interval, name, intervals_list)
+            intervals_list = split_or_intervals(b_interval, name, intervals_list)
     elif isinstance(bounded_intervals, list):
-        cond = flatten_conditions(bounded_intervals)
-        interval = conditional_to_interval(cond, name)
-        intervals_list.append(interval)
+        if contains_tuples(bounded_intervals):
+            for b_interval in bounded_intervals:
+                intervals_list = split_or_intervals(b_interval, name, intervals_list)
+        else:
+            cond = flatten_conditions(bounded_intervals)
+            interval = conditional_to_interval(cond, name)
+            intervals_list.append(interval)
     return intervals_list
 
 
@@ -196,6 +211,8 @@ def intervals_to_metahandlers(
                 metahandler_list.append(metahandler)
             else:
                 assert False
+        elif isinstance(interval, EmptySet):
+            pass
         else:
             assert False
     return metahandler_list
@@ -207,6 +224,8 @@ def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union
     name, ref = ty.name, ty.refinement
 
     sympy_exp = refined_to_sympy_expression(ref)
+    sympy_exp = simplify(sympy_exp)
+    sympy_exp = to_dnf(sympy_exp)
     bounded_intervals = sympy_exp_to_bounded_interval(sympy_exp)
     intervals_list = split_or_intervals(bounded_intervals, name)
     metahandler_list = intervals_to_metahandlers(gengy_metahandler, intervals_list, base_type_str, ref)
