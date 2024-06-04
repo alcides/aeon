@@ -1,10 +1,10 @@
 import Math_abs from "Math.ae";
 
-def test (j:{h:Int | h > 0}): Int {
+def test (j:{h:Int | h > 0 }): Int {
     8
 }
 
 @minimize_int(Math_abs(64 - fun(8)))
-def fun (i:{g:Int | g > 0}) : Int  {
-    (?hole: {x:Int | x > 0} ) * i
+def fun (i:{x:Int | (x > 0 && x < 10) || (x > 20 && x < 30)}) : Int  {
+    (?hole: {g:Int | g > 0 } ) * i
 }
