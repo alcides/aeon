@@ -242,6 +242,38 @@ def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union
     return get_metahandler_union(metahandler_list)
 
 
+def create_abstract_class(class_name: str) -> type:
+    """Create and return a new abstract class with the given name."""
+    class_name = "t_" + class_name if not class_name.startswith("t_") else class_name
+    return make_dataclass(class_name, [], bases=(ABC,))
+
+
+def create_literal_class(class_name: str, value_type: type | MetaHandlerGenerator, base_class: type) -> type:
+    """Create and return a new literal class with the given name and value type, based on the provided abstract class."""
+    new_class = make_dataclass(
+        "literal_" + class_name,
+        [("value", value_type)],
+        bases=(base_class,),
+    )
+    return mk_method_core_literal(new_class)
+
+
+def handle_refined_type(class_name: str, ty: RefinedType, grammar_nodes: list[type]) -> tuple[list[type], type]:
+    """Handle the creation of classes for refined types and update grammar nodes accordingly."""
+    class_name = "t_" + class_name if not class_name.startswith("t_") else class_name
+    new_abs_class = create_abstract_class(class_name)
+    grammar_nodes.append(new_abs_class)
+
+    metahandler_type = refined_type_to_metahandler(ty)
+    new_class = create_literal_class(class_name[2:], metahandler_type, new_abs_class)
+    grammar_nodes.append(new_class)
+
+    base_type_name = process_type_name(ty.type)
+    grammar_nodes, _ = find_class_by_name(base_type_name, grammar_nodes)
+
+    return grammar_nodes, new_abs_class
+
+
 def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | None = None) -> tuple[list[type], type]:
     """This function iterates over the provided list of grammar nodes and
     returns the node whose name matches the provided name. If no match is found
@@ -260,41 +292,21 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
     for cls in grammar_nodes:
         if cls.__name__ in [class_name, "t_" + class_name]:
             return grammar_nodes, cls
-    if class_name in list(aeon_to_python_types.keys()):
-        new_abs_class = make_dataclass("t_" + class_name, [], bases=(ABC,))
-        # new_abs_class = type("t_"+class_name, (), {})
-        # new_abs_class = abstract(new_abs_class)
+
+    if class_name in aeon_to_python_types:
+        new_abs_class = create_abstract_class(class_name)
         grammar_nodes.append(new_abs_class)
-        new_class = make_dataclass(
-            "literal_" + class_name,
-            [("value", aeon_to_python_types[class_name])],
-            bases=(new_abs_class,),
-        )
 
-        new_class = mk_method_core_literal(new_class)
-
+        new_class = create_literal_class(class_name, aeon_to_python_types[class_name], new_abs_class)
         grammar_nodes.append(new_class)
-    elif ty is not None and isinstance(ty, RefinedType) and str(ty.type.name) in aeon_to_gengy_metahandlers.keys():
-        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
-        new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
-        grammar_nodes.append(new_abs_class)
 
-        metahandler_type = refined_type_to_metahandler(ty)
+        return grammar_nodes, new_abs_class
 
-        new_class = make_dataclass(
-            "literal_" + class_name[2:],
-            [("value", metahandler_type)],
-            bases=(new_abs_class,),
-        )
-        new_class = mk_method_core_literal(new_class)
-        grammar_nodes.append(new_class)
-        base_type_name = process_type_name(ty.type)
-        grammar_nodes, _ = find_class_by_name(base_type_name, grammar_nodes)
+    if ty is not None and isinstance(ty, RefinedType) and str(ty.type.name) in aeon_to_gengy_metahandlers:
+        return handle_refined_type(class_name, ty, grammar_nodes)
 
-    else:
-        class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
-        new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
-        grammar_nodes.append(new_abs_class)
+    new_abs_class = create_abstract_class(class_name)
+    grammar_nodes.append(new_abs_class)
     return grammar_nodes, new_abs_class
 
 
@@ -362,6 +374,32 @@ def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
     return new_class
 
 
+def create_refined_class(
+    class_name: str,
+    parent_class: type,
+    fields: list[tuple[str, type]],
+    class_type: RefinedType,
+    grammar_nodes: list[type],
+) -> list[type]:
+    """Create a refined class and update the grammar nodes list."""
+    new_class_app = create_new_class(f"refined_app_{class_name}", parent_class, fields)
+    grammar_nodes.append(new_class_app)
+
+    parent_base_type_name = process_type_name(class_type.type)
+    grammar_nodes, _ = find_class_by_name(parent_base_type_name, grammar_nodes, class_type.type)
+    return grammar_nodes
+
+
+def create_abstraction_class(
+    class_name: str, abstraction_type_class_name: str, grammar_nodes: list[type]
+) -> list[type]:
+    """Create an abstraction class and update the grammar nodes list."""
+    grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
+    new_class_var = create_new_class(f"var_{class_name}", parent_class)
+    grammar_nodes.append(new_class_var)
+    return grammar_nodes
+
+
 def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[type]:
     """Creates a new class based on a context variable and adds it to the list
     of grammar nodes.
@@ -386,32 +424,21 @@ def create_class_from_ctx_var(var: tuple, grammar_nodes: list[type]) -> list[typ
         return grammar_nodes
 
     class_name = aeon_prelude_ops_to_text.get(class_name, class_name)
-
     grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
-        class_type,
-        grammar_nodes,
+        class_type, grammar_nodes
     )
 
-    # class app_function_name
     parent_class_name = process_type_name(parent_type)
-
     grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes, parent_type)
 
     if isinstance(class_type, RefinedType):
-        new_class_app = create_new_class(f"refined_app_{class_name}", parent_class, fields)
-        grammar_nodes.append(new_class_app)
-        parent_base_type_name = process_type_name(class_type.type)
-        grammar_nodes, parent_class = find_class_by_name(parent_base_type_name, grammar_nodes, class_type.type)
+        grammar_nodes = create_refined_class(class_name, parent_class, fields, class_type, grammar_nodes)
 
     new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
     grammar_nodes.append(new_class_app)
 
-    # class var_function_name
     if isinstance(class_type, AbstractionType):
-        grammar_nodes, parent_class = find_class_by_name(abstraction_type_class_name, grammar_nodes)
-
-        new_class_var = create_new_class(f"var_{class_name}", parent_class)
-        grammar_nodes.append(new_class_var)
+        grammar_nodes = create_abstraction_class(class_name, abstraction_type_class_name, grammar_nodes)
 
     return grammar_nodes
 
@@ -500,9 +527,15 @@ def convert_to_term(inp):
     raise GrammarError(f"Unable to converto to term : {type(inp)}")
 
 
-def print_grammar_nodes(grammar_nodes: list[type]):
+def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
+    class_names = [cls.__name__ for cls in grammar_nodes]
+    print(class_names)
+
+
+def print_grammar_nodes(grammar_nodes: list[type]) -> None:
     for cls in grammar_nodes:
         parents = [base.__name__ for base in cls.__bases__]
+        print("@dataclass")
         print(f"class {cls.__name__} ({''.join(parents)}):")
         class_vars = cls.__annotations__
         if class_vars:
