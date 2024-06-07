@@ -20,7 +20,7 @@ from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
-from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf
+from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, TargetMultiFitness
 from geneticengine.evaluation.recorder import CSVSearchRecorder, SearchRecorder
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
@@ -88,7 +88,7 @@ gengy_default_config = {
     "config_name": "DEFAULT",
     # Stopping criteria
     "timer_stop_criteria": True,
-    "timer_limit": 60,
+    "timer_limit": 300,
     "target_fitness": 0,
     # Recording
     "only_record_best_inds": False,
@@ -250,8 +250,11 @@ def problem_for_fitness_function(
 
         fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
+        target_fitness = (
+            0 if isinstance(problem_type, SingleObjectiveProblem) else []
+        )  # TODO: add supooort to maximize decorators
 
-        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), 0
+        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), target_fitness
     else:
         return SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0
 
@@ -356,7 +359,14 @@ def geneticengine_synthesis(
 
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
-        budget = AnyOf(budget, TargetFitness(target_fitness))
+        budget = AnyOf(
+            budget,
+            (
+                TargetFitness(target_fitness)
+                if isinstance(tracker, SingleObjectiveProgressTracker)
+                else TargetMultiFitness(target_fitness)
+            ),
+        )
     alg = GeneticProgramming(
         problem=problem,
         budget=budget,
