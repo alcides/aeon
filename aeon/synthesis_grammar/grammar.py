@@ -218,6 +218,15 @@ def intervals_to_metahandlers(
     return metahandler_list
 
 
+def get_metahandler_union(
+    metahandler_list: list[MetaHandlerGenerator],
+) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
+    if len(metahandler_list) == 1:
+        return metahandler_list[0]
+    else:
+        return Union[*metahandler_list]
+
+
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
     base_type_str = str(ty.type.name)
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
@@ -230,7 +239,7 @@ def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union
     intervals_list = split_or_intervals(bounded_intervals, name)
     metahandler_list = intervals_to_metahandlers(gengy_metahandler, intervals_list, base_type_str, ref)
 
-    return metahandler_list[0] if len(metahandler_list) == 1 else Union[*metahandler_list]
+    return get_metahandler_union(metahandler_list)
 
 
 def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | None = None) -> tuple[list[type], type]:
