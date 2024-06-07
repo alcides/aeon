@@ -158,7 +158,7 @@ def process_type_name(ty: Type) -> str:
     elif isinstance(ty, Top) or isinstance(ty, Bottom):
         return str(ty)
     elif isinstance(ty, BaseType):
-        return ty.name
+        return str(ty.name)
     else:
         assert False
 
@@ -219,7 +219,7 @@ def intervals_to_metahandlers(
 
 
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
-    base_type_str = ty.type.name
+    base_type_str = str(ty.type.name)
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
     name, ref = ty.name, ty.refinement
 
@@ -265,7 +265,7 @@ def find_class_by_name(class_name: str, grammar_nodes: list[type], ty: Type | No
         new_class = mk_method_core_literal(new_class)
 
         grammar_nodes.append(new_class)
-    elif ty is not None and isinstance(ty, RefinedType):
+    elif ty is not None and isinstance(ty, RefinedType) and str(ty.type.name) in aeon_to_gengy_metahandlers.keys():
         class_name = class_name if class_name.startswith("t_") else ("t_" + class_name)
         new_abs_class = make_dataclass(class_name, [], bases=(ABC,))
         grammar_nodes.append(new_abs_class)
@@ -293,11 +293,12 @@ def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
 
 
-def get_attribute_type_name(attribute_type, parent_name=None):
+def get_attribute_type_name(attribute_type: Type, parent_name: str = None) -> str:
     parent_name = parent_name or ""
-    attribute_type_name = process_type_name(attribute_type)
     while isinstance(attribute_type, AbstractionType):
-        parent_name += f"t_{get_attribute_type_name(attribute_type, parent_name)}_"
+        parent_name += f"t_{process_type_name(attribute_type.var_type)}_"
+        attribute_type = attribute_type.type
+    attribute_type_name = f"t_{process_type_name(attribute_type)}"
     return parent_name + attribute_type_name
 
 
@@ -327,7 +328,7 @@ def generate_class_components(
         grammar_nodes, cls = find_class_by_name(attribute_type_name, grammar_nodes, attribute_type)
         fields.append((attribute_name, cls))
 
-        parent_name += f"t_{attribute_type_name}_"
+        parent_name += f"{attribute_type_name}_"
         class_type = class_type.type
 
     class_type_str = process_type_name(class_type)
