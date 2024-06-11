@@ -89,7 +89,6 @@ gengy_default_config = {
     # Stopping criteria
     "timer_stop_criteria": True,
     "timer_limit": 300,
-    "target_fitness": 0,
     # Recording
     "only_record_best_inds": False,
     # Representation
@@ -237,7 +236,7 @@ def problem_for_fitness_function(
     fun_name: str,
     metadata: Metadata,
     hole_names: list[str],
-) -> Tuple[Problem, Any]:
+) -> Tuple[Problem, float | list[float]]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
@@ -250,9 +249,9 @@ def problem_for_fitness_function(
 
         fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
-        target_fitness = (
+        target_fitness: float | list[float] = (
             0 if isinstance(problem_type, SingleObjectiveProblem) else []
-        )  # TODO: add supooort to maximize decorators
+        )  # TODO: add support to maximize decorators
 
         return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), target_fitness
     else:
@@ -322,7 +321,7 @@ def geneticengine_synthesis(
     problem: Problem,
     filename: str | None,
     hole_name: str,
-    target_fitness: Any,
+    target_fitness: float | list[float],
     gp_params: dict[str, Any] | None = None,
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine."""
