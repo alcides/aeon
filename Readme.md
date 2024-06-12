@@ -34,7 +34,7 @@ def main (i:Int) : Unit {
 
 Authors
 ----------
-GeneticEngine has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbon](https://ciencias.ulisboa.pt) by:
+Aeon has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbon](https://ciencias.ulisboa.pt) by:
 
 * [Alcides Fonseca](http://alcidesfonseca.com)
 * [Paulo Santos](https://pcanelas.com/)

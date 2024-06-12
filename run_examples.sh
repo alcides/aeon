@@ -36,7 +36,7 @@ do
 done
 
 # TODO: add pbt PSB2
-for folder in ffi image imports list syntax synthesis;
+for folder in ffi image imports list syntax synthesis "PSB2/solved";
 do
     for entry in examples/$folder/*.ae
     do
