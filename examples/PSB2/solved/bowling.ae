@@ -17,6 +17,17 @@ def String_eq : (s:String) -> (s2:String) -> Bool = native "lambda s: lambda s2:
 
 def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = native "lambda s: lambda e: lambda st: list(range(s, e, st))";
 
+ def convert_bowling(score: String) : Int {
+ if String_eq score "X" then
+    10
+ else
+    if String_eq score "/" then
+        10
+    else
+        String_to_int score
+ }
+
+
 def create_mapper (scores:String) (i:Int) : Int {
     current : String = String_get scores i;
     next : String = String_get scores (i+1);
@@ -30,12 +41,13 @@ def create_mapper (scores:String) (i:Int) : Int {
             inc : Int = if String_eq next_next_frame1 "X" then 10 else String_to_int next_next_frame1;
             20 + inc
         else
-            10 + String_to_int next_frame1 + String_to_int next_frame2
+            10 + convert_bowling next_frame1 + convert_bowling next_frame2
 
     else if String_eq next "/" then
-        10 + String_to_int (String_get scores (i+2))
+        next_next : String = String_get scores (i+2);
+        10 + (convert_bowling next_next)
     else
-        String_to_int current + String_to_int next
+        String_to_int current + convert_bowling next
 }
 
 

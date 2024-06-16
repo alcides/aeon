@@ -33,57 +33,12 @@ def const2 : String = "/";
 
 def train: TrainData = extract_train_data (load_dataset "bowling" 200 200);
 
-def input_list : List = get_input_list (unpack_train_data train);
-
-def expected_values : List = get_output_list (unpack_train_data train);
 
 @hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
             load_dataset,
             train,
-            input_list,
-            expected_values,
-            get_bowling_synth_values,
-            calculate_list_errors)
-@multi_minimize_float(calculate_list_errors (get_bowling_synth_values input_list synth) expected_values)
+            calculate_bowling_errors)
+@multi_minimize_float(calculate_bowling_errors train synth)
 def synth (scores: String) : Int {
-    #(?hole: Int)
- 1}
-
-
-def create_mapper (scores:String) (i:Int) : Int {
-    current : String = String_get scores i;
-    next : String = String_get scores (i+1);
-    if String_eq current "X" then
-        next_frame1 : String = String_get scores (i+2);
-        next_frame2 : String = String_get scores (i+3);
-        if String_eq next_frame2 "/" then
-            20
-        else if String_eq next_frame1 "X" then
-            next_next_frame1 : String = String_get scores (i+4);
-            inc : Int = if String_eq next_next_frame1 "X" then 10 else String_to_int next_next_frame1;
-            20 + inc
-        else
-            10 + String_to_int next_frame1 + String_to_int next_frame2
-
-    else if String_eq next "/" then
-        10 + String_to_int (String_get scores (i+2))
-    else
-        String_to_int current + String_to_int next
-}
-
-
-def bowling_score (scores: String) : Int {
-    scores_right_size = String_replace scores "X" "X_";
-    scores_zero = String_replace scores_right_size "-" "0";
-    r : List = List_range_step 0 20 2;
-    mapper : (i:Int) -> Int = create_mapper scores_zero;
-    components : List = List_map mapper r;
-    List_sum components
+    (?hole: Int)
  }
-
-def main (scores: Int) : Unit {
-    print (calculate_bowling_errors train bowling_score)
-}
