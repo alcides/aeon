@@ -20,7 +20,7 @@ from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
-from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, TargetMultiFitness
+from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, SearchBudget, TargetMultiFitness
 from geneticengine.evaluation.recorder import CSVSearchRecorder, SearchRecorder
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
@@ -102,6 +102,16 @@ gengy_default_config = {
     "probability_crossover": 0.9,
     "tournament_size": 5,
 }
+
+
+class TargetMultiSameFitness(SearchBudget):
+    def __init__(self, target_fitness: float):
+        self.target_fitness = target_fitness
+
+    def is_done(self, tracker: ProgressTracker):
+        assert isinstance(tracker, MultiObjectiveProgressTracker)
+        comps = tracker.get_best_individuals()[0].get_fitness(tracker.get_problem()).fitness_components
+        return all(abs(c - self.target_fitness) < 0.001 for c in comps)
 
 
 def parse_config(config_file: str, section: str) -> dict[str, Any]:
@@ -250,7 +260,7 @@ def problem_for_fitness_function(
         fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
         target_fitness: float | list[float] = (
-            0 if isinstance(problem_type, SingleObjectiveProblem) else []
+            0 if isinstance(problem_type, SingleObjectiveProblem) else 0
         )  # TODO: add support to maximize decorators
 
         return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), target_fitness
@@ -358,14 +368,15 @@ def geneticengine_synthesis(
 
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
-        budget = AnyOf(
-            budget,
-            (
-                TargetFitness(target_fitness)
-                if isinstance(tracker, SingleObjectiveProgressTracker)
-                else TargetMultiFitness(target_fitness)
-            ),
-        )
+        if isinstance(tracker, SingleObjectiveProgressTracker):
+            search_budget = TargetFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, list):
+            search_budget = TargetMultiFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, float):
+            search_budget = TargetMultiSameFitness(target_fitness)
+        else:
+            assert False
+        budget = AnyOf(budget, search_budget)
     alg = GeneticProgramming(
         problem=problem,
         budget=budget,
