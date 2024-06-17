@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import csv
 import os
 import sys
 import time
@@ -21,7 +22,7 @@ from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, SearchBudget, TargetMultiFitness
-from geneticengine.evaluation.recorder import CSVSearchRecorder, SearchRecorder
+from geneticengine.evaluation.recorder import SearchRecorder, FieldMapper
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
     ProgressTracker,
@@ -88,14 +89,14 @@ gengy_default_config = {
     "config_name": "DEFAULT",
     # Stopping criteria
     "timer_stop_criteria": True,
-    "timer_limit": 300,
+    "timer_limit": 60,
     # Recording
     "only_record_best_inds": False,
     # Representation
     "representation": "tree",
-    "max_depth": 8,
+    "max_depth": 2,
     # Population and Steps
-    "population_size": 30,
+    "population_size": 20,
     "n_elites": 1,
     "novelty": 1,
     "probability_mutation": 0.01,
@@ -112,6 +113,51 @@ class TargetMultiSameFitness(SearchBudget):
         assert isinstance(tracker, MultiObjectiveProgressTracker)
         comps = tracker.get_best_individuals()[0].get_fitness(tracker.get_problem()).fitness_components
         return all(abs(c - self.target_fitness) < 0.001 for c in comps)
+
+
+class LazyCSVRecorder(SearchRecorder):
+
+    def __init__(
+        self,
+        csv_path: str,
+        problem: Problem,
+        fields: dict[str, FieldMapper] = None,
+        extra_fields: dict[str, FieldMapper] = None,
+        only_record_best_individuals: bool = True,
+    ):
+        assert csv_path is not None
+        self.csv_file_path = csv_path
+        self.file = None
+        self.fields = fields
+        self.extra_fields = extra_fields
+        self.only_record_best_individuals = only_record_best_individuals
+        self.problem = problem
+        self.header_printed = False
+        if fields is not None:
+            self.fields = fields
+
+    def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=True):
+        if self.file is None:
+            self.csv_file = open(self.csv_file_path, "w", newline="")
+            self.csv_writer = csv.writer(self.csv_file)
+            if self.fields is None:
+                self.fields = {
+                    "Execution Time": lambda t, i, _: (time.monotonic_ns() - t.start_time) * 0.000000001,
+                    "Fitness Aggregated": lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
+                    "Phenotype": lambda t, i, _: i.get_phenotype(),
+                }
+                for comp in range(problem.number_of_objectives()):
+                    self.fields[f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(p).fitness_components[comp]
+            if self.extra_fields is not None:
+                for name in self.extra_fields:
+                    self.fields[name] = self.extra_fields[name]
+            self.csv_writer.writerow([name for name in self.fields])
+            self.csv_file.flush()
+        if not self.only_record_best_individuals or is_best:
+            self.csv_writer.writerow(
+                [self.fields[name](tracker, individual, problem) for name in self.fields],
+            )
+            self.csv_file.flush()
 
 
 def parse_config(config_file: str, section: str) -> dict[str, Any]:
@@ -149,7 +195,7 @@ def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name
 
     file_name = os.path.basename(file_path)
     name_without_extension, _ = os.path.splitext(file_name)
-    directory = os.path.join("csv", name_without_extension, representation.__name__)
+    directory = os.path.join("csv", name_without_extension, representation.__class__.__name__)
     os.makedirs(directory, exist_ok=True)
 
     hole_suffix = f"_{hole_name}" if hole_name else ""
@@ -352,7 +398,7 @@ def geneticengine_synthesis(
     if filename:
         csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
         recorders.append(
-            CSVSearchRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"]),
+            LazyCSVRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"]),
         )
     if isinstance(problem, SingleObjectiveProblem):
         tracker = SingleObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
@@ -372,7 +418,7 @@ def geneticengine_synthesis(
             search_budget = TargetFitness(target_fitness)
         elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, list):
             search_budget = TargetMultiFitness(target_fitness)
-        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, float):
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, (float, int)):
             search_budget = TargetMultiSameFitness(target_fitness)
         else:
             assert False
