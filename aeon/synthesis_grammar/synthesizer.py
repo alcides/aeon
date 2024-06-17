@@ -5,7 +5,9 @@ import csv
 import os
 import sys
 import time
-from typing import Any, Tuple
+from _csv import _writer
+from io import TextIOWrapper
+from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
@@ -126,8 +128,9 @@ class LazyCSVRecorder(SearchRecorder):
         only_record_best_individuals: bool = True,
     ):
         assert csv_path is not None
+        self.csv_writer: Optional[_writer] = None
+        self.csv_file: Optional[TextIOWrapper] = None
         self.csv_file_path = csv_path
-        self.file = None
         self.fields = fields
         self.extra_fields = extra_fields
         self.only_record_best_individuals = only_record_best_individuals
@@ -137,7 +140,7 @@ class LazyCSVRecorder(SearchRecorder):
             self.fields = fields
 
     def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=True):
-        if self.file is None:
+        if self.csv_file is None:
             self.csv_file = open(self.csv_file_path, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)
             if self.fields is None:
