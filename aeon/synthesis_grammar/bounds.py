@@ -57,17 +57,23 @@ def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
         return Lt(arg0, arg1)
 
     elif ref_fun == ">=":
-        pass
+        arg0 = refined_to_sympy_expression(ref.args[0])
+        arg1 = refined_to_sympy_expression(ref.args[1])
+        return Ge(arg0, arg1)
     elif ref_fun == "<=":
-        pass
+        arg0 = refined_to_sympy_expression(ref.args[0])
+        arg1 = refined_to_sympy_expression(ref.args[1])
+        return Le(arg0, arg1)
     elif ref_fun == "==":
-        pass
+        arg0 = refined_to_sympy_expression(ref.args[0])
+        arg1 = refined_to_sympy_expression(ref.args[1])
+        return Eq(arg0, arg1)
     elif ref_fun == "!=":
-        pass
+        arg0 = refined_to_sympy_expression(ref.args[0])
+        arg1 = refined_to_sympy_expression(ref.args[1])
+        return Ne(arg0, arg1)
     else:
         raise ValueError(f"Unknown Liquid function {ref_fun}")
-
-    pass
 
 
 def refined_to_sympy_expression(ref: LiquidTerm) -> Any:
@@ -103,10 +109,10 @@ def conditional_to_interval(cond: list, name: str) -> Set:
     try:
         return reduce_rational_inequalities([cond], Symbol(name), relational=False)
     except Exception as err:
-        print("Failed to do ranged analysis due to: {}".format(err))
+        raise Exception("Failed to do ranged analysis due to: {}".format(err))
 
 
-def sympy_exp_to_bounded_interval(exp: Expr) -> Any:
+def sympy_exp_to_bounded_interval(exp: Expr | Basic) -> Any:
 
     if isinstance(exp, And):
         return [sympy_exp_to_bounded_interval(x) for x in exp.args]
