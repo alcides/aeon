@@ -3,15 +3,15 @@ import load_dataset from "PSB2.ae";
 
 def train: TrainData = extract_train_data (load_dataset "gcd" 200 200);
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: Int) -> (b: Int) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1]) - y[0]) for x, y  in data]";
+def calculate_gcd_errors : (train : TrainData) -> (f:(a: Int) -> (b: Int) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1]) - y[0]) for x, y  in data]";
 
 
 @hide(extract_train_data,
             load_dataset,
             train,
             calculate_fuel_cost_errors)
-@allow_recursion
-@multi_minimize_float(calculate_fuel_cost_errors train synth)
+#@allow_recursion
+@multi_minimize_float(calculate_gcd_errors train synth)
 def synth (n:Int) (z:Int) : Int {
     (?hole: Int)
 }

@@ -223,4 +223,6 @@ def args_size_of_type(t: Type) -> int:
 def refined_to_unrefined_type(ty: Type) -> Type:
     if isinstance(ty, RefinedType):
         return ty.type
+    if isinstance(ty, AbstractionType):
+        return AbstractionType(ty.var_name, refined_to_unrefined_type(ty.var_type), refined_to_unrefined_type(ty.type))
     return ty
