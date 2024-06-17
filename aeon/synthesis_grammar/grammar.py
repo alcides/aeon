@@ -224,7 +224,7 @@ def get_metahandler_union(
     if len(metahandler_list) == 1:
         return metahandler_list[0]
     else:
-        return Union[*metahandler_list]
+        return Union[tuple(metahandler_list)]
 
 
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
