@@ -15,12 +15,11 @@ from aeon.synthesis_grammar.grammar import (
 
 def get_grammar_nodes(ctx_var: tuple) -> tuple[list[type], type]:
     refined_ty = ctx_var[1]
-    grammar_nodes = create_class_from_ctx_var(ctx_var, [])
-    grammar_nodes, root = find_class_by_name("t_" + process_type_name(refined_ty), grammar_nodes, refined_ty)
-
-    for node in grammar_nodes:
-        if node.__name__.startswith("refined_app"):
-            grammar_nodes.remove(node)
+    grammar_n = create_class_from_ctx_var(ctx_var, [])
+    grammar_n, root = find_class_by_name("t_" + process_type_name(refined_ty), grammar_n, refined_ty)
+    grammar_nodes = [
+        node for node in grammar_n if not node.__name__.startswith(("refined_app", "app_", "literal_Int", "t_Int"))
+    ]
 
     return grammar_nodes, root
 
@@ -48,9 +47,9 @@ def test_gt_zero2():
     grammar_nodes, root = get_grammar_nodes(ctx_var)
     g = extract_grammar(grammar_nodes, root)
     r = NativeRandomSource(seed=1)
+
     for _ in range(100):
         n = random_node(r, g, 4, root)
-
         assert isinstance(n, grammar_nodes[0])  # t_Refined_Int_greater_than_0
         assert n.value > 0
         assert isinstance(n, grammar_nodes[1])  # literal_Refined_Int_greater_than_0

@@ -93,10 +93,10 @@ def test_process_type_name():
     assert ty_str == "test"
     ty = Top()
     ty_str = process_type_name(ty)
-    assert ty_str == "Top"
+    assert ty_str == "⊤"
     ty = Bottom()
     ty_str = process_type_name(ty)
-    assert ty_str == "Bottom"
+    assert ty_str == "⊥"
 
 
 def test_intervals_to_metahandlers():
