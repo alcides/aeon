@@ -16,3 +16,4 @@ multiprocess
 pillow
 scikit-image
 pathos
+sympy
