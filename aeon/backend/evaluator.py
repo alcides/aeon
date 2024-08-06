@@ -64,18 +64,18 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             return e
         case Let(var_name, var_value, body):
             return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
-        case Rec(var_name, var_type, var_value, body):
-            if isinstance(t.var_value, Abstraction):
-                fun = t.var_value
+        case Rec(var_name, _, var_value, body):
+            if isinstance(var_value, Abstraction):
+                fun = var_value
 
                 def v(x):
                     return eval(
                         fun.body,
-                        ctx.with_var(t.var_name, v).with_var(fun.var_name, x),
+                        ctx.with_var(var_name, v).with_var(fun.var_name, x),
                     )
 
             else:
-                v = eval(t.var_value, ctx)
+                v = eval(var_value, ctx)
             return eval(t.body, ctx.with_var(t.var_name, v))
         case If(cond, then, otherwise):
             c = eval(cond, ctx)
@@ -83,8 +83,8 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 return eval(then, ctx)
             else:
                 return eval(otherwise, ctx)
-        case Annotation(expr, ty):
-            return eval(t.expr, ctx)
+        case Annotation(expr, _):
+            return eval(expr, ctx)
         case Hole(name):
             args = ", ".join([str(n) for n in ctx.variables])
             print(f"Context ({args})")
