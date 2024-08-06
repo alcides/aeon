@@ -18,7 +18,7 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, ExistentialType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
@@ -89,12 +89,10 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
     assert False
 
 
-def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
-                           name: str) -> LiquidTerm:
+def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
-    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString,
-                      LiquidLiteralFloat)):
+    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
         return t
     elif isinstance(t, LiquidVar):
         if t.name == name:
@@ -102,16 +100,14 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm,
         else:
             return t
     elif isinstance(t, LiquidApp):
-        return LiquidApp(
-            t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
     elif isinstance(t, LiquidHole):
         if t.name == name:
             return rep
         else:
             return LiquidHole(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t)
-                 for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
             )
     else:
         print(t, type(t))
@@ -128,45 +124,62 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
 
     renamed: Type
 
-    if isinstance(t, Top):
-        return t
-    elif isinstance(t, Bottom):
-        return t
-    elif isinstance(t, BaseType):
-        return t
-    elif isinstance(t, TypeVar):
-        return t
-    elif isinstance(t, AbstractionType):
-        if isinstance(rep, Var) and rep.name == t.var_name:
-            nname = t.var_name + "1"
-            renamed = AbstractionType(
-                nname,
-                t.var_type,
-                substitution_in_type(t.type, Var(nname), t.var_name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif name == t.var_name:
+    match t:
+        case Top():
             return t
-        else:
-            return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, RefinedType):
-        if isinstance(rep, Var) and rep.name == t.name:
-            nname = t.name + "1"
-            renamed = RefinedType(
-                nname,
-                t.type,
-                substitution_in_liquid(t.refinement, LiquidVar(nname), t.name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif t.name == name:
+        case Bottom():
             return t
-        else:
-            return RefinedType(
-                t.name,
-                t.type,
-                substitution_in_liquid(t.refinement, replacement, name),
-            )
-    assert False
+        case BaseType(name=_):
+            return t
+        case TypeVar(name=_):
+            return t
+        case AbstractionType(var_name=var_name, var_type=var_type, type=ity):
+            if isinstance(rep, Var) and rep.name == var_name:
+                nname = var_name + "1"
+                renamed = AbstractionType(
+                    nname,
+                    var_type,
+                    substitution_in_type(ity, Var(nname), var_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif name == var_name:
+                return t
+            else:
+                return AbstractionType(var_name, rec(var_type), rec(ity))
+        case RefinedType(name=ref_name, type=type, refinement=refinement):
+            # alpha renaming to avoid clashes
+            if isinstance(rep, Var) and rep.name == ref_name:
+                nname = ref_name + "1"
+                renamed = RefinedType(
+                    nname,
+                    type,
+                    substitution_in_liquid(refinement, LiquidVar(nname), ref_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif name == ref_name:
+                return t
+            else:
+                return RefinedType(
+                    ref_name,
+                    type,
+                    substitution_in_liquid(refinement, replacement, name),
+                )
+        case ExistentialType(var_name=var_name, var_type=var_type, type=ity):
+            # alpha renaming to avoid clashes
+            if isinstance(rep, Var) and rep.name == var_name:
+                nname = name + "1"
+                renamed = ExistentialType(
+                    nname,
+                    var_type,
+                    substitution_in_type(ity, Var(nname), var_name),
+                )
+                return substitution_in_type(renamed, rep, name)
+            if name == t.var_name:
+                return t
+            else:
+                return ExistentialType(var_name, var_type, substitution_in_type(ity, rep, name))
+        case _:
+            assert False
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
@@ -223,16 +236,15 @@ def liquefy_app(app: Application) -> LiquidApp | None:
     elif isinstance(app.fun, Application):
         liquid_pseudo_fun = liquefy_app(app.fun)
         if liquid_pseudo_fun:
-            return LiquidApp(liquid_pseudo_fun.fun,
-                             liquid_pseudo_fun.args + [arg])
+            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
         return None
     elif isinstance(app.fun, Let):
         return liquefy_app(
             Application(
-                substitution(app.fun.body, app.fun.var_value,
-                             app.fun.var_name),
+                substitution(app.fun.body, app.fun.var_value, app.fun.var_name),
                 app.arg,
-            ), )
+            ),
+        )
     assert False
 
 

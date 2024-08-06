@@ -7,8 +7,7 @@ import argparse
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.decorators import Metadata
-from aeon.frontend.anf_converter import ensure_anf
+from aeon.decorators.api import Metadata
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
@@ -83,7 +82,7 @@ def read_file(filename: str) -> str:
         return file.read()
 
 
-def log_type_errors(errors: list[Exception | str]):
+def log_type_errors(errors: list[Exception]):
     print("TYPECHECKER", "-------------------------------")
     print("TYPECHECKER", "+     Type Checking Error     +")
     for error in errors:
@@ -123,20 +122,16 @@ def main() -> None:
 
     logger.debug(core_ast)
 
-    with RecordTime("ANF conversion"):
-        core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast)
-
     with RecordTime("TypeChecking"):
-        type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+        type_errors = check_type_errors(typing_ctx, core_ast, top)
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[tuple[
-            str, list[str]]] = incomplete_functions_and_holes(
-                typing_ctx, core_ast_anf)
+            str,
+            list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
@@ -149,7 +144,7 @@ def main() -> None:
             synthesis_result = synthesize(
                 typing_ctx,
                 evaluation_ctx,
-                core_ast_anf,
+                core_ast,
                 incomplete_functions,
                 metadata,
                 filename,

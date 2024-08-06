@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.types import t_int
-from aeon.frontend.anf_converter import ensure_anf
+
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.typechecking.context import EmptyContext
@@ -14,7 +14,7 @@ from aeon.utils.ctx_helpers import build_context
 
 def tt(e: str, t: str, vars: dict[str, str] = {}):
     ctx = build_context({k: parse_type(v) for (k, v) in vars.items()})
-    term = ensure_anf(parse_term(e))
+    term = parse_term(e)
     return check_type(ctx, term, parse_type(t))
 
 
@@ -87,6 +87,14 @@ def test_fifteen():
 
 
 # Branches
+
+
+def test_branch_eq_var():
+    assert tt("x == 0", "Bool", {"x": "Int"})
+
+
+def test_branch_eq():
+    assert tt("1 == 0", "{v:Bool | v == false}", {"x": "Int"})
 
 
 def test_if():
