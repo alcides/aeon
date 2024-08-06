@@ -92,7 +92,7 @@ def log_type_errors(errors: list[Exception | str]):
     print("TYPECHECKER", "-------------------------------")
 
 
-def main():
+def main() -> None:
     args = parse_arguments()
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)

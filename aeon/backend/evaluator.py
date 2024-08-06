@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.core.terms import Abstraction
+from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -34,56 +34,65 @@ class EvaluationContext:
         return self.variables[name]
 
 
-def is_native_var(t: Application):
-    return isinstance(t.fun, Var) and t.fun.name == "native"
+def is_native_var(fun: Term):
+    return isinstance(fun, Var) and fun.name == "native"
+
+
+def is_native_import(fun: Term):
+    return isinstance(fun, Var) and fun.name == "native_import"
 
 
 # pattern match term
-def eval(t: Term, ctx: EvaluationContext = EvaluationContext()):
-    if isinstance(t, Literal):
-        return t.value
-    elif isinstance(t, Var):
-        return ctx.get(t.name)
-    elif isinstance(t, Abstraction):
-        return lambda k: eval(t.body, ctx.with_var(t.var_name, k))
-    elif isinstance(t, Application):
-        f = eval(t.fun, ctx)
-        arg = eval(t.arg, ctx)
-        # e = real_eval(arg, __globals=ctx.variables) if is_native_var(t) else f(arg)
-        if is_native_var(t):
-            e = real_eval(arg, ctx.variables)
-        else:
-            e = f(arg)
+def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
+    match t:
+        case Literal(value, _):
+            return value
+        case Var(name):
+            return ctx.get(name)
+        case Abstraction(var_name, body):
+            return lambda k: eval(body, ctx.with_var(var_name, k))
+        case Application(fun, arg):
+            f = eval(fun, ctx)
+            argv = eval(arg, ctx)
+            if is_native_var(fun):
+                assert isinstance(argv, str)
+                e = real_eval(argv, ctx.variables)
+            else:
+                e = f(argv)
+            if is_native_import(fun):
+                globals()[argv] = e
+            return e
+        case Let(var_name, var_value, body):
+            return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
+        case Rec(var_name, var_type, var_value, body):
+            if isinstance(t.var_value, Abstraction):
+                fun = t.var_value
 
-        if isinstance(t.fun, Var) and t.fun.name == "native_import":
-            globals()[arg] = e
-        return e
-    elif isinstance(t, Let):
-        return eval(t.body, ctx.with_var(t.var_name, eval(t.var_value, ctx)))
-    elif isinstance(t, Rec):
-        if isinstance(t.var_value, Abstraction):
-            fun = t.var_value
+                def v(x):
+                    return eval(
+                        fun.body,
+                        ctx.with_var(t.var_name, v).with_var(fun.var_name, x),
+                    )
 
-            def v(x):
-                return eval(
-                    fun.body,
-                    ctx.with_var(t.var_name, v).with_var(fun.var_name, x),
-                )
+            else:
+                v = eval(t.var_value, ctx)
+            return eval(t.body, ctx.with_var(t.var_name, v))
+        case If(cond, then, otherwise):
+            c = eval(cond, ctx)
+            if c:
+                return eval(then, ctx)
+            else:
+                return eval(otherwise, ctx)
+        case Annotation(expr, ty):
+            return eval(t.expr, ctx)
+        case Hole(name):
+            args = ", ".join([str(n) for n in ctx.variables])
+            print(f"Context ({args})")
+            h = input(f"Enter value for hole {t} in Python: ")
+            return real_eval(h, ctx.variables)
 
-        else:
-            v = eval(t.var_value, ctx)
-        return eval(t.body, ctx.with_var(t.var_name, v))
-    elif isinstance(t, If):
-        c = eval(t.cond, ctx)
-        if c:
-            return eval(t.then, ctx)
-        else:
-            return eval(t.otherwise, ctx)
-    elif isinstance(t, Annotation):
-        return eval(t.expr, ctx)
-    elif isinstance(t, Hole):
-        args = ", ".join([str(n) for n in ctx.variables])
-        print(f"Context ({args})")
-        h = input(f"Enter value for hole {t} in Python: ")
-        return real_eval(h, ctx.variables)
+        case TypeAbstraction(_, _, body):
+            return eval(body, ctx)
+        case TypeApplication(body, _):
+            return eval(body, ctx)
     assert False

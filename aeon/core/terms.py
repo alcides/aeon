@@ -12,7 +12,7 @@ class Term:
         return str(self).__hash__()
 
 
-@dataclass
+@dataclass(frozen=True)
 class Literal(Term):
     value: object
     type: Type
@@ -33,7 +33,7 @@ class Literal(Term):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Var(Term):
     name: str
 
@@ -47,7 +47,7 @@ class Var(Term):
         return isinstance(other, Var) and self.name == other.name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Annotation(Term):
     expr: Term
     type: Type
@@ -62,7 +62,7 @@ class Annotation(Term):
         return isinstance(other, Annotation) and self.expr == other.expr
 
 
-@dataclass
+@dataclass(frozen=True)
 class Hole(Term):
     name: str
 
@@ -76,7 +76,7 @@ class Hole(Term):
         return isinstance(other, Hole) and self.name == other.name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Application(Term):
     fun: Term
     arg: Term
@@ -95,7 +95,7 @@ class Application(Term):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Abstraction(Term):
     var_name: str
     body: Term
@@ -114,7 +114,7 @@ class Abstraction(Term):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Let(Term):
     var_name: str
     var_value: Term
@@ -132,7 +132,7 @@ class Let(Term):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Rec(Term):
     var_name: str
     var_type: Type
@@ -160,15 +160,11 @@ class Rec(Term):
         )
 
 
+@dataclass(frozen=True)
 class If(Term):
     cond: Term
     then: Term
     otherwise: Term
-
-    def __init__(self, cond: Term, then: Term, otherwise: Term):
-        self.cond = cond
-        self.then = then
-        self.otherwise = otherwise
 
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
@@ -182,7 +178,7 @@ class If(Term):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class TypeAbstraction(Term):
     name: str
     kind: Kind
@@ -192,7 +188,7 @@ class TypeAbstraction(Term):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TypeApplication(Term):
     body: Term
     type: Type
