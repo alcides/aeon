@@ -11,8 +11,8 @@ from aeon.core.terms import Annotation
 from aeon.core.types import AbstractionType, RefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
+from aeon.sugar.program import Definition, Polarity
 from aeon.sugar.program import Decorator
-from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
@@ -33,7 +33,14 @@ class TreeToSugar(TreeToCore):
         return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
-        return TypeDecl(args[0])
+        assert isinstance(args[1], list)
+        return TypeDecl(args[0], args[1])
+
+    def targs(self, args):
+        return args
+
+    def targ(self, args):
+        return (args[0], args[1], Polarity.POSITIVE)
 
     def def_cons(self, args):
         if len(args) == 3:

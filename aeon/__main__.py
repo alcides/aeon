@@ -17,6 +17,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.typechecking.elaboration import elaborate
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.typechecking.typeinfer import check_type_errors
@@ -26,15 +27,11 @@ from aeon.utils.time_utils import RecordTime
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "filename",
-        help="name of the aeon files to be synthesized",
-    )
-    parser.add_argument(
-        "--core",
-        action="store_true",
-        help="synthesize a aeon core file",
-    )
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
     parser.add_argument(
         "-l",
         "--log",
@@ -126,6 +123,9 @@ def main() -> None:
     with RecordTime("ANF conversion"):
         core_ast_anf = ensure_anf(core_ast)
         logger.debug(core_ast)
+
+    with RecordTime("Elaboration"):
+        core_ast = elaborate(typing_ctx, core_ast, top)
 
     with RecordTime("TypeChecking"):
         type_errors = check_type_errors(typing_ctx, core_ast_anf, top)

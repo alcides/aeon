@@ -1,161 +1,135 @@
 from __future__ import annotations
 
 from abc import ABC
-from abc import abstractmethod
+from copy import copy
 from dataclasses import dataclass
+from enum import Enum
 
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, BaseKind, BaseType, Bottom, RefinedType, Top, TypePolymorphism, TypeVar
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
 
-
-class TypingContext(ABC):
-    def type_of(self, name: str) -> Type | None:
-        assert False
-
-    def with_var(self, name: str, type: Type) -> TypingContext:
-        return VariableBinder(self, name, type)
-
-    def with_typevar(self, name: str, kind: Kind) -> TypingContext:
-        return TypeBinder(self, name, kind)
-
-    def fresh_var(self):
-        return "fresh_"
-
-    @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]:
-        ...
-
-    @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]:
-        ...
+KEY = "KEY"
+COUNTER: dict[str, int] = {KEY: 0}
 
 
-class EmptyContext(TypingContext):
-    def __init__(self):
-        self.counter = 0
+class Polarity(Enum):
+    NEITHER = 1
+    POSITIVE = 2
+    NEGATIVE = 3
+    BOTH = 4
 
-    def type_of(self, name: str) -> Type | None:
-        return None
 
-    def fresh_var(self):
-        self.counter += 1
-        return f"fresh_{self.counter}"
-
-    def __repr__(self) -> str:
-        return "ø"
-
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return []
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return []
-
-    def __hash__(self) -> int:
-        return 0
+class TypingContextEntry(ABC):
+    pass
 
 
 @dataclass
-class UninterpretedBinder(TypingContext):
-    prev: TypingContext
-    name: str
-    type: AbstractionType
-
-    def type_of(self, name: str) -> Type | None:
-        if name == self.name:
-            return self.type
-        return self.prev.type_of(name)
-
-    def fresh_var(self):
-        p = int(self.prev.fresh_var().split("_")[-1])
-        while True:
-            name = f"fresh_{p}"
-            if self.type_of(name) is None:
-                break
-            p += 1
-        return name
-
-    def __repr__(self) -> str:
-        return f"{self.prev},{self.name}:{self.type}"
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return [(self.name, self.type)] + self.prev.vars()
-
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return self.prev.typevars()
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.name) + hash(self.type)
-
-
-class VariableBinder(TypingContext):
-    prev: TypingContext
+class VariableBinder(TypingContextEntry):
     name: str
     type: Type
 
-    def __init__(self, prev: TypingContext, name: str, type: Type):
-        self.prev = prev
-        self.name = name
-        self.type = type
-        assert isinstance(prev, TypingContext)
-        assert name not in prev.vars()
+    def __str__(self):
+        return f"{self.name}:{self.type}"
+
+
+@dataclass
+class TypeBinder(TypingContextEntry):
+    name: str
+    kind: Kind
+
+    def __str__(self):
+        return f"{self.name}:{self.kind}"
+
+
+@dataclass(frozen=True)
+class UninterpretedFunctionBinder(TypingContextEntry):
+    name: str
+    type: AbstractionType | TypePolymorphism
+
+    def __str__(self):
+        return f"fun {self.name}:{self.type}"
+
+
+@dataclass
+class TypeConstructorBinder(TypingContextEntry):
+    name: str
+    type_parameters: list[tuple[str, Kind, Polarity]]
+
+    def __str__(self):
+        tp = ", ".join([f"{name}:{kind}{polarity}" for name, kind, polarity in self.type_parameters])
+        return f"{self.name}[{tp}]"
+
+
+class TypingContext:
+    """Represents the Typing Context of the program at a given point."""
+
+    entries: list[TypingContextEntry]
+
+    def __init__(self, entries=None):
+        self.entries = copy(entries) if entries else []
+
+    def __add__(self, other):
+        return TypingContext(self.entries + [other])
+
+    def __str__(self):
+        return "ø" + ", ".join(str(e) for e in self.entries)
 
     def type_of(self, name: str) -> Type | None:
-        if name == self.name:
-            return self.type
-        return self.prev.type_of(name)
+        candidates = [te for te in self.entries if isinstance(te, VariableBinder) and te.name == name]
+        return candidates[-1].type if candidates else None
 
-    def fresh_var(self):
-        p = int(self.prev.fresh_var().split("_")[-1])
-        while True:
-            name = f"fresh_{p}"
-            if self.type_of(name) is None:
-                break
-            p += 1
-        return name
+    def with_var(self, name: str, type: Type) -> TypingContext:
+        return self + VariableBinder(name, type)
 
-    def __repr__(self) -> str:
-        return f"{self.prev},{self.name}:{self.type}"
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return [(self.name, self.type)] + self.prev.vars()
+    def with_typevar(self, name: str, kind: Kind) -> TypingContext:
+        return self + TypeBinder(name, kind)
 
     def typevars(self) -> list[tuple[str, Kind]]:
-        return self.prev.typevars()
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.name) + hash(self.type)
-
-
-class TypeBinder(TypingContext):
-    type_name: str
-    type_kind: Kind
-
-    def __init__(
-        self,
-        prev: TypingContext,
-        type_name: str,
-        type_kind: Kind = StarKind(),
-    ):
-        self.prev = prev
-        self.type_name = type_name
-        self.type_kind = type_kind
-
-    def type_of(self, name: str) -> Type | None:
-        return self.prev.type_of(name)
-
-    def fresh_var(self):
-        return self.prev.fresh_var()
+        return [(te.name, te.kind) for te in self.entries if isinstance(te, TypeBinder)]
 
     def vars(self) -> list[tuple[str, Type]]:
-        return self.prev.vars()
+        return [(te.name, te.type) for te in self.entries if isinstance(te, VariableBinder)]
 
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return [(self.type_name, self.type_kind)] + self.prev.typevars()
+    def with_typeconstructor(self, name: str, type_parameters: list[tuple[str, Kind, Polarity]]) -> TypingContext:
+        return self + TypeConstructorBinder(name, type_parameters)
 
-    def __repr__(self) -> str:
-        return f"{self.prev},<{self.type_name}:{self.type_kind}>"
+    def type_constructor_named(self, name: str) -> list[tuple[str, Kind, Polarity]] | None:
+        candidates = [e for e in self.entries if isinstance(e, TypeConstructorBinder) and e.name == name]
+        if candidates:
+            return candidates[0].type_parameters
+        else:
+            return None
 
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.type_name) + hash(self.type_kind)
+    def with_uninterpreted(self, name: str, type: AbstractionType | TypePolymorphism) -> TypingContext:
+        return self + UninterpretedFunctionBinder(name, type)
+
+    def fresh_var(self):
+        y = COUNTER[KEY]
+        COUNTER[KEY] += 1
+        return f"fresh_{y}"
+
+    def kind_of(self, ty) -> Kind | None:
+        if isinstance(ty, BaseType):
+            return BaseKind()
+        elif isinstance(ty, Top):
+            return BaseKind()
+        elif isinstance(ty, Bottom):
+            return BaseKind()
+        elif isinstance(ty, RefinedType) and not isinstance(ty.type, TypeVar):
+            return BaseKind()
+        elif isinstance(ty, TypePolymorphism):
+            return StarKind()
+        elif isinstance(ty, AbstractionType):
+            return StarKind()
+        elif isinstance(ty, TypeVar):
+            for t, k in self.typevars():
+                if t == ty:
+                    return k
+            return None
+        elif isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar):
+            assert (ty.type, BaseKind()) in self.typevars()
+            return BaseKind()
+        else:
+            assert False

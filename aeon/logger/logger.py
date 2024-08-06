@@ -22,7 +22,7 @@ def setup_logger():
     logger.level("TIME", no=39, color="<green>")
 
     # Setup the logger
-    logger.remove()
+    # logger.remove()
     # logger.add(sys.stderr, level="DEBUG")
     return logger
 
