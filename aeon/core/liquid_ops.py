@@ -19,6 +19,11 @@ all_ops = [
     ("/", ("Int", "Int", "Int")),
     ("-", ("Int", "Int", "Int")),
     ("%", ("Int", "Int", "Int")),
+    ("*.", ("Float", "Float", "Float")),
+    ("+.", ("Float", "Float", "Float")),
+    ("/.", ("Float", "Float", "Float")),
+    ("-.", ("Float", "Float", "Float")),
+    ("%.", ("Float", "Float", "Float")),
     ("!", ("Bool", "Bool")),
 ]
 

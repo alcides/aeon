@@ -210,6 +210,8 @@ def base(ty: Type) -> Type:
 
 
 def type_free_term_vars(t: Type) -> list[str]:
+    from aeon.prelude.prelude import ALL_OPS
+
     if isinstance(t, BaseType):
         return []
     elif isinstance(t, TypeVar):
@@ -217,7 +219,7 @@ def type_free_term_vars(t: Type) -> list[str]:
     elif isinstance(t, AbstractionType):
         afv = type_free_term_vars(t.var_type)
         rfv = type_free_term_vars(t.type)
-        return [x for x in afv + rfv if x != t.var_name]
+        return [x for x in afv + rfv if x != t.var_name and x not in ALL_OPS]
     elif isinstance(t, RefinedType):
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
@@ -266,3 +268,9 @@ def get_type_vars(t: Type) -> set[TypeVar]:
 
 def extract_typelevel_freevars(ty: Type) -> list[str]:
     return [v.name for v in get_type_vars(ty)]
+
+
+def refined_to_unrefined_type(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty

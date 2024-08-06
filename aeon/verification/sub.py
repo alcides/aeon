@@ -7,14 +7,13 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, TypeConstructor
+from aeon.core.types import AbstractionType, TypeVar, TypeConstructor
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
-from aeon.core.types import TypeVar
 from aeon.typechecking.context import Polarity, TypingContext
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
@@ -55,7 +54,10 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
             t.var_name,
             t.var_type,
             implication_constraint(name, t.type, c),
-        )
+        )  # TODO: email Rahjit
+    elif isinstance(t, TypeVar):
+        # TODO: We are using Int here, but it could have been a singleton.
+        return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
     elif isinstance(t, Bottom):
         return c
     elif isinstance(t, Top):
@@ -67,6 +69,7 @@ def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
         # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
     elif isinstance(t, TypePolymorphism):
         return implication_constraint(t.name, t.body, c)
+    logger.debug(f"{name} : {t} => {c} ({type(t)})")
     assert False
 
 

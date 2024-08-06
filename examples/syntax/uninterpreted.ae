@@ -1,0 +1,12 @@
+def greater : (a:Int) -> Bool = uninterpreted;
+
+def f : (a:{k:Int| greater k }) -> {m:Int | m == 1} = \a -> 1;
+
+# cannot prove that 3 satisfies greater(y)??
+def g (y:Int | greater y) : {v:Int | v >= 1} {
+    f y
+}
+
+def main (args:Int) : Unit {
+    print "Hello World"
+}

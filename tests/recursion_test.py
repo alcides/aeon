@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.sugar.desugar import desugar
 from aeon.core.types import top
+from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking.typeinfer import check_type
 from aeon.typechecking.elaboration import elaborate
@@ -15,7 +15,7 @@ def check_compile(source, ty):
 
 def test_anf():
     source = r"""
-        def gcd ( n:Int, z:Int) : Int {
+        def gcd ( n:Int) (z:Int) : Int {
             if z == 0 then n else (gcd(z)(n % z))
         }
 

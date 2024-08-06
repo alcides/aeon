@@ -1,0 +1,27 @@
+type List;
+
+def itertools : Unit = native_import "itertools";
+
+def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
+def List_new : List = native "[]" ;
+def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
+def List_get: (l:List) -> (i:Int) -> Int = native "lambda xs: lambda i: xs[i]";
+
+def Scanl_max : (xs:List) -> List = native "lambda xs: list(itertools.accumulate(xs, max))";
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
+def Map : (f: (s:List) -> Int) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+
+def cut_vector ( vector : List ) : List {
+    reversed_vector: List = List_reversed vector;
+    scanl_max: List = Scanl_max reversed_vector;
+    leaders_reverse: List = Filter ((\x -> List_get x 0 == List_get x 1) : (s:List) -> Bool) (Zip reversed_vector scanl_max);
+    leaders = List_reversed (Map (\x -> List_get x 0 : (s:List) -> Int) leaders_reverse);
+    leaders
+
+}
+
+def main (args:Int) : Unit {
+    vec: List = List_append (List_append (List_append (List_append List_new 47) 87) 43) 44;
+    print(cut_vector vec)
+}

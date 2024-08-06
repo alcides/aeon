@@ -1,0 +1,6 @@
+import Math_abs from "Math.ae";
+
+@minimize_int(Math_abs(2024 - fun(253)))
+def fun (i:Int) : Int  {
+    (?hole: Int) * i
+}

@@ -1,9 +1,0 @@
-type Unit;
-type Path;
-
-def pathlib : Unit = native_import "pathlib";
-def cwd : Path = native "pathlib.Path()";
-def append : (p:Path) -> (e:String) -> Path = native "lambda x: lambda y: x / y";
-def mkPath : (s:String) -> Path = native "lambda x:pathlib.Path(x)";
-
-def example_ola : Path = append cwd "ola";

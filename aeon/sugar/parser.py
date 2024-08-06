@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 import pathlib
-from collections.abc import Callable
+from typing import Callable
 
 from lark import Lark
 
+from aeon.core.substitutions import liquefy
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, RefinedType
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import TreeToCore
 from aeon.sugar.program import Definition, Polarity
+from aeon.sugar.program import Decorator
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
+
     def list(self, args):
         return args
 
@@ -40,10 +43,27 @@ class TreeToSugar(TreeToCore):
         return (args[0], args[1], Polarity.POSITIVE)
 
     def def_cons(self, args):
-        return Definition(args[0], [], args[1], args[2])
+        if len(args) == 3:
+            return Definition(args[0], [], args[1], args[2])
+        else:
+            decorators = args[0]
+            return Definition(args[1], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
-        return Definition(args[0], args[1], args[2], args[3])
+        if len(args) == 4:
+            return Definition(args[0], args[1], args[2], args[3])
+        else:
+            decorators = args[0]
+            return Definition(args[1], args[2], args[3], args[4], decorators)
+
+    def macros(self, args):
+        return args
+
+    def macro(self, args):
+        return Decorator(args[0], args[1])
+
+    def macro_args(self, args):
+        return args
 
     def empty_list(self, args):
         return []
@@ -53,6 +73,13 @@ class TreeToSugar(TreeToCore):
 
     def arg(self, args):
         return (args[0], args[1])
+
+    def refined_arg(self, args):
+        return args[0], RefinedType(args[0], args[1], liquefy(args[2]))
+
+    def abstraction_refined_t(self, args):
+        type = RefinedType(args[0], args[1], liquefy(args[2]))
+        return AbstractionType(str(args[0]), type, args[3])
 
     def abstraction_et(self, args):
         return Annotation(

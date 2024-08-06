@@ -1,0 +1,7 @@
+type A;
+
+type B;
+
+def main (args:Int) : Unit {
+    print "Hello World"
+}

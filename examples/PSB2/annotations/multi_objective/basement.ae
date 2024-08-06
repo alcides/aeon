@@ -1,0 +1,26 @@
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+import calculate_basement_errors from "PSB2.ae";
+
+type List;
+
+def List_size: (l:List) -> Int = uninterpreted;
+def List_len: (l:List) -> Int  = native "lambda x: len(x)";
+def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
+def List_get: (l:List) -> (i: Int) -> Int = native"lambda xs: lambda i: xs[i]";
+
+
+#PSB2 functions
+
+def train: TrainData = extract_train_data (load_dataset "basement" 200 200);
+
+@hide(extract_train_data,
+            load_dataset,
+            train,
+            calculate_basement_errors)
+@allow_recursion
+@multi_minimize_float(calculate_basement_errors train synth)
+def synth (nums: List) : Int {
+    (?hole : Int)
+ }

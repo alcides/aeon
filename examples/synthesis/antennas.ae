@@ -1,9 +1,0 @@
-def pixel : (map:Map) -> (i:Int) -> (j:Int) -> Bool = uninterpreted;
-
-def blank_map : (w:Int) -> (h:Int) -> { m:Map | forall (\i:Int -> forall ((\j:Int -> 0 <= i && i <= w && 0 <= h && h <= h && pixel m i j == 0))) } = native "load_map";
-
-def print : (x:Top) -> Bottom = native "print";
-
-def main (x:Top) : Bottom {
-    print blank_map
-}

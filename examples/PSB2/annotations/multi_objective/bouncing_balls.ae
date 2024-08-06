@@ -1,0 +1,22 @@
+import "Math.ae";
+
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+
+type List;
+
+def calculate_bouncing_balls_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]";
+
+def isZero : (n: Int) -> Bool = \n -> n == 0;
+
+def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200);
+
+@hide(extract_train_data,
+            load_dataset,
+            train,
+            calculate_bouncing_balls_errors)
+@multi_minimize_float(calculate_bouncing_balls_errors train synth)
+def synth (a:Float) (b:Float) (c:Int) : Float
+    {
+    (?hole: Float)
+    }

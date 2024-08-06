@@ -1,0 +1,144 @@
+type Dataset;
+type TrainData;
+type TestData;
+type List;
+type Tuple;
+
+
+def load_dataset : (name:String) -> (nTrain:Int) -> (nTest:Int) -> Dataset = native "lambda s: lambda train: lambda test: __import__('psb2').fetch_examples('path/to/PSB2/datasets/', s, train, test, format='lists')";
+
+
+def extract_train_data : (ds:Dataset) -> TrainData = native "lambda ds: ds[0]";
+
+
+def unpack_train_data : (td:TrainData) -> Tuple = native "lambda td: list(map(list, zip(*td)))";
+
+
+def get_input_list : (t:Tuple) -> List = native "lambda t: t[0]";
+
+
+def get_output_list : (t:Tuple) -> List = native "lambda t: sum(t[1], [])";
+
+
+def get_output_list2 : (t:Tuple) -> List = native "lambda t: t[1]";
+
+
+def extract_test_data : (ds:Dataset) -> TestData = native "lambda ds: ds[1]";
+
+
+def mean_absolute_error : (true_values : List) -> (expected_values : List) ->  Float = native "lambda t: lambda e: __import__('numpy').mean(__import__('numpy').abs(__import__('numpy').array(t) - __import__('numpy').array(e)))";
+
+# maybe move this method to string lib
+def String_distance : (str1 : String) -> (str2 : String) -> Float = native "lambda s1: lambda s2: __import__('textdistance').levenshtein(s1, s2)";
+
+
+# add a refinement to make sure that the lists are all the same siz
+def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [abs(p - r) for p, r in zip(t, e)]";
+
+
+def calculate_list_difference : (true_values : List) -> (expected_values : List) ->  List =  native "lambda x: lambda y: [0 if a == b else 1 for a, b in zip(x, y)]";
+
+
+def calculate_str_list_errors : (true_values : List) -> (expected_values : List) ->  List =  native "lambda t: lambda e: [__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]";
+
+
+def join_string_list : (list: List) -> String = native "lambda xs: ' '.join(word.strip() for word in xs) ";
+
+
+def get_b_synth_values : (input : List) -> (f:(a: List) -> Int) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_bb_synth_values : (input : List) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
+
+
+def get_bowling_synth_values : (input : List) -> (f:(a: String) -> Int ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_c_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_cv_synth_values : (input : List) -> (f:(a: List) -> List ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_dg_synth_values : (input : List) -> (f: (a:Int) ->( b:Int ) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+
+def get_fp_synth_values : (input : List) -> (f: (a:List) ->( b:Int ) -> List ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+
+def get_fb_synth_values : (input : List) -> (f: (a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_fc_synth_values : (input : List) -> (f: (a: List) -> Int ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_gcd_synth_values : (input : List) -> (f:(a: Int) -> (b: Int)->  Int ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x,y in inputs]";
+
+
+def get_is_synth_values : (input : List) -> (f:(a: String) -> (b: String)->  List ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x,y in inputs]";
+
+
+def get_l_synth_values : (input : List) -> (f:(a: List) -> List ) -> List = native " lambda inputs: lambda function: [function(x)for x in inputs]";
+
+
+def get_luhn_synth_values : (input : List) -> (f:(a: List) -> Int ) -> List = native " lambda inputs: lambda function: [function(x)for x in inputs]";
+
+
+def get_mm_synth_values : (input : List) -> (f:(a: String) -> (b:String) -> List ) -> List = native " lambda inputs: lambda function: [function(x)(y)for x, y in inputs]";
+
+
+def get_mc_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_pd_synth_values : (input : List) -> (f:(a: String) -> Int ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_shop_synth_values : (input : List) -> (f:(a: List) -> (b: List) -> Int ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+
+def get_snowd_synth_values : (input : List) -> (f:(a: Int) ->( b:Float ) -> (c:Float) ->(d:Float)  -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z)(w) for x, y, z, w in inputs]";
+
+
+def get_sbool_synth_values : (input : List) -> (f:(a: String) -> Bool ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_sw_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_sd_synth_values : (input : List) -> (f:(a: Int) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_sc_synth_values : (input : List) -> (f:(a: String) -> (b: String) -> (c: String) ->  String ) -> List = native " lambda inputs: lambda function: [function(x)(y)(z) for x, y, z in inputs]";
+
+
+def get_tt_synth_values : (input : List) -> (f:(a: String) -> String ) -> List = native " lambda inputs: lambda function: [function(x) for x in inputs]";
+
+
+def get_vd_synth_values : (input : List) -> (f:(a: List) -> (b: List) -> Float ) -> List = native " lambda inputs: lambda function: [function(x)(y) for x, y in inputs]";
+
+
+def calculate_basement_errors : (train : TrainData) -> (f:(a: List) -> Int ) -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
+
+
+def calculate_bouncing_balls_psb2_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1])(x[2]) - y[0]) for x , y in data]";
+
+
+def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
+
+
+def calculate_camel_case_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0][0]) , x[1][0]) for x in data]";
+
+
+def calculate_coin_sum_errors : (train : TrainData) -> (f:(a: Int) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]";
+
+
+def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]";
+
+
+def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]";
+
+
+def calculate_fizzbuzz_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]";
+
+
+def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";

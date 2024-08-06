@@ -43,7 +43,7 @@ class TypeBinder(TypingContextEntry):
         return f"{self.name}:{self.kind}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class UninterpretedFunctionBinder(TypingContextEntry):
     name: str
     type: AbstractionType | TypePolymorphism
@@ -101,6 +101,9 @@ class TypingContext:
             return candidates[0].type_parameters
         else:
             return None
+
+    def with_uninterpreted(self, name: str, type: AbstractionType | TypePolymorphism) -> TypingContext:
+        return self + UninterpretedFunctionBinder(name, type)
 
     def fresh_var(self):
         y = COUNTER[KEY]

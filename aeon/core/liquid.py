@@ -23,10 +23,13 @@ class LiquidHole(LiquidTerm):
 
 
 def is_safe_for_application(x: LiquidTerm):
-    return (isinstance(x, LiquidVar) or isinstance(x, LiquidLiteralBool)
-            or isinstance(x, LiquidLiteralFloat)
-            or isinstance(x, LiquidLiteralInt)
-            or isinstance(x, LiquidLiteralString))
+    return (
+        isinstance(x, LiquidVar)
+        or isinstance(x, LiquidLiteralBool)
+        or isinstance(x, LiquidLiteralFloat)
+        or isinstance(x, LiquidLiteralInt)
+        or isinstance(x, LiquidLiteralString)
+    )
 
 
 @dataclass(init=False)
@@ -51,14 +54,13 @@ class LiquidHornApplication(LiquidTerm):
         return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidHornApplication) and other.name == self.name
+        return isinstance(other, LiquidHornApplication) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LiquidLiteralBool(LiquidTerm):
     value: bool
 
@@ -66,14 +68,13 @@ class LiquidLiteralBool(LiquidTerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidLiteralBool) and other.value == self.value
+        return isinstance(other, LiquidLiteralBool) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LiquidLiteralInt(LiquidTerm):
     value: int
 
@@ -81,14 +82,13 @@ class LiquidLiteralInt(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidLiteralInt) and other.value == self.value
+        return isinstance(other, LiquidLiteralInt) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LiquidLiteralFloat(LiquidTerm):
     value: float
 
@@ -96,14 +96,13 @@ class LiquidLiteralFloat(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidLiteralFloat) and other.value == self.value
+        return isinstance(other, LiquidLiteralFloat) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LiquidLiteralString(LiquidTerm):
     value: str
 
@@ -111,14 +110,13 @@ class LiquidLiteralString(LiquidTerm):
         return f"{self.value}"
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidLiteralString) and other.value == self.value
+        return isinstance(other, LiquidLiteralString) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LiquidVar(LiquidTerm):
     name: str
 
@@ -146,8 +144,11 @@ class LiquidApp(LiquidTerm):
         return f"{self.fun}({fargs})"
 
     def __eq__(self, other):
-        return (isinstance(other, LiquidApp) and other.fun == self.fun
-                and all(x == y for (x, y) in zip(self.args, other.args)))
+        return (
+            isinstance(other, LiquidApp)
+            and other.fun == self.fun
+            and all(x == y for (x, y) in zip(self.args, other.args))
+        )
 
     def __hash__(self) -> int:
         return hash(self.fun) + sum(hash(a) for a in self.args)

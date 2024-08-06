@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.sugar.desugar import desugar
 from aeon.core.types import top
+from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking.elaboration import elaborate
 from aeon.typechecking.typeinfer import check_type

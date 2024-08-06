@@ -14,7 +14,7 @@ class Term(ABC):
         return str(self).__hash__()
 
 
-@dataclass
+@dataclass(frozen=True)
 class Literal(Term):
     value: object
     type: Type
@@ -25,12 +25,17 @@ class Literal(Term):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            Literal) and self.value == other.value and self.type == other.type
+        return (
+            isinstance(
+                other,
+                Literal,
+            )
+            and self.value == other.value
+            and self.type == other.type
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Var(Term):
     name: str
 
@@ -44,7 +49,7 @@ class Var(Term):
         return isinstance(other, Var) and self.name == other.name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Annotation(Term):
     expr: Term
     type: Type
@@ -59,7 +64,7 @@ class Annotation(Term):
         return isinstance(other, Annotation) and self.expr == other.expr
 
 
-@dataclass
+@dataclass(frozen=True)
 class Hole(Term):
     name: str
 
@@ -73,7 +78,7 @@ class Hole(Term):
         return isinstance(other, Hole) and self.name == other.name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Application(Term):
     fun: Term
     arg: Term
@@ -82,12 +87,17 @@ class Application(Term):
         return f"({self.fun} {self.arg})"
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            Application) and self.fun == other.fun and self.arg == other.arg
+        return (
+            isinstance(
+                other,
+                Application,
+            )
+            and self.fun == other.fun
+            and self.arg == other.arg
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Abstraction(Term):
     var_name: str
     body: Term
@@ -96,12 +106,17 @@ class Abstraction(Term):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
-        return isinstance(
-            other, Abstraction
-        ) and self.var_name == other.var_name and self.body == other.body
+        return (
+            isinstance(
+                other,
+                Abstraction,
+            )
+            and self.var_name == other.var_name
+            and self.body == other.body
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Let(Term):
     var_name: str
     var_value: Term
@@ -111,12 +126,15 @@ class Let(Term):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
-        return (isinstance(other, Let) and self.var_name == other.var_name
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Let)
+            and self.var_name == other.var_name
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Rec(Term):
     var_name: str
     var_type: Type
@@ -135,13 +153,16 @@ class Rec(Term):
         )
 
     def __eq__(self, other):
-        return (isinstance(other, Rec) and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Rec)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class If(Term):
     cond: Term
     then: Term
@@ -151,12 +172,15 @@ class If(Term):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
 
     def __eq__(self, other):
-        return (isinstance(other, If) and self.cond == other.cond
-                and self.then == other.then
-                and self.otherwise == other.otherwise)
+        return (
+            isinstance(other, If)
+            and self.cond == other.cond
+            and self.then == other.then
+            and self.otherwise == other.otherwise
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class TypeAbstraction(Term):
     name: str
     kind: Kind
@@ -166,7 +190,7 @@ class TypeAbstraction(Term):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TypeApplication(Term):
     body: Term
     type: Type
