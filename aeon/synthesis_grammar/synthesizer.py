@@ -546,7 +546,7 @@ def synthesize_single_function(
     metadata: Metadata,
     filename: str | None,
     synth_config: dict[str, Any] | None = None,
-) -> Term:
+) -> Tuple[Term, Term]:
     # Step 1 Create a Single or Multi-Objective Problem instance.
 
     problem, target_fitness = problem_for_fitness_function(
@@ -571,7 +571,8 @@ def synthesize_single_function(
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
-    return substitution(term, synthesized_element, hole_name)
+    return synthesized_element, substitution(term, synthesized_element,
+                                             hole_name)
 
 
 def synthesize(
@@ -583,15 +584,17 @@ def synthesize(
     filename: str | None = None,
     synth_config: dict[str, Any] | None = None,
     refined_grammar: bool = False,
-) -> Term:
+) -> Tuple[Term, dict[str, Term]]:
     """Synthesizes code for multiple functions, each with multiple holes."""
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
     assert len(program_holes) == len(
         targets), "No support for function with more than one hole"
 
+    results = {}
+
     for name, holes_names in targets:
-        term = synthesize_single_function(
+        hterm, term = synthesize_single_function(
             ctx,
             ectx,
             term,
@@ -602,5 +605,6 @@ def synthesize(
             filename,
             synth_config,
         )
+        results[name] = hterm
 
-    return term
+    return term, results

@@ -40,16 +40,27 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help=
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument("-f", "--logfile", action="store_true", help="export log file")
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
 
-    parser.add_argument("-csv", "--csv-synth", action="store_true", help="export synthesis csv file")
+    parser.add_argument("-csv",
+                        "--csv-synth",
+                        action="store_true",
+                        help="export synthesis csv file")
 
-    parser.add_argument("-gp", "--gp-config", help="path to the GP configuration file")
+    parser.add_argument("-gp",
+                        "--gp-config",
+                        help="path to the GP configuration file")
 
-    parser.add_argument("-csec", "--config-section", help="section name in the GP configuration file")
+    parser.add_argument("-csec",
+                        "--config-section",
+                        help="section name in the GP configuration file")
 
     parser.add_argument(
         "-d",
@@ -130,17 +141,19 @@ def main() -> None:
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[str, list[str]]] = incomplete_functions_and_holes(typing_ctx, core_ast_anf)
+        incomplete_functions: list[tuple[
+            str, list[str]]] = incomplete_functions_and_holes(
+                typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (
-                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-            )
+            synth_config = (parse_config(args.gp_config, args.config_section)
+                            if args.gp_config and args.config_section else
+                            None)
 
         with RecordTime("Synthesis"):
-            synthesis_result = synthesize(
+            _, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
                 core_ast_anf,
@@ -150,7 +163,9 @@ def main() -> None:
                 synth_config,
                 args.refined_grammar,
             )
-            print(f"{synthesis_result}")
+            print("Synthesized holes:")
+            for name in terms:
+                print(f"?{name}: {terms[name]}")
             # print()
             # pretty_print_term(ensure_anf(synthesis_result, 200))
         sys.exit(0)
