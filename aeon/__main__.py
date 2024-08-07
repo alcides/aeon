@@ -17,6 +17,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.typechecking.typeinfer import check_type_errors
@@ -162,6 +163,7 @@ def main() -> None:
                 filename,
                 synth_config,
                 args.refined_grammar,
+                NCursesUI(),
             )
             print("Synthesized holes:")
             for name in terms:

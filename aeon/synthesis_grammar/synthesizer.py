@@ -51,6 +51,7 @@ from aeon.core.types import top
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.program import Definition
+from aeon.synthesis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
     classType,
@@ -419,12 +420,13 @@ def create_gp_step(problem: Problem, gp_params: dict[str, Any]):
 
 
 def geneticengine_synthesis(
-    grammar: Grammar,
-    problem: Problem,
-    filename: str | None,
-    hole_name: str,
-    target_fitness: float | list[float],
-    gp_params: dict[str, Any] | None = None,
+        grammar: Grammar,
+        problem: Problem,
+        filename: str | None,
+        hole_name: str,
+        target_fitness: float | list[float],
+        gp_params: dict[str, Any] | None = None,
+        ui: SynthesisUI = SilentSynthesisUI(),
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine."""
     # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
@@ -458,44 +460,21 @@ def geneticengine_synthesis(
         tracker = MultiObjectiveProgressTracker(
             problem, evaluator=SequentialEvaluator(), recorders=recorders)
 
-    # TODO: Refactor for Multiple UIs
-    # We need to refacto synthesis into three components:
-    # 1. Synthesis Driver (receives things via the main compiler driver)
-    # 2. Different UI callbacks (we might want an NCurses Callback, a CSV callback and an LSP callback)
-    # 3. We want the actual synthesis algorithm (GeneticEngine-based or custom)
-
-    import curses
-
-    stdscr = curses.initscr()
-
-    class StdOutRecorder(SearchRecorder):
+    class UIBackendRecorder(SearchRecorder):
 
         def register(self,
                      tracker: Any,
                      individual: Individual,
                      problem: Problem,
-                     is_best=True):
-            if is_best:
-                self.best = individual
-            stdscr.clear()
-            stdscr.addstr(0, 0, f"Synthesizing ?{hole_name}")
-            stdscr.addstr(1, 0, "====================================")
-            stdscr.addstr(3, 0, f"Fitness: {individual.get_fitness(problem)}")
-            stdscr.addstr(4, 0,
-                          f"Program: {individual.get_phenotype().get_core()}")
-            stdscr.addstr(6, 0,
-                          f"Best: {self.best.get_phenotype().get_core()}")
-            stdscr.addstr(7, 0,
-                          f"Best Fitness: {self.best.get_fitness(problem)}")
-            stdscr.addstr(9, 0, "====================================")
-            stdscr.addstr(
-                10, 0,
-                f"""{tracker.get_elapsed_time():.1f} / {gengy_default_config["timer_limit"]:.1f}s"""
+                     is_best=False):
+            ui.register(
+                individual.get_phenotype().get_core(),
+                individual.get_fitness(problem),
+                tracker.get_elapsed_time(),
+                is_best,
             )
 
-            stdscr.refresh()
-
-    recorders.append(StdOutRecorder())
+    recorders.append(UIBackendRecorder())
 
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
@@ -521,12 +500,19 @@ def geneticengine_synthesis(
         step=create_gp_step(problem=problem, gp_params=gp_params),
     )
 
+    ui.start(
+        typing_ctx=None,
+        evaluation_ctx=None,
+        target_name=hole_name,
+        target_type=None,
+        budget=gengy_default_config["timer_limit"],
+    )
     best: Individual = alg.search()
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
     )
-    curses.endwin()
-    return best.phenotype.get_core()
+    ui.end(best.get_phenotype().get_core(), best.get_fitness(problem))
+    return best.get_phenotype().get_core()
 
 
 def set_error_fitness(decorators):
@@ -538,14 +524,15 @@ def set_error_fitness(decorators):
 
 
 def synthesize_single_function(
-    ctx: TypingContext,
-    ectx: EvaluationContext,
-    term: Term,
-    fun_name: str,
-    holes: dict[str, tuple[Type, TypingContext]],
-    metadata: Metadata,
-    filename: str | None,
-    synth_config: dict[str, Any] | None = None,
+        ctx: TypingContext,
+        ectx: EvaluationContext,
+        term: Term,
+        fun_name: str,
+        holes: dict[str, tuple[Type, TypingContext]],
+        metadata: Metadata,
+        filename: str | None,
+        synth_config: dict[str, Any] | None = None,
+        ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, Term]:
     # Step 1 Create a Single or Multi-Objective Problem instance.
 
@@ -567,7 +554,7 @@ def synthesize_single_function(
     # Step 3 Synthesize an element
     synthesized_element = geneticengine_synthesis(grammar, problem, filename,
                                                   hole_name, target_fitness,
-                                                  synth_config)
+                                                  synth_config, ui)
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
@@ -576,14 +563,15 @@ def synthesize_single_function(
 
 
 def synthesize(
-    ctx: TypingContext,
-    ectx: EvaluationContext,
-    term: Term,
-    targets: list[tuple[str, list[str]]],
-    metadata: Metadata,
-    filename: str | None = None,
-    synth_config: dict[str, Any] | None = None,
-    refined_grammar: bool = False,
+        ctx: TypingContext,
+        ectx: EvaluationContext,
+        term: Term,
+        targets: list[tuple[str, list[str]]],
+        metadata: Metadata,
+        filename: str | None = None,
+        synth_config: dict[str, Any] | None = None,
+        refined_grammar: bool = False,
+        ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, dict[str, Term]]:
     """Synthesizes code for multiple functions, each with multiple holes."""
 
@@ -604,6 +592,7 @@ def synthesize(
             metadata,
             filename,
             synth_config,
+            ui,
         )
         results[name] = hterm
 
