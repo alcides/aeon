@@ -55,7 +55,6 @@ def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
         arg0 = refined_to_sympy_expression(ref.args[0])
         arg1 = refined_to_sympy_expression(ref.args[1])
         return Lt(arg0, arg1)
-
     elif ref_fun == ">=":
         arg0 = refined_to_sympy_expression(ref.args[0])
         arg1 = refined_to_sympy_expression(ref.args[1])
@@ -98,7 +97,7 @@ def refined_to_sympy_expression(ref: LiquidTerm) -> Any:
     # return ty.predicate.to_sympy_expression(ty.variable)
 
 
-def flatten_conditions(lista: list) -> list:
+def flatten_conditions(lista: list | Any) -> list:
     if not isinstance(lista, list):
         return [lista]
 
@@ -107,7 +106,9 @@ def flatten_conditions(lista: list) -> list:
 
 def conditional_to_interval(cond: list, name: str) -> Set:
     try:
-        return reduce_rational_inequalities([cond], Symbol(name), relational=False)
+        return reduce_rational_inequalities([cond],
+                                            Symbol(name),
+                                            relational=False)
     except Exception as err:
         raise Exception("Failed to do ranged analysis due to: {}".format(err))
 
@@ -125,5 +126,3 @@ def sympy_exp_to_bounded_interval(exp: Expr | Basic) -> Any:
         return [sympy_exp_to_bounded_interval(exp)]
     else:
         return [exp]
-
-    pass
