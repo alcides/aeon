@@ -51,7 +51,7 @@ from aeon.core.types import top
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.program import Definition
-from aeon.synthesis.api import SilentSynthesisUI, SynthesisUI
+from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
     classType,
