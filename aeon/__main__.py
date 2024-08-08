@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 
 import argparse
@@ -17,6 +18,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.synthesis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
@@ -153,6 +155,12 @@ def main() -> None:
                             if args.gp_config and args.config_section else
                             None)
 
+        ui: SynthesisUI
+        if os.environ.get("TERM", None):
+            ui = NCursesUI()
+        else:
+            ui = SilentSynthesisUI()
+
         with RecordTime("Synthesis"):
             _, terms = synthesize(
                 typing_ctx,
@@ -163,7 +171,7 @@ def main() -> None:
                 filename,
                 synth_config,
                 args.refined_grammar,
-                NCursesUI(),
+                ui,
             )
             print("Synthesized holes:")
             for name in terms:
