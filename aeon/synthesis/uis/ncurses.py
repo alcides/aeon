@@ -44,3 +44,6 @@ class NCursesUI(SynthesisUI):
 
     def end(self, solution: Term, quality: Any):
         curses.endwin()
+
+    def wrapper(self, f):
+        return curses.wrapper(f)

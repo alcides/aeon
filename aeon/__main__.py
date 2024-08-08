@@ -102,6 +102,13 @@ def log_type_errors(errors: list[Exception | str]):
     print("TYPECHECKER", "-------------------------------")
 
 
+def select_synthesis_ui() -> SynthesisUI:
+    if os.environ.get("TERM", None):
+        return NCursesUI()
+    else:
+        return SilentSynthesisUI()
+
+
 def main() -> None:
     args = parse_arguments()
     logger = setup_logger()
@@ -155,14 +162,10 @@ def main() -> None:
                             if args.gp_config and args.config_section else
                             None)
 
-        ui: SynthesisUI
-        if os.environ.get("TERM", None):
-            ui = NCursesUI()
-        else:
-            ui = SilentSynthesisUI()
+        ui = select_synthesis_ui()
 
         with RecordTime("Synthesis"):
-            _, terms = synthesize(
+            program, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
                 core_ast_anf,
@@ -173,11 +176,7 @@ def main() -> None:
                 args.refined_grammar,
                 ui,
             )
-            print("Synthesized holes:")
-            for name in terms:
-                print(f"?{name}: {terms[name]}")
-            # print()
-            # pretty_print_term(ensure_anf(synthesis_result, 200))
+            ui.display_results(program, terms)
         sys.exit(0)
     with RecordTime("Evaluation"):
         eval(core_ast, evaluation_ctx)
