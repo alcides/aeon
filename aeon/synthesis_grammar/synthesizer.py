@@ -1,16 +1,28 @@
 from __future__ import annotations
 
 import builtins
+import csv
 import os
 import sys
 import time
-from typing import Any, Tuple
+from io import TextIOWrapper
+from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
+import multiprocess as mp
+from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
+from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
+from geneticengine.algorithms.gp.operators.elitism import ElitismStep
+from geneticengine.algorithms.gp.operators.initializers import (
+    StandardInitializer, )
+from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
+from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
+from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
+from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
-from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf
-from geneticengine.evaluation.recorder import CSVSearchRecorder
+from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, SearchBudget, TargetMultiFitness
+from geneticengine.evaluation.recorder import SearchRecorder, FieldMapper
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
     ProgressTracker,
@@ -25,34 +37,27 @@ from geneticengine.representations.grammatical_evolution.dynamic_structured_ge i
 from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
 from geneticengine.representations.grammatical_evolution.structured_ge import (
     StructuredGrammaticalEvolutionRepresentation, )
-from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
-from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
-from geneticengine.algorithms.gp.operators.elitism import ElitismStep
-from geneticengine.algorithms.gp.operators.initializers import (
-    StandardInitializer, )
-from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
-from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
-from geneticengine.algorithms.gp.operators.selection import TournamentSelection
-from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.solutions import Individual
-import multiprocess as mp
 from loguru import logger
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top
+from aeon.core.types import BaseType, Top, RefinedType
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.program import Definition
+from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
-    get_grammar_node,
     classType,
+    find_class_by_name,
+    process_type_name,
+    build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
@@ -84,20 +89,88 @@ gengy_default_config = {
     # Stopping criteria
     "timer_stop_criteria": True,
     "timer_limit": 60,
-    "target_fitness": 0,
     # Recording
     "only_record_best_inds": False,
     # Representation
     "representation": "tree",
-    "max_depth": 8,
+    "max_depth": 2,
     # Population and Steps
-    "population_size": 30,
+    "population_size": 20,
     "n_elites": 1,
     "novelty": 1,
     "probability_mutation": 0.01,
     "probability_crossover": 0.9,
     "tournament_size": 5,
 }
+
+
+class TargetMultiSameFitness(SearchBudget):
+
+    def __init__(self, target_fitness: float):
+        self.target_fitness = target_fitness
+
+    def is_done(self, tracker: ProgressTracker):
+        assert isinstance(tracker, MultiObjectiveProgressTracker)
+        comps = tracker.get_best_individuals()[0].get_fitness(
+            tracker.get_problem()).fitness_components
+        return all(abs(c - self.target_fitness) < 0.001 for c in comps)
+
+
+class LazyCSVRecorder(SearchRecorder):
+
+    def __init__(
+        self,
+        csv_path: str,
+        problem: Problem,
+        fields: dict[str, FieldMapper] = None,
+        extra_fields: dict[str, FieldMapper] = None,
+        only_record_best_individuals: bool = True,
+    ):
+        assert csv_path is not None
+        self.csv_writer: Optional[Any] = None
+        self.csv_file: Optional[TextIOWrapper] = None
+        self.csv_file_path = csv_path
+        self.fields = fields
+        self.extra_fields = extra_fields
+        self.only_record_best_individuals = only_record_best_individuals
+        self.problem = problem
+        self.header_printed = False
+        if fields is not None:
+            self.fields = fields
+
+    def register(self,
+                 tracker: Any,
+                 individual: Individual,
+                 problem: Problem,
+                 is_best=True):
+        if self.csv_file is None:
+            self.csv_file = open(self.csv_file_path, "w", newline="")
+            self.csv_writer = csv.writer(self.csv_file)
+            if self.fields is None:
+                self.fields = {
+                    "Execution Time":
+                    lambda t, i, _:
+                    (time.monotonic_ns() - t.start_time) * 0.000000001,
+                    "Fitness Aggregated":
+                    lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
+                    "Phenotype":
+                    lambda t, i, _: i.get_phenotype(),
+                }
+                for comp in range(problem.number_of_objectives()):
+                    self.fields[
+                        f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(
+                            p).fitness_components[comp]
+            if self.extra_fields is not None:
+                for name in self.extra_fields:
+                    self.fields[name] = self.extra_fields[name]
+            self.csv_writer.writerow([name for name in self.fields])
+            self.csv_file.flush()
+        if not self.only_record_best_individuals or is_best:
+            self.csv_writer.writerow([
+                self.fields[name](tracker, individual, problem)
+                for name in self.fields
+            ], )
+            self.csv_file.flush()
 
 
 def parse_config(config_file: str, section: str) -> dict[str, Any]:
@@ -134,7 +207,7 @@ def get_csv_file_path(file_path: str, representation: type, seed: int,
     file_name = os.path.basename(file_path)
     name_without_extension, _ = os.path.splitext(file_name)
     directory = os.path.join("csv", name_without_extension,
-                             representation.__name__)
+                             representation.__class__.__name__)
     os.makedirs(directory, exist_ok=True)
 
     hole_suffix = f"_{hole_name}" if hole_name else ""
@@ -245,7 +318,7 @@ def problem_for_fitness_function(
     fun_name: str,
     metadata: Metadata,
     hole_names: list[str],
-) -> Tuple[Problem, Any]:
+) -> Tuple[Problem, float | list[float]]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = [
@@ -265,9 +338,12 @@ def problem_for_fitness_function(
                                             metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(
             used_decorators) else SingleObjectiveProblem
+        target_fitness: float | list[float] = (
+            0 if isinstance(problem_type, SingleObjectiveProblem) else 0
+        )  # TODO: add support to maximize decorators
 
         return problem_type(fitness_function=fitness_function,
-                            minimize=MINIMIZE_OBJECTIVE), None
+                            minimize=MINIMIZE_OBJECTIVE), target_fitness
     else:
         return SingleObjectiveProblem(fitness_function=lambda x: 0,
                                       minimize=True), 0
@@ -278,9 +354,13 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str,
     grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
-    assert isinstance(ty, BaseType)  # TODO Synthesis: Support other types?
-    starting_node = get_grammar_node("t_" + ty.name, grammar_nodes)
+    assert isinstance(
+        ty, (BaseType, RefinedType))  # TODO Synthesis: Support other types?
+    hole_type_name = process_type_name(ty)
+    grammar_nodes, starting_node = find_class_by_name("t_" + hole_type_name,
+                                                      grammar_nodes, ty)
     assert starting_node is not None, "Starting Node is None"
+    grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
     return grammar_nodes, starting_node
 
 
@@ -340,12 +420,13 @@ def create_gp_step(problem: Problem, gp_params: dict[str, Any]):
 
 
 def geneticengine_synthesis(
-    grammar: Grammar,
-    problem: Problem,
-    filename: str | None,
-    hole_name: str,
-    target_fitness: Any,
-    gp_params: dict[str, Any] | None = None,
+        grammar: Grammar,
+        problem: Problem,
+        filename: str | None,
+        hole_name: str,
+        target_fitness: float | list[float],
+        gp_params: dict[str, Any] | None = None,
+        ui: SynthesisUI = SilentSynthesisUI(),
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine."""
     # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
@@ -367,11 +448,11 @@ def geneticengine_synthesis(
         csv_file_path = get_csv_file_path(filename, representation, seed,
                                           hole_name, config_name)
         recorders.append(
-            CSVSearchRecorder(
+            LazyCSVRecorder(
                 csv_file_path,
                 problem,
                 only_record_best_individuals=gp_params["only_record_best_inds"]
-            ))
+            ), )
     if isinstance(problem, SingleObjectiveProblem):
         tracker = SingleObjectiveProgressTracker(
             problem, evaluator=SequentialEvaluator(), recorders=recorders)
@@ -379,9 +460,35 @@ def geneticengine_synthesis(
         tracker = MultiObjectiveProgressTracker(
             problem, evaluator=SequentialEvaluator(), recorders=recorders)
 
+    class UIBackendRecorder(SearchRecorder):
+
+        def register(self,
+                     tracker: Any,
+                     individual: Individual,
+                     problem: Problem,
+                     is_best=False):
+            ui.register(
+                individual.get_phenotype().get_core(),
+                individual.get_fitness(problem),
+                tracker.get_elapsed_time(),
+                is_best,
+            )
+
+    recorders.append(UIBackendRecorder())
+
     budget = TimeBudget(time=gp_params["timer_limit"])
     if target_fitness is not None:
-        budget = AnyOf(budget, TargetFitness(target_fitness))
+        if isinstance(tracker, SingleObjectiveProgressTracker):
+            search_budget = TargetFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
+                target_fitness, list):
+            search_budget = TargetMultiFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
+                target_fitness, (float, int)):
+            search_budget = TargetMultiSameFitness(target_fitness)
+        else:
+            assert False
+        budget = AnyOf(budget, search_budget)
     alg = GeneticProgramming(
         problem=problem,
         budget=budget,
@@ -393,11 +500,19 @@ def geneticengine_synthesis(
         step=create_gp_step(problem=problem, gp_params=gp_params),
     )
 
+    ui.start(
+        typing_ctx=None,
+        evaluation_ctx=None,
+        target_name=hole_name,
+        target_type=None,
+        budget=gengy_default_config["timer_limit"],
+    )
     best: Individual = alg.search()
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
     )
-    return best.phenotype.get_core()
+    ui.end(best.get_phenotype().get_core(), best.get_fitness(problem))
+    return best.get_phenotype().get_core()
 
 
 def set_error_fitness(decorators):
@@ -409,15 +524,16 @@ def set_error_fitness(decorators):
 
 
 def synthesize_single_function(
-    ctx: TypingContext,
-    ectx: EvaluationContext,
-    term: Term,
-    fun_name: str,
-    holes: dict[str, tuple[Type, TypingContext]],
-    metadata: Metadata,
-    filename: str | None,
-    synth_config: dict[str, Any] | None = None,
-) -> Term:
+        ctx: TypingContext,
+        ectx: EvaluationContext,
+        term: Term,
+        fun_name: str,
+        holes: dict[str, tuple[Type, TypingContext]],
+        metadata: Metadata,
+        filename: str | None,
+        synth_config: dict[str, Any] | None = None,
+        ui: SynthesisUI = SynthesisUI(),
+) -> Tuple[Term, Term]:
     # Step 1 Create a Single or Multi-Objective Problem instance.
 
     problem, target_fitness = problem_for_fitness_function(
@@ -438,35 +554,35 @@ def synthesize_single_function(
     # Step 3 Synthesize an element
     synthesized_element = geneticengine_synthesis(grammar, problem, filename,
                                                   hole_name, target_fitness,
-                                                  synth_config)
+                                                  synth_config, ui)
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
-    return substitution(term, synthesized_element, hole_name)
+    return synthesized_element, substitution(term, synthesized_element,
+                                             hole_name)
 
 
 def synthesize(
-    ctx: TypingContext,
-    ectx: EvaluationContext,
-    term: Term,
-    targets: list[tuple[str, list[str]]],
-    metadata: Metadata,
-    filename: str | None = None,
-    synth_config: dict[str, Any] | None = None,
-) -> Term:
+        ctx: TypingContext,
+        ectx: EvaluationContext,
+        term: Term,
+        targets: list[tuple[str, list[str]]],
+        metadata: Metadata,
+        filename: str | None = None,
+        synth_config: dict[str, Any] | None = None,
+        refined_grammar: bool = False,
+        ui: SynthesisUI = SynthesisUI(),
+) -> Tuple[Term, dict[str, Term]]:
     """Synthesizes code for multiple functions, each with multiple holes."""
-    program_holes = get_holes_info(
-        ctx,
-        term,
-        top,
-        targets,
-    )
+
+    program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
     assert len(program_holes) == len(
         targets), "No support for function with more than one hole"
 
-    print("Starting synthesis...")
+    results = {}
+
     for name, holes_names in targets:
-        term = synthesize_single_function(
+        hterm, term = synthesize_single_function(
             ctx,
             ectx,
             term,
@@ -476,6 +592,8 @@ def synthesize(
             metadata,
             filename,
             synth_config,
+            ui,
         )
+        results[name] = hterm
 
-    return term
+    return term, results

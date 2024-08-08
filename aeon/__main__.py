@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 
 import argparse
@@ -17,6 +18,9 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
+from aeon.synthesis.uis.api import SynthesisUI
+from aeon.synthesis.uis.ncurses import NCursesUI
+from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.typechecking.typeinfer import check_type_errors
@@ -75,6 +79,13 @@ def parse_arguments():
         action="store_true",
         help="Show timing information",
     )
+
+    parser.add_argument(
+        "-rg",
+        "--refined-grammar",
+        action="store_true",
+        help="Use the refined grammar for synthesis",
+    )
     return parser.parse_args()
 
 
@@ -90,6 +101,13 @@ def log_type_errors(errors: list[Exception | str]):
         print("TYPECHECKER", "-------------------------------")
         print("TYPECHECKER", error)
     print("TYPECHECKER", "-------------------------------")
+
+
+def select_synthesis_ui() -> SynthesisUI:
+    if os.environ.get("TERM", None):
+        return NCursesUI()
+    else:
+        return TerminalUI()
 
 
 def main() -> None:
@@ -145,8 +163,10 @@ def main() -> None:
                             if args.gp_config and args.config_section else
                             None)
 
+        ui = select_synthesis_ui()
+
         with RecordTime("Synthesis"):
-            synthesis_result = synthesize(
+            program, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
                 core_ast_anf,
@@ -154,10 +174,10 @@ def main() -> None:
                 metadata,
                 filename,
                 synth_config,
+                args.refined_grammar,
+                ui,
             )
-            print(f"{synthesis_result}")
-            # print()
-            # pretty_print_term(ensure_anf(synthesis_result, 200))
+            ui.display_results(program, terms)
         sys.exit(0)
     with RecordTime("Evaluation"):
         eval(core_ast, evaluation_ctx)
