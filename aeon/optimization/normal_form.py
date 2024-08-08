@@ -93,13 +93,13 @@ def normal_form(t: Term) -> Term:
         case Application(Application(Var("<="), Literal(a, ti)), Literal(b, tb)):
             return Literal(a <= b, t_bool)  # type: ignore
 
-        case Literal(value, _):
+        case Literal(_, _):
             return t
-        case Var(name):
+        case Var(_):
             return t
         case Annotation(_, _):
             return t
-        case Hole(name):
+        case Hole(_):
             return t
 
         case Abstraction(var_name, body):
