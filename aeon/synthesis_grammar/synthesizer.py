@@ -93,7 +93,7 @@ gengy_default_config = {
     "only_record_best_inds": False,
     # Representation
     "representation": "tree",
-    "max_depth": 2,
+    "max_depth": 8,
     # Population and Steps
     "population_size": 20,
     "n_elites": 1,
@@ -507,7 +507,7 @@ def geneticengine_synthesis(
         target_type=None,
         budget=gengy_default_config["timer_limit"],
     )
-    best: Individual = alg.search()
+    best: Individual = ui.wrapper(lambda: alg.search())
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
     )

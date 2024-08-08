@@ -18,7 +18,7 @@ class NCursesUI(SynthesisUI):
         target_type: Type,
         budget: Any,
     ):
-        self.stdscr = curses.initscr()
+        # self.stdscr = curses.initscr()
         self.target_name = target_name
         self.target_type = target_type
         self.budget = budget
@@ -46,4 +46,9 @@ class NCursesUI(SynthesisUI):
         curses.endwin()
 
     def wrapper(self, f):
-        return curses.wrapper(f)
+
+        def w(stdscr):
+            self.stdscr = stdscr
+            return f()
+
+        return curses.wrapper(w)
