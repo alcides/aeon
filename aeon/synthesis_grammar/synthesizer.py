@@ -48,7 +48,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top, RefinedType
+from aeon.core.types import BaseType, Top
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
@@ -317,9 +317,6 @@ def problem_for_fitness_function(
 
 
 def get_grammar_components(ctx: TypingContext, fun_type: Type, fun_name: str, metadata: Metadata):
-    # TODO Synthesis: Support other types?
-    assert isinstance(fun_type, (BaseType, RefinedType))
-
     grammar_nodes, starting_node = gen_grammar_nodes(ctx, fun_type, fun_name, metadata, [])
     assert len(grammar_nodes) > 0
     assert starting_node is not None, "Starting Node is None"

@@ -11,7 +11,7 @@ from geneticengine.prelude import abstract
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Literal
+from aeon.core.terms import Abstraction, Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
@@ -338,6 +338,22 @@ def create_var_nodes(vars: list[Tuple[str, Type]], type_info: dict[Type, TypingT
     return [create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars]
 
 
+def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    vname = mangle_term(f"lambda_{mangle_type(ty)}")
+    dc = make_dataclass(f"var_{vname}", [("body", type_info[ty.type])], bases=(type_info[ty],))
+
+    def get_core(_self):
+        return Abstraction("_0", _self.body.get_core())
+
+    setattr(dc, "get_core", get_core)
+    return dc
+
+
+def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_abstraction_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+
+
 def gen_grammar_nodes(
     ctx: TypingContext,
     synth_fun_type,
@@ -385,8 +401,9 @@ def gen_grammar_nodes(
 
     literals = create_literals_nodes(type_nodes)
     vars = create_var_nodes(ctx_vars, type_nodes)
+    abstractions = create_abstraction_nodes(type_nodes)
 
-    ret = list(type_nodes.values()) + literals + vars
+    ret = list(type_nodes.values()) + literals + vars + abstractions
     return ret, type_nodes[synth_fun_type]
 
 
