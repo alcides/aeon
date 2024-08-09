@@ -13,7 +13,7 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import t_bool
+from aeon.core.types import t_bool, t_int
 
 
 def normal_form(t: Term) -> Term:
@@ -63,6 +63,11 @@ def normal_form(t: Term) -> Term:
             return e
         case Application(Application(Var("-"), Literal(a, ti)), Literal(b, tb)):
             return Literal(a - b, ti)  # type: ignore
+        case Application(Application(Var("-"), x1), x2):
+            if x1 == x2:
+                return Literal(0, t_int)
+            else:
+                return t
 
         case Application(Application(Var("*"), Literal(0, ti)), e):
             return Literal(0, ti)
@@ -74,6 +79,24 @@ def normal_form(t: Term) -> Term:
             return e
         case Application(Application(Var("*"), Literal(a, ti)), Literal(b, tb)):
             return Literal(a * b, ti)  # type: ignore
+
+        case Application(Application(Var("/"), Literal(0, ti)), e):
+            return Literal(0, ti)
+
+        case Application(Application(Var("/"), x1), x2):
+            if x1 == x2:
+                return Literal(1, t_int)
+            else:
+                return t
+
+        case Application(Application(Var("%"), Literal(0, ti)), _):
+            return Literal(0, t_int)
+
+        case Application(Application(Var("%"), x1), x2):
+            if x1 == x2:
+                return Literal(0, t_int)
+            else:
+                return t
 
         case Application(Application(Var("=="), Literal(a, ti)), Literal(b, tb)):
             return Literal(a == b, t_bool)
@@ -118,6 +141,8 @@ def normal_form(t: Term) -> Term:
             return TypeAbstraction(ty, kind, nf(body))
         case TypeApplication(body, ty):
             return TypeApplication(nf(body), ty)
+    print()
+    print("no case for", t, type(t))
     assert False
 
 

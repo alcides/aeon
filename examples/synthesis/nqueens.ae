@@ -60,5 +60,5 @@ def create_solution :
 
 
 @minimize_int(Board_quality nqueens)
-@hide(Board_head, Board_tail)
+@hide(Board_head, Board_tail, conflicts, Board_quality, Board_is_empty, C_x, C_y)
 def nqueens : {b:Board | Board_size b == N} = ?hole;
