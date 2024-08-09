@@ -11,7 +11,7 @@ from geneticengine.prelude import abstract
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, Literal
+from aeon.core.terms import Abstraction, Application, Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
@@ -340,18 +340,36 @@ def create_var_nodes(vars: list[Tuple[str, Type]], type_info: dict[Type, TypingT
 
 def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
-    vname = mangle_term(f"lambda_{mangle_type(ty)}")
-    dc = make_dataclass(f"var_{vname}", [("body", type_info[ty.type])], bases=(type_info[ty],))
+    vname = f"lambda_{mangle_type(ty)}"
+    dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
 
     def get_core(_self):
         return Abstraction("_0", _self.body.get_core())
 
+    # Note: We cannot use the variable inside Abstraction.
     setattr(dc, "get_core", get_core)
     return dc
 
 
 def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
     return [create_abstraction_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+
+
+def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    vname = f"app_{mangle_type(ty)}"
+    dc = make_dataclass(vname, [("fun", type_info[ty]), ("arg", type_info[ty.var_type])], bases=(type_info[ty.type],))
+    # Note: this would require dependent type dynamic processing on the return type (parent class)
+
+    def get_core(_self):
+        return Application(_self.fun.get_core(), _self.arg.get_core())
+
+    setattr(dc, "get_core", get_core)
+    return dc
+
+
+def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
 
 
 def gen_grammar_nodes(
@@ -402,8 +420,9 @@ def gen_grammar_nodes(
     literals = create_literals_nodes(type_nodes)
     vars = create_var_nodes(ctx_vars, type_nodes)
     abstractions = create_abstraction_nodes(type_nodes)
+    applications = create_application_nodes(type_nodes)
 
-    ret = list(type_nodes.values()) + literals + vars + abstractions
+    ret = list(type_nodes.values()) + literals + vars + abstractions + applications
     return ret, type_nodes[synth_fun_type]
 
 
