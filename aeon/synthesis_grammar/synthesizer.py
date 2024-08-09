@@ -471,8 +471,8 @@ def synthesize_single_function(
     synth_config: dict[str, Any] | None = None,
     ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, dict[str, Term]]:
-    # Step 1 Create a Single or Multi-Objective Problem instance.
 
+    # Step 1 Create a Single or Multi-Objective Problem instance.
     problem, target_fitness = problem_for_fitness_function(
         ctx,
         ectx,
