@@ -382,26 +382,12 @@ def gen_grammar_nodes(
     ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.vars() if not skip(var_name)]
 
     type_nodes = extract_all_types([t_bool, t_float, t_int, t_string] + [x[1] for x in ctx_vars] + [synth_fun_type])
-    print("type_nodes", type_nodes)
 
     literals = create_literals_nodes(type_nodes)
     vars = create_var_nodes(ctx_vars, type_nodes)
 
     ret = list(type_nodes.values()) + literals + vars
-    print_grammar_nodes(ret)
     return ret, type_nodes[synth_fun_type]
-
-
-def convert_to_term(inp):
-    if isinstance(inp, str):
-        return Literal(inp, type=t_string)
-    elif isinstance(inp, int):
-        return Literal(inp, type=t_int)
-    elif isinstance(inp, bool):
-        return Literal(inp, type=t_bool)
-    elif isinstance(inp, float):
-        return Literal(inp, type=t_float)
-    raise GrammarError(f"Unable to converto to term : {type(inp)}")
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:

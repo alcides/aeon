@@ -1,6 +1,6 @@
 import pytest
 
-from aeon.core.terms import Term, Var
+from aeon.core.terms import Abstraction, Term, Var
 from aeon.core.types import top, t_bool, t_int, t_float, t_string
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
@@ -35,7 +35,15 @@ def test_e2e_synthesis_basic_types(ty):
 
 def test_e2e_synthesis_var():
     code = """type A; def a : A = native "1";  def synth : A = ?hole;"""
-    t, ctx = synthesis_and_return(code)
+    t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
     assert t == Var("a")
+
+
+def test_e2e_synthesis_abs():
+    code = """def synth : (x:Int) -> Bool = ?hole;"""
+    t, _ = synthesis_and_return(code)
+
+    assert isinstance(t, Term)
+    assert isinstance(t, Abstraction)

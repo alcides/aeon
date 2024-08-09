@@ -159,7 +159,3 @@
 #         assert isinstance(n, grammar_nodes[0])
 #         assert n.value < 0 or 10 < n.value < 20 or 30 < n.value
 #         assert isinstance(n, grammar_nodes[1])
-
-
-def test_interval():
-    assert False

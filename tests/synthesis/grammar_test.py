@@ -122,7 +122,3 @@
 #     assert len(metahandler_list) == 1
 #     expected = Annotated[int, IntRange(1, sys.maxsize - 2)]
 #     assert str(metahandler_list[0]) == str(expected)
-
-
-def test_grammar():
-    assert False
