@@ -265,7 +265,7 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     for ty in types:
         class_name = mangle_type(ty)
         match ty:
-            case BaseType(name):
+            case BaseType(_):
                 ty_abstract_class = type(class_name, (ae_top,), {})
                 ty_abstract_class = abstract(ty_abstract_class)
                 data[ty] = ty_abstract_class
