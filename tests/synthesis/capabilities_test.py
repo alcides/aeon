@@ -105,10 +105,6 @@ def test_e2e_synthesis_ref5():
     assert t.value > 3 and t.value < 10
 
 
-# TODO: refined type
-
-# TODO: if
-
 # TODO: tapps e tabs
 
 # alpha equivalence

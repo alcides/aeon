@@ -9,7 +9,7 @@ from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from geneticengine.prelude import abstract
 
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, Application, Literal
+from aeon.core.terms import Abstraction, Application, If, Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
@@ -52,29 +52,6 @@ def mk_method_core_literal(cls: classType, ty: Type) -> classType:
 
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
-
-
-# def create_if_class(class_name: str, parent_class_name: str, grammar_nodes: list[type]) -> list[type]:
-#     grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
-#     grammar_nodes, parent_class = find_class_by_name(parent_class_name, grammar_nodes)
-
-#     fields = [("cond", cond_class), ("then", parent_class), ("otherwise", parent_class)]
-
-#     if_class = create_new_class(class_name, parent_class, fields)
-#     grammar_nodes.append(if_class)
-
-#     return grammar_nodes
-
-
-# def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
-#     types_names_set = {
-#         cls.__name__
-#         for cls in grammar_nodes
-#         if cls.__base__ is ABC and not any(issubclass(cls, other) and cls is not other for other in grammar_nodes)
-#     }
-#     for ty_name in types_names_set:
-#         grammar_nodes = create_if_class(f"If_{ty_name}", ty_name, grammar_nodes)
-#     return grammar_nodes
 
 
 ae_top = type("ae_top", (ABC,), {})
@@ -196,6 +173,25 @@ def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingTy
     return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
 
 
+def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
+    v_name = f"if_{mangle_type(ty)}"
+    dc = make_dataclass(
+        v_name,
+        [("cond", type_info[t_bool]), ("then", type_info[ty]), ("otherwise", type_info[ty])],
+        bases=(type_info[ty],),
+    )
+
+    def get_core(_self):
+        return If(_self.cond.get_core(), _self.then.get_core(), _self.otherwise.get_core())
+
+    setattr(dc, "get_core", get_core)
+    return dc
+
+
+def create_if_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_if_node(ty, type_info) for ty in type_info]
+
+
 def gen_grammar_nodes(
     ctx: TypingContext,
     synth_fun_type,
@@ -246,10 +242,9 @@ def gen_grammar_nodes(
     abstractions = create_abstraction_nodes(type_info)
     applications = create_application_nodes(type_info)
     literals_ref = create_literal_ref_nodes(type_info)
+    ifs = create_if_nodes(type_info)
 
-    ret = type_nodes + literals + vars + abstractions + applications + literals_ref
-
-    print_grammar_nodes(ret)
+    ret = type_nodes + literals + vars + abstractions + applications + literals_ref + ifs
 
     return ret, type_info[synth_fun_type]
 
