@@ -21,7 +21,6 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import type_free_term_vars
-from aeon.synthesis_grammar.grammar import aeon_prelude_ops_to_text
 
 ops_to_abstraction: dict[str, str] = {
     "%": "Int) -> Int",
@@ -40,6 +39,28 @@ ops_to_abstraction: dict[str, str] = {
     "<": "Int) -> Bool",
     "!=": "Int) -> Bool",
     "==": "Int) -> Bool",
+}
+
+
+aeon_prelude_ops_to_text = {
+    "%": "mod",
+    "/": "div",
+    "*": "mul",
+    "-": "sub",
+    "+": "add",
+    "%.": "modf",
+    "/.": "divf",
+    "*.": "mulf",
+    "-.": "subf",
+    "+.": "addf",
+    ">=": "gte",
+    ">": "gt",
+    "<=": "lte",
+    "<": "lt",
+    "!=": "ne",
+    "==": "eq",
+    "&&": "and",
+    "||": "or",
 }
 
 

@@ -1,0 +1,2 @@
+@minimize_int(n)
+def n : Int = ?hole;
