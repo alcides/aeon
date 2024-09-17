@@ -40,16 +40,6 @@ class HasGetCore(Protocol):
 classType = TypingType[HasGetCore]
 
 
-def mk_method_core_literal(cls: classType, ty: Type) -> classType:
-
-    def get_core(self):
-        value = getattr(self, "value", None)
-        return Literal(value, type=ty)
-
-    setattr(cls, "get_core", get_core)
-    return cls
-
-
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(("_anf_", "target"))
 
@@ -104,7 +94,13 @@ def create_literal_class(
         [("value", value_type)],
         bases=(parent_class,),
     )
-    return mk_method_core_literal(new_class, aeon_type)
+
+    def get_core(self):
+        value = getattr(self, "value", None)
+        return Literal(value, type=aeon_type)
+
+    setattr(new_class, "get_core", get_core)
+    return new_class
 
 
 def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[list[Type]] = None) -> list[TypingType]:
@@ -149,6 +145,7 @@ def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
 
     # Note: We cannot use the variable inside Abstraction.
     setattr(dc, "get_core", get_core)
+
     return dc
 
 

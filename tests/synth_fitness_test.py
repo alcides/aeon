@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 
 from aeon.core.terms import Term, Application, Literal, Var
 from aeon.core.types import top, BaseType
@@ -9,7 +8,6 @@ from aeon.logger.logger import setup_logger
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
 from aeon.typechecking.typeinfer import check_type_errors
 
@@ -17,22 +15,6 @@ setup_logger()
 
 synth_config = gengy_default_config
 synth_config["timer_limit"] = 0.25
-
-
-def mock_literal_individual(value: int):
-
-    class t_Int(ABC):
-        pass
-
-    class literal_Int(t_Int):
-        value: int
-
-        def __init__(self, value: int):
-            self.value = value
-
-    literal_int_instance = mk_method_core_literal(literal_Int)  # type: ignore
-
-    return literal_int_instance(value)  # type: ignore
 
 
 def test_fitness():
