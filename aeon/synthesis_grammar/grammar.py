@@ -5,13 +5,24 @@ from dataclasses import make_dataclass
 from typing import Optional, Tuple, Protocol
 from typing import Type as TypingType
 
+from geneticengine.grammar.decorators import weight
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from geneticengine.prelude import abstract
 
-from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, Application, If, Literal
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidHole,
+    LiquidLiteralBool,
+    LiquidLiteralFloat,
+    LiquidLiteralInt,
+    LiquidLiteralString,
+    LiquidTerm,
+    LiquidVar,
+)
+from aeon.core.substitutions import substitution_in_type, substitution_in_type_liquid
+from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type
+from aeon.core.types import AbstractionType, Type, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
@@ -24,7 +35,22 @@ from aeon.decorators import Metadata
 from aeon.synthesis_grammar.mangling import mangle_var, mangle_type
 from aeon.synthesis_grammar.refinements import refined_type_to_metahandler
 from aeon.synthesis_grammar.utils import prelude_ops, aeon_to_python
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import (
+    EmptyContext,
+    TypeBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+    concrete_vars_in,
+)
+from aeon.core.liquid_ops import ops
+
+
+VAR_WEIGHT = 100
+LITERAL_WEIGHT = 30
+IF_WEIGHT = 1
+APP_WEIGHT = 10
+ABS_WEIGHT = 1
 
 
 class GrammarError(Exception):
@@ -100,6 +126,7 @@ def create_literal_class(
         return Literal(value, type=aeon_type)
 
     setattr(new_class, "get_core", get_core)
+    new_class = weight(LITERAL_WEIGHT)(new_class)
     return new_class
 
 
@@ -107,7 +134,18 @@ def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[lis
     """Creates all literal nodes for known types with literals (bool, int, float, string)"""
     if types is None:
         types = [t_bool, t_int, t_float, t_string]
-    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types]
+
+    gtm1 = LiquidApp("<=", [LiquidLiteralInt(-1), LiquidVar("x")])
+    lt256 = LiquidApp("<=", [LiquidVar("x"), LiquidLiteralInt(256)])
+    base_int = [
+        create_literal_class(
+            t_int,
+            type_info[t_int],
+            refined_type_to_metahandler(RefinedType("x", t_int, LiquidApp("&&", [gtm1, lt256]))),
+        )
+    ]
+
+    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types] + base_int
 
 
 def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
@@ -127,6 +165,7 @@ def create_var_node(name: str, ty: Type, python_ty: TypingType) -> TypingType:
         return Var(name)
 
     setattr(dc, "get_core", get_core)
+    dc = weight(VAR_WEIGHT)(dc)
     return dc
 
 
@@ -141,11 +180,11 @@ def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
     dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
 
     def get_core(_self):
-        return Abstraction("_0", _self.body.get_core())
+        return Annotation(Abstraction("_0", _self.body.get_core()), ty)
 
     # Note: We cannot use the variable inside Abstraction.
     setattr(dc, "get_core", get_core)
-
+    dc = weight(ABS_WEIGHT)(dc)
     return dc
 
 
@@ -163,6 +202,7 @@ def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
         return Application(_self.fun.get_core(), _self.arg.get_core())
 
     setattr(dc, "get_core", get_core)
+    dc = weight(APP_WEIGHT)(dc)
     return dc
 
 
@@ -179,14 +219,118 @@ def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
     )
 
     def get_core(_self):
-        return If(_self.cond.get_core(), _self.then.get_core(), _self.otherwise.get_core())
+        return Annotation(If(_self.cond.get_core(), _self.then.get_core(), _self.otherwise.get_core()), ty)
 
     setattr(dc, "get_core", get_core)
+    dc = weight(IF_WEIGHT)(dc)
     return dc
 
 
 def create_if_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
     return [create_if_node(ty, type_info) for ty in type_info]
+
+
+def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
+    match lt:
+        case LiquidHole(n, at):
+            return lt
+        case LiquidLiteralBool(v):
+            return lt
+        case LiquidLiteralInt(v2):
+            return lt
+        case LiquidLiteralFloat(v3):
+            return lt
+        case LiquidLiteralString(v4):
+            return lt
+        case LiquidVar(v5):
+            return lt
+        case LiquidApp(fun, args):
+            if fun in ["&&", "||"]:
+                nargs = [filter_uninterpreted(x) for x in args]
+                if nargs[0] is None:
+                    return nargs[1]
+                if nargs[1] is None:
+                    return nargs[0]
+                return LiquidApp(fun, nargs)
+            elif fun in ops:
+                nargs = [filter_uninterpreted(x) for x in args]
+                if None not in nargs:
+                    return LiquidApp(fun, nargs)
+                else:
+                    return None
+            else:
+                # user-defined uninterpreted function
+                return None
+        case _:
+            assert False
+
+
+def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
+    match ty:
+        case BaseType() | TypeVar() | Top() | Bottom():
+            return ty
+        case AbstractionType(var_name, var_type, type):
+            return AbstractionType(
+                var_name,
+                remove_uninterpreted_functions_from_type(var_type),
+                remove_uninterpreted_functions_from_type(type),
+            )
+        case RefinedType(name, type, ref):
+            ref_filtered = filter_uninterpreted(ref)
+            if ref_filtered is None:
+                return type
+            else:
+                return RefinedType(name, type, ref_filtered)
+        case _:
+            assert False
+
+
+def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
+    match ctx:
+        case EmptyContext():
+            return ctx
+        case UninterpretedBinder(prev, name, type):
+            return UninterpretedBinder(remove_uninterpreted_functions(prev), name, type)
+        case VariableBinder(prev, name, type):
+            type = remove_uninterpreted_functions_from_type(type)
+            return VariableBinder(remove_uninterpreted_functions(prev), name, type)
+        case TypeBinder(prev, type_name, type_kind):
+            return TypeBinder(remove_uninterpreted_functions(prev), type_name, type_kind)
+        case _:
+            assert False
+
+
+def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[str, LiquidTerm]]:
+    match ctx:
+        case EmptyContext():
+            return ctx, {}
+        case UninterpretedBinder(prev, name, type):
+            p, subst = propagate_constants(prev)
+            return UninterpretedBinder(p, name, type), subst
+        case VariableBinder(prev, name, type):
+            p, subst = propagate_constants(prev)
+
+            # Apply all pending substitions
+
+            for k in subst:
+                type = substitution_in_type_liquid(type, subst[k], k)
+
+            # Detect the pattern {n:T | n == C}
+            if (
+                isinstance(type, RefinedType)
+                and isinstance(type.refinement, LiquidApp)
+                and type.refinement.fun == "=="
+                and type.refinement.args[0] == LiquidVar(type.name)
+            ):
+                v = type.refinement.args[1]
+                subst[name] = v
+
+            return VariableBinder(p, name, type), subst
+        case TypeBinder(prev, type_name, type_kind):
+            p, subst = propagate_constants(prev)
+            return TypeBinder(p, type_name, type_kind), subst
+        case _:
+            assert False
 
 
 def gen_grammar_nodes(
@@ -214,6 +358,12 @@ def gen_grammar_nodes(
     if grammar_nodes is None:
         grammar_nodes = []
 
+    # Clean context to remove non-interpreted functions from the context.
+    # Simple refinements like 0 < n && n < 10 are kept.
+    ctx, _ = propagate_constants(ctx)
+    ctx = remove_uninterpreted_functions(ctx)
+    synth_fun_type = remove_uninterpreted_functions_from_type(synth_fun_type)
+
     current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
     vars_to_ignore = current_metadata.get("hide", [])
@@ -230,7 +380,7 @@ def gen_grammar_nodes(
         else:
             return False
 
-    ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.vars() if not skip(var_name)]
+    ctx_vars = [(var_name, ty) for (var_name, ty) in concrete_vars_in(ctx) if not skip(var_name)]
     type_info = extract_all_types([t_bool, t_float, t_int, t_string] + [x[1] for x in ctx_vars] + [synth_fun_type])
     type_nodes = list(type_info.values())
 
@@ -241,8 +391,7 @@ def gen_grammar_nodes(
     literals_ref = create_literal_ref_nodes(type_info)
     ifs = create_if_nodes(type_info)
 
-    ret = type_nodes + literals + vars + abstractions + applications + literals_ref + ifs
-
+    ret = type_nodes + literals + literals_ref + vars + applications + ifs + abstractions
     return ret, type_info[synth_fun_type]
 
 
@@ -259,7 +408,7 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
         class_vars = cls.__annotations__
         if class_vars:
             for var_name, var_type in class_vars.items():
-                print(f"\t {var_name}: {var_type.__name__}")
+                print(f"\t {var_name}: {str(var_type)}")
         else:
             print("\t pass")
         print()

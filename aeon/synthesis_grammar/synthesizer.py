@@ -10,7 +10,7 @@ from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
-from geneticengine.representations.tree.initializations import MaxDepthDecider
+from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
@@ -95,7 +95,7 @@ gengy_default_config = {
     "only_record_best_inds": False,
     # Representation
     "representation": "tree",
-    "max_depth": 8,
+    "max_depth": 1,
     # Population and Steps
     "population_size": 20,
     "n_elites": 1,
@@ -261,9 +261,11 @@ def create_evaluator(
             logger.info(f"Individual evaluation time: {end-start} ")
 
         except Exception as e:
-            # import traceback
-            # traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
+            raise e
             result_queue.put(ERROR_FITNESS)
 
     def evaluator(individual: classType) -> Any:
@@ -390,7 +392,7 @@ def geneticengine_synthesis(
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
     representation: type = representations[representation_name](
-        grammar, decider=MaxDepthDecider(NativeRandomSource(seed), grammar, gp_params["max_depth"])
+        grammar, decider=ProgressivelyTerminalDecider(NativeRandomSource(seed), grammar)
     )
 
     tracker: ProgressTracker

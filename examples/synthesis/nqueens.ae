@@ -1,7 +1,7 @@
 type Coordinate;
 type Board;
 
-def N : {n:Int | n == 3} = 3;
+def N : {n:Int | n == 9} = 9;
 
 def C_mk :
     (q1x:Int | 0 <= q1x && q1x < N ) ->
@@ -50,15 +50,17 @@ def create_solution :
     (q1 : Coordinate) ->
     (q2 : Coordinate) ->
     (q3 : Coordinate) ->
-#    (q4 : Coordinate) ->
-#    (q5 : Coordinate) ->
-#    (q6 : Coordinate) ->
-#    (q7 : Coordinate) ->
-#    (q8 : Coordinate) ->
-#    (q9 : Coordinate) ->
-   {b:Board | Board_size b == N} = native "lambda q1: lambda q2: [q1, q2]";
+    (q4 : Coordinate) ->
+    (q5 : Coordinate) ->
+    (q6 : Coordinate) ->
+    (q7 : Coordinate) ->
+    (q8 : Coordinate) ->
+    (q9 : Coordinate) ->
+   {b:Board | Board_size b == N} = native "lambda q1: lambda q2: lambda q3: lambda q4: lambda q5: lambda q6: lambda q7: lambda q8: lambda q9: [q1, q2, q3, q4, q5, q6, q7, q8, q9]";
 
 
 @minimize_int(Board_quality nqueens)
 @hide(Board_head, Board_tail, conflicts, Board_quality, Board_is_empty, C_x, C_y)
 def nqueens : {b:Board | Board_size b == N} = ?hole;
+
+# (((((((((create_solution ((C_mk 0) 4)) ((C_mk 1) 6)) ((C_mk 4) 1)) ((C_mk 0) 6)) ((C_mk 8) 5)) ((C_mk 5) 0)) ((C_mk 2) 2)) ((C_mk 8) 5)) ((C_mk 3) 6))

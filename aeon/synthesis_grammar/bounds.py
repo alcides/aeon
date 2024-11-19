@@ -7,7 +7,15 @@ from sympy.logic.boolalg import to_cnf
 from sympy.sets.sets import Set
 from sympy.solvers.inequalities import reduce_rational_inequalities
 
-from aeon.core.liquid import LiquidApp, LiquidVar, LiquidTerm, LiquidLiteralInt, LiquidLiteralFloat, LiquidLiteralString
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidVar,
+    LiquidTerm,
+    LiquidLiteralInt,
+    LiquidLiteralFloat,
+    LiquidLiteralString,
+)
 
 sympy_context = {
     "+": lambda x: lambda y: x + y,
@@ -85,6 +93,8 @@ def refined_to_sympy_expression(ref: LiquidTerm) -> Any:
 
     elif isinstance(ref, LiquidVar):
         return Symbol(ref.name)
+    elif isinstance(ref, LiquidLiteralBool):
+        return ref.value
     elif isinstance(ref, LiquidLiteralInt):
         return ref.value
     elif isinstance(ref, LiquidLiteralFloat):
@@ -106,9 +116,7 @@ def flatten_conditions(lista: list | Any) -> list:
 
 def conditional_to_interval(cond: list, name: str) -> Set:
     try:
-        return reduce_rational_inequalities([cond],
-                                            Symbol(name),
-                                            relational=False)
+        return reduce_rational_inequalities([cond], Symbol(name), relational=False)
     except Exception as err:
         raise Exception("Failed to do ranged analysis due to: {}".format(err))
 

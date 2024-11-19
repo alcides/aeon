@@ -101,7 +101,6 @@ def get_metahandler_union(
 
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
     name, ref = ty.name, ty.refinement
-
     sympy_exp = refined_to_sympy_expression(ref)
     sympy_exp = simplify(sympy_exp)
     sympy_exp = to_dnf(sympy_exp)
