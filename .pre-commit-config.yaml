@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-yaml
       - id: check-toml
@@ -12,7 +12,7 @@ repos:
       - id: requirements-txt-fixer
       - id: mixed-line-ending
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.5.0
+    rev: v2.7.0
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/asottile/add-trailing-comma
@@ -30,7 +30,7 @@ repos:
       - id: pycln
         args: [--config=pyproject.toml]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v1.13.0
     hooks:
       - id: mypy
         args:
@@ -40,7 +40,7 @@ repos:
             --explicit-package-bases,
           ]
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.4.8
+    rev: v0.7.4
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

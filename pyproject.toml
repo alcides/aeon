@@ -119,8 +119,12 @@ ignore = ["E741", "E501"]
 
 per-file-ignores = {}
 
+<<<<<<< HEAD
 
 [tool.ruff.lint.flake8-import-conventions.aliases]
+=======
+[tool.ruff.flake8-import-conventions.aliases]
+>>>>>>> 53280d9 (Updated pre-commit)
 altair = "alt"
 "matplotlib.pyplot" = "plt"
 numpy = "np"

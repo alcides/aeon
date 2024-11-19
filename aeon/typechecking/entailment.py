@@ -13,7 +13,6 @@ from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
-from aeon.verification.helpers import show_constraint
 from aeon.verification.horn import solve
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -28,7 +27,10 @@ def entailment(ctx: TypingContext, c: Constraint):
         if isinstance(ctx.type, AbstractionType):
             return entailment(ctx.prev, c)
         if isinstance(ctx.type, TypePolymorphism):
-            return entailment(ctx.prev, c)  # TODO: check that this is not relevant
+            return entailment(
+                ctx.prev,
+                c,
+            )  # TODO: check that this is not relevant
         else:
             ty: Type = ctx.type
             (name, base, cond) = extract_parts(ty)
