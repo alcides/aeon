@@ -48,7 +48,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Literal(value, _):
             return value
         case Var(name):
-            return ctx.get(name)
+            return ctx.get(str(name))
         case Abstraction(var_name, body):
             return lambda k: eval(body, ctx.with_var(var_name, k))
         case Application(fun, arg):

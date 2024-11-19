@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.types import AbstractionType
 from aeon.core.types import Kind
@@ -24,12 +24,10 @@ class TypingContext(ABC):
         return "fresh_"
 
     @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]:
-        ...
+    def typevars(self) -> list[tuple[str, Kind]]: ...
 
     @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]:
-        ...
+    def vars(self) -> list[tuple[str, Type]]: ...
 
 
 class EmptyContext(TypingContext):
@@ -89,6 +87,7 @@ class UninterpretedBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass(init=False)
 class VariableBinder(TypingContext):
     prev: TypingContext
     name: str
@@ -128,19 +127,11 @@ class VariableBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass
 class TypeBinder(TypingContext):
+    prev: TypingContext
     type_name: str
-    type_kind: Kind
-
-    def __init__(
-        self,
-        prev: TypingContext,
-        type_name: str,
-        type_kind: Kind = StarKind(),
-    ):
-        self.prev = prev
-        self.type_name = type_name
-        self.type_kind = type_kind
+    type_kind: Kind = field(default_factory=StarKind)
 
     def type_of(self, name: str) -> Type | None:
         return self.prev.type_of(name)
@@ -159,3 +150,17 @@ class TypeBinder(TypingContext):
 
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.type_name) + hash(self.type_kind)
+
+
+def concrete_vars_in(ctx: TypingContext) -> list[tuple[str, Type]]:
+    match ctx:
+        case EmptyContext():
+            return []
+        case UninterpretedBinder(prev, name, type):
+            return concrete_vars_in(prev)
+        case VariableBinder(prev, name, type):
+            return [(name, type)] + concrete_vars_in(prev)
+        case TypeBinder(prev, type_name, type_kind):
+            return concrete_vars_in(prev)
+        case _:
+            assert False
