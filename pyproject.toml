@@ -1,5 +1,5 @@
 [project]
-name = "Aeon"
+name = "aeon"
 version = "4.0.0a"
 description = "Language with Refinement Types"
 authors = [
