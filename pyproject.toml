@@ -13,20 +13,31 @@ keywords = ["programming language, liquid types"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
 ]
 
 scripts.aeon = "aeon.__main__:main"
 
-dependencies = ['lark',
-    'z3-solver >= 4',
+dependencies = [
+    'argparse',
+    'configparser',
+    'lark',
     'loguru',
     'geneticengine@https://github.com/alcides/GeneticEngine/archive/3feb0b48494f6b4352a3ed87a0fef29a98e4b4a1.zip',
     'multiprocess',
-    'textdistance',
     'numpy',
-    'configparser',
-    'argparse',
+    'pathos',
+    'pillow',
+    'psb2',
+    'pytest',
+    'scikit-image',
+    'sympy',
+    'textdistance',
+    'z3-solver >= 4',
+    'zstandard==0.15.2',
+    'zss'
 ]
 
 [project.urls]
@@ -39,8 +50,17 @@ text = "https://opensource.org/licenses/MIT"
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = [
-    'setuptools >= 43.0.0']
+requires = ['setuptools >= 67.6.0']
+
+[tool.setuptools]
+py-modules = ["aeon"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+'examples' = ['*.csv']
 
 [tool.docformatter]
 syntax = 'google'
@@ -61,9 +81,6 @@ all = true
 
 [tool.ruff]
 line-length = 120
-
-# Assume Python 3.10.
-target-version = "py310"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -88,14 +105,19 @@ exclude = [
     "venv",
 ]
 
+# Assume Python 3.10.
+target-version = "py310"
+
 [tool.ruff.lint]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
 # Enable Pyflakes `E` and `F` codes by default.
 select = ["E", "F"]
 ignore = ["E741", "E501"]
-per-file-ignores = { }
 
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+per-file-ignores = {}
 
 
 [tool.ruff.lint.flake8-import-conventions.aliases]
