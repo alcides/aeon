@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from functools import reduce
 from typing import Generator
 
-from loguru import logger
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -23,7 +23,6 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from loguru import logger
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -127,6 +126,7 @@ def is_used(n: str, c: Constraint) -> bool:
     elif isinstance(c, Conjunction):
         return is_used(n, c.c1) or is_used(n, c.c2)
     else:
+        print("Unsupported Constraint", c)
         assert False
 
 
@@ -160,6 +160,7 @@ def constraint_free_variables(c: Constraint) -> list[str]:
     elif isinstance(c, Conjunction):
         return constraint_free_variables(c.c1) + constraint_free_variables(c.c2)
     else:
+        print("Unsupported constraint", c)
         assert False
 
 
@@ -313,6 +314,16 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[str]) -> tuple[Cons
         return (c, vs1.union(vs2))
     else:
         assert False
+
+
+def reduce_to_useful_constraint(c: Constraint) -> Constraint:
+    top = []
+    for cons in conjunctive_normal_form(c):
+        if not is_implication_true(cons):
+            cons_simp = simplify_constraint(cons)
+            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+            top.append(cons_clean)
+    return reduce(Conjunction, top)
 
 
 def pretty_print_constraint(c: Constraint) -> str:

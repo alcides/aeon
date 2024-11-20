@@ -8,7 +8,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.terms import Abstraction
+from aeon.core.terms import Abstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -50,7 +50,11 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     elif isinstance(t, RefinedType):
         it = RefinedType(t.name, rec(t.type), t.refinement)
         while isinstance(it.type, RefinedType):
-            nr = substitution_in_liquid(it.type.refinement, LiquidVar(t.name), it.type.name)
+            nr = substitution_in_liquid(
+                it.type.refinement,
+                LiquidVar(t.name),
+                it.type.name,
+            )
             ncond = LiquidApp("&&", [t.refinement, nr])
             it = RefinedType(t.name, it.type.type, ncond)
         return it
@@ -94,10 +98,22 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
     assert False
 
 
-def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidTerm:
+def substitution_in_liquid(
+    t: LiquidTerm,
+    rep: LiquidTerm,
+    name: str,
+) -> LiquidTerm:
     """Substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
-    if isinstance(t, (LiquidLiteralInt, LiquidLiteralBool, LiquidLiteralString, LiquidLiteralFloat)):
+    if isinstance(
+            t,
+        (
+            LiquidLiteralInt,
+            LiquidLiteralBool,
+            LiquidLiteralString,
+            LiquidLiteralFloat,
+        ),
+    ):
         return t
     elif isinstance(t, LiquidVar):
         if t.name == name:
@@ -105,14 +121,20 @@ def substitution_in_liquid(t: LiquidTerm, rep: LiquidTerm, name: str) -> LiquidT
         else:
             return t
     elif isinstance(t, LiquidApp):
-        return LiquidApp(t.fun, [substitution_in_liquid(a, rep, name) for a in t.args])
+        return LiquidApp(
+            t.fun,
+            [substitution_in_liquid(a, rep, name) for a in t.args],
+        )
     elif isinstance(t, LiquidHornApplication):
         if t.name == name:
             return rep
         else:
             return LiquidHornApplication(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
+                [
+                    (substitution_in_liquid(a, rep, name), t)
+                    for (a, t) in t.argtypes
+                ],
             )
     else:
         assert False
@@ -218,23 +240,33 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
 
 def liquefy_app(app: Application) -> LiquidApp | None:
     arg = liquefy(app.arg)
+    fun = app.fun
+    while isinstance(fun, TypeApplication):
+        fun = fun.body
     if not arg:
         return None
-    if isinstance(app.fun, Var):
-        return LiquidApp(app.fun.name, [arg])
-    elif isinstance(app.fun, Application):
-        liquid_pseudo_fun = liquefy_app(app.fun)
+    if isinstance(fun, Var):
+        return LiquidApp(fun.name, [arg])
+    elif isinstance(fun, Application):
+        liquid_pseudo_fun = liquefy_app(fun)
         if liquid_pseudo_fun:
-            return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg])
+            return LiquidApp(
+                liquid_pseudo_fun.fun,
+                liquid_pseudo_fun.args + [arg],
+            )
         return None
-    elif isinstance(app.fun, Let):
+    elif isinstance(fun, Let):
         return liquefy_app(
             Application(
-                substitution(app.fun.body, app.fun.var_value, app.fun.var_name),
+                substitution(
+                    fun.body,
+                    fun.var_value,
+                    fun.var_name,
+                ),
                 app.arg,
-            ),
-        )
-    assert False
+            ), )
+    else:
+        raise Exception(f"{app} is not a valid predicate.")
 
 
 def liquefy_rec(t: Rec) -> LiquidTerm | None:
@@ -282,6 +314,8 @@ def liquefy(rep: Term) -> LiquidTerm | None:
         return LiquidLiteralString(rep.value)
     elif isinstance(rep, Application):
         return liquefy_app(rep)
+    elif isinstance(rep, TypeApplication):
+        return liquefy(rep.body)
     elif isinstance(rep, Var):
         return LiquidVar(rep.name)
     elif isinstance(rep, Hole):

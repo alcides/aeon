@@ -9,13 +9,13 @@ from aeon.core.terms import Var
 from aeon.core.types import top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking import elaborate_and_check
 from aeon.utils.ast_helpers import i1
 
 
 def check_compile(source, ty, res):
     p, ctx, ectx, _ = desugar(parse_program(source))
-    assert check_type(ctx, p, ty)
+    assert elaborate_and_check(ctx, p, ty)
 
 
 l1 = LiquidLiteralInt(1)

@@ -18,7 +18,8 @@ ectx = EvaluationContext(evaluation_vars)
 
 def check_compile(source, ty, res):
     p = parse_term(source)
-    p2 = elaborate(ctx, p)
+    core = ensure_anf(p)
+    p2 = elaborate(ctx, core)
     assert check_type(ctx, p2, ty)
     assert eval(p2, ectx) == res
 
@@ -49,7 +50,10 @@ def test_annotation():
 
 
 def test_annotation_anf():
-    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : {x:Int | x == 3} = 3 in f a) in j"""
+    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in
+                          let a : {x:Int | x == 3} = 3 in
+                          f a)
+                in j"""
     check_compile(source, parse_type("{x:Int | x == 3}"), 3)
 
 

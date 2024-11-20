@@ -16,12 +16,10 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float32
 from z3.z3 import FP
 from z3.z3 import ForAll
 from z3.z3 import FPSort
 from z3.z3 import Float64
-from z3.z3 import ForAll
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import Not
@@ -39,7 +37,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, Bottom, RefinedType, Top, TypePolymorphism
 from aeon.core.types import BaseType
 from aeon.core.types import Type
 from aeon.core.types import t_bool
@@ -196,33 +194,53 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache = {}
 
 
-def get_sort(base: BaseType) -> Any:
-    if base == t_int:
-        return IntSort()
-    elif base == t_bool:
-        return BoolSort()
-    elif base == t_float:
-        return Float64()
-    elif base == t_string:
-        return StringSort()
-    elif base.name == "TypeVarPlaceHolder":
-        return IntSort()
-    elif isinstance(base, BaseType):
-        if base.name not in sort_cache:
-            sort_cache[base.name] = DeclareSort(base.name)
-        return sort_cache[base.name]
-    logger.error(f"No sort implemented: {base}")
-    assert False
+def get_sort(base: Type) -> Any:
+    match base:
+        case Bottom():
+            return DeclareSort("Bottom")
+        case Top():
+            return DeclareSort("Top")
+
+        case BaseType("Int"):
+            return IntSort()
+        case BaseType("Bool"):
+            return BoolSort()
+        case BaseType("Float"):
+            return Float64()
+        case BaseType("String"):
+            return StringSort()
+        case BaseType("TypeVarPlaceHolder"):
+            return IntSort()  # TODO
+        case BaseType(name):
+            if name not in sort_cache:
+                sort_cache[name] = DeclareSort(name)
+            return sort_cache[name]
+        case _:
+            raise Exception(f"SMT sort of {base} not implemented.")
 
 
-def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
-    current: Type = base
+def unrefine_type(base: Type):
+    """Removes refinements from type."""
+    match base:
+        case RefinedType(_, ty, _):
+            return ty
+        case AbstractionType(name, aty, rty):
+            return AbstractionType(name, unrefine_type(aty), unrefine_type(rty))
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, unrefine_type(body))
+        case _:
+            return base
+
+
+def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType | Top | Bottom]:
+    current: Type = unrefine_type(base)
     inputs = []
     while isinstance(current, AbstractionType):
         assert isinstance(current.var_type, BaseType)
         inputs.append(current.var_type)
         current = current.type
-    assert isinstance(current, BaseType)
+
+    assert isinstance(current, BaseType) or isinstance(current, Top) or isinstance(current, Bottom)
     return (inputs, current)
 
 
@@ -267,12 +285,13 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
-                if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
+                if v[0] == t.fun:
                     f = v[1]
         if f is None:
             logger.error(f"Failed to find function {t.fun}.")
             assert False
         args = [translate_liq(a, variables) for a in t.args]
+
         return f(*args)
     assert False
 
@@ -286,6 +305,7 @@ def translate(
         for (name, base) in c.binders[::-1]
         if isinstance(base, BaseType) or isinstance(base, AbstractionType)
     ] + extra
+
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):

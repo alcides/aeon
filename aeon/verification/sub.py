@@ -14,7 +14,6 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
-from aeon.core.types import TypeVar
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication

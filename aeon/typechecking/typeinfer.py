@@ -33,7 +33,6 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.core.types import args_size_of_type
 from aeon.core.types import bottom
 from aeon.core.types import extract_parts
 from aeon.core.types import t_bool
@@ -43,7 +42,6 @@ from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -51,7 +49,6 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
-from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 

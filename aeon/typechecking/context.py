@@ -111,6 +111,7 @@ class UninterpretedBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass(init=False)
 class VariableBinder(TypingContext):
     prev: TypingContext
     name: str
@@ -147,7 +148,9 @@ class VariableBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass(init=False)
 class TypeBinder(TypingContext):
+    prev: TypingContext
     type_name: str
     type_kind: Kind
 

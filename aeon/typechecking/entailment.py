@@ -5,7 +5,6 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
-from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import EmptyContext
@@ -18,21 +17,23 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
+from aeon.core.liquid_ops import all_ops
+
 
 def entailment(ctx: TypingContext, c: Constraint):
-    if isinstance(ctx, EmptyContext):
-        r = solve(c)
-        return r
-    elif isinstance(ctx, VariableBinder):
-        if isinstance(ctx.type, AbstractionType):
-            return entailment(ctx.prev, c)
-        if isinstance(ctx.type, TypePolymorphism):
-            return entailment(
-                ctx.prev,
-                c,
-            )  # TODO: check that this is not relevant
-        else:
-            ty: Type = ctx.type
+    match ctx:
+        case EmptyContext():
+            return solve(c)
+        case VariableBinder(prev, name, AbstractionType(vname, vtype, rtype)):
+            if name in all_ops:
+                return entailment(prev, c)
+            else:
+                return entailment(prev, UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c))
+
+        case VariableBinder(prev, name, TypePolymorphism(_, _, _)):
+            return entailment(prev, c)
+        case VariableBinder(prev, name, ty):
+            print("ping!", name, ty)
             (name, base, cond) = extract_parts(ty)
             if isinstance(base, BaseType):
                 ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
@@ -44,16 +45,14 @@ def entailment(ctx: TypingContext, c: Constraint):
                 assert False  # TypeVars are being replaced by Int
             else:
                 assert False
+        case TypeBinder(prev, _, _):
+            return entailment(prev, c)
+            # TODO: Consider passing as a concrete placeholder type for SMT
+        case UninterpretedBinder(prev, name, type):
 
-    elif isinstance(ctx, TypeBinder):
-        return entailment(
-            ctx.prev,
-            c,
-        )  # TODO: Consider passing as a concrete placeholder type for SMT
-    elif isinstance(ctx, UninterpretedBinder):
-        return entailment(
-            ctx.prev,
-            UninterpretedFunctionDeclaration(ctx.name, ctx.type, c),
-        )
-    else:
-        assert False
+            return entailment(
+                prev,
+                UninterpretedFunctionDeclaration(name, type, c),
+            )
+        case _:
+            assert False
