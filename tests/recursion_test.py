@@ -3,14 +3,12 @@ from __future__ import annotations
 from aeon.core.types import top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type
-from aeon.typechecking.elaboration import elaborate
+from aeon.typechecking import elaborate_and_check
 
 
 def check_compile(source, ty):
-    p, ctx, ectx = desugar(parse_program(source))
-    p2 = elaborate(ctx, p)
-    assert check_type(ctx, p2, ty)
+    p, ctx, ectx, _ = desugar(parse_program(source))
+    assert elaborate_and_check(ctx, p, ty)
 
 
 def test_anf():

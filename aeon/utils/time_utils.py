@@ -6,7 +6,6 @@ from time import perf_counter
 
 from loguru import logger
 
-from loguru import logger
 
 
 def measure(func):

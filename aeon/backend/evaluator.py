@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-from loguru import logger
 
 from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation

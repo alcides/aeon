@@ -4,16 +4,16 @@ from aeon.backend.evaluator import eval
 from aeon.core.types import top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking import elaborate_and_check
 
 
 def check_compile(source, ty):
     p, ctx, ectx, _ = desugar(parse_program(source))
-    assert check_type(ctx, p, ty)
+    assert elaborate_and_check(ctx, p, ty)
     assert eval(p, ectx) == 2
 
 
-def test_anf():
+def test_anf_native():
     source = r"""
         type Unit;
         def plus1 : (i:Int) -> Int = \i -> i + 1;

@@ -7,7 +7,6 @@ from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
-from aeon.core.liquid import liquid_free_vars
 
 
 class Kind(ABC):
@@ -38,11 +37,9 @@ class Type(ABC):
     pass
 
 
+@dataclass
 class BaseType(Type):
     name: str
-
-    def __init__(self, name):
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -54,11 +51,9 @@ class BaseType(Type):
         return hash(self.name)
 
 
+@dataclass
 class TypeVar(Type):
     name: str
-
-    def __init__(self, name):
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -110,15 +105,11 @@ top = Top()
 bottom = Bottom()
 
 
+@dataclass
 class AbstractionType(Type):
     var_name: str
     var_type: Type
     type: Type
-
-    def __init__(self, var_name: str, var_type: Type, type: Type):
-        self.var_name = var_name
-        self.var_type = var_type
-        self.type = type
 
     def __repr__(self):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
@@ -135,25 +126,18 @@ class AbstractionType(Type):
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
 
 
+@dataclass
 class RefinedType(Type):
     name: str
     type: BaseType | TypeVar
     refinement: LiquidTerm
-
-    def __init__(self, name: str, ty: BaseType | TypeVar, refinement: LiquidTerm):
-        self.name = name
-        self.type = ty
-        self.refinement = refinement
-        # Disabled because of unification var
-        # assert isinstance(ty, BaseType) or isinstance(ty, TypeVar) or isinstance(ty, UnificationVar)
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
         return (
-            isinstance(other, RefinedType)
-            and self.name == other.name
+            isinstance(other, RefinedType) and self.name == other.name
             and self.type == other.type
             and self.refinement == other.refinement
         )
@@ -172,10 +156,11 @@ class TypePolymorphism(Type):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
 
-def extract_parts(
-    t: Type,
-) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
+def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(
+        t,
+        TypeVar,
+    )
     if isinstance(t, TypeVar):
         return ("_", t_int, LiquidLiteralBool(True))
     elif isinstance(t, RefinedType):
@@ -197,7 +182,10 @@ def is_bare(t: Type) -> bool:
     elif isinstance(t, Bottom):
         return True
     elif isinstance(t, RefinedType):
-        return t.refinement == LiquidHole() or isinstance(t.refinement, LiquidHornApplication)
+        return t.refinement == LiquidHole() or isinstance(
+            t.refinement,
+            LiquidHornApplication,
+        )
     elif isinstance(t, AbstractionType):
         return is_bare(t.var_type) and is_bare(t.type)
     elif isinstance(t, TypePolymorphism):
@@ -267,7 +255,11 @@ def refined_to_unrefined_type(ty: Type) -> Type:
     if isinstance(ty, RefinedType):
         return ty.type
     if isinstance(ty, AbstractionType):
-        return AbstractionType(ty.var_name, refined_to_unrefined_type(ty.var_type), refined_to_unrefined_type(ty.type))
+        return AbstractionType(
+            ty.var_name,
+            refined_to_unrefined_type(ty.var_type),
+            refined_to_unrefined_type(ty.type),
+        )
     return ty
 
 
