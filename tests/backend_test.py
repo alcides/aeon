@@ -21,7 +21,10 @@ def test_application():
     assert eval(parse_term("(\\x -> (\\y -> x)) 1 2")) == 1
     assert eval(parse_term("(\\x -> (\\y -> y)) 1 2")) == 2
 
-    assert eval(parse_term("(\\x -> (\\y -> y)) 1 a"), EvaluationContext({"a": 2})) == 2
+    assert eval(
+        parse_term("(\\x -> (\\y -> y)) 1 a"),
+        EvaluationContext({"a": 2}),
+    ) == 2
 
 
 def test_if():
@@ -41,15 +44,17 @@ def test_let():
 
 
 def test_rec():
-    assert (
-        eval(
-            parse_term("let fact : (x:Int) -> Int = (\\n -> (if n > 0 then 1 * fact (n-1) else 1)) in fact 3"),
-            EvaluationContext(
-                {">": lambda x: lambda y: x > y, "-": lambda x: lambda y: x - y, "*": lambda x: lambda y: x * y}
-            ),
-        )
-        == 1
-    )
+    assert (eval(
+        parse_term(
+            "let fact : (x:Int) -> Int = (\\n -> (if n > 0 then 1 * fact (n-1) else 1)) in fact 3",
+        ),
+        EvaluationContext(
+            {
+                ">": lambda x: lambda y: x > y,
+                "-": lambda x: lambda y: x - y,
+                "*": lambda x: lambda y: x * y,
+            }, ),
+    ) == 1)
 
 
 def test_type_abs_app():

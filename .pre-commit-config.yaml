@@ -15,11 +15,6 @@ repos:
     rev: v2.7.0
     hooks:
       - id: setup-cfg-fmt
-  - repo: https://github.com/asottile/add-trailing-comma
-    rev: v3.1.0
-    hooks:
-      - id: add-trailing-comma
-        args: [--py36-plus]
   - repo: https://github.com/PyCQA/docformatter
     rev: 06907d0267368b49b9180eed423fae5697c1e909
     hooks:

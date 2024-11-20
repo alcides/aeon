@@ -46,12 +46,20 @@ def test_fitness():
         type=BaseType("Int"),
         body=Application(
             Application(Var("synth"), Literal(7, BaseType("Int"))),
-            Application(Var("-"), Var("synth"))),
+            Application(Var("-"), Var("synth")),
+        ),
     )
-    term, _ = synthesize(ctx, ectx, p, [("synth", ["hole"])],
-                         {"synth": {
-                             "minimize_int": [internal_minimize]
-                         }})
+    term, _ = synthesize(
+        ctx,
+        ectx,
+        p,
+        [("synth", ["hole"])],
+        {
+            "synth": {
+                "minimize_int": [internal_minimize],
+            },
+        },
+    )
 
     assert isinstance(term, Term)
 

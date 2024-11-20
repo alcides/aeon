@@ -20,8 +20,13 @@ class TerminalUI(SynthesisUI):
         self.target_type = target_type
         self.budget = budget
 
-    def register(self, solution: Term, quality: Any, elapsed_time: float,
-                 is_best: bool):
+    def register(
+        self,
+        solution: Term,
+        quality: Any,
+        elapsed_time: float,
+        is_best: bool,
+    ):
         if is_best:
             self.best_solution = solution
             self.best_quality = quality
@@ -29,7 +34,7 @@ class TerminalUI(SynthesisUI):
         print(
             f"Target: {self.target_name} ({elapsed_time:.1f} / {self.budget:.1f}s) "
             + f"| Best: {self.best_solution} ({self.best_quality}) " +
-            f"| Current: {solution} ({quality})")
+            f"| Current: {solution} ({quality})", )
 
     def end(self, solution: Term, quality: Any):
         pass

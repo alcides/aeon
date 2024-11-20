@@ -30,7 +30,10 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)])),
+    LiquidConstraint(LiquidApp(
+        "==",
+        [LiquidVar("x"), LiquidLiteralInt(3)],
+    ), ),
 )
 
 
@@ -46,7 +49,10 @@ example2 = Implication(
         "y",
         BaseType("a"),
         LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
-        LiquidConstraint(LiquidApp("==", [LiquidVar("x"), LiquidVar("y")])),
+        LiquidConstraint(LiquidApp(
+            "==",
+            [LiquidVar("x"), LiquidVar("y")],
+        ), ),
     ),
 )
 
@@ -57,7 +63,7 @@ def test_other_sorts():
 
 # this test fails with def List_new : {x:List | List_size x == 0} ,
 # but with def List_new : {u:List | List_size u == 0} works fine
-def test_uninterpreted():
+def test_uninterpreted() -> None:
     aeon_code = """
 type List;
 def List_size: (l:List) -> Int = uninterpreted;
@@ -86,7 +92,7 @@ def main (x:Int) : Unit {
     assert len(type_errors) == 0
 
 
-def test_uninterpreted2():
+def test_uninterpreted2() -> None:
     aeon_code = """
 type List;
 def List_size: (l:List) -> Int = uninterpreted;

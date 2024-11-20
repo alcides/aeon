@@ -27,7 +27,7 @@ def test_hole_minimize_int():
     assert len(list(iterate_top_level(core))) == 3 + 1
 
 
-def test_eq():
+def test_eq() -> None:
     aeon_code = """
         def main(args:Int) : Unit {
             x : String = "ola";
