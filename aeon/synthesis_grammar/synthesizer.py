@@ -112,7 +112,7 @@ class TargetMultiSameFitness(SearchBudget):
     def is_done(self, tracker: ProgressTracker):
         assert isinstance(tracker, MultiObjectiveProgressTracker)
         comps = tracker.get_best_individuals()[0].get_fitness(
-            tracker.get_problem()).fitness_components
+            tracker.get_problem(), ).fitness_components
         return all(abs(c - self.target_fitness) < 0.001 for c in comps)
 
 
@@ -138,11 +138,13 @@ class LazyCSVRecorder(SearchRecorder):
         if fields is not None:
             self.fields = fields
 
-    def register(self,
-                 tracker: Any,
-                 individual: Individual,
-                 problem: Problem,
-                 is_best=True):
+    def register(
+        self,
+        tracker: Any,
+        individual: Individual,
+        problem: Problem,
+        is_best=True,
+    ):
         if self.csv_file is None:
             self.csv_file = open(self.csv_file_path, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)
@@ -159,7 +161,7 @@ class LazyCSVRecorder(SearchRecorder):
                 for comp in range(problem.number_of_objectives()):
                     self.fields[
                         f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(
-                            p).fitness_components[comp]
+                            p, ).fitness_components[comp]
             if self.extra_fields is not None:
                 for name in self.extra_fields:
                     self.fields[name] = self.extra_fields[name]
@@ -194,8 +196,13 @@ def is_valid_term_literal(term_literal: Term) -> bool:
             and isinstance(term_literal.value, int) and term_literal.value > 0)
 
 
-def get_csv_file_path(file_path: str, representation: type, seed: int,
-                      hole_name: str, config_name: str) -> str | None:
+def get_csv_file_path(
+    file_path: str,
+    representation: type,
+    seed: int,
+    hole_name: str,
+    config_name: str,
+) -> str | None:
     """Generate a CSV file path based on the provided file_path,
     representation, and seed.
 
@@ -206,8 +213,11 @@ def get_csv_file_path(file_path: str, representation: type, seed: int,
 
     file_name = os.path.basename(file_path)
     name_without_extension, _ = os.path.splitext(file_name)
-    directory = os.path.join("csv", name_without_extension,
-                             representation.__class__.__name__)
+    directory = os.path.join(
+        "csv",
+        name_without_extension,
+        representation.__class__.__name__,
+    )
     os.makedirs(directory, exist_ok=True)
 
     hole_suffix = f"_{hole_name}" if hole_name else ""
@@ -244,7 +254,9 @@ def create_evaluator(
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
     fitness_decorators = [
-        "minimize_int", "minimize_float", "multi_minimize_float"
+        "minimize_int",
+        "minimize_float",
+        "multi_minimize_float",
     ]
     used_decorators = [
         decorator for decorator in fitness_decorators
@@ -261,16 +273,22 @@ def create_evaluator(
         for objective in objectives_list
     ]
 
-    def evaluate_individual(individual: classType,
-                            result_queue: mp.Queue) -> Any:
+    def evaluate_individual(
+        individual: classType,
+        result_queue: mp.Queue,
+    ) -> Any:
         """Function to run in a separate process and places the result in a Queue."""
         try:
             start = time.time()
             first_hole_name = holes[0]
             individual_term = individual.get_core()  # type: ignore
             individual_term = ensure_anf(individual_term, 10000000)
-            individual_type_check(ctx, program, first_hole_name,
-                                  individual_term)
+            individual_type_check(
+                ctx,
+                program,
+                first_hole_name,
+                individual_term,
+            )
             results = [
                 eval(substitution(p, individual_term, first_hole_name), ectx)
                 for p in programs_to_evaluate
@@ -284,16 +302,20 @@ def create_evaluator(
         except Exception as e:
             # import traceback
             # traceback.print_exc()
-            logger.log("SYNTHESIZER",
-                       f"Failed in the fitness function: {e}, {type(e)}")
+            logger.log(
+                "SYNTHESIZER",
+                f"Failed in the fitness function: {e}, {type(e)}",
+            )
             result_queue.put(ERROR_FITNESS)
 
     def evaluator(individual: classType) -> Any:
         """Evaluates an individual with a timeout."""
         assert len(holes) == 1, "Only 1 hole per function is supported now"
         result_queue = mp.Queue()
-        eval_process = mp.Process(target=evaluate_individual,
-                                  args=(individual, result_queue))
+        eval_process = mp.Process(
+            target=evaluate_individual,
+            args=(individual, result_queue),
+        )
         eval_process.start()
         eval_process.join(timeout=TIMEOUT_DURATION)
 
@@ -322,7 +344,9 @@ def problem_for_fitness_function(
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = [
-        "minimize_int", "minimize_float", "multi_minimize_float"
+        "minimize_int",
+        "minimize_float",
+        "multi_minimize_float",
     ]
 
     if fun_name in metadata:
@@ -334,61 +358,90 @@ def problem_for_fitness_function(
 
         set_error_fitness(used_decorators)
 
-        fitness_function = create_evaluator(ctx, ectx, term, fun_name,
-                                            metadata, hole_names)
+        fitness_function = create_evaluator(
+            ctx,
+            ectx,
+            term,
+            fun_name,
+            metadata,
+            hole_names,
+        )
         problem_type = MultiObjectiveProblem if is_multiobjective(
-            used_decorators) else SingleObjectiveProblem
+            used_decorators, ) else SingleObjectiveProblem
         target_fitness: float | list[float] = (
             0 if isinstance(problem_type, SingleObjectiveProblem) else 0
         )  # TODO: add support to maximize decorators
 
-        return problem_type(fitness_function=fitness_function,
-                            minimize=MINIMIZE_OBJECTIVE), target_fitness
+        return problem_type(
+            fitness_function=fitness_function,
+            minimize=MINIMIZE_OBJECTIVE,
+        ), target_fitness
     else:
-        return SingleObjectiveProblem(fitness_function=lambda x: 0,
-                                      minimize=True), 0
+        return SingleObjectiveProblem(
+            fitness_function=lambda x: 0,
+            minimize=True,
+        ), 0
 
 
-def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str,
-                           metadata: Metadata):
+def get_grammar_components(
+    ctx: TypingContext,
+    ty: Type,
+    fun_name: str,
+    metadata: Metadata,
+):
     grammar_nodes = gen_grammar_nodes(ctx, fun_name, metadata, [])
 
     assert len(grammar_nodes) > 0
     assert isinstance(
-        ty, (BaseType, RefinedType))  # TODO Synthesis: Support other types?
+        ty,
+        (BaseType, RefinedType),
+    )  # TODO Synthesis: Support other types?
     hole_type_name = process_type_name(ty)
-    grammar_nodes, starting_node = find_class_by_name("t_" + hole_type_name,
-                                                      grammar_nodes, ty)
+    grammar_nodes, starting_node = find_class_by_name(
+        "t_" + hole_type_name,
+        grammar_nodes,
+        ty,
+    )
     assert starting_node is not None, "Starting Node is None"
     grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str,
-                   metadata: dict[str, Any]):
+def create_grammar(
+    holes: dict[str, tuple[Type, TypingContext]],
+    fun_name: str,
+    metadata: dict[str, Any],
+):
     assert len(
-        holes
+        holes,
     ) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
     grammar_nodes, starting_node = get_grammar_components(
-        ctx, ty, fun_name, metadata)
+        ctx,
+        ty,
+        fun_name,
+        metadata,
+    )
     return extract_grammar(grammar_nodes, starting_node)
 
 
-def random_search_synthesis(grammar: Grammar,
-                            problem: Problem,
-                            budget: int = 1000) -> Term:
+def random_search_synthesis(
+    grammar: Grammar,
+    problem: Problem,
+    budget: int = 1000,
+) -> Term:
     """Performs a synthesis procedure with Random Search."""
     max_depth = 5
     rep = TreeBasedRepresentation(grammar, max_depth)
     r = RandomSource(42)
 
     population = [rep.create_individual(r, max_depth) for _ in range(budget)]
-    population_with_score = [(problem.evaluate(phenotype),
-                              phenotype.get_core())
-                             for phenotype in population]
+    population_with_score = [(
+        problem.evaluate(phenotype),
+        phenotype.get_core(),
+    ) for phenotype in population]
     return min(population_with_score, key=lambda x: x[0])[1]
 
 
@@ -439,34 +492,50 @@ def geneticengine_synthesis(
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
     representation: type = representations[representation_name](
-        grammar, max_depth=gp_params["max_depth"])
+        grammar,
+        max_depth=gp_params["max_depth"],
+    )
 
     tracker: ProgressTracker
 
     recorders = []
     if filename:
-        csv_file_path = get_csv_file_path(filename, representation, seed,
-                                          hole_name, config_name)
+        csv_file_path = get_csv_file_path(
+            filename,
+            representation,
+            seed,
+            hole_name,
+            config_name,
+        )
         recorders.append(
             LazyCSVRecorder(
                 csv_file_path,
                 problem,
-                only_record_best_individuals=gp_params["only_record_best_inds"]
+                only_record_best_individuals=gp_params[
+                    "only_record_best_inds"],
             ), )
     if isinstance(problem, SingleObjectiveProblem):
         tracker = SingleObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
+            problem,
+            evaluator=SequentialEvaluator(),
+            recorders=recorders,
+        )
     else:
         tracker = MultiObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
+            problem,
+            evaluator=SequentialEvaluator(),
+            recorders=recorders,
+        )
 
     class UIBackendRecorder(SearchRecorder):
 
-        def register(self,
-                     tracker: Any,
-                     individual: Individual,
-                     problem: Problem,
-                     is_best=False):
+        def register(
+            self,
+            tracker: Any,
+            individual: Individual,
+            problem: Problem,
+            is_best=False,
+        ):
             ui.register(
                 individual.get_phenotype().get_core(),
                 individual.get_fitness(problem),
@@ -481,10 +550,14 @@ def geneticengine_synthesis(
         if isinstance(tracker, SingleObjectiveProgressTracker):
             search_budget = TargetFitness(target_fitness)
         elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness, list):
+                target_fitness,
+                list,
+        ):
             search_budget = TargetMultiFitness(target_fitness)
         elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness, (float, int)):
+                target_fitness,
+            (float, int),
+        ):
             search_budget = TargetMultiSameFitness(target_fitness)
         else:
             assert False
@@ -552,14 +625,23 @@ def synthesize_single_function(
     #  to use (e.g., Random Search, Genetic Programming, others...)
 
     # Step 3 Synthesize an element
-    synthesized_element = geneticengine_synthesis(grammar, problem, filename,
-                                                  hole_name, target_fitness,
-                                                  synth_config, ui)
+    synthesized_element = geneticengine_synthesis(
+        grammar,
+        problem,
+        filename,
+        hole_name,
+        target_fitness,
+        synth_config,
+        ui,
+    )
     # synthesized_element = random_search_synthesis(grammar, problem)
 
     # Step 4 Substitute the synthesized element in the original program and return it.
-    return synthesized_element, substitution(term, synthesized_element,
-                                             hole_name)
+    return synthesized_element, substitution(
+        term,
+        synthesized_element,
+        hole_name,
+    )
 
 
 def synthesize(
@@ -577,7 +659,7 @@ def synthesize(
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
     assert len(program_holes) == len(
-        targets), "No support for function with more than one hole"
+        targets, ), "No support for function with more than one hole"
 
     results = {}
 

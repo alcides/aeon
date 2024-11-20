@@ -106,9 +106,11 @@ def flatten_conditions(lista: list | Any) -> list:
 
 def conditional_to_interval(cond: list, name: str) -> Set:
     try:
-        return reduce_rational_inequalities([cond],
-                                            Symbol(name),
-                                            relational=False)
+        return reduce_rational_inequalities(
+            [cond],
+            Symbol(name),
+            relational=False,
+        )
     except Exception as err:
         raise Exception("Failed to do ranged analysis due to: {}".format(err))
 
