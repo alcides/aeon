@@ -36,7 +36,7 @@ dependencies = [
     'sympy',
     'textdistance',
     'z3-solver >= 4',
-    'zstandard==0.15.2',
+    'zstandard==0.23.0',
     'zss'
 ]
 
