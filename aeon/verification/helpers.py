@@ -323,7 +323,7 @@ def reduce_to_useful_constraint(c: Constraint) -> Constraint:
             cons_simp = simplify_constraint(cons)
             cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
             top.append(cons_clean)
-    return reduce(Conjunction, top)
+    return reduce(Conjunction, top, LiquidConstraint(LiquidLiteralBool(True)))  # type: ignore
 
 
 def pretty_print_constraint(c: Constraint) -> str:

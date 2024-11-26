@@ -60,8 +60,8 @@ from aeon.synthesis_grammar.grammar import (
     build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
+from aeon.typechecking import elaborate_and_check_type_errors
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
 
 
 # TODO add timer to synthesis
@@ -111,8 +111,8 @@ class TargetMultiSameFitness(SearchBudget):
 
     def is_done(self, tracker: ProgressTracker):
         assert isinstance(tracker, MultiObjectiveProgressTracker)
-        comps = tracker.get_best_individuals()[0].get_fitness(
-            tracker.get_problem(), ).fitness_components
+        comps = (tracker.get_best_individuals()[0].get_fitness(
+            tracker.get_problem(), ).fitness_components)
         return all(abs(c - self.target_fitness) < 0.001 for c in comps)
 
 
@@ -241,7 +241,7 @@ def filter_nan_values(result):
 
 def individual_type_check(ctx, program, first_hole_name, individual_term):
     new_program = substitution(program, individual_term, first_hole_name)
-    check_type_errors(ctx, new_program, Top())
+    elaborate_and_check_type_errors(ctx, new_program, Top())
 
 
 def create_evaluator(
@@ -366,21 +366,27 @@ def problem_for_fitness_function(
             metadata,
             hole_names,
         )
-        problem_type = MultiObjectiveProblem if is_multiobjective(
-            used_decorators, ) else SingleObjectiveProblem
+        problem_type = (MultiObjectiveProblem if is_multiobjective(
+            used_decorators, ) else SingleObjectiveProblem)
         target_fitness: float | list[float] = (
             0 if isinstance(problem_type, SingleObjectiveProblem) else 0
         )  # TODO: add support to maximize decorators
 
-        return problem_type(
-            fitness_function=fitness_function,
-            minimize=MINIMIZE_OBJECTIVE,
-        ), target_fitness
+        return (
+            problem_type(
+                fitness_function=fitness_function,
+                minimize=MINIMIZE_OBJECTIVE,
+            ),
+            target_fitness,
+        )
     else:
-        return SingleObjectiveProblem(
-            fitness_function=lambda x: 0,
-            minimize=True,
-        ), 0
+        return (
+            SingleObjectiveProblem(
+                fitness_function=lambda x: 0,
+                minimize=True,
+            ),
+            0,
+        )
 
 
 def get_grammar_components(
@@ -412,9 +418,9 @@ def create_grammar(
     fun_name: str,
     metadata: dict[str, Any],
 ):
-    assert len(
+    assert (len(
         holes,
-    ) == 1, "More than one hole per function is not supported at the moment."
+    ) == 1), "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 

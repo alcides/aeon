@@ -28,7 +28,7 @@ from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.liquid import type_infer_liquid
-from aeon.verification.helpers import constraint_builder, reduce_to_useful_constraint
+from aeon.verification.helpers import constraint_builder
 from aeon.verification.helpers import end
 from aeon.verification.helpers import imp
 from aeon.verification.smt import smt_valid
@@ -350,8 +350,9 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
 def solve(c: Constraint) -> bool:
     # Performance improvement
     if not contains_horn_constraint(c):
-        v = reduce_to_useful_constraint(c)
-        return smt_valid(v)
+        # TODO: Try to simplify the expression before sending to the SMT solver
+        # v = reduce_to_useful_constraint(c)
+        return smt_valid(c)
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
     csp = [c for c in cs if not has_k_head(c)]

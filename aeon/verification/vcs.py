@@ -47,7 +47,7 @@ class UninterpretedFunctionDeclaration(Constraint):
 @dataclass
 class Implication(Constraint):
     name: str
-    base: BaseType
+    base: BaseType | AbstractionType
     pred: LiquidTerm
     seq: Constraint
 

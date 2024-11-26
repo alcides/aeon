@@ -291,7 +291,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
-            print(type(ty), "should be abstype in ", t)
+            print(ty, ":", type(ty), "should be abstype in ", t)
             raise CouldNotGenerateConstraintException(
                 f"Application {t} is not a function.",
             )
@@ -427,30 +427,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         return False
 
 
-def check_type_errors(
-    ctx: TypingContext,
-    t: Term,
-    ty: Type,
-) -> list[Exception | str]:
-    """Checks whether t as type ty in ctx, but returns a list of errors."""
-    try:
-        constraint = check(ctx, t, ty)
-        r = entailment(ctx, constraint)
-        if r:
-            return []
-        else:
-            return [
-                "Could not prove typing relation.",
-                f"Context: {ctx}",
-                f"Term: {t}",
-                f"Type: {ty}",
-            ]
-    except CouldNotGenerateConstraintException as e:
-        return [e]
-    except FailedConstraintException as e:
-        return [e]
-
-
 def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if args_size_of_type(subt) != args_size_of_type(supt):
         return False
@@ -462,15 +438,3 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
-
-
-# TODO: Move this method elsewhere?
-def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
-    """This method is designed to be called from the CLI, so it contains prints
-    instead of a logger."""
-    errors = check_type_errors(ctx, p, top)
-    if errors:
-        for error in errors:
-            print(error)
-        return True
-    return False

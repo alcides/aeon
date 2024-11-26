@@ -33,36 +33,34 @@ def ensure_refined(t: Type) -> RefinedType:
     assert False
 
 
-def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
-    if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
-        if isinstance(t.type, TypeVar):
-            t_ = BaseType("TypeVarPlaceHolder")  # TODO: Rethink this
-        else:
-            t_ = t.type
-        assert isinstance(t_, BaseType)
-        return Implication(name, t_, ref_subs, c)
-    elif isinstance(t, BaseType):
-        return Implication(name, t, LiquidLiteralBool(True), c)
-    elif isinstance(t, AbstractionType):
-        return implication_constraint(
-            t.var_name,
-            t.var_type,
-            implication_constraint(name, t.type, c),
-        )  # TODO: email Rahjit
-    elif isinstance(t, TypeVar):
-        # TODO: We are using Int here, but it could have been a singleton.
-        return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
-    elif isinstance(t, Bottom):
-        return c
-    elif isinstance(t, Top):
-        return c
-    elif isinstance(t, TypeVar):
-        return implication_constraint(name, BaseType("TypeVarPlaceHolder"), c)
-        # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
-    elif isinstance(t, TypePolymorphism):
-        return implication_constraint(t.name, t.body, c)
-    assert False
+def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
+    match ty:
+        case BaseType(_):
+            return Implication(name, ty, LiquidLiteralBool(True), c)
+        case RefinedType(tname, ttype, tref):
+            ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
+            if isinstance(ttype, TypeVar):
+                # TODO Sorts
+                t_ = BaseType("TypeVarPlaceHolder")
+            else:
+                t_ = ttype
+            assert isinstance(t_, BaseType)
+            return Implication(name, t_, ref_subs, c)
+        case AbstractionType(_, _, _):
+            # TODO Poly Refl: instead of true, reflect the implementation of the function?
+            return Implication(name, ty, LiquidLiteralBool(True), c)
+        case TypeVar(name):
+            # TODO Sorts: We are using Int here, but it could have been a singleton.
+            return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
+
+        case Bottom():
+            return c
+        case Top():
+            return c
+        case TypePolymorphism(name, _, _):
+            return c
+        case _:
+            assert False
 
 
 def sub(t1: Type, t2: Type) -> Constraint:
@@ -76,8 +74,7 @@ def sub(t1: Type, t2: Type) -> Constraint:
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
-            base_type = t1.type if isinstance(
-                t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
+            base_type = t1.type if isinstance(t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
             t2_subs = substitution_in_liquid(
                 t2.refinement,
                 LiquidVar(t1.name),
@@ -95,6 +92,7 @@ def sub(t1: Type, t2: Type) -> Constraint:
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
+
         c1 = sub(
             substitution_in_type(t1.type, Var(t2.var_name), t1.var_name),
             t2.type,
