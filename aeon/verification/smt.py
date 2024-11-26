@@ -168,6 +168,9 @@ def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = No
     cons: list[CanonicConstraint] = list(flatten(constraint, []))
     for c in cons:
         s.push()
+
+        # TODO now: Add monomorphic, uncurried functions here
+
         smt_c = translate(c, extra=forall_vars)
         for _, v in forall_vars:
             smt_c = ForAll(v, smt_c)
@@ -233,7 +236,10 @@ def unrefine_type(base: Type):
 
 
 def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType | Top | Bottom]:
+    print(base)
     current: Type = unrefine_type(base)
+    print(current)
+    print("...")
     inputs = []
     while isinstance(current, AbstractionType):
         assert isinstance(current.var_type, BaseType)
@@ -291,7 +297,6 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             logger.error(f"Failed to find function {t.fun}.")
             assert False
         args = [translate_liq(a, variables) for a in t.args]
-
         return f(*args)
     assert False
 

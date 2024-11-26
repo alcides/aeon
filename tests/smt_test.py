@@ -12,7 +12,7 @@ from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.typechecking import elaborate_and_check_type_errors
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
@@ -22,7 +22,7 @@ def extract_core(source: str) -> Term:
     prog = parse_program(source)
     core, ctx, _, _ = desugar(prog)
     core_anf = ensure_anf(core)
-    check_type_errors(ctx, core_anf, top)
+    elaborate_and_check_type_errors(ctx, core_anf, top)
     return core_anf
 
 
@@ -30,10 +30,12 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp(
-        "==",
-        [LiquidVar("x"), LiquidLiteralInt(3)],
-    ), ),
+    LiquidConstraint(
+        LiquidApp(
+            "==",
+            [LiquidVar("x"), LiquidLiteralInt(3)],
+        ),
+    ),
 )
 
 
@@ -49,10 +51,12 @@ example2 = Implication(
         "y",
         BaseType("a"),
         LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
-        LiquidConstraint(LiquidApp(
-            "==",
-            [LiquidVar("x"), LiquidVar("y")],
-        ), ),
+        LiquidConstraint(
+            LiquidApp(
+                "==",
+                [LiquidVar("x"), LiquidVar("y")],
+            ),
+        ),
     ),
 )
 
@@ -88,7 +92,7 @@ def main (x:Int) : Unit {
     ) = desugar(prog)
 
     core_ast_anf = ensure_anf(core_ast)
-    type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    type_errors = elaborate_and_check_type_errors(typing_ctx, core_ast_anf, top)
     assert len(type_errors) == 0
 
 
@@ -113,5 +117,5 @@ def main (x:Int) : Unit {
     ) = desugar(prog)
 
     core_ast_anf = ensure_anf(core_ast)
-    type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    type_errors = elaborate_and_check_type_errors(typing_ctx, core_ast_anf, top)
     assert len(type_errors) == 0

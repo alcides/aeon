@@ -217,8 +217,8 @@ def test_let_let():
 
 
 def test_sub():
-    subt = parse_type(r"(x:((z:{a:Int| a > 1 }) -> Int)) -> {k:Int | k > x}")
-    supt = parse_type(r"(y:((m:{b:Int| b > 0 }) -> Int)) -> {z:Int | z >= y}")
+    subt = parse_type(r"(x:(z:{a:Int| a > 1 }) -> Int) -> {k:Int | k > fresh_2}")
+    supt = parse_type(r"(y:(m:{b:Int| b > 0 }) -> Int) -> {z:Int | z >= fresh_2}")
     c = sub(subt, supt)
     assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)
 

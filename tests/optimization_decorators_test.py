@@ -5,14 +5,14 @@ from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program
 from aeon.synthesis_grammar.identification import iterate_top_level
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.typechecking import elaborate_and_check_type_errors
 
 
 def extract_core(source: str) -> Term:
     prog = parse_program(source)
     core, ctx, _, _ = desugar(prog)
     core_anf = ensure_anf(core)
-    check_type_errors(ctx, core_anf, top)
+    elaborate_and_check_type_errors(ctx, core_anf, top)
     return core_anf
 
 
@@ -45,5 +45,5 @@ def test_eq() -> None:
     ) = desugar(prog)
 
     core_ast_anf = ensure_anf(core_ast)
-    type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+    type_errors = elaborate_and_check_type_errors(typing_ctx, core_ast_anf, top)
     assert len(type_errors) == 0
