@@ -40,10 +40,6 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, Bottom, RefinedType, Top, TypePolymorphism
 from aeon.core.types import BaseType
 from aeon.core.types import Type
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_string
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -76,7 +72,7 @@ base_functions: dict[str, Any] = {
 
 @dataclass
 class CanonicConstraint:
-    binders: list[tuple[str, BaseType | AbstractionType]]
+    binders: list[tuple[str, BaseType | AbstractionType | Bottom | Top]]
     pre: LiquidTerm
     pos: LiquidTerm
 
@@ -170,7 +166,6 @@ def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = No
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
-
         smt_c = translate(c, extra=forall_vars)
         for _, v in forall_vars:
             smt_c = ForAll(v, smt_c)
@@ -190,7 +185,8 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
         if na == name:
             return ref
     vars = ", ".join([x[0] for x in variables])
-    logger.error(f"No variable {name} in the context: {vars}")
+    # logger.error(f"No variable {name} in the context: {vars}")
+    print(f"No variable {name} in the context: {vars}")
     assert False
 
 
@@ -236,10 +232,7 @@ def unrefine_type(base: Type):
 
 
 def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType | Top | Bottom]:
-    print(base)
     current: Type = unrefine_type(base)
-    print(current)
-    print("...")
     inputs = []
     while isinstance(current, AbstractionType):
         assert isinstance(current.var_type, BaseType)
@@ -250,26 +243,31 @@ def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType | Top | Bot
     return (inputs, current)
 
 
-def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
-    if base == t_int:
-        return Int(name)
-    elif base == t_bool:
-        return Bool(name)
-    elif base == t_float:
-        fpsort = FPSort(8, 24)
-        return FP(name, fpsort)
-    elif base == t_string:
-        return String(name)
-    elif isinstance(base, BaseType):
-        return Const(name, get_sort(base))
-    elif isinstance(base, AbstractionType):
-        if name in base_functions:
-            return base_functions[name]
-        input_types, output_type = uncurry(base)
-        args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
-        return Function(name, *args)
-    logger.error(f"No var: {name}, with base {base} of type {type(base)}")
-    assert False
+def make_variable(name: str, base: BaseType | AbstractionType | Top | Bottom) -> Any:
+    match base:
+        case Bottom() | Top():
+            return Const(name, get_sort(base))
+        case BaseType("Int"):
+            return Int(name)
+        case BaseType("Boolean"):
+            return Bool(name)
+        case BaseType("Float"):
+            fpsort = FPSort(8, 24)
+            return FP(name, fpsort)
+        case BaseType("String"):
+            return String(name)
+        case BaseType(_):
+            return Const(name, get_sort(base))
+        case AbstractionType(_, _, _):
+            if name in base_functions:
+                return base_functions[name]
+            else:
+                input_types, output_type = uncurry(base)
+                args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
+                return Function(name, *args)
+        case _:
+            logger.error(f"No var: {name}, with base {base} of type {type(base)}")
+            assert False
 
 
 def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
@@ -308,7 +306,10 @@ def translate(
     variables = [
         (name, make_variable(name, base))
         for (name, base) in c.binders[::-1]
-        if isinstance(base, BaseType) or isinstance(base, AbstractionType)
+        if isinstance(base, BaseType)
+        or isinstance(base, AbstractionType)
+        or isinstance(base, Top)
+        or isinstance(base, Bottom)
     ] + extra
 
     e1 = translate_liq(c.pre, variables)
