@@ -35,7 +35,7 @@ def ensure_refined(t: Type) -> RefinedType:
 
 def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
     match ty:
-        case BaseType(_):
+        case BaseType(_) | Bottom() | Top():
             return Implication(name, ty, LiquidLiteralBool(True), c)
         case RefinedType(tname, ttype, tref):
             ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
@@ -52,11 +52,6 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
         case TypeVar(name):
             # TODO Sorts: We are using Int here, but it could have been a singleton.
             return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
-
-        case Bottom():
-            return c
-        case Top():
-            return c
         case TypePolymorphism(name, _, _):
             return c
         case _:

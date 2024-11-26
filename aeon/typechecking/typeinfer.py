@@ -291,7 +291,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
-            print(ty, ":", type(ty), "should be abstype in ", t)
             raise CouldNotGenerateConstraintException(
                 f"Application {t} is not a function.",
             )

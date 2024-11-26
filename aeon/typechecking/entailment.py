@@ -33,7 +33,6 @@ def entailment(ctx: TypingContext, c: Constraint):
         case VariableBinder(prev, name, TypePolymorphism(_, _, _)):
             return entailment(prev, c)
         case VariableBinder(prev, name, ty):
-            print("ping!", name, ty)
             (name, base, cond) = extract_parts(ty)
             if isinstance(base, BaseType):
                 ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
@@ -45,11 +44,10 @@ def entailment(ctx: TypingContext, c: Constraint):
                 assert False  # TypeVars are being replaced by Int
             else:
                 assert False
-        case TypeBinder(prev, _, _):
+        case TypeBinder(prev, name, _):
             return entailment(prev, c)
             # TODO: Consider passing as a concrete placeholder type for SMT
         case UninterpretedBinder(prev, name, type):
-
             return entailment(
                 prev,
                 UninterpretedFunctionDeclaration(name, type, c),
