@@ -14,6 +14,18 @@ def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
 
 
 class LiquidHole(LiquidTerm):
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+
+def is_safe_for_application(x: LiquidTerm):
+    return (isinstance(x, LiquidVar) or isinstance(x, LiquidLiteralBool)
+            or isinstance(x, LiquidLiteralFloat)
+            or isinstance(x, LiquidLiteralInt)
+            or isinstance(x, LiquidLiteralString))
+
+
+class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: Sequence[tuple[LiquidTerm, str]]
 
@@ -26,7 +38,7 @@ class LiquidHole(LiquidTerm):
         use (ensure_liqterm(a), b) for (a, b) in argtypes."""
         self.name = name
         self.argtypes = argtypes or []
-        assert all(isinstance(a, LiquidVar) for (a, b) in self.argtypes)
+        assert all(is_safe_for_application(a) for (a, b) in self.argtypes)
         # [(ensure_liqterm(a), b) for (a, b) in (argtypes or [])]
 
     def __repr__(self):
@@ -34,7 +46,7 @@ class LiquidHole(LiquidTerm):
         return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidHole) and other.name == self.name
+        return isinstance(other, LiquidHornApplication) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import Kind
@@ -24,15 +24,10 @@ from aeon.verification.vcs import LiquidConstraint
 
 
 def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
-    # TODO: debug
-    # if isinstance(t, TypeVar):
-    #    print("d", ctx, t, k, ctx.typevars(), (t.name, BaseKind()))
     wf_norefinement = isinstance(t, BaseType)
-    wf_var = isinstance(t, TypeVar) and (
-        k == StarKind() and ((t.name, k) in ctx.typevars()) or (t.name in [v[0] for v in ctx.typevars()])
-    )
     wf_base = (
         isinstance(t, RefinedType)
+        and isinstance(t.type, BaseType)
         and wellformed(ctx, t.type, k)
         and type_infer_liquid(ctx.with_var(t.name, t.type), t.refinement) == t_bool
     )
@@ -42,10 +37,28 @@ def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
         and wellformed(ctx, t.var_type)
         and wellformed(ctx.with_var(t.var_name, t.var_type), t.type)
     )
+    wf_kind = k == StarKind() and wellformed(ctx, t, BaseKind())
+
+    wf_var_base = (
+        isinstance(t, RefinedType)
+        and isinstance(t.type, TypeVar)
+        and k == BaseKind()
+        and (t.type.name, BaseKind()) in ctx.typevars()
+        and type_infer_liquid(ctx.with_var(t.name, t.type), t.refinement) == t_bool
+    )
+
+    wf_var = isinstance(t, TypeVar) and (t.name in [v[0] for v in ctx.typevars()])
+    wf_var2 = (
+        isinstance(t, RefinedType)
+        and isinstance(t.type, TypeVar)
+        and (t.refinement == LiquidLiteralBool(True))
+        and (t.type.name, k) in ctx.typevars()
+    )
+
     wf_all = (
         isinstance(t, TypePolymorphism) and k == StarKind() and wellformed(ctx.with_typevar(t.name, t.kind), t.body)
     )
-    return wf_norefinement or wf_var or wf_base or wf_fun or wf_all
+    return wf_norefinement or wf_base or wf_fun or wf_kind or wf_var_base or wf_var or wf_var2 or wf_all
 
 
 def inhabited(ctx: TypingContext, ty: Type) -> bool:

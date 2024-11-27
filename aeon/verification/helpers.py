@@ -1,21 +1,20 @@
 from __future__ import annotations
 
+from functools import reduce
 from typing import Generator
 
-from loguru import logger
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHole
+from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import BaseType
+from aeon.core.types import AbstractionType, BaseType, Bottom, Top
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
-from aeon.core.types import Type
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
 from aeon.verification.vcs import Conjunction
@@ -47,19 +46,18 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[str, Type]], exp: Constraint):
+def constraint_builder(vs: list[tuple[str, BaseType | AbstractionType | Bottom | Top]], exp: Constraint):
     for n, t in vs[::-1]:
-        assert isinstance(t, BaseType)  # TODO: Check this type
         exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp
 
 
 def get_abs_example() -> Constraint:
-    hole = LiquidHole(
+    hole = LiquidHornApplication(
         "k",
         [(LiquidVar("x"), "Int"), (LiquidVar("v"), "Int")],
     )
-    hole2 = LiquidHole(
+    hole2 = LiquidHornApplication(
         "k",
         [(LiquidVar("y"), "Int"), (LiquidVar("z"), "Int")],
     )
@@ -126,7 +124,7 @@ def is_used(n: str, c: Constraint) -> bool:
     elif isinstance(c, Conjunction):
         return is_used(n, c.c1) or is_used(n, c.c2)
     else:
-        print(c)
+        print("Unsupported Constraint", c)
         assert False
 
 
@@ -160,7 +158,7 @@ def constraint_free_variables(c: Constraint) -> list[str]:
     elif isinstance(c, Conjunction):
         return constraint_free_variables(c.c1) + constraint_free_variables(c.c2)
     else:
-        print(c)
+        print("Unsupported constraint", c)
         assert False
 
 
@@ -316,6 +314,16 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[str]) -> tuple[Cons
         assert False
 
 
+def reduce_to_useful_constraint(c: Constraint) -> Constraint:
+    top = []
+    for cons in conjunctive_normal_form(c):
+        if not is_implication_true(cons):
+            cons_simp = simplify_constraint(cons)
+            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+            top.append(cons_clean)
+    return reduce(Conjunction, top, LiquidConstraint(LiquidLiteralBool(True)))  # type: ignore
+
+
 def pretty_print_constraint(c: Constraint) -> str:
     """Returns a string representation of a given Constraint.
 
@@ -342,8 +350,5 @@ def pretty_print_constraint(c: Constraint) -> str:
 
 
 def show_constraint(c: Constraint):
-    try:
-        logger.log("CONSTRAINT", "Could not show constrain:")
-        logger.log("CONSTRAINT", pretty_print_constraint(c))
-    except ValueError:
-        pass
+    print("Could not show constrain:")
+    print(pretty_print_constraint(c))
