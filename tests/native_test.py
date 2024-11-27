@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking import elaborate_and_check
@@ -9,7 +10,8 @@ from aeon.typechecking import elaborate_and_check
 
 def check_compile(source, ty):
     p, ctx, ectx, _ = desugar(parse_program(source))
-    assert elaborate_and_check(ctx, p, ty)
+    core_ast_anf = ensure_anf(p)
+    assert elaborate_and_check(ctx, core_ast_anf, ty)
     assert eval(p, ectx) == 2
 
 

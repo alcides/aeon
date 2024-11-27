@@ -7,6 +7,7 @@ from aeon.core.substitutions import liquefy
 from aeon.core.terms import Application
 from aeon.core.terms import Var
 from aeon.core.types import top
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking import elaborate_and_check
@@ -15,7 +16,8 @@ from aeon.utils.ast_helpers import i1
 
 def check_compile(source, ty, res):
     p, ctx, ectx, _ = desugar(parse_program(source))
-    assert elaborate_and_check(ctx, p, ty)
+    core_ast_anf = ensure_anf(p)
+    assert elaborate_and_check(ctx, core_ast_anf, ty)
 
 
 l1 = LiquidLiteralInt(1)

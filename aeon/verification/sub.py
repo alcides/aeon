@@ -49,10 +49,11 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
             return Implication(name, ty, LiquidLiteralBool(True), c)
-        case TypeVar(name):
+        case TypeVar(_):
+            print("weird", name)
             # TODO Sorts: We are using Int here, but it could have been a singleton.
             return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
-        case TypePolymorphism(name, _, _):
+        case TypePolymorphism(_, _, _):
             return c
         case _:
             assert False
