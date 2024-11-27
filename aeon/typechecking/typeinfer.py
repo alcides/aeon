@@ -402,7 +402,10 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         )
         return Conjunction(c0, Conjunction(c1, c2))
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
-        ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        if t.name != ty.name:
+            ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        else:
+            ty_right = ty
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
             raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)

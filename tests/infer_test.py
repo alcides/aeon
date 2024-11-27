@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.types import t_int
+from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
 from aeon.prelude.prelude import typing_vars
@@ -19,7 +20,9 @@ def tt(e: str, t: str, vars: None | dict[str, str] = None):
 
     ctx = build_context(base_dict)
     expected_type = parse_type(t)
-    return elaborate_and_check(ctx, parse_term(e), expected_type)
+    p = parse_term(e)
+    core_ast_anf = ensure_anf(p)
+    return elaborate_and_check(ctx, core_ast_anf, expected_type)
 
 
 def test_one_is_int():

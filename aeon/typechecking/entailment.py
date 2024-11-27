@@ -17,7 +17,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
-from aeon.core.liquid_ops import all_ops
+from aeon.core.liquid_ops import ops
 
 
 def entailment(ctx: TypingContext, c: Constraint):
@@ -25,20 +25,24 @@ def entailment(ctx: TypingContext, c: Constraint):
         case EmptyContext():
             return solve(c)
         case VariableBinder(prev, name, AbstractionType(vname, vtype, rtype)):
-            if name in all_ops:
+            if name in ops:
                 return entailment(prev, c)
             else:
                 return entailment(prev, UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c))
-
         case VariableBinder(prev, name, TypePolymorphism(_, _, _)):
-            return entailment(prev, c)
+            if name in ops:
+                return entailment(prev, c)
+            else:
+                # TODO: polymorphism
+                # Right now we are ignoring lifting functions with polymorphism
+                return entailment(prev, c)
         case VariableBinder(prev, name, ty):
-            (name, base, cond) = extract_parts(ty)
+            (nname, base, cond) = extract_parts(ty)
             if isinstance(base, BaseType):
-                ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
+                ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                 return entailment(
-                    ctx.prev,
-                    Implication(ctx.name, base, ncond, c),
+                    prev,
+                    Implication(name, base, ncond, c),
                 )
             elif isinstance(ctx.type, TypeVar):
                 assert False  # TypeVars are being replaced by Int

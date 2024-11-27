@@ -100,14 +100,18 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
 
 
 def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
-    if isinstance(c, LiquidConstraint):
-        return obtain_holes(c.expr)
-    elif isinstance(c, Conjunction):
-        return obtain_holes_constraint(c.c1) + obtain_holes_constraint(c.c2)
-    elif isinstance(c, Implication):
-        return obtain_holes(c.pred) + obtain_holes_constraint(c.seq)
-    else:
-        assert False
+    match c:
+        case Conjunction(c1, c2):
+            return obtain_holes_constraint(c1) + obtain_holes_constraint(c2)
+        case Implication(_, _, pre, post):
+            return obtain_holes(pre) + obtain_holes_constraint(post)
+        case LiquidConstraint(e):
+            return obtain_holes(e)
+        case UninterpretedFunctionDeclaration(_, _, post):
+            return obtain_holes_constraint(post)
+        case _:
+            print(c)
+            assert False
 
 
 def contains_horn(t: LiquidTerm) -> bool:
@@ -209,13 +213,17 @@ def merge_assignments(xs: list[LiquidTerm]) -> LiquidTerm:
 
 
 def split(c: Constraint) -> list[Constraint]:
-    if isinstance(c, LiquidConstraint):
-        return [c]
-    elif isinstance(c, Conjunction):
-        return split(c.c1) + split(c.c2)
-    elif isinstance(c, Implication):
-        return [Implication(c.name, c.base, c.pred, cp) for cp in split(c.seq)]
-    assert False
+    match c:
+        case LiquidConstraint(_):
+            return [c]
+        case Conjunction(c1, c2):
+            return split(c1) + split(c2)
+        case Implication(name, base, pre, post):
+            return [Implication(name, base, pre, cp) for cp in split(post)]
+        case UninterpretedFunctionDeclaration(name, type, seq):
+            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
+        case _:
+            assert False
 
 
 def build_forall_implication(
@@ -246,35 +254,39 @@ def flat(c: Constraint) -> list[Constraint]:
 
 
 def has_k_head(c: Constraint) -> bool:
-    if isinstance(c, Conjunction):
-        assert False
-    elif isinstance(c, Implication):
-        return has_k_head(c.seq)
-    elif isinstance(c, LiquidConstraint):
-        if isinstance(c.expr, LiquidHornApplication):
-            return True
-        else:
-            return False
-    else:
-        assert False
+    match c:
+        case Conjunction(_, _):
+            assert False
+        case Implication(_, _, _, post):
+            return has_k_head(post)
+        case LiquidConstraint(e):
+            return isinstance(e, LiquidHornApplication)
+        case UninterpretedFunctionDeclaration(_, _, post):
+            return has_k_head(post)
+        case _:
+            assert False
 
 
 def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
-    if isinstance(c, LiquidConstraint):
-        return LiquidConstraint(apply_liquid(assign, c.expr))
-    elif isinstance(c, Conjunction):
-        return Conjunction(
-            apply_constraint(assign, c.c1),
-            apply_constraint(assign, c.c2),
-        )
-    elif isinstance(c, Implication):
-        return Implication(
-            c.name,
-            c.base,
-            apply_liquid(assign, c.pred),
-            apply_constraint(assign, c.seq),
-        )
-    assert False
+    match c:
+        case LiquidConstraint(e):
+            return LiquidConstraint(apply_liquid(assign, e))
+        case Conjunction(c1, c2):
+            return Conjunction(
+                apply_constraint(assign, c1),
+                apply_constraint(assign, c2),
+            )
+        case Implication(name, base, pre, post):
+            return Implication(
+                name,
+                base,
+                apply_liquid(assign, pre),
+                apply_constraint(assign, post),
+            )
+        case UninterpretedFunctionDeclaration(name, base, post):
+            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
+        case _:
+            assert False
 
 
 def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
@@ -307,19 +319,20 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[str, Type]], tuple[LiquidTerm, LiquidTerm]]:
-    assert isinstance(c, Implication)
-    if isinstance(c.seq, LiquidConstraint):
-        vs: list[tuple[str, Type]] = [(c.name, c.base)]
-        p = c.pred
-        h = c.seq.expr
-        return (vs, (p, h))
-    elif isinstance(c.seq, Implication):
-        (vs1, (p, h)) = extract_components_of_imp(c.seq)
-        vsh = [(c.name, c.base)]
-        return (vsh + vs1, (p, h))
-    else:
-        assert False
+) -> tuple[list[tuple[str, AbstractionType | BaseType | Top | Bottom]], tuple[LiquidTerm, LiquidTerm]]:
+    match c:
+        case UninterpretedFunctionDeclaration(name, base, post):
+            vars, (t1, t2) = extract_components_of_imp(post)
+            return ([(name, base)] + vars, (t1, t2))
+        case Implication(name, base, pre, LiquidConstraint(e)):
+            vs: list[tuple[str, AbstractionType | BaseType | Top | Bottom]] = [(c.name, c.base)]
+            return (vs, (pre, e))
+        case Implication(name, base, pre, Implication(_, _, _, _)):
+            (vs1, (p, h)) = extract_components_of_imp(c.seq)
+            vsh = [(name, base)]
+            return (vsh + vs1, (p, h))
+        case _:
+            assert False
 
 
 def weaken(assign, c: Constraint) -> Assignment:

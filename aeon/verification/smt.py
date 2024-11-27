@@ -185,8 +185,7 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
         if na == name:
             return ref
     vars = ", ".join([x[0] for x in variables])
-    # logger.error(f"No variable {name} in the context: {vars}")
-    print(f"No variable {name} in the context: {vars}")
+    logger.error(f"No variable {name} in the context: {vars}")
     assert False
 
 
@@ -199,7 +198,6 @@ def get_sort(base: Type) -> Any:
             return DeclareSort("Bottom")
         case Top():
             return DeclareSort("Top")
-
         case BaseType("Int"):
             return IntSort()
         case BaseType("Bool"):
@@ -231,11 +229,15 @@ def unrefine_type(base: Type):
             return base
 
 
-def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType | Top | Bottom]:
+def uncurry(base: AbstractionType) -> tuple[list[BaseType | Top | Bottom], BaseType | Top | Bottom]:
     current: Type = unrefine_type(base)
     inputs = []
     while isinstance(current, AbstractionType):
-        assert isinstance(current.var_type, BaseType)
+        assert (
+            isinstance(current.var_type, BaseType)
+            or isinstance(current.var_type, Top)
+            or isinstance(current.var_type, Bottom)
+        )
         inputs.append(current.var_type)
         current = current.type
 
@@ -249,7 +251,7 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top | Bottom) ->
             return Const(name, get_sort(base))
         case BaseType("Int"):
             return Int(name)
-        case BaseType("Boolean"):
+        case BaseType("Bool"):
             return Bool(name)
         case BaseType("Float"):
             fpsort = FPSort(8, 24)

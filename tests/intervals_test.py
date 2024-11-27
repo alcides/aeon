@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from geneticengine.grammar import extract_grammar
 from geneticengine.random.sources import NativeRandomSource
+from geneticengine.representations.tree.initializations import MaxDepthDecider
 from geneticengine.representations.tree.treebased import random_node
 
 from aeon.core.liquid import LiquidApp, LiquidVar, LiquidLiteralInt
@@ -32,7 +33,7 @@ def test_gt_zero():
     grammar_nodes, root = get_grammar_nodes(ctx_var)
     g = extract_grammar(grammar_nodes, root)
     r = NativeRandomSource(seed=1)
-    n = random_node(r, g, 4, root)
+    n = random_node(r, g, root, MaxDepthDecider(r, g, 4))
 
     assert isinstance(n, grammar_nodes[0])  # t_Refined_Int_greater_than_0
     assert n.value > 0
@@ -49,7 +50,7 @@ def test_gt_zero2():
     r = NativeRandomSource(seed=1)
 
     for _ in range(100):
-        n = random_node(r, g, 4, root)
+        n = random_node(r, g, root, MaxDepthDecider(r, g, 4))
         assert isinstance(n, grammar_nodes[0])  # t_Refined_Int_greater_than_0
         assert n.value > 0
         assert isinstance(n, grammar_nodes[1])  # literal_Refined_Int_greater_than_0
@@ -75,7 +76,7 @@ def test_gt_zero_and_lt_ten():
     g = extract_grammar(grammar_nodes, root)
     r = NativeRandomSource(seed=1)
     for _ in range(100):
-        n = random_node(r, g, 4, root)
+        n = random_node(r, g, root, MaxDepthDecider(r, g, 4))
 
         assert isinstance(n, grammar_nodes[0])
         assert 0 < n.value < 10
@@ -114,7 +115,7 @@ def test_gt_zero_and_lt_ten_or_gt_twenty_and_lt_thirty():
     g = extract_grammar(grammar_nodes, root)
     r = NativeRandomSource(seed=1)
     for _ in range(100):
-        n = random_node(r, g, 4, root)
+        n = random_node(r, g, root, MaxDepthDecider(r, g, 4))
 
         assert isinstance(n, grammar_nodes[0])
         assert 0 < n.value < 10 or 20 < n.value < 30
@@ -154,7 +155,7 @@ def test_lt_zero_or_gt_ten_and_lt_twenty_or_gt_thirty():
     g = extract_grammar(grammar_nodes, root)
     r = NativeRandomSource(seed=1)
     for _ in range(100):
-        n = random_node(r, g, 4, root)
+        n = random_node(r, g, root, MaxDepthDecider(r, g, 4))
 
         assert isinstance(n, grammar_nodes[0])
         assert n.value < 0 or 10 < n.value < 20 or 30 < n.value

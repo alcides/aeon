@@ -12,10 +12,9 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import BaseType
+from aeon.core.types import AbstractionType, BaseType, Bottom, Top
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
-from aeon.core.types import Type
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
 from aeon.verification.vcs import Conjunction
@@ -47,9 +46,8 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[str, Type]], exp: Constraint):
+def constraint_builder(vs: list[tuple[str, BaseType | AbstractionType | Bottom | Top]], exp: Constraint):
     for n, t in vs[::-1]:
-        assert isinstance(t, BaseType)  # TODO: Check this type
         exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp
 
