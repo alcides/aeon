@@ -11,7 +11,8 @@ from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import synthesize
-from aeon.typechecking import elaborate_and_check_type_errors
+from aeon.typechecking.elaboration import elaborate
+from aeon.typechecking.typeinfer import check_type
 
 setup_logger()
 
@@ -39,7 +40,8 @@ def test_fitness():
     prog = parse_program(code)
     p, ctx, ectx, _ = desugar(prog)
     p = ensure_anf(p)
-    elaborate_and_check_type_errors(ctx, p, top)
+    p = elaborate(ctx, p, top)
+    assert check_type(ctx, p, top)
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
         args=[],
@@ -72,7 +74,8 @@ def test_fitness2():
     prog = parse_program(code)
     p, ctx, ectx, metadata = desugar(prog)
     p = ensure_anf(p)
-    elaborate_and_check_type_errors(ctx, p, top)
+    p = elaborate(ctx, p, top)
+    assert check_type(ctx, p, top)
     term, _ = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
 
     assert isinstance(term, Term)
