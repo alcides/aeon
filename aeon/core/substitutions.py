@@ -195,44 +195,45 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
     def rec(x: Term):
         return substitution(x, rep, name)
 
-    if isinstance(t, Literal):
-        return t
-    elif isinstance(t, Var):
-        if t.name == name:
-            return rep
-        return t
-    elif isinstance(t, Hole):
-        if t.name == name:
-            return rep
-        return t
-    elif isinstance(t, Application):
-        return Application(fun=rec(t.fun), arg=rec(t.arg))
-    elif isinstance(t, Abstraction):
-        if t.var_name == name:
+    match t:
+        case Literal(_):
             return t
-        else:
-            return Abstraction(t.var_name, rec(t.body))
-    elif isinstance(t, Let):
-        if t.var_name == name:
-            n_value = t.var_value
-            n_body = t.body
-        else:
-            n_value = rec(t.var_value)
-            n_body = rec(t.body)
-        return Let(t.var_name, n_value, n_body)
-    elif isinstance(t, Rec):
-        if t.var_name == name:
-            n_value = t.var_value
-            n_body = t.body
-        else:
-            n_value = rec(t.var_value)
-            n_body = rec(t.body)
-        return Rec(t.var_name, t.var_type, n_value, n_body)
-    elif isinstance(t, Annotation):
-        return Annotation(rec(t.expr), t.type)
-    elif isinstance(t, If):
-        return If(rec(t.cond), rec(t.then), rec(t.otherwise))
-    assert False
+        case Var(tname) | Hole(tname):
+            if tname == name:
+                return rep
+            else:
+                return t
+        case Application(fun, arg):
+            return Application(fun=rec(fun), arg=rec(arg))
+        case Abstraction(vname, body):
+            if vname == name:
+                return t
+            else:
+                return Abstraction(vname, rec(t.body))
+        case Let(tname, val, body):
+            if tname == name:
+                n_value = val
+                n_body = body
+            else:
+                n_value = rec(val)
+                n_body = rec(body)
+            return Let(tname, n_value, n_body)
+        case Rec(tname, ty, val, body):
+            if tname == name:
+                n_value = val
+                n_body = body
+            else:
+                n_value = rec(val)
+                n_body = rec(body)
+            return Rec(tname, ty, n_value, n_body)
+        case Annotation(body, ty):
+            return Annotation(rec(body), ty)
+        case If(cond, then, otherwise):
+            return If(rec(cond), rec(then), rec(otherwise))
+        case TypeApplication(expr, ty):
+            return TypeApplication(rec(expr), ty)
+        case _:
+            assert False
 
 
 def liquefy_app(app: Application) -> LiquidApp | None:

@@ -10,12 +10,14 @@ from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
+from geneticengine.representations.tree.initializations import MaxDepthDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.elitism import ElitismStep
 from geneticengine.algorithms.gp.operators.initializers import (
-    StandardInitializer, )
+    StandardInitializer,
+)
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
 from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
@@ -33,10 +35,12 @@ from geneticengine.prelude import GeneticProgramming, NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.random.sources import RandomSource
 from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
-    DynamicStructuredGrammaticalEvolutionRepresentation, )
+    DynamicStructuredGrammaticalEvolutionRepresentation,
+)
 from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
 from geneticengine.representations.grammatical_evolution.structured_ge import (
-    StructuredGrammaticalEvolutionRepresentation, )
+    StructuredGrammaticalEvolutionRepresentation,
+)
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.solutions import Individual
 from loguru import logger
@@ -111,8 +115,13 @@ class TargetMultiSameFitness(SearchBudget):
 
     def is_done(self, tracker: ProgressTracker):
         assert isinstance(tracker, MultiObjectiveProgressTracker)
-        comps = (tracker.get_best_individuals()[0].get_fitness(
-            tracker.get_problem(), ).fitness_components)
+        comps = (
+            tracker.get_best_individuals()[0]
+            .get_fitness(
+                tracker.get_problem(),
+            )
+            .fitness_components
+        )
         return all(abs(c - self.target_fitness) < 0.001 for c in comps)
 
 
@@ -150,28 +159,23 @@ class LazyCSVRecorder(SearchRecorder):
             self.csv_writer = csv.writer(self.csv_file)
             if self.fields is None:
                 self.fields = {
-                    "Execution Time":
-                    lambda t, i, _:
-                    (time.monotonic_ns() - t.start_time) * 0.000000001,
-                    "Fitness Aggregated":
-                    lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
-                    "Phenotype":
-                    lambda t, i, _: i.get_phenotype(),
+                    "Execution Time": lambda t, i, _: (time.monotonic_ns() - t.start_time) * 0.000000001,
+                    "Fitness Aggregated": lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
+                    "Phenotype": lambda t, i, _: i.get_phenotype(),
                 }
                 for comp in range(problem.number_of_objectives()):
-                    self.fields[
-                        f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(
-                            p, ).fitness_components[comp]
+                    self.fields[f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(
+                        p,
+                    ).fitness_components[comp]
             if self.extra_fields is not None:
                 for name in self.extra_fields:
                     self.fields[name] = self.extra_fields[name]
             self.csv_writer.writerow([name for name in self.fields])
             self.csv_file.flush()
         if not self.only_record_best_individuals or is_best:
-            self.csv_writer.writerow([
-                self.fields[name](tracker, individual, problem)
-                for name in self.fields
-            ], )
+            self.csv_writer.writerow(
+                [self.fields[name](tracker, individual, problem) for name in self.fields],
+            )
             self.csv_file.flush()
 
 
@@ -191,9 +195,12 @@ def parse_config(config_file: str, section: str) -> dict[str, Any]:
 
 
 def is_valid_term_literal(term_literal: Term) -> bool:
-    return (isinstance(term_literal, Literal)
-            and term_literal.type == BaseType("Int")
-            and isinstance(term_literal.value, int) and term_literal.value > 0)
+    return (
+        isinstance(term_literal, Literal)
+        and term_literal.type == BaseType("Int")
+        and isinstance(term_literal.value, int)
+        and term_literal.value > 0
+    )
 
 
 def get_csv_file_path(
@@ -258,19 +265,14 @@ def create_evaluator(
         "minimize_float",
         "multi_minimize_float",
     ]
-    used_decorators = [
-        decorator for decorator in fitness_decorators
-        if decorator in metadata[fun_name]
-    ]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name]]
     assert used_decorators, "No fitness decorators used in metadata for function."
 
     objectives_list: list[Definition] = [
-        objective for decorator in used_decorators
-        for objective in metadata[fun_name][decorator]
+        objective for decorator in used_decorators for objective in metadata[fun_name][decorator]
     ]
     programs_to_evaluate: list[Term] = [
-        substitution(program, Var(objective.name), "main")
-        for objective in objectives_list
+        substitution(program, Var(objective.name), "main") for objective in objectives_list
     ]
 
     def evaluate_individual(
@@ -289,10 +291,7 @@ def create_evaluator(
                 first_hole_name,
                 individual_term,
             )
-            results = [
-                eval(substitution(p, individual_term, first_hole_name), ectx)
-                for p in programs_to_evaluate
-            ]
+            results = [eval(substitution(p, individual_term, first_hole_name), ectx) for p in programs_to_evaluate]
             result = results if len(results) > 1 else results[0]
             result = filter_nan_values(result)
             result_queue.put(result)
@@ -350,10 +349,7 @@ def problem_for_fitness_function(
     ]
 
     if fun_name in metadata:
-        used_decorators = [
-            decorator for decorator in fitness_decorators
-            if decorator in metadata[fun_name].keys()
-        ]
+        used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
         assert used_decorators, "No valid fitness decorators found."
 
         set_error_fitness(used_decorators)
@@ -366,8 +362,13 @@ def problem_for_fitness_function(
             metadata,
             hole_names,
         )
-        problem_type = (MultiObjectiveProblem if is_multiobjective(
-            used_decorators, ) else SingleObjectiveProblem)
+        problem_type = (
+            MultiObjectiveProblem
+            if is_multiobjective(
+                used_decorators,
+            )
+            else SingleObjectiveProblem
+        )
         target_fitness: float | list[float] = (
             0 if isinstance(problem_type, SingleObjectiveProblem) else 0
         )  # TODO: add support to maximize decorators
@@ -418,9 +419,12 @@ def create_grammar(
     fun_name: str,
     metadata: dict[str, Any],
 ):
-    assert (len(
-        holes,
-    ) == 1), "More than one hole per function is not supported at the moment."
+    assert (
+        len(
+            holes,
+        )
+        == 1
+    ), "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
@@ -444,10 +448,13 @@ def random_search_synthesis(
     r = RandomSource(42)
 
     population = [rep.create_individual(r, max_depth) for _ in range(budget)]
-    population_with_score = [(
-        problem.evaluate(phenotype),
-        phenotype.get_core(),
-    ) for phenotype in population]
+    population_with_score = [
+        (
+            problem.evaluate(phenotype),
+            phenotype.get_core(),
+        )
+        for phenotype in population
+    ]
     return min(population_with_score, key=lambda x: x[0])[1]
 
 
@@ -472,20 +479,19 @@ def create_gp_step(problem: Problem, gp_params: dict[str, Any]):
         weights=[
             gp_params["n_elites"],
             gp_params["novelty"],
-            gp_params["population_size"] - gp_params["n_elites"] -
-            gp_params["novelty"],
+            gp_params["population_size"] - gp_params["n_elites"] - gp_params["novelty"],
         ],
     )
 
 
 def geneticengine_synthesis(
-        grammar: Grammar,
-        problem: Problem,
-        filename: str | None,
-        hole_name: str,
-        target_fitness: float | list[float],
-        gp_params: dict[str, Any] | None = None,
-        ui: SynthesisUI = SilentSynthesisUI(),
+    grammar: Grammar,
+    problem: Problem,
+    filename: str | None,
+    hole_name: str,
+    target_fitness: float | list[float],
+    gp_params: dict[str, Any] | None = None,
+    ui: SynthesisUI = SilentSynthesisUI(),
 ) -> Term:
     """Performs a synthesis procedure with GeneticEngine."""
     # gp_params = gp_params or parse_config("aeon/synthesis_grammar/gpconfig.gengy", "DEFAULT") # TODO
@@ -494,12 +500,12 @@ def geneticengine_synthesis(
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
     seed = gp_params["seed"]
+    r = NativeRandomSource(seed)
     assert isinstance(representation_name, str)
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
     representation: type = representations[representation_name](
-        grammar,
-        max_depth=gp_params["max_depth"],
+        grammar, decider=MaxDepthDecider(r, grammar, gp_params["max_depth"])
     )
 
     tracker: ProgressTracker
@@ -517,9 +523,9 @@ def geneticengine_synthesis(
             LazyCSVRecorder(
                 csv_file_path,
                 problem,
-                only_record_best_individuals=gp_params[
-                    "only_record_best_inds"],
-            ), )
+                only_record_best_individuals=gp_params["only_record_best_inds"],
+            ),
+        )
     if isinstance(problem, SingleObjectiveProblem):
         tracker = SingleObjectiveProgressTracker(
             problem,
@@ -556,12 +562,12 @@ def geneticengine_synthesis(
         if isinstance(tracker, SingleObjectiveProgressTracker):
             search_budget = TargetFitness(target_fitness)
         elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness,
-                list,
+            target_fitness,
+            list,
         ):
             search_budget = TargetMultiFitness(target_fitness)
         elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness,
+            target_fitness,
             (float, int),
         ):
             search_budget = TargetMultiSameFitness(target_fitness)
@@ -572,7 +578,7 @@ def geneticengine_synthesis(
         problem=problem,
         budget=budget,
         representation=representation,
-        random=NativeRandomSource(seed),
+        random=r,
         tracker=tracker,
         population_size=gp_params["population_size"],
         population_initializer=StandardInitializer(),
@@ -603,15 +609,15 @@ def set_error_fitness(decorators):
 
 
 def synthesize_single_function(
-        ctx: TypingContext,
-        ectx: EvaluationContext,
-        term: Term,
-        fun_name: str,
-        holes: dict[str, tuple[Type, TypingContext]],
-        metadata: Metadata,
-        filename: str | None,
-        synth_config: dict[str, Any] | None = None,
-        ui: SynthesisUI = SynthesisUI(),
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    term: Term,
+    fun_name: str,
+    holes: dict[str, tuple[Type, TypingContext]],
+    metadata: Metadata,
+    filename: str | None,
+    synth_config: dict[str, Any] | None = None,
+    ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, Term]:
     # Step 1 Create a Single or Multi-Objective Problem instance.
 
@@ -651,21 +657,22 @@ def synthesize_single_function(
 
 
 def synthesize(
-        ctx: TypingContext,
-        ectx: EvaluationContext,
-        term: Term,
-        targets: list[tuple[str, list[str]]],
-        metadata: Metadata,
-        filename: str | None = None,
-        synth_config: dict[str, Any] | None = None,
-        refined_grammar: bool = False,
-        ui: SynthesisUI = SynthesisUI(),
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    term: Term,
+    targets: list[tuple[str, list[str]]],
+    metadata: Metadata,
+    filename: str | None = None,
+    synth_config: dict[str, Any] | None = None,
+    refined_grammar: bool = False,
+    ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, dict[str, Term]]:
     """Synthesizes code for multiple functions, each with multiple holes."""
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
     assert len(program_holes) == len(
-        targets, ), "No support for function with more than one hole"
+        targets,
+    ), "No support for function with more than one hole"
 
     results = {}
 
@@ -675,8 +682,7 @@ def synthesize(
             ectx,
             term,
             name,
-            {h: v
-             for h, v in program_holes.items() if h in holes_names},
+            {h: v for h, v in program_holes.items() if h in holes_names},
             metadata,
             filename,
             synth_config,
