@@ -33,6 +33,20 @@ def ensure_refined(t: Type) -> RefinedType:
     assert False
 
 
+def is_first_order_function(at: AbstractionType):
+    v: Type = at
+    while isinstance(v, AbstractionType):
+        match v.var_type:
+            case AbstractionType(_, _, _):
+                return False
+            case BaseType(_) | Top() | Bottom() | RefinedType(_, _, _):
+                pass
+            case _:
+                assert False
+        v = v.type
+    return True
+
+
 def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
     match ty:
         case BaseType(_) | Bottom() | Top():
@@ -48,9 +62,12 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
             return Implication(name, t_, ref_subs, c)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
-            return Implication(name, ty, LiquidLiteralBool(True), c)
+            print(".", name, ty)
+            if is_first_order_function(ty):
+                return Implication(name, ty, LiquidLiteralBool(True), c)
+            else:
+                return c
         case TypeVar(_):
-            print("weird", name)
             # TODO Sorts: We are using Int here, but it could have been a singleton.
             return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
         case TypePolymorphism(_, _, _):
