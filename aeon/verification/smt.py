@@ -61,11 +61,6 @@ base_functions: dict[str, Any] = {
     "*": lambda x, y: x * y,
     "/": lambda x, y: x / y,
     "%": lambda x, y: x % y,
-    "+.": lambda x, y: x + y,
-    "-.": lambda x, y: x - y,
-    "*.": lambda x, y: x * y,
-    "/.": lambda x, y: x / y,
-    "%.": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
 }
 

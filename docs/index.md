@@ -73,8 +73,8 @@ True
 Operators for floats have their own syntax, like in OCam:
 
 ```
-let a = 1.0 +. 2.0;
-let a = 1.0 -. 2.0;
+let a = 1.0 + 2.0;
+let a = 1.0 - 2.0;
 ```
 
 > Float-specific operators are temporary and will be removed once polymorphism support is complete.

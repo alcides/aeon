@@ -156,6 +156,7 @@ def main() -> None:
             core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
         except UnificationException as e:
             log_type_errors([e])
+            sys.exit(1)
 
     with RecordTime("TypeChecking"):
         type_errors = check_type_errors(typing_ctx, core_elaborated, top)
