@@ -306,7 +306,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
         (c2, t2) = synth(nrctx, t.body)
-
         c1 = implication_constraint(t.var_name, t.var_type, c1)
         c2 = implication_constraint(t.var_name, t.var_type, c2)
         return Conjunction(c1, c2), t2

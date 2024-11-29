@@ -20,7 +20,7 @@ from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.core.liquid_ops import ops
 
 
-def entailment(ctx: TypingContext, c: Constraint):
+def entailment(ctx: TypingContext, c: Constraint) -> bool:
     match ctx:
         case EmptyContext():
             return solve(c)

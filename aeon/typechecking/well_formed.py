@@ -77,6 +77,7 @@ def inhabited(ctx: TypingContext, ty: Type) -> bool:
             (name, base, cond) = extract_parts(ctx.type)
             assert isinstance(base, BaseType)  # TODO: check if make sense
             ncond = substitution_in_liquid(cond, LiquidVar(ctx.name), name)
+            print("base:", base)
             return entailment_like(ctx.prev, Implication(ctx.name, base, ncond, c))
         else:
             assert False
