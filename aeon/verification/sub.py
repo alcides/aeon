@@ -62,7 +62,6 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
             return Implication(name, t_, ref_subs, c)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
-            print(".", name, ty)
             if is_first_order_function(ty):
                 return Implication(name, ty, LiquidLiteralBool(True), c)
             else:
