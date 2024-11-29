@@ -58,7 +58,7 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
                 t_ = BaseType("TypeVarPlaceHolder")
             else:
                 t_ = ttype
-            assert isinstance(t_, BaseType)
+            assert isinstance(t_, BaseType) or isinstance(t_, Top) or isinstance(t_, Bottom)
             return Implication(name, t_, ref_subs, c)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
