@@ -292,7 +292,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.",
+                f"Application {t} ({ty}) is not a function.",
             )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)

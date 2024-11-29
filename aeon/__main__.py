@@ -24,12 +24,12 @@ from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.typechecking import elaborate_and_check_type_errors
+from aeon.typechecking.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
-from aeon.typechecking.typeinfer import check_and_log_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.logger.logger import setup_logger, export_log
+from aeon.typechecking import check_type_errors
 
 
 def parse_arguments():
@@ -151,9 +151,14 @@ def main() -> None:
         core_ast_anf = ensure_anf(core_ast)
         logger.debug(core_ast)
 
+    with RecordTime("Elaboration"):
+        try:
+            core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
+        except UnificationException as e:
+            log_type_errors([e])
+
     with RecordTime("TypeChecking"):
-        type_errors = elaborate_and_check_type_errors(typing_ctx, core_ast_anf,
-                                                      top)
+        type_errors = check_type_errors(typing_ctx, core_elaborated, top)
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
@@ -182,7 +187,7 @@ def main() -> None:
             program, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
-                core_ast_anf,
+                core_elaborated,
                 incomplete_functions,
                 metadata,
                 filename,
