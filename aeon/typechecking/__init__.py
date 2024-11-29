@@ -20,19 +20,13 @@ def elaborate_and_check(ctx: TypingContext, term: Term,
     return check_type(ctx, p, expected_type)
 
 
-def elaborate_and_check_type_errors(
+def check_type_errors(
     ctx: TypingContext,
     term: Term,
     expected_type: Type,
 ) -> list[Exception | str]:
-    """Checks whether t as type ty in ctx, but returns a list of errors."""
     try:
-        p = elaborate(ctx, term, expected_type)
-    except UnificationException as e:
-        return [e]
-
-    try:
-        constraint = check(ctx, p, expected_type)
+        constraint = check(ctx, term, expected_type)
         r = entailment(ctx, constraint)
         if r:
             return []
@@ -47,3 +41,16 @@ def elaborate_and_check_type_errors(
         return [e]
     except FailedConstraintException as e:
         return [e]
+
+
+def elaborate_and_check_type_errors(
+    ctx: TypingContext,
+    term: Term,
+    expected_type: Type,
+) -> list[Exception | str]:
+    """Checks whether t as type ty in ctx, but returns a list of errors."""
+    try:
+        p = elaborate(ctx, term, expected_type)
+    except UnificationException as e:
+        return [e]
+    return check_type_errors(ctx, p, expected_type)
