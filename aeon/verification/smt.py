@@ -313,7 +313,6 @@ def translate(
         or isinstance(base, Top)
         or isinstance(base, Bottom)
     ] + extra
-
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)
     if isinstance(e1, bool) and isinstance(e2, bool):
