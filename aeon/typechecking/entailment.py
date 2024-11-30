@@ -13,6 +13,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.verification.horn import solve
+from aeon.verification.sub import is_first_order_function
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
@@ -28,7 +29,12 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
             if name in ops:
                 return entailment(prev, c)
             else:
-                return entailment(prev, UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c))
+                if is_first_order_function(AbstractionType(vname, vtype, rtype)):
+                    return entailment(
+                        prev, UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c)
+                    )
+                else:
+                    return entailment(prev, c)
         case VariableBinder(prev, name, TypePolymorphism(_, _, _)):
             if name in ops:
                 return entailment(prev, c)
