@@ -143,12 +143,12 @@ def main() -> None:
         core_ast_anf = ensure_anf(core_ast)
         logger.debug(core_ast)
 
-    with RecordTime("Elaboration"):
-        try:
+    try:
+        with RecordTime("Elaboration"):
             core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
-        except UnificationException as e:
-            log_type_errors([e])
-            sys.exit(1)
+    except UnificationException as e:
+        log_type_errors([e])
+        sys.exit(1)
 
     with RecordTime("TypeChecking"):
         type_errors = check_type_errors(typing_ctx, core_elaborated, top)

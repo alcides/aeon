@@ -89,7 +89,7 @@ class TypeApplicationOnlyWorksOnBareTypesException(TypeCheckingException):
     ty: Type
 
     def __str__(self):
-        return f"Cannot use bare types in type applications (type {self.ty} in {self.tt})."
+        return f"Cannot use bare types in type applications (type {self.ty} in {self.t})."
 
 
 @dataclass
