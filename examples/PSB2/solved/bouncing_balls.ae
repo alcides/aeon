@@ -5,14 +5,14 @@ def calculate_distance_helper (b_index: Float) (h: Float) (n: Int) (distance: Fl
 if isZero n then
     distance
 else
-    a: Float = h /. b_index;
+    a: Float = h / b_index;
     n1: Int = n - 1;
-    d1: Float = (distance +. h) +. a;
+    d1: Float = (distance + h) + a;
     calculate_distance_helper b_index a n1 d1
 }
 
 def bouncing_balls (s_height: Float) (b_height:Float) (b:Int) : Float{
-    bounciness_index : Float = s_height /. b_height;
+    bounciness_index : Float = s_height / b_height;
     calculate_distance_helper bounciness_index s_height b 0.0
 }
 

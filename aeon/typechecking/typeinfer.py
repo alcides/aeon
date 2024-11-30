@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from loguru import logger
+from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp, LiquidHole
+from aeon.core.liquid import LiquidApp, LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -24,14 +25,14 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, Kind, is_bare
+from aeon.core.types import args_size_of_type
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.core.types import args_size_of_type
 from aeon.core.types import bottom
 from aeon.core.types import extract_parts
 from aeon.core.types import t_bool
@@ -39,16 +40,8 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_unit
 from aeon.core.types import type_free_term_vars
-from aeon.prelude.prelude import (
-    INTEGER_ARITHMETIC_OPERATORS,
-    FLOAT_ARITHMETIC_OPERATORS,
-    COMPARISON_OPERATORS,
-    LOGICAL_OPERATORS,
-    EQUALITY_OPERATORS,
-)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.verification.helpers import simplify_constraint
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
@@ -60,20 +53,64 @@ from aeon.verification.vcs import LiquidConstraint
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
 
-class CouldNotGenerateConstraintException(Exception):
+class TypeCheckingException(Exception):
     pass
 
 
-class FailedConstraintException(Exception):
+class CouldNotGenerateConstraintException(TypeCheckingException):
+    pass
 
-    def __init__(self, ctx, t, ty, ks):
-        self.ctx = ctx
-        self.t = t
-        self.ty = ty
-        self.ks = ks
+
+@dataclass
+class FailedConstraintException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    ty: Type
+    ks: Constraint
 
     def __str__(self):
         return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
+
+
+@dataclass
+class WrongKindException(TypeCheckingException):
+    expected: Kind
+    found: Kind
+    t: Term
+    ty: Type
+
+    def __str__(self):
+        return f"Expected kind {self.expected}, but found kind {self.found} in {self.t} of type {self.ty}."
+
+
+@dataclass
+class TypeApplicationOnlyWorksOnBareTypesException(TypeCheckingException):
+    t: Term
+    ty: Type
+
+    def __str__(self):
+        return f"Cannot use bare types in type applications (type {self.ty} in {self.t})."
+
+
+@dataclass
+class WrongKindInTypeApplication(TypeCheckingException):
+    t: Term
+    expected: Kind
+    actual: Kind | None
+
+    def __str__(self):
+        return f"Wrong kind in {self.t}. Expected {self.expected}, got {self.actual}."
+
+
+@dataclass
+class FailedSubtypingException(TypeCheckingException):
+    ctx: TypingContext
+    t: Term
+    s: Type
+    ty: Type
+
+    def __str__(self):
+        return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
 
 
 def argument_is_typevar(ty: Type):
@@ -110,52 +147,39 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
-def prim_op(t: str) -> Type:
-    i1: Type
-    i2: Type
-    o: Type
-
-    if t in INTEGER_ARITHMETIC_OPERATORS:
-        i1 = i2 = t_int
-        o = t_int
-    elif t in FLOAT_ARITHMETIC_OPERATORS:
-        i1 = i2 = t_float
-        o = t_float
-    elif t in COMPARISON_OPERATORS:
-        i1 = i2 = t_int
-        o = t_bool
-    elif t in LOGICAL_OPERATORS:
-        i1 = i2 = o = t_bool
-    elif t in EQUALITY_OPERATORS:
-        i1 = TypeVar("_op_1")
-        i2 = TypeVar("_op_1")
-        o = t_bool
-    else:
-        print(">>", t)
-        assert False
-
-    return AbstractionType(
-        "x",
-        i1,
-        AbstractionType(
-            "y",
-            i2,
-            RefinedType(
-                "z",
-                o,
+def make_binary_app_type(t: str, ity: BaseType | TypeVar, oty: BaseType | TypeVar) -> Type:
+    """Creates the type of a binary operator"""
+    output = RefinedType(
+        "z",
+        oty,
+        LiquidApp(
+            "==",
+            [
+                LiquidVar("z"),
                 LiquidApp(
-                    "==",
-                    [
-                        LiquidVar("z"),
-                        LiquidApp(
-                            t,
-                            [LiquidVar("x"), LiquidVar("y")],
-                        ),
-                    ],
+                    t,
+                    [LiquidVar("x"), LiquidVar("y")],
                 ),
-            ),
+            ],
         ),
     )
+    appt2 = AbstractionType("y", ity, output)
+    appt1 = AbstractionType("x", ity, appt2)
+    return appt1
+
+
+def prim_op(t: str) -> Type:
+    match t:
+        case "%":
+            return make_binary_app_type(t, t_int, t_int)
+        case "+" | "-" | "*" | "/":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), TypeVar("a")))
+        case "==" | "!=" | ">" | ">=" | "<" | "<=":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), t_bool))
+        case "&&" | "||":
+            return make_binary_app_type(t, t_bool, t_bool)
+        case _:
+            assert False
 
 
 def rename_liquid_term(refinement, old_name, new_name):
@@ -175,14 +199,14 @@ def rename_liquid_term(refinement, old_name, new_name):
             refinement.fun,
             [rename_liquid_term(x, old_name, new_name) for x in refinement.args],
         )
-    elif isinstance(refinement, LiquidHole):
+    elif isinstance(refinement, LiquidHornApplication):
         if refinement.name == old_name:
-            return LiquidHole(
+            return LiquidHornApplication(
                 new_name,
                 [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
             )
         else:
-            return LiquidHole(
+            return LiquidHornApplication(
                 refinement.name,
                 [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
             )
@@ -220,7 +244,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if t.name in ops:
             return (ctrue, prim_op(t.name))
         ty = ctx.type_of(t.name)
-        if isinstance(ty, BaseType) or isinstance(ty, RefinedType):
+        if not ty:
+            raise CouldNotGenerateConstraintException(
+                f"Variable {t.name} not in context",
+            )
+        if isinstance(ty, BaseType) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
             # assert ty.name != t.name
             if ty.name == t.name:
@@ -243,10 +271,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     ],
                 ),
             )
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
-            )
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
@@ -268,7 +292,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.",
+                f"Application {t} ({ty}) is not a function.",
             )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
@@ -282,7 +306,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
         (c2, t2) = synth(nrctx, t.body)
-
         c1 = implication_constraint(t.var_name, t.var_type, c1)
         c2 = implication_constraint(t.var_name, t.var_type, c2)
         return Conjunction(c1, c2), t2
@@ -291,11 +314,20 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         c = check(ctx, t.expr, ty)
         return c, ty
     elif isinstance(t, TypeApplication):
+        if not is_bare(t.type):
+            # Type Application only works on bare types.
+            raise TypeApplicationOnlyWorksOnBareTypesException(t, t.type)
         (c, tabs) = synth(ctx, t.body)
         assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
         ty = fresh(ctx, t.type)
         s = type_substitution(tabs.body, tabs.name, ty)
-        return c, s
+        k = ctx.kind_of(ty)
+        if isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
+            ty = ty.type
+            k = ctx.kind_of(ty)
+        if k is None or k != tabs.kind:
+            raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
+        return (c, s)
     elif isinstance(t, Hole):
         return ctrue, bottom
     # TODO: add if term
@@ -327,22 +359,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         assert False
 
 
-def wrap_checks(f):
-    """Decorate that performs intermediate checks to the SMT solver."""
-
-    def check_(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
-        k = f(ctx, t, ty)
-        ks = simplify_constraint(k)
-        if ks == LiquidConstraint(LiquidLiteralBool(False)):
-            raise FailedConstraintException(ctx, t, ty, ks)
-        else:
-            return k
-
-    return check_
-
-
-# patterm matching term
-@wrap_checks  # DEMO1
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     if isinstance(t, Abstraction) and isinstance(
         ty,
@@ -371,9 +387,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean",
-            )
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -387,14 +401,19 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         )
         return Conjunction(c0, Conjunction(c1, c2))
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
-        ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        if t.name != ty.name:
+            ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        else:
+            ty_right = ty
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
-            return LiquidConstraint(LiquidLiteralBool(False))
+            raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)
         cp = sub(s, ty)
+        if cp == LiquidConstraint(LiquidLiteralBool(False)):
+            raise FailedSubtypingException(ctx, t, s, ty)
         return Conjunction(c, cp)
 
 
@@ -409,30 +428,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type) -> bool:
         return False
 
 
-def check_type_errors(
-    ctx: TypingContext,
-    t: Term,
-    ty: Type,
-) -> list[Exception | str]:
-    """Checks whether t as type ty in ctx, but returns a list of errors."""
-    try:
-        constraint = check(ctx, t, ty)
-        r = entailment(ctx, constraint)
-        if r:
-            return []
-        else:
-            return [
-                "Could not prove typing relation.",
-                f"Context: {ctx}",
-                f"Term: {t}",
-                f"Type: {ty}",
-            ]
-    except CouldNotGenerateConstraintException as e:
-        return [e]
-    except FailedConstraintException as e:
-        return [e]
-
-
 def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if args_size_of_type(subt) != args_size_of_type(supt):
         return False
@@ -444,15 +439,3 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
-
-
-# TODO: Move this method elsewhere?
-def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
-    """This method is designed to be called from the CLI, so it contains prints
-    instead of a logger."""
-    errors = check_type_errors(ctx, p, top)
-    if errors:
-        for error in errors:
-            print(error)
-        return True
-    return False

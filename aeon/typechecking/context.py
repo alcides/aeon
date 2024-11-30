@@ -4,13 +4,14 @@ from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, BaseKind, BaseType, Bottom, RefinedType, Top, TypePolymorphism, TypeVar
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
 
 
 class TypingContext(ABC):
+
     def type_of(self, name: str) -> Type | None:
         assert False
 
@@ -21,7 +22,34 @@ class TypingContext(ABC):
         return TypeBinder(self, name, kind)
 
     def fresh_var(self):
-        return "fresh_"
+        if not hasattr(self, "global_counter"):
+            self.global_counter = 0
+        self.global_counter += 1
+        return f"fresh_{self.global_counter}"
+
+    def kind_of(self, ty) -> Kind | None:
+        if isinstance(ty, BaseType):
+            return BaseKind()
+        elif isinstance(ty, Top):
+            return BaseKind()
+        elif isinstance(ty, Bottom):
+            return BaseKind()
+        elif isinstance(ty, RefinedType) and not isinstance(ty.type, TypeVar):
+            return BaseKind()
+        elif isinstance(ty, TypePolymorphism):
+            return StarKind()
+        elif isinstance(ty, AbstractionType):
+            return StarKind()
+        elif isinstance(ty, TypeVar):
+            for t, k in self.typevars():
+                if t == ty:
+                    return k
+            return None
+        elif isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar):
+            assert (ty.type, BaseKind()) in self.typevars()
+            return BaseKind()
+        else:
+            assert False
 
     @abstractmethod
     def typevars(self) -> list[tuple[str, Kind]]:
@@ -33,15 +61,12 @@ class TypingContext(ABC):
 
 
 class EmptyContext(TypingContext):
+
     def __init__(self):
         self.counter = 0
 
     def type_of(self, name: str) -> Type | None:
         return None
-
-    def fresh_var(self):
-        self.counter += 1
-        return f"fresh_{self.counter}"
 
     def __repr__(self) -> str:
         return "ø"
@@ -68,12 +93,9 @@ class UninterpretedBinder(TypingContext):
         return self.prev.type_of(name)
 
     def fresh_var(self):
-        p = int(self.prev.fresh_var().split("_")[-1])
-        while True:
-            name = f"fresh_{p}"
-            if self.type_of(name) is None:
-                break
-            p += 1
+        name = self.name
+        while name == self.name:
+            name = self.prev.fresh_var()
         return name
 
     def __repr__(self) -> str:
@@ -89,6 +111,7 @@ class UninterpretedBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass(init=False)
 class VariableBinder(TypingContext):
     prev: TypingContext
     name: str
@@ -107,12 +130,9 @@ class VariableBinder(TypingContext):
         return self.prev.type_of(name)
 
     def fresh_var(self):
-        p = int(self.prev.fresh_var().split("_")[-1])
-        while True:
-            name = f"fresh_{p}"
-            if self.type_of(name) is None:
-                break
-            p += 1
+        name = self.name
+        while name == self.name:
+            name = self.prev.fresh_var()
         return name
 
     def __repr__(self) -> str:
@@ -128,15 +148,17 @@ class VariableBinder(TypingContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
+@dataclass(init=False)
 class TypeBinder(TypingContext):
+    prev: TypingContext
     type_name: str
     type_kind: Kind
 
     def __init__(
-        self,
-        prev: TypingContext,
-        type_name: str,
-        type_kind: Kind = StarKind(),
+            self,
+            prev: TypingContext,
+            type_name: str,
+            type_kind: Kind = StarKind(),
     ):
         self.prev = prev
         self.type_name = type_name
@@ -146,7 +168,10 @@ class TypeBinder(TypingContext):
         return self.prev.type_of(name)
 
     def fresh_var(self):
-        return self.prev.fresh_var()
+        name = self.type_name
+        while name == self.type_name:
+            name = self.prev.fresh_var()
+        return name
 
     def vars(self) -> list[tuple[str, Type]]:
         return self.prev.vars()

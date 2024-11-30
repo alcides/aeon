@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-
 import argparse
 
 from aeon.backend.evaluator import EvaluationContext
@@ -23,56 +22,47 @@ from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.typechecking.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
+from aeon.typechecking import check_type_errors
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "filename",
-        help="name of the aeon files to be synthesized",
-    )
-    parser.add_argument(
-        "--core",
-        action="store_true",
-        help="synthesize a aeon core file",
-    )
+
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
+
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
         help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument(
-        "-f",
-        "--logfile",
-        action="store_true",
-        help="export log file",
-    )
+    parser.add_argument("-f",
+                        "--logfile",
+                        action="store_true",
+                        help="export log file")
 
-    parser.add_argument(
-        "-csv",
-        "--csv-synth",
-        action="store_true",
-        help="export synthesis csv file",
-    )
+    parser.add_argument("-csv",
+                        "--csv-synth",
+                        action="store_true",
+                        help="export synthesis csv file")
 
-    parser.add_argument(
-        "-gp",
-        "--gp-config",
-        help="path to the GP configuration file",
-    )
+    parser.add_argument("-gp",
+                        "--gp-config",
+                        help="path to the GP configuration file")
 
-    parser.add_argument(
-        "-csec",
-        "--config-section",
-        help="section name in the GP configuration file",
-    )
+    parser.add_argument("-csec",
+                        "--config-section",
+                        help="section name in the GP configuration file")
 
     parser.add_argument(
         "-d",
@@ -153,18 +143,23 @@ def main() -> None:
         core_ast_anf = ensure_anf(core_ast)
         logger.debug(core_ast)
 
+    try:
+        with RecordTime("Elaboration"):
+            core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
+    except UnificationException as e:
+        log_type_errors([e])
+        sys.exit(1)
+
     with RecordTime("TypeChecking"):
-        type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+        type_errors = check_type_errors(typing_ctx, core_elaborated, top)
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[tuple[
-            str, list[str], ]] = incomplete_functions_and_holes(
-                typing_ctx,
-                core_ast_anf,
-            )
+            str, list[str]]] = incomplete_functions_and_holes(
+                typing_ctx, core_ast_anf)
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
@@ -179,7 +174,7 @@ def main() -> None:
             program, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
-                core_ast_anf,
+                core_elaborated,
                 incomplete_functions,
                 metadata,
                 filename,

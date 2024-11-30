@@ -65,16 +65,11 @@ expression_bool : expression_plus                                  -> same
 expression_plus : expression_fact                           -> same
                 | expression_fact "+" expression_plus       -> binop_plus
                 | expression_fact "-" expression_plus       -> binop_minus
-                | expression_fact "+." expression_plus      -> binop_plus_f
-                | expression_fact "-." expression_plus      -> binop_minus_f
 
 expression_fact : expression_b                           -> same
                 | expression_b "*" expression_fact       -> binop_mult
                 | expression_b "/" expression_fact       -> binop_div
                 | expression_b "%" expression_fact       -> binop_mod
-                | expression_b "*." expression_fact      -> binop_mult_f
-                | expression_b "/." expression_fact      -> binop_div_f
-                | expression_b "%." expression_fact      -> binop_mod_f
 
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e

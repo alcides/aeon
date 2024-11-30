@@ -13,6 +13,7 @@ from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
+from aeon.core.types import TypePolymorphism
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -27,32 +28,51 @@ def ensure_refined(t: Type) -> RefinedType:
         return t
     elif isinstance(t, BaseType):
         return RefinedType(f"singleton_{t}", t, LiquidLiteralBool(True))
-    assert False
-
-
-def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
-    if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
-        # print(t.type, BaseType)
-        assert isinstance(t.type, BaseType)
-        return Implication(name, t.type, ref_subs, c)
-    elif isinstance(t, BaseType):
-        return Implication(name, t, LiquidLiteralBool(True), c)
-    elif isinstance(t, AbstractionType):
-        return implication_constraint(
-            t.var_name,
-            t.var_type,
-            implication_constraint(name, t.type, c),
-        )  # TODO: email Rahjit
     elif isinstance(t, TypeVar):
-        # TODO: We are using Int here, but it could have been a singleton.
-        return Implication(name, BaseType("Int"), LiquidLiteralBool(True), c)
-    elif isinstance(t, Bottom):
-        return c
-    elif isinstance(t, Top):
-        return c
-    logger.debug(f"{name} : {t} => {c} ({type(t)})")
+        return RefinedType(f"singleton_tv_{t}", t, LiquidLiteralBool(True))
     assert False
+
+
+def is_first_order_function(at: AbstractionType):
+    v: Type = at
+    while isinstance(v, AbstractionType):
+        match v.var_type:
+            case AbstractionType(_, _, _):
+                return False
+            case BaseType(_) | Top() | Bottom() | RefinedType(_, _, _):
+                pass
+            case _:
+                assert False
+        v = v.type
+    return True
+
+
+def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
+    match ty:
+        case BaseType(_) | Bottom() | Top():
+            return Implication(name, ty, LiquidLiteralBool(True), c)
+        case RefinedType(tname, ttype, tref):
+            ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
+            if isinstance(ttype, TypeVar):
+                # TODO Sorts
+                t_ = BaseType("TypeVarPlaceHolder")
+            else:
+                t_ = ttype
+            assert isinstance(t_, BaseType) or isinstance(t_, Top) or isinstance(t_, Bottom)
+            return Implication(name, t_, ref_subs, c)
+        case AbstractionType(_, _, _):
+            # TODO Poly Refl: instead of true, reflect the implementation of the function?
+            if is_first_order_function(ty):
+                return Implication(name, ty, LiquidLiteralBool(True), c)
+            else:
+                return c
+        case TypeVar(_):
+            # TODO Sorts: We are using Int here, but it could have been a singleton.
+            return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
+        case TypePolymorphism(_, _, _):
+            return c
+        case _:
+            assert False
 
 
 def sub(t1: Type, t2: Type) -> Constraint:
@@ -66,19 +86,42 @@ def sub(t1: Type, t2: Type) -> Constraint:
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
-            t2_subs = substitution_in_liquid(t2.refinement, LiquidVar(t1.name), t2.name)
-            assert isinstance(t1.type, BaseType)  # TODO: check this
+            base_type = t1.type if isinstance(t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
+            t2_subs = substitution_in_liquid(
+                t2.refinement,
+                LiquidVar(t1.name),
+                t2.name,
+            )
+            assert isinstance(base_type, BaseType)  # TODO: check this
             return Implication(
                 t1.name,
-                t1.type,
+                base_type,
                 t1.refinement,
                 LiquidConstraint(t2_subs),
             )
         else:
+            logger.error("Failed subtyping {t1} <: {t2}")
             return cfalse
     elif isinstance(t1, AbstractionType) and isinstance(t2, AbstractionType):
         c0 = sub(t2.var_type, t1.var_type)
-        c1 = sub(substitution_in_type(t1.type, Var(t2.var_name), t1.var_name), t2.type)
-        return Conjunction(c0, implication_constraint(t2.var_name, t2.var_type, c1))
+
+        c1 = sub(
+            substitution_in_type(t1.type, Var(t2.var_name), t1.var_name),
+            t2.type,
+        )
+        return Conjunction(
+            c0,
+            implication_constraint(t2.var_name, t2.var_type, c1),
+        )
+    elif (
+        isinstance(t1, TypeVar)
+        and isinstance(
+            t2,
+            TypeVar,
+        )
+        and t1.name == t2.name
+    ):
+        return ctrue
     else:
+        logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
         return cfalse
