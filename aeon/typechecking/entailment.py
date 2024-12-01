@@ -44,16 +44,18 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                 return entailment(prev, c)
         case VariableBinder(prev, name, ty):
             (nname, base, cond) = extract_parts(ty)
-            if isinstance(base, BaseType):
-                ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
-                return entailment(
-                    prev,
-                    Implication(name, base, ncond, c),
-                )
-            elif isinstance(ctx.type, TypeVar):
-                assert False  # TypeVars are being replaced by Int
-            else:
-                assert False
+            match base:
+                case BaseType(_):
+                    ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
+                    return entailment(
+                        prev,
+                        Implication(name, base, ncond, c),
+                    )
+                case TypeVar(_):
+                    assert False
+                case _:
+                    print(base, "...", name, ty)
+                    assert False
         case TypeBinder(prev, name, _):
             return entailment(prev, c)
             # TODO: Consider passing as a concrete placeholder type for SMT
