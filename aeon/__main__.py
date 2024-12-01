@@ -154,6 +154,7 @@ def main() -> None:
     try:
         with RecordTime("Elaboration"):
             core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
+            print("elab", core_elaborated)
     except UnificationException as e:
         log_type_errors([e])
         sys.exit(1)
