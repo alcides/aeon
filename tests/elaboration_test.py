@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from aeon.core.terms import Rec
-from aeon.core.types import BaseKind
+from aeon.core.types import BaseKind, BaseType
 from aeon.core.types import get_type_vars
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_term
 from aeon.frontend.parser import parse_type
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.elaboration import elaborate_check
+from aeon.typechecking.context import TypingContext, VariableBinder
+from aeon.typechecking.elaboration import elaborate, elaborate_check
 from aeon.typechecking.elaboration import elaborate_foralls
 from aeon.typechecking.elaboration import elaborate_remove_unification
+from aeon.utils.ctx_helpers import build_context
+from aeon.prelude.prelude import typing_vars
 
 
 def help_type_vars(t: str) -> set[TypeVar]:
@@ -64,3 +66,15 @@ def test_elaboration_unification():
     v2 = elaborate_remove_unification(TypingContext(), v)
     expected = parse_term("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
     assert v2 == expected
+
+
+def test_luhn():
+    t = parse_term("(x * 2) > 9")
+    ctx = build_context(typing_vars) + VariableBinder("x", BaseType("Int"))
+
+    t2 = elaborate(ctx, t, BaseType("Bool"))
+
+    assert t2.fun.fun.type == BaseType("Int")
+
+    print(t2)
+    assert False

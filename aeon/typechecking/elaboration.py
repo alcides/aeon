@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import reduce
 from itertools import combinations
-from loguru import logger
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidHornApplication
@@ -255,11 +254,12 @@ def elaborate_synth(ctx: TypingContext, t: Term) -> tuple[Term, Type]:
         return (t, x)
 
     elif isinstance(t, Hole):
-        return (t, bottom)
+        u = UnificationVar(ctx.fresh_var())
+        return (t, u)
 
     elif isinstance(t, Annotation):
         ann = elaborate_check(ctx, t.expr, t.type)
-        return (ann, t.type)
+        return (Annotation(ann, t.type), t.type)
 
     elif isinstance(t, Abstraction):
         u = UnificationVar(ctx.fresh_var())
@@ -309,16 +309,12 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     elif isinstance(t, Let):
         u = UnificationVar(ctx.fresh_var())
-        if t.var_name == "r":
-            logger.error(f"debug: {u} {t} {ty}")
         nval = elaborate_check(ctx, t.var_value, u)
         nbody = elaborate_check(
             ctx.with_var(t.var_name, u),
             t.body,
             ty,
         )
-        if t.var_name == "r":
-            logger.error(f"debug: {u}")
         return Let(t.var_name, nval, nbody)
 
     elif isinstance(t, Rec):
@@ -462,11 +458,10 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
     elif isinstance(t, Hole):
         return t
     elif isinstance(t, Annotation):
-        return t
+        return Annotation(elaborate_remove_unification(ctx, t.expr), t.type)
     elif isinstance(t, TypeApplication):
         # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
         nt, unions, intersections = replace_unification_variables(ctx, t.type)
-        body = elaborate_remove_unification(ctx, t.body)
 
         # 1. Removal of polar variable
         all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
@@ -511,13 +506,14 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
             intersections,
             to_be_removed,
         )
+
         nt = remove_unions_and_intersections(ctx, nt)
         if isinstance(nt, Top):
-            return TypeApplication(body, nt)
+            return TypeApplication(t.body, nt)
         else:
             should_be_refined = True
-            if isinstance(body, Var):
-                tat = ctx.type_of(body.name)
+            if isinstance(t.body, Var):
+                tat = ctx.type_of(t.body.name)
                 if tat is not None and isinstance(tat, TypePolymorphism) and tat.kind == BaseKind():
                     should_be_refined = False
 
@@ -529,12 +525,12 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
                     new_type = RefinedType(new_var, nt, ref)
                 else:
                     new_type = nt
-                return TypeApplication(body, new_type)
+                return TypeApplication(t.body, new_type)
 
             elif isinstance(nt, RefinedType):
                 ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
                 new_type = RefinedType(nt.name, nt.type, ref)
-                return TypeApplication(body, new_type)
+                return TypeApplication(t.body, new_type)
             else:
                 assert False
 

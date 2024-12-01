@@ -11,11 +11,13 @@ from aeon.core.liquid import LiquidTerm
 
 
 class Kind(ABC):
+
     def __repr__(self):
         return str(self)
 
 
 class BaseKind(Kind):
+
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -24,6 +26,7 @@ class BaseKind(Kind):
 
 
 class StarKind(Kind):
+
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -65,6 +68,7 @@ class TypeVar(Type):
 
 @dataclass
 class Top(Type):
+
     def __repr__(self):
         return "⊤"
 
@@ -80,6 +84,7 @@ class Top(Type):
 
 @dataclass
 class Bottom(Type):
+
     def __repr__(self):
         return "⊥"
 
@@ -168,10 +173,15 @@ class TypeConstructor(Type):
         return str(self)
 
 
-def extract_parts(
-    t: Type,
-) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
-    assert isinstance(t, BaseType) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
+def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
+    assert (
+        isinstance(t, BaseType)
+        or isinstance(t, RefinedType)
+        or isinstance(
+            t,
+            TypeVar,
+        )
+    )
     if isinstance(t, TypeVar):
         return ("_", t_int, LiquidLiteralBool(True))
     elif isinstance(t, RefinedType):
@@ -186,20 +196,18 @@ def extract_parts(
 
 def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
-    if isinstance(t, BaseType):
-        return True
-    elif isinstance(t, Top):
-        return True
-    elif isinstance(t, Bottom):
-        return True
-    elif isinstance(t, RefinedType):
-        return t.refinement == LiquidHole() or isinstance(t.refinement, LiquidHornApplication)
-    elif isinstance(t, AbstractionType):
-        return is_bare(t.var_type) and is_bare(t.type)
-    elif isinstance(t, TypePolymorphism):
-        return is_bare(t.body)
-    else:
-        return False
+    match t:
+        case BaseType(_) | Top() | Bottom():
+            return True
+        case RefinedType(_, _, ref):
+            return ref == LiquidHole() or isinstance(ref, LiquidHornApplication)
+        case AbstractionType(_, _, vtype):
+            return is_bare(vtype) and is_bare(vtype)
+        case TypePolymorphism(_, _, ty):
+            return is_bare(ty)
+        case _:
+            print(t)
+            assert False
 
 
 def base(ty: Type) -> Type:
@@ -210,6 +218,8 @@ def base(ty: Type) -> Type:
 
 
 def type_free_term_vars(t: Type) -> list[str]:
+    from aeon.prelude.prelude import ALL_OPS
+
     if isinstance(t, BaseType):
         return []
     elif isinstance(t, TypeVar):
@@ -217,7 +227,7 @@ def type_free_term_vars(t: Type) -> list[str]:
     elif isinstance(t, AbstractionType):
         afv = type_free_term_vars(t.var_type)
         rfv = type_free_term_vars(t.type)
-        return [x for x in afv + rfv if x != t.var_name]
+        return [x for x in afv + rfv if x != t.var_name and x not in ALL_OPS]
     elif isinstance(t, RefinedType):
         ifv = type_free_term_vars(t.type)
         rfv = liquid_free_vars(t.refinement)
@@ -262,6 +272,18 @@ def get_type_vars(t: Type) -> set[TypeVar]:
             return reduce(lambda x, y: x.union(y), [get_type_vars(a) for a in args])
         case _:
             assert False, f"TypeVar does not support {type(t)}"
+
+
+def refined_to_unrefined_type(ty: Type) -> Type:
+    if isinstance(ty, RefinedType):
+        return ty.type
+    if isinstance(ty, AbstractionType):
+        return AbstractionType(
+            ty.var_name,
+            refined_to_unrefined_type(ty.var_type),
+            refined_to_unrefined_type(ty.type),
+        )
+    return ty
 
 
 def extract_typelevel_freevars(ty: Type) -> list[str]:

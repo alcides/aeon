@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from typing import Any
-from collections.abc import Sequence
+from typing import Sequence
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
@@ -13,14 +14,12 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import all_ops
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, TypeConstructor
+from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
-from aeon.core.types import t_float
-from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -53,36 +52,34 @@ def smt_base_type(ty: Type) -> str | None:
 
 
 def fresh(context: TypingContext, ty: Type) -> Type:
-    match ty:
-        case Top():
-            return ty
-        case Bottom():
-            return ty
-        case BaseType(_):
-            return ty
-        case RefinedType(name=_, type=ity, refinement=LiquidHornApplication(name=_, argtypes=_)):
-            id = context.fresh_var()
-            v = f"v_{id}"
-            args: list[tuple[LiquidTerm, str]] = []
-            for n, t in context.vars() + [(v, ity)]:
-                stp = smt_base_type(t)
-                if stp:
-                    args.append((LiquidVar(n), stp))
-            return RefinedType(v, ity, LiquidHornApplication(f"{id}", args))
-        case RefinedType(name=_, type=_, refinement=_):
-            return ty
-        case AbstractionType(var_name=vn, var_type=vty, type=bty):
-            sp = fresh(context, vty)
-            tp = fresh(context.with_var(vn, vty), bty)
-            return AbstractionType(vn, sp, tp)
-        case TypeVar(_):
-            return ty
-        case TypePolymorphism(name=n, kind=k, body=body):
-            return TypePolymorphism(n, k, fresh(context, body))
-        case TypeConstructor(name=n, args=targs):
-            return TypeConstructor(name=n, args=[fresh(context, a) for a in targs])
-        case _:
-            assert False, f"Type {ty} ({type(ty)}) not freshable"
+    if isinstance(ty, BaseType):
+        return ty
+    elif isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
+        id = context.fresh_var()
+        v = f"v_{id}"
+        args: list[tuple[LiquidTerm, str]] = []
+        for n, t in context.vars() + [(v, ty.type)]:
+            stp = smt_base_type(t)
+            if stp:
+                args.append((LiquidVar(n), stp))
+        return RefinedType(v, ty.type, LiquidHornApplication(f"{id}", args))
+    elif isinstance(ty, RefinedType):
+        return ty
+    elif isinstance(ty, AbstractionType):
+        sp = fresh(context, ty.var_type)
+        tp = fresh(context.with_var(ty.var_name, ty.var_type), ty.type)
+        return AbstractionType(ty.var_name, sp, tp)
+    elif isinstance(ty, Top):
+        return ty
+    elif isinstance(ty, Bottom):
+        return ty
+    elif isinstance(ty, TypeVar):
+        return ty
+    elif isinstance(ty, TypePolymorphism):
+        return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
+    else:
+        print("Type not freshable:", ty, type(ty))
+        assert False
 
 
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
@@ -102,18 +99,27 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
 
 
 def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
-    if isinstance(c, LiquidConstraint):
-        return obtain_holes(c.expr)
-    elif isinstance(c, Conjunction):
-        return obtain_holes_constraint(c.c1) + obtain_holes_constraint(c.c2)
-    elif isinstance(c, Implication):
-        return obtain_holes(c.pred) + obtain_holes_constraint(c.seq)
-    else:
-        assert False
+    match c:
+        case Conjunction(c1, c2):
+            return obtain_holes_constraint(c1) + obtain_holes_constraint(c2)
+        case Implication(_, _, pre, post):
+            return obtain_holes(pre) + obtain_holes_constraint(post)
+        case LiquidConstraint(e):
+            return obtain_holes(e)
+        case UninterpretedFunctionDeclaration(_, _, post):
+            return obtain_holes_constraint(post)
+        case _:
+            print(c)
+            assert False
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralString):
+    if (
+        isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralString)
+        or isinstance(t, LiquidLiteralFloat)
+    ):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -172,7 +178,7 @@ def get_possible_args(vars: Sequence[tuple[LiquidTerm, str]], arity: int):
 
 
 def reverse_type(t: str) -> Type:
-    return {"Int": t_int, "Bool": t_bool, "Float": t_float, "String": t_string}[t]
+    return {"Int": t_int, "Bool": t_bool}[t]
 
 
 def build_possible_assignment(hole: LiquidHornApplication):
@@ -206,13 +212,17 @@ def merge_assignments(xs: list[LiquidTerm]) -> LiquidTerm:
 
 
 def split(c: Constraint) -> list[Constraint]:
-    if isinstance(c, LiquidConstraint):
-        return [c]
-    elif isinstance(c, Conjunction):
-        return split(c.c1) + split(c.c2)
-    elif isinstance(c, Implication):
-        return [Implication(c.name, c.base, c.pred, cp) for cp in split(c.seq)]
-    assert False
+    match c:
+        case LiquidConstraint(_):
+            return [c]
+        case Conjunction(c1, c2):
+            return split(c1) + split(c2)
+        case Implication(name, base, pre, post):
+            return [Implication(name, base, pre, cp) for cp in split(post)]
+        case UninterpretedFunctionDeclaration(name, type, seq):
+            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
+        case _:
+            assert False
 
 
 def build_forall_implication(
@@ -243,35 +253,39 @@ def flat(c: Constraint) -> list[Constraint]:
 
 
 def has_k_head(c: Constraint) -> bool:
-    if isinstance(c, Conjunction):
-        assert False
-    elif isinstance(c, Implication):
-        return has_k_head(c.seq)
-    elif isinstance(c, LiquidConstraint):
-        if isinstance(c.expr, LiquidHornApplication):
-            return True
-        else:
-            return False
-    else:
-        assert False
+    match c:
+        case Conjunction(_, _):
+            assert False
+        case Implication(_, _, _, post):
+            return has_k_head(post)
+        case LiquidConstraint(e):
+            return isinstance(e, LiquidHornApplication)
+        case UninterpretedFunctionDeclaration(_, _, post):
+            return has_k_head(post)
+        case _:
+            assert False
 
 
 def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
-    if isinstance(c, LiquidConstraint):
-        return LiquidConstraint(apply_liquid(assign, c.expr))
-    elif isinstance(c, Conjunction):
-        return Conjunction(
-            apply_constraint(assign, c.c1),
-            apply_constraint(assign, c.c2),
-        )
-    elif isinstance(c, Implication):
-        return Implication(
-            c.name,
-            c.base,
-            apply_liquid(assign, c.pred),
-            apply_constraint(assign, c.seq),
-        )
-    assert False
+    match c:
+        case LiquidConstraint(e):
+            return LiquidConstraint(apply_liquid(assign, e))
+        case Conjunction(c1, c2):
+            return Conjunction(
+                apply_constraint(assign, c1),
+                apply_constraint(assign, c2),
+            )
+        case Implication(name, base, pre, post):
+            return Implication(
+                name,
+                base,
+                apply_liquid(assign, pre),
+                apply_constraint(assign, post),
+            )
+        case UninterpretedFunctionDeclaration(name, base, post):
+            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
+        case _:
+            assert False
 
 
 def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
@@ -304,19 +318,20 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[str, Type]], tuple[LiquidTerm, LiquidTerm]]:
-    assert isinstance(c, Implication)
-    if isinstance(c.seq, LiquidConstraint):
-        vs: list[tuple[str, Type]] = [(c.name, c.base)]
-        p = c.pred
-        h = c.seq.expr
-        return (vs, (p, h))
-    elif isinstance(c.seq, Implication):
-        (vs1, (p, h)) = extract_components_of_imp(c.seq)
-        vsh = [(c.name, c.base)]
-        return (vsh + vs1, (p, h))
-    else:
-        assert False
+) -> tuple[list[tuple[str, AbstractionType | BaseType | Top | Bottom]], tuple[LiquidTerm, LiquidTerm]]:
+    match c:
+        case UninterpretedFunctionDeclaration(name, base, post):
+            vars, (t1, t2) = extract_components_of_imp(post)
+            return ([(name, base)] + vars, (t1, t2))
+        case Implication(name, base, pre, LiquidConstraint(e)):
+            vs: list[tuple[str, AbstractionType | BaseType | Top | Bottom]] = [(c.name, c.base)]
+            return (vs, (pre, e))
+        case Implication(name, base, pre, Implication(_, _, _, _)):
+            (vs1, (p, h)) = extract_components_of_imp(c.seq)
+            vsh = [(name, base)]
+            return (vsh + vs1, (p, h))
+        case _:
+            assert False
 
 
 def weaken(assign, c: Constraint) -> Assignment:
@@ -347,6 +362,8 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
 def solve(c: Constraint) -> bool:
     # Performance improvement
     if not contains_horn_constraint(c):
+        # TODO: Try to simplify the expression before sending to the SMT solver
+        # v = reduce_to_useful_constraint(c)
         return smt_valid(c)
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
@@ -358,5 +375,5 @@ def solve(c: Constraint) -> bool:
     merged_csps = LiquidConstraint(LiquidLiteralBool(True))
     for pi in csp:
         merged_csps = Conjunction(merged_csps, pi)
-    v = apply(subst, merged_csps)
-    return smt_valid(v)
+    c_final: Constraint = apply(subst, merged_csps)
+    return smt_valid(c_final)

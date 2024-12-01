@@ -1,0 +1,22 @@
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+
+def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+
+
+def validate_tweet (tweet: String) : String {
+    tweet_length = String_len(tweet);
+    if tweet_length == 0 then
+        "You didn’t type anything"
+    else
+        if tweet_length > 140 then
+            "Too many characters"
+        else
+            tweet_length_str = String_intToString(tweet_length);
+            String_concat (String_concat "Your tweet has " tweet_length_str)   " characters"
+    }
+
+def  main (x: Int) : Unit {
+    tweet = validate_tweet "Hello, World!";
+    print tweet
+}

@@ -1,0 +1,26 @@
+type List;
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda start: lambda end: lambda step: list(range(start, end, step ))";
+
+def Filter :  (f: (s:Int) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
+
+def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+
+def indices_of_substring ( text :String) (target: String) : List {
+    start: Int = 0;
+    end: Int = ((String_len text) - (String_len target)) + 1 ;
+    step: Int = 1;
+    indices : List = Range start end step;
+    matching_indices : List = Filter ((\i -> String_equal (String_slice text i (i + (String_len target))) target):(s:Int) -> Bool)  indices;
+    matching_indices
+
+}
+
+def main (args:Int) : Unit {
+    print(indices_of_substring "hello world" "lo" )
+
+}

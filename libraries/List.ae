@@ -1,6 +1,6 @@
 type List a:B;
 
-def functools : Bottom = native_import "functools";
+def functools : Unit = native_import "functools";
 
 def List_size: forall a:B, (l:List[a]) -> Int = uninterpreted;
 

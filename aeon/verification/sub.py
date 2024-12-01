@@ -7,14 +7,13 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, TypeConstructor
+from aeon.core.types import AbstractionType, TypeConstructor, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
-from aeon.core.types import TypeVar
 from aeon.typechecking.context import Polarity, TypingContext
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
@@ -37,37 +36,51 @@ def ensure_refined(t: Type) -> RefinedType:
     assert False
 
 
-def implication_constraint(name: str, t: Type, c: Constraint) -> Constraint:
-    if isinstance(t, RefinedType):
-        ref_subs = substitution_in_liquid(t.refinement, LiquidVar(name), t.name)
-        if isinstance(t.type, TypeVar):
-            t_ = BaseType("TypeVarPlaceHolder")  # TODO: Rethink this
-        elif isinstance(t.type, TypeConstructor):
-            t_ = BaseType("TypeConstructorPlaceHolder")  # TODO: Rethink this
-        else:
-            t_ = t.type
-        assert isinstance(t_, BaseType)
-        return Implication(name, t_, ref_subs, c)
-    elif isinstance(t, BaseType):
-        return Implication(name, t, LiquidLiteralBool(True), c)
-    elif isinstance(t, AbstractionType):
-        return implication_constraint(
-            t.var_name,
-            t.var_type,
-            implication_constraint(name, t.type, c),
-        )
-    elif isinstance(t, Bottom):
-        return c
-    elif isinstance(t, Top):
-        return c
-    elif isinstance(t, TypeVar):
-        return implication_constraint(name, BaseType("TypeVarPlaceHolder"), c)
-    elif isinstance(t, TypeConstructor):
-        return implication_constraint(name, BaseType("TypeConstructorPlaceHolder"), c)
-        # TODO: Double check this. Instead of Integer, we should use typeclasses/nominal subclasses.
-    elif isinstance(t, TypePolymorphism):
-        return implication_constraint(t.name, t.body, c)
-    assert False
+def is_first_order_function(at: AbstractionType):
+    v: Type = at
+    while isinstance(v, AbstractionType):
+        match v.var_type:
+            case AbstractionType(_, _, _):
+                return False
+            case BaseType(_) | Top() | Bottom() | RefinedType(_, _, _):
+                pass
+            case _:
+                assert False
+        v = v.type
+    return True
+
+
+def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
+    match ty:
+        case BaseType(_) | Bottom() | Top():
+            return Implication(name, ty, LiquidLiteralBool(True), c)
+        case RefinedType(tname, ttype, tref):
+            ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
+            match ttype:
+                case TypeVar(_):
+                    t_ = BaseType("TypeVarPlaceHolder")
+                case TypeConstructor(_):
+                    t_ = BaseType("TypeConstructorPlaceHolder")
+                case _:
+                    t_ = ttype
+            assert isinstance(t_, BaseType) or isinstance(t_, Top) or isinstance(t_, Bottom)
+            return Implication(name, t_, ref_subs, c)
+        case AbstractionType(_, _, _):
+            # TODO Poly Refl: instead of true, reflect the implementation of the function?
+            if is_first_order_function(ty):
+                return Implication(name, ty, LiquidLiteralBool(True), c)
+            else:
+                return c
+        case TypeVar(_):
+            # TODO Sorts: We are using Int here, but it could have been a singleton.
+            return implication_constraint(name, BaseType("TypeVarPlaceHolder"), c)
+        case TypePolymorphism(_, _, _):
+            return c
+        case TypeConstructor(name, _):
+            return implication_constraint(name, BaseType("TypeConstructorPlaceHolder"), c)
+            # TODO: Double check this. Instead of a new BaseType, we should use typeclasses/nominal subclasses.
+        case _:
+            assert False
 
 
 def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
@@ -112,7 +125,6 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             base_type = BaseType("TypeConstructorPlaceHolder")
         else:
             logger.error(f"Could not subtype: {t1} <: {t2} because of non-refined type.")
-            raise Exception()
             return cfalse
         assert isinstance(base_type, BaseType)
 
@@ -142,6 +154,15 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             c0,
             implication_constraint(t2.var_name, t2.var_type, c1),
         )
+    elif (
+        isinstance(t1, TypeVar)
+        and isinstance(
+            t2,
+            TypeVar,
+        )
+        and t1.name == t2.name
+    ):
+        return ctrue
     else:
         logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
         return cfalse

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-from collections.abc import Generator
+from typing import Generator
 from loguru import logger
 
 from z3 import Function
 from z3 import Int
-from z3 import sat
 from z3 import Solver
+from z3 import sat
 from z3 import unknown
 from z3.z3 import And
 from z3.z3 import Bool
@@ -16,10 +16,10 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float32
 from z3.z3 import FP
 from z3.z3 import ForAll
 from z3.z3 import FPSort
+from z3.z3 import Float64
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import Not
@@ -37,12 +37,8 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, TypeConstructor
+from aeon.core.types import AbstractionType, Bottom, RefinedType, Top, TypePolymorphism, TypeConstructor
 from aeon.core.types import BaseType
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_string
 from aeon.core.types import Type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
@@ -71,7 +67,7 @@ base_functions: dict[str, Any] = {
 
 @dataclass
 class CanonicConstraint:
-    binders: list[tuple[str, BaseType | AbstractionType]]
+    binders: list[tuple[str, BaseType | AbstractionType | Bottom | Top]]
     pre: LiquidTerm
     pos: LiquidTerm
 
@@ -152,7 +148,7 @@ def flatten(c: Constraint, used_vars: list[str]) -> Generator[CanonicConstraint,
 
 
 s = Solver()
-s.set(timeout=200),
+(s.set(timeout=200),)
 
 
 def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = None) -> bool:
@@ -163,6 +159,8 @@ def smt_valid(constraint: Constraint, foralls: None | list[tuple[str, Any]] = No
     cons: list[CanonicConstraint] = list(flatten(constraint, []))
     for c in cons:
         s.push()
+
+        # TODO now: Add monomorphic, uncurried functions here
         smt_c = translate(c, extra=forall_vars)
         for _, v in forall_vars:
             smt_c = ForAll(v, smt_c)
@@ -189,61 +187,85 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache = {}
 
 
-def get_sort(base: BaseType) -> Any:
-    if base == t_int:
-        return IntSort()
-    elif base == t_bool:
-        return BoolSort()
-    elif base == t_float:
-        return Float32()
-    elif base == t_string:
-        return StringSort()
-    elif base.name == "TypeVarPlaceHolder":
-        return IntSort()
-    elif base.name == "TypeConstructorPlaceHolder":
-        return IntSort()
-    elif isinstance(base, BaseType):
-        if base.name not in sort_cache:
-            sort_cache[base.name] = DeclareSort(base.name)
-        return sort_cache[base.name]
-    logger.error(f"No sort implemented: {base}")
-    assert False
+def get_sort(base: Type) -> Any:
+    match base:
+        case Bottom():
+            return DeclareSort("Bottom")
+        case Top():
+            return DeclareSort("Top")
+        case BaseType("Int"):
+            return IntSort()
+        case BaseType("Bool"):
+            return BoolSort()
+        case BaseType("Float"):
+            return Float64()
+        case BaseType("String"):
+            return StringSort()
+        case BaseType("TypeVarPlaceHolder"):
+            return IntSort()  # TODO
+        case BaseType("TypeConstructorPlaceHolder"):
+            return IntSort()  # TODO
+        case BaseType(name):
+            if name not in sort_cache:
+                sort_cache[name] = DeclareSort(name)
+            return sort_cache[name]
+        case _:
+            raise Exception(f"SMT sort of {base} not implemented.")
 
 
-def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
-    current: Type = base
+def unrefine_type(base: Type):
+    """Removes refinements from type."""
+    match base:
+        case RefinedType(_, ty, _):
+            return ty
+        case AbstractionType(name, aty, rty):
+            return AbstractionType(name, unrefine_type(aty), unrefine_type(rty))
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, unrefine_type(body))
+        case _:
+            return base
+
+
+def uncurry(base: AbstractionType) -> tuple[list[BaseType | Top | Bottom], BaseType | Top | Bottom]:
+    current: Type = unrefine_type(base)
     inputs = []
     while isinstance(current, AbstractionType):
         vtype = current.var_type
         if isinstance(vtype, TypeConstructor):
             vtype = BaseType("TypeConstructorPlaceHolder")
-        assert isinstance(vtype, BaseType)
+        assert isinstance(vtype, BaseType) or isinstance(vtype, Top) or isinstance(vtype, Bottom)
         inputs.append(vtype)
         current = current.type
-    assert isinstance(current, BaseType)
+
+    assert isinstance(current, BaseType) or isinstance(current, Top) or isinstance(current, Bottom)
     return (inputs, current)
 
 
-def make_variable(name: str, base: BaseType | AbstractionType) -> Any:
-    if base == t_int:
-        return Int(name)
-    elif base == t_bool:
-        return Bool(name)
-    elif base == t_float:
-        fpsort = FPSort(8, 24)
-        return FP(name, fpsort)
-    elif base == t_string:
-        return String(name)
-    elif isinstance(base, BaseType):
-        return Const(name, get_sort(base))
-    elif isinstance(base, AbstractionType):
-        if name in base_functions:
-            return base_functions[name]
-        input_types, output_type = uncurry(base)
-        args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
-        return Function(name, *args)
-    logger.error(f"No var: {name}, with base {base} of type {type(base)}")
-    assert False
+def make_variable(name: str, base: BaseType | AbstractionType | Top | Bottom) -> Any:
+    match base:
+        case Bottom() | Top():
+            return Const(name, get_sort(base))
+        case BaseType("Int"):
+            return Int(name)
+        case BaseType("Bool"):
+            return Bool(name)
+        case BaseType("Float"):
+            fpsort = FPSort(8, 24)
+            return FP(name, fpsort)
+        case BaseType("String"):
+            return String(name)
+        case BaseType(_):
+            return Const(name, get_sort(base))
+        case AbstractionType(_, _, _):
+            if name in base_functions:
+                return base_functions[name]
+            else:
+                input_types, output_type = uncurry(base)
+                args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
+                return Function(name, *args)
+        case _:
+            logger.error(f"No var: {name}, with base {base} of type {type(base)}")
+            assert False
 
 
 def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
@@ -265,7 +287,7 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
             f = base_functions[t.fun]
         else:
             for v in variables:
-                if v[0] == t.fun:  # TODO:  and isinstance(v[1], function)
+                if v[0] == t.fun:
                     f = v[1]
         if f is None:
             logger.error(f"Failed to find function {t.fun}.")
@@ -281,8 +303,11 @@ def translate(
 ) -> BoolRef | bool:
     variables = [
         (name, make_variable(name, base))
-        for (name, base) in c.binders
-        if isinstance(base, BaseType) or isinstance(base, AbstractionType)
+        for (name, base) in c.binders[::-1]
+        if isinstance(base, BaseType)
+        or isinstance(base, AbstractionType)
+        or isinstance(base, Top)
+        or isinstance(base, Bottom)
     ] + extra
     e1 = translate_liq(c.pre, variables)
     e2 = translate_liq(c.pos, variables)

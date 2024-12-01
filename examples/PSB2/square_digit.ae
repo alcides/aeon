@@ -4,4 +4,41 @@
 # output : string
 # --working--
 
-def square_digit : ( n :{x:Int | 1 <= x && x <= 1000000})-> Int = native "lambda n: ''.join(str(int(d)**2) for d in str(n))";
+import "String.ae";
+import "Math.ae";
+import "PSB2.ae";
+
+#def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
+#    if n == 0 then
+#        ""
+#    else
+#        digit = n % 10;
+#        square = digit * digit;
+#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
+#        result
+#}
+
+def square_digit_unsafe  ( n : Int) : String {
+    if n == 0 then
+        ""
+    else
+        digit = n % 10;
+        square = digit * digit;
+        result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
+        result
+}
+
+def synth_sd ( n : Int) : String {(?hole:String)}
+
+def fitness(): Float {
+    ds = load_dataset "square-digits" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth_sd(x) for x in input_list]";
+    expected_values_str = join_string_list expected_values;
+    actual_values_str = join_string_list actual_values;
+    str_distance = String_distance expected_values_str actual_values_str;
+    str_distance
+}

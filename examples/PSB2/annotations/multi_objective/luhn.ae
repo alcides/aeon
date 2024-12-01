@@ -1,0 +1,47 @@
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+
+type List;
+type Range;
+type Map;
+
+def List_size : (l:List) -> Int = uninterpreted;
+def List_length : (l:List) -> Int = native "lambda list: len(list)";
+def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_append : (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
+
+def sum : (l:List) -> Int = native "lambda xs: sum(xs)";
+
+def List_map_List_Range : (function:(a: Int) -> (b:Int) -> Int)
+                        -> (l:List)
+                        -> (r:Range)
+                        -> List = native "lambda f:lambda xs: lambda r: list(map(lambda x, y:f(x)(y), xs, r))";
+
+def List_map_List : (function:(a: Int) -> Int)
+                        -> (l:List)
+                        -> List = native "lambda f:lambda xs: list(map(lambda x: f(x), xs))";
+
+
+def Range_new : (a:Int) -> (b:Int) -> Range = native "lambda a: lambda b: range(a,b)";
+
+def even : (n:Int) -> Bool = \n -> n % 2 == 0;
+
+def map_digit (x:Int) (i:Int) : Int {
+    if (i % 2) == 0 then ( if (x * 2) > 9 then ((x * 2) - 9) else ( x * 2 ) : Int) else x
+}
+
+
+#PSB2
+def train: TrainData = extract_train_data (load_dataset "luhn" 200 200);
+
+def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0]) - y[0]) for x , y  in data]";
+
+
+@hide(extract_train_data,
+            load_dataset,
+            calculate_luhn_errors,
+            train )
+@multi_minimize_float(calculate_luhn_errors train synth)
+def synth (digits: List) : Int {
+    (?hole: Int)
+}

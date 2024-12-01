@@ -8,7 +8,7 @@ from aeon.backend.evaluator import eval
 
 def check_sugar(source, ty, res):
     p = parse_program(source)
-    p, ctx, ectx = desugar(p)
+    p, ctx, ectx, _ = desugar(p)
     p2 = elaborate(ctx, p)
     print(p2)
     print(check_type_errors(ctx, p2, ty))

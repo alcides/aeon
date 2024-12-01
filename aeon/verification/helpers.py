@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from functools import reduce
 from typing import Generator
+
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -10,10 +12,9 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import BaseType
+from aeon.core.types import AbstractionType, BaseType, Bottom, Top
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
-from aeon.core.types import Type
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
 from aeon.verification.vcs import Conjunction
@@ -21,7 +22,6 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from loguru import logger
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -46,9 +46,8 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[str, Type]], exp: Constraint):
+def constraint_builder(vs: list[tuple[str, BaseType | AbstractionType | Bottom | Top]], exp: Constraint):
     for n, t in vs[::-1]:
-        assert isinstance(t, BaseType)  # TODO: Check this type
         exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp
 
@@ -86,8 +85,7 @@ def get_abs_example() -> Constraint:
 
 
 def simplify_is_true(c: Constraint):
-    return isinstance(c,
-                      LiquidConstraint) and c.expr == LiquidLiteralBool(True)
+    return isinstance(c, LiquidConstraint) and c.expr == LiquidLiteralBool(True)
 
 
 def is_whitespace(s: str) -> bool:
@@ -126,6 +124,7 @@ def is_used(n: str, c: Constraint) -> bool:
     elif isinstance(c, Conjunction):
         return is_used(n, c.c1) or is_used(n, c.c2)
     else:
+        print("Unsupported Constraint", c)
         assert False
 
 
@@ -157,14 +156,13 @@ def constraint_free_variables(c: Constraint) -> list[str]:
         rv = constraint_free_variables(c.seq)
         return [x for x in lv + rv if x != c.name]
     elif isinstance(c, Conjunction):
-        return constraint_free_variables(c.c1) + constraint_free_variables(
-            c.c2)
+        return constraint_free_variables(c.c1) + constraint_free_variables(c.c2)
     else:
+        print("Unsupported constraint", c)
         assert False
 
 
-def substitution_in_constraint(c: Constraint, rep: LiquidTerm,
-                               name: str) -> Constraint:
+def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: str) -> Constraint:
     """Substitues a LiquidVar by another expression within a constraint."""
     if isinstance(c, LiquidConstraint):
         return LiquidConstraint(substitution_in_liquid(c.expr, rep, name))
@@ -177,8 +175,7 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm,
             return c
         else:
             seq = substitution_in_constraint(c.seq, rep, name)
-            return Implication(c.name, c.base,
-                               substitution_in_liquid(c.pred, rep, name), seq)
+            return Implication(c.name, c.base, substitution_in_liquid(c.pred, rep, name), seq)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         seq = substitution_in_constraint(c.seq, rep, name)
         return UninterpretedFunctionDeclaration(c.name, c.type, seq)
@@ -199,31 +196,28 @@ def simplify_constraint(c: Constraint) -> Constraint:
     elif isinstance(c, Conjunction):
         left = simplify_constraint(c.c1)
         right = simplify_constraint(c.c2)
-        if isinstance(
-                left,
-                LiquidConstraint) and left.expr == LiquidLiteralBool(True):
+        if isinstance(left, LiquidConstraint) and left.expr == LiquidLiteralBool(True):
             return right
-        elif isinstance(
-                right,
-                LiquidConstraint) and right.expr == LiquidLiteralBool(True):
+        elif isinstance(right, LiquidConstraint) and right.expr == LiquidLiteralBool(True):
             return left
         else:
             return Conjunction(left, right)
     elif isinstance(c, Implication):
-        if c.pred == LiquidLiteralBool(True) and c.seq == LiquidConstraint(
-                LiquidLiteralBool(True)):
+        if c.pred == LiquidLiteralBool(True) and c.seq == LiquidConstraint(LiquidLiteralBool(True)):
             return c.seq
 
         # Preds are usually built as in (cond) && ( this = other)
-        if (isinstance(c.pred, LiquidApp) and c.pred.fun == "&&"
-                and isinstance(c.pred.args[1], LiquidApp)
-                and c.pred.args[1].fun == "=="
-                and c.pred.args[1].args[0] == LiquidVar(c.name)):
+        if (
+            isinstance(c.pred, LiquidApp)
+            and c.pred.fun == "&&"
+            and isinstance(c.pred.args[1], LiquidApp)
+            and c.pred.args[1].fun == "=="
+            and c.pred.args[1].args[0] == LiquidVar(c.name)
+        ):
             rep = c.pred.args[1].args[1]
             subs_pred = substitution_in_liquid(c.pred.args[0], rep, c.name)
             subs_seq = substitution_in_constraint(c.seq, rep, c.name)
-            rc = simplify_constraint(
-                Implication("_", BaseType("Bool"), subs_pred, subs_seq))
+            rc = simplify_constraint(Implication("_", BaseType("Bool"), subs_pred, subs_seq))
             return rc
 
         cont = simplify_constraint(c.seq)
@@ -240,8 +234,7 @@ def simplify_constraint(c: Constraint) -> Constraint:
     return c
 
 
-def conjunctive_normal_form(
-        c: Constraint) -> Generator[Constraint, None, None]:
+def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
     """Converts a constraint to its conjunctive normal form."""
     if isinstance(c, LiquidConstraint):
         yield c
@@ -259,8 +252,7 @@ def conjunctive_normal_form(
         assert False
 
 
-def pretty_print_generator(
-        c: Constraint) -> Generator[tuple[str, int], None, None]:
+def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, None]:
     """Recursive generates a list of items to print, with the respective
     indentation level."""
     if isinstance(c, LiquidConstraint):
@@ -300,8 +292,7 @@ def is_implication_true(c: Constraint):
         assert False
 
 
-def remove_unrelated_context(
-        c: Constraint, ignore_vars: set[str]) -> tuple[Constraint, set[str]]:
+def remove_unrelated_context(c: Constraint, ignore_vars: set[str]) -> tuple[Constraint, set[str]]:
     """Removes variables and conditions that are unrelated to the goal."""
     if isinstance(c, LiquidConstraint):
         return (c, used_variables(c.expr).difference(ignore_vars or []))
@@ -323,6 +314,16 @@ def remove_unrelated_context(
         assert False
 
 
+def reduce_to_useful_constraint(c: Constraint) -> Constraint:
+    top = []
+    for cons in conjunctive_normal_form(c):
+        if not is_implication_true(cons):
+            cons_simp = simplify_constraint(cons)
+            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+            top.append(cons_clean)
+    return reduce(Conjunction, top, LiquidConstraint(LiquidLiteralBool(True)))  # type: ignore
+
+
 def pretty_print_constraint(c: Constraint) -> str:
     """Returns a string representation of a given Constraint.
 
@@ -338,8 +339,7 @@ def pretty_print_constraint(c: Constraint) -> str:
         if not is_implication_true(cons):
             r = []
             cons_simp = simplify_constraint(cons)
-            cons_clean, _ = remove_unrelated_context(cons_simp,
-                                                     ignore_vars=set())
+            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
             for item, indent in pretty_print_generator(cons_clean):
                 r.append(indent * "\t" + item)
             top.append("\n".join(r))
@@ -347,8 +347,3 @@ def pretty_print_constraint(c: Constraint) -> str:
     middle = "\n+--------------------+\n".join(top)
     footer = "\n+---------//---------+\n"
     return header + middle + footer
-
-
-def show_constraint(c: Constraint):
-    logger.log("CONSTRAINT", "Could not show constrain:")
-    logger.log("CONSTRAINT", pretty_print_constraint(c))

@@ -1,0 +1,30 @@
+import extract_train_data from "PSB2.ae";
+import load_dataset from "PSB2.ae";
+type List;
+
+def math : Unit = native_import "math";
+def Math_floor : (i:Float) -> Int = native "lambda i: math.floor(i)";
+def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)";
+def Math_toInt : (i:Float) -> Int = native "lambda i: int(i)";
+
+def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+
+
+def equal_int : (a: Int) -> (b: Int) -> Bool = native "lambda x: lambda y : x == y";
+
+
+def train: TrainData = extract_train_data (load_dataset "middle-character" 200 200);
+
+
+def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
+
+
+@hide(extract_train_data,
+            load_dataset,
+            calculate_middle_char_errors,
+            train )
+@multi_minimize_float(calculate_middle_char_errors train synth)
+def synth(s: String) : String {
+    (?hole:String)
+}

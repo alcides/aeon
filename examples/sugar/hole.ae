@@ -1,3 +1,0 @@
-def test (x:{k:Int | k > 0}) -> {z:Int | z < 0} {
-    ?r
-}

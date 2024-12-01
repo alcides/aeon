@@ -4,14 +4,30 @@
 # input : 2 integers in [1, 1000]
 # output : float
 # -- working--
-# need some work in aeon
+
+import "Math.ae";
+import "PSB2.ae";
+
+#constants
+def constant_f0 : Float = 0.0;
+def constant_f1 : Float = 1.0;
 
 def mult ( n:Int , m:Int ) : Int { n * m }
 
-def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = native "lambda x: lambda y: sum((x - i) * y for i in range(1, x + 1)) " ;
+def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
 
-# add suport to returning Float
-# def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float { (peter_wins n  m ) / (mult n m)  }
+def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+    Math_toFloat(peter_wins n  m ) / Math_toFloat(mult n m)  }
 
-# when I run the code and the ?hole in main is dice_game(6)(6) it should return and Int but returned a Float 2.5
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Int { (peter_wins n  m ) / (mult n m)  }
+def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
+
+def fitness : Float  {
+    ds = load_dataset "dice-game" 200 200;
+    train = extract_train_data ds;
+    unpacked_data = unpack_train_data train;
+    input_list = get_input_list unpacked_data;
+    expected_values = get_output_list unpacked_data;
+    actual_values : List = native "[synth(x)(y) for x, y in input_list]";
+    mse = mean_square_error actual_values expected_values;
+    mse
+}

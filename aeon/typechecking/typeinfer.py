@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
@@ -27,16 +29,17 @@ from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import args_size_of_type
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
-from aeon.core.types import bottom
-from aeon.core.types import extract_parts
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
-from aeon.core.types import t_int
-from aeon.core.types import t_unit
 from aeon.core.types import Type
-from aeon.core.types import type_free_term_vars
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.core.types import bottom
+from aeon.core.types import extract_parts
+from aeon.core.types import t_bool
+from aeon.core.types import t_float
+from aeon.core.types import t_int
+from aeon.core.types import t_unit
+from aeon.core.types import type_free_term_vars
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.verification.horn import fresh
@@ -46,7 +49,6 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
-from loguru import logger
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -87,7 +89,7 @@ class TypeApplicationOnlyWorksOnBareTypesException(TypeCheckingException):
     ty: Type
 
     def __str__(self):
-        return f"Cannot use bare types in type applications (type {self.ty} in {self.tt})."
+        return f"Cannot use bare types in type applications (type {self.ty} in {self.t})."
 
 
 @dataclass
@@ -137,70 +139,87 @@ def prim_litint(t: int) -> RefinedType:
     )
 
 
+def prim_litfloat(t: float) -> RefinedType:
+    return RefinedType(
+        "v",
+        t_float,
+        LiquidApp("==", [LiquidVar("v"), LiquidLiteralFloat(t)]),
+    )
+
+
+def make_binary_app_type(t: str, ity: BaseType | TypeVar, oty: BaseType | TypeVar) -> Type:
+    """Creates the type of a binary operator"""
+    output = RefinedType(
+        "z",
+        oty,
+        LiquidApp(
+            "==",
+            [
+                LiquidVar("z"),
+                LiquidApp(
+                    t,
+                    [LiquidVar("x"), LiquidVar("y")],
+                ),
+            ],
+        ),
+    )
+    appt2 = AbstractionType("y", ity, output)
+    appt1 = AbstractionType("x", ity, appt2)
+    return appt1
+
+
 def prim_op(t: str) -> Type:
-    if t in ["&&", "||"]:
-        return AbstractionType(
-            "x",
-            t_bool,
-            AbstractionType(
-                "y",
-                t_bool,
-                RefinedType(
-                    "z",
-                    t_bool,
-                    LiquidApp(
-                        "==",
-                        [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
-                    ),
-                ),
-            ),
+    match t:
+        case "%":
+            return make_binary_app_type(t, t_int, t_int)
+        case "+" | "-" | "*" | "/":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), TypeVar("a")))
+        case "==" | "!=" | ">" | ">=" | "<" | "<=":
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), t_bool))
+        case "&&" | "||":
+            return make_binary_app_type(t, t_bool, t_bool)
+        case _:
+            assert False
+
+
+def rename_liquid_term(refinement, old_name, new_name):
+    if isinstance(refinement, LiquidVar):
+        if refinement.name == old_name:
+            return LiquidVar(new_name)
+        else:
+            return refinement
+    elif isinstance(refinement, LiquidLiteralBool):
+        return refinement
+    elif isinstance(refinement, LiquidLiteralInt):
+        return refinement
+    elif isinstance(refinement, LiquidLiteralFloat):
+        return refinement
+    elif isinstance(refinement, LiquidApp):
+        return LiquidApp(
+            refinement.fun,
+            [rename_liquid_term(x, old_name, new_name) for x in refinement.args],
         )
-    elif t == "%":
-        return AbstractionType("x", t_int, AbstractionType("y", t_int, t_int))
-    elif t in ["+", "*", "-", "/"]:
-        return TypePolymorphism(
-            "n",
-            BaseKind(),
-            AbstractionType(
-                "x",
-                TypeVar("n"),
-                AbstractionType(
-                    "y",
-                    TypeVar("n"),
-                    RefinedType(
-                        "z",
-                        TypeVar("n"),
-                        LiquidApp(
-                            "==",
-                            [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
-                        ),
-                    ),
-                ),
-            ),
-        )
-    elif t in ["<", ">", "<=", ">=", "==", "!="]:
-        return TypePolymorphism(
-            "n",
-            BaseKind(),
-            AbstractionType(
-                "x",
-                TypeVar("n"),
-                AbstractionType(
-                    "y",
-                    TypeVar("n"),
-                    RefinedType(
-                        "z",
-                        t_bool,
-                        LiquidApp(
-                            "==",
-                            [LiquidVar("z"), LiquidApp(t, [LiquidVar("x"), LiquidVar("y")])],
-                        ),
-                    ),
-                ),
-            ),
-        )
+    elif isinstance(refinement, LiquidHornApplication):
+        if refinement.name == old_name:
+            return LiquidHornApplication(
+                new_name,
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
+            )
+        else:
+            return LiquidHornApplication(
+                refinement.name,
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
+            )
     else:
         assert False
+
+
+def renamed_refined_type(ty: RefinedType) -> RefinedType:
+    old_name = ty.name
+    new_name = "_inner_" + old_name
+
+    refinement = rename_liquid_term(ty.refinement, old_name, new_name)
+    return RefinedType(new_name, ty.type, refinement)
 
 
 # patterm matching term
@@ -216,6 +235,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Literal) and t.type == t_int:
         assert isinstance(t.value, int)
         return (ctrue, prim_litint(t.value))
+    elif isinstance(t, Literal) and t.type == t_float:
+        assert isinstance(t.value, float)
+        return (ctrue, prim_litfloat(t.value))
     elif isinstance(t, Literal):
         return (ctrue, t.type)
     elif isinstance(t, Var):
@@ -228,8 +250,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             )
         if isinstance(ty, BaseType) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
-            assert ty.name != t.name
-            # TODO if the names are equal , we must replace it for another variable
+            # assert ty.name != t.name
+            if ty.name == t.name:
+                ty = renamed_refined_type(ty)
             # Self
             ty = RefinedType(
                 ty.name,
@@ -269,27 +292,27 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} is not a function.",
+                f"Application {t} ({ty}) is not a function.",
             )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
         (c2, t2) = synth(nctx, t.body)
-        assert t.var_name not in type_free_term_vars(t2)
+        term_vars = type_free_term_vars(t1)
+        assert t.var_name not in term_vars
         r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
         return r
     elif isinstance(t, Rec):
         nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
         c1 = check(nrctx, t.var_value, t.var_type)
         (c2, t2) = synth(nrctx, t.body)
-
         c1 = implication_constraint(t.var_name, t.var_type, c1)
         c2 = implication_constraint(t.var_name, t.var_type, c2)
-        return (Conjunction(c1, c2), t2)
+        return Conjunction(c1, c2), t2
     elif isinstance(t, Annotation):
         ty = fresh(ctx, t.type)
         c = check(ctx, t.expr, ty)
-        return (c, ty)
+        return c, ty
     elif isinstance(t, TypeApplication):
         if not is_bare(t.type):
             # Type Application only works on bare types.
@@ -306,13 +329,41 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
         return (c, s)
     elif isinstance(t, Hole):
-        return (ctrue, bottom)
+        return ctrue, bottom
+    # TODO: add if term
+    # elif isinstance(t, If):
+    #     y = ctx.fresh_var()
+    #     (c0, t0) = synth(ctx, t.cond)
+    #     if not check_type(ctx, t.cond, t_bool):
+    #         raise CouldNotGenerateConstraintException("If condition not boolean")
+    #
+    #     (c1, t1) = synth(ctx, t.then)
+    #     (c2, t2) = synth(ctx, t.otherwise)
+    #     t1 = ensure_refined(t1)
+    #     t2 = ensure_refined(t2)
+    #     assert t1.type == t2.type
+    #     # t1s = substitution_in_liquid(t1.refinement, LiquidVar(y), t1.name)
+    #     # t2s = substitution_in_liquid(t2.refinement, LiquidVar(y), t2.name)
+    #     # print(t1s)
+    #     # print(t2s)
+    #     liquid_term_if = liquefy_if(t)
+    #     print("term----", t)
+    #     print("liquidterm----", liquid_term_if)
+    #     x = Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, liquid_term_if)
+    #     print(x)
+    #     # return Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, LiquidApp("||", [t1s, t2s]))
+    #     return x
     else:
+        logger.log("SYNTH_TYPE", ("Unhandled:", t))
+        logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
         assert False
 
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
-    if isinstance(t, Abstraction) and isinstance(ty, AbstractionType):
+    if isinstance(t, Abstraction) and isinstance(
+        ty,
+        AbstractionType,
+    ):  # ??? (\__equal_1__ -> (let _anf_1 = (== _anf_1) in(_anf_1 __equal_1__))) , basetype INT
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
         return implication_constraint(t.var_name, ty.var_type, c)
@@ -350,7 +401,10 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         )
         return Conjunction(c0, Conjunction(c1, c2))
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
-        ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        if t.name != ty.name:
+            ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
+        else:
+            ty_right = ty
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
             raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)
@@ -406,20 +460,3 @@ def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
     if isinstance(c, LiquidLiteralBool):
         return c.value
     return entailment(ctx, c)
-
-
-def check_and_log_type_errors(ctx: TypingContext, p: Term, top: Type):
-    errors = check_type_errors(ctx, p, top)
-    if errors:
-        log_typechecker_errors(errors)
-        return True
-    return False
-
-
-def log_typechecker_errors(errors):
-    logger.log("TYPECHECKER", "-------------------------------")
-    logger.log("TYPECHECKER", "+  Type Checking Error        +")
-    for error in errors:
-        logger.log("TYPECHECKER", "-------------------------------")
-        logger.log("TYPECHECKER", error)
-    logger.log("TYPECHECKER", "-------------------------------")

@@ -7,6 +7,7 @@ from loguru import logger
 
 
 def levels_filter(levels):
+
     def filter(record):
         return record["level"].name in levels
 
@@ -15,7 +16,10 @@ def levels_filter(levels):
 
 def setup_logger():
     logger.level("TYPECHECKER", no=35, color="<magenta>", icon="🔍")
-    logger.level("CONSTRAINT", no=36, color="<cyan>", icon="🔒")
+    logger.level("SYNTH_TYPE", no=36, color="<magenta>")
+    logger.level("CONSTRAINT", no=37, color="<cyan>", icon="🔒")
+    logger.level("SYNTHESIZER", no=38, color="<red>")
+    logger.level("TIME", no=39, color="<green>")
 
     # Setup the logger
     # logger.remove()
@@ -23,7 +27,11 @@ def setup_logger():
     return logger
 
 
-def export_log(logs: list, export_file: bool = False, logfile_name: str = ""):
+def export_log(
+    logs: list,
+    export_file: bool = False,
+    logfile_name: str | None = None,
+):
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
         return logger.add(logfile, filter=levels_filter(logs))
