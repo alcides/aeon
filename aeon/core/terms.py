@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 from dataclasses import dataclass
 
@@ -7,7 +8,8 @@ from aeon.core.types import t_string
 from aeon.core.types import Type
 
 
-class Term:
+class Term(ABC):
+
     def __hash__(self) -> int:
         return str(self).__hash__()
 
@@ -23,14 +25,7 @@ class Literal(Term):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return (
-            isinstance(
-                other,
-                Literal,
-            )
-            and self.value == other.value
-            and self.type == other.type
-        )
+        return isinstance(other, Literal) and self.value == other.value and self.type == other.type
 
 
 @dataclass(frozen=True)
@@ -85,14 +80,7 @@ class Application(Term):
         return f"({self.fun} {self.arg})"
 
     def __eq__(self, other):
-        return (
-            isinstance(
-                other,
-                Application,
-            )
-            and self.fun == other.fun
-            and self.arg == other.arg
-        )
+        return isinstance(other, Application) and self.fun == other.fun and self.arg == other.arg
 
 
 @dataclass(frozen=True)
@@ -104,14 +92,7 @@ class Abstraction(Term):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
-        return (
-            isinstance(
-                other,
-                Abstraction,
-            )
-            and self.var_name == other.var_name
-            and self.body == other.body
-        )
+        return isinstance(other, Abstraction) and self.var_name == other.var_name and self.body == other.body
 
 
 @dataclass(frozen=True)

@@ -5,15 +5,13 @@ from abc import ABC
 from aeon.core.terms import Term, Application, Literal, Var
 from aeon.core.types import top, BaseType
 from aeon.frontend.anf_converter import ensure_anf
-from aeon.logger.logger import setup_logger
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import synthesize
-from aeon.typechecking.typeinfer import check_type_errors
-
-setup_logger()
+from aeon.typechecking.elaboration import elaborate
+from aeon.typechecking.typeinfer import check_type
 
 
 def mock_literal_individual(value: int):
@@ -39,7 +37,8 @@ def test_fitness():
     prog = parse_program(code)
     p, ctx, ectx, _ = desugar(prog)
     p = ensure_anf(p)
-    check_type_errors(ctx, p, top)
+    p = elaborate(ctx, p, top)
+    assert check_type(ctx, p, top)
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
         args=[],
@@ -72,7 +71,8 @@ def test_fitness2():
     prog = parse_program(code)
     p, ctx, ectx, metadata = desugar(prog)
     p = ensure_anf(p)
-    check_type_errors(ctx, p, top)
+    p = elaborate(ctx, p, top)
+    assert check_type(ctx, p, top)
     term, _ = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
 
     assert isinstance(term, Term)

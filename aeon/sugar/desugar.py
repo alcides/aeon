@@ -6,8 +6,7 @@ from pathlib import Path
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitute_vartype_in_term
-from aeon.core.terms import Abstraction
-from aeon.core.terms import Application
+from aeon.core.terms import Abstraction, Application
 from aeon.core.terms import Hole
 from aeon.core.terms import Literal
 from aeon.core.terms import Rec
@@ -24,8 +23,7 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.context import TypingContext, UninterpretedFunctionBinder
 from aeon.utils.ctx_helpers import build_context
 
 ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Metadata]
@@ -106,6 +104,7 @@ def update_program_and_context(
     ctx: TypingContext,
     type_decls: list[TypeDecl],
 ) -> tuple[TypingContext, Term]:
+
     for d in defs[::-1]:
         if d.body == Var("uninterpreted"):
             ctx = handle_uninterpreted(ctx, d, type_decls)
@@ -119,7 +118,7 @@ def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[Typ
     d_type = d.type
     for tyname in type_decls:
         d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
-    return UninterpretedBinder(ctx, d.name, d_type)
+    return ctx + UninterpretedFunctionBinder(d.name, d_type)
 
 
 def bind_program_to_rec(prog: Term, d: Definition) -> Term:
@@ -134,9 +133,7 @@ def handle_import(path: str) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
     possible_containers = (
-        [Path.cwd()]
-        + [Path.cwd() / "libraries"]
-        + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
+        [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
     )
     for container in possible_containers:
         file = container / f"{path}"
