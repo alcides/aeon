@@ -157,14 +157,15 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         unify(ctx, sup.var_type, sub.var_type)
         unify(ctx, sub.type, sup.type)
         return []
-    elif (isinstance(sub, TypeVar) and isinstance(
-            sup,
-            TypeVar,
-    ) and sup.name == sup.name):
+    elif isinstance(sub, TypeVar) and isinstance(
+            sup, TypeVar) and sup.name == sup.name:
+        return []
+    elif isinstance(sup, Intersection):
+        # This case will be dealt after
         return []
     else:
         raise UnificationException(
-            f"Failed to unify {sub} with {sup} ({type(sup)})", )
+            f"Failed to unify {sub} with {sup} ({type(sup)})")
 
 
 def simple_subtype(ctx: TypingContext, a: Type, b: Type) -> bool:
@@ -358,22 +359,11 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
             # Supports multiple nested foralls
             u = UnificationVar(ctx.fresh_var())
             c = TypeApplication(c, u)
-            for v in s.bounded:
-                try:
-                    s1 = type_substitution(s.body, s.name, u)
-                    unify(ctx, s1, ty)
-                except UnificationException:
-                    pass
+            if s.bounded:
+                unify(ctx, u, Intersection(s.bounded))
+            s = type_substitution(s.body, s.name, u)
         unify(ctx, s, ty)
         return c
-
-
-# TODO now:
-
-# I was trying to add intersection types, but I am not sure about the complexity of inference.
-
-# Instead, we could try to lazily translate "+(top) x y" to "smtPlus x y" by peeking into the type of arguments during translation.
-assert False
 
 
 @dataclass
@@ -384,6 +374,10 @@ class Union(Type):
 @dataclass
 class Intersection(Type):
     intersected: list[Type]
+
+    def __hash__(self):
+        return hash(
+            sum(hash(i) for i in self.intersected) + len(self.intersected))
 
 
 def extract_direction(ty: Type, upper: bool = True) -> set[Type]:
@@ -536,7 +530,13 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
             to_be_removed,
         )
 
-        nt = remove_unions_and_intersections(ctx, nt)
+        # Fixpoint to remove intersections of unions and vv
+        while True:
+            old = nt
+            nt = remove_unions_and_intersections(ctx, nt)
+            if nt == old:
+                break
+
         if isinstance(nt, Top):
             return TypeApplication(t.body, nt)
         else:
@@ -613,6 +613,7 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
 
 
 def elaborate(ctx: TypingContext, e: Term, expected_type: Type = top) -> Term:
+
     e2 = elaborate_foralls(e)
     e3 = elaborate_check(ctx, e2, expected_type)
     print("e3", e3)

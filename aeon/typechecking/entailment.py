@@ -45,16 +45,21 @@ def entailment(ctx: TypingContext, c: Constraint):
                 monoty = monomorphise(ty)
                 assert isinstance(monoty, AbstractionType)
                 c = UninterpretedFunctionDeclaration(n, monoty, c)
-            case VariableBinder(name=_, type=TypePolymorphism(name=_, kind=_, body=_)):
+            case VariableBinder(name=_,
+                                type=TypePolymorphism(name=_, kind=_, body=_)):
                 pass
-            case VariableBinder(name=_, type=AbstractionType(var_name=_, var_type=_, type=_)):
+            case VariableBinder(name=_,
+                                type=AbstractionType(var_name=_,
+                                                     var_type=_,
+                                                     type=_)):
                 pass
             case VariableBinder(name=name, type=TypeVar(name=_)):
                 c = Implication(name, t_int, ctrue, c)
             case VariableBinder(name=name, type=ty):
                 (ref_name, base, cond) = extract_parts(ty)
                 if isinstance(base, BaseType):
-                    ncond = substitution_in_liquid(cond, LiquidVar(name), ref_name)
+                    ncond = substitution_in_liquid(cond, LiquidVar(name),
+                                                   ref_name)
                     c = Implication(name, base, ncond, c)
                 else:
                     assert False
@@ -62,7 +67,6 @@ def entailment(ctx: TypingContext, c: Constraint):
                 pass
             case _:
                 assert False
-
     r = solve(c)
     if not r:
         logger.error("Could not show constrain:")

@@ -91,5 +91,4 @@ def test_bound_type():
         "f", parse_type("forall a:B = Int±Bool, (x:a) -> a"))
 
     t2 = elaborate(ctx, t, Top())
-
     assert t2.fun.type == BaseType("Int")

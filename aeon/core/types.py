@@ -150,7 +150,7 @@ class TypePolymorphism(Type):
     name: str  # alpha
     kind: Kind
     body: Type
-    bounded: list[type] = field(default_factory=list)
+    bounded: list[Type] = field(default_factory=list)
 
     def __str__(self):
         return f"forall {self.name}:{self.kind}, {self.body}"
@@ -202,8 +202,7 @@ def is_bare(t: Type) -> bool:
         case TypePolymorphism(_, _, ty):
             return is_bare(ty)
         case _:
-            print(t)
-            assert False
+            assert False, str(t)
 
 
 def base(ty: Type) -> Type:

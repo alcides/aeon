@@ -2,7 +2,7 @@ from aeon.core.types import top
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
 from aeon.typechecking.elaboration import elaborate
-from aeon.typechecking.typeinfer import check_type, check_type_errors
+from aeon.typechecking.typeinfer import check_type
 from aeon.backend.evaluator import eval
 
 
@@ -10,8 +10,6 @@ def check_sugar(source, ty, res):
     p = parse_program(source)
     p, ctx, ectx, _ = desugar(p)
     p2 = elaborate(ctx, p)
-    print(p2)
-    print(check_type_errors(ctx, p2, ty))
     assert check_type(ctx, p2, ty)
     assert eval(p2, ectx) == res
 
