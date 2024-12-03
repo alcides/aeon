@@ -1,12 +1,17 @@
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t
+     | "forall" ID ":" kind "=" type_inter "," type                       -> polymorphism_t_bounded
      | ID                                                  -> simple_t
      | ID "[" tcargs "]"                                 -> constructor_t
      | "(" type ")"                                        -> same
 
+
 tcargs : type                     -> tcargs_singleton
        | type "," tcargs             ->  tcargs_rec
+
+type_inter : type                     -> tcargs_singleton
+       | type "±" type_inter             ->  tcargs_rec
 
 expression : "-" expression_i                           -> minus
            | expression_i                              -> same

@@ -8,6 +8,7 @@ from itertools import combinations
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidHornApplication
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid_ops import ops
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
@@ -127,10 +128,12 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         unify(ctx, sub, type_substitution(sup.body, sup.name, u))
         return []
 
-    elif isinstance(sub, TypeConstructor) and isinstance(sup, TypeConstructor) and sub.name == sup.name:
+    elif isinstance(sub, TypeConstructor) and isinstance(
+            sup, TypeConstructor) and sub.name == sup.name:
         argtypes = ctx.type_constructor_named(sub.name)
         if not argtypes:
-            raise UnificationException(f"Type constructor {sub.name} is of type unknown")
+            raise UnificationException(
+                f"Type constructor {sub.name} is of type unknown")
         for s, u, (name, kind, polarity) in zip(sub.args, sup.args, argtypes):
             match polarity:
                 case Polarity.NEITHER:
@@ -154,19 +157,14 @@ def unify(ctx: TypingContext, sub: Type, sup: Type) -> list[Type]:
         unify(ctx, sup.var_type, sub.var_type)
         unify(ctx, sub.type, sup.type)
         return []
-    elif (
-        isinstance(sub, TypeVar)
-        and isinstance(
+    elif (isinstance(sub, TypeVar) and isinstance(
             sup,
             TypeVar,
-        )
-        and sup.name == sup.name
-    ):
+    ) and sup.name == sup.name):
         return []
     else:
         raise UnificationException(
-            f"Failed to unify {sub} with {sup} ({type(sup)})",
-        )
+            f"Failed to unify {sub} with {sup} ({type(sup)})", )
 
 
 def simple_subtype(ctx: TypingContext, a: Type, b: Type) -> bool:
@@ -202,7 +200,8 @@ def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
         return reduce(lambda a, b: type_lub(ctx, a, b), ty.united, neutral)
     elif isinstance(ty, Intersection):
         neutrali: Type = bottom
-        return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected, neutrali)
+        return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected,
+                      neutrali)
     elif isinstance(ty, AbstractionType):
         return AbstractionType(
             var_name=ty.var_name,
@@ -219,7 +218,9 @@ def remove_unions_and_intersections(ctx: TypingContext, ty: Type) -> Type:
             ),
         )
     elif isinstance(ty, TypeConstructor):
-        return TypeConstructor(ty.name, [remove_unions_and_intersections(ctx, a) for a in ty.args])
+        return TypeConstructor(
+            ty.name,
+            [remove_unions_and_intersections(ctx, a) for a in ty.args])
     elif isinstance(ty, RefinedType):
         innert = remove_unions_and_intersections(ctx, ty.type)
         assert isinstance(innert, BaseType) or isinstance(innert, TypeVar)
@@ -235,7 +236,8 @@ def wrap_unification(ctx: TypingContext, t: Term, us: list[Type]) -> Term:
     return nt
 
 
-def ensure_not_polymorphism(ctx: TypingContext, t: Term, ty: Type) -> tuple[Term, Type]:
+def ensure_not_polymorphism(ctx: TypingContext, t: Term,
+                            ty: Type) -> tuple[Term, Type]:
     while isinstance(ty, TypePolymorphism):
         u = UnificationVar(ctx.fresh_var())
         ty = type_substitution(ty.body, ty.name, u)
@@ -337,8 +339,7 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
     elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
         if t.kind != ty.kind:
             assert UnificationException(
-                f"Failed to unify the kind of {t} with kind of type {ty}",
-            )
+                f"Failed to unify the kind of {t} with kind of type {ty}", )
         nctx = ctx.with_typevar(t.name, t.kind)
         nty = type_substitution(ty.body, ty.name, TypeVar(t.name))
         nbody = elaborate_check(nctx, t.body, nty)
@@ -352,13 +353,27 @@ def elaborate_check(ctx: TypingContext, t: Term, ty: Type) -> Term:
 
     else:
         (c, s) = elaborate_synth(ctx, t)
-        while isinstance(s, TypePolymorphism) and not isinstance(ty, TypePolymorphism):
+        while isinstance(
+                s, TypePolymorphism) and not isinstance(ty, TypePolymorphism):
             # Supports multiple nested foralls
             u = UnificationVar(ctx.fresh_var())
             c = TypeApplication(c, u)
-            s = type_substitution(s.body, s.name, u)
-            unify(ctx, s, ty)
+            for v in s.bounded:
+                try:
+                    s1 = type_substitution(s.body, s.name, u)
+                    unify(ctx, s1, ty)
+                except UnificationException:
+                    pass
+        unify(ctx, s, ty)
         return c
+
+
+# TODO now:
+
+# I was trying to add intersection types, but I am not sure about the complexity of inference.
+
+# Instead, we could try to lazily translate "+(top) x y" to "smtPlus x y" by peeking into the type of arguments during translation.
+assert False
 
 
 @dataclass
@@ -423,7 +438,8 @@ def replace_unification_variables(
             else:
                 return Intersection(list(extract_direction(ty, False)))
         elif isinstance(ty, TypeConstructor):
-            return TypeConstructor(ty.name, [go(ctx, a, polarity) for a in ty.args])
+            return TypeConstructor(ty.name,
+                                   [go(ctx, a, polarity) for a in ty.args])
         else:
             assert False
 
@@ -464,41 +480,54 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
         nt, unions, intersections = replace_unification_variables(ctx, t.type)
 
         # 1. Removal of polar variable
-        all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
-        all_negative = [x.name for i in intersections for x in i.intersected if isinstance(x, UnificationVar)]
+        all_positive = [
+            x.name for u in unions for x in u.united
+            if isinstance(x, UnificationVar)
+        ]
+        all_negative = [
+            x.name for i in intersections for x in i.intersected
+            if isinstance(x, UnificationVar)
+        ]
         to_be_removed = [x for x in all_positive if x not in all_negative] + [
             x for x in all_negative if x not in all_positive
         ]
 
         # 2. Unification of indistinguishable variables
         for union in unions:
-            unifications = [x for x in union.united if isinstance(x, UnificationVar)]
+            unifications = [
+                x for x in union.united if isinstance(x, UnificationVar)
+            ]
             for a, b in combinations(unifications, 2):
                 if all(a in u.united and b in u.united for u in unions):
                     to_be_removed.append(max(a.name, b.name))
 
         for i in intersections:
-            unifications = [x for x in i.intersected if isinstance(x, UnificationVar)]
+            unifications = [
+                x for x in i.intersected if isinstance(x, UnificationVar)
+            ]
             for a, b in combinations(unifications, 2):
-                if all(a in j.intersected and b in j.intersected for j in intersections):
+                if all(a in j.intersected and b in j.intersected
+                       for j in intersections):
                     to_be_removed.append(max(a.name, b.name))
 
         # 3. Flattening of variable sandwiches
-        unifications = [x for union in unions for x in union.united if isinstance(x, UnificationVar)]
+        unifications = [
+            x for union in unions for x in union.united
+            if isinstance(x, UnificationVar)
+        ]
         for u in unifications:
             base_types_together_with_u_pos = [
-                b for un in unions if u in un.united for b in un.united if not isinstance(b, UnificationVar)
+                b for un in unions if u in un.united for b in un.united
+                if not isinstance(b, UnificationVar)
             ]
             base_types_together_with_u_neg = [
-                b
-                for i in intersections
-                if u in i.intersected
-                for b in i.intersected
-                if not isinstance(b, UnificationVar)
+                b for i in intersections if u in i.intersected
+                for b in i.intersected if not isinstance(b, UnificationVar)
             ]
             # TODO: I think we need subtyping here.
 
-            if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
+            if any(bp in base_types_together_with_u_neg
+                   for bp in base_types_together_with_u_pos):
                 to_be_removed.append(u.name)
 
         remove_from_union_and_intersection(
@@ -514,21 +543,24 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
             should_be_refined = True
             if isinstance(t.body, Var):
                 tat = ctx.type_of(t.body.name)
-                if tat is not None and isinstance(tat, TypePolymorphism) and tat.kind == BaseKind():
+                if tat is not None and isinstance(
+                        tat, TypePolymorphism) and tat.kind == BaseKind():
                     should_be_refined = False
 
             if isinstance(nt, BaseType) or isinstance(nt, TypeVar):
                 new_type: Type
                 if should_be_refined:
                     new_var = ctx.fresh_var()
-                    ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
+                    ref = LiquidHornApplication(
+                        "k", [(LiquidVar(new_var), str(nt))])
                     new_type = RefinedType(new_var, nt, ref)
                 else:
                     new_type = nt
                 return TypeApplication(t.body, new_type)
 
             elif isinstance(nt, RefinedType):
-                ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
+                ref = LiquidHornApplication(
+                    "k", [(LiquidVar(nt.name), str(nt.type))])
                 new_type = RefinedType(nt.name, nt.type, ref)
                 return TypeApplication(t.body, new_type)
             else:
@@ -570,6 +602,8 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
             ),
         )
     elif isinstance(t, Application):
+        if t in ops:
+            pass
         return Application(
             elaborate_remove_unification(ctx, t.fun),
             elaborate_remove_unification(ctx, t.arg),
@@ -581,5 +615,7 @@ def elaborate_remove_unification(ctx: TypingContext, t: Term) -> Term:
 def elaborate(ctx: TypingContext, e: Term, expected_type: Type = top) -> Term:
     e2 = elaborate_foralls(e)
     e3 = elaborate_check(ctx, e2, expected_type)
+    print("e3", e3)
     e4 = elaborate_remove_unification(ctx, e3)
+    print("e3", e4)
     return e4

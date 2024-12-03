@@ -60,6 +60,18 @@ class TreeToCore(Transformer):
     def polymorphism_t(self, args):
         return TypePolymorphism(str(args[0]), args[1], args[2])
 
+    def polymorphism_t_bounded(self, args):
+        return TypePolymorphism(str(args[0]),
+                                args[1],
+                                args[3],
+                                bounded=args[2])
+
+    def type_inter(self, args):
+        if len(args) == 1:
+            return [args]
+        else:
+            return [args[0]] + args[1]
+
     def constructor_t(self, args):
         return TypeConstructor(str(args[0]), args[1])
 
