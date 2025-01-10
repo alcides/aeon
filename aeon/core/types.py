@@ -115,12 +115,10 @@ class AbstractionType(Type):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, AbstractionType)
-            and self.var_name == other.var_name
-            and self.var_type == other.var_type
-            and self.type == other.type
-        )
+        return (isinstance(other, AbstractionType)
+                and self.var_name == other.var_name
+                and self.var_type == other.var_type
+                and self.type == other.type)
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -136,12 +134,9 @@ class RefinedType(Type):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, RefinedType)
-            and self.name == other.name
-            and self.type == other.type
-            and self.refinement == other.refinement
-        )
+        return (isinstance(other, RefinedType) and self.name == other.name
+                and self.type == other.type
+                and self.refinement == other.refinement)
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -158,14 +153,11 @@ class TypePolymorphism(Type):
 
 
 def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
-    assert (
-        isinstance(t, BaseType)
-        or isinstance(t, RefinedType)
-        or isinstance(
-            t,
-            TypeVar,
-        )
-    )
+    assert (isinstance(t, BaseType) or isinstance(t, RefinedType)
+            or isinstance(
+                t,
+                TypeVar,
+            ))
     if isinstance(t, TypeVar):
         return ("_", t_int, LiquidLiteralBool(True))
     elif isinstance(t, RefinedType):
@@ -184,13 +176,14 @@ def is_bare(t: Type) -> bool:
         case BaseType(_) | Top() | Bottom():
             return True
         case RefinedType(_, _, ref):
-            return ref == LiquidHole() or isinstance(ref, LiquidHornApplication)
+            print(ref, type(ref))
+            return ref == LiquidHole() or isinstance(ref,
+                                                     LiquidHornApplication)
         case AbstractionType(_, _, vtype):
             return is_bare(vtype) and is_bare(vtype)
         case TypePolymorphism(_, _, ty):
             return is_bare(ty)
         case _:
-            print(t)
             assert False
 
 
@@ -248,7 +241,7 @@ def get_type_vars(t: Type) -> set[TypeVar]:
     elif isinstance(t, TypePolymorphism):
         return {t1 for t1 in get_type_vars(t.body) if t1.name != t.name}
     else:
-        assert False
+        assert False, f"Unable to extract {t} ({type(t)})"
 
 
 def refined_to_unrefined_type(ty: Type) -> Type:

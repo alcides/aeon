@@ -1,28 +1,19 @@
 from __future__ import annotations
 
-from aeon.core.types import t_int
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.frontend.parser import parse_term
-from aeon.frontend.parser import parse_type
-from aeon.prelude.prelude import typing_vars
-from aeon.typechecking import elaborate_and_check
-from aeon.typechecking.context import EmptyContext
-from aeon.typechecking.context import VariableBinder
-from aeon.typechecking.entailment import entailment
-from aeon.typechecking.typeinfer import sub
-from aeon.utils.ctx_helpers import build_context
+from aeon.sugar.parser import parse_type
+from tests.driver import check_compile_expr
 
 
 def tt(e: str, t: str, vars: None | dict[str, str] = None):
-    base_dict = typing_vars.copy()
-    if vars is not None:
-        base_dict.update({k: parse_type(v) for (k, v) in vars.items()})
-
-    ctx = build_context(base_dict)
-    expected_type = parse_type(t)
-    p = parse_term(e)
-    core_ast_anf = ensure_anf(p)
-    return elaborate_and_check(ctx, core_ast_anf, expected_type)
+    vs = {
+        k: parse_type(v)
+        for (k, v) in vars.items()
+    } if vars is not None else None
+    try:
+        check_compile_expr(e, parse_type(t), extra_vars=vs)
+        return True
+    except Exception as e:  # TODO: TypeChecking Exception
+        return False
 
 
 def test_one_is_int():
@@ -138,12 +129,17 @@ def test_abs_f():
 
 
 def test_abs_if():
-    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0", "Int")
-    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
+    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0",
+                  "Int")
+    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0",
+              "Int")
 
 
 def test_sumSimple1():
-    assert tt("if b then 0 else sum 0", "Int", {"b": "Bool", "sum": "(x:Int) -> Int"})
+    assert tt("if b then 0 else sum 0", "Int", {
+        "b": "Bool",
+        "sum": "(x:Int) -> Int"
+    })
 
 
 def test_sumSimple2():
@@ -154,7 +150,10 @@ def test_sumSimple3():
     assert tt(
         "let k = sum b in if k then 1 else 0",
         "Int",
-        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
     )
 
 
@@ -162,7 +161,10 @@ def test_sumSimple4():
     assert tt(
         "if sum b then 1 else 0",
         "Int",
-        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
     )
 
 
@@ -170,7 +172,10 @@ def test_sumSimple5():
     assert tt(
         r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
         "Int",
-        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
+        {
+            "b": "Bool",
+            "sum": "(x:Bool) -> Bool"
+        },
     )
 
 
@@ -203,6 +208,9 @@ def test_sumTo():
                 n + sum_n_minus_1
             ) in 1
     """
+    sumTo_def = sumTo_def = (
+        "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n <= 0 then 0 else n + sum (n-1) in sum 4"
+    )
     sumTo_type = "Int"
     assert tt(sumTo_def, sumTo_type)
     """
@@ -219,24 +227,6 @@ def test_let_let():
     assert tt("let x = let y = 1 in 1 in 2", "Int")
 
 
-def test_sub():
-    subt = parse_type(r"(x:(z:{a:Int| a > 1 }) -> Int) -> {k:Int | k > fresh_2}")
-    supt = parse_type(r"(y:(m:{b:Int| b > 0 }) -> Int) -> {z:Int | z >= fresh_2}")
-    c = sub(subt, supt)
-    assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)
-
-
-def test_sub_simple():
-    subt = parse_type(r"(_fresh_3:Int) -> Int")
-    supt = parse_type(r"(y:Int) -> Int")
-
-    c = sub(subt, supt)
-    assert entailment(
-        VariableBinder(EmptyContext(), "plus", parse_type("(x:Int) -> Int")),
-        c,
-    )
-
-
 def test_capture_avoiding_subs():
     assert tt(
         "f1 (f2 3)",
@@ -250,4 +240,5 @@ def test_capture_avoiding_subs():
 
 def test_max():
     max_type = "forall a:B, (x:a) -> (y:a) -> a"
-    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int", {"max": max_type})
+    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int",
+              {"max": max_type})

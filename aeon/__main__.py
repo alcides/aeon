@@ -16,15 +16,17 @@ from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
-from aeon.sugar.desugar import desugar
+from aeon.sugar.desugar import DesugaredProgram, desugar
+from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program
+from aeon.sugar.program import Program, STerm
+from aeon.sugar.stypes import SBaseType
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.typechecking.elaboration import UnificationException, elaborate
+from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.utils.ctx_helpers import build_context
@@ -129,41 +131,47 @@ def main() -> None:
 
     if args.core:
         with RecordTime("ParseCore"):
-            typing_ctx = build_context(typing_vars)
-            evaluation_ctx = EvaluationContext(evaluation_vars)
+            core_typing_vars = {
+                k: type_to_core(typing_vars[k])
+                for k in typing_vars
+            }
+            typing_ctx = build_context(core_typing_vars)
             core_ast = parse_term(aeon_code)
             metadata: Metadata = {}
     else:
         with RecordTime("ParseSugar"):
             prog: Program = parse_program(aeon_code)
 
-        with RecordTime("DeSugar"):
-            (
-                core_ast,
-                typing_ctx,
-                evaluation_ctx,
-                metadata,
-            ) = desugar(prog)
+        with RecordTime("Desugar"):
+            desugared: DesugaredProgram = desugar(prog)
+            metadata = desugared.metadata
 
-    logger.debug(core_ast)
+        try:
+            with RecordTime("Elaboration"):
+                sterm: STerm = elaborate(desugared.elabcontext,
+                                         desugared.program, SBaseType("Top"))
+        except UnificationException as e:
+            log_type_errors([e])
+            sys.exit(1)
+
+        with RecordTime("Core generation"):
+            core_ast = lower_to_core(sterm)
+            logger.debug(core_ast)
+
+            typing_ctx = lower_to_core_context(desugared.elabcontext)
 
     with RecordTime("ANF conversion"):
         core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast)
-
-    try:
-        with RecordTime("Elaboration"):
-            core_elaborated = elaborate(typing_ctx, core_ast_anf, top)
-            print("elab", core_elaborated)
-    except UnificationException as e:
-        log_type_errors([e])
-        sys.exit(1)
+        logger.debug(core_ast_anf)
 
     with RecordTime("TypeChecking"):
-        type_errors = check_type_errors(typing_ctx, core_elaborated, top)
+        type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
     if type_errors:
         log_type_errors(type_errors)
         sys.exit(1)
+
+    with RecordTime("Preparing execution env"):
+        evaluation_ctx = EvaluationContext(evaluation_vars)
 
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[
@@ -189,7 +197,7 @@ def main() -> None:
             program, terms = synthesize(
                 typing_ctx,
                 evaluation_ctx,
-                core_elaborated,
+                core_ast_anf,
                 incomplete_functions,
                 metadata,
                 filename,

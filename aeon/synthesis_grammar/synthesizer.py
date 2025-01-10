@@ -60,8 +60,8 @@ from aeon.synthesis_grammar.grammar import (
     build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
-from aeon.typechecking import elaborate_and_check_type_errors
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type
 
 
 # TODO add timer to synthesis
@@ -239,9 +239,11 @@ def filter_nan_values(result):
         return result
 
 
-def individual_type_check(ctx, program, first_hole_name, individual_term):
+def individual_type_check(ctx: TypingContext, program: Term,
+                          first_hole_name: str, individual_term: Term):
     new_program = substitution(program, individual_term, first_hole_name)
-    elaborate_and_check_type_errors(ctx, new_program, Top())
+    core_ast_anf = ensure_anf(new_program)
+    assert check_type(ctx, core_ast_anf, Top())
 
 
 def create_evaluator(
@@ -674,8 +676,10 @@ def synthesize(
             ectx,
             term,
             name,
-            {h: v
-             for h, v in program_holes.items() if h in holes_names},
+            {
+                h: v
+                for h, v in program_holes.items() if h in holes_names
+            },
             metadata,
             filename,
             synth_config,

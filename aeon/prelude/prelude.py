@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
-from aeon.frontend.parser import parse_type
+from aeon.sugar.parser import parse_type
+from aeon.sugar.stypes import SType
 
 INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
 COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
@@ -40,8 +42,8 @@ prelude = [
     ("%.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x % y),
 ]
 
-typing_vars = {}
-evaluation_vars = {}
+typing_vars: dict[str, SType] = {}
+evaluation_vars: dict[str, Any] = {}
 
 for n, ty, ex in prelude:
     typing_vars[n] = parse_type(ty)

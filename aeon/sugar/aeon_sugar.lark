@@ -42,8 +42,10 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
 expression : "-" expression_i                           -> minus
            | expression_i                               -> same
 
-expression_i :  ID "=" expression ("in "|";") expression           -> let_e
-          |  ID ":" type "=" expression ("in "|";") expression     -> rec_e
+expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
+          | ID "=" expression  ("in"|";") expression           -> let_e
+          | "let" ID ":" type "=" expression  ("in"|";") expression     -> rec_e
+          | ID ":" type "=" expression  ("in"|";") expression     -> rec_e
           | "if" expression "then" expression "else" expression    -> if_e
           | expression_un                                          -> same
 
