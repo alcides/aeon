@@ -8,7 +8,7 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-docstring-first
-      - id: name-tests-test
+      # - id: name-tests-test       # Note: this was disabled because of driver.py https://github.com/pre-commit/pre-commit-hooks/issues/1126
       - id: requirements-txt-fixer
       - id: mixed-line-ending
   - repo: https://github.com/asottile/setup-cfg-fmt

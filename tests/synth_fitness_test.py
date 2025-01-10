@@ -2,17 +2,14 @@ from __future__ import annotations
 
 from abc import ABC
 
-from aeon.core.terms import Term, Application, Literal, Var
-from aeon.core.types import top, BaseType
-from aeon.frontend.anf_converter import ensure_anf
+from aeon.core.terms import Term
 from aeon.logger.logger import setup_logger
-from aeon.sugar.desugar import desugar
-from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Definition
+from aeon.sugar.program import Definition, SApplication, SLiteral, SVar
+from aeon.sugar.stypes import SBaseType
 from aeon.synthesis_grammar.grammar import mk_method_core_literal
 from aeon.synthesis_grammar.synthesizer import synthesize
-from aeon.typechecking.elaboration import elaborate
-from aeon.typechecking.typeinfer import check_type
+
+from tests.driver import check_and_return_core
 
 setup_logger()
 
@@ -34,27 +31,25 @@ def mock_literal_individual(value: int):
 
 
 def test_fitness():
-    code = """def year : Int = 2023;
+    source = """def year : Int = 2023;
         def synth (i: Int): Int { (?hole: Int) * i}
     """
-    prog = parse_program(code)
-    p, ctx, ectx, _ = desugar(prog)
-    p = ensure_anf(p)
-    p = elaborate(ctx, p, top)
-    assert check_type(ctx, p, top)
+
+    core_ast_anf, ctx, ectx, _ = check_and_return_core(source)
+
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
         args=[],
-        type=BaseType("Int"),
-        body=Application(
-            Application(Var("synth"), Literal(7, BaseType("Int"))),
-            Application(Var("-"), Var("synth")),
+        type=SBaseType("Int"),
+        body=SApplication(
+            SApplication(SVar("synth"), SLiteral(7, SBaseType("Int"))),
+            SApplication(SVar("-"), SVar("synth")),
         ),
     )
     term, _ = synthesize(
         ctx,
         ectx,
-        p,
+        core_ast_anf,
         [("synth", ["hole"])],
         {
             "synth": {
@@ -67,15 +62,12 @@ def test_fitness():
 
 
 def test_fitness2():
-    code = """def year : Int = 2023;
+    source = """def year : Int = 2023;
             @minimize_int( year - synth(7) )
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
-    prog = parse_program(code)
-    p, ctx, ectx, metadata = desugar(prog)
-    p = ensure_anf(p)
-    p = elaborate(ctx, p, top)
-    assert check_type(ctx, p, top)
-    term, _ = synthesize(ctx, ectx, p, [("synth", ["hole"])], metadata)
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])],
+                         metadata)
 
     assert isinstance(term, Term)

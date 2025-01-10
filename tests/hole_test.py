@@ -1,18 +1,10 @@
-from aeon.core.types import top
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.sugar.desugar import desugar, apply_decorators_in_program
-from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
-from aeon.typechecking import elaborate_and_check_type_errors
+from tests.driver import check_and_return_core
 
 
 def extract_target_functions(source):
-    prog = parse_program(source)
-    prog = apply_decorators_in_program(prog)
-    core, ctx, _, _ = desugar(prog)
-    core_anf = ensure_anf(core)
-    elaborate_and_check_type_errors(ctx, core_anf, top)
-    return incomplete_functions_and_holes(ctx, core_anf)
+    core_ast_anf, ctx, _, _ = check_and_return_core(source)
+    return incomplete_functions_and_holes(ctx, core_ast_anf)
 
 
 def test_hole_identification():
@@ -48,4 +40,5 @@ def test_hole3():
         def g: Int = 1;
         def e: Int = (?q:Int) + (?c:Int);
     """
-    assert extract_target_functions(source) == [("d", ["r", "p"]), ("e", ["q", "c"])]
+    assert extract_target_functions(source) == [("d", ["r", "p"]),
+                                                ("e", ["q", "c"])]
