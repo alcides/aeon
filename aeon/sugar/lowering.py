@@ -145,6 +145,16 @@ def liquefy(
             assert False
 
 
+def basic_type(ty: Type) -> BaseType | TypeVar:
+    match ty:
+        case BaseType(_) | TypeVar(_):
+            return ty
+        case RefinedType(_, it, _):
+            return basic_type(it)
+        case _:
+            assert False, f"Unknown base type {ty}"
+
+
 def type_to_core(
     ty: SType,
     available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
@@ -165,9 +175,10 @@ def type_to_core(
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
             at = type_to_core(vty, available_vars)
-            assert isinstance(at, BaseType) or isinstance(at, TypeVar)
+
             return AbstractionType(
-                name, at, type_to_core(rty, available_vars + [(name, at)]))
+                name, at,
+                type_to_core(rty, available_vars + [(name, basic_type(at))]))
         case STypePolymorphism(name, kind, rty):
             return TypePolymorphism(name, kind,
                                     type_to_core(rty, available_vars))
