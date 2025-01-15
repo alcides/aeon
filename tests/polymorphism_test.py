@@ -14,12 +14,7 @@ def tt(e: str, t: str, vars: None | dict[str, str] = None):
         k: parse_type(v)
         for (k, v) in vars.items()
     } if vars is not None else None
-    try:
-        check_compile_expr(e, parse_type(t), extra_vars=vs)
-        return True
-    except Exception as e:
-        print(e)
-        return False
+    return check_compile_expr(e, parse_type(t), extra_vars=vs)
 
 
 def test_simple_def():

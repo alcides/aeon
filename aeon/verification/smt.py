@@ -28,7 +28,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt

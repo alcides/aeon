@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from aeon.core.types import Type
+    pass
 
 
 class LiquidTerm(ABC):
@@ -31,23 +30,6 @@ def is_safe_for_application(x: LiquidTerm):
             or isinstance(x, LiquidLiteralFloat)
             or isinstance(x, LiquidLiteralInt)
             or isinstance(x, LiquidLiteralString))
-
-
-@dataclass
-class LiquidHornApplication(LiquidTerm):
-    name: str
-    argtypes: Sequence[tuple[LiquidTerm, Type]]
-
-    def __repr__(self):
-        j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
-        return f"?{self.name}({j})"
-
-    def __eq__(self, other):
-        return isinstance(other,
-                          LiquidHornApplication) and other.name == self.name
-
-    def __hash__(self) -> int:
-        return hash(self.name)
 
 
 @dataclass

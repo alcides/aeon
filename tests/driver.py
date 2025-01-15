@@ -10,7 +10,7 @@ from aeon.sugar.parser import parse_program
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.program import STerm
 from aeon.sugar.stypes import SType
-from aeon.elaboration import elaborate
+from aeon.elaboration import UnificationException, elaborate
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.backend.evaluator import EvaluationContext
@@ -42,22 +42,27 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None):
 def check_compile_expr(source: str,
                        ty: SType,
                        val: Any = None,
-                       extra_vars=None):
+                       extra_vars: dict[str, SType] | None = None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
     elabcontext = build_typing_context(vs)
     expr = parse_expression(source)
-    sterm: STerm = elaborate(elabcontext, expr, ty)
+    try:
+        sterm: STerm = elaborate(elabcontext, expr, ty)
+    except UnificationException:
+        return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(elabcontext)
-
     core_ast_anf = ensure_anf(core_ast)
-    assert check_type(typing_ctx, core_ast_anf, type_to_core(ty))
+    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+        return False
 
-    if val is not None:
+    if val is None:
+        return True
+    else:
         r = eval(core_ast_anf, ectx)
-        assert r == val
+        return r == val
 
 
 def check_compile_core(source: str, ty: Type, val: Any = None):

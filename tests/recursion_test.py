@@ -6,7 +6,7 @@ from tests.driver import check_compile
 
 def test_anf():
     source = r"""
-        def gcd ( n:Int) (z:Int) : Int {
+        def gcd (n:Int) (z:Int) : Int {
             if z == 0 then n else (gcd(z)(n % z))
         }
 

@@ -31,13 +31,18 @@ dependencies = [
     'pathos',
     'pillow',
     'psb2',
-    'pytest',
     'scikit-image',
     'sympy',
     'textdistance',
     'z3-solver >= 4',
     'zstandard==0.15.2',
     'zss'
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+    "pytest-beartype"
 ]
 
 [project.urls]
@@ -130,3 +135,7 @@ seaborn = "sns"
 [tool.ruff.lint.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
+
+
+[tool.pytest.ini_options]
+beartype_packages = 'aeon.core'

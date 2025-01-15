@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Sequence
+from typing import Any, Generator
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.liquid_ops import all_ops
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -23,10 +21,9 @@ from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typechecking.context import EmptyContext
+from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import VariableBinder
-from aeon.typechecking.liquid import type_infer_liquid
+from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid
 from aeon.verification.helpers import constraint_builder
 from aeon.verification.helpers import end
 from aeon.verification.helpers import imp
@@ -60,10 +57,13 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         v = f"v_{id}"
         # TODO Poly: check if t should be in LiquidTypes
         return RefinedType(
-            v, ty.type,
-            LiquidHornApplication(
-                f"{id}", [(LiquidVar(n), t)
-                          for n, t in context.vars() + [(v, ty.type)]]))
+            v,
+            ty.type,
+            LiquidHornApplication(f"{id}",
+                                  [(LiquidVar(n), t)
+                                   for n, t in context.vars() + [(v, ty.type)]
+                                   if isinstance(t, BaseType)]),
+        )
     elif isinstance(ty, RefinedType):
         return ty
     elif isinstance(ty, AbstractionType):
@@ -79,8 +79,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
     elif isinstance(ty, TypePolymorphism):
         return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
     else:
-        print("Type not freshable:", ty, type(ty))
-        assert False
+        assert False, f"Type not freshable: {ty}, {type(ty)}"
 
 
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
@@ -111,8 +110,7 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
         case UninterpretedFunctionDeclaration(_, _, post):
             return obtain_holes_constraint(post)
         case _:
-            print(c)
-            assert False
+            assert False, c
 
 
 def contains_horn(t: LiquidTerm) -> bool:
@@ -160,7 +158,8 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: Sequence[tuple[LiquidTerm, Type]], arity: int):
+def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar]],
+                      arity: int):
     if arity == 0:
         yield []
     else:
@@ -173,17 +172,30 @@ def get_possible_args(vars: Sequence[tuple[LiquidTerm, Type]], arity: int):
                 yield [LiquidLiteralInt(1)] + base
 
 
-def build_possible_assignment(hole: LiquidHornApplication):
-    ctx: TypingContext = EmptyContext()
-    for i, (_, t) in enumerate(hole.argtypes):
-        ctx = VariableBinder(ctx, mk_arg(i), t)
-    for opn, opt in all_ops:
-        arity = len(opt) - 1
+def build_possible_assignment(
+        hole: LiquidHornApplication) -> Generator[LiquidApp]:
+    ctx = LiquidTypeCheckingContext(
+        known_types=[
+            BaseType(bn) for bn in ["Unit", "Bool", "Int", "Float", "String"]
+        ],
+        functions=liquid_prelude,
+        variables={
+            mk_arg(i): t
+            for i, (_, t) in enumerate(hole.argtypes)
+        },
+    )
+
+    for fname in liquid_prelude:
+        ftype = liquid_prelude[fname]
+        arity = len(ftype) - 1
         for args in get_possible_args(hole.argtypes, arity):
-            if not any([isinstance(a, LiquidVar) for a in args]):
+            # At least one LiquidVar must be used.
+            if not any(isinstance(a, LiquidVar) for a in args):
                 continue
-            app = LiquidApp(opn, list(args))
-            if type_infer_liquid(ctx, app) == t_bool:
+
+            app = LiquidApp(fname, list(args))
+
+            if check_liquid(ctx, app, t_bool):
                 yield app
 
 
@@ -358,6 +370,9 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
     else:
         weakened_assignment = weaken(assign, ncs[0])
         return fixpoint(cs, weakened_assignment)
+
+
+# TODO uninterpreted: We need to pass the context here, to use custom measures in the horn clause.
 
 
 def solve(c: Constraint) -> bool:

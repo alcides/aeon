@@ -1,6 +1,5 @@
 from aeon.core.liquid import (
     LiquidApp,
-    LiquidHornApplication,
     LiquidLiteralBool,
     LiquidLiteralFloat,
     LiquidLiteralInt,
@@ -8,6 +7,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
+from aeon.core.types import LiquidHornApplication
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.terms import (
     Abstraction,
@@ -86,8 +86,9 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
 
 def liquefy(
-        t: STerm,
-        available_vars: list[tuple[str, Type]] | None = None) -> LiquidTerm:
+    t: STerm,
+    available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
+) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
         case SLiteral(val, SBaseType("Bool")):
@@ -144,8 +145,10 @@ def liquefy(
             assert False
 
 
-def type_to_core(ty: SType,
-                 available_vars: list[tuple[str, Type]] | None = None) -> Type:
+def type_to_core(
+    ty: SType,
+    available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
+) -> Type:
     """Converts Surface Types into Core Types"""
 
     if available_vars is None:
@@ -162,6 +165,7 @@ def type_to_core(ty: SType,
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
             at = type_to_core(vty, available_vars)
+            assert isinstance(at, BaseType) or isinstance(at, TypeVar)
             return AbstractionType(
                 name, at, type_to_core(rty, available_vars + [(name, at)]))
         case STypePolymorphism(name, kind, rty):

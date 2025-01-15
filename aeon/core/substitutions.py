@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.liquid import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -318,7 +318,7 @@ def liquefy(rep: Term) -> LiquidTerm | None:
     elif isinstance(rep, Var):
         return LiquidVar(rep.name)
     elif isinstance(rep, Hole):
-        return LiquidHornApplication(rep.name)
+        return LiquidHornApplication(rep.name, argtypes=[])
     elif isinstance(rep, Let):
         return liquefy_let(rep)
     elif isinstance(rep, Rec):

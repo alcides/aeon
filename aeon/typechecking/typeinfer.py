@@ -4,14 +4,14 @@ from loguru import logger
 from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp, LiquidHornApplication
+from aeon.core.liquid import LiquidApp
+from aeon.core.types import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import liquefy
-from aeon.core.substitutions import substitute_vartype
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -34,7 +34,6 @@ from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.types import bottom
-from aeon.core.types import extract_parts
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -282,20 +281,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
         if isinstance(ty, AbstractionType):
-            # This is the solution to handle polymorphic "==" in refinements.
-            if argument_is_typevar(ty.var_type):
-                (_, b, _) = extract_parts(ty.var_type)
-                assert isinstance(b, TypeVar)
-                (cp, at) = synth(ctx, t.arg)
-                if isinstance(at, RefinedType):
-                    at = at.type  # This is a hack before inference
-                return_type = substitute_vartype(ty.type, at, b.name)
-            else:
-                cp = check(ctx, t.arg, ty.var_type)
-                return_type = ty.type
+            cp = check(ctx, t.arg, ty.var_type)
+            return_type = ty.type
             t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
             c0 = Conjunction(c, cp)
-            # vs: list[str] = list(variables_free_in(c0))
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
@@ -303,6 +292,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
+        print("nctx", nctx)
         (c2, t2) = synth(nctx, t.body)
         term_vars = type_free_term_vars(t1)
         assert t.var_name not in term_vars
@@ -430,12 +420,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
 def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     """Returns whether expression t has type ty in context ctx."""
-    print("for..", ty, ctx)
-    print(wellformed(ctx, ty))
     assert wellformed(ctx, ty)
     try:
         constraint = check(ctx, t, ty)
-        return entailment(ctx, constraint)
+        v = entailment(ctx, constraint)
+        return v
     except CouldNotGenerateConstraintException:
         return False
     except FailedConstraintException:
