@@ -11,6 +11,7 @@ from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.well_formed import inhabited
 from aeon.typechecking.well_formed import wellformed
+from aeon.utils.ctx_helpers import built_std_context
 
 empty = EmptyContext()
 
@@ -27,30 +28,35 @@ def test_wf2():
     assert wellformed(empty, parse_type("(x:Int) -> Int"))
     assert wellformed(empty, parse_type("(x:Int) -> Bool"))
     assert wellformed(empty, parse_type("(x:Int) -> (y:Bool) -> Bool"))
-    assert wellformed(empty, parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
+    assert wellformed(empty,
+                      parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
 
 
 def test_refined():
     assert wellformed(empty, parse_type("{x:Int | true}"))
     assert wellformed(empty, parse_type("{x:Int | false}"))
     assert wellformed(empty, parse_type("{x:Bool | x }"))
-    assert wellformed(empty, parse_type("{x:Bool | x == false }"))
-    assert wellformed(empty, parse_type("{x:Int | x > 0}"))
+
+    assert wellformed(built_std_context(),
+                      parse_type("{x:Bool | x == false }"))
+    assert wellformed(built_std_context(), parse_type("{x:Int | x > 0}"))
 
 
 def test_dependent():
-    assert wellformed(empty, parse_type("(y:Int) -> {x:Int | x > y}"))
+    assert wellformed(built_std_context(),
+                      parse_type("(y:Int) -> {x:Int | x > y}"))
     assert wellformed(
-        VariableBinder(empty, "x", t_int),
+        VariableBinder(built_std_context(), "x", t_int),
         parse_type("(y:Int) -> {z:Int | x > y}"),
     )
 
 
 def test_inhabited():
-    assert inhabited(empty, parse_type("{x:Int | x > 0}"))
-    assert inhabited(empty, parse_type("{x:Int | x == 2313}"))
-    assert not inhabited(empty, parse_type("{x:Int | false}"))
-    assert not inhabited(empty, parse_type("{x:Int | (x == 3) && (x == 4)}"))
+    assert inhabited(built_std_context(), parse_type("{x:Int | x > 0}"))
+    assert inhabited(built_std_context(), parse_type("{x:Int | x == 2313}"))
+    assert not inhabited(built_std_context(), parse_type("{x:Int | false}"))
+    assert not inhabited(built_std_context(),
+                         parse_type("{x:Int | (x == 3) && (x == 4)}"))
 
 
 def test_poly():

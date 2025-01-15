@@ -84,7 +84,7 @@ def test_poly_to_smt():
     expected_stype = SRefinedType("y", SBaseType("Bool"),
                                   parse_expression("y == (x > (9 - z))"))
 
-    check_compile_expr(
+    assert check_compile_expr(
         "(x + z) > 9",
         expected_stype,
         extra_vars={

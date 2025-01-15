@@ -23,6 +23,8 @@ def native_import(name):
     return importlib.import_module(name)
 
 
+native_types = ["Unit", "Bool", "Int", "Float", "String"]
+
 # TODO: polymorphic signatures
 prelude = [
     ("native", "(x:String) -> Bottom", eval),
@@ -39,7 +41,9 @@ prelude = [
     ("*", "forall a:B, (x:a) -> (y:a) -> a", lambda x: lambda y: x * y),
     ("/", "forall a:B, (x:a) -> (y:a) -> a", lambda x: lambda y: x / y),
     ("%", "(x:Int) -> (y:Int) -> Int", lambda x: lambda y: x % y),
-    ("%.", "(x:Float) -> (y:Float) -> Float", lambda x: lambda y: x % y),
+    ("&&", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x and y),
+    ("||", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x or y),
+    ("!", "(x:Bool) -> Bool", lambda x: not x),
 ]
 
 typing_vars: dict[str, SType] = {}

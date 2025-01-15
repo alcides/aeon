@@ -122,6 +122,7 @@ class VariableBinder(TypingContext):
         self.name = name
         self.type = type
         assert isinstance(prev, TypingContext)
+        assert isinstance(type, Type)
         assert name not in prev.vars()
 
     def type_of(self, name: str) -> Type | None:

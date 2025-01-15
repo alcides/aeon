@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidHole
-from aeon.core.liquid import LiquidHornApplication
+from aeon.core.liquid import LiquidApp
+from aeon.core.types import LiquidHornApplication
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -106,7 +106,7 @@ def substitution_in_liquid(
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
     if isinstance(
-            t,
+        t,
         (
             LiquidLiteralInt,
             LiquidLiteralBool,
@@ -131,8 +131,7 @@ def substitution_in_liquid(
         else:
             return LiquidHornApplication(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t)
-                 for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
             )
     else:
         assert False
@@ -263,7 +262,8 @@ def liquefy_app(app: Application) -> LiquidApp | None:
                     fun.var_name,
                 ),
                 app.arg,
-            ), )
+            ),
+        )
     else:
         raise Exception(f"{app} is not a valid predicate.")
 
@@ -318,7 +318,7 @@ def liquefy(rep: Term) -> LiquidTerm | None:
     elif isinstance(rep, Var):
         return LiquidVar(rep.name)
     elif isinstance(rep, Hole):
-        return LiquidHornApplication(rep.name)
+        return LiquidHornApplication(rep.name, argtypes=[])
     elif isinstance(rep, Let):
         return liquefy_let(rep)
     elif isinstance(rep, Rec):

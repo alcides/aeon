@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import LiquidHornApplication, liquid_free_vars
+from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -152,6 +152,26 @@ class TypePolymorphism(Type):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
 
+# This class is here to prevent circular imports.
+
+
+@dataclass
+class LiquidHornApplication(LiquidTerm):
+    name: str
+    argtypes: list[tuple[LiquidTerm, BaseType | TypeVar]]
+
+    def __repr__(self):
+        j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
+        return f"?{self.name}({j})"
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          LiquidHornApplication) and other.name == self.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+
 def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
     assert (isinstance(t, BaseType) or isinstance(t, RefinedType)
             or isinstance(
@@ -176,7 +196,6 @@ def is_bare(t: Type) -> bool:
         case BaseType(_) | Top() | Bottom():
             return True
         case RefinedType(_, _, ref):
-            print(ref, type(ref))
             return ref == LiquidHole() or isinstance(ref,
                                                      LiquidHornApplication)
         case AbstractionType(_, _, vtype):
