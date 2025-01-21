@@ -13,12 +13,13 @@ type List;
 # wg vai ser sempre um inteiro entre 2 e 5 e uma largura
 # wb vai ser sempre um inteiro entre 2 e 7 e uma largura
 
+# TODO: as dimensões máximas de um nível seriam 90 blocos de largura por 2 blocos de altura???
+# TODO: wBefore and wAfter ??
 
-# TODO: is this possible??
-def size: (l:Top) -> Int = uninterpreted;
+# TODO: is this possible?? R. Um para cada
+def size: (l:Top ) -> Int = uninterpreted;
 
 # Level
-# TODO: flatten chunks and enemies (__import__('itertools').chain.from_iterable???)
 def new_level : (cs: Chunks)->
                 (e: Enemies) ->
                 Level = native "lambda cs: lambda e: sum(cs, []) + sum(e, []) ";
@@ -40,26 +41,26 @@ def new_gap_chunk : (x: Int | x >= 5 && x <= 95) ->
 def new_platform_chunk: (x: Int | x >= 5 && x <= 95) ->
                         (y: Int | y >= 3 && y <= 5) ->
                         (w: Int | wg >= 3 && wg <= 15) ->
-                        Chunk = native "lambda x: lambda y: lambda w: ('p', x, y , w)";
+                        Chunk = native "lambda x: lambda y: lambda w: ('P', x, y , w)";
 
 def new_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
                     (w: Int | w >= 3 && w <= 15) ->
-                    Chunk = native "lambda x: lambda y: lambda w: ('h', x, y , w)"
+                    Chunk = native "lambda x: lambda y: lambda w: ('H', x, y , w)"
 
 def new_canon_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
                     (h: Int | h >= 2 && h <= 3) ->
                     (wBefore: Int) ->
                     (wAfter :Int) ->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('k', x, y, h, wBefore, wAfter)";
+                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
 
 def new_tube_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
                     (h: Int | h >= 2 && h <= 3) ->
                     (wBefore: Int) ->
                     (wAfter :Int) ->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('t', x, y, h, wBefore, wAfter)";
+                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y, h, wBefore, wAfter)";
 
 def new_coin_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
@@ -71,14 +72,14 @@ def new_canon_chunk(x: Int | x >= 5 && x <= 95)
                     (h: Int | h >= 2 && h <= 3)
                     (wBefore: Int)
                     (wAfter :Int):
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('k', x, y, h, wBefore, wAfter)";
+                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
 
 def new_tube_chunk(x: Int | x >= 5 && x <= 95)
                     (y: Int | y >= 3 && y <= 5)
                     (h: Int | h >= 2 && h <= 3)
                     (wBefore: Int)
                     (wAfter :Int):
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('t', x, y , h, wBefore, wAfter)";
+                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y , h, wBefore, wAfter)";
 
 
 # -------------VER MELHOR--------------
@@ -99,7 +100,7 @@ def new_boxes:(boxes: Boxes | (size boxes) >= 2 && (size boxes) <= 7) ->
 
 def new_block_coin: Box_Type= native "lambda x: 'c'";
 def new_block_power_up: Box_Type= native "lambda x: 'p'";
-def new_block_rock_coin: Box_Type = native "lambda x: 'C'";
+def new_block_rock_coin: Box_Type = native "lambda x: 'R'";
 def new_block_rock_empty: Box_Type= native "lambda x: 'r'";
 
 
