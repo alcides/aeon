@@ -95,12 +95,12 @@ gengy_default_config = {
     "representation": "tree",
     "max_depth": 2,
     # Population and Steps
-    "population_size": 20,
+    "population_size": 100,
     "n_elites": 1,
     "novelty": 1,
-    "probability_mutation": 0.01,
-    "probability_crossover": 0.9,
-    "tournament_size": 5,
+    "probability_mutation": 0.1,
+    "probability_crossover": 0.7,
+    "tournament_size": 2,
 }
 
 
