@@ -2,125 +2,128 @@ type Level;
 type Chunks;
 type Chunk;
 type Enemy;
+type Enemies;
 type Boxes;
-type Box_Type;
+type Box;
+type Mob;
+type MobType;
+type BoxType;
 type List;
 
-# x vai ser sempre um inteiro entre 5 e 95 e uma cordenada x
-# y vai ser sempre um inteiro entre 3 e 5 e uma cordenada y
-# w vai ser sempre um inteiro entre 3 e 15 e uma largura
-# h vai ser sempre um inteiro entre 2 e 3 e uma altura
-# wg vai ser sempre um inteiro entre 2 e 5 e uma largura
-# wb vai ser sempre um inteiro entre 2 e 7 e uma largura
+# Define uninterpreted functions for size
+def size: (l: List) -> Int = uninterpreted;
+def sizeB: (b: Boxes) -> Int = uninterpreted;
+def sizeE: (e: Enemies) -> Int = uninterpreted;
 
-# TODO: is this possible?? R. Um para cada
-def size: (l:Top ) -> Int = uninterpreted;
+# Level functions
+def new_level: (cs: Chunks) -> (e: Enemies) -> Level =
+    native "lambda cs: lambda e: (sum(cs, []), sum(e, []))";
 
-# Level
-def new_level : (cs: Chunks)->
-                (e: Enemies) ->
-                Level = native "lambda cs: lambda e: sum(cs, []) + sum(e, []) ";
-
-
-# Chunks
+# Chunks functions
 def empty_chunks: Chunks = native "[]";
-def append_chunk: (cs: Chunks) -> (c: Chunk) -> Chunks = native "lambda xs: lambda x: xs + [x]";
+def append_chunk: (cs: Chunks) -> (c: Chunk) -> Chunks =
+    native "lambda xs: lambda x: xs + [x]";
 
-
-# Chunk
+# Chunk constructors
 def new_gap_chunk: (x: Int | x >= 5 && x <= 95) ->
-                    (y: Int | y >= 3 && y <= 5) ->
-                    (wg: Int | wg >= 2 && wg <= 5) ->
-                    (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
-                    (wAfter :Int | wAfter >= 2 && wAfter <= 7) ->
-                    Chunk = native "lambda x: lambda y: lambda wg: lambda wBefore: lambda wAfter: (' ', x, y, wg, wBefore, wAfter)";
+                   (y: Int | y >= 3 && y <= 5) ->
+                   (wg: Int | wg >= 2 && wg <= 5) ->
+                   (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
+                   (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
+                   Chunk = native "lambda x: lambda y: lambda wg: lambda wBefore: lambda wAfter: (' ', x, y, wg, wBefore, wAfter)";
 
 def new_platform_chunk: (x: Int | x >= 5 && x <= 95) ->
                         (y: Int | y >= 3 && y <= 5) ->
-                        (w: Int | wg >= 3 && wg <= 15) ->
-                        Chunk = native "lambda x: lambda y: lambda w: ('P', x, y , w)";
+                        (w: Int | w >= 3 && w <= 15) ->
+                        Chunk = native "lambda x: lambda y: lambda w: ('P', x, y, w)";
 
 def new_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
                     (w: Int | w >= 3 && w <= 15) ->
-                    Chunk = native "lambda x: lambda y: lambda w: ('H', x, y , w)"
+                    Chunk = native "lambda x: lambda y: lambda w: ('H', x, y, w)";
 
 def new_canon_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
-                    (y: Int | y >= 3 && y <= 5) ->
-                    (h: Int | h >= 2 && h <= 3) ->
-                    (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
-                    (wAfter :Int | wAfter >= 2 && wAfter <= 7) ->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
+                          (y: Int | y >= 3 && y <= 5) ->
+                          (h: Int | h >= 2 && h <= 3) ->
+                          (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
+                          (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
+                          Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
 
 def new_tube_hill_chunk: (x: Int | x >= 5 && x <= 95) ->
-                    (y: Int | y >= 3 && y <= 5) ->
-                    (h: Int | h >= 2 && h <= 3) ->
-                    (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
-                    (wAfter :Int | wAfter >= 2 && wAfter <= 7) ->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y, h, wBefore, wAfter)";
+                         (y: Int | y >= 3 && y <= 5) ->
+                         (h: Int | h >= 2 && h <= 3) ->
+                         (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
+                         (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
+                         Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y, h, wBefore, wAfter)";
 
 def new_coin_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
-                    (wc: Int | wc >= 3 && wc <= 15)->
-                    Chunk = native "lambda x: lambda y: lambda wc: ('c', x, y , wc)"
+                    (wc: Int | wc >= 3 && wc <= 15) ->
+                    Chunk = native "lambda x: lambda y: lambda wc: ('c', x, y, wc)";
 
 def new_canon_chunk: (x: Int | x >= 5 && x <= 95) ->
-                    (y: Int | y >= 3 && y <= 5) ->
-                    (h: Int | h >= 2 && h <= 3) ->
-                    (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
-                    (wAfter :Int | wAfter >= 2 && wAfter <= 7)->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
+                     (y: Int | y >= 3 && y <= 5) ->
+                     (h: Int | h >= 2 && h <= 3) ->
+                     (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
+                     (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
+                     Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('C', x, y, h, wBefore, wAfter)";
 
 def new_tube_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (y: Int | y >= 3 && y <= 5) ->
                     (h: Int | h >= 2 && h <= 3) ->
                     (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
-                    (wAfter :Int | wAfter >= 2 && wAfter <= 7) ->
-                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y , h, wBefore, wAfter)";
+                    (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
+                    Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y, h, wBefore, wAfter)";
 
+# Boxes functions
+def empty_boxes: {x: Boxes | sizeB x == 0} = native "[]";
+def append_box: (l: Boxes) -> (i: Box) -> {l2: Boxes | sizeB l2 == sizeB l + 1} =
+    native "lambda xs: lambda x: xs + [x]";
 
-# -------------VER MELHOR--------------
+def new_box: (type: BoxType) ->
+             (x: Int | x >= 5 && x <= 95) ->
+             (y: Int | y >= 3 && y <= 5) ->
+             Box = native "lambda box: lambda x: lambda y: (box, x, y)";
 
-def empty_boxes : {x:Boxes | size x == 0}  = native "[]";
-def append_box: (l:Boxes) -> (i: Box) -> {l2:Boxes | size l2 == size l + 1} = native "lambda xs: lambda x: xs + [x]";
+def new_boxes: (boxes: Boxes | (sizeB boxes) >= 2 && (sizeB boxes) <= 7) ->
+               Chunk = native "lambda boxes: boxes";
 
-def new_box: (type: Box_Type)
-           (x >= 5 && x <= 95)->
-           (y: Int | y >= 3 && y <= 5)->
-           Box = native "lambda box: lambda x: lambda y: (box, x, y)";
+def new_block_coin: BoxType = native "lambda x: 'c'";
+def new_block_power_up: BoxType = native "lambda x: 'p'";
+def new_block_rock_coin: BoxType = native "lambda x: 'R'";
+def new_block_rock_empty: BoxType = native "lambda x: 'r'";
 
+# Enemies functions
+def empty_enemies: {x: Enemies | sizeE x == 0} = native "[]";
+def append_enemy: (l: Enemies) -> (i: Enemy) -> {l2: Enemies | sizeE l2 == sizeE l + 1} =
+    native "lambda xs: lambda x: xs + [x]";
 
-# def flatten : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
-def new_boxes: (boxes: Boxes | (size boxes) >= 2 && (size boxes) <= 7) ->
-        Chunk = native "lambda boxes: boxes";
+def new_enemies: (enemies: Enemies | (sizeE enemies) >= 2 && (sizeE enemies) <= 10) ->
+                 Enemies = native "lambda enemies: enemies";
 
+# Mob functions
+def new_mob: (type: MobType) ->
+             (x: Int | x >= 5 && x <= 95) ->
+             Mob = native "lambda mob: lambda x: [(mob, x)]";
 
-def new_block_coin: Box_Type= native "lambda x: 'c'";
-def new_block_power_up: Box_Type= native "lambda x: 'p'";
-def new_block_rock_coin: Box_Type = native "lambda x: 'R'";
-def new_block_rock_empty: Box_Type= native "lambda x: 'r'";
+def new_goompa: MobType = native "lambda x: 'G'";
+def new_koompa: MobType = native "lambda x: 'K'";
 
+# Fitness functions
+def numpy: Unit = native_import "numpy";
 
-def List_append_mob: (l:List) -> (i: Mob) -> {l2:List | size l2 == size l + 1} = native "lambda xs: lambda x: xs + [x]";
+def number_of_chunks: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
+    native "lambda max_w: lambda max_h: lambda level: max_w * max_h - len(level[0])";
 
-# -------------VER MELHOR--------------
+def conflicts: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
+    native "lambda max_w: lambda max_h: lambda level: sum(numpy.add.reduce([chunk.place_in(numpy.zeros((max_w, max_h))) or 0 for chunk in level[0]] + [enemy.place_in(numpy.zeros((max_w, max_h))) or 0 for enemy in level[1]]))";
 
-# the y will always be on top of a chunk
-def new_mob(type: Mob_Type)
-           (x >= 5 && x <= 95):
-           Mob = native "lambda mob: lambda x: [(mob, x)]";
-}
+def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
+    native "lambda x: lambda y: [x, y]";
 
-def new_goompa: Mob_Type =native "lambda x: 'G'";
-def new_koompa: Mob_Type =native "lambda x: 'K'";
-
-def empty_enemies : {x:Enemies | size x == 0}  = native "[]";
-def append_enemy: (l:Enemies) -> (i: Enemy) -> {l2:Enemies | size l2 == size l + 1} = native "lambda xs: lambda x: xs + [x]";
-
-def new_enemies: (enemies: Enemies | (size enemies) >= 2 && (size enemies) <= 10) ->
-                    Enemies = native "lambda enemies: enemies]";
-
-# TODO
-def imported_function (level: Level) -> Float : native "lambda xs: __import__. "
-#@minimize(imported_function())
-def new_map : Level = ?hole;
+@hide(numpy,
+      number_of_chunks,
+      conflicts,
+      fitness_function)
+@multi_minimize_float(((fitness_function (number_of_chunks 110 10 new_map)) (conflicts 110 10 new_map)))
+def new_map: Level = (?hole: Level);
