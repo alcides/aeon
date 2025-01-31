@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from functools import reduce
 from itertools import combinations
 from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext
@@ -154,42 +153,30 @@ def unify(ctx: ElaborationTypingContext, sub: SType,
             )
 
 
-def simple_subtype(ctx: ElaborationTypingContext, a: SType, b: SType):
-    """Returns whether a <: b, in the HM typesystem."""
-    match (a, b):
-        case (_, SBaseType("Top")):
-            return True
-        case (SBaseType("Bottom"), _):
-            return True
-        case _:
-            return a == b
-
-
-def type_lub(ctx: ElaborationTypingContext, u: SType, t: SType):
-    """Returns the smallest of two types."""
-    if simple_subtype(ctx, u, t):
-        return u
-    else:
-        return t
-
-
-def type_glb(ctx: ElaborationTypingContext, u: SType, t: SType):
-    """Returns the largest of two types."""
-    if simple_subtype(ctx, u, t):
-        return t
-    else:
-        return u
+def unify_single(vname: str, xs: list[SType]) -> SType:
+    match [x for x in xs if x != SBaseType("Top")]:
+        case []:
+            return SBaseType("Unit")
+        case other:
+            fst = other[0]
+            for snd in other[1:]:
+                if snd != fst:
+                    raise UnificationException(
+                        f"Type variable {vname} has conflicting meanings: {snd} and {fst}."
+                    )
+            return fst
 
 
 def remove_unions_and_intersections(ctx: ElaborationTypingContext,
                                     ty: SType) -> SType:
     match ty:
-        case Union(_):
-            return reduce(lambda a, b: type_lub(ctx, a, b), ty.united,
-                          SBaseType("Top"))
-        case Intersection(_):
-            return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected,
-                          SBaseType("Bottom"))
+        case Union(united):
+            # TODO: raise better errors
+            return unify_single("?", united)
+            # return reduce(lambda a, b: type_lub(ctx, a, b), ty.united, SBaseType("Top"))
+        case Intersection(intersected):
+            return unify_single("?", intersected)
+            # return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected, SBaseType("Bottom"))
         case SAbstractionType(name, vtype, rtype):
             return SAbstractionType(
                 var_name=name,
@@ -329,23 +316,20 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             return c
 
 
-def extract_direction(ty: SType, upper: bool = True) -> set[SType]:
-    if isinstance(ty, UnificationVar):
-        f: set[SType] = set()
-        candidates = ty.upper if upper else ty.lower
-        for u in candidates:
-            f = f.union(extract_direction(u, upper))
-        return f
-    else:
-        base = SBaseType("Top") if upper else SBaseType("Bottom")
-        return {ty, base}
+def extract_direction(ty: SType) -> set[SType]:
+    match ty:
+        case UnificationVar(_, lower, upper):
+            r: set = set()
+            for t in lower + upper:
+                r = r.union(extract_direction(t))
+            return r
+        case _:
+            return set([ty])
 
 
 def replace_unification_variables(
         ctx: ElaborationTypingContext,
-        ty: SType,
-        in_liquid: bool = False
-) -> tuple[SType, list[Union], list[Intersection]]:
+        ty: SType) -> tuple[SType, list[Union], list[Intersection]]:
     """Removes unification variables, and replaces them with either Union or
     Intersection Type.
 
@@ -354,10 +338,7 @@ def replace_unification_variables(
     unions: list[Union] = []
     intersections: list[Intersection] = []
 
-    def go(ctx: ElaborationTypingContext,
-           ty: SType,
-           polarity: bool,
-           in_liquid: bool = False) -> SType:
+    def go(ctx: ElaborationTypingContext, ty: SType, polarity: bool) -> SType:
         """The recursive part of the function."""
         match ty:
             case SBaseType(_) | STypeVar(_):
@@ -365,27 +346,24 @@ def replace_unification_variables(
             case SAbstractionType(name, vty, rty):
                 return SAbstractionType(
                     name,
-                    go(ctx, vty, not polarity, in_liquid),
-                    go(ctx, rty, polarity, in_liquid),
+                    go(ctx, vty, not polarity),
+                    go(ctx, rty, polarity),
                 )
             case SRefinedType(name, ity, ref):
-                nt = go(ctx, ity, polarity, in_liquid)
+                nt = go(ctx, ity, polarity)
                 return SRefinedType(name, nt, ref)
             case STypePolymorphism(name, kind, body):
                 return STypePolymorphism(
                     name,
                     kind,
-                    go(ctx, body, polarity, in_liquid),
+                    go(ctx, body, polarity),
                 )
             case UnificationVar(_, _, _):
-                if polarity or in_liquid:
-                    return Union(list(extract_direction(ty, True)))
-                else:
-                    return Intersection(list(extract_direction(ty, False)))
+                return Union(list(extract_direction(ty)))
             case _:
                 assert False
 
-    return (go(ctx, ty, True, in_liquid), unions, intersections)
+    return (go(ctx, ty, True), unions, intersections)
 
 
 def remove_from_union_and_intersection(

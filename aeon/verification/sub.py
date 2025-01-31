@@ -39,7 +39,8 @@ def is_first_order_function(at: AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case BaseType(_) | Top() | Bottom() | RefinedType(_, _, _):
+            case BaseType(_) | Top() | Bottom() | RefinedType(_, _,
+                                                              _) | TypeVar(_):
                 pass
             case _:
                 assert False
@@ -58,7 +59,8 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
                 t_ = BaseType("TypeVarPlaceHolder")
             else:
                 t_ = ttype
-            assert isinstance(t_, BaseType) or isinstance(t_, Top) or isinstance(t_, Bottom)
+            assert isinstance(t_, BaseType) or isinstance(
+                t_, Top) or isinstance(t_, Bottom)
             return Implication(name, t_, ref_subs, c)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
@@ -68,7 +70,8 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
                 return c
         case TypeVar(_):
             # TODO Sorts: We are using Int here, but it could have been a singleton.
-            return Implication(name, BaseType("TypeVarPlaceHolder"), LiquidLiteralBool(True), c)
+            return Implication(name, BaseType("TypeVarPlaceHolder"),
+                               LiquidLiteralBool(True), c)
         case TypePolymorphism(_, _, _):
             return c
         case _:
@@ -78,15 +81,16 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
 def sub(t1: Type, t2: Type) -> Constraint:
     if isinstance(t2, Top) or isinstance(t1, Bottom):
         return ctrue
-    if isinstance(t1, BaseType):
+    if isinstance(t1, BaseType) or isinstance(t1, TypeVar):
         t1 = ensure_refined(t1)
-    if isinstance(t2, BaseType):
+    if isinstance(t2, BaseType) or isinstance(t2, TypeVar):
         t2 = ensure_refined(t2)
     if isinstance(t1, RefinedType) and isinstance(t2, RefinedType):
         if isinstance(t1.type, Bottom) or isinstance(t2.type, Top):
             return ctrue
         elif t1.type == t2.type:
-            base_type = t1.type if isinstance(t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
+            base_type = t1.type if isinstance(
+                t1.type, BaseType) else BaseType("TypeVarPlaceHolder")
             t2_subs = substitution_in_liquid(
                 t2.refinement,
                 LiquidVar(t1.name),
@@ -113,14 +117,10 @@ def sub(t1: Type, t2: Type) -> Constraint:
             c0,
             implication_constraint(t2.var_name, t2.var_type, c1),
         )
-    elif (
-        isinstance(t1, TypeVar)
-        and isinstance(
+    elif (isinstance(t1, TypeVar) and isinstance(
             t2,
             TypeVar,
-        )
-        and t1.name == t2.name
-    ):
+    ) and t1.name == t2.name):
         return ctrue
     else:
         logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")

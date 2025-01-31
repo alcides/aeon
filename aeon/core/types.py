@@ -193,7 +193,7 @@ def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
 def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
     match t:
-        case BaseType(_) | Top() | Bottom():
+        case BaseType(_) | Top() | Bottom() | TypeVar():
             return True
         case RefinedType(_, _, ref):
             return ref == LiquidHole() or isinstance(ref,
@@ -203,7 +203,7 @@ def is_bare(t: Type) -> bool:
         case TypePolymorphism(_, _, ty):
             return is_bare(ty)
         case _:
-            assert False
+            assert False, f"Unknown type {t} ({type(t)})"
 
 
 def base(ty: Type) -> Type:

@@ -21,7 +21,7 @@ def test_one_is_int():
 def test_one_is_float():
     assert tt("1.0", "Float")
     assert tt("1.0", "{x:Float|x == 1.0}")
-    assert tt("1.0", "{x:Float|x > 0}")
+    assert tt("1.0", "{x:Float|x > 0.0}")
 
 
 def test_true_is_bool():

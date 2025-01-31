@@ -27,29 +27,24 @@ class TypingContext(ABC):
         self.global_counter += 1
         return f"fresh_{self.global_counter}"
 
-    def kind_of(self, ty) -> Kind | None:
-        if isinstance(ty, BaseType):
-            return BaseKind()
-        elif isinstance(ty, Top):
-            return BaseKind()
-        elif isinstance(ty, Bottom):
-            return BaseKind()
-        elif isinstance(ty, RefinedType) and not isinstance(ty.type, TypeVar):
-            return BaseKind()
-        elif isinstance(ty, TypePolymorphism):
-            return StarKind()
-        elif isinstance(ty, AbstractionType):
-            return StarKind()
-        elif isinstance(ty, TypeVar):
-            for t, k in self.typevars():
-                if t == ty:
-                    return k
-            return None
-        elif isinstance(ty, RefinedType) and isinstance(ty.type, TypeVar):
-            assert (ty.type, BaseKind()) in self.typevars()
-            return BaseKind()
-        else:
-            assert False
+    def kind_of(self, ty: Type) -> Kind:
+        match ty:
+            case BaseType(_) | Top() | Bottom() | RefinedType(
+                _, BaseType(_), _):
+                return BaseKind()
+            case TypeVar(name):
+                assert (name, BaseKind()) in self.typevars()
+                # TODO Polytypes: What it * is in context?
+                return BaseKind()
+            case RefinedType(_, TypeVar(name), _):
+                assert (name, BaseKind()) in self.typevars()
+                return BaseKind()
+            case AbstractionType(_, _, _):
+                return StarKind()
+            case TypePolymorphism(_, _, _):
+                return StarKind()
+            case _:
+                assert False, f"Unknown type in context: {ty}"
 
     @abstractmethod
     def typevars(self) -> list[tuple[str, Kind]]:

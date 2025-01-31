@@ -46,4 +46,4 @@ def test_luhn():
     t = parse_expression("(x * 2) > 9")
     ctx = build_typing_context(typing_vars).with_var("x", SBaseType("Int"))
     t2 = elaborate(ctx, t, SBaseType("Bool"))
-    assert t2.fun.fun.type == SBaseType("Top")
+    assert t2.fun.fun.type == SBaseType("Int")
