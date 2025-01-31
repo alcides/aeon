@@ -116,7 +116,7 @@ def number_of_chunks: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
     native "lambda max_w: lambda max_h: lambda level: max_w * max_h - len(level[0])";
 
 def conflicts: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
-    native "lambda max_w: lambda max_h: lambda level: sum(numpy.add.reduce([chunk.place_in(numpy.zeros((max_w, max_h))) or 0 for chunk in level[0]] + [enemy.place_in(numpy.zeros((max_w, max_h))) or 0 for enemy in level[1]]))";
+    native "lambda max_w: lambda max_h: lambda level: (lambda mat: ([chunk.place_in(mat) for chunk in level[0]] + [enemy.place_in(mat) for enemy in level[1]], numpy.sum(mat))[-1])(numpy.zeros((max_w, max_h)))";
 
 def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
     native "lambda x: lambda y: [x, y]";
@@ -125,5 +125,7 @@ def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
       number_of_chunks,
       conflicts,
       fitness_function)
-@multi_minimize_float(((fitness_function (number_of_chunks 110 10 new_map)) (conflicts 110 10 new_map)))
+#@minimize_float(number_of_chunks 110 10 new_map)
+@minimize_float(conflicts 110 10 new_map)
+#@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
 def new_map: Level = (?hole: Level);
