@@ -143,7 +143,7 @@ def main() -> None:
 
     with RecordTime("ANF conversion"):
         core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast)
+        logger.debug(core_ast_anf)
 
     with RecordTime("TypeChecking"):
         type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
