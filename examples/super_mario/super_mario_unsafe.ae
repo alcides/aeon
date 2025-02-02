@@ -122,6 +122,6 @@ def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
       conflicts,
       fitness_function)
 #@minimize_float(number_of_chunks 110 10 new_map)
-@minimize_float(conflicts 110 10 new_map)
-#@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
+#@minimize_float(conflicts 110 10 new_map)
+@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
 def new_map: Level = (?hole: Level);

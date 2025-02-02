@@ -93,7 +93,7 @@ gengy_default_config = {
     "only_record_best_inds": False,
     # Representation
     "representation": "tree",
-    "max_depth": 2,
+    "max_depth": 20,
     # Population and Steps
     "population_size": 100,
     "n_elites": 1,

@@ -95,7 +95,7 @@ def new_block_rock_empty: BoxType = native "lambda x: 'r'";
 
 # Enemies functions
 def empty_enemies: {x: Enemies | sizeE x == 0} = native "[]";
-def append_enemy: (l: Enemies) -> (i: Enemy) -> {l2: Enemies | sizeE l2 == sizeE l + 1} =
+def append_enemy: (e: Enemies) -> (i: Enemy) -> {e2: Enemies | sizeE e2 == sizeE e + 1} =
     native "lambda xs: lambda x: xs + [x]";
 
 def new_enemies: (enemies: Enemies | (sizeE enemies) >= 2 && (sizeE enemies) <= 10) ->
@@ -126,6 +126,6 @@ def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
       conflicts,
       fitness_function)
 #@minimize_float(number_of_chunks 110 10 new_map)
-@minimize_float(conflicts 110 10 new_map)
-#@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
+#@minimize_float(conflicts 110 10 new_map)
+@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
 def new_map: Level = (?hole: Level);

@@ -218,7 +218,6 @@ def translate_liq(t: LiquidTerm, variables: list[tuple[str, Any]]):
         if f is None:
             print("Failed to find t.fun", t.fun)
             assert False
-        print("Applying", f, t.args) # TODO: delete print
         args = [translate_liq(a, variables) for a in t.args]
         return f(*args)
     assert False
