@@ -24,7 +24,7 @@ from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.elaboration import UnificationException, elaborate
+from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
@@ -90,17 +90,23 @@ def parse_arguments():
         help="Show timing information",
     )
 
-    parser.add_argument(
-        "-rg",
-        "--refined-grammar",
-        action="store_true",
-        help="Use the refined grammar for synthesis",
-    )
-
     parser.add_argument("-n",
                         "--no-main",
                         action="store_true",
                         help="Disables introducing hole in main")
+
+    parser.add_argument(
+        "-lsp",
+        "--language-server-mode",
+        action="store_true",
+        help="Run language server mode (disables other options)",
+    )
+
+    parser.add_argument(
+        '--tcp',
+        help='listen on tcp port or hostname:port on IPv4.',
+        type=str,
+    )
 
     return parser.parse_args()
 
@@ -134,6 +140,10 @@ def main() -> None:
         logger.add(sys.stderr)
     if args.timings:
         logger.add(sys.stderr, level="TIME")
+
+    if args.language_server_mode:
+        start_language_server_mode(args.tcp)
+        sys.exit(0)
 
     aeon_code = read_file(args.filename)
 
