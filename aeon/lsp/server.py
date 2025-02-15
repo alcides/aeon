@@ -86,25 +86,26 @@ async def lsp_completion(
     params: CompletionParams,
 ) -> Optional[List[CompletionItem]]:
   await asyncio.sleep(DEBOUNCE_DELAY)
-  items: List[CompletionItem] = []
-
-  ast = await buildout.parse(ls, params.text_document.uri, True)
-  for line in ast.lines:
-    pos = params.position
-    (var_name, var_type, value) = line
-    ci = CompletionItem(
-        label=var_name,
-        text_edit=TextEdit(
-            range=Range(start=Position(line=pos.line, character=pos.character),
-                        end=Position(line=pos.line,
-                                     character=pos.character + len(var_name))),
-            new_text=var_name,
-        ),
-        kind=CompletionItemKind.Variable,
-        documentation=MarkupContent(
-            kind=MarkupKind.Markdown,
-            value=f"{var_name} : {var_type} = {value}",
-        ))
-    items.append(ci)
-  return items
+  return [] #TODO
+  # items: List[CompletionItem] = []
+  #
+  # ast = await buildout.parse(ls, params.text_document.uri, True)
+  # for line in ast.lines:
+  #   pos = params.position
+  #   (var_name, var_type, value) = line
+  #   ci = CompletionItem(
+  #       label=var_name,
+  #       text_edit=TextEdit(
+  #           range=Range(start=Position(line=pos.line, character=pos.character),
+  #                       end=Position(line=pos.line,
+  #                                    character=pos.character + len(var_name))),
+  #           new_text=var_name,
+  #       ),
+  #       kind=CompletionItemKind.Variable,
+  #       documentation=MarkupContent(
+  #           kind=MarkupKind.Markdown,
+  #           value=f"{var_name} : {var_type} = {value}",
+  #       ))
+  #   items.append(ci)
+  # return items
 
