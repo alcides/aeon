@@ -7,14 +7,11 @@ import re
 import urllib.parse
 from typing import Iterable, List, Optional, Tuple, Union
 
-from pygls.lsp.methods import (
-    COMPLETION,
-    TEXT_DOCUMENT_DID_CHANGE,
+from lsprotocol.types import (
+    TEXT_DOCUMENT_COMPLETION,
     TEXT_DOCUMENT_DID_OPEN,
+    TEXT_DOCUMENT_DID_CHANGE,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
-)
-from pygls.server import LanguageServer
-from pygls.lsp.types import (
     CompletionItem,
     CompletionItemKind,
     CompletionOptions,
@@ -29,9 +26,11 @@ from pygls.lsp.types import (
     TextEdit,
 )
 
+from pygls.server import LanguageServer
+
 from . import buildout, diagnostic
 
-server = LanguageServer()
+server = LanguageServer("aeon.lsp.server", "0.1.0")
 DEBOUNCE_DELAY = 0.3
 
 def start_language_server_mode(tcp_server):
@@ -73,14 +72,14 @@ async def did_change(
 
 @server.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
 async def did_change_watched_file(
-    ls: LanguageServer,
+    _: LanguageServer,
     params: DidChangeWatchedFilesParams,
 ) -> None:
   for change in params.changes:
     buildout.clearCache(change.uri)
 
 
-@server.feature(COMPLETION, CompletionOptions(trigger_characters=["= "]))
+@server.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
 async def lsp_completion(
     ls: LanguageServer,
     params: CompletionParams,
