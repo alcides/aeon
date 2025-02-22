@@ -28,11 +28,11 @@ from pydoc_data.topics import topics
 
 from typing import TYPE_CHECKING, Dict, List, Iterator, Tuple, Optional, Set, TextIO, Union, Match, cast, AsyncIterator, \
     Any, Coroutine
-from pygls.lsp.types.basic_structures import Diagnostic, DiagnosticSeverity
+from lsprotocol.types import Diagnostic, DiagnosticSeverity
 
 from pygls.server import LanguageServer
 from pygls.workspace import Document
-from pygls.lsp.types import Position, Range, Location
+from lsprotocol.types import Position, Range, Location
 
 import requests
 

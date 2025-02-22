@@ -1,7 +1,7 @@
 import logging
 from typing import AsyncIterable
 
-from pygls.lsp.types import (Diagnostic, DiagnosticRelatedInformation,
+from lsprotocol.types import (Diagnostic, DiagnosticRelatedInformation,
                              DiagnosticSeverity, Position, Range)
 from pygls.server import LanguageServer
 
