@@ -1,11 +1,5 @@
 import asyncio
-import itertools
-import logging
-import os
-import pathlib
-import re
-import urllib.parse
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import List, Optional
 
 from lsprotocol.types import (
     TEXT_DOCUMENT_COMPLETION,
@@ -13,17 +7,11 @@ from lsprotocol.types import (
     TEXT_DOCUMENT_DID_CHANGE,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
     CompletionItem,
-    CompletionItemKind,
     CompletionOptions,
     CompletionParams,
     DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
-    MarkupContent,
-    MarkupKind,
-    Position,
-    Range,
-    TextEdit,
 )
 
 from pygls.server import LanguageServer
@@ -107,4 +95,3 @@ async def lsp_completion(
   #       ))
   #   items.append(ci)
   # return items
-

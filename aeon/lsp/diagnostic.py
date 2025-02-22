@@ -1,17 +1,10 @@
 import logging
+from . import buildout
 from typing import AsyncIterable
-
-from lsprotocol.types import (Diagnostic, DiagnosticRelatedInformation,
-                             DiagnosticSeverity, Position, Range)
+from lsprotocol.types import (Diagnostic)
 from pygls.server import LanguageServer
 
-from ..core.types import top
-from ..typechecking.typeinfer import check_type_errors
-
 logger = logging.getLogger(__name__)
-
-from . import buildout
-
 
 async def getDiagnostics(
     ls: LanguageServer,

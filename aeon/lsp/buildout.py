@@ -14,25 +14,17 @@
 #
 ##############################################################################
 
-import collections
 import copy
 import io
 import logging
-import os
 import re
-import textwrap
-import enum
 import urllib.parse
-import pathlib
-from pydoc_data.topics import topics
 
-from typing import TYPE_CHECKING, Dict, List, Iterator, Tuple, Optional, Set, TextIO, Union, Match, cast, AsyncIterator, \
-    Any, Coroutine
+from typing import Dict, List, TextIO
 from lsprotocol.types import Diagnostic, DiagnosticSeverity
 
 from pygls.server import LanguageServer
-from pygls.workspace import Document
-from lsprotocol.types import Position, Range, Location
+from lsprotocol.types import Position, Range
 
 import requests
 
@@ -40,7 +32,6 @@ from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program
 from aeon.typechecking.typeinfer import check_type_errors
 
 logger = logging.getLogger(__name__)
