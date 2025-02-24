@@ -57,6 +57,7 @@ from aeon.synthesis_grammar.grammar import (
     classType,
     find_class_by_name,
     process_type_name,
+    build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
