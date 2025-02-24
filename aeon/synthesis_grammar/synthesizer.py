@@ -57,7 +57,6 @@ from aeon.synthesis_grammar.grammar import (
     classType,
     find_class_by_name,
     process_type_name,
-    build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
@@ -90,12 +89,12 @@ gengy_default_config = {
     "timer_stop_criteria": True,
     "timer_limit": 60,
     # Recording
-    "only_record_best_inds": False,
+    "only_record_best_inds": True,
     # Representation
     "representation": "tree",
-    "max_depth": 20,
+    "max_depth": 10,
     # Population and Steps
-    "population_size": 100,
+    "population_size": 50,
     "n_elites": 1,
     "novelty": 1,
     "probability_mutation": 0.1,
@@ -282,8 +281,6 @@ def create_evaluator(
             logger.info(f"Individual evaluation time: {end-start} ")
 
         except Exception as e:
-            # import traceback
-            # traceback.print_exc()
             logger.log("SYNTHESIZER",
                        f"Failed in the fitness function: {e}, {type(e)}")
             result_queue.put(ERROR_FITNESS)

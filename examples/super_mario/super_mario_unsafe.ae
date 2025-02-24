@@ -1,21 +1,18 @@
 type Level;
-type Chunks;
 type Chunk;
+type Chunks;
 type Enemy;
 type Enemies;
-type Boxes;
-type Box;
-type Mob;
-type MobType;
-type BoxType;
 type List;
 
+def np: Unit = native_import "numpy";
 
-# Level functions
+
+# Level
 def new_level: (cs: Chunks) -> (e: Enemies) -> Level =
-    native "lambda cs: lambda e: (sum(cs, []), sum(e, []))";
+    native "lambda cs: lambda e: (cs, e)";
 
-# Chunks functions
+# Chunks
 def empty_chunks: Chunks = native "[]";
 def append_chunk: (cs: Chunks) -> (c: Chunk) -> Chunks =
     native "lambda xs: lambda x: xs + [x]";
@@ -70,58 +67,40 @@ def new_tube_chunk: (x: Int | x >= 5 && x <= 95) ->
                     (wBefore: Int | wBefore >= 2 && wBefore <= 7) ->
                     (wAfter: Int | wAfter >= 2 && wAfter <= 7) ->
                     Chunk = native "lambda x: lambda y: lambda h: lambda wBefore: lambda wAfter: ('T', x, y, h, wBefore, wAfter)";
+# Boxes
 
-# Boxes functions
-def empty_boxes: Boxes = native "[]";
-def append_box: (l: Boxes) -> (i: Box) -> Boxes =
-    native "lambda xs: lambda x: xs + [x]";
-
-def new_box: (type: BoxType) ->
-             (x: Int | x >= 5 && x <= 95) ->
+def new_block_coin: (x: Int | x >= 5 && x <= 95) ->
              (y: Int | y >= 3 && y <= 5) ->
-             Box = native "lambda box: lambda x: lambda y: (box, x, y)";
+             Chunk = native "lambda x: lambda y: ('bcoin', x, y)";
 
-def new_boxes: (boxes: Boxes) ->
-               Chunk = native "lambda boxes: boxes";
+def new_block_power_up: (x: Int | x >= 5 && x <= 95) ->
+             (y: Int | y >= 3 && y <= 5) ->
+             Chunk = native "lambda x: lambda y: ('bpowerup', x, y)";
 
-def new_block_coin: BoxType = native "lambda x: 'c'";
-def new_block_power_up: BoxType = native "lambda x: 'p'";
-def new_block_rock_coin: BoxType = native "lambda x: 'R'";
-def new_block_rock_empty: BoxType = native "lambda x: 'r'";
+def new_block_rock_coin: (x: Int | x >= 5 && x <= 95) ->
+             (y: Int | y >= 3 && y <= 5) ->
+             Chunk = native "lambda x: lambda y: ('rcoin', x, y)";
 
-# Enemies functions
+def new_block_rock_empty: (x: Int | x >= 5 && x <= 95) ->
+             (y: Int | y >= 3 && y <= 5) ->
+             Chunk = native "lambda x: lambda y: ('rock', x, y)";
+
+# Enemies
 def empty_enemies: Enemies = native "[]";
 def append_enemy: (l: Enemies) -> (i: Enemy) -> Enemies =
     native "lambda xs: lambda x: xs + [x]";
 
-def new_enemies: (enemies: Enemies) ->
-                 Enemies = native "lambda enemies: enemies";
+def new_goompa: (x: Int | x >= 5 && x <= 95) ->
+             Enemy = native "lambda x: ('goomba', x)";
 
-# Mob functions
-def new_mob: (type: MobType) ->
-             (x: Int | x >= 5 && x <= 95) ->
-             Mob = native "lambda mob: lambda x: [(mob, x)]";
+def new_koompa: (x: Int | x >= 5 && x <= 95) ->
+             Enemy = native "lambda x: ('koopa', x)";
 
-def new_goompa: MobType = native "lambda x: 'G'";
-def new_koompa: MobType = native "lambda x: 'K'";
 
-# Fitness functions
-def numpy: Unit = native_import "numpy";
+# Fitness function
+def fitness_function: (level: Level) -> List =
+    native "lambda x: __import__('examples.super_mario.super_mario_fitness', fromlist=['calculate_fitness']).calculate_fitness(x)";
 
-def number_of_chunks: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
-    native "lambda max_w: lambda max_h: lambda level: max_w * max_h - len(level[0])";
-
-def conflicts: (max_w: Int) -> (max_h: Int) -> (level: Level) -> Float =
-    native "lambda max_w: lambda max_h: lambda level: (lambda mat: ([chunk.place_in(mat) for chunk in level[0]] + [enemy.place_in(mat) for enemy in level[1]], numpy.sum(mat))[-1])(numpy.zeros((max_w, max_h)))";
-
-def fitness_function: (number_of_chunks: Float) -> (conflicts: Float) -> List =
-    native "lambda x: lambda y: [float(x), float(y)]";
-
-@hide(numpy,
-      number_of_chunks,
-      conflicts,
-      fitness_function)
-#@minimize_float(number_of_chunks 110 10 new_map)
-#@minimize_float(conflicts 110 10 new_map)
-@multi_minimize_float(fitness_function (number_of_chunks 110 10 new_map) (conflicts 110 10 new_map))
+@hide(np, fitness_function)
+@multi_minimize_float(fitness_function new_map)
 def new_map: Level = (?hole: Level);
