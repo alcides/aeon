@@ -1,7 +1,6 @@
 type List;
 type Counter;
 
-def itertools : Unit = native_import "itertools";
 def collections : Unit = native_import "collections";
 
 def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
