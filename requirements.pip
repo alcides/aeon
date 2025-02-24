@@ -3,7 +3,7 @@ flake8
 black
 lark
 psb2
-zstandard==0.15.2
+zstandard==0.23.0
 zss
 z3-solver
 geneticengine @ https://github.com/alcides/GeneticEngine/archive/3feb0b48494f6b4352a3ed87a0fef29a98e4b4a1.zip
