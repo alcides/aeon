@@ -349,6 +349,8 @@ def is_valid_class_name(class_name: str) -> bool:
 
 def get_attribute_type_name(attribute_type: Type,
                             parent_name: str = None) -> str:
+    if parent_name is None and isinstance(attribute_type, BaseType):
+        return f"{attribute_type.name}"
     parent_name = parent_name or ""
     while isinstance(attribute_type, AbstractionType):
         parent_name += f"t_{process_type_name(attribute_type.var_type)}_"
