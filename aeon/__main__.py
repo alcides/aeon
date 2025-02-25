@@ -26,12 +26,13 @@ from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
-
+from aeon.lsp.server import start_language_server_mode
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "filename",
+        nargs="?",
         help="name of the aeon files to be synthesized",
     )
     parser.add_argument(
@@ -94,8 +95,24 @@ def parse_arguments():
         action="store_true",
         help="Use the refined grammar for synthesis",
     )
-    return parser.parse_args()
 
+    parser.add_argument(
+        "-lsp",
+        "--language-server-mode",
+        action="store_true",
+        help="Run language server mode (disables other options)",
+    )
+
+    parser.add_argument(
+        '--tcp',
+        help='listen on tcp port or hostname:port on IPv4.',
+        type=str,
+    )
+
+    args = parser.parse_args()
+    if not args.language_server_mode and args.filename is None:
+        parser.error("the following arguments are required: filename")
+    return args
 
 def read_file(filename: str) -> str:
     with open(filename) as file:
@@ -126,6 +143,10 @@ def main() -> None:
         logger.add(sys.stderr)
     if args.timings:
         logger.add(sys.stderr, level="TIME")
+
+    if args.language_server_mode:
+        start_language_server_mode(args.tcp)
+        sys.exit(0)
 
     aeon_code = read_file(args.filename)
 
