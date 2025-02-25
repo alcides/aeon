@@ -58,7 +58,7 @@ def clearCache(uri: URI) -> None:
   This is to be called when the document is modified.
   """
   logger.debug("Clearing cache for %s", uri)
-  _parse_cache.pop(uri)
+  _parse_cache.pop(uri,None)
   logger.debug("DONE!")
 
 
