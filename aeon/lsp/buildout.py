@@ -104,6 +104,7 @@ async def parse(
       uri,
       allow_errors,
   )
+  ls.publish_diagnostics(uri, parsed.diagnostics)
   _parse_cache[uri] = copy.deepcopy(parsed)
   return parsed
 
