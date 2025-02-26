@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import reduce
 from typing import Any
 from typing import Generator
 from loguru import logger
@@ -17,7 +18,6 @@ from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
 from z3.z3 import FP
-from z3.z3 import ForAll
 from z3.z3 import FPSort
 from z3.z3 import Float64
 from z3.z3 import Implies
@@ -26,6 +26,7 @@ from z3.z3 import Not
 from z3.z3 import Or
 from z3.z3 import String
 from z3.z3 import StringSort
+from z3.z3 import SortRef
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication
@@ -37,9 +38,10 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, Bottom, RefinedType, Top, TypePolymorphism
+from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
 from aeon.core.types import BaseType
 from aeon.core.types import Type
+from aeon.core.types import TypeVar
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -115,112 +117,134 @@ base_functions: dict[str, Any] = {
 
 
 @dataclass
-class CanonicConstraint:
-    binders: list[tuple[str, BaseType | AbstractionType | Bottom | Top]]
-    pre: LiquidTerm
-    pos: LiquidTerm
+class SMTContext:
+    sorts: list[str]
+    functions: dict[str, AbstractionType]
+    variables: dict[str, BaseType]
+    premises: list[LiquidTerm]
 
-    def __repr__(self):
-        return f"\\forall {self.binders}, {self.pre} => {self.pos}"
+    def with_sort(self, name: str) -> SMTContext:
+        return SMTContext(self.sorts + [name], self.functions, self.variables,
+                          self.premises)
+
+    def with_function(self, name: str, ty: AbstractionType) -> SMTContext:
+        return SMTContext(self.sorts, {
+            **self.functions, name: ty
+        }, self.variables, self.premises)
+
+    def with_var(self, name: str, ty: BaseType) -> SMTContext:
+        return SMTContext(self.sorts, self.functions, {
+            **self.variables, name: ty
+        }, self.premises)
+
+    def with_premise(self, p: LiquidTerm) -> SMTContext:
+        return SMTContext(self.sorts, self.functions, self.variables,
+                          self.premises + [p])
+
+
+@dataclass(init=False)
+class CanonicConstraint:
+    """Represents SMT-valid constraints."""
+
+    sorts: list[str]
+    functions: dict[str, AbstractionType]
+    variables: dict[str, BaseType]
+    premise: LiquidTerm
+    conclusion: LiquidTerm
+
+    def __init__(self, ctx: SMTContext, pos: LiquidTerm):
+        self.sorts = ctx.sorts
+        self.functions = ctx.functions
+        self.variables = ctx.variables
+        self.premise = reduce(mk_liquid_and, ctx.premises,
+                              LiquidLiteralBool(True))
+        self.conclusion = pos
 
 
 def rename_constraint(c: Constraint, old_name: str,
                       new_name: str) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
-    if isinstance(c, Conjunction):
-        return Conjunction(rename_constraint(c.c1, old_name, new_name),
-                           rename_constraint(c.c2, old_name, new_name))
-    elif isinstance(c, Implication):
-        # If it shadows, leave it.
-        if c.name == new_name:
-            return c
-        else:
-            npred = substitution_in_liquid(c.pred, LiquidVar(new_name),
-                                           old_name)
-            nseq = rename_constraint(c.seq, old_name, new_name)
-            return Implication(c.name, c.base, npred, nseq)
-    elif isinstance(c, LiquidConstraint):
-        nexpr = substitution_in_liquid(c.expr, LiquidVar(new_name), old_name)
-        return LiquidConstraint(expr=nexpr)
-    elif isinstance(c, UninterpretedFunctionDeclaration):
-        # If it shadows, leave it.
-        if c.name == new_name:
-            return c
-        else:
-            nseq = rename_constraint(c.seq, old_name, new_name)
-            return UninterpretedFunctionDeclaration(c.name, c.type, nseq)
-    else:
-        assert False
+    match c:
+        case LiquidConstraint(expr):
+            nexpr = substitution_in_liquid(expr, LiquidVar(new_name), old_name)
+            return LiquidConstraint(expr=nexpr)
+        case Conjunction(c1, c2):
+            return Conjunction(rename_constraint(c1, old_name, new_name),
+                               rename_constraint(c2, old_name, new_name))
+        case Implication(name, base, pred, seq):
+            if name == new_name:
+                return c
+            else:
+                npred = substitution_in_liquid(pred, LiquidVar(new_name),
+                                               old_name)
+                nseq = rename_constraint(seq, old_name, new_name)
+                return Implication(name, base, npred, nseq)
+        case UninterpretedFunctionDeclaration(name, absty, seq):
+            # If it shadows, leave it.
+            if name == new_name:
+                return c
+            else:
+                nseq = rename_constraint(seq, old_name, new_name)
+                return UninterpretedFunctionDeclaration(name, absty, nseq)
+        case _:
+            assert False, f"Unexpected case {c} ({type(c)})"
 
 
 def get_new_name(name: str, used_vars: list[str]) -> None | str:
     """If a new name for a variable is needed, return it, otherwise return
     None."""
-    if name not in used_vars:
-        return None
     while name in used_vars:
         name = name + "_"
     return name
 
 
 def flatten(c: Constraint,
-            used_vars: list[str]) -> Generator[CanonicConstraint, None, None]:
-    if isinstance(c, Conjunction):
-        yield from flatten(c.c1, used_vars)
-        yield from flatten(c.c2, used_vars)
-    elif isinstance(c, Implication):
-        name = get_new_name(c.name, used_vars)
-        if name:
-            c = rename_constraint(c, c.name, name)
-            assert isinstance(c, Implication)
-        else:
-            name = c.name
-        for sub in flatten(c.seq, used_vars + [name]):
-            yield CanonicConstraint(
-                binders=sub.binders + [(name, c.base)],
-                pre=mk_liquid_and(sub.pre, c.pred),
-                pos=sub.pos,
-            )
-    elif isinstance(c, LiquidConstraint):
-        yield CanonicConstraint(binders=[],
-                                pre=LiquidLiteralBool(True),
-                                pos=c.expr)
-    elif isinstance(c, UninterpretedFunctionDeclaration):
-        name = get_new_name(c.name, used_vars)
-        if name:
-            c = rename_constraint(c, c.name, name)
-            assert isinstance(c, UninterpretedFunctionDeclaration)
-        else:
-            name = c.name
-        for sub in flatten(c.seq, used_vars):
-            yield CanonicConstraint(
-                binders=sub.binders + [(c.name, c.type)],
-                pre=sub.pre,
-                pos=sub.pos,
-            )
-    else:
-        assert False
+            ctx: SMTContext = None) -> Generator[CanonicConstraint]:
+    """Flattens a constraint into a list of SMT-valid constraints."""
+    if ctx is None:
+        ctx = SMTContext(["Top"], {}, {}, [])
+    match c:
+        case LiquidConstraint(expr):
+            yield CanonicConstraint(ctx, expr)
+        case Conjunction(c1, c2):
+            yield from flatten(c1, ctx)
+            yield from flatten(c2, ctx)
+        case Implication(oname, base, pred, seq):
+            name = get_new_name(oname, list(ctx.variables.keys()))
+            if name != oname:
+                c = rename_constraint(c, oname, name)
+                assert isinstance(c, Implication)
+            if isinstance(base, TypeVar):
+                base = BaseType(base.name)
+            assert isinstance(
+                base, BaseType), f"{base} ({type(base)}) is not a base type."
+            yield from flatten(seq,
+                               ctx.with_var(name, base).with_premise(pred))
+        case UninterpretedFunctionDeclaration(oname, ty, seq):
+            name = get_new_name(oname, list(ctx.functions.keys()))
+            if name != oname:
+                c = rename_constraint(c, oname, name)
+                assert isinstance(c, UninterpretedFunctionDeclaration)
+            yield from flatten(seq, ctx.with_function(name, ty))
+        case _:
+            assert False, f"Cannot flatten {c}."
 
 
 s = Solver()
 (s.set(timeout=200), )
 
 
-def smt_valid(constraint: Constraint,
-              foralls: None | list[tuple[str, Any]] = None) -> bool:
+def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
-    if foralls is None:
-        foralls = []
-    forall_vars = [(f[0], make_variable(f[0], f[1])) for f in foralls
-                   if isinstance(f[1], BaseType)]
-    cons: list[CanonicConstraint] = list(flatten(constraint, []))
-    for c in cons:
+    n = 0
+    for c in flatten(constraint):
+        n += 1
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
-        smt_c = translate(c, extra=forall_vars)
-        for _, v in forall_vars:
-            smt_c = ForAll(v, smt_c)
+        smt_c = translate(c)
+        if smt_c is False:
+            continue
         s.add(smt_c)
         result = s.check()
         s.pop()
@@ -241,13 +265,19 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
     assert False
 
 
-sort_cache = {}
+sort_cache: dict[str, SortRef] = {}
 
 
-def get_sort(base: Type) -> Any:
+def mk_vars(variables: dict[str, BaseType],
+            sorts: dict[str, SortRef]) -> dict[str, Any]:
+    return {
+        name: make_variable(name, base)
+        for name, base in variables.items()
+    }
+
+
+def get_sort(base: Type) -> SortRef:
     match base:
-        case Bottom():
-            return DeclareSort("Bottom")
         case Top():
             return DeclareSort("Top")
         case BaseType("Int"):
@@ -258,12 +288,14 @@ def get_sort(base: Type) -> Any:
             return Float64()
         case BaseType("String"):
             return StringSort()
-        case BaseType("TypeVarPlaceHolder"):
-            return IntSort()  # TODO
         case BaseType(name):
-            if name not in sort_cache:
-                sort_cache[name] = DeclareSort(name)
-            return sort_cache[name]
+            return IntSort()
+            # This will be reenable once we have typeclasses
+            # if name not in sort_cache:
+            #     sort_cache[name] = DeclareSort(name)
+            # return sort_cache[name]
+        case TypeVar(name):
+            assert False, f"TypeVar {name} should not be used in SMT solver."
         case _:
             raise Exception(f"SMT sort of {base} not implemented.")
 
@@ -282,27 +314,30 @@ def unrefine_type(base: Type):
             return base
 
 
-def uncurry(
-    base: AbstractionType
-) -> tuple[list[BaseType | Top | Bottom], BaseType | Top | Bottom]:
+def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
     current: Type = unrefine_type(base)
     inputs = []
     while isinstance(current, AbstractionType):
-        assert (isinstance(current.var_type, BaseType)
-                or isinstance(current.var_type, Top)
-                or isinstance(current.var_type, Bottom))
-        inputs.append(current.var_type)
+        match current.var_type:
+            case BaseType(_):
+                inputs.append(current.var_type)
+            case Top():
+                inputs.append(BaseType("Unit"))
+            case TypeVar(name):
+                inputs.append(BaseType(name))
+            case _:
+                assert False, f"Unknown SMT type {current.var_type} in {base}."
         current = current.type
 
-    assert isinstance(current, BaseType) or isinstance(
-        current, Top) or isinstance(current, Bottom)
+    if isinstance(current, Top):
+        current = BaseType("Unit")
+    assert isinstance(current, BaseType)
     return (inputs, current)
 
 
-def make_variable(name: str,
-                  base: BaseType | AbstractionType | Top | Bottom) -> Any:
+def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
     match base:
-        case Bottom() | Top():
+        case Top():
             return Const(name, get_sort(base))
         case BaseType("Int"):
             return Int(name)
@@ -314,7 +349,11 @@ def make_variable(name: str,
         case BaseType("String"):
             return String(name)
         case BaseType(_):
-            return Const(name, get_sort(base))
+            return Int(name)
+            # TODO: we always use int, in the case of a typevar.
+            # return Const(name, get_sort(base))
+        case TypeVar(name):
+            return Int(name)
         case AbstractionType(_, _, _):
             if name in base_functions:
                 return base_functions[name]
@@ -324,50 +363,54 @@ def make_variable(name: str,
                         for x in input_types] + [get_sort(output_type)]
                 return Function(name, *args)
         case _:
-            logger.error(
-                f"No var: {name}, with base {base} of type {type(base)}")
-            assert False
+            assert False, f"No var: {name}, with base {base} of type {type(base)}"
 
 
-def translate_liq(t: LiquidTerm, ty: Type, variables: list[tuple[str, Any]]):
-    if isinstance(t, LiquidLiteralBool):
-        return t.value
-    elif isinstance(t, LiquidLiteralInt):
-        return t.value
-    elif isinstance(t, LiquidLiteralFloat):
-        return t.value
-    elif isinstance(t, LiquidLiteralString):
-        return t.value
-    elif isinstance(t, LiquidVar):
-        return type_of_variable(variables, t.name)
-    elif isinstance(t, LiquidHornApplication):
-        assert False  # LiquidHoles should not get to SMT solver!
-    elif isinstance(t, LiquidApp):
-        f = None
-        if t.fun in base_functions:
-            f = base_functions[t.fun]
-        else:
-            for v in variables:
-                if v[0] == t.fun:
-                    f = v[1]
-        if f is None:
-            assert False, f"Failed to find function {t.fun}."
-        args = [translate_liq(a, ty, variables) for a in t.args]
-        return f(*args)
-    assert False
+def translate_liq(t: LiquidTerm, ty: Type, variables: dict[str, Any]):
+    match t:
+        case LiquidLiteralBool(b):
+            return b
+        case LiquidLiteralInt(i):
+            return i
+        case LiquidLiteralFloat(f):
+            return f
+        case LiquidLiteralString(s):
+            return s
+        case LiquidVar(name):
+            return variables[name]
+        case LiquidHornApplication(name, args):
+            assert False, "LiquidHornApplication should not get to SMT solver!"
+        case LiquidApp(fun_name, args):
+            fun = base_functions.get(fun_name, variables.get(fun_name, None))
+            assert fun is not None, f"Function {fun_name} not found."
+            args = [translate_liq(a, ty, variables) for a in args]
+            return fun(*args)
+        case _:
+            assert False, f"Cannot translate {t}."
 
 
-def translate(
-    c: CanonicConstraint,
-    extra=list[tuple[str, Any]],
-) -> BoolRef | bool:
-    variables = [
-        (name, make_variable(name, base)) for (name, base) in c.binders[::-1]
-        if isinstance(base, BaseType) or isinstance(base, AbstractionType)
-        or isinstance(base, Top) or isinstance(base, Bottom)
-    ] + extra
-    e1 = translate_liq(c.pre, BaseType("Bool"), variables)
-    e2 = translate_liq(c.pos, BaseType("Bool"), variables)
+def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
+    return {name: get_sort(BaseType(name)) for name in sorts}
+
+
+def mk_funs(functions: dict[str, AbstractionType],
+            sorts: dict[str, SortRef]) -> dict[str, Any]:
+    funs = {}
+    for name, ty in functions.items():
+        input_types, output_type = uncurry(ty)
+        args = [sorts.get(x.name, get_sort(x)) for x in input_types
+                ] + [sorts.get(output_type.name, get_sort(output_type))]
+        funs[name] = Function(name, *args)
+    return funs
+
+
+def translate(c: CanonicConstraint, ) -> BoolRef | bool:
+    sorts = mk_sorts(c.sorts)
+    functions = mk_funs(c.functions, sorts)
+    variables = mk_vars(c.variables, sorts)
+
+    e1 = translate_liq(c.premise, BaseType("Bool"), variables | functions)
+    e2 = translate_liq(c.conclusion, BaseType("Bool"), variables | functions)
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
     return And(e1, Not(e2))

@@ -14,7 +14,6 @@ from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import Top
@@ -71,8 +70,6 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         tp = fresh(context.with_var(ty.var_name, ty.var_type), ty.type)
         return AbstractionType(ty.var_name, sp, tp)
     elif isinstance(ty, Top):
-        return ty
-    elif isinstance(ty, Bottom):
         return ty
     elif isinstance(ty, TypeVar):
         return ty
@@ -271,7 +268,7 @@ def has_k_head(c: Constraint) -> bool:
         case UninterpretedFunctionDeclaration(_, _, post):
             return has_k_head(post)
         case _:
-            assert False
+            assert False, f"Unkown constraint type: {c} ({type(c)})"
 
 
 def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
@@ -328,23 +325,27 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[str, AbstractionType | BaseType | Top | Bottom]], tuple[
+) -> tuple[list[tuple[str, BaseType | TypeVar | AbstractionType | Top]], tuple[
         LiquidTerm, LiquidTerm]]:
     match c:
         case UninterpretedFunctionDeclaration(name, base, post):
-            vars, (t1, t2) = extract_components_of_imp(post)
-            return ([(name, base)] + vars, (t1, t2))
-        case Implication(name, base, pre, LiquidConstraint(e)):
-            vs: list[tuple[str, AbstractionType | BaseType | Top | Bottom]] = [
-                (c.name, c.base)
-            ]
-            return (vs, (pre, e))
-        case Implication(name, base, pre, Implication(_, _, _, _)):
-            (vs1, (p, h)) = extract_components_of_imp(c.seq)
-            vsh = [(name, base)]
+            (vs1, (p, h)) = extract_components_of_imp(post)
+            vsh: list[tuple[str,
+                            BaseType | TypeVar | AbstractionType | Top]] = [
+                                (name, base)
+                            ]
             return (vsh + vs1, (p, h))
+        case Implication(name, base, pre, seq):
+            (vs1, (p, h)) = extract_components_of_imp(seq)
+            vs: list[tuple[str,
+                           BaseType | TypeVar | AbstractionType | Top]] = [
+                               (name, base)
+                           ]
+            return (vs + vs1, (mk_liquid_and(pre, p), h))
+        case LiquidConstraint(e):
+            return ([], (LiquidLiteralBool(True), e))
         case _:
-            assert False
+            assert False, f"Unkown context: {c} ({type(c)})"
 
 
 def weaken(assign, c: Constraint) -> Assignment:

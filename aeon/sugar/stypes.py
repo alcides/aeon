@@ -45,7 +45,7 @@ class STypePolymorphism(SType):
     body: SType
 
 
-builtin_types = ["Top", "Bottom", "Bool", "Int", "Float", "String", "Unit"]
+builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit"]
 
 
 def get_type_vars(ty: SType) -> set[STypeVar]:

@@ -23,7 +23,7 @@ from aeon.core.terms import (
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, Bottom, TypeVar
+from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar
 from aeon.elaboration.context import (
     ElabTypeVarBinder,
     ElabUninterpretedBinder,
@@ -137,10 +137,10 @@ def liquefy(
                 return substitution_in_liquid(lbody, lval, name)
             return None
         case SHole(name):
+            avars = available_vars or []
             return LiquidHornApplication(name=name,
                                          argtypes=[(LiquidVar(x), ty)
-                                                   for (x,
-                                                        ty) in available_vars])
+                                                   for (x, ty) in avars])
         case _:
             assert False
 
@@ -151,6 +151,8 @@ def basic_type(ty: Type) -> BaseType | TypeVar:
             return ty
         case RefinedType(_, it, _):
             return basic_type(it)
+        case Top():
+            return BaseType("Unit")
         case _:
             assert False, f"Unknown base type {ty}"
 
@@ -167,8 +169,6 @@ def type_to_core(
     match normalize(ty):
         case SBaseType("Top"):
             return Top()
-        case SBaseType("Bottom"):
-            return Bottom()
         case SBaseType(name):
             return BaseType(name)
         case STypeVar(name):

@@ -100,8 +100,6 @@ def elaborate_foralls(e: STerm) -> STerm:
 def unify(ctx: ElaborationTypingContext, sub: SType,
           sup: SType) -> list[SType]:
     match (sub, sup):
-        case (SBaseType("Bottom"), _):
-            return []
         case (_, SBaseType("Top")):
             return []
         case (SBaseType(subn), SBaseType(supn)):
@@ -173,10 +171,8 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext,
         case Union(united):
             # TODO: raise better errors
             return unify_single("?", united)
-            # return reduce(lambda a, b: type_lub(ctx, a, b), ty.united, SBaseType("Top"))
         case Intersection(intersected):
             return unify_single("?", intersected)
-            # return reduce(lambda a, b: type_glb(ctx, a, b), ty.intersected, SBaseType("Bottom"))
         case SAbstractionType(name, vtype, rtype):
             return SAbstractionType(
                 var_name=name,
@@ -399,7 +395,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
             return SAbstraction(name, elaborate_remove_unification(ctx, body))
         case SLet(name, val, body):
             nctx = ctx.with_var(t.var_name,
-                                SBaseType("Bottom"))  # TODO: bottom??
+                                SBaseType("Unit"))  # TODO poly: Unit??
             return SLet(name, elaborate_remove_unification(ctx, val),
                         elaborate_remove_unification(nctx, body))
         case SRec(name, ty, val, body):
@@ -497,7 +493,6 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                         match ctx.type_of(name):
                             case STypePolymorphism(_, BaseKind(), _):
                                 should_be_refined = False
-
                 match nt:
                     case SBaseType(_) | STypeVar(_):
                         new_type: SType
@@ -515,6 +510,9 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                         ref = SHole("k")
                         new_type = SRefinedType(name, ity, ref)
                         return STypeApplication(body, new_type)
+                    case SAbstractionType(_, _, _):
+                        # AbstractionTypes are not refined
+                        return STypeApplication(body, nt)
                     case _:
                         assert False
         case _:

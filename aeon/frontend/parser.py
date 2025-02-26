@@ -22,7 +22,6 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
-from aeon.core.types import bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
@@ -62,9 +61,7 @@ class TreeToCore(Transformer):
 
     def simple_t(self, args):
         n = str(args[0])
-        if n == "Bottom":
-            return bottom
-        elif n == "Top":
+        if n == "Top":
             return top
         elif n in ["Unit", "Int", "Bool", "Float", "String"]:
             return BaseType(n)

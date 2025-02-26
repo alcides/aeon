@@ -20,7 +20,6 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import t_bool
@@ -170,7 +169,7 @@ def liquid_term_to_str(ty: RefinedType) -> str:
 
 def process_type_name(ty: Type) -> str:
     match ty:
-        case Top() | Bottom():
+        case Top():
             return str(ty)
         case BaseType(name):
             return name

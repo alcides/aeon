@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, StarKind
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -26,14 +26,12 @@ from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
-from aeon.core.types import args_size_of_type
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.core.types import bottom
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -114,6 +112,11 @@ class FailedSubtypingException(TypeCheckingException):
         return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
 
 
+def is_compatible(a: Kind, b: Kind):
+    """Returns whether kind a is a subkind of kind b"""
+    return (a == b) or b == StarKind()
+
+
 def argument_is_typevar(ty: Type):
     return (isinstance(ty, TypeVar) or isinstance(
         ty,
@@ -180,7 +183,7 @@ def prim_op(t: str) -> Type:
         case "&&" | "||":
             return make_binary_app_type(t, t_bool, t_bool)
         case _:
-            assert False
+            assert False, f"Unknown selfication of {t}"
 
 
 def rename_liquid_term(refinement, old_name, new_name):
@@ -256,6 +259,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         if isinstance(ty, BaseType) or isinstance(
                 ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
+            assert isinstance(ty, RefinedType)
             # assert ty.name != t.name
             if ty.name == t.name:
                 ty = renamed_refined_type(ty)
@@ -322,11 +326,12 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                                                       LiquidHornApplication):
             ty = ty.type
             k = ctx.kind_of(ty)
-        if k is None or k != tabs.kind:
+        if k is None or not is_compatible(k, tabs.kind):
             raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
         return (c, s)
     elif isinstance(t, Hole):
-        return ctrue, bottom
+        return ctrue, TypePolymorphism("a", StarKind(),
+                                       TypeVar("a"))  # TODO poly: check kind
     # TODO: add if term
     # elif isinstance(t, If):
     #     y = ctx.fresh_var()
@@ -424,24 +429,12 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     assert wellformed(ctx, ty)
     try:
         constraint = check(ctx, t, ty)
+        # TODO: convert constraint to canonical form
+        # constraint = canonicalize_constraint(constraint, [name for (name, _) in ctx.vars()])
+        # assert wellformed_constraint(ctx, constraint), f"Constraint {constraint} not wellformed."
         v = entailment(ctx, constraint)
         return v
     except CouldNotGenerateConstraintException:
         return False
     except FailedConstraintException:
         return False
-
-
-def is_subtype(ctx: TypingContext, subt: Type, supt: Type):
-    assert wellformed(ctx, subt)
-    assert wellformed(ctx, supt)
-    if args_size_of_type(subt) != args_size_of_type(supt):
-        return False
-    if subt == supt:
-        return True
-    if isinstance(subt, RefinedType) and subt.type == supt:
-        return True
-    c = sub(subt, supt)
-    if isinstance(c, LiquidLiteralBool):
-        return c.value
-    return entailment(ctx, c)

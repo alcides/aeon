@@ -23,7 +23,7 @@ from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
 
 
-def check_compile(source: str, ty: SType, val=None, extra_vars=None):
+def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     prog = parse_program(source)
     desugared = desugar(prog, extra_vars)
@@ -37,6 +37,7 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None):
     if val:
         r = eval(core_ast_anf, ectx)
         assert r == val
+    return True
 
 
 def check_compile_expr(source: str,

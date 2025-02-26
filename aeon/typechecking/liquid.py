@@ -8,7 +8,17 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.types import AbstractionType, BaseType, Bottom, RefinedType, Top, Type, TypePolymorphism, TypeVar, t_bool
+from aeon.core.types import (
+    AbstractionType,
+    BaseType,
+    LiquidHornApplication,
+    RefinedType,
+    Top,
+    Type,
+    TypePolymorphism,
+    TypeVar,
+    t_bool,
+)
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
@@ -32,14 +42,22 @@ def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar]:
     while True:
         match ty:
         # TODO: Should these be removed?
-            case Bottom() | Top():
+            case Top() | RefinedType(_, Top(), _):
                 return args + [BaseType("Unit")]
             case BaseType(_) | TypeVar(_):
                 assert args
                 return args + [ty]
-            case AbstractionType(_, aty, rty):
-                assert isinstance(aty, BaseType) or isinstance(aty, TypeVar)
-                args.append(aty)
+            case (AbstractionType(_, RefinedType(_, aty, _),
+                                  RefinedType(_, rty, _))
+                  | AbstractionType(_, RefinedType(_, aty, _), rty)
+                  | AbstractionType(_, aty, rty)):
+                match aty:
+                    case BaseType(_) | TypeVar(_):
+                        args.append(aty)
+                    case Top():
+                        args.append(BaseType("Unit"))
+                    case _:
+                        assert False, f"Argument type for liquid applications cannot be {aty} {type(aty)}"
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
@@ -65,7 +83,9 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
             case VariableBinder(prev, name, BaseType(_) as bt):
                 variables[name] = bt
                 ctx = prev
-            case VariableBinder(prev, _, TypeVar(_)):
+            case VariableBinder(prev, name, TypeVar(tvname)):
+                known_types.append(tvname)
+                variables[name] = BaseType(tvname)
                 ctx = prev
             case VariableBinder(prev, name, TypePolymorphism(_) as ty):
                 functions[name] = lower_abstraction_type(ty)
@@ -99,7 +119,7 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
 def type_infer_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
-) -> BaseType | None:
+) -> BaseType:
     match liq:
         case LiquidLiteralBool(_):
             return t_bool
@@ -150,6 +170,8 @@ def type_infer_liquid(
             if isinstance(ftype[-1], TypeVar):
                 return equalities[ftype[-1].name]
             return ftype[-1]
+        case LiquidHornApplication(_, _):
+            return t_bool
         case _:
             assert False, f"Constructed {liq} ({type(liq)}) not supported."
 
@@ -161,10 +183,7 @@ def check_liquid(
 ) -> bool:
     try:
         t = type_infer_liquid(ctx, liq)
-        if t is None:
-            return False
-        else:
-            return t == exp
+        return t == exp
     except LiquidTypeCheckException:
         return False
 

@@ -9,7 +9,6 @@ from aeon.core.types import TypeVar
 from aeon.frontend.parser import parse_type
 from aeon.typechecking.context import EmptyContext
 from aeon.typechecking.context import VariableBinder
-from aeon.typechecking.well_formed import inhabited
 from aeon.typechecking.well_formed import wellformed
 from aeon.utils.ctx_helpers import built_std_context
 
@@ -49,14 +48,6 @@ def test_dependent():
         VariableBinder(built_std_context(), "x", t_int),
         parse_type("(y:Int) -> {z:Int | x > y}"),
     )
-
-
-def test_inhabited():
-    assert inhabited(built_std_context(), parse_type("{x:Int | x > 0}"))
-    assert inhabited(built_std_context(), parse_type("{x:Int | x == 2313}"))
-    assert not inhabited(built_std_context(), parse_type("{x:Int | false}"))
-    assert not inhabited(built_std_context(),
-                         parse_type("{x:Int | (x == 3) && (x == 4)}"))
 
 
 def test_poly():

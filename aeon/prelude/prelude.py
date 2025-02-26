@@ -27,8 +27,8 @@ native_types = ["Unit", "Bool", "Int", "Float", "String"]
 
 # TODO: polymorphic signatures
 prelude = [
-    ("native", "(x:String) -> Bottom", eval),
-    ("native_import", "(x:String) -> Bottom", native_import),
+    ("native", "forall a:*, (x:String) -> a", eval),
+    ("native_import", "forall a:*, (x:String) -> a", native_import),
     ("print", "forall a:B, (x:a) -> Unit", p),
     ("==", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x == y),
     ("!=", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x != y),

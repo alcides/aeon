@@ -10,7 +10,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseType, Bottom, Top
+from aeon.core.types import AbstractionType, BaseType, Top, TypeVar
 from aeon.core.types import t_bool
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
@@ -43,10 +43,13 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[str, BaseType | AbstractionType | Bottom
+def constraint_builder(vs: list[tuple[str, BaseType | TypeVar | AbstractionType
                                       | Top]], exp: Constraint):
     for n, t in vs[::-1]:
-        exp = Implication(n, t, LiquidLiteralBool(True), exp)
+        if isinstance(t, AbstractionType):
+            exp = UninterpretedFunctionDeclaration(n, t, exp)
+        else:
+            exp = Implication(n, t, LiquidLiteralBool(True), exp)
     return exp
 
 
@@ -131,24 +134,26 @@ def constraint_free_variables(c: Constraint) -> list[str]:
 def substitution_in_constraint(c: Constraint, rep: LiquidTerm,
                                name: str) -> Constraint:
     """Substitues a LiquidVar by another expression within a constraint."""
-    if isinstance(c, LiquidConstraint):
-        return LiquidConstraint(substitution_in_liquid(c.expr, rep, name))
-    elif isinstance(c, Conjunction):
-        left = substitution_in_constraint(c.c1, rep, name)
-        right = substitution_in_constraint(c.c1, rep, name)
-        return Conjunction(left, right)
-    elif isinstance(c, Implication):
-        if c.name == name:
-            return c
-        else:
-            seq = substitution_in_constraint(c.seq, rep, name)
-            return Implication(c.name, c.base,
-                               substitution_in_liquid(c.pred, rep, name), seq)
-    elif isinstance(c, UninterpretedFunctionDeclaration):
-        seq = substitution_in_constraint(c.seq, rep, name)
-        return UninterpretedFunctionDeclaration(c.name, c.type, seq)
-    else:
-        assert False
+    match c:
+        case LiquidConstraint(expr):
+            return LiquidConstraint(substitution_in_liquid(expr, rep, name))
+        case Conjunction(c1, c2):
+            left = substitution_in_constraint(c1, rep, name)
+            right = substitution_in_constraint(c2, rep, name)
+            return Conjunction(left, right)
+        case Implication(name, base, pred, seq):
+            if c.name == name:
+                return c
+            else:
+                nseq = substitution_in_constraint(seq, rep, name)
+                return Implication(name, base,
+                                   substitution_in_liquid(pred, rep, name),
+                                   nseq)
+        case UninterpretedFunctionDeclaration(name, type, seq):
+            nseq = substitution_in_constraint(seq, rep, name)
+            return UninterpretedFunctionDeclaration(name, type, nseq)
+        case _:
+            assert False
 
 
 def used_variables(c: LiquidTerm) -> set[str]:

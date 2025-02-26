@@ -20,7 +20,6 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
@@ -37,11 +36,7 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
 
-    if isinstance(t, Bottom):
-        return t
-    elif isinstance(t, Top):
-        return t
-    elif isinstance(t, BaseType):
+    if isinstance(t, BaseType):
         return t
     elif isinstance(t, TypeVar) and t.name == name:
         return rep
@@ -149,8 +144,6 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     renamed: Type
 
     if isinstance(t, Top):
-        return t
-    elif isinstance(t, Bottom):
         return t
     elif isinstance(t, BaseType):
         return t

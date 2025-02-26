@@ -80,21 +80,6 @@ class Top(Type):
         return hash("Top")
 
 
-class Bottom(Type):
-
-    def __repr__(self):
-        return "⊥"
-
-    def __eq__(self, other):
-        return isinstance(other, Bottom)
-
-    def __str__(self):
-        return repr(self)
-
-    def __hash__(self) -> int:
-        return hash("Bottom")
-
-
 t_unit = BaseType("Unit")
 t_bool = BaseType("Bool")
 t_int = BaseType("Int")
@@ -102,7 +87,6 @@ t_float = BaseType("Float")
 t_string = BaseType("String")
 
 top = Top()
-bottom = Bottom()
 
 
 @dataclass
@@ -193,7 +177,7 @@ def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
 def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
     match t:
-        case BaseType(_) | Top() | Bottom() | TypeVar():
+        case BaseType(_) | Top() | TypeVar():
             return True
         case RefinedType(_, _, ref):
             return ref == LiquidHole() or isinstance(ref,
