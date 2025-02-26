@@ -15,16 +15,6 @@ repos:
     rev: v2.7.0
     hooks:
       - id: setup-cfg-fmt
-  # Disabled because of pre-commit 4 incompatibility
-  # - repo: https://github.com/PyCQA/docformatter
-  #   rev: 06907d0267368b49b9180eed423fae5697c1e909
-  #   hooks:
-  #     - id: docformatter
-  - repo: https://github.com/hadialqattan/pycln
-    rev: v2.4.0
-    hooks:
-      - id: pycln
-        args: [--config=pyproject.toml]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
