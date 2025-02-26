@@ -18,9 +18,8 @@ from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type
+from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import t_bool
@@ -169,17 +168,26 @@ def liquid_term_to_str(ty: RefinedType) -> str:
 
 
 def process_type_name(ty: Type) -> str:
-    if isinstance(ty, RefinedType):
-        refinement_str = liquid_term_to_str(ty)
-        refined_type_name = f"Refined_{refinement_str}"
-        return refined_type_name
-
-    elif isinstance(ty, Top) or isinstance(ty, Bottom):
-        return str(ty)
-    elif isinstance(ty, BaseType):
-        return str(ty.name)
-    else:
-        assert False
+    match ty:
+        case Top():
+            return str(ty)
+        case BaseType(name):
+            return name
+        case RefinedType(_, _, _):
+            refinement_str = liquid_term_to_str(ty)
+            refined_type_name = f"Refined_{refinement_str}"
+            return refined_type_name
+        case AbstractionType(vname, vtype, rtype):
+            r1 = process_type_name(vtype)
+            r2 = process_type_name(rtype)
+            return f"{vname}_{r1}_to_{r2}"
+        case TypeVar(name):
+            return name
+        case TypePolymorphism(name, kind, body):
+            r = process_type_name(body)
+            return f"{name}_{kind}_{r}"
+        case _:
+            assert False, f"Unknown type {ty} ({type(ty)})"
 
 
 def replace_tuples_with_lists(structure):

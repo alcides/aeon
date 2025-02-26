@@ -1,9 +1,8 @@
 """Meta-programming code for optimization-related decorators."""
 
-from aeon.core.terms import Term, Var
-from aeon.core.types import BaseType
 from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Definition
+from aeon.sugar.program import Definition, STerm, SVar
+from aeon.sugar.stypes import SBaseType
 
 
 def raise_decorator_error(name: str) -> None:
@@ -11,7 +10,7 @@ def raise_decorator_error(name: str) -> None:
 
 
 def minimize_int(
-    args: list[Term],
+    args: list[STerm],
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
@@ -29,7 +28,7 @@ def minimize_int(
     minimize_function = Definition(
         name=minimize_function_name,
         args=[],
-        type=BaseType("Int"),
+        type=SBaseType("Int"),
         body=args[0],
     )
 
@@ -46,7 +45,7 @@ def minimize_int(
 
 
 def minimize_float(
-    args: list[Term],
+    args: list[STerm],
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
@@ -63,7 +62,7 @@ def minimize_float(
     minimize_function = Definition(
         name=minimize_function_name,
         args=[],
-        type=BaseType("Float"),
+        type=SBaseType("Float"),
         body=args[0],
     )
 
@@ -80,7 +79,7 @@ def minimize_float(
 
 
 def multi_minimize_float(
-    args: list[Term],
+    args: list[STerm],
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
@@ -90,9 +89,8 @@ def multi_minimize_float(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert len(
-        args,
-    ) == 1, "multi_minimize_float decorator expects a single argument"
+    assert (len(args, ) == 1
+            ), "multi_minimize_float decorator expects a single argument"
 
     n_decorators = len(
         metadata.get(fun.name, {}).get("multi_minimize_float", []), )
@@ -100,7 +98,7 @@ def multi_minimize_float(
     minimize_function = Definition(
         name=minimize_function_name,
         args=[],
-        type=BaseType("List"),
+        type=SBaseType("List"),
         body=args[0],
     )
 
@@ -117,7 +115,7 @@ def multi_minimize_float(
 
 
 def hide(
-    args: list[Term],
+    args: list[STerm],
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
@@ -130,7 +128,7 @@ def hide(
 
     # TODO How can I verify if the function is in the context?
     def get_var_name(arg):
-        if isinstance(arg, Var):
+        if isinstance(arg, SVar):
             return arg.name
         else:
             raise_decorator_error("hide")
@@ -143,7 +141,7 @@ def hide(
 
 
 def allow_recursion(
-    args: list[Term],
+    args: list[STerm],
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:

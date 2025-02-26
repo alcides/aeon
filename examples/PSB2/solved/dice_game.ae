@@ -11,7 +11,7 @@ def peter_wins (n:Int) (m:Int) : Int {
 def dice_game (n:Int | 1 <= n && n <= 10000) (m:Int | 1 <= m && m <= 10000) : Float {
      a : Float = Math_toFloat (peter_wins n m);
      b : Float = Math_toFloat (n * m);
-     c : Float = a /. b;
+     c : Float = a / b;
      c
 }
 

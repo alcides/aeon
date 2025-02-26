@@ -4,9 +4,9 @@ def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float {
     if isZero n then
         m
     else
-        a: Float = m +. t;
-        b: Float = m *. p;
-        c: Float = a -. b;
+        a: Float = m + t;
+        b: Float = m * p;
+        c: Float = a - b;
         n1: Int = n - 1;
 
         snow_day n1 c t p

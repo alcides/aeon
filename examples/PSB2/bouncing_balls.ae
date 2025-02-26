@@ -16,11 +16,11 @@ type Unit;
 def bounciness_index (starting_height: {x:Float | 1 <= x && x <= 100} )
                      (bounce_height:{y:Float | 1 <= y && y <= 100} )
                      : Float {
-   bounce_height /. starting_height
+   bounce_height / starting_height
 }
 
 def calculate_distance_helper (bounciness_index: Float) (height: Float) (n: Int) (distance: Float) : Float {
-   if n == 0 then distance else calculate_distance_helper bounciness_index (bounciness_index *. height) (n-1) (distance +. height +. (bounciness_index *. height))
+   if n == 0 then distance else calculate_distance_helper bounciness_index (bounciness_index * height) (n-1) (distance + height + (bounciness_index * height))
 }
 
 def bouncing_balls (starting_height: {x:Float | 1.0 <= x && x <= 100.0} )

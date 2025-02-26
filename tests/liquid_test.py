@@ -6,17 +6,9 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.terms import Application
 from aeon.core.terms import Var
-from aeon.core.types import top
-from aeon.sugar.desugar import desugar
-from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type
+from aeon.sugar.stypes import SBaseType
 from aeon.utils.ast_helpers import i1
-
-
-def check_compile(source, ty, res):
-    p, ctx, ectx, _ = desugar(parse_program(source))
-    assert check_type(ctx, p, ty)
-
+from tests.driver import check_compile
 
 l1 = LiquidLiteralInt(1)
 lx = LiquidVar("x")
@@ -40,7 +32,8 @@ def test_simple_eq():
         "x",
         [LiquidLiteralInt(2)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp("x", [LiquidVar("x2")])
+    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
+        "x", [LiquidVar("x2")])
 
 
 def test_liquid_types_syntax():
@@ -53,4 +46,4 @@ def test_liquid_types_syntax():
             print(test 5 5)
         }
 """
-    check_compile(source, top, 1)
+    check_compile(source, SBaseType("Top"), 0)

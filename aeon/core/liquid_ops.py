@@ -3,38 +3,40 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.core.types import BaseType, TypeVar
 
-all_ops = [
-    ("==", ("a", "a", "Bool")),
-    ("!=", ("a", "a", "Bool")),
-    ("<", ("Int", "Int", "Bool")),
-    (">", ("Int", "Int", "Bool")),
-    ("<=", ("Int", "Int", "Bool")),
-    (">=", ("Int", "Int", "Bool")),
-    ("-->", ("Bool", "Bool", "Bool")),
-    ("&&", ("Bool", "Bool", "Bool")),
-    ("||", ("Bool", "Bool", "Bool")),
-    ("*", ("Int", "Int", "Int")),
-    ("+", ("Int", "Int", "Int")),
-    ("/", ("Int", "Int", "Int")),
-    ("-", ("Int", "Int", "Int")),
-    ("%", ("Int", "Int", "Int")),
-    ("*.", ("Float", "Float", "Float")),
-    ("+.", ("Float", "Float", "Float")),
-    ("/.", ("Float", "Float", "Float")),
-    ("-.", ("Float", "Float", "Float")),
-    ("%.", ("Float", "Float", "Float")),
-    ("!", ("Bool", "Bool")),
-]
+liquid_prelude: dict[str, list[BaseType | TypeVar]] = {
+    "==": [TypeVar("a"), TypeVar("a"),
+           BaseType("Bool")],
+    "!=": [TypeVar("a"), TypeVar("a"),
+           BaseType("Bool")],
+    "<": [TypeVar("a"), TypeVar("a"),
+          BaseType("Bool")],  # TODO typeclasses: order
+    "<=": [TypeVar("a"), TypeVar("a"),
+           BaseType("Bool")],
+    ">": [TypeVar("a"), TypeVar("a"),
+          BaseType("Bool")],
+    ">=": [TypeVar("a"), TypeVar("a"),
+           BaseType("Bool")],
+    "-->": [BaseType("Bool"),
+            BaseType("Bool"),
+            BaseType("Bool")],
+    "&&": [BaseType("Bool"),
+           BaseType("Bool"),
+           BaseType("Bool")],
+    "||": [BaseType("Bool"),
+           BaseType("Bool"),
+           BaseType("Bool")],
+    "+": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
+    "-": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
+    "*": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
+    "/": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
+    "%": [BaseType("Int"), BaseType("Int"),
+          BaseType("Int")],
+    "!": [BaseType("Bool"), BaseType("Bool")],
+}
 
-ops = [x[0] for x in all_ops]
-
-
-def get_type_of(name: str) -> tuple:
-    for op, t in all_ops:
-        if op == name:
-            return t
-    assert False
+ops = [x for x in liquid_prelude]
 
 
 def mk_liquid_and(e1: LiquidTerm, e2: LiquidTerm):
