@@ -21,21 +21,16 @@ def test_application():
     assert eval(parse_term("(\\x -> (\\y -> x)) 1 2")) == 1
     assert eval(parse_term("(\\x -> (\\y -> y)) 1 2")) == 2
 
-    assert eval(
+    assert (eval(
         parse_term("(\\x -> (\\y -> y)) 1 a"),
         EvaluationContext({"a": 2}),
-    ) == 2
+    ) == 2)
 
 
 def test_if():
     assert eval(parse_term("if true then 1 else 0")) == 1
     assert eval(parse_term("if false then 1 else 0")) == 0
     assert eval(parse_term("if false then 1 else if true then 2 else 3")) == 2
-
-
-def test_if_str():
-    assert eval(parse_term('if true then "ola" else "adeus"')) == "ola"
-    assert eval(parse_term('if false then "ola" else "adeus"')) == "adeus"
 
 
 def test_if_str():

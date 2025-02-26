@@ -4,8 +4,6 @@ import os
 import sys
 import argparse
 
-import argparse
-
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
@@ -29,23 +27,25 @@ from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
-from aeon.utils.ctx_helpers import build_context
-from aeon.logger.logger import setup_logger, export_log
 from aeon.typechecking import check_type_errors
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename", help="name of the aeon files to be synthesized")
-    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
 
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help=
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -174,12 +174,10 @@ def main() -> None:
         evaluation_ctx = EvaluationContext(evaluation_vars)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[
-            tuple[
-                str,
-                list[str],
-            ]
-        ] = incomplete_functions_and_holes(
+        incomplete_functions: list[tuple[
+            str,
+            list[str],
+        ]] = incomplete_functions_and_holes(
             typing_ctx,
             core_ast_anf,
         )
@@ -187,9 +185,9 @@ def main() -> None:
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (
-                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-            )
+            synth_config = (parse_config(args.gp_config, args.config_section)
+                            if args.gp_config and args.config_section else
+                            None)
 
         ui = select_synthesis_ui()
 
