@@ -105,10 +105,6 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                                             BaseType(_) as bt, _)):
                 variables[name] = bt
                 ctx = prev
-            case VariableBinder(prev, name,
-                                RefinedType(_,
-                                            RefinedType(_) as bt, _)):
-                ctx = prev
             case _:
                 assert False, f"Unknown context type ({type(ctx)})"
 
