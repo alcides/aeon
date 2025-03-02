@@ -138,38 +138,26 @@ class LazyCSVRecorder(SearchRecorder):
         if fields is not None:
             self.fields = fields
 
-    def register(self,
-                 tracker: Any,
-                 individual: Individual,
-                 problem: Problem,
-                 is_best=True):
+    def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=True):
         if self.csv_file is None:
             self.csv_file = open(self.csv_file_path, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)
             if self.fields is None:
                 self.fields = {
-                    "Execution Time":
-                    lambda t, i, _:
-                    (time.monotonic_ns() - t.start_time) * 0.000000001,
-                    "Fitness Aggregated":
-                    lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
-                    "Phenotype":
-                    lambda t, i, _: i.get_phenotype(),
+                    "Execution Time": lambda t, i, _: (time.monotonic_ns() - t.start_time) * 0.000000001,
+                    "Fitness Aggregated": lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
+                    "Phenotype": lambda t, i, _: i.get_phenotype(),
+                    "Fitness": lambda t, i, p: i.get_fitness(p).fitness_components,
                 }
-                for comp in range(problem.number_of_objectives()):
-                    self.fields[
-                        f"Fitness{comp}"] = lambda t, i, p: i.get_fitness(
-                            p).fitness_components[comp]
             if self.extra_fields is not None:
                 for name in self.extra_fields:
                     self.fields[name] = self.extra_fields[name]
             self.csv_writer.writerow([name for name in self.fields])
             self.csv_file.flush()
         if not self.only_record_best_individuals or is_best:
-            self.csv_writer.writerow([
-                self.fields[name](tracker, individual, problem)
-                for name in self.fields
-            ], )
+            self.csv_writer.writerow(
+                [self.fields[name](tracker, individual, problem) for name in self.fields],
+            )
             self.csv_file.flush()
 
 
