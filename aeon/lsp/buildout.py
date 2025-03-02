@@ -21,13 +21,14 @@ import re
 import urllib.parse
 
 from typing import Dict, List, TextIO
-from lsprotocol.types import Diagnostic, DiagnosticSeverity
+from lsprotocol.types import Diagnostic, DiagnosticSeverity, TEXT_DOCUMENT_DID_OPEN, DidOpenTextDocumentParams, \
+    DidChangeTextDocumentParams, TEXT_DOCUMENT_DID_CHANGE
 
 from pygls.server import LanguageServer
 from lsprotocol.types import Position, Range
 
 import requests
-
+from lark.exceptions import UnexpectedToken
 from aeon.core.types import top
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
@@ -36,6 +37,8 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 logger = logging.getLogger(__name__)
 requests_session = requests.Session()
+
+server = LanguageServer(name="aeon.languageserver", version="1.0.0")
 
 ### type definitions ###
 URI = str  # type alias
@@ -92,7 +95,7 @@ async def parse(
     except requests.exceptions.ConnectionError:
       fp = io.StringIO('')
   else:
-    document = ls.workspace.get_document(uri)
+    document = ls.workspace.get_text_document(uri)
     try:
       fp = io.StringIO(document.source)
     except IOError:
@@ -104,7 +107,6 @@ async def parse(
       uri,
       allow_errors,
   )
-  ls.publish_diagnostics(uri, parsed.diagnostics)
   _parse_cache[uri] = copy.deepcopy(parsed)
   return parsed
 
@@ -114,33 +116,74 @@ async def _parse(
     uri: URI,
     allow_errors: bool,
 ) -> AST:
-  """
+    """
   Parse the code
 
   """
-  content = fp.read()
-  fp.seek(0)
-  program = parse_program(content)
-  (
-      core_ast,
-      typing_ctx,
-      _,
-      _
-  ) = desugar(program)
-  core_ast_anf = ensure_anf(core_ast)
-  errors = check_type_errors(typing_ctx, core_ast_anf, top)
-  diagnostics = []
-  for error in errors:
-      range = Range(start=Position(line=0, character=0), #needs to be fixed
-                  end=Position(line=1, character=0))
-      curr_diagnostic = Diagnostic(
-        message=error,
-        range=range,
-        source="aeon",
-        severity=DiagnosticSeverity.Error,
-      )
-      diagnostics.append(curr_diagnostic)
-  return AST(core_ast_anf, typing_ctx,diagnostics)
+    diagnostics = []
+    core_ast_anf = None
+    typing_ctx = None
+
+    try:
+        content = fp.read()
+        fp.seek(0)
+        program = parse_program(content)
+
+        core_ast, typing_ctx, _, _ = desugar(program)
+        core_ast_anf = ensure_anf(core_ast)
+
+        errors = check_type_errors(typing_ctx, core_ast_anf, top)
+        for error in errors:
+            error_message = str(error)
+
+            # needs to be fixed
+            range = Range(
+                start=Position(line=0, character=0),
+                end=Position(line=0, character=1)
+            )
+
+            diagnostics.append(Diagnostic(
+                message=error_message,
+                range=range,
+                source="aeon",
+                severity=DiagnosticSeverity.Error,
+            ))
+
+    except UnexpectedToken as e:
+        try:
+            token_length = len(str(e.token.value))
+        except _:
+            token_length = 1
+
+        token_type = e.token.type if e.token.type else 'unknown'
+        token_value = e.token.value if e.token.value else str(e.token)
+
+        error_message = f"Unexpected {token_type} '{token_value}' at line {e.line}, column {e.column}.\nExpected: {', '.join(e.expected)}"
+
+        range = Range(
+            start=Position(line=e.line - 1, character=e.column - 1),
+            end=Position(line=e.line - 1, character=e.column - 1 + token_length)
+        )
+
+        diagnostics.append(Diagnostic(
+            message=error_message,
+            range=range,
+            source="aeon",
+            severity=DiagnosticSeverity.Error,
+        ))
+
+    except Exception as e:
+        diagnostics.append(Diagnostic(
+            message=f"Unknown exception {str(e)} occurred while parsing",
+            range=Range(
+                start=Position(line=0, character=0),
+                end=Position(line=0, character=0)
+            ),
+            source="aeon",
+            severity=DiagnosticSeverity.Error,
+        ))
+
+    return AST(core_ast_anf, typing_ctx, diagnostics)
 
 
 async def _open(
@@ -163,3 +206,25 @@ async def _open(
     uri = urllib.parse.urljoin(base, uri)
   result = await parse(ls, uri, allow_errors=allow_errors)
   return copy.deepcopy(result)
+
+@server.feature(TEXT_DOCUMENT_DID_OPEN)
+async def did_open(
+  ls: LanguageServer,
+  params: DidOpenTextDocumentParams,
+) -> None:
+  await parseAndSendDiagnostics(ls, params.text_document.uri)
+
+@server.feature(TEXT_DOCUMENT_DID_CHANGE)
+async def did_change(
+  ls: LanguageServer,
+  params: DidChangeTextDocumentParams,
+) -> None:
+  clearCache(params.text_document.uri)
+  await parseAndSendDiagnostics(ls, params.text_document.uri)
+
+async def parseAndSendDiagnostics(
+  ls: LanguageServer,
+  uri: str,
+) -> None:
+  parsed = await parse(ls,uri,allow_errors=True)
+  ls.publish_diagnostics(uri, parsed.diagnostics)
