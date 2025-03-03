@@ -57,10 +57,12 @@ py-modules = ["aeon"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["aeon"]
+include = ["*"]
 
 [tool.setuptools.package-data]
-'examples' = ['*.csv']
+"resources.artifacts" = ["*"]
+recipe = ["*.lark"]
 
 [tool.docformatter]
 syntax = 'google'
