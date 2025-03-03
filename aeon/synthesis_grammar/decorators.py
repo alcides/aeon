@@ -27,6 +27,7 @@ def minimize_int(
     minimize_function_name = f"__internal__minimize_int_{fun.name}_{n_decorators}"
     minimize_function = Definition(
         name=minimize_function_name,
+        foralls=[],
         args=[],
         type=SBaseType("Int"),
         body=args[0],
@@ -61,6 +62,7 @@ def minimize_float(
     minimize_function_name = f"__internal__minimize_float_{fun.name}_{n_decorators}"
     minimize_function = Definition(
         name=minimize_function_name,
+        foralls=[],
         args=[],
         type=SBaseType("Float"),
         body=args[0],
@@ -97,6 +99,7 @@ def multi_minimize_float(
     minimize_function_name = f"__internal__multi_minimize_float_{fun.name}_{n_decorators}"
     minimize_function = Definition(
         name=minimize_function_name,
+        foralls=[],
         args=[],
         type=SBaseType("List"),
         body=args[0],

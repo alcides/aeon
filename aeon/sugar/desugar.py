@@ -4,6 +4,7 @@ import os.path
 from pathlib import Path
 from typing import NamedTuple
 
+from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, Metadata
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
@@ -14,11 +15,21 @@ from aeon.elaboration.context import (
 )
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition, SAbstraction, SApplication, SHole, SLiteral, SRec, STerm, SVar
+from aeon.sugar.program import (
+    Definition,
+    SAbstraction,
+    SApplication,
+    SHole,
+    SLiteral,
+    SRec,
+    STerm,
+    STypeAbstraction,
+    SVar,
+)
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.sugar.stypes import SAbstractionType, SBaseType, SType, builtin_types
+from aeon.sugar.stypes import SAbstractionType, SBaseType, SType, STypePolymorphism, builtin_types, get_type_vars
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 
 
@@ -33,19 +44,41 @@ def desugar(p: Program,
 
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
-    etctx = build_typing_context(vs)
     prog = determine_main_function(p)
 
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
     defs, metadata = apply_decorators_in_definitions(defs)
 
-    etctx, prog = update_program_and_context(prog, defs, etctx)
+    defs = introduce_forall_in_types(defs, type_decls)
 
+    etctx = build_typing_context(vs)
+    etctx, prog = update_program_and_context(prog, defs, etctx)
     prog, etctx = replace_concrete_types(
         prog, etctx, builtin_types + [td.name for td in type_decls])
 
     return DesugaredProgram(prog, etctx, metadata)
+
+
+def introduce_forall_in_types(defs: list[Definition],
+                              type_decls: list[TypeDecl]) -> list[Definition]:
+    types = [td.name for td in type_decls]
+    ndefs = []
+    for d in defs:
+        match d:
+            case Definition(name, foralls, args, type, body, decorators):
+                new_foralls: list[tuple[str, Kind]] = []
+                tlst: list[SType] = [ty for _, ty in args] + [type]
+                for ty in tlst:
+                    for t in get_type_vars(ty):
+                        tname = t.name
+                        if tname not in types:
+                            new_foralls.append((tname, BaseKind()))
+
+                ndefs.append(
+                    Definition(name, foralls + new_foralls, args, type, body,
+                               decorators))
+    return ndefs
 
 
 def determine_main_function(p: Program) -> STerm:
@@ -145,11 +178,19 @@ def replace_concrete_types(
 
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
-    ty, body = d.type, d.body
-    for arg_name, arg_type in d.args[::-1]:
-        ty = SAbstractionType(arg_name, arg_type, ty)
-        body = SAbstraction(arg_name, body)
-    return SRec(d.name, ty, body, prog)
+    match d:
+        case Definition(dname, foralls, args, type, body, _):
+            ntype = type
+            nbody = body
+            for name, type in reversed(args):
+                ntype = SAbstractionType(name, type, ntype)
+                nbody = SAbstraction(name, nbody)
+            for name, kind in reversed(foralls):
+                ntype = STypePolymorphism(name, kind, ntype)
+                nbody = STypeAbstraction(name, kind, nbody)
+            return SRec(dname, ntype, nbody, prog)
+        case _:
+            assert False, f"{d} is not a definition"
 
 
 def handle_import(path: str) -> Program:

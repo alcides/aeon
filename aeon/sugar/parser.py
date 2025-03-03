@@ -190,17 +190,18 @@ class TreeToSugar(Transformer):
 
     def def_cons(self, args):
         if len(args) == 3:
-            return Definition(str(args[0]), [], args[1], args[2])
+            return Definition(str(args[0]), [], [], args[1], args[2])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), [], args[2], args[3], decorators)
+            return Definition(str(args[1]), [], [], args[2], args[3],
+                              decorators)
 
     def def_fun(self, args):
         if len(args) == 4:
-            return Definition(str(args[0]), args[1], args[2], args[3])
+            return Definition(str(args[0]), [], args[1], args[2], args[3])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), args[2], args[3], args[4],
+            return Definition(str(args[1]), [], args[2], args[3], args[4],
                               decorators)
 
     def macros(self, args):

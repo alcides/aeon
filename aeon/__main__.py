@@ -29,6 +29,8 @@ from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
 
+sys.setrecursionlimit(10000)
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()

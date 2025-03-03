@@ -72,6 +72,7 @@ def generate_definition(
     if len(fitness_terms) == 1:
         return Definition(
             name="fitness",
+            foralls=[],
             args=[],
             type=fitness_return_type,
             body=fitness_terms[0],

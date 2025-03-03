@@ -1,0 +1,40 @@
+import "List.ae";
+
+type Random;
+
+def random : Random = native_import "random";
+
+def generateInt (r:Random) : Float { native "r.randint(-1000, 1000)" }
+
+def countTrues (l:List) : Int {
+    native "sum(1 for x in l if x)"
+}
+
+def repeat (v:a) (n:Int) : List { native "[v for _ in range(n)]" }
+
+def ratio (a:Int) (b:Int) : Float { native "a/b" }
+
+def forAllInts (fun:(a: Int) -> Bool) : Float {
+    n = 1000;
+    vs = repeat random n;
+    rds = List_map generateInt vs;
+    positive = (countTrues vs);
+    ratio positive n
+}
+
+#def generateFloat (r:Random) : Float { native "r.uniform(0, 100)" }
+
+#def generateList (r:Random) : List { native "[ r.randint(0, 100) for _ in range(r.randint(0, 10)) ]" }
+
+
+#def generateList : List = native "[[random.randint(0, 100) for _ in range(random.randint(0, 10))] for _ in range(100)]" ;
+
+#def generateInt : Int = native "lambda num_samples=100: [random.randint(0, 100) for _ in range(num_samples)]" ;
+
+#def generateFloat : Float = native "lambda num_samples=100: [random.uniform(0, 100) for _ in range(num_samples)]";
+
+#def forAllLists (function:(a: List) -> Bool) : Float { native "(sum(1 for lst in generateList() if f(lst)) / len(generateList())) * 100" }
+
+#def forAllInts (function:(a: Int) -> Bool) : Float { native "(sum(1 for i in generateInt() if f(i)) / len(generateInt())) * 100" }
+
+#def forAllFloats (function:(a: Float) -> Bool) : Float { native "(sum(1 for i in generateFloat() if f(i)) / len(generateFloat())) * 100" }

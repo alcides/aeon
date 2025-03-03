@@ -154,7 +154,7 @@ def basic_type(ty: Type) -> BaseType | TypeVar:
         case Top():
             return BaseType("Unit")
         case _:
-            assert False, f"Unknown base type {ty}"
+            assert False, f"Unknown base type {ty} ({type(ty)})"
 
 
 def type_to_core(
@@ -175,10 +175,10 @@ def type_to_core(
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
             at = type_to_core(vty, available_vars)
+            if isinstance(at, BaseType) or isinstance(at, TypeVar):
+                available_vars = available_vars + [(name, basic_type(at))]
 
-            return AbstractionType(
-                name, at,
-                type_to_core(rty, available_vars + [(name, basic_type(at))]))
+            return AbstractionType(name, at, type_to_core(rty, available_vars))
         case STypePolymorphism(name, kind, rty):
             return TypePolymorphism(name, kind,
                                     type_to_core(rty, available_vars))

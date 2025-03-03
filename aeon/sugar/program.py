@@ -216,6 +216,7 @@ class Decorator(Node):
 @dataclass
 class Definition(Node):
     name: str
+    foralls: list[tuple[str, Kind]]
     args: list[tuple[str, SType]]
     type: SType
     body: STerm

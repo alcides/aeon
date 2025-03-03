@@ -31,7 +31,7 @@ def type_substitution(ty: SType, alpha: str, beta: SType) -> SType:
             else:
                 return STypePolymorphism(name, kind, rec(body))
         case _:
-            assert False
+            return ty
 
 
 # TODO: NOW! what is the difference in these two functions?

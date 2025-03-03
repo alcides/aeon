@@ -82,8 +82,9 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
     if isinstance(t, LiquidHornApplication):
         return [t]
-    elif isinstance(t, LiquidLiteralBool) or isinstance(
-            t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
+    elif (isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt)
+          or isinstance(t, LiquidLiteralFloat)
+          or isinstance(t, LiquidLiteralString)):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -93,7 +94,7 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
             holes = holes + obtain_holes(h)
         return holes
     else:
-        assert False
+        assert False, f"Unkown term type: {t} ({type(t)})"
 
 
 def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:

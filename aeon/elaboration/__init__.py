@@ -303,6 +303,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             return SApplication(nfun, narg)
         case _:
             (c, s) = elaborate_synth(ctx, t)
+            # TODO NOW: what is s is forall a, b, T and ty is T?
             if isinstance(s, STypePolymorphism) and not isinstance(
                     ty, STypePolymorphism):
                 u = UnificationVar(ctx.fresh_typevar())

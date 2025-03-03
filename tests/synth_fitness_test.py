@@ -39,6 +39,7 @@ def test_fitness():
 
     internal_minimize = Definition(
         name="__internal__minimize_int_synth_0",
+        foralls=[],
         args=[],
         type=SBaseType("Int"),
         body=SApplication(

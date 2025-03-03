@@ -36,7 +36,8 @@ class TypingContext(ABC):
                 # TODO Polytypes: What it * is in context?
                 return BaseKind()
             case RefinedType(_, TypeVar(name), _):
-                assert (name, BaseKind()) in self.typevars()
+                assert (name, BaseKind()) in self.typevars(
+                ), f"{name} not in {self.typevars()}"
                 return BaseKind()
             case AbstractionType(_, _, _):
                 return StarKind()

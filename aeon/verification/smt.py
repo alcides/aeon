@@ -27,6 +27,7 @@ from z3.z3 import Or
 from z3.z3 import String
 from z3.z3 import StringSort
 from z3.z3 import SortRef
+from z3.z3types import Z3Exception
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication
@@ -212,7 +213,7 @@ def flatten(c: Constraint,
         case Implication(oname, base, pred, seq):
             name = get_new_name(oname, list(ctx.variables.keys()))
             if name != oname:
-                c = rename_constraint(c, oname, name)
+                seq = rename_constraint(seq, oname, name)
                 assert isinstance(c, Implication)
             if isinstance(base, TypeVar):
                 base = BaseType(base.name)
@@ -223,7 +224,7 @@ def flatten(c: Constraint,
         case UninterpretedFunctionDeclaration(oname, ty, seq):
             name = get_new_name(oname, list(ctx.functions.keys()))
             if name != oname:
-                c = rename_constraint(c, oname, name)
+                seq = rename_constraint(seq, oname, name)
                 assert isinstance(c, UninterpretedFunctionDeclaration)
             yield from flatten(seq, ctx.with_function(name, ty))
         case _:
@@ -242,6 +243,7 @@ def smt_valid(constraint: Constraint) -> bool:
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
+        print(c, "...")
         smt_c = translate(c)
         if smt_c is False:
             continue
@@ -366,7 +368,7 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
             assert False, f"No var: {name}, with base {base} of type {type(base)}"
 
 
-def translate_liq(t: LiquidTerm, ty: Type, variables: dict[str, Any]):
+def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
     match t:
         case LiquidLiteralBool(b):
             return b
@@ -383,8 +385,13 @@ def translate_liq(t: LiquidTerm, ty: Type, variables: dict[str, Any]):
         case LiquidApp(fun_name, args):
             fun = base_functions.get(fun_name, variables.get(fun_name, None))
             assert fun is not None, f"Function {fun_name} not found."
-            args = [translate_liq(a, ty, variables) for a in args]
-            return fun(*args)
+            args = [translate_liq(a, variables) for a in args]
+            try:
+                return fun(*args)
+            except Z3Exception as e:
+                print("fun", t, ">>", fun, args)
+                raise e
+
         case _:
             assert False, f"Cannot translate {t}."
 
@@ -409,8 +416,8 @@ def translate(c: CanonicConstraint, ) -> BoolRef | bool:
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
 
-    e1 = translate_liq(c.premise, BaseType("Bool"), variables | functions)
-    e2 = translate_liq(c.conclusion, BaseType("Bool"), variables | functions)
+    e1 = translate_liq(c.premise, variables | functions)
+    e2 = translate_liq(c.conclusion, variables | functions)
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
     return And(e1, Not(e2))
