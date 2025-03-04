@@ -88,9 +88,10 @@ def get_holes_info(
             hs2 = get_holes_info(ctx, body, ty, targets, refined_types)
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):
+            _, bty = synth(ctx, body)
             argty = argty if refined_types else refined_to_unrefined_type(argty)
-            if isinstance(ty, TypePolymorphism):
-                ntype = substitute_vartype(ty.body, argty, ty.name)
+            if isinstance(bty, TypePolymorphism):
+                ntype = substitute_vartype(bty.body, argty, bty.name)
                 ntype = ntype if refined_types else refined_to_unrefined_type(ntype)
                 return get_holes_info(ctx, body, ntype, targets, refined_types)
             else:

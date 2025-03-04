@@ -35,7 +35,13 @@ class EvaluationContext:
 
 
 def is_native_var(fun: Term):
-    return isinstance(fun, Var) and fun.name == "native"
+    match fun:
+        case TypeApplication(t, _):
+            return is_native_var(t)
+        case Var("native"):
+            return True
+        case _:
+            return False
 
 
 def is_native_import(fun: Term):

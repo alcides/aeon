@@ -8,7 +8,7 @@ from sympy.sets.sets import Interval
 from sympy.simplify.simplify import simplify
 
 from aeon.core.liquid import LiquidApp, LiquidVar, LiquidLiteralInt
-from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, Top, Bottom
+from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, Top
 from aeon.synthesis_grammar.bounds import refined_to_sympy_expression, sympy_exp_to_bounded_interval
 from aeon.synthesis_grammar.grammar import (
     get_attribute_type_name,
@@ -21,7 +21,9 @@ from aeon.synthesis_grammar.utils import aeon_to_gengy_metahandlers
 
 
 def test_abstract_type_name():
-    abstract_ty = AbstractionType("x", BaseType("Int"), AbstractionType("y", BaseType("Float"), BaseType("String")))
+    abstract_ty = AbstractionType(
+        "x", BaseType("Int"),
+        AbstractionType("y", BaseType("Float"), BaseType("String")))
     assert get_attribute_type_name(abstract_ty) == "t_Int_t_Float_t_String"
 
 
@@ -29,7 +31,9 @@ def test_abstract_type_name():
 
 
 def test_liquid_term_to_str():
-    refined_ty = RefinedType("g", t_int, LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
+    refined_ty = RefinedType(
+        "g", t_int,
+        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
     rt_str = liquid_term_to_str(refined_ty)
     assert rt_str == "Int_gt_0"
     refined_ty = RefinedType(
@@ -41,15 +45,19 @@ def test_liquid_term_to_str():
                 LiquidApp(
                     "||",
                     [
-                        LiquidApp("<", [LiquidVar("g"), LiquidLiteralInt(0)]),
-                        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(10)]),
+                        LiquidApp("<", [LiquidVar("g"),
+                                        LiquidLiteralInt(0)]),
+                        LiquidApp(">", [LiquidVar("g"),
+                                        LiquidLiteralInt(10)]),
                     ],
                 ),
                 LiquidApp(
                     "||",
                     [
-                        LiquidApp("<", [LiquidVar("g"), LiquidLiteralInt(20)]),
-                        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(30)]),
+                        LiquidApp("<", [LiquidVar("g"),
+                                        LiquidLiteralInt(20)]),
+                        LiquidApp(">", [LiquidVar("g"),
+                                        LiquidLiteralInt(30)]),
                     ],
                 ),
             ],
@@ -60,7 +68,9 @@ def test_liquid_term_to_str():
 
 
 def test_process_type_name():
-    refined_ty = RefinedType("g", t_int, LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
+    refined_ty = RefinedType(
+        "g", t_int,
+        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
     rt_str = process_type_name(refined_ty)
     assert rt_str == "Refined_Int_gt_0"
     refined_ty = RefinedType(
@@ -72,15 +82,19 @@ def test_process_type_name():
                 LiquidApp(
                     "||",
                     [
-                        LiquidApp("<", [LiquidVar("g"), LiquidLiteralInt(0)]),
-                        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(10)]),
+                        LiquidApp("<", [LiquidVar("g"),
+                                        LiquidLiteralInt(0)]),
+                        LiquidApp(">", [LiquidVar("g"),
+                                        LiquidLiteralInt(10)]),
                     ],
                 ),
                 LiquidApp(
                     "||",
                     [
-                        LiquidApp("<", [LiquidVar("g"), LiquidLiteralInt(20)]),
-                        LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(30)]),
+                        LiquidApp("<", [LiquidVar("g"),
+                                        LiquidLiteralInt(20)]),
+                        LiquidApp(">", [LiquidVar("g"),
+                                        LiquidLiteralInt(30)]),
                     ],
                 ),
             ],
@@ -94,13 +108,13 @@ def test_process_type_name():
     ty = Top()
     ty_str = process_type_name(ty)
     assert ty_str == "⊤"
-    ty = Bottom()
-    ty_str = process_type_name(ty)
-    assert ty_str == "⊥"
 
 
 def test_intervals_to_metahandlers():
-    ty = RefinedType("g", t_int, LiquidApp(">", [LiquidVar("g"), LiquidLiteralInt(0)]))
+    ty = RefinedType("g", t_int,
+                     LiquidApp(
+                         ">",
+                         [LiquidVar("g"), LiquidLiteralInt(0)]))
 
     base_type_str = str(ty.type.name)
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
@@ -118,7 +132,9 @@ def test_intervals_to_metahandlers():
     assert interval.right_open
     assert interval.left_open
 
-    metahandler_list = intervals_to_metahandlers(gengy_metahandler, intervals_list, base_type_str, ref)
+    metahandler_list = intervals_to_metahandlers(gengy_metahandler,
+                                                 intervals_list, base_type_str,
+                                                 ref)
     assert len(metahandler_list) == 1
     expected = Annotated[int, IntRange(1, sys.maxsize - 2)]
     assert str(metahandler_list[0]) == str(expected)

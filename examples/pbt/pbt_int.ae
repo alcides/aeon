@@ -1,0 +1,19 @@
+import "PropTesting.ae";
+
+def negativeInt (x: Int) : Int {
+    -x
+}
+
+def prop_int_plus_symmetric_is_zero (x: Int) : Bool {
+    (x + (negativeInt x)) == 0
+}
+
+
+def int_property_testing (y: Int) : Float {
+    forAllInts prop_int_plus_symmetric_is_zero
+}
+
+def main (x:Int) : Unit {
+    x = int_property_testing(0);
+    print(x)
+}

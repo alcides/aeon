@@ -2,10 +2,11 @@ def abs (i:Int) : Int {
     if i > 0 then i else -i
 }
 
-def midpoint(a:Int) (b:Int) : Int {
+def midpoint (a:Int) (b:Int) : Int {
     (a + b) / 2
 }
 
 def main (i:Int) : Unit {
-    print (abs (-3) + midpoint 1 5)
+    x : Int = abs (-3) + midpoint 1 5;
+    print x
 }

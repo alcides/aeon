@@ -16,7 +16,9 @@ def key_example (steps:Int) : Image {
 
 def k : Image = key_example 1;
 
-def synth : Image = (?hole: Image);
+def mod : (x: Int) -> (y: Int) -> Int = \x -> \y -> (x % y);
+
+def synth : Image = ?hole;
 
 def fitness : Float = Image_diff synth target;
 

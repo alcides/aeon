@@ -1,0 +1,5 @@
+def f1 : (a:Int) -> Bool = uninterpreted;
+
+def k : (x : Bool | x) -> Int = \x -> 1;
+
+def k : (x : Int | f1 x) -> Int = \x -> 1;
