@@ -18,7 +18,7 @@ def k : Image = key_example 1;
 
 def mod : (x: Int) -> (y: Int) -> Int = \x -> \y -> (x % y);
 
-def synth : Image = (((Image_mk (if false then (if false then (Color_g (((Color_mk ((mod (Image_width k)) (Image_height k))) (if false then (Image_width k) else (Image_height k))) (Image_width k))) else ((mod ((mod ((mod (Image_height k)) (Image_width k))) ((mod (Image_height k)) (Image_width k)))) (Image_width k))) else ((mod (Color_r (if false then (((Color_mk (Image_width k)) (Image_width k)) (Image_width k)) else (((Color_mk (Image_height k)) (Image_width k)) (Image_width k))))) (if false then (Color_b (((Color_mk (Image_height k)) (Image_width k)) (Image_width k))) else (Color_g (((Color_mk (Image_width k)) (Image_width k)) (Image_height k))))))) (Image_height k)) (if false then (((Color_mk (Image_height (if false then k else (key_example (Image_height k))))) (Color_g (if false then (((Color_mk (Image_width k)) (Image_height k)) (Image_height k)) else (((Color_mk (Image_height k)) (Image_width k)) (Image_width k))))) (Image_height (if false then (key_example (Image_width k)) else k))) else (((Color_mk (Color_r (if false then (((Color_mk (Image_width k)) (Image_height k)) (Image_height k)) else (((Color_mk (Image_height k)) (Image_height k)) (Image_width k))))) (Color_r (if false then (((Color_mk (Image_height k)) (Image_height k)) (Image_height k)) else (((Color_mk (Image_width k)) (Image_height k)) (Image_height k))))) (Color_r (if false then (((Color_mk (Image_width k)) (Image_height k)) (Image_height k)) else (((Color_mk (Image_width k)) (Image_width k)) (Image_height k)))))));
+def synth : Image = ?hole;
 
 def fitness : Float = Image_diff synth target;
 

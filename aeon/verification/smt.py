@@ -243,7 +243,6 @@ def smt_valid(constraint: Constraint) -> bool:
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
-        print(c, "...")
         smt_c = translate(c)
         if smt_c is False:
             continue
@@ -389,7 +388,6 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
             try:
                 return fun(*args)
             except Z3Exception as e:
-                print("fun", t, ">>", fun, args)
                 raise e
 
         case _:
