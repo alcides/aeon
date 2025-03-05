@@ -200,7 +200,7 @@ def get_new_name(name: str, used_vars: list[str]) -> None | str:
 
 
 def flatten(c: Constraint,
-            ctx: SMTContext = None) -> Generator[CanonicConstraint]:
+            ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
         ctx = SMTContext(["Top"], {}, {}, [])

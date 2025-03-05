@@ -13,6 +13,7 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
+from aeon.typechecking.context import TypingContext
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -92,7 +93,7 @@ def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
             assert False
 
 
-def sub(t1: Type, t2: Type) -> Constraint:
+def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
     if t2 == Top():
         return ctrue
     match (ensure_refined(t1), ensure_refined(t2)):
@@ -101,18 +102,27 @@ def sub(t1: Type, t2: Type) -> Constraint:
                 return ctrue
             if ty1 != ty2:
                 return cfalse
+
+            # TODO: this needs to be fresh.
+            new_name: str = n1 + n2 + ctx.fresh_var()
+
             # Performs substition on t2 to have the same name of t1
-            r2_ = substitution_in_liquid(r2, LiquidVar(n1), n2)
-            rconstraint = Implication(n1, ty1, r1, LiquidConstraint(r2_))
+            r2_ = substitution_in_liquid(r2, LiquidVar(new_name), n2)
+            r1_ = substitution_in_liquid(r1, LiquidVar(new_name), n1)
+            rconstraint = Implication(new_name, ty1, r1_,
+                                      LiquidConstraint(r2_))
 
             return rconstraint
         case TypePolymorphism(_, _, _), _:
             return ctrue
-        case AbstractionType(a1, t1, r1), AbstractionType(a2, t2, r2):
-            c0 = sub(t2, t1)
-            r1_ = substitution_in_type(r1, Var(a2), a1)
-            c1 = sub(r1_, r2)
-            return Conjunction(c0, implication_constraint(a2, t2, c1))
+        case AbstractionType(a1, t1, rt1), AbstractionType(a2, t2, rt2):
+            new_name_a: str = a1 + a2 + ctx.fresh_var()
+
+            c0 = sub(ctx, t2, t1)
+            rt1_ = substitution_in_type(rt1, Var(new_name_a), a1)
+            rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
+            c1 = sub(ctx, rt1_, rt2_)
+            return Conjunction(c0, implication_constraint(new_name_a, t2, c1))
         case _:
             logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
             return cfalse

@@ -417,7 +417,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)
-        cp = sub(s, ty)
+        cp = sub(ctx, s, ty)
 
         if cp == LiquidConstraint(LiquidLiteralBool(False)):
             raise FailedSubtypingException(ctx, t, s, ty)

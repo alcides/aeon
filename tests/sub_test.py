@@ -10,7 +10,7 @@ def test_sub():
         r"(x:(z:{a:Int| a > 1 }) -> Int) -> {k:Int | k > fresh_2}")
     supt = parse_type(
         r"(y:(m:{b:Int| b > 0 }) -> Int) -> {z:Int | z >= fresh_2}")
-    c = sub(subt, supt)
+    c = sub(EmptyContext(), subt, supt)
     assert entailment(VariableBinder(EmptyContext(), "fresh_2", t_int), c)
 
 
@@ -18,7 +18,7 @@ def test_sub_simple():
     subt = parse_type(r"(_fresh_3:Int) -> Int")
     supt = parse_type(r"(y:Int) -> Int")
 
-    c = sub(subt, supt)
+    c = sub(EmptyContext(), subt, supt)
     assert entailment(
         VariableBinder(EmptyContext(), "plus", parse_type("(x:Int) -> Int")),
         c,

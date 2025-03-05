@@ -382,6 +382,7 @@ def solve(c: Constraint) -> bool:
     if not contains_horn_constraint(c):
         # TODO: Try to simplify the expression before sending to the SMT solver
         # v = reduce_to_useful_constraint(c)
+        print("DEBUG", c)
         return smt_valid(c)
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
