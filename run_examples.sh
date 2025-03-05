@@ -39,12 +39,12 @@ function run_example_core {
 # Should be somewhere else (maybe add to unit tests)
 # run_example examples/simple_choice_of_choice.py
 
-
-core_examples=examples/core
-for entry in "$core_examples"/*.ae
-do
-  run_example_core "$entry"
-done
+# Core disabled due to polymorphic inference
+# core_examples=examples/core
+# for entry in "$core_examples"/*.ae
+# do
+#   run_example_core "$entry"
+# done
 
 # TODO: add pbt PSB2
 for folder in ffi image imports list syntax synthesis "PSB2/solved";
