@@ -303,17 +303,23 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             return SApplication(nfun, narg)
         case _:
             (c, s) = elaborate_synth(ctx, t)
-            # TODO NOW: what is s is forall a, b, T and ty is T?
-            if isinstance(s, STypePolymorphism) and not isinstance(
-                    ty, STypePolymorphism):
-                u = UnificationVar(ctx.fresh_typevar())
-                c = STypeApplication(c, u)
-                s = type_substitution(s.body, s.name, u)
+            (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
             unify(ctx, s, ty)
             return c
 
 
+def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType,
+                            ty: SType) -> tuple[STerm, SType]:
+    while isinstance(
+            s, STypePolymorphism) and not isinstance(ty, STypePolymorphism):
+        u = UnificationVar(ctx.fresh_typevar())
+        c = STypeApplication(c, u)
+        s = type_substitution(s.body, s.name, u)
+    return (c, s)
+
+
 def extract_direction(ty: SType) -> set[SType]:
+    assert isinstance(ty, SType)
     match ty:
         case UnificationVar(_, lower, upper):
             r: set = set()
@@ -423,6 +429,9 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                                     elaborate_remove_unification(nctx, body))
 
         case STypeApplication(body, ty):
+            # Recursively apply itself.
+            body = elaborate_remove_unification(ctx, body)
+
             # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
             nt, unions, intersections = replace_unification_variables(ctx, ty)
 
@@ -483,8 +492,8 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                 intersections,
                 to_be_removed,
             )
-
             nt = remove_unions_and_intersections(ctx, nt)
+
             if nt == SBaseType("Top"):
                 return STypeApplication(body, nt)
             else:
@@ -514,10 +523,12 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                     case SAbstractionType(_, _, _):
                         # AbstractionTypes are not refined
                         return STypeApplication(body, nt)
+                    # case TypePolymorphism(name, kind, body_):
+
                     case _:
-                        assert False
+                        assert False, f"{nt} ({type(nt)}) not an SType."
         case _:
-            assert False
+            assert False, f"{t} ({type(t)}) not an STerm."
 
 
 def elaborate(ctx: ElaborationTypingContext,

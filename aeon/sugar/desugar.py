@@ -73,8 +73,9 @@ def introduce_forall_in_types(defs: list[Definition],
                     for t in get_type_vars(ty):
                         tname = t.name
                         if tname not in types:
-                            new_foralls.append((tname, BaseKind()))
-
+                            entry = (tname, BaseKind())
+                            if entry not in new_foralls:
+                                new_foralls.append(entry)
                 ndefs.append(
                     Definition(name, foralls + new_foralls, args, type, body,
                                decorators))

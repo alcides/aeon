@@ -1,5 +1,5 @@
 type Tuple;
 
-def Tuple_new : forall a:B, forall b:*, (e1:a) -> (e2:b) -> Tuple = native "lambda x: lambda y: (x,y)";
-def Tuple_fst : forall a:*, (t:Tuple) -> a = native "lambda x: x[0]";
-def Tuple_snd : forall b:*, (t:Tuple) -> b = native "lambda x: x[1]";
+def Tuple_new (x:a) (y:b) : Tuple { native "(x,y)" }
+def Tuple_fst (t:Tuple) : a { native "x[0]" }
+def Tuple_snd (t:Tuple) : b { native "x[1]" }

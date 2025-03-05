@@ -23,6 +23,9 @@ class BaseKind(Kind):
     def __str__(self):
         return "Β"
 
+    def __hash__(self):
+        return super().__hash__()
+
 
 class StarKind(Kind):
 
@@ -31,6 +34,9 @@ class StarKind(Kind):
 
     def __str__(self):
         return "★"
+
+    def __hash__(self):
+        return super().__hash__()
 
 
 class Type(ABC):

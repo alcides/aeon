@@ -188,7 +188,7 @@ def type_to_core(
             return RefinedType(name, basety,
                                liquefy(ref, available_vars + [(name, basety)]))
         case _:
-            assert False
+            assert False, f"Unknown {ty} / {normalize(ty)}."
 
 
 def lower_to_core(t: STerm) -> Term:

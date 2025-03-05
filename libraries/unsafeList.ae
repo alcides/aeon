@@ -3,10 +3,10 @@ type Tuple;
 
 def Lnew : List = native "[]" ;
 
-def cons: (l:List) -> (t: Top) -> List = native "lambda xs: lambda x: [x] + xs";
+def cons (xs:List) (t: Top) : List { native "[t] + xs" }
 
-def car: forall a:*, (l:List) -> a = native "lambda xs: xs[0]";
+def car (xs:List) : a {native "xs[0]"}
 
-def cdr: (l:List) -> List  = native "lambda xs: xs[1:]";
+def cdr (xs:List) : List  {native "xs[1:]"}
 
-def list_to_tuple: (l:List) -> Tuple = native "lambda xs: tuple(xs)";
+def list_to_tuple (xs:List) : Tuple { native "tuple(xs)"}
