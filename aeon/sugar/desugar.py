@@ -40,11 +40,12 @@ class DesugaredProgram(NamedTuple):
 
 
 def desugar(p: Program,
+            is_main_hole: bool = True,
             extra_vars: dict[str, SType] | None = None) -> DesugaredProgram:
 
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
-    prog = determine_main_function(p)
+    prog = determine_main_function(p, is_main_hole)
 
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
@@ -82,10 +83,13 @@ def introduce_forall_in_types(defs: list[Definition],
     return ndefs
 
 
-def determine_main_function(p: Program) -> STerm:
+def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
     if "main" in [d.name for d in p.definitions]:
         return SApplication(SVar("main"), SLiteral(1, type=SBaseType("Int")))
-    return SHole("main")
+    elif is_main_hole:
+        return SHole("main")
+    else:
+        return SLiteral(1, SBaseType("Int"))
 
 
 def handle_imports(

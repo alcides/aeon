@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 
 function run_example {
     printf "Running %s ..." "${@}"
-    $PYTHON_BINARY -m aeon "$@" > /dev/null
+    $PYTHON_BINARY -m aeon --no-main "$@" > /dev/null
     RESULT=$?
     if [ $RESULT -eq 0 ]; then
         echo "(success)"

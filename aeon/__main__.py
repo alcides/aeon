@@ -96,6 +96,12 @@ def parse_arguments():
         action="store_true",
         help="Use the refined grammar for synthesis",
     )
+
+    parser.add_argument("-n",
+                        "--no-main",
+                        action="store_true",
+                        help="Disables introducing hole in main")
+
     return parser.parse_args()
 
 
@@ -145,7 +151,8 @@ def main() -> None:
             prog: Program = parse_program(aeon_code)
 
         with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(prog)
+            desugared: DesugaredProgram = desugar(
+                prog, is_main_hole=not args.no_main)
             metadata = desugared.metadata
 
         try:
