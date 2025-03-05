@@ -1,5 +1,5 @@
 
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def isZero (n: Int) : Bool { n == 0 }
 
 def calculate_distance_helper (b_index: Float) (h: Float) (n: Int) (distance: Float) : Float {
 if isZero n then

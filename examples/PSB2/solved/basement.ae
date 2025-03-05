@@ -1,12 +1,12 @@
 type List;
 
 def List_size: (l:List) -> Int = uninterpreted;
-def List_len: (l:List) -> Int  = native "lambda x: len(x)";
+def List_len (l:List) : Int  { native "len(l)" }
 def List_new : {x:List | List_size x == 0} = native "[]" ;
-def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
-def List_get: (l:List) -> (i: Int) -> Int = native"lambda xs: lambda i: xs[i]";
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
+def List_get (l:List) (i: Int) : Int { native "l[i]" }
 
-def fst_negative (l:List) (i:Int)(u:Int) : Int {
+def fst_negative (l:List) (i:Int) (u:Int) : Int {
     if (i >= (List_len l)) then
         i
      else if (u < 0) then
@@ -17,7 +17,7 @@ def fst_negative (l:List) (i:Int)(u:Int) : Int {
 
 def basement (nums: List) : Int {
      fst_negative nums 0 (List_get nums 0)
-     }
+}
 
 
 def main (args:Int): Unit {
