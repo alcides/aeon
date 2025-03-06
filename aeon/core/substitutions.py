@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -140,43 +140,45 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
 
     renamed: Type
 
-    if isinstance(t, Top):
-        return t
-    elif isinstance(t, BaseType):
-        return t
-    elif isinstance(t, TypeVar):
-        return t
-    elif isinstance(t, AbstractionType):
-        if isinstance(rep, Var) and rep.name == t.var_name:
-            nname = t.var_name + "1"
-            renamed = AbstractionType(
-                nname,
-                t.var_type,
-                substitution_in_type(t.type, Var(nname), t.var_name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif name == t.var_name:
+    match t:
+        case Top() | BaseType(_) | TypeVar(_):
             return t
-        else:
-            return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, RefinedType):
-        if isinstance(rep, Var) and rep.name == t.name:
-            nname = t.name + "1"
-            renamed = RefinedType(
-                nname,
-                t.type,
-                substitution_in_liquid(t.refinement, LiquidVar(nname), t.name),
-            )
-            return substitution_in_type(renamed, rep, name)
-        elif t.name == name:
-            return t
-        else:
-            return RefinedType(
-                t.name,
-                t.type,
-                substitution_in_liquid(t.refinement, replacement, name),
-            )
-    assert False
+        case AbstractionType(aname, atype, rtype):
+            if isinstance(rep, Var) and rep.name == aname:
+                nname = aname + "1"
+                renamed = AbstractionType(
+                    nname,
+                    atype,
+                    substitution_in_type(rtype, Var(nname), aname),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif aname == name:
+                return t
+            else:
+                return AbstractionType(aname, rec(atype), rec(rtype))
+        case RefinedType(vname, ity, ref):
+            if isinstance(rep, Var) and rep.name == vname:
+                nname = vname + "1"
+                renamed = RefinedType(
+                    nname,
+                    ity,
+                    substitution_in_liquid(ref, LiquidVar(nname), vname),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif name == vname:
+                return t
+            else:
+                return RefinedType(
+                    vname,
+                    ity,
+                    substitution_in_liquid(ref, replacement, name),
+                )
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, rec(body))
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [rec(arg) for arg in args])
+        case _:
+            assert False, f"{t} not allowed"
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:

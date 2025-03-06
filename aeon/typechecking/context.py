@@ -66,6 +66,10 @@ class TypingContext(ABC):
     def vars(self) -> list[tuple[str, Type]]:
         ...
 
+    @abstractmethod
+    def get_type_constructor(self, name: str) -> list[str] | None:
+        ...
+
 
 class EmptyContext(TypingContext):
 
@@ -87,10 +91,29 @@ class EmptyContext(TypingContext):
     def __hash__(self) -> int:
         return 0
 
+    def get_type_constructor(self, name: str) -> list[str] | None:
+        return None
+
 
 @dataclass
-class UninterpretedBinder(TypingContext):
+class NonEmptyContext(TypingContext):
     prev: TypingContext
+
+    def type_of(self, name: str) -> Type | None:
+        return self.prev.type_of(name)
+
+    def vars(self) -> list[tuple[str, Type]]:
+        return self.prev.vars()
+
+    def typevars(self) -> list[tuple[str, Kind]]:
+        return self.prev.typevars()
+
+    def get_type_constructor(self, name: str) -> list[str] | None:
+        return self.prev.get_type_constructor(name)
+
+
+@dataclass
+class UninterpretedBinder(NonEmptyContext):
     name: str
     type: AbstractionType
 
@@ -111,16 +134,12 @@ class UninterpretedBinder(TypingContext):
     def vars(self) -> list[tuple[str, Type]]:
         return [(self.name, self.type)] + self.prev.vars()
 
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return self.prev.typevars()
-
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
 @dataclass(init=False)
-class VariableBinder(TypingContext):
-    prev: TypingContext
+class VariableBinder(NonEmptyContext):
     name: str
     type: Type
 
@@ -149,16 +168,12 @@ class VariableBinder(TypingContext):
     def vars(self) -> list[tuple[str, Type]]:
         return [(self.name, self.type)] + self.prev.vars()
 
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return self.prev.typevars()
-
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
 @dataclass(init=False)
-class TypeBinder(TypingContext):
-    prev: TypingContext
+class TypeBinder(NonEmptyContext):
     type_name: str
     type_kind: Kind
 
@@ -172,17 +187,11 @@ class TypeBinder(TypingContext):
         self.type_name = type_name
         self.type_kind = type_kind
 
-    def type_of(self, name: str) -> Type | None:
-        return self.prev.type_of(name)
-
     def fresh_var(self):
         name = self.type_name
         while name == self.type_name:
             name = self.prev.fresh_var()
         return name
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return self.prev.vars()
 
     def typevars(self) -> list[tuple[str, Kind]]:
         return [(self.type_name, self.type_kind)] + self.prev.typevars()
@@ -192,3 +201,21 @@ class TypeBinder(TypingContext):
 
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.type_name) + hash(self.type_kind)
+
+
+@dataclass
+class TypeConstructorBinder(NonEmptyContext):
+    name: str
+    args: list[str]
+
+    def get_type_constructor(self, name: str) -> list[str] | None:
+        if name == self.name:
+            return self.args
+        return self.prev.get_type_constructor(name)
+
+    def __repr__(self) -> str:
+        argss = " ".join(self.args)
+        return f"{self.prev},[{self.name} {argss}]"
+
+    def __hash__(self) -> int:
+        return hash(self.prev) + hash(self.name)

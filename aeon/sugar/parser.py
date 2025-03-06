@@ -200,7 +200,7 @@ class TreeToSugar(Transformer):
         return TypeDecl(str(args[0]))
 
     def type_constructor_decl(self, args):
-        return TypeDecl(str(args[0]), args)
+        return TypeDecl(str(args[0]), [str(i) for i in args[1:]])
 
     def def_cons(self, args):
         if len(args) == 3:

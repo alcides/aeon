@@ -25,6 +25,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar
 from aeon.elaboration.context import (
+    ElabTypeDecl,
     ElabTypeVarBinder,
     ElabUninterpretedBinder,
     ElabVariableBinder,
@@ -54,7 +55,14 @@ from aeon.sugar.stypes import (
     STypeVar,
 )
 from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm
-from aeon.typechecking.context import EmptyContext, TypeBinder, TypingContext, UninterpretedBinder, VariableBinder
+from aeon.typechecking.context import (
+    EmptyContext,
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 
 
 class LoweringException(Exception):
@@ -249,4 +257,8 @@ def lower_to_core_context(elctx: ElaborationTypingContext) -> TypingContext:
                 tail = UninterpretedBinder(tail, name, absty)
             case ElabTypeVarBinder(name, kind):
                 tail = TypeBinder(tail, name, kind)
+            case ElabTypeDecl(name, args):
+                tail = TypeConstructorBinder(tail, name, args)
+            case _:
+                assert False, f"{entry} not supported in Core."
     return tail

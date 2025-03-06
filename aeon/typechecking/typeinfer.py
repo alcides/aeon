@@ -362,6 +362,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
+    try:
+        assert wellformed(ctx, ty)
+    except AssertionError:
+        raise FailedConstraintException(ctx, t, ty, None)
     if isinstance(t, Abstraction) and isinstance(
             ty,
             AbstractionType,

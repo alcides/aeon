@@ -27,12 +27,16 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     prog = parse_program(source)
     desugared = desugar(prog, extra_vars)
-    sterm = elaborate(desugared.elabcontext, desugared.program)
+    try:
+        sterm = elaborate(desugared.elabcontext, desugared.program)
+    except UnificationException:
+        return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
 
     core_ast_anf = ensure_anf(core_ast)
-    assert check_type(typing_ctx, core_ast_anf, type_to_core(ty))
+    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+        return False
 
     if val:
         r = eval(core_ast_anf, ectx)
