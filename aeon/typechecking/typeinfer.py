@@ -438,8 +438,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
 def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     """Returns whether expression t has type ty in context ctx."""
-    assert wellformed(ctx, ty)
     try:
+        assert wellformed(ctx, ty)
         constraint = check(ctx, t, ty)
         # TODO: convert constraint to canonical form
         # constraint = canonicalize_constraint(constraint, [name for (name, _) in ctx.vars()])
@@ -449,4 +449,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     except CouldNotGenerateConstraintException:
         return False
     except FailedConstraintException:
+        return False
+    except TypeNotWellformed:
         return False
