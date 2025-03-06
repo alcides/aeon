@@ -7,7 +7,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.terms import (
     Abstraction,
@@ -44,7 +44,15 @@ from aeon.sugar.program import (
     SVar,
     SHole,
 )
-from aeon.sugar.stypes import SAbstractionType, SBaseType, SRefinedType, SType, STypePolymorphism, STypeVar
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SBaseType,
+    SRefinedType,
+    SType,
+    STypeConstructor,
+    STypePolymorphism,
+    STypeVar,
+)
 from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm
 from aeon.typechecking.context import EmptyContext, TypeBinder, TypingContext, UninterpretedBinder, VariableBinder
 
@@ -87,7 +95,8 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
 def liquefy(
     t: STerm,
-    available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
+    available_vars: list[tuple[str, BaseType | TypeVar | TypeConstructor]]
+    | None = None
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
@@ -184,9 +193,13 @@ def type_to_core(
                                     type_to_core(rty, available_vars))
         case SRefinedType(name, ity, ref):
             basety = type_to_core(ity, available_vars)
-            assert isinstance(basety, BaseType) or isinstance(basety, TypeVar)
+            assert isinstance(basety, BaseType) or isinstance(
+                basety, TypeVar) or isinstance(basety, TypeConstructor)
             return RefinedType(name, basety,
                                liquefy(ref, available_vars + [(name, basety)]))
+        case STypeConstructor(name, args):
+            return TypeConstructor(
+                name, [type_to_core(ity, available_vars) for ity in args])
         case _:
             assert False, f"Unknown {ty} / {normalize(ty)}."
 

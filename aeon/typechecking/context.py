@@ -4,7 +4,16 @@ from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from aeon.core.types import AbstractionType, BaseKind, BaseType, RefinedType, Top, TypePolymorphism, TypeVar
+from aeon.core.types import (
+    AbstractionType,
+    BaseKind,
+    BaseType,
+    RefinedType,
+    Top,
+    TypeConstructor,
+    TypePolymorphism,
+    TypeVar,
+)
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
@@ -29,7 +38,8 @@ class TypingContext(ABC):
 
     def kind_of(self, ty: Type) -> Kind:
         match ty:
-            case BaseType(_) | Top() | RefinedType(_, BaseType(_), _):
+            case BaseType(_) | Top() | RefinedType(
+                _, BaseType(_), _) | RefinedType(_, TypeConstructor(_, _), _):
                 return BaseKind()
             case TypeVar(name):
                 assert (name, BaseKind()) in self.typevars()
@@ -42,6 +52,8 @@ class TypingContext(ABC):
             case AbstractionType(_, _, _):
                 return StarKind()
             case TypePolymorphism(_, _, _):
+                return StarKind()
+            case TypeConstructor(_, _):
                 return StarKind()
             case _:
                 assert False, f"Unknown type in context: {ty}"

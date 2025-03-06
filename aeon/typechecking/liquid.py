@@ -15,6 +15,7 @@ from aeon.core.types import (
     RefinedType,
     Top,
     Type,
+    TypeConstructor,
     TypePolymorphism,
     TypeVar,
     t_bool,
@@ -33,12 +34,13 @@ class LiquidTypeCheckException(Exception):
 @dataclass
 class LiquidTypeCheckingContext:
     known_types: list[BaseType]
-    variables: dict[str, BaseType | TypeVar]
-    functions: dict[str, list[BaseType | TypeVar]]
+    variables: dict[str, BaseType | TypeVar | TypeConstructor]
+    functions: dict[str, list[BaseType | TypeVar | TypeConstructor]]
 
 
-def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar]:
-    args: list[BaseType | TypeVar] = []
+def lower_abstraction_type(
+        ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
+    args: list[BaseType | TypeVar | TypeConstructor] = []
     while True:
         match ty:
         # TODO: Should these be removed?
@@ -61,6 +63,8 @@ def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar]:
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
+            case TypeConstructor(_, _):
+                return args + [ty]
             case RefinedType(_, bt, _):
                 return args + [bt]
             case _:
@@ -76,7 +80,7 @@ def flatten(xs: list[list[T]]) -> list[T]:
 
 def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
     known_types: list[str] = native_types + []
-    variables: dict[str, BaseType | TypeVar] = {}
+    variables: dict[str, BaseType | TypeVar | TypeConstructor] = {}
     functions = {}
     while not isinstance(ctx, EmptyContext):
         match ctx:
@@ -115,7 +119,7 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
 def type_infer_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
-) -> BaseType:
+) -> BaseType | TypeConstructor:
     match liq:
         case LiquidLiteralBool(_):
             return t_bool

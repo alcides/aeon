@@ -21,6 +21,7 @@ from aeon.sugar.stypes import (
     SAbstractionType,
     SBaseType,
     SRefinedType,
+    STypeConstructor,
     STypeVar,
     SType,
     STypePolymorphism,
@@ -145,6 +146,19 @@ def unify(ctx: ElaborationTypingContext, sub: SType,
                 raise UnificationException(
                     f"Failed to unify {sub} with {sup} ({type(sup)})", )
 
+        case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
+            if name1 != name2:
+                raise UnificationException(
+                    f"Failed to unify {name1} with {name2}", )
+            elif len(args) != len(args2):
+                raise UnificationException(
+                    f"Failed to unify {sub} with {sup} with different number of arguments.",
+                )
+            else:
+                for a1, a2 in zip(args, args2):
+                    unify(ctx, a1, a2)
+                return []
+
         case _:
             raise UnificationException(
                 f"Failed to unify {sub} ({type(sub)}) with {sup} ({type(sup)})",
@@ -188,6 +202,10 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext,
                     body,
                 ),
             )
+        case STypeConstructor(name, args):
+            return STypeConstructor(
+                name,
+                [remove_unions_and_intersections(ctx, arg) for arg in args])
         case SRefinedType(name, ity, ref):
             innert = remove_unions_and_intersections(ctx, ity)
             return SRefinedType(name=name, type=innert, refinement=ref)
@@ -361,6 +379,10 @@ def replace_unification_variables(
                     kind,
                     go(ctx, body, polarity),
                 )
+            case STypeConstructor(name, args):
+                return STypeConstructor(
+                    name, [go(ctx, arg, polarity) for arg in args])
+
             case UnificationVar(_, _, _):
                 return Union(list(extract_direction(ty)))
             case _:
@@ -504,7 +526,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
                             case STypePolymorphism(_, BaseKind(), _):
                                 should_be_refined = False
                 match nt:
-                    case SBaseType(_) | STypeVar(_):
+                    case SBaseType(_) | STypeVar(_) | STypeConstructor(_, _):
                         new_type: SType
                         if should_be_refined:
                             new_var = ctx.fresh_typevar()

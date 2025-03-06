@@ -18,7 +18,7 @@ from aeon.core.terms import Application
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -186,6 +186,9 @@ def process_type_name(ty: Type) -> str:
         case TypePolymorphism(name, kind, body):
             r = process_type_name(body)
             return f"{name}_{kind}_{r}"
+        case TypeConstructor(name, args):
+            rest = "_".join(process_type_name(t) for t in args)
+            return f"{name}_{rest}"
         case _:
             assert False, f"Unknown type {ty} ({type(ty)})"
 

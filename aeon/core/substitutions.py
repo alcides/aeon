@@ -36,26 +36,22 @@ def substitute_vartype(t: Type, rep: Type, name: str):
     def rec(k: Type):
         return substitute_vartype(k, rep, name)
 
-    if isinstance(t, BaseType):
-        return t
-    elif isinstance(t, TypeVar) and t.name == name:
-        return rep
-    elif isinstance(t, TypeVar) and t.name != name:
-        return t
-    elif isinstance(t, RefinedType):
-        it = RefinedType(t.name, rec(t.type), t.refinement)
-        while isinstance(it.type, RefinedType):
-            nr = substitution_in_liquid(
-                it.type.refinement,
-                LiquidVar(t.name),
-                it.type.name,
-            )
-            ncond = LiquidApp("&&", [t.refinement, nr])
-            it = RefinedType(t.name, it.type.type, ncond)
-        return it
-    elif isinstance(t, AbstractionType):
-        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    assert False
+    match t:
+        case BaseType(_):
+            return t
+        case TypeVar(tname):
+            if tname == name:
+                return rep
+            else:
+                return t
+        case RefinedType(name, ty, ref):
+            # Note: A previous version of this code would inline recursive refinedtypes.
+            assert not isinstance(ty, RefinedType)
+            return RefinedType(name, rec(ty), ref)
+        case AbstractionType(a, aty, rty):
+            return AbstractionType(a, rec(aty), rec(rty))
+        case _:
+            assert False, f"type {t} ({type(t)}) not allows in substition."
 
 
 def substitute_vartype_in_term(t: Term, rep: Type, name: str):
@@ -101,7 +97,7 @@ def substitution_in_liquid(
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
     if isinstance(
-        t,
+            t,
         (
             LiquidLiteralInt,
             LiquidLiteralBool,
@@ -126,7 +122,8 @@ def substitution_in_liquid(
         else:
             return LiquidHornApplication(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t)
+                 for (a, t) in t.argtypes],
             )
     else:
         assert False
@@ -255,8 +252,7 @@ def liquefy_app(app: Application) -> LiquidApp | None:
                     fun.var_name,
                 ),
                 app.arg,
-            ),
-        )
+            ), )
     else:
         raise Exception(f"{app} is not a valid predicate.")
 
