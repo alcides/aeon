@@ -102,6 +102,14 @@ class WrongKindInTypeApplication(TypeCheckingException):
 
 
 @dataclass
+class TypeNotWellformed(TypeCheckingException):
+    ty: Type
+
+    def __str__(self):
+        return f"Type {self.ty} is not wellformed."
+
+
+@dataclass
 class FailedSubtypingException(TypeCheckingException):
     ctx: TypingContext
     t: Term
@@ -365,7 +373,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     try:
         assert wellformed(ctx, ty)
     except AssertionError:
-        raise FailedConstraintException(ctx, t, ty, None)
+        raise TypeNotWellformed(ty)
     if isinstance(t, Abstraction) and isinstance(
             ty,
             AbstractionType,

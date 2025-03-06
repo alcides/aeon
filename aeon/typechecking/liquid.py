@@ -24,7 +24,14 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.prelude.prelude import native_types
-from aeon.typechecking.context import EmptyContext, TypeBinder, TypingContext, UninterpretedBinder, VariableBinder
+from aeon.typechecking.context import (
+    EmptyContext,
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 
 
 class LiquidTypeCheckException(Exception):
@@ -108,6 +115,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                                 RefinedType(_,
                                             BaseType(_) as bt, _)):
                 variables[name] = bt
+                ctx = prev
+            case TypeConstructorBinder(prev, _, _):
                 ctx = prev
             case _:
                 assert False, f"Unknown context type ({type(ctx)})"
