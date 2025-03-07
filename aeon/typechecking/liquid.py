@@ -66,7 +66,8 @@ def lower_abstraction_type(
                     case Top():
                         args.append(BaseType("Unit"))
                     case _:
-                        assert False, f"Argument type for liquid applications cannot be {aty} {type(aty)}"
+                        # For Higher-order functions, we use an int parameter.
+                        args.append(BaseType("Int"))
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
