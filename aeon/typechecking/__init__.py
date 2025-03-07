@@ -7,6 +7,7 @@ from aeon.typechecking.typeinfer import (
     FailedConstraintException,
     check,
 )
+from aeon.typechecking.well_formed import wellformed
 
 
 def check_type_errors(
@@ -15,6 +16,7 @@ def check_type_errors(
     expected_type: Type,
 ) -> list[Exception | str]:
     try:
+        assert wellformed(ctx, expected_type)
         constraint = check(ctx, term, expected_type)
         r = entailment(ctx, constraint)
         if r:

@@ -19,7 +19,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
+from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseKind
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
@@ -67,6 +67,9 @@ class TreeToCore(Transformer):
             return BaseType(n)
         else:
             return TypeVar(n)
+
+    def constructor_t(self, args):
+        return TypeConstructor(str(args[0]), args[1:])
 
     # Expressions
 

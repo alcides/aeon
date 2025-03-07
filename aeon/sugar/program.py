@@ -198,6 +198,7 @@ class ImportAe(Node):
 @dataclass
 class TypeDecl(Node):
     name: str
+    args: list[str] = field(default_factory=list)
 
     def __repr__(self):
         return f"type {self.name};"

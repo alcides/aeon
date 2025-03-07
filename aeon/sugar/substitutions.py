@@ -1,4 +1,12 @@
-from aeon.sugar.stypes import SAbstractionType, SBaseType, STypeVar, SRefinedType, SType, STypePolymorphism
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SBaseType,
+    STypeConstructor,
+    STypeVar,
+    SRefinedType,
+    SType,
+    STypePolymorphism,
+)
 from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
@@ -53,6 +61,8 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: str):
                 return ty
             else:
                 return STypePolymorphism(tname, kind, rec(body))
+        case STypeConstructor(name, args):
+            return STypeConstructor(name, [rec(a) for a in args])
         case _:
             assert False, f"Unknown node in substitute {ty}"
 
@@ -72,6 +82,8 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: str) -> SType:
             return SAbstractionType(var_name, rec(var_type), rec(return_type))
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
+        case STypeConstructor(name, args):
+            return STypeConstructor(name, [rec(a) for a in args])
         case _:
             assert False
 

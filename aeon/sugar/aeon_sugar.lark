@@ -10,6 +10,7 @@ type_decls : type_decl*                              -> list
 defs : def*                                          -> list
 
 type_decl : "type" TYPENAME ";"                            -> type_decl
+          | "type" TYPENAME ID+ ";"                            -> type_constructor_decl
 
 def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
     | soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun
@@ -36,6 +37,7 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | ID                                                  -> simple_t
+     | "(" ID type+ ")"                                            -> constructor_t
      | "(" type ")"                                        -> same
 
 

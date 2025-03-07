@@ -7,7 +7,7 @@ from aeon.core.types import BaseType
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.typechecking.context import EmptyContext
+from aeon.typechecking.context import EmptyContext, TypeConstructorBinder
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
@@ -66,5 +66,7 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                 prev,
                 UninterpretedFunctionDeclaration(name, type, c),
             )
+        case TypeConstructorBinder(prev, name, _):
+            return entailment(prev, c)
         case _:
-            assert False
+            assert False, f"Untreated {ctx}."

@@ -3,9 +3,9 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
-from aeon.core.types import BaseType, TypeVar
+from aeon.core.types import BaseType, TypeConstructor, TypeVar
 
-liquid_prelude: dict[str, list[BaseType | TypeVar]] = {
+liquid_prelude: dict[str, list[BaseType | TypeVar | TypeConstructor]] = {
     "==": [TypeVar("a"), TypeVar("a"),
            BaseType("Bool")],
     "!=": [TypeVar("a"), TypeVar("a"),

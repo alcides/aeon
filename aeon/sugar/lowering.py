@@ -7,7 +7,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.terms import (
     Abstraction,
@@ -25,6 +25,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar
 from aeon.elaboration.context import (
+    ElabTypeDecl,
     ElabTypeVarBinder,
     ElabUninterpretedBinder,
     ElabVariableBinder,
@@ -44,9 +45,24 @@ from aeon.sugar.program import (
     SVar,
     SHole,
 )
-from aeon.sugar.stypes import SAbstractionType, SBaseType, SRefinedType, SType, STypePolymorphism, STypeVar
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SBaseType,
+    SRefinedType,
+    SType,
+    STypeConstructor,
+    STypePolymorphism,
+    STypeVar,
+)
 from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm
-from aeon.typechecking.context import EmptyContext, TypeBinder, TypingContext, UninterpretedBinder, VariableBinder
+from aeon.typechecking.context import (
+    EmptyContext,
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 
 
 class LoweringException(Exception):
@@ -87,7 +103,8 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
 def liquefy(
     t: STerm,
-    available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
+    available_vars: list[tuple[str, BaseType | TypeVar | TypeConstructor]]
+    | None = None
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
@@ -184,9 +201,13 @@ def type_to_core(
                                     type_to_core(rty, available_vars))
         case SRefinedType(name, ity, ref):
             basety = type_to_core(ity, available_vars)
-            assert isinstance(basety, BaseType) or isinstance(basety, TypeVar)
+            assert isinstance(basety, BaseType) or isinstance(
+                basety, TypeVar) or isinstance(basety, TypeConstructor)
             return RefinedType(name, basety,
                                liquefy(ref, available_vars + [(name, basety)]))
+        case STypeConstructor(name, args):
+            return TypeConstructor(
+                name, [type_to_core(ity, available_vars) for ity in args])
         case _:
             assert False, f"Unknown {ty} / {normalize(ty)}."
 
@@ -236,4 +257,8 @@ def lower_to_core_context(elctx: ElaborationTypingContext) -> TypingContext:
                 tail = UninterpretedBinder(tail, name, absty)
             case ElabTypeVarBinder(name, kind):
                 tail = TypeBinder(tail, name, kind)
+            case ElabTypeDecl(name, args):
+                tail = TypeConstructorBinder(tail, name, args)
+            case _:
+                assert False, f"{entry} not supported in Core."
     return tail

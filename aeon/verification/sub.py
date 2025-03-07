@@ -7,7 +7,7 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, TypeVar
+from aeon.core.types import AbstractionType, TypeConstructor, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -33,6 +33,9 @@ def ensure_refined(t: Type) -> Type:
         case TypeVar(name):
             return RefinedType(f"singleton_tv_{name}", t,
                                LiquidLiteralBool(True))
+        case TypeConstructor(name, _):
+            return RefinedType(f"singleton_tv_{name}", t,
+                               LiquidLiteralBool(True))
         case _:
             return t
 
@@ -43,7 +46,8 @@ def is_first_order_function(at: AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case BaseType(_) | Top() | RefinedType(_, _, _) | TypeVar(_):
+            case BaseType(_) | Top() | RefinedType(
+                _, _, _) | TypeVar(_) | TypeConstructor(_, _):
                 pass
             case _:
                 assert False
@@ -51,7 +55,7 @@ def is_first_order_function(at: AbstractionType):
     return True
 
 
-def lower_contraint_type(ttype: Type) -> Type:
+def lower_constraint_type(ttype: Type) -> Type:
     match ttype:
         case BaseType(_):
             return ttype
@@ -60,29 +64,32 @@ def lower_contraint_type(ttype: Type) -> Type:
         case Top():
             return BaseType("Unit")
         case AbstractionType(_, b, r):
-            return AbstractionType("_", lower_contraint_type(b),
-                                   lower_contraint_type(r))
+            return AbstractionType("_", lower_constraint_type(b),
+                                   lower_constraint_type(r))
         case RefinedType(_, t, _):
-            return lower_contraint_type(t)
+            return lower_constraint_type(t)
+        case TypeConstructor(name, args):
+            argsn = "_".join(str(a) for a in args)
+            return BaseType(f"{name}_{argsn}")
         case _:
             assert False, f"Unsupport type in constraint {ttype}"
 
 
 def implication_constraint(name: str, ty: Type, c: Constraint) -> Constraint:
     match ty:
-        case BaseType(_) | Top() | TypeVar(_):
-            basety = lower_contraint_type(ty)
+        case BaseType(_) | Top() | TypeVar(_) | TypeConstructor(_, _):
+            basety = lower_constraint_type(ty)
             assert isinstance(basety, BaseType)
             return Implication(name, basety, LiquidLiteralBool(True), c)
         case RefinedType(tname, ttype, tref):
             ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
-            ltype = lower_contraint_type(ttype)
+            ltype = lower_constraint_type(ttype)
             assert isinstance(ltype, BaseType) or isinstance(ltype, TypeVar)
             return Implication(name, ltype, ref_subs, c)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
             if is_first_order_function(ty):
-                absty = lower_contraint_type(ty)
+                absty = lower_constraint_type(ty)
                 assert isinstance(absty, AbstractionType)
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
@@ -109,7 +116,9 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             # Performs substition on t2 to have the same name of t1
             r2_ = substitution_in_liquid(r2, LiquidVar(new_name), n2)
             r1_ = substitution_in_liquid(r1, LiquidVar(new_name), n1)
-            rconstraint = Implication(new_name, ty1, r1_,
+            lowert = lower_constraint_type(ty1)
+            assert isinstance(lowert, BaseType)
+            rconstraint = Implication(new_name, lowert, r1_,
                                       LiquidConstraint(r2_))
 
             return rconstraint
@@ -123,6 +132,15 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
             c1 = sub(ctx, rt1_, rt2_)
             return Conjunction(c0, implication_constraint(new_name_a, t2, c1))
+        case TypeConstructor(name1, args1), TypeConstructor(name2, args2):
+            if name1 != name2:
+                return cfalse
+            if len(args1) != len(args2):
+                return cfalse
+            for it1, it2 in zip(args1, args2):
+                if it1 != it2:  # TODO polytypes: subtyping here?
+                    return cfalse
+            return ctrue
         case _:
             logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
             return cfalse

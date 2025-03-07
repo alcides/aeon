@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import AbstractionType, BaseKind, Top
+from aeon.core.types import AbstractionType, BaseKind, Top, TypeConstructor
 from aeon.core.types import BaseType
 from aeon.core.types import Kind
 from aeon.core.types import RefinedType
@@ -36,6 +36,14 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
         case TypePolymorphism(name, kind, body):
             return k == StarKind() and wellformed(ctx.with_typevar(name, kind),
                                                   body)
+        case TypeConstructor(name, args):
+            cargs = ctx.get_type_constructor(name)
+            if not cargs or len(cargs) != len(args):
+                return False
+            return all(wf_inner(ctx, t) for t in args)
+        case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
+            return wf_inner(ctx, ity) and typecheck_liquid(
+                ctx.with_var(name, ity), refinement) == t_bool
         case _:
             return False
 
