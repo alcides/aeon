@@ -38,11 +38,11 @@ def test_lazy_csv_recorder_with_different_two_different_fitness_components():
 
     try:
         problem = MockProblem()
-        recorder = LazyCSVRecorder(temp_file_path, problem)  # type: ignore
+        recorder = LazyCSVRecorder(temp_file_path, problem)
         tracker = MockTracker()
         individual = MockIndividual()
 
-        recorder.register(tracker, individual, problem, is_best=True)  # type: ignore
+        recorder.register(tracker, individual, problem, is_best=True)
         recorder.csv_file.close()
 
         with open(temp_file_path, "r", newline="") as f:
