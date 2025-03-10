@@ -1,11 +1,11 @@
-import sys
 import numpy as np
 
-ERROR_NUMBER = (sys.maxsize - 1)
+ERROR_NUMBER = 1
+
 
 def calculate_fitness(level: tuple[list, list]) -> list[float]:
     chucks, enemies = level
-    if len(chucks) == 0 or len(enemies) == 0: # if there are no chunks or enemies, return an error
+    if len(enemies) < 2:
         return [ERROR_NUMBER, ERROR_NUMBER]
     level_elements = chucks + enemies
     map_w = 110
@@ -15,17 +15,19 @@ def calculate_fitness(level: tuple[list, list]) -> list[float]:
     max_chunks = map_w * map_h
     place_in(level_elements, map)
 
-
     number_of_chunks: float = float(max_chunks - float(np.sum(map)))
     conflicts: float = float(np.sum(map > 1))
 
-    return [number_of_chunks, conflicts]
+    normalized_number_of_chunks = number_of_chunks / max_chunks
+    normalized_conflicts = conflicts / max_chunks
+
+    return [normalized_number_of_chunks, normalized_conflicts]
 
 
 def place_in(level_elements, map):
     for level_element in level_elements:
         match level_element[0]:
-            case ' ':
+            case " ":
                 assert len(level_element) == 6
                 x_coord = level_element[1]
                 y_coord = level_element[2]
@@ -39,7 +41,7 @@ def place_in(level_elements, map):
                 for i in range(0, w_after):
                     map[x_coord + w_gap + i, y_coord] += 1
 
-            case 'P' | 'H':
+            case "P" | "H":
                 assert len(level_element) == 4
                 x_coord = level_element[1]
                 y_coord = level_element[2]
@@ -48,7 +50,7 @@ def place_in(level_elements, map):
                 for i in range(0, w):
                     map[x_coord + i, y_coord] += 1
 
-            case 'C' | 'T':
+            case "C" | "T":
                 assert len(level_element) == 6
                 x_coord = level_element[1]
                 y_coord = level_element[2]
@@ -65,7 +67,7 @@ def place_in(level_elements, map):
                 for i in range(0, w_after):
                     map[x_coord + i, y_coord] += 1
 
-            case 'c':
+            case "c":
                 assert len(level_element) == 4
                 x_coord = level_element[1]
                 y_coord = level_element[2]
@@ -74,14 +76,14 @@ def place_in(level_elements, map):
                 for i in range(0, wc):
                     map[x_coord + i, y_coord] += 1
 
-            case 'bcoin' | 'bpowerup' | 'rcoin' | 'rock':
+            case "bcoin" | "bpowerup" | "rcoin" | "rock":
                 assert len(level_element) == 3
                 x_coord = level_element[1]
                 y_coord = level_element[2]
 
                 map[x_coord, y_coord] += 1
 
-            case 'goomba' | 'koopa':
+            case "goomba" | "koopa":
                 assert len(level_element) == 2
                 x_coord = level_element[1]
                 map[x_coord, 0] = 1
