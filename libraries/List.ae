@@ -4,42 +4,40 @@ def functools : Unit = native_import "functools";
 
 def List_size: (l:List) -> Int = uninterpreted;
 
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length (l:List) : Int { native "len(l)" }
 
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 
-def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
+def List_append  (l:List) (i: a) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
-def List_append_float: (l:List) -> (i: Float) -> {l2:List | List_size l2 == (List_size l + 1)} = native "lambda xs: lambda x: xs + [x]";
+def List_cons (l:List) (i:Int) : {l2:List | List_size l2 == List_size l + 1} { native "[i] + l"}
 
-# def List_append: (l:List) -> (i: Int) -> List  = native "lambda xs: lambda x: xs + [x]";
+def List_recursive (l:List) (cb:b) (rec:(v:a) -> (o:b) -> b) : b { native "functools.reduce(lambda seed, next: rec(next)(seed), l, cb)" }
 
-def List_cons: (l:List) -> (i:Int) -> {l2:List | List_size l2 == List_size l + 1}  = native "lambda x: lambda xs: [x] + xs";
+def List_sum (l:List) : Int {native "sum(l)"}
 
-def List_recursive: (l:List) -> (base:Int) -> (rec:(v:Int) -> (y:Int) -> Int) -> Int = native "lambda l: lambda cb: lambda rec: functools.reduce(lambda seed, next: rec(next)(seed), l, cb)";
+def List_head (l: {x:List | List_size x > 0 }) : a { native "l[0]" }
 
-def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
-
-def List_head: (l: {x:List | List_size x > 0 }) -> Int = native "lambda xs: xs[0]";
+def List_map (f: (v:a) -> b) (l:List) : List { native "list(map(f, l))" }
 
 # def List_head: (l: {x:List | List_size x > 0 }) -> {i:Int | List_elem l i }  = native "lambda xs: xs[0]";
 
-def List_tail:(l:{x:List | List_size x > 0 }) -> {l2:List | List_size l2 ==  List_size l - 1 }  = native "lambda xs: xs[1:]";
+# def List_tail:(l:{x:List | List_size x > 0 }) -> {l2:List | List_size l2 ==  List_size l - 1 }  = native "lambda xs: xs[1:]";
 
-def List_last: (l:{x:List | List_size x > 0 }) -> Int = native "lambda xs: xs[-1]";
+# def List_last: (l:{x:List | List_size x > 0 }) -> Int = native "lambda xs: xs[-1]";
 
-def List_get: (l:{x:List | List_size x > 0 }) -> (i:{y:Int | (y >= 0) && y < List_size l}) -> Int = native "lambda xs: lambda i: xs[i]";
+# def List_get: (l:{x:List | List_size x > 0 }) -> (i:{y:Int | (y >= 0) && y < List_size l}) -> Int = native "lambda xs: lambda i: xs[i]";
 
-def List_elem: (l:List) -> (i:Int) -> Bool = native "lambda xs: lambda x: x in xs";
+# def List_elem: (l:List) -> (i:Int) -> Bool = native "lambda xs: lambda x: x in xs";
 
-def List_remove: (l:{x:List | List_size x > 0 }) -> (i:Int) -> {y:List | List_size y == (List_size l-1) } = native "lambda xs: lambda x: [elem for elem in xs if elem != x]";
+# def List_remove: (l:{x:List | List_size x > 0 }) -> (i:Int) -> {y:List | List_size y == (List_size l-1) } = native "lambda xs: lambda x: [elem for elem in xs if elem != x]";
 
-def List_extends: (l:List)->(l2:List)-> {x:List | List_size x == (List_size l + List_size l2) } = native "lambda xs: lambda ys: xs + ys";
+# def List_extends: (l:List)->(l2:List)-> {x:List | List_size x == (List_size l + List_size l2) } = native "lambda xs: lambda ys: xs + ys";
 
-def List_sort: (l:List) -> {x:List | List_size x == List_size l } = native "lambda xs: sorted(xs, key=lambda x: x)";
+# def List_sort: (l:List) -> {x:List | List_size x == List_size l } = native "lambda xs: sorted(xs, key=lambda x: x)";
 
-def List_reversed: (l: List)-> {x:List | List_size x == List_size l } = native "lambda xs : xs[::-1]";
+def List_reversed (l: List) : {x:List | List_size x == List_size l } { native "l[::-1]" }
 
-def List_count:(l:List) -> (i:Int) -> Int= native "lambda xs: lambda x: xs.count(x)";
+# def List_count:(l:List) -> (i:Int) -> Int= native "lambda xs: lambda x: xs.count(x)";
 
-def List_index:(l:List) -> (i:Int) -> {y:Int | (y >= 0) && y < List_size l}= native "lambda xs: lambda x: xs.index(x)";
+# def List_index:(l:List) -> (i:Int) -> {y:Int | (y >= 0) && y < List_size l}= native "lambda xs: lambda x: xs.index(x)";

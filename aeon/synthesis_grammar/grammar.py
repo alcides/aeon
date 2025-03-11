@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import make_dataclass
+import sys
 from typing import Optional, Tuple, Protocol
 from typing import Type as TypingType
 
@@ -22,9 +23,8 @@ from aeon.core.liquid import (
 from aeon.core.substitutions import substitution_in_type, substitution_in_type_liquid
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypeVar
+from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import t_bool
@@ -51,6 +51,24 @@ IF_WEIGHT = 1
 APP_WEIGHT = 10
 ABS_WEIGHT = 1
 
+max_number = sys.maxsize - 1
+min_number = -(sys.maxsize - 1)
+
+
+def extract_class_name(class_name: str) -> str:
+    prefixes = [
+        "var_",
+        "app_",
+        "refined_app_",
+        "refined_var_",
+        "literal_Refined_",
+        "literal_",
+    ]
+    for prefix in prefixes:
+        if class_name.startswith(prefix):
+            return class_name[len(prefix):]
+    return class_name
+
 
 class GrammarError(Exception):
     pass
@@ -68,7 +86,7 @@ classType = TypingType[HasGetCore]
 
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(
-        ("_anf_", "target"))
+        ("_anf_", "target"), )
 
 
 ae_top = type("ae_top", (ABC, ), {})
@@ -77,9 +95,9 @@ ae_top = type("ae_top", (ABC, ), {})
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     data: dict[Type, TypingType] = {Top(): ae_top}
     for ty in types:
-        class_name = mangle_type(ty)
         match ty:
             case BaseType(_):
+                class_name = mangle_type(ty)
                 ty_abstract_class = type(class_name, (ae_top, ), {})
                 ty_abstract_class = abstract(ty_abstract_class)
                 data[ty] = ty_abstract_class
@@ -92,6 +110,7 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 # TODO: alpha-equivalence
                 # TODO: subtyping
             case AbstractionType(var_name, var_type, return_type):
+                class_name = mangle_type(ty)
                 data.update(
                     extract_all_types([
                         var_type,
@@ -104,12 +123,11 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 # TODO: alpha-equivalence
             case Top():
                 data[ty] = ae_top
-            case Bottom():
-                pass
+            case TypePolymorphism(_, _, _):
+                # TODO: Polytypes in Synthesis
+                continue
             case _:
-                print(ty)
-                assert False
-            # TODO: polymorphism
+                assert False, f"Unsupported {ty}"
     return data
 
 
@@ -179,7 +197,7 @@ def create_var_node(name: str, ty: Type, python_ty: TypingType) -> TypingType:
     vname = mangle_var(name)
     dc = make_dataclass(f"var_{vname}", [], bases=(python_ty, ))
 
-    def get_core(_self):
+    def get_core(_):
         return Var(name)
 
     setattr(dc, "get_core", get_core)
@@ -192,6 +210,7 @@ def create_var_nodes(vars: list[Tuple[str, Type]],
     """Creates a list of python types for all variables in context."""
     return [
         create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars
+        if ty in type_info
     ]
 
 
@@ -270,12 +289,10 @@ def create_if_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
 
 def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
     match lt:
-        case (LiquidHole(_, _)
-              | LiquidLiteralBool(_)
-              | LiquidLiteralInt(_)
-              | LiquidLiteralFloat(_)
-              | LiquidLiteralString(_)
-              | LiquidVar(_)):
+        case LiquidHole():
+            return lt
+        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(
+            _) | LiquidLiteralString(_) | LiquidVar(_):
             return lt
         case LiquidApp(fun, args):
             if fun in ["&&", "||"]:
@@ -300,7 +317,7 @@ def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
 
 def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
     match ty:
-        case BaseType() | TypeVar() | Top() | Bottom():
+        case BaseType() | TypeVar() | Top():
             return ty
         case AbstractionType(var_name, var_type, type):
             return AbstractionType(
@@ -314,8 +331,11 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
                 return type
             else:
                 return RefinedType(name, type, ref_filtered)
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(
+                name, kind, remove_uninterpreted_functions_from_type(body))
         case _:
-            assert False
+            assert False, f"Unsupported {ty}"
 
 
 def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:

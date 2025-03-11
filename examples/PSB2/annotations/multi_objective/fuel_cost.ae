@@ -12,7 +12,7 @@ type List;
 def List_size: (l:List) -> Int = uninterpreted;
 def List_length: (l:List) -> Int = native "lambda list: len(list)";
 def List_new : {x:List | List_size x == 0} = native "[]" ;
-def List_append: (l:List) -> (i: Int) -> {l2:List | List_size l2 == List_size l + 1} = native "lambda xs: lambda x: xs + [x]";
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
 def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
 def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;

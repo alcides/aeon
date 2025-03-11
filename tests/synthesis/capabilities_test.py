@@ -2,11 +2,9 @@ import pytest
 
 from aeon.core.terms import Abstraction, Application, Literal, Term, Var
 from aeon.core.types import top, t_bool, t_int, t_float, t_string
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.sugar.desugar import desugar
-from aeon.sugar.parser import parse_program
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.typechecking.typeinfer import check_type
+from tests.driver import check_and_return_core
 
 
 def synthesis_and_return(code):
@@ -15,13 +13,15 @@ def synthesis_and_return(code):
 
     hole_name = "hole"
 
-    prog = parse_program(code)
-    p, ctx, ectx, metadata = desugar(prog)
-    p = ensure_anf(p)
-    check_type_errors(ctx, p, top)
-    _, holes = synthesize(
-        ctx, ectx, p, [("synth", [hole_name])], metadata, synth_config=synth_config, refined_grammar=True
-    )
+    term, ctx, ectx, metadata = check_and_return_core(code)
+    assert check_type(ctx, term, top)
+
+    _, holes = synthesize(ctx,
+                          ectx,
+                          term, [("synth", [hole_name])],
+                          metadata,
+                          synth_config=synth_config,
+                          refined_grammar=True)
     return holes[hole_name], ctx
 
 
@@ -32,7 +32,7 @@ def test_e2e_synthesis_basic_types(ty):
     t, ctx = synthesis_and_return(code)
 
     assert isinstance(t, Term)
-    assert not check_type_errors(ctx, t, ty)
+    assert check_type(ctx, t, ty)
 
 
 def test_e2e_synthesis_var():

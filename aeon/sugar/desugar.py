@@ -2,55 +2,94 @@ from __future__ import annotations
 
 import os.path
 from pathlib import Path
+from typing import NamedTuple
 
-from aeon.backend.evaluator import EvaluationContext
-from aeon.core.substitutions import substitute_vartype
-from aeon.core.substitutions import substitute_vartype_in_term
-from aeon.core.terms import Abstraction
-from aeon.core.terms import Application
-from aeon.core.terms import Hole
-from aeon.core.terms import Literal
-from aeon.core.terms import Rec
-from aeon.core.terms import Term
-from aeon.core.terms import Var
-from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
-from aeon.core.types import t_int
+from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, Metadata
-from aeon.prelude.prelude import evaluation_vars
+from aeon.elaboration.context import (
+    ElabUninterpretedBinder,
+    ElabVariableBinder,
+    ElaborationTypingContext,
+    TypingContextEntry,
+    build_typing_context,
+)
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
-from aeon.sugar.program import Definition
+from aeon.sugar.program import (
+    Definition,
+    SAbstraction,
+    SApplication,
+    SHole,
+    SLiteral,
+    SRec,
+    STerm,
+    STypeAbstraction,
+    SVar,
+)
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
-from aeon.utils.ctx_helpers import build_context
-
-ProgramComponents = tuple[Term, TypingContext, EvaluationContext, Metadata]
+from aeon.sugar.stypes import SAbstractionType, SBaseType, SType, STypePolymorphism, builtin_types, get_type_vars
+from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 
 
-def desugar(p: Program) -> ProgramComponents:
-    ctx, ectx = build_context(typing_vars), EvaluationContext(evaluation_vars)
-    prog = determine_main_function(p)
+class DesugaredProgram(NamedTuple):
+    program: STerm
+    elabcontext: ElaborationTypingContext
+    metadata: Metadata
+
+
+def desugar(p: Program,
+            is_main_hole: bool = True,
+            extra_vars: dict[str, SType] | None = None) -> DesugaredProgram:
+
+    vs = {} if extra_vars is None else extra_vars
+    vs.update(typing_vars)
+    prog = determine_main_function(p, is_main_hole)
 
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
     defs, metadata = apply_decorators_in_definitions(defs)
 
-    ctx, prog = update_program_and_context(prog, defs, ctx, type_decls)
+    defs = introduce_forall_in_types(defs, type_decls)
 
-    for tydeclname in type_decls:
-        prog = substitute_vartype_in_term(prog, BaseType(tydeclname.name), tydeclname.name)
+    etctx = build_typing_context(vs)
+    etctx, prog = update_program_and_context(prog, defs, etctx)
+    prog, etctx = replace_concrete_types(
+        prog, etctx, builtin_types + [td.name for td in type_decls])
 
-    return prog, ctx, ectx, metadata
+    return DesugaredProgram(prog, etctx, metadata)
 
 
-def determine_main_function(p: Program) -> Term:
+def introduce_forall_in_types(defs: list[Definition],
+                              type_decls: list[TypeDecl]) -> list[Definition]:
+    types = [td.name for td in type_decls]
+    ndefs = []
+    for d in defs:
+        match d:
+            case Definition(name, foralls, args, type, body, decorators):
+                new_foralls: list[tuple[str, Kind]] = []
+                tlst: list[SType] = [ty for _, ty in args] + [type]
+                for ty in tlst:
+                    for t in get_type_vars(ty):
+                        tname = t.name
+                        if tname not in types:
+                            entry = (tname, BaseKind())
+                            if entry not in new_foralls:
+                                new_foralls.append(entry)
+                ndefs.append(
+                    Definition(name, foralls + new_foralls, args, type, body,
+                               decorators))
+    return ndefs
+
+
+def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
     if "main" in [d.name for d in p.definitions]:
-        return Application(Var("main"), Literal(1, type=t_int))
-    return Hole("main")
+        return SApplication(SVar("main"), SLiteral(1, type=SBaseType("Int")))
+    elif is_main_hole:
+        return SHole("main")
+    else:
+        return SLiteral(1, SBaseType("Int"))
 
 
 def handle_imports(
@@ -70,7 +109,9 @@ def handle_imports(
                 import_p.type_decls,
             )
         if imp.func:
-            import_p_definitions = [d for d in import_p_definitions if str(d.name) == imp.func]
+            import_p_definitions = [
+                d for d in import_p_definitions if str(d.name) == imp.func
+            ]
 
         defs = defs_recursive + import_p_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
@@ -88,7 +129,8 @@ def apply_decorators_in_program(prog: Program) -> Program:
     )
 
 
-def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
+def apply_decorators_in_definitions(
+        definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
     """We apply the decorators meta-programming code to each definition in the
     program."""
     metadata: Metadata = {}
@@ -101,48 +143,72 @@ def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list
 
 
 def update_program_and_context(
-    prog: Term,
+    prog: STerm,
     defs: list[Definition],
-    ctx: TypingContext,
-    type_decls: list[TypeDecl],
-) -> tuple[TypingContext, Term]:
+    ctx: ElaborationTypingContext,
+) -> tuple[ElaborationTypingContext, STerm]:
     for d in defs[::-1]:
-        if d.body == Var("uninterpreted"):
-            ctx = handle_uninterpreted(ctx, d, type_decls)
+        if d.body == SVar("uninterpreted"):
+            ctx.entries.append(ElabUninterpretedBinder(d.name, d.type))
         else:
-            prog = bind_program_to_rec(prog, d)
+            prog = convert_definition_to_srec(prog, d)
     return ctx, prog
 
 
-def handle_uninterpreted(ctx: TypingContext, d: Definition, type_decls: list[TypeDecl]) -> TypingContext:
-    assert isinstance(d.type, AbstractionType)
-    d_type = d.type
-    for tyname in type_decls:
-        d_type = substitute_vartype(d_type, BaseType(tyname.name), tyname.name)
-    return UninterpretedBinder(ctx, d.name, d_type)
+def replace_concrete_types(
+        t: STerm, etctx: ElaborationTypingContext,
+        types: list[str]) -> tuple[STerm, ElaborationTypingContext]:
+    """Replaces all occurrences of STypeVar with the corresponding SBaseType."""
+    for name in types:
+        t = substitution_svartype_in_sterm(t, SBaseType(name), name)
+
+    def fix_vartype(e: TypingContextEntry) -> TypingContextEntry:
+        match e:
+            case ElabVariableBinder(vname, ty):
+                nty = ty
+                for name in types:
+                    nty = substitute_svartype_in_stype(nty, SBaseType(name),
+                                                       name)
+                return ElabVariableBinder(vname, nty)
+            case ElabUninterpretedBinder(vname, ty):
+                nty = ty
+                for name in types:
+                    nty = substitute_svartype_in_stype(nty, SBaseType(name),
+                                                       name)
+                return ElabUninterpretedBinder(vname, nty)
+            case _:
+                return e
+
+    return t, ElaborationTypingContext([fix_vartype(e) for e in etctx.entries])
 
 
-def bind_program_to_rec(prog: Term, d: Definition) -> Term:
-    ty, body = d.type, d.body
-    for arg_name, arg_type in d.args[::-1]:
-        ty = AbstractionType(arg_name, arg_type, ty)
-        body = Abstraction(arg_name, body)
-    return Rec(d.name, ty, body, prog)
+def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
+    match d:
+        case Definition(dname, foralls, args, type, body, _):
+            ntype = type
+            nbody = body
+            for name, type in reversed(args):
+                ntype = SAbstractionType(name, type, ntype)
+                nbody = SAbstraction(name, nbody)
+            for name, kind in reversed(foralls):
+                ntype = STypePolymorphism(name, kind, ntype)
+                nbody = STypeAbstraction(name, kind, nbody)
+            return SRec(dname, ntype, nbody, prog)
+        case _:
+            assert False, f"{d} is not a definition"
 
 
 def handle_import(path: str) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
     possible_containers = (
-        [Path.cwd()]
-        + [Path.cwd() / "libraries"]
-        + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
-    )
+        [Path.cwd()] + [Path.cwd() / "libraries"] +
+        [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s])
     for container in possible_containers:
         file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
             return mk_parser("program").parse(contents)
     raise Exception(
-        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
-    )
+        f"Could not import {path} in any of the following paths: " +
+        ";".join([str(p) for p in possible_containers]), )

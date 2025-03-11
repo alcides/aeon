@@ -28,11 +28,6 @@ ops_to_abstraction: dict[str, str] = {
     "*": "Int) -> Int",
     "-": "Int) -> Int",
     "+": "Int) -> Int",
-    "%.": "Float) -> Float",
-    "/.": "Float) -> Float",
-    "*.": "Float) -> Float",
-    "-.": "Float) -> Float",
-    "+.": "Float) -> Float",
     ">=": "Int) -> Bool",
     ">": "Int) -> Bool",
     "<=": "Int) -> Bool",
@@ -40,7 +35,6 @@ ops_to_abstraction: dict[str, str] = {
     "!=": "Int) -> Bool",
     "==": "Int) -> Bool",
 }
-
 
 aeon_prelude_ops_to_text = {
     "%": "mod",
@@ -91,10 +85,12 @@ def pretty_print_term(term: Term):
     print(term_str)
 
 
-def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[str, int]:
+def custom_preludes_ops_representation(term: Term,
+                                       counter: int = 0) -> tuple[str, int]:
     prelude_operations: dict[str, str] = aeon_prelude_ops_to_text
     match term:
-        case Application(fun=Var(name=var_name), arg=arg) if var_name in prelude_operations.keys():
+        case Application(fun=Var(name=var_name),
+                         arg=arg) if var_name in prelude_operations.keys():
             op = var_name
             arg_str, counter = custom_preludes_ops_representation(arg, counter)
             counter += 1
@@ -113,36 +109,51 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
             )
 
         case Annotation(expr=expr, type=type):
-            expr_str, counter = custom_preludes_ops_representation(expr, counter)
+            expr_str, counter = custom_preludes_ops_representation(
+                expr, counter)
             return f"""({expr_str} : {type})""", counter
 
         case Abstraction(var_name=var_name, body=body):
-            body_str, counter = custom_preludes_ops_representation(body, counter)
+            body_str, counter = custom_preludes_ops_representation(
+                body, counter)
             return f"""(\\{var_name} -> {body_str})""", counter
 
         case Let(var_name=var_name, var_value=var_value, body=body):
-            var_value_prefix = "= " if not isinstance(var_value, Application) else ""
-            var_value_str, counter = custom_preludes_ops_representation(var_value, counter)
-            body_str, counter = custom_preludes_ops_representation(body, counter)
+            var_value_prefix = "= " if not isinstance(var_value,
+                                                      Application) else ""
+            var_value_str, counter = custom_preludes_ops_representation(
+                var_value, counter)
+            body_str, counter = custom_preludes_ops_representation(
+                body, counter)
             return f"""(let {var_name} {var_value_prefix}{var_value_str} in\n {body_str})""", counter
 
-        case Rec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
-            var_value_str, counter = custom_preludes_ops_representation(var_value, counter)
-            body_str, counter = custom_preludes_ops_representation(body, counter)
+        case Rec(var_name=var_name,
+                 var_type=var_type,
+                 var_value=var_value,
+                 body=body):
+            var_value_str, counter = custom_preludes_ops_representation(
+                var_value, counter)
+            body_str, counter = custom_preludes_ops_representation(
+                body, counter)
             return f"""(let {var_name} : {var_type} = {var_value_str} in\n {body_str})""", counter
 
         case If(cond=cond, then=then, otherwise=otherwise):
-            cond_str, counter = custom_preludes_ops_representation(cond, counter)
-            then_str, counter = custom_preludes_ops_representation(then, counter)
-            otherwise_str, counter = custom_preludes_ops_representation(otherwise, counter)
+            cond_str, counter = custom_preludes_ops_representation(
+                cond, counter)
+            then_str, counter = custom_preludes_ops_representation(
+                then, counter)
+            otherwise_str, counter = custom_preludes_ops_representation(
+                otherwise, counter)
             return f"""(if {cond_str} then {then_str} else {otherwise_str})""", counter
 
         case TypeAbstraction(name=name, kind=kind, body=body):
-            body_str, counter = custom_preludes_ops_representation(body, counter)
+            body_str, counter = custom_preludes_ops_representation(
+                body, counter)
             return f"""ƛ{name}:{kind}.({body_str})""", counter
 
         case TypeApplication(body=body, type=type):
-            body_str, counter = custom_preludes_ops_representation(body, counter)
+            body_str, counter = custom_preludes_ops_representation(
+                body, counter)
             return f"""({body_str})[{type}]""", counter
 
         case Literal(_, _) | Var(_) | Hole(_):

@@ -3,11 +3,9 @@ from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type
 from aeon.core.types import BaseType
-from aeon.core.types import Bottom
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.pprint import aeon_prelude_ops_to_text
-
 
 
 def mangle_liquid_term(refinement: LiquidTerm) -> str:
@@ -35,11 +33,10 @@ def mangle_type(ty: Type) -> str:
             return f"_{mangle_type(ty)}_{mangle_liquid_term(ref2)}"
         case AbstractionType(var_name, var_type, type):
             ty1 = mangle_type(var_type)
-            ty2 = mangle_type(substitution_in_type(type, Var("__self__"), var_name))
+            ty2 = mangle_type(
+                substitution_in_type(type, Var("__self__"), var_name))
             return f"{ty1}_arrow_{ty2}"
         case Top():
             return "top"
-        case Bottom():
-            return "bottom"
         case _:
-            assert False
+            assert False, f"Unsupported {ty}"

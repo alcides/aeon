@@ -1,0 +1,20 @@
+import "PropTesting.ae";
+
+def reverse (xs: List) : List {
+    List_reversed(xs)
+}
+
+
+def prop_reversed_lists_same_size (xs:List) : Bool {
+    (List_length xs) == (List_length (reverse xs))
+}
+
+def list_property_testing (y: Int) : Float {
+    forAllLists prop_reversed_lists_same_size
+}
+
+
+def main (x:Int) : Unit {
+    xs = list_property_testing(0);
+    print(xs)
+}

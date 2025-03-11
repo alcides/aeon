@@ -1,3 +1,7 @@
 def factorial (n:Int) : Int {
     if n == 0 then 1 else (n * factorial(n-1))
 }
+
+def main (_:Int) : Unit {
+    print (factorial 3)
+}

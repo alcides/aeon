@@ -19,8 +19,13 @@ class SynthesisUI(abc.ABC):
     ):
         ...
 
-    def register(self, solution: Term, quality: Any, elapsed_time: float,
-                 is_best: bool):
+    def register(
+        self,
+        solution: Term,
+        quality: Any,
+        elapsed_time: float,
+        is_best: bool,
+    ):
         ...
 
     def end(self, solution: Term, quality: Any):
@@ -50,8 +55,13 @@ class SilentSynthesisUI(SynthesisUI):
     ):
         pass
 
-    def register(self, solution: Term, quality: Any, elapsed_time: float,
-                 is_best: bool):
+    def register(
+        self,
+        solution: Term,
+        quality: Any,
+        elapsed_time: float,
+        is_best: bool,
+    ):
         pass
 
     def end(self, solution: Term, quality: Any):

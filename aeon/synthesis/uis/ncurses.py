@@ -23,7 +23,13 @@ class NCursesUI(SynthesisUI):
         self.target_type = target_type
         self.budget = budget
 
-    def register(self, solution: Term, quality: Any, elapsed_time: float, is_best: bool):
+    def register(
+        self,
+        solution: Term,
+        quality: Any,
+        elapsed_time: float,
+        is_best: bool,
+    ):
         if is_best:
             self.best_solution = solution
             self.best_quality = quality
@@ -36,7 +42,8 @@ class NCursesUI(SynthesisUI):
             self.stdscr.addstr(6, 0, f"Best: {self.best_solution}")
             self.stdscr.addstr(7, 0, f"Best Fitness: {self.best_quality}")
             self.stdscr.addstr(9, 0, "====================================")
-            self.stdscr.addstr(10, 0, f"""{elapsed_time:.1f} / {self.budget:.1f}s""")
+            self.stdscr.addstr(10, 0,
+                               f"""{elapsed_time:.1f} / {self.budget:.1f}s""")
 
             self.stdscr.refresh()
         except curses.error:

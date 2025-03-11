@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence
 
 
 class LiquidTerm(ABC):
@@ -15,32 +14,17 @@ def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
     return a
 
 
-@dataclass(init=False, repr=False, eq=False, unsafe_hash=False)
 class LiquidHole(LiquidTerm):
-    name: str
-    argtypes: Sequence[tuple[LiquidTerm, str]]
-
-    def __init__(
-        self,
-        name: str,
-        argtypes: list[tuple[LiquidTerm, str]] | None = None,
-    ):
-        """To make sure the first element of the argument list is a LiquidVar,
-        use (ensure_liqterm(a), b) for (a, b) in argtypes."""
-        self.name = name
-        self.argtypes = argtypes or []
-        assert all(isinstance(a, LiquidVar) for (a, b) in self.argtypes)
-        # [(ensure_liqterm(a), b) for (a, b) in (argtypes or [])]
-
-    def __repr__(self):
-        j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
-        return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidHole) and other.name == self.name
+        return isinstance(other, self.__class__)
 
-    def __hash__(self) -> int:
-        return hash(self.name)
+
+def is_safe_for_application(x: LiquidTerm):
+    return (isinstance(x, LiquidVar) or isinstance(x, LiquidLiteralBool)
+            or isinstance(x, LiquidLiteralFloat)
+            or isinstance(x, LiquidLiteralInt)
+            or isinstance(x, LiquidLiteralString))
 
 
 @dataclass
@@ -51,7 +35,8 @@ class LiquidLiteralBool(LiquidTerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralBool) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralBool) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -62,10 +47,11 @@ class LiquidLiteralInt(LiquidTerm):
     value: int
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralInt) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralInt) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -76,10 +62,11 @@ class LiquidLiteralFloat(LiquidTerm):
     value: float
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralFloat) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralFloat) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -90,10 +77,11 @@ class LiquidLiteralString(LiquidTerm):
     value: str
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, LiquidLiteralString) and other.value == self.value
+        return isinstance(other,
+                          LiquidLiteralString) and other.value == self.value
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -127,11 +115,8 @@ class LiquidApp(LiquidTerm):
         return f"{self.fun}({fargs})"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, LiquidApp)
-            and other.fun == self.fun
-            and all(x == y for (x, y) in zip(self.args, other.args))
-        )
+        return (isinstance(other, LiquidApp) and other.fun == self.fun
+                and all(x == y for (x, y) in zip(self.args, other.args)))
 
     def __hash__(self) -> int:
         return hash(self.fun) + sum(hash(a) for a in self.args)

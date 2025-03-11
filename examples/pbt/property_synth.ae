@@ -1,4 +1,4 @@
-import "Prop_Testing.ae";
+import "PropTesting.ae";
 
 def negativeInt (x: Int) : Int {-x}
 

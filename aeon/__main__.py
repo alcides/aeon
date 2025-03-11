@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-
 import argparse
 
 from aeon.backend.evaluator import EvaluationContext
@@ -15,56 +14,67 @@ from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
-from aeon.sugar.desugar import desugar
+from aeon.sugar.desugar import DesugaredProgram, desugar
+from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program
+from aeon.sugar.program import Program, STerm
+from aeon.sugar.stypes import SBaseType
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
+from aeon.typechecking import check_type_errors
+
+sys.setrecursionlimit(10000)
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "filename",
-        help="name of the aeon files to be synthesized",
-    )
-    parser.add_argument(
-        "--core",
-        action="store_true",
-        help="synthesize a aeon core file",
-    )
+
+    parser.add_argument("filename",
+                        help="name of the aeon files to be synthesized")
+    parser.add_argument("--core",
+                        action="store_true",
+                        help="synthesize a aeon core file")
+
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
         help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument(
+        "-f",
+        "--logfile",
+        action="store_true",
+        help="export log file",
+    )
 
-    parser.add_argument("-csv",
-                        "--csv-synth",
-                        action="store_true",
-                        help="export synthesis csv file")
+    parser.add_argument(
+        "-csv",
+        "--csv-synth",
+        action="store_true",
+        help="export synthesis csv file",
+    )
 
-    parser.add_argument("-gp",
-                        "--gp-config",
-                        help="path to the GP configuration file")
+    parser.add_argument(
+        "-gp",
+        "--gp-config",
+        help="path to the GP configuration file",
+    )
 
-    parser.add_argument("-csec",
-                        "--config-section",
-                        help="section name in the GP configuration file")
+    parser.add_argument(
+        "-csec",
+        "--config-section",
+        help="section name in the GP configuration file",
+    )
 
     parser.add_argument(
         "-d",
@@ -86,6 +96,12 @@ def parse_arguments():
         action="store_true",
         help="Use the refined grammar for synthesis",
     )
+
+    parser.add_argument("-n",
+                        "--no-main",
+                        action="store_true",
+                        help="Disables introducing hole in main")
+
     return parser.parse_args()
 
 
@@ -123,27 +139,39 @@ def main() -> None:
 
     if args.core:
         with RecordTime("ParseCore"):
-            typing_ctx = build_context(typing_vars)
-            evaluation_ctx = EvaluationContext(evaluation_vars)
+            core_typing_vars = {
+                k: type_to_core(typing_vars[k])
+                for k in typing_vars
+            }
+            typing_ctx = build_context(core_typing_vars)
             core_ast = parse_term(aeon_code)
             metadata: Metadata = {}
     else:
         with RecordTime("ParseSugar"):
             prog: Program = parse_program(aeon_code)
 
-        with RecordTime("DeSugar"):
-            (
-                core_ast,
-                typing_ctx,
-                evaluation_ctx,
-                metadata,
-            ) = desugar(prog)
+        with RecordTime("Desugar"):
+            desugared: DesugaredProgram = desugar(
+                prog, is_main_hole=not args.no_main)
+            metadata = desugared.metadata
 
-    logger.debug(core_ast)
+        try:
+            with RecordTime("Elaboration"):
+                sterm: STerm = elaborate(desugared.elabcontext,
+                                         desugared.program, SBaseType("Top"))
+        except UnificationException as e:
+            log_type_errors([e])
+            sys.exit(1)
+
+        with RecordTime("Core generation"):
+            core_ast = lower_to_core(sterm)
+            logger.debug(core_ast)
+
+            typing_ctx = lower_to_core_context(desugared.elabcontext)
 
     with RecordTime("ANF conversion"):
         core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast)
+        logger.debug(core_ast_anf)
 
     with RecordTime("TypeChecking"):
         type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
@@ -151,10 +179,17 @@ def main() -> None:
         log_type_errors(type_errors)
         sys.exit(1)
 
+    with RecordTime("Preparing execution env"):
+        evaluation_ctx = EvaluationContext(evaluation_vars)
+
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[tuple[
-            str, list[str]]] = incomplete_functions_and_holes(
-                typing_ctx, core_ast_anf)
+            str,
+            list[str],
+        ]] = incomplete_functions_and_holes(
+            typing_ctx,
+            core_ast_anf,
+        )
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
