@@ -25,7 +25,15 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
-from aeon.sugar.stypes import SAbstractionType, SBaseType, SType, STypeVar, SRefinedType, STypePolymorphism
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SBaseType,
+    SType,
+    STypeConstructor,
+    STypeVar,
+    SRefinedType,
+    STypePolymorphism,
+)
 
 from aeon.sugar.ast_helpers import i0
 from aeon.sugar.ast_helpers import mk_binop
@@ -62,6 +70,9 @@ class TreeToSugar(Transformer):
             return SBaseType(name)
         else:
             return STypeVar(str(args[0]))
+
+    def constructor_t(self, args):
+        return STypeConstructor(str(args[0]), args[1:])
 
     # Expressions
 
@@ -186,7 +197,10 @@ class TreeToSugar(Transformer):
         return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
-        return TypeDecl(str(args[0]))
+        return TypeDecl(str(args[0]), [])
+
+    def type_constructor_decl(self, args):
+        return TypeDecl(str(args[0]), [str(i) for i in args[1:]])
 
     def def_cons(self, args):
         if len(args) == 3:

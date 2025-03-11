@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Generator
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -48,35 +48,31 @@ def smt_base_type(ty: Type) -> str | None:
 
 
 def fresh(context: TypingContext, ty: Type) -> Type:
-    if isinstance(ty, BaseType):
-        return ty
-    elif isinstance(ty, RefinedType) and isinstance(ty.refinement,
-                                                    LiquidHornApplication):
-        id = context.fresh_var()
-        v = f"v_{id}"
-        # TODO Poly: check if t should be in LiquidTypes
-        return RefinedType(
-            v,
-            ty.type,
-            LiquidHornApplication(f"{id}",
-                                  [(LiquidVar(n), t)
-                                   for n, t in context.vars() + [(v, ty.type)]
-                                   if isinstance(t, BaseType)]),
-        )
-    elif isinstance(ty, RefinedType):
-        return ty
-    elif isinstance(ty, AbstractionType):
-        sp = fresh(context, ty.var_type)
-        tp = fresh(context.with_var(ty.var_name, ty.var_type), ty.type)
-        return AbstractionType(ty.var_name, sp, tp)
-    elif isinstance(ty, Top):
-        return ty
-    elif isinstance(ty, TypeVar):
-        return ty
-    elif isinstance(ty, TypePolymorphism):
-        return TypePolymorphism(ty.name, ty.kind, fresh(context, ty.body))
-    else:
-        assert False, f"Type not freshable: {ty}, {type(ty)}"
+    match ty:
+        case RefinedType(name, ity, LiquidHornApplication(_, _)):
+            id = context.fresh_var()
+            v = f"v_{id}"
+            # TODO Poly: check if t should be in LiquidTypes
+            return RefinedType(
+                v,
+                ity,
+                LiquidHornApplication(
+                    f"{id}", [(LiquidVar(n), t)
+                              for n, t in context.vars() + [(v, ty.type)]
+                              if isinstance(t, BaseType)]),
+            )
+        case BaseType(_) | RefinedType(_, _, _) | Top() | TypeVar():
+            return ty
+        case AbstractionType(name, aty, rty):
+            sp = fresh(context, aty)
+            tp = fresh(context.with_var(name, aty), rty)
+            return AbstractionType(name, sp, tp)
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, fresh(context, body))
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [fresh(context, c) for c in args])
+        case _:
+            assert False, f"Type not freshable: {ty}, {type(ty)}"
 
 
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
@@ -156,7 +152,8 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar]],
+def get_possible_args(vars: list[tuple[LiquidTerm,
+                                       BaseType | TypeVar | TypeConstructor]],
                       arity: int):
     if arity == 0:
         yield []

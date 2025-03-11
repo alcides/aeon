@@ -117,7 +117,7 @@ class AbstractionType(Type):
 @dataclass
 class RefinedType(Type):
     name: str
-    type: BaseType | TypeVar
+    type: BaseType | TypeVar | TypeConstructor
     refinement: LiquidTerm
 
     def __repr__(self):
@@ -142,13 +142,23 @@ class TypePolymorphism(Type):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
 
+@dataclass
+class TypeConstructor(Type):
+    name: str
+    args: list[Type]
+
+    def __str__(self):
+        args = ", ".join(str(a) for a in self.args)
+        return f"{self.name} {args}"
+
+
 # This class is here to prevent circular imports.
 
 
 @dataclass
 class LiquidHornApplication(LiquidTerm):
     name: str
-    argtypes: list[tuple[LiquidTerm, BaseType | TypeVar]]
+    argtypes: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]]
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
@@ -162,12 +172,14 @@ class LiquidHornApplication(LiquidTerm):
         return hash(self.name)
 
 
-def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar, LiquidTerm]:
+def extract_parts(
+        t: Type
+) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
     assert (isinstance(t, BaseType) or isinstance(t, RefinedType)
             or isinstance(
                 t,
                 TypeVar,
-            ))
+            ) or isinstance(t, TypeConstructor))
     if isinstance(t, TypeVar):
         return ("_", t_int, LiquidLiteralBool(True))
     elif isinstance(t, RefinedType):
@@ -192,6 +204,8 @@ def is_bare(t: Type) -> bool:
             return is_bare(vtype) and is_bare(vtype)
         case TypePolymorphism(_, _, ty):
             return is_bare(ty)
+        case TypeConstructor(_, _):
+            return True
         case _:
             assert False, f"Unknown type {t} ({type(t)})"
 
@@ -221,21 +235,6 @@ def type_free_term_vars(t: Type) -> list[str]:
     elif isinstance(t, TypePolymorphism):
         return type_free_term_vars(t.body)
     return []
-
-
-def args_size_of_type(t: Type) -> int:
-    if isinstance(t, BaseType):
-        return 0
-    elif isinstance(t, TypeVar):
-        return 0
-    elif isinstance(t, RefinedType):
-        return 0
-    elif isinstance(t, AbstractionType):
-        return 1 + args_size_of_type(t.type)
-    elif isinstance(t, TypePolymorphism):
-        return args_size_of_type(t.body)
-    else:
-        assert False
 
 
 def get_type_vars(t: Type) -> set[TypeVar]:

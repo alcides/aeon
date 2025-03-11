@@ -2,6 +2,7 @@ from abc import ABC
 from dataclasses import dataclass
 
 from aeon.core.types import Kind
+from aeon.sugar.program import TypeDecl
 from aeon.sugar.stypes import SType
 
 
@@ -25,6 +26,12 @@ class ElabUninterpretedBinder(TypingContextEntry):
 class ElabTypeVarBinder(TypingContextEntry):
     name: str
     type: Kind
+
+
+@dataclass
+class ElabTypeDecl(TypingContextEntry):
+    name: str
+    args: list[str]
 
 
 @dataclass
@@ -63,6 +70,11 @@ class ElaborationTypingContext:
                 return name
 
 
-def build_typing_context(ls: dict[str, SType]) -> ElaborationTypingContext:
+def build_typing_context(
+        ls: dict[str, SType],
+        tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
+    if tdecl is None:
+        tdecl = []
     return ElaborationTypingContext(
-        [ElabVariableBinder(name, ls[name]) for name in ls])
+        [ElabVariableBinder(name, ls[name])
+         for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl])
