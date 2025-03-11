@@ -102,6 +102,14 @@ class WrongKindInTypeApplication(TypeCheckingException):
 
 
 @dataclass
+class TypeNotWellformed(TypeCheckingException):
+    ty: Type
+
+    def __str__(self):
+        return f"Type {self.ty} is not wellformed."
+
+
+@dataclass
 class FailedSubtypingException(TypeCheckingException):
     ctx: TypingContext
     t: Term
@@ -364,6 +372,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
+    try:
+        assert wellformed(ctx, ty)
+    except AssertionError:
+        raise TypeNotWellformed(ty)
     if isinstance(t, Abstraction) and isinstance(
             ty,
             AbstractionType,
@@ -428,8 +440,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
 def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     """Returns whether expression t has type ty in context ctx."""
-    assert wellformed(ctx, ty)
     try:
+        assert wellformed(ctx, ty)
         constraint = check(ctx, t, ty)
         # TODO: convert constraint to canonical form
         # constraint = canonicalize_constraint(constraint, [name for (name, _) in ctx.vars()])
@@ -439,4 +451,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     except CouldNotGenerateConstraintException:
         return False
     except FailedConstraintException:
+        return False
+    except TypeNotWellformed:
         return False

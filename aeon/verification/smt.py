@@ -30,7 +30,7 @@ from z3.z3 import SortRef
 from z3.z3types import Z3Exception
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication
+from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -217,6 +217,9 @@ def flatten(c: Constraint,
                 assert isinstance(c, Implication)
             if isinstance(base, TypeVar):
                 base = BaseType(base.name)
+            elif isinstance(base, TypeConstructor):
+                base = BaseType(base.name + "_" +
+                                "_".join(str(a) for a in base.args))
             assert isinstance(
                 base, BaseType), f"{base} ({type(base)}) is not a base type."
             yield from flatten(seq,
@@ -314,6 +317,9 @@ def unrefine_type(base: Type):
                                    unrefine_type(rty))
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, unrefine_type(body))
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [unrefine_type(a) for a in args])
+
         case _:
             return base
 

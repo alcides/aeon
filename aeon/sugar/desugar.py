@@ -53,7 +53,7 @@ def desugar(p: Program,
 
     defs = introduce_forall_in_types(defs, type_decls)
 
-    etctx = build_typing_context(vs)
+    etctx = build_typing_context(vs, type_decls)
     etctx, prog = update_program_and_context(prog, defs, etctx)
     prog, etctx = replace_concrete_types(
         prog, etctx, builtin_types + [td.name for td in type_decls])
