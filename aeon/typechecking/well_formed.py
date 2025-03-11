@@ -16,8 +16,10 @@ from aeon.typechecking.liquid import typecheck_liquid
 
 def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
     match t:
-        case BaseType(_) | Top():
+        case Top():
             return True  # wf_no_refinement
+        case BaseType(name):
+            return ctx.get_type_constructor(name) is not None
         case RefinedType(name, BaseType(_) as ty, refinement):
             inferred_type = typecheck_liquid(ctx.with_var(name, ty),
                                              refinement)

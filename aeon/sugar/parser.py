@@ -197,7 +197,7 @@ class TreeToSugar(Transformer):
         return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
-        return TypeDecl(str(args[0]))
+        return TypeDecl(str(args[0]), [])
 
     def type_constructor_decl(self, args):
         return TypeDecl(str(args[0]), [str(i) for i in args[1:]])

@@ -92,6 +92,8 @@ class EmptyContext(TypingContext):
         return 0
 
     def get_type_constructor(self, name: str) -> list[str] | None:
+        if name in ["Unit", "Int", "Bool", "Float", "String"]:
+            return []
         return None
 
 
