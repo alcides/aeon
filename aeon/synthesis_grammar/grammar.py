@@ -20,7 +20,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.substitutions import substitution_in_type, substitution_in_type_liquid
+from aeon.core.substitutions import substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
@@ -370,7 +370,7 @@ def propagate_constants(
             # Apply all pending substitions
 
             for k in subst:
-                type = substitution_in_type_liquid(type, subst[k], k)
+                type = substitution_liquid_in_type(type, subst[k], k)
 
             # Detect the pattern {n:T | n == C}
             if (isinstance(type, RefinedType)

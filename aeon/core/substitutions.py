@@ -18,7 +18,7 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, extract_parts
+from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
@@ -28,10 +28,6 @@ from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
-
-
-class CouldNotLiquify(Exception):
-    pass
 
 
 def substitute_vartype(t: Type, rep: Type, name: str):
@@ -133,13 +129,10 @@ def substitution_in_liquid(
         assert False
 
 
-def substitution_in_type_liquid(t: Type, replacement: LiquidTerm,
-                                name: str) -> Type:
-    if replacement is None:
-        return t
+def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: str) -> Type:
 
     def rec(t: Type) -> Type:
-        return substitution_in_type_liquid(t, replacement, name)
+        return substitution_liquid_in_type(t, rep, name)
 
     renamed: Type
 
@@ -147,27 +140,80 @@ def substitution_in_type_liquid(t: Type, replacement: LiquidTerm,
         case Top() | BaseType(_) | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype):
-            if isinstance(replacement, Var) and replacement.name == aname:
+            if isinstance(rep, Var) and rep.name == aname:
                 nname = aname + "1"
                 renamed = AbstractionType(
                     nname,
                     atype,
-                    substitution_in_type(rtype, Var(nname), aname),
+                    substitution_liquid_in_type(rtype, LiquidVar(nname),
+                                                aname),
                 )
-                return substitution_in_type(renamed, replacement, name)
+                return substitution_liquid_in_type(renamed, rep, name)
             elif aname == name:
                 return t
             else:
                 return AbstractionType(aname, rec(atype), rec(rtype))
         case RefinedType(vname, ity, ref):
-            if isinstance(replacement, Var) and replacement.name == vname:
+            if isinstance(rep, Var) and rep.name == vname:
                 nname = vname + "1"
                 renamed = RefinedType(
                     nname,
                     ity,
                     substitution_in_liquid(ref, LiquidVar(nname), vname),
                 )
-                return substitution_in_type(renamed, replacement, name)
+                return rec(renamed)
+            elif name == vname:
+                return t
+            else:
+                return RefinedType(
+                    vname,
+                    ity,
+                    substitution_in_liquid(ref, rep, name),
+                )
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, rec(body))
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [rec(arg) for arg in args])
+        case _:
+            assert False, f"{t} not allowed"
+
+
+def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
+    """Substitutes name in type t with the new replacement term rep."""
+    replacement: LiquidTerm | None = liquefy(rep)
+    if replacement is None:
+        return t
+
+    def rec(t: Type) -> Type:
+        return substitution_in_type(t, rep, name)
+
+    renamed: Type
+
+    match t:
+        case Top() | BaseType(_) | TypeVar(_):
+            return t
+        case AbstractionType(aname, atype, rtype):
+            if isinstance(rep, Var) and rep.name == aname:
+                nname = aname + "1"
+                renamed = AbstractionType(
+                    nname,
+                    atype,
+                    substitution_in_type(rtype, Var(nname), aname),
+                )
+                return substitution_in_type(renamed, rep, name)
+            elif aname == name:
+                return t
+            else:
+                return AbstractionType(aname, rec(atype), rec(rtype))
+        case RefinedType(vname, ity, ref):
+            if isinstance(rep, Var) and rep.name == vname:
+                nname = vname + "1"
+                renamed = RefinedType(
+                    nname,
+                    ity,
+                    substitution_in_liquid(ref, LiquidVar(nname), vname),
+                )
+                return substitution_in_type(renamed, rep, name)
             elif name == vname:
                 return t
             else:
@@ -182,11 +228,6 @@ def substitution_in_type_liquid(t: Type, replacement: LiquidTerm,
             return TypeConstructor(name, [rec(arg) for arg in args])
         case _:
             assert False, f"{t} not allowed"
-
-
-def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
-    replacement: LiquidTerm | None = liquefy(rep)
-    return substitution_in_type_liquid(t, replacement, name)
 
 
 def substitution(t: Term, rep: Term, name: str) -> Term:
@@ -298,22 +339,18 @@ def liquefy_ann(t: Annotation) -> LiquidTerm | None:
 
 # patterm matching term
 def liquefy(rep: Term) -> LiquidTerm | None:
-    if isinstance(rep, Literal):
-        (_, base_ty, _) = extract_parts(rep.type)
-        if base_ty == t_int:
-            assert isinstance(rep.value, int)
-            return LiquidLiteralInt(rep.value)
-        elif base_ty == t_float:
-            assert isinstance(rep.value, float)
-            return LiquidLiteralFloat(rep.value)
-        elif base_ty == t_bool:
-            assert isinstance(rep.value, bool)
-            return LiquidLiteralBool(rep.value)
-        elif base_ty == t_string:
-            assert isinstance(rep.value, str)
-            return LiquidLiteralString(rep.value)
-        else:
-            assert False
+    if isinstance(rep, Literal) and rep.type == t_int:
+        assert isinstance(rep.value, int)
+        return LiquidLiteralInt(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_float:
+        assert isinstance(rep.value, float)
+        return LiquidLiteralFloat(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_bool:
+        assert isinstance(rep.value, bool)
+        return LiquidLiteralBool(rep.value)
+    elif isinstance(rep, Literal) and rep.type == t_string:
+        assert isinstance(rep.value, str)
+        return LiquidLiteralString(rep.value)
     elif isinstance(rep, Application):
         return liquefy_app(rep)
     elif isinstance(rep, TypeApplication):
