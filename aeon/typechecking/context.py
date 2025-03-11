@@ -11,6 +11,7 @@ from aeon.core.types import Type
 
 
 class TypingContext(ABC):
+
     def type_of(self, name: str) -> Type | None:
         assert False
 
@@ -24,13 +25,16 @@ class TypingContext(ABC):
         return "fresh_"
 
     @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]: ...
+    def typevars(self) -> list[tuple[str, Kind]]:
+        ...
 
     @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]: ...
+    def vars(self) -> list[tuple[str, Type]]:
+        ...
 
 
 class EmptyContext(TypingContext):
+
     def __init__(self):
         self.counter = 0
 
@@ -160,7 +164,7 @@ def concrete_vars_in(ctx: TypingContext) -> list[tuple[str, Type]]:
             return concrete_vars_in(prev)
         case VariableBinder(prev, name, type):
             return [(name, type)] + concrete_vars_in(prev)
-        case TypeBinder(prev, type_name, type_kind):
+        case TypeBinder(prev, _, _):
             return concrete_vars_in(prev)
         case _:
             assert False
