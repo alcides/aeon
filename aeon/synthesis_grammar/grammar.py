@@ -14,7 +14,7 @@ from sympy.sets.sets import Interval, EmptySet
 from sympy.simplify.simplify import simplify
 
 from aeon.core.liquid import LiquidApp, LiquidTerm
-from aeon.core.terms import Application
+from aeon.core.terms import Application, Annotation
 from aeon.core.terms import If
 from aeon.core.terms import Literal
 from aeon.core.terms import Var
@@ -93,11 +93,12 @@ def mk_method_core(cls: classType) -> classType:
             if_dict = {}
             for attr_name, ty in cls.__annotations__.items():
                 value = getattr(self, attr_name, None)
-                # aeon_type = ty.__name__[2:]
-                if_dict[attr_name] = value.get_core()
-                # if_dict[attr_name] = Annotation(value.get_core(), BaseType(aeon_type))
+                aeon_type = ty.__name__[2:]
+                if_dict[attr_name] = Annotation(value.get_core(), BaseType(aeon_type))
 
-            base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
+            assert if_dict["then"].type == if_dict["otherwise"].type
+            if_aeon_type = if_dict["then"].type
+            base = Annotation(If(if_dict["cond"], if_dict["then"], if_dict["otherwise"]), BaseType(if_aeon_type))
 
         else:
             base = Var(class_name_without_prefix)
