@@ -54,7 +54,7 @@ from aeon.sugar.stypes import (
     STypePolymorphism,
     STypeVar,
 )
-from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm
+from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm, substitution_sterm_in_stype
 from aeon.typechecking.context import (
     EmptyContext,
     TypeBinder,
@@ -191,11 +191,15 @@ def type_to_core(
         case STypeVar(name):
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
+            nname = f"{name}_{len(available_vars)}"
             at = type_to_core(vty, available_vars)
             if isinstance(at, BaseType) or isinstance(at, TypeVar):
                 available_vars = available_vars + [(name, basic_type(at))]
-
-            return AbstractionType(name, at, type_to_core(rty, available_vars))
+                nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
+            else:
+                nrty = rty
+            return AbstractionType(nname, at,
+                                   type_to_core(nrty, available_vars))
         case STypePolymorphism(name, kind, rty):
             return TypePolymorphism(name, kind,
                                     type_to_core(rty, available_vars))

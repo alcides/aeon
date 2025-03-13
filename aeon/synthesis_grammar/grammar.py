@@ -38,6 +38,7 @@ from aeon.synthesis_grammar.utils import prelude_ops, aeon_to_python
 from aeon.typechecking.context import (
     EmptyContext,
     TypeBinder,
+    TypeConstructorBinder,
     TypingContext,
     UninterpretedBinder,
     VariableBinder,
@@ -45,11 +46,11 @@ from aeon.typechecking.context import (
 )
 from aeon.core.liquid_ops import ops
 
-VAR_WEIGHT = 100
-LITERAL_WEIGHT = 30
+VAR_WEIGHT = 10000
+LITERAL_WEIGHT = 3000
 IF_WEIGHT = 1
-APP_WEIGHT = 10
-ABS_WEIGHT = 1
+APP_WEIGHT = 1000
+ABS_WEIGHT = 100
 
 max_number = sys.maxsize - 1
 min_number = -(sys.maxsize - 1)
@@ -94,7 +95,7 @@ ae_top = type("ae_top", (ABC, ), {})
 
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     data: dict[Type, TypingType] = {Top(): ae_top}
-    for ty in types:
+    for ty in set(types):
         match ty:
             case BaseType(_):
                 class_name = mangle_type(ty)
@@ -102,6 +103,7 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 ty_abstract_class = abstract(ty_abstract_class)
                 data[ty] = ty_abstract_class
             case RefinedType(_, itype, _):
+                class_name = mangle_type(ty)
                 data.update(extract_all_types([itype]))
                 parent = data[itype]
                 ty_abstract_class = type(class_name, (parent, ), {})
@@ -312,7 +314,7 @@ def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
                 # user-defined uninterpreted function
                 return None
         case _:
-            assert False
+            assert False, f"Failed {lt}"
 
 
 def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
@@ -352,8 +354,11 @@ def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
         case TypeBinder(prev, type_name, type_kind):
             return TypeBinder(remove_uninterpreted_functions(prev), type_name,
                               type_kind)
+        case TypeConstructorBinder(prev, name, args):
+            return TypeConstructorBinder(remove_uninterpreted_functions(prev),
+                                         name, args)
         case _:
-            assert False
+            assert False, f"Unsupported {ctx}"
 
 
 def propagate_constants(
@@ -384,8 +389,11 @@ def propagate_constants(
         case TypeBinder(prev, type_name, type_kind):
             p, subst = propagate_constants(prev)
             return TypeBinder(p, type_name, type_kind), subst
+        case TypeConstructorBinder(p, name, args):
+            p, subst = propagate_constants(p)
+            return TypeConstructorBinder(p, name, args), subst
         case _:
-            assert False
+            assert False, f"Failed {ctx}"
 
 
 def gen_grammar_nodes(
@@ -439,7 +447,7 @@ def gen_grammar_nodes(
                 if not skip(var_name)]
     type_info = extract_all_types([t_bool, t_float, t_int, t_string] +
                                   [x[1] for x in ctx_vars] + [synth_fun_type])
-    type_nodes = list(type_info.values())
+    type_nodes = list(set(type_info.values()))
 
     literals = create_literals_nodes(type_info)
     vars = create_var_nodes(ctx_vars, type_info)

@@ -10,27 +10,22 @@ from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
+from geneticengine.algorithms.enumerative import EnumerativeSearch
 from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.elitism import ElitismStep
-from geneticengine.algorithms.gp.operators.initializers import (
-    StandardInitializer, )
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
 from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
-from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, SearchBudget, TargetMultiFitness
+from geneticengine.evaluation.budget import TimeBudget
 from geneticengine.evaluation.recorder import SearchRecorder, FieldMapper
-from geneticengine.evaluation.tracker import (
-    MultiObjectiveProgressTracker,
-    ProgressTracker,
-    SingleObjectiveProgressTracker,
-)
+from geneticengine.evaluation.tracker import ProgressTracker
 from geneticengine.grammar import extract_grammar, Grammar
-from geneticengine.prelude import GeneticProgramming, NativeRandomSource
+from geneticengine.prelude import NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.random.sources import RandomSource
 from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
@@ -101,18 +96,6 @@ gengy_default_config = {
     "probability_crossover": 0.9,
     "tournament_size": 5,
 }
-
-
-class TargetMultiSameFitness(SearchBudget):
-
-    def __init__(self, target_fitness: float):
-        self.target_fitness = target_fitness
-
-    def is_done(self, tracker: ProgressTracker):
-        assert isinstance(tracker, MultiObjectiveProgressTracker)
-        comps = tracker.get_best_individuals()[0].get_fitness(
-            tracker.get_problem()).fitness_components
-        return all(abs(c - self.target_fitness) < 0.001 for c in comps)
 
 
 class LazyCSVRecorder(SearchRecorder):
@@ -362,7 +345,7 @@ def get_grammar_components(ctx: TypingContext, fun_type: Type, fun_name: str,
 
 
 def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str,
-                   metadata: dict[str, Any]):
+                   metadata: dict[str, Any]) -> Grammar:
     assert len(
         holes
     ) == 1, "More than one hole per function is not supported at the moment."
@@ -432,7 +415,7 @@ def geneticengine_synthesis(
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
     seed = gp_params["seed"]
-    r = NativeRandomSource(seed)
+    # r = NativeRandomSource(seed)
     assert isinstance(representation_name, str)
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
@@ -453,12 +436,9 @@ def geneticengine_synthesis(
                 problem,
                 only_record_best_individuals=gp_params["only_record_best_inds"]
             ), )
-    if isinstance(problem, SingleObjectiveProblem):
-        tracker = SingleObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
-    else:
-        tracker = MultiObjectiveProgressTracker(
-            problem, evaluator=SequentialEvaluator(), recorders=recorders)
+    tracker = ProgressTracker(problem,
+                              evaluator=SequentialEvaluator(),
+                              recorders=recorders)
 
     class UIBackendRecorder(SearchRecorder):
 
@@ -477,27 +457,22 @@ def geneticengine_synthesis(
     recorders.append(UIBackendRecorder())
 
     budget = TimeBudget(time=gp_params["timer_limit"])
-    if target_fitness is not None:
-        if isinstance(tracker, SingleObjectiveProgressTracker):
-            search_budget = TargetFitness(target_fitness)
-        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness, list):
-            search_budget = TargetMultiFitness(target_fitness)
-        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(
-                target_fitness, (float, int)):
-            search_budget = TargetMultiSameFitness(target_fitness)
-        else:
-            assert False
-        budget = AnyOf(budget, search_budget)
-    alg = GeneticProgramming(
+    # alg = GeneticProgramming(
+    #     problem=problem,
+    #     budget=budget,
+    #     representation=representation,
+    #     random=r,
+    #     tracker=tracker,
+    #     population_size=gp_params["population_size"],
+    #     population_initializer=StandardInitializer(),
+    #     step=create_gp_step(problem=problem, gp_params=gp_params),
+    # )
+
+    alg = EnumerativeSearch(
         problem=problem,
         budget=budget,
-        representation=representation,
-        random=r,
+        grammar=grammar,
         tracker=tracker,
-        population_size=gp_params["population_size"],
-        population_initializer=StandardInitializer(),
-        step=create_gp_step(problem=problem, gp_params=gp_params),
     )
 
     # alg = RandomSearch(
@@ -515,10 +490,10 @@ def geneticengine_synthesis(
         target_type=None,
         budget=gengy_default_config["timer_limit"],
     )
-    best: Individual = ui.wrapper(lambda: alg.search())
+    bests: Individual = ui.wrapper(lambda: alg.search())
+    best = bests[0]
     print(
-        f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
-    )
+        f"[Fitness of {best.get_fitness(problem)}]: {best.get_phenotype()}", )
     best_core = optimize(best.get_phenotype().get_core())
 
     ui.end(best_core, best.get_fitness(problem))

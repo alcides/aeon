@@ -294,19 +294,18 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         return (ctrue, ty)
     elif isinstance(t, Application):
         (c, ty) = synth(ctx, t.fun)
-        if isinstance(ty, AbstractionType):
-            cp = check(ctx, t.arg, ty.var_type)
-            return_type = ty.type
-            t_subs = substitution_in_type(return_type, t.arg, ty.var_name)
-            c0 = Conjunction(c, cp)
-            return (c0, t_subs)
-        else:
-            raise CouldNotGenerateConstraintException(
-                f"Application {t} ({ty}) is not a function.", )
+        match ty:
+            case AbstractionType(aname, atype, rtype):
+                cp = check(ctx, t.arg, atype)
+                t_subs = substitution_in_type(rtype, t.arg, aname)
+                c0 = Conjunction(c, cp)
+                return (c0, t_subs)
+            case _:
+                raise CouldNotGenerateConstraintException(
+                    f"Application {t} ({ty}) is not a function.", )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
-        print("nctx", nctx)
         (c2, t2) = synth(nctx, t.body)
         term_vars = type_free_term_vars(t1)
         assert t.var_name not in term_vars

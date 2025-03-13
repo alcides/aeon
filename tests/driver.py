@@ -1,6 +1,7 @@
 from typing import Any
 from aeon.core.terms import Term
 from aeon.core.types import Type
+from aeon.core.unique import unique_ids
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
@@ -11,7 +12,7 @@ from aeon.sugar.parser import parse_expression
 from aeon.sugar.program import STerm
 from aeon.sugar.stypes import SType
 from aeon.elaboration import UnificationException, elaborate
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import EmptyContext, TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -33,9 +34,8 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
-
+    typing_ctx, core_ast = unique_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
-
     if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
         return False
 
@@ -60,6 +60,7 @@ def check_compile_expr(source: str,
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(elabcontext)
+    typing_ctx, core_ast = unique_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
         return False
@@ -77,6 +78,7 @@ def check_compile_core(source: str, ty: Type, val: Any = None):
     typing_ctx = lower_to_core_context(elabcontext)
 
     core_ast = parse_term(source)
+    typing_ctx, core_ast = unique_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     assert check_type(typing_ctx, core_ast_anf, ty)
 
@@ -90,7 +92,7 @@ def extract_core(source: str) -> Term:
     desugared = desugar(prog)
     sterm = elaborate(desugared.elabcontext, desugared.program)
     core_ast = lower_to_core(sterm)
-
+    typing_ctx, core_ast = unique_ids(EmptyContext(), core_ast)
     core_ast_anf = ensure_anf(core_ast)
     return core_ast_anf
 
@@ -103,7 +105,7 @@ def check_and_return_core(
     sterm = elaborate(desugared.elabcontext, desugared.program)
     core_ast = lower_to_core(sterm)
     ctx = lower_to_core_context(desugared.elabcontext)
-
+    typing_ctx, core_ast = unique_ids(ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     assert check_type(ctx, core_ast_anf, top)
     return core_ast_anf, ctx, ectx, desugared.metadata

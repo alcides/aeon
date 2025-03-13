@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import liquid_free_vars
+from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -162,6 +162,23 @@ class TypeConstructor(Type):
 class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]]
+
+    def __post_init__(self):
+        assert isinstance(self.name, str)
+        print("hello")
+        for term, ty in self.argtypes:
+            match term:
+                case LiquidLiteralBool(_):
+                    assert ty == BaseType("Bool")
+                case LiquidLiteralInt(_):
+                    assert ty == BaseType("Int")
+                case LiquidLiteralFloat(_):
+                    assert ty == BaseType("Float")
+                case LiquidLiteralString(_):
+                    assert ty == BaseType("String")
+                case _:
+                    print("....", term, type(term), ty)
+        print("...")
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])

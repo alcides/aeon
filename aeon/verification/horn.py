@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import reduce
 from typing import Any, Generator
 
 from aeon.core.liquid import LiquidApp
@@ -296,6 +297,7 @@ def fill_horn_arguments(h: LiquidHornApplication,
                         candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
+        print("h", h, candidate, n)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
     return candidate
 
@@ -386,9 +388,11 @@ def solve(c: Constraint) -> bool:
     assignment0: Assignment = build_initial_assignment(c)
     subst = fixpoint(csk, assignment0)
 
+    def merge(acc: Constraint, pi: Constraint) -> Constraint:
+        return Conjunction(acc, pi)
+
     merged_csps: Constraint
-    merged_csps = LiquidConstraint(LiquidLiteralBool(True))
-    for pi in csp:
-        merged_csps = Conjunction(merged_csps, pi)
+    seed: Constraint = LiquidConstraint(LiquidLiteralBool(True))
+    merged_csps = reduce(merge, csp, seed)
     c_final: Constraint = apply(subst, merged_csps)
     return smt_valid(c_final)
