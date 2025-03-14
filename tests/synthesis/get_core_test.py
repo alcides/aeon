@@ -18,7 +18,6 @@ types_and_values = [
 @pytest.mark.parametrize("ty,val", types_and_values)
 def test_core_literal(ty, val):
     type_info = extract_all_types([ty] + list(map(BaseType, native_types)))
-    print(type_info, "..", ty)
     literal = create_literals_nodes(type_info, [ty])[0]
     assert literal(val).get_core() == Literal(val, ty)
 

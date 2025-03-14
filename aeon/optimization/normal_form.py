@@ -141,9 +141,8 @@ def normal_form(t: Term) -> Term:
             return TypeAbstraction(ty, kind, nf(body))
         case TypeApplication(body, ty):
             return TypeApplication(nf(body), ty)
-    print()
-    print("no case for", t, type(t))
-    assert False
+        case _:
+            assert False, f"No case for {t} ({type(t)})"
 
 
 def optimize(t: Term) -> Term:

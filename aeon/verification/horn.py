@@ -297,7 +297,6 @@ def fill_horn_arguments(h: LiquidHornApplication,
                         candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
-        print("h", h, candidate, n)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
     return candidate
 

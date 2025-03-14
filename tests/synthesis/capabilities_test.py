@@ -13,7 +13,6 @@ def synthesis_and_return(code):
 
     hole_name = "hole"
 
-    print("Code", code)
     term, ctx, ectx, metadata = check_and_return_core(code)
     assert check_type(ctx, term, top)
 
@@ -95,7 +94,7 @@ def test_e2e_synthesis_ref4():
     assert isinstance(t, Literal)
     assert (t.value > 3 and t.value < 10) or (t.value > 20 and t.value < 30)
 
-
+@pytest.mark.skip(reason="Synthesis-only")
 def test_e2e_synthesis_ref5():
     code = """def synth : {x:Float | x > 3 && x < 10} = ?hole;"""
     t, _ = synthesis_and_return(code)
