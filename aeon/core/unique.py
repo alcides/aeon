@@ -66,6 +66,7 @@ def unique_ids(ctx: TypingContext, t: Term) -> tuple[TypingContext, Term]:
             case AbstractionType(aname, atype, rtype):
                 nname = get_name(aname)
                 nrtype = substitution_in_type(rtype, Var(nname), aname)
+                print("In type", ty, nname, nrtype)
                 return AbstractionType(nname, unique_type(atype),
                                        unique_type(nrtype))
             case RefinedType(name, ty, ref):

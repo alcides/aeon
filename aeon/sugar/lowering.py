@@ -191,10 +191,11 @@ def type_to_core(
         case STypeVar(name):
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
-            nname = f"{name}_{len(available_vars)}"
+            nname = f"{name}__{len(available_vars)}"
             at = type_to_core(vty, available_vars)
-            if isinstance(at, BaseType) or isinstance(at, TypeVar):
-                available_vars = available_vars + [(name, basic_type(at))]
+            if isinstance(at, BaseType) or isinstance(
+                    at, TypeVar) or isinstance(at, RefinedType):
+                available_vars = available_vars + [(nname, basic_type(at))]
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
                 nrty = rty
