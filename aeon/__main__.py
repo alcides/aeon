@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from functools import reduce
 import os
 import sys
 import argparse
+from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
+from aeon.core.unique import unique_ids
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
@@ -139,10 +142,19 @@ def main() -> None:
 
     if args.core:
         with RecordTime("ParseCore"):
-            core_typing_vars = {
-                k: type_to_core(typing_vars[k])
-                for k in typing_vars
-            }
+            # TODO: Remove old version
+            # core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
+
+            core_typing_vars: dict[str, Any] = reduce(
+                lambda acc, el: acc | {
+                    el[0]:
+                    type_to_core(el[1],
+                                 available_vars=[e for e in acc.items()])
+                },
+                typing_vars.items(),
+                {},
+            )
+
             typing_ctx = build_context(core_typing_vars)
             core_ast = parse_term(aeon_code)
             metadata: Metadata = {}
@@ -164,10 +176,10 @@ def main() -> None:
             sys.exit(1)
 
         with RecordTime("Core generation"):
-            core_ast = lower_to_core(sterm)
-            logger.debug(core_ast)
-
             typing_ctx = lower_to_core_context(desugared.elabcontext)
+            core_ast = lower_to_core(sterm)
+            typing_ctx, core_ast = unique_ids(typing_ctx, core_ast)
+            logger.debug(core_ast)
 
     with RecordTime("ANF conversion"):
         core_ast_anf = ensure_anf(core_ast)

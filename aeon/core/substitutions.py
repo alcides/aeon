@@ -129,6 +129,55 @@ def substitution_in_liquid(
         assert False
 
 
+def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: str) -> Type:
+
+    def rec(t: Type) -> Type:
+        return substitution_liquid_in_type(t, rep, name)
+
+    renamed: Type
+
+    match t:
+        case Top() | BaseType(_) | TypeVar(_):
+            return t
+        case AbstractionType(aname, atype, rtype):
+            if isinstance(rep, Var) and rep.name == aname:
+                nname = aname + "1"
+                renamed = AbstractionType(
+                    nname,
+                    atype,
+                    substitution_liquid_in_type(rtype, LiquidVar(nname),
+                                                aname),
+                )
+                return substitution_liquid_in_type(renamed, rep, name)
+            elif aname == name:
+                return t
+            else:
+                return AbstractionType(aname, rec(atype), rec(rtype))
+        case RefinedType(vname, ity, ref):
+            if isinstance(rep, Var) and rep.name == vname:
+                nname = vname + "1"
+                renamed = RefinedType(
+                    nname,
+                    ity,
+                    substitution_in_liquid(ref, LiquidVar(nname), vname),
+                )
+                return rec(renamed)
+            elif name == vname:
+                return t
+            else:
+                return RefinedType(
+                    vname,
+                    ity,
+                    substitution_in_liquid(ref, rep, name),
+                )
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, rec(body))
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [rec(arg) for arg in args])
+        case _:
+            assert False, f"{t} not allowed"
+
+
 def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     """Substitutes name in type t with the new replacement term rep."""
     replacement: LiquidTerm | None = liquefy(rep)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.types import (
     AbstractionType,
@@ -174,20 +174,10 @@ class VariableBinder(NonEmptyContext):
         return hash(self.prev) + hash(self.name) + hash(self.type)
 
 
-@dataclass(init=False)
+@dataclass
 class TypeBinder(NonEmptyContext):
     type_name: str
-    type_kind: Kind
-
-    def __init__(
-            self,
-            prev: TypingContext,
-            type_name: str,
-            type_kind: Kind = StarKind(),
-    ):
-        self.prev = prev
-        self.type_name = type_name
-        self.type_kind = type_kind
+    type_kind: Kind = field(default_factory=StarKind)
 
     def fresh_var(self):
         name = self.type_name
@@ -221,3 +211,17 @@ class TypeConstructorBinder(NonEmptyContext):
 
     def __hash__(self) -> int:
         return hash(self.prev) + hash(self.name)
+
+
+def concrete_vars_in(ctx: TypingContext) -> list[tuple[str, Type]]:
+    match ctx:
+        case EmptyContext():
+            return []
+        case UninterpretedBinder(prev, name, type):
+            return concrete_vars_in(prev)
+        case VariableBinder(prev, name, type):
+            return [(name, type)] + concrete_vars_in(prev)
+        case TypeBinder(prev, _, _) | TypeConstructorBinder(prev, _, _):
+            return concrete_vars_in(prev)
+        case _:
+            assert False

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from aeon.core.liquid import liquid_free_vars
+from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
@@ -141,6 +141,9 @@ class TypePolymorphism(Type):
     def __str__(self):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
+    def __hash__(self) -> int:
+        return hash(self.name) + hash(self.kind) + hash(self.body)
+
 
 @dataclass
 class TypeConstructor(Type):
@@ -159,6 +162,19 @@ class TypeConstructor(Type):
 class LiquidHornApplication(LiquidTerm):
     name: str
     argtypes: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]]
+
+    def __post_init__(self):
+        assert isinstance(self.name, str)
+        for term, ty in self.argtypes:
+            match term:
+                case LiquidLiteralBool(_):
+                    assert ty == BaseType("Bool")
+                case LiquidLiteralInt(_):
+                    assert ty == BaseType("Int")
+                case LiquidLiteralFloat(_):
+                    assert ty == BaseType("Float")
+                case LiquidLiteralString(_):
+                    assert ty == BaseType("String")
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])

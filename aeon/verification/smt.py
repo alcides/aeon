@@ -246,7 +246,10 @@ def smt_valid(constraint: Constraint) -> bool:
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
-        smt_c = translate(c)
+        try:
+            smt_c = translate(c)
+        except ZeroDivisionError:
+            continue
         if smt_c is False:
             continue
         s.add(smt_c)

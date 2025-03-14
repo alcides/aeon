@@ -142,7 +142,7 @@ def type_infer_liquid(
         case LiquidVar(name):
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(
-                    f"Variable {name} not in context in {liq}.")
+                    f"Variable {name} not in context in {ctx}.")
             rt = ctx.variables[name]
             assert isinstance(rt, BaseType)
             return rt
