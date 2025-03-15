@@ -17,9 +17,7 @@ def test_elaboration_foralls():
     t = parse_expression("let x : a = 3; x")
     elab_t = elaborate_foralls(t)
     assert isinstance(elab_t, SRec)
-    assert elab_t.var_type == STypePolymorphism(name="a",
-                                                kind=BaseKind(),
-                                                body=STypeVar("a"))
+    assert elab_t.var_type == STypePolymorphism(name="a", kind=BaseKind(), body=STypeVar("a"))
 
 
 def test_elaboration_foralls2():
@@ -30,15 +28,11 @@ def test_elaboration_foralls2():
 
 
 def test_elaboration_unification():
-    t = parse_expression(
-        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1"
-    )
+    t = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
 
     v = elaborate_check(ElaborationTypingContext([]), t, parse_type("Int"))
     v2 = elaborate_remove_unification(ElaborationTypingContext([]), v)
-    expected = parse_expression(
-        "let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1"
-    )
+    expected = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
     assert v2 == expected
 
 

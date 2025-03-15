@@ -7,7 +7,6 @@ from loguru import logger
 
 
 def levels_filter(levels):
-
     def filter(record):
         return record["level"].name in levels
 

@@ -32,8 +32,7 @@ def test_simple_eq():
         "x",
         [LiquidLiteralInt(2)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
-        "x", [LiquidVar("x2")])
+    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp("x", [LiquidVar("x2")])
 
 
 def test_liquid_types_syntax():
