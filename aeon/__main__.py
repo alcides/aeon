@@ -8,6 +8,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
 from aeon.decorators import Metadata
+from aeon.elaboration import UnificationException, elaborate
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
@@ -24,7 +25,6 @@ from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
@@ -47,7 +47,7 @@ def parse_arguments():
         nargs="+",
         default="",
         help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -89,6 +89,11 @@ def parse_arguments():
         action="store_true",
         help="Show timing information",
     )
+
+    parser.add_argument("-n",
+                        "--no-main",
+                        action="store_true",
+                        help="Disables introducing hole in main")
 
     parser.add_argument("-n",
                         "--no-main",
@@ -140,10 +145,6 @@ def main() -> None:
         logger.add(sys.stderr)
     if args.timings:
         logger.add(sys.stderr, level="TIME")
-
-    if args.language_server_mode:
-        start_language_server_mode(args.tcp)
-        sys.exit(0)
 
     aeon_code = read_file(args.filename)
 

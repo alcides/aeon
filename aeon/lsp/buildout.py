@@ -28,10 +28,13 @@ from lsprotocol.types import Position, Range
 from pygls.server import LanguageServer
 
 from aeon.core.types import top
+from aeon.elaboration import elaborate
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.desugar import desugar
+from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_program
-from aeon.typechecking.typeinfer import check_type_errors
+from aeon.sugar.stypes import SBaseType
+from aeon.typechecking import check_type_errors
 
 logger = logging.getLogger(__name__)
 requests_session = requests.Session()
@@ -129,7 +132,15 @@ async def _parse(
         fp.seek(0)
         program = parse_program(content)
 
-        core_ast, typing_ctx, _, _ = desugar(program)
+        desugared = desugar(program)
+        _ = desugared.metadata
+
+        sterm = elaborate(desugared.elabcontext,
+                                 desugared.program, SBaseType("Top"))
+
+        core_ast = lower_to_core(sterm)
+        typing_ctx = lower_to_core_context(desugared.elabcontext)
+
         core_ast_anf = ensure_anf(core_ast)
 
         errors = check_type_errors(typing_ctx, core_ast_anf, top)
