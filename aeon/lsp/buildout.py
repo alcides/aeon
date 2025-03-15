@@ -70,7 +70,7 @@ def clearCache(uri: URI) -> None:
 
 # buildout copied & modified functions #
 
-_isurl = re.compile('([a-zA-Z0-9+.-]+)://').match
+_isurl = re.compile("([a-zA-Z0-9+.-]+)://").match
 
 
 async def parse(
@@ -90,13 +90,13 @@ async def parse(
 
     parsed_uri = urllib.parse.urlparse(uri)
     if parsed_uri.scheme in (
-        'http',
-        'https',
+        "http",
+        "https",
     ):
         try:
             fp = io.StringIO(requests_session.get(uri).text)
         except requests.exceptions.ConnectionError:
-            fp = io.StringIO('')
+            fp = io.StringIO("")
     else:
         document = ls.workspace.get_text_document(uri)
         try:
@@ -104,7 +104,7 @@ async def parse(
         except IOError:
             if not allow_errors:
                 raise
-            fp = io.StringIO('')
+            fp = io.StringIO("")
     parsed = await _parse(
         fp,
         uri,
@@ -120,9 +120,9 @@ async def _parse(
     allow_errors: bool,
 ) -> AST:
     """
-  Parse the code
+    Parse the code
 
-  """
+    """
     diagnostics = []
     core_ast_anf = None
     typing_ctx = None
@@ -135,8 +135,7 @@ async def _parse(
         desugared = desugar(program)
         _ = desugared.metadata
 
-        sterm = elaborate(desugared.elabcontext,
-                                 desugared.program, SBaseType("Top"))
+        sterm = elaborate(desugared.elabcontext, desugared.program, SBaseType("Top"))
 
         core_ast = lower_to_core(sterm)
         typing_ctx = lower_to_core_context(desugared.elabcontext)
@@ -148,17 +147,16 @@ async def _parse(
             error_message = str(error)
 
             # needs to be fixed
-            range = Range(
-                start=Position(line=0, character=0),
-                end=Position(line=0, character=1)
-            )
+            range = Range(start=Position(line=0, character=0), end=Position(line=0, character=1))
 
-            diagnostics.append(Diagnostic(
-                message=error_message,
-                range=range,
-                source="aeon",
-                severity=DiagnosticSeverity.Error,
-            ))
+            diagnostics.append(
+                Diagnostic(
+                    message=error_message,
+                    range=range,
+                    source="aeon",
+                    severity=DiagnosticSeverity.Error,
+                )
+            )
 
     except UnexpectedToken as e:
         try:
@@ -166,34 +164,37 @@ async def _parse(
         except _:
             token_length = 1
 
-        token_type = e.token.type if e.token.type else 'unknown'
+        token_type = e.token.type if e.token.type else "unknown"
         token_value = e.token.value if e.token.value else str(e.token)
 
-        error_message = (f"Unexpected {token_type} '{token_value}' at line {e.line}, column {e.column}.\n"
-                         f"Expected: {', '.join(e.expected)}")
+        error_message = (
+            f"Unexpected {token_type} '{token_value}' at line {e.line}, column {e.column}.\n"
+            f"Expected: {', '.join(e.expected)}"
+        )
 
         range = Range(
             start=Position(line=e.line - 1, character=e.column - 1),
-            end=Position(line=e.line - 1, character=e.column - 1 + token_length)
+            end=Position(line=e.line - 1, character=e.column - 1 + token_length),
         )
 
-        diagnostics.append(Diagnostic(
-            message=error_message,
-            range=range,
-            source="aeon",
-            severity=DiagnosticSeverity.Error,
-        ))
+        diagnostics.append(
+            Diagnostic(
+                message=error_message,
+                range=range,
+                source="aeon",
+                severity=DiagnosticSeverity.Error,
+            )
+        )
 
     except Exception as e:
-        diagnostics.append(Diagnostic(
-            message=f"Unknown exception {str(e)} occurred while parsing",
-            range=Range(
-                start=Position(line=0, character=0),
-                end=Position(line=0, character=0)
-            ),
-            source="aeon",
-            severity=DiagnosticSeverity.Error,
-        ))
+        diagnostics.append(
+            Diagnostic(
+                message=f"Unknown exception {str(e)} occurred while parsing",
+                range=Range(start=Position(line=0, character=0), end=Position(line=0, character=0)),
+                source="aeon",
+                severity=DiagnosticSeverity.Error,
+            )
+        )
 
     return AST(core_ast_anf, typing_ctx, diagnostics)
 

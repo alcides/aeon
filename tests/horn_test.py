@@ -27,8 +27,7 @@ def test_fresh():
         t_int,
         LiquidHornApplication(
             "fresh_1",
-            [(parse_liquid("x"), BaseType("Int")),
-             (parse_liquid("v_fresh_1"), BaseType("Int"))],
+            [(parse_liquid("x"), BaseType("Int")), (parse_liquid("v_fresh_1"), BaseType("Int"))],
         ),
     )
     assert wellformed_horn(r.refinement)
@@ -41,17 +40,15 @@ def test_possible_args():
 
 
 def test_possible_args2():
-    hpars = [(parse_liquid("x"), BaseType("Int")),
-             (parse_liquid("y"), BaseType("Int"))]
+    hpars = [(parse_liquid("x"), BaseType("Int")), (parse_liquid("y"), BaseType("Int"))]
     args = list(get_possible_args(hpars, arity=2))
     assert len(args) == 100
 
 
 def test_base_assignment_helper():
     assign = build_initial_assignment(
-        LiquidConstraint(
-            LiquidHornApplication("k",
-                                  [(parse_liquid("x"), BaseType("Int"))])), )
+        LiquidConstraint(LiquidHornApplication("k", [(parse_liquid("x"), BaseType("Int"))])),
+    )
     assert "k" in assign
     assert len(assign["k"]) == 30
 
@@ -59,9 +56,9 @@ def test_base_assignment_helper():
 def test_base_assignment_helper2():
     assign = build_initial_assignment(
         LiquidConstraint(
-            LiquidHornApplication("k",
-                                  [(parse_liquid("x"), BaseType("Int")),
-                                   (parse_liquid("y"), BaseType("Int"))]), ), )
+            LiquidHornApplication("k", [(parse_liquid("x"), BaseType("Int")), (parse_liquid("y"), BaseType("Int"))]),
+        ),
+    )
     assert "k" in assign
     assert len(assign["k"]) == 120
 
@@ -76,7 +73,9 @@ def test_merge_assignments():
                     (parse_liquid("y"), BaseType("Int")),
                     (parse_liquid("z"), BaseType("Bool")),
                 ],
-            ), ), )
+            ),
+        ),
+    )
     t = merge_assignments(assign["k"])
     assert isinstance(t, LiquidApp)
 

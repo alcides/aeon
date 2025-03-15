@@ -6,33 +6,20 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.types import BaseType, TypeConstructor, TypeVar
 
 liquid_prelude: dict[str, list[BaseType | TypeVar | TypeConstructor]] = {
-    "==": [TypeVar("a"), TypeVar("a"),
-           BaseType("Bool")],
-    "!=": [TypeVar("a"), TypeVar("a"),
-           BaseType("Bool")],
-    "<": [TypeVar("a"), TypeVar("a"),
-          BaseType("Bool")],  # TODO typeclasses: order
-    "<=": [TypeVar("a"), TypeVar("a"),
-           BaseType("Bool")],
-    ">": [TypeVar("a"), TypeVar("a"),
-          BaseType("Bool")],
-    ">=": [TypeVar("a"), TypeVar("a"),
-           BaseType("Bool")],
-    "-->": [BaseType("Bool"),
-            BaseType("Bool"),
-            BaseType("Bool")],
-    "&&": [BaseType("Bool"),
-           BaseType("Bool"),
-           BaseType("Bool")],
-    "||": [BaseType("Bool"),
-           BaseType("Bool"),
-           BaseType("Bool")],
+    "==": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],
+    "!=": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],
+    "<": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],  # TODO typeclasses: order
+    "<=": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],
+    ">": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],
+    ">=": [TypeVar("a"), TypeVar("a"), BaseType("Bool")],
+    "-->": [BaseType("Bool"), BaseType("Bool"), BaseType("Bool")],
+    "&&": [BaseType("Bool"), BaseType("Bool"), BaseType("Bool")],
+    "||": [BaseType("Bool"), BaseType("Bool"), BaseType("Bool")],
     "+": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
     "-": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
     "*": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
     "/": [TypeVar("a"), TypeVar("a"), TypeVar("a")],
-    "%": [BaseType("Int"), BaseType("Int"),
-          BaseType("Int")],
+    "%": [BaseType("Int"), BaseType("Int"), BaseType("Int")],
     "!": [BaseType("Bool"), BaseType("Bool")],
 }
 

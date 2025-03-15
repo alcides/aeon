@@ -15,7 +15,6 @@ setup_logger()
 
 
 def mock_literal_individual(value: int):
-
     class t_Int(ABC):
         pass
 
@@ -68,7 +67,6 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
-    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])],
-                         metadata)
+    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])], metadata)
 
     assert isinstance(term, Term)

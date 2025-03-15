@@ -44,10 +44,7 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     return True
 
 
-def check_compile_expr(source: str,
-                       ty: SType,
-                       val: Any = None,
-                       extra_vars: dict[str, SType] | None = None) -> bool:
+def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict[str, SType] | None = None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
@@ -94,8 +91,7 @@ def extract_core(source: str) -> Term:
     return core_ast_anf
 
 
-def check_and_return_core(
-        source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
+def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
     ectx = EvaluationContext(evaluation_vars)
     prog = parse_program(source)
     desugared = desugar(prog)

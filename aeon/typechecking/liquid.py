@@ -45,21 +45,21 @@ class LiquidTypeCheckingContext:
     functions: dict[str, list[BaseType | TypeVar | TypeConstructor]]
 
 
-def lower_abstraction_type(
-        ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
+def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
     args: list[BaseType | TypeVar | TypeConstructor] = []
     while True:
         match ty:
-        # TODO: Should these be removed?
+            # TODO: Should these be removed?
             case Top() | RefinedType(_, Top(), _):
                 return args + [BaseType("Unit")]
             case BaseType(_) | TypeVar(_):
                 assert args
                 return args + [ty]
-            case (AbstractionType(_, RefinedType(_, aty, _),
-                                  RefinedType(_, rty, _))
-                  | AbstractionType(_, RefinedType(_, aty, _), rty)
-                  | AbstractionType(_, aty, rty)):
+            case (
+                AbstractionType(_, RefinedType(_, aty, _), RefinedType(_, rty, _))
+                | AbstractionType(_, RefinedType(_, aty, _), rty)
+                | AbstractionType(_, aty, rty)
+            ):
                 match aty:
                     case BaseType(_) | TypeVar(_):
                         args.append(aty)
@@ -105,16 +105,12 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
             case TypeBinder(prev, name, _):
                 known_types.append(name)
                 ctx = prev
-            case UninterpretedBinder(prev, name,
-                                     AbstractionType(_, _, _) as
-                                     ty) | VariableBinder(
-                                         prev, name,
-                                         AbstractionType(_, _, _) as ty):
+            case UninterpretedBinder(prev, name, AbstractionType(_, _, _) as ty) | VariableBinder(
+                prev, name, AbstractionType(_, _, _) as ty
+            ):
                 functions[name] = lower_abstraction_type(ty)
                 ctx = prev
-            case VariableBinder(prev, name,
-                                RefinedType(_,
-                                            BaseType(_) as bt, _)):
+            case VariableBinder(prev, name, RefinedType(_, BaseType(_) as bt, _)):
                 variables[name] = bt
                 ctx = prev
             case TypeConstructorBinder(prev, _, _):
@@ -122,8 +118,7 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
             case _:
                 assert False, f"Unknown context type ({type(ctx)})"
 
-    return LiquidTypeCheckingContext([BaseType(n) for n in known_types],
-                                     variables, functions)
+    return LiquidTypeCheckingContext([BaseType(n) for n in known_types], variables, functions)
 
 
 def type_infer_liquid(
@@ -141,22 +136,19 @@ def type_infer_liquid(
             return t_string
         case LiquidVar(name):
             if name not in ctx.variables:
-                raise LiquidTypeCheckException(
-                    f"Variable {name} not in context in {liq}.")
+                raise LiquidTypeCheckException(f"Variable {name} not in context in {liq}.")
             rt = ctx.variables[name]
             assert isinstance(rt, BaseType)
             return rt
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
-                raise LiquidTypeCheckException(
-                    f"Function {fun} not in context in {liq} ({ctx.functions})."
-                )
+                raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
             equalities: dict[str, BaseType] = {}
 
             if len(ftype) != len(args) + 1:
                 raise LiquidTypeCheckException(
-                    f"Function application {liq} needs {len(ftype)-1} arguments, but was passed {len(args)}."
+                    f"Function application {liq} needs {len(ftype) - 1} arguments, but was passed {len(args)}."
                 )
 
             for arg, exp_t in zip(args, ftype):

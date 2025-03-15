@@ -28,9 +28,7 @@ def test_get_abstraction():
     assert help_type_vars("(x:Bool) -> a") == {TypeVar("a")}
     assert help_type_vars("(x:a) -> a") == {TypeVar("a")}
     assert help_type_vars("(x:a) -> b") == {TypeVar("a"), TypeVar("b")}
-    assert help_type_vars("(x:{y:a | true}) -> {z:b | True}") == {
-        TypeVar("a"), TypeVar("b")
-    }
+    assert help_type_vars("(x:{y:a | true}) -> {z:b | True}") == {TypeVar("a"), TypeVar("b")}
 
 
 def test_get_poly():

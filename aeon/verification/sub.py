@@ -31,11 +31,9 @@ def ensure_refined(t: Type) -> Type:
         case BaseType(name):
             return RefinedType(f"singleton_{name}", t, LiquidLiteralBool(True))
         case TypeVar(name):
-            return RefinedType(f"singleton_tv_{name}", t,
-                               LiquidLiteralBool(True))
+            return RefinedType(f"singleton_tv_{name}", t, LiquidLiteralBool(True))
         case TypeConstructor(name, _):
-            return RefinedType(f"singleton_tv_{name}", t,
-                               LiquidLiteralBool(True))
+            return RefinedType(f"singleton_tv_{name}", t, LiquidLiteralBool(True))
         case _:
             return t
 
@@ -46,8 +44,7 @@ def is_first_order_function(at: AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case BaseType(_) | Top() | RefinedType(
-                _, _, _) | TypeVar(_) | TypeConstructor(_, _):
+            case BaseType(_) | Top() | RefinedType(_, _, _) | TypeVar(_) | TypeConstructor(_, _):
                 pass
             case _:
                 assert False
@@ -64,8 +61,7 @@ def lower_constraint_type(ttype: Type) -> Type:
         case Top():
             return BaseType("Unit")
         case AbstractionType(_, b, r):
-            return AbstractionType("_", lower_constraint_type(b),
-                                   lower_constraint_type(r))
+            return AbstractionType("_", lower_constraint_type(b), lower_constraint_type(r))
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
@@ -118,8 +114,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             r1_ = substitution_in_liquid(r1, LiquidVar(new_name), n1)
             lowert = lower_constraint_type(ty1)
             assert isinstance(lowert, BaseType)
-            rconstraint = Implication(new_name, lowert, r1_,
-                                      LiquidConstraint(r2_))
+            rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_))
 
             return rconstraint
         case TypePolymorphism(_, _, _), _:

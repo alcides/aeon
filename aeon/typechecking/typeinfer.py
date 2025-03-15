@@ -126,10 +126,14 @@ def is_compatible(a: Kind, b: Kind):
 
 
 def argument_is_typevar(ty: Type):
-    return (isinstance(ty, TypeVar) or isinstance(
-        ty,
-        RefinedType,
-    ) and isinstance(ty.type, TypeVar))
+    return (
+        isinstance(ty, TypeVar)
+        or isinstance(
+            ty,
+            RefinedType,
+        )
+        and isinstance(ty.type, TypeVar)
+    )
 
 
 def prim_litbool(t: bool) -> RefinedType:
@@ -155,8 +159,7 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
-def make_binary_app_type(t: str, ity: BaseType | TypeVar,
-                         oty: BaseType | TypeVar) -> Type:
+def make_binary_app_type(t: str, ity: BaseType | TypeVar, oty: BaseType | TypeVar) -> Type:
     """Creates the type of a binary operator"""
     output = RefinedType(
         "z",
@@ -182,12 +185,9 @@ def prim_op(t: str) -> Type:
         case "%":
             return make_binary_app_type(t, t_int, t_int)
         case "+" | "-" | "*" | "/":
-            return TypePolymorphism(
-                "a", BaseKind(),
-                make_binary_app_type(t, TypeVar("a"), TypeVar("a")))
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), TypeVar("a")))
         case "==" | "!=" | ">" | ">=" | "<" | "<=":
-            return TypePolymorphism(
-                "a", BaseKind(), make_binary_app_type(t, TypeVar("a"), t_bool))
+            return TypePolymorphism("a", BaseKind(), make_binary_app_type(t, TypeVar("a"), t_bool))
         case "&&" | "||":
             return make_binary_app_type(t, t_bool, t_bool)
         case _:
@@ -209,23 +209,18 @@ def rename_liquid_term(refinement, old_name, new_name):
     elif isinstance(refinement, LiquidApp):
         return LiquidApp(
             refinement.fun,
-            [
-                rename_liquid_term(x, old_name, new_name)
-                for x in refinement.args
-            ],
+            [rename_liquid_term(x, old_name, new_name) for x in refinement.args],
         )
     elif isinstance(refinement, LiquidHornApplication):
         if refinement.name == old_name:
             return LiquidHornApplication(
                 new_name,
-                [(rename_liquid_term(x, old_name, new_name), t)
-                 for (x, t) in refinement.argtypes],
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
             )
         else:
             return LiquidHornApplication(
                 refinement.name,
-                [(rename_liquid_term(x, old_name, new_name), t)
-                 for (x, t) in refinement.argtypes],
+                [(rename_liquid_term(x, old_name, new_name), t) for (x, t) in refinement.argtypes],
             )
     else:
         assert False
@@ -263,9 +258,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = ctx.type_of(t.name)
         if not ty:
             raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context", )
-        if isinstance(ty, BaseType) or isinstance(
-                ty, RefinedType) or isinstance(ty, TypeVar):
+                f"Variable {t.name} not in context",
+            )
+        if isinstance(ty, BaseType) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
             assert isinstance(ty, RefinedType)
             # assert ty.name != t.name
@@ -300,7 +295,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (c0, t_subs)
         else:
             raise CouldNotGenerateConstraintException(
-                f"Application {t} ({ty}) is not a function.", )
+                f"Application {t} ({ty}) is not a function.",
+            )
     elif isinstance(t, Let):
         (c1, t1) = synth(ctx, t.var_value)
         nctx: TypingContext = ctx.with_var(t.var_name, t1)
@@ -330,16 +326,14 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         ty = fresh(ctx, t.type)
         s = type_substitution(tabs.body, tabs.name, ty)
         k = ctx.kind_of(ty)
-        if isinstance(ty, RefinedType) and isinstance(ty.refinement,
-                                                      LiquidHornApplication):
+        if isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
             ty = ty.type
             k = ctx.kind_of(ty)
         if k is None or not is_compatible(k, tabs.kind):
             raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
         return (c, s)
     elif isinstance(t, Hole):
-        return ctrue, TypePolymorphism("a", StarKind(),
-                                       TypeVar("a"))  # TODO poly: check kind
+        return ctrue, TypePolymorphism("a", StarKind(), TypeVar("a"))  # TODO poly: check kind
     # TODO: add if term
     # elif isinstance(t, If):
     #     y = ctx.fresh_var()
@@ -375,8 +369,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     except AssertionError:
         raise TypeNotWellformed(ty)
     if isinstance(t, Abstraction) and isinstance(
-            ty,
-            AbstractionType,
+        ty,
+        AbstractionType,
     ):  # ??? (\__equal_1__ -> (let _anf_1 = (== _anf_1) in(_anf_1 __equal_1__))) , basetype INT
         ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
         c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
@@ -401,8 +395,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         liq_cond = liquefy(t.cond)
         assert liq_cond is not None
         if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException(
-                "If condition not boolean")
+            raise CouldNotGenerateConstraintException("If condition not boolean")
         c0 = check(ctx, t.cond, t_bool)
         c1 = implication_constraint(
             y,
@@ -422,10 +415,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             ty_right = ty
         assert isinstance(ty_right, TypePolymorphism)
         if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
-            raise WrongKindException(found=ty_right.kind,
-                                     expected=ty_right.kind,
-                                     t=t,
-                                     ty=ty)
+            raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)
         return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
     else:
         (c, s) = synth(ctx, t)

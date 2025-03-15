@@ -8,7 +8,6 @@ from aeon.sugar.stypes import SType
 
 
 class STerm:
-
     def __hash__(self) -> int:
         return str(self).__hash__()
 
@@ -24,9 +23,7 @@ class SLiteral(STerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            SLiteral) and self.value == other.value and self.type == other.type
+        return isinstance(other, SLiteral) and self.value == other.value and self.type == other.type
 
 
 @dataclass(frozen=True)
@@ -81,9 +78,7 @@ class SApplication(STerm):
         return f"({self.fun} {self.arg})"
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            SApplication) and self.fun == other.fun and self.arg == other.arg
+        return isinstance(other, SApplication) and self.fun == other.fun and self.arg == other.arg
 
 
 @dataclass(frozen=True)
@@ -95,9 +90,7 @@ class SAbstraction(STerm):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
-        return isinstance(
-            other, SAbstraction
-        ) and self.var_name == other.var_name and self.body == other.body
+        return isinstance(other, SAbstraction) and self.var_name == other.var_name and self.body == other.body
 
 
 @dataclass(frozen=True)
@@ -110,9 +103,12 @@ class SLet(STerm):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
-        return (isinstance(other, SLet) and self.var_name == other.var_name
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, SLet)
+            and self.var_name == other.var_name
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
@@ -134,10 +130,13 @@ class SRec(STerm):
         )
 
     def __eq__(self, other):
-        return (isinstance(other, SRec) and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, SRec)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
@@ -150,9 +149,12 @@ class SIf(STerm):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
 
     def __eq__(self, other):
-        return (isinstance(other, SIf) and self.cond == other.cond
-                and self.then == other.then
-                and self.otherwise == other.otherwise)
+        return (
+            isinstance(other, SIf)
+            and self.cond == other.cond
+            and self.then == other.then
+            and self.otherwise == other.otherwise
+        )
 
 
 @dataclass(frozen=True)

@@ -25,9 +25,9 @@ def start_language_server_mode(tcp_server):
     if not tcp_server:
         server.start_io()
 
-    host, port = (tcp_server.split(':') if ':' in tcp_server else ('localhost', tcp_server))
+    host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
 
-    print(f'Listening on {host}:{port}')
+    print(f"Listening on {host}:{port}")
     server.start_tcp(host, int(port))
 
 

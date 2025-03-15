@@ -64,16 +64,18 @@ class Intersection(SType):
 
 def elaborate_foralls(e: STerm) -> STerm:
     match e:
-        case (SLiteral(_, _)
-              | SHole(_)
-              | SVar(_)
-              | SAnnotation(_, _)
-              | SAbstraction(_, _)
-              | SApplication(_, _)
-              | SLet(_, _, _)
-              | SIf(_, _, _)
-              | STypeApplication(_, _)
-              | STypeAbstraction(_, _, _)):
+        case (
+            SLiteral(_, _)
+            | SHole(_)
+            | SVar(_)
+            | SAnnotation(_, _)
+            | SAbstraction(_, _)
+            | SApplication(_, _)
+            | SLet(_, _, _)
+            | SIf(_, _, _)
+            | STypeApplication(_, _)
+            | STypeAbstraction(_, _, _)
+        ):
             return e
         case SRec(_, _, _, _):
             e1: SRec = e
@@ -98,8 +100,7 @@ def elaborate_foralls(e: STerm) -> STerm:
             assert False, f"Could not elaborate {e} ({type(e)})"
 
 
-def unify(ctx: ElaborationTypingContext, sub: SType,
-          sup: SType) -> list[SType]:
+def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
     match (sub, sup):
         case (_, SBaseType("Top")):
             return []
@@ -133,8 +134,7 @@ def unify(ctx: ElaborationTypingContext, sub: SType,
             unify(ctx, sub, type_substitution(body, name, u))
             return []
 
-        case (SAbstractionType(_, sub_vtype, sub_rtype),
-              SAbstractionType(_, sup_vtype, sup_rtype)):
+        case (SAbstractionType(_, sub_vtype, sub_rtype), SAbstractionType(_, sup_vtype, sup_rtype)):
             unify(ctx, sup_vtype, sub_vtype)
             unify(ctx, sub_rtype, sup_rtype)
             return []
@@ -144,12 +144,14 @@ def unify(ctx: ElaborationTypingContext, sub: SType,
                 return []
             else:
                 raise UnificationException(
-                    f"Failed to unify {sub} with {sup} ({type(sup)})", )
+                    f"Failed to unify {sub} with {sup} ({type(sup)})",
+                )
 
         case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
             if name1 != name2:
                 raise UnificationException(
-                    f"Failed to unify {name1} with {name2}", )
+                    f"Failed to unify {name1} with {name2}",
+                )
             elif len(args) != len(args2):
                 raise UnificationException(
                     f"Failed to unify {sub} with {sup} with different number of arguments.",
@@ -173,14 +175,11 @@ def unify_single(vname: str, xs: list[SType]) -> SType:
             fst = other[0]
             for snd in other[1:]:
                 if snd != fst:
-                    raise UnificationException(
-                        f"Type variable {vname} has conflicting meanings: {snd} and {fst}."
-                    )
+                    raise UnificationException(f"Type variable {vname} has conflicting meanings: {snd} and {fst}.")
             return fst
 
 
-def remove_unions_and_intersections(ctx: ElaborationTypingContext,
-                                    ty: SType) -> SType:
+def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) -> SType:
     match ty:
         case Union(united):
             # TODO: raise better errors
@@ -203,9 +202,7 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext,
                 ),
             )
         case STypeConstructor(name, args):
-            return STypeConstructor(
-                name,
-                [remove_unions_and_intersections(ctx, arg) for arg in args])
+            return STypeConstructor(name, [remove_unions_and_intersections(ctx, arg) for arg in args])
         case SRefinedType(name, ity, ref):
             innert = remove_unions_and_intersections(ctx, ity)
             return SRefinedType(name=name, type=innert, refinement=ref)
@@ -213,16 +210,14 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext,
             return ty
 
 
-def wrap_unification(ctx: ElaborationTypingContext, t: STerm,
-                     us: list[SType]) -> STerm:
+def wrap_unification(ctx: ElaborationTypingContext, t: STerm, us: list[SType]) -> STerm:
     nt = t
     for u in us:
         nt = STypeApplication(nt, u)
     return nt
 
 
-def ensure_not_polymorphism(ctx: ElaborationTypingContext, t: STerm,
-                            ty: SType) -> tuple[STerm, SType]:
+def ensure_not_polymorphism(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> tuple[STerm, SType]:
     while isinstance(ty, STypePolymorphism):
         u = UnificationVar(ctx.fresh_typevar())
         ty = type_substitution(ty.body, ty.name, u)
@@ -230,8 +225,7 @@ def ensure_not_polymorphism(ctx: ElaborationTypingContext, t: STerm,
     return t, ty
 
 
-def elaborate_synth(ctx: ElaborationTypingContext,
-                    t: STerm) -> tuple[STerm, SType]:
+def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, SType]:
     match t:
         case SLiteral(_, ty):
             return (t, ty)
@@ -280,14 +274,11 @@ def elaborate_synth(ctx: ElaborationTypingContext,
             raise UnificationException(f"Could not infer the type of {t}")
 
 
-def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
-                    ty: SType) -> STerm:
+def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
     match (t, ty):
         case (SAbstraction(name, body), SAbstractionType(aname, aty, rty)):
             nctx = ctx.with_var(name, aty)
-            nbody = elaborate_check(
-                nctx, body,
-                substitution_sterm_in_stype(rty, SVar(name), aname))
+            nbody = elaborate_check(nctx, body, substitution_sterm_in_stype(rty, SVar(name), aname))
             return SAbstraction(name, nbody)
         case (SLet(name, val, body), _):
             u = UnificationVar(ctx.fresh_typevar())
@@ -305,11 +296,9 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             nthen = elaborate_check(ctx, then, ty)
             nelse = elaborate_check(ctx, otherwise, ty)
             return SIf(ncond, nthen, nelse)
-        case (STypeAbstraction(name, kind,
-                               body), STypePolymorphism(tname, tkind, tbody)):
+        case (STypeAbstraction(name, kind, body), STypePolymorphism(tname, tkind, tbody)):
             if kind != tkind:
-                assert UnificationException(
-                    f"Failed to unify the kind of {t} with kind of type {ty}")
+                assert UnificationException(f"Failed to unify the kind of {t} with kind of type {ty}")
             nctx = ctx.with_typevar(name, kind)
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
@@ -326,10 +315,8 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             return c
 
 
-def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType,
-                            ty: SType) -> tuple[STerm, SType]:
-    while isinstance(
-            s, STypePolymorphism) and not isinstance(ty, STypePolymorphism):
+def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, ty: SType) -> tuple[STerm, SType]:
+    while isinstance(s, STypePolymorphism) and not isinstance(ty, STypePolymorphism):
         u = UnificationVar(ctx.fresh_typevar())
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
@@ -349,8 +336,8 @@ def extract_direction(ty: SType) -> set[SType]:
 
 
 def replace_unification_variables(
-        ctx: ElaborationTypingContext,
-        ty: SType) -> tuple[SType, list[Union], list[Intersection]]:
+    ctx: ElaborationTypingContext, ty: SType
+) -> tuple[SType, list[Union], list[Intersection]]:
     """Removes unification variables, and replaces them with either Union or
     Intersection Type.
 
@@ -380,8 +367,7 @@ def replace_unification_variables(
                     go(ctx, body, polarity),
                 )
             case STypeConstructor(name, args):
-                return STypeConstructor(
-                    name, [go(ctx, arg, polarity) for arg in args])
+                return STypeConstructor(name, [go(ctx, arg, polarity) for arg in args])
 
             case UnificationVar(_, _, _):
                 return Union(list(extract_direction(ty)))
@@ -411,9 +397,7 @@ def remove_from_union_and_intersection(
         union.united = list(filter(rem, union.united))
 
 
-def elaborate_remove_unification(ctx: ElaborationTypingContext,
-                                 t: STerm) -> STerm:
-
+def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
         case SLiteral() | SVar() | SHole():
             return t
@@ -423,14 +407,11 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
         case SAbstraction(name, body):
             return SAbstraction(name, elaborate_remove_unification(ctx, body))
         case SLet(name, val, body):
-            nctx = ctx.with_var(t.var_name,
-                                SBaseType("Unit"))  # TODO poly: Unit??
-            return SLet(name, elaborate_remove_unification(ctx, val),
-                        elaborate_remove_unification(nctx, body))
+            nctx = ctx.with_var(t.var_name, SBaseType("Unit"))  # TODO poly: Unit??
+            return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body))
         case SRec(name, ty, val, body):
             nctx = ctx.with_var(t.var_name, t.var_type)
-            return SRec(name, ty, elaborate_remove_unification(nctx, val),
-                        elaborate_remove_unification(nctx, body))
+            return SRec(name, ty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body))
 
         case SIf(cond, then, otherwise):
             return SIf(
@@ -447,8 +428,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
 
         case STypeAbstraction(name, kind, body):
             nctx = ctx.with_typevar(name, kind)
-            return STypeAbstraction(name, kind,
-                                    elaborate_remove_unification(nctx, body))
+            return STypeAbstraction(name, kind, elaborate_remove_unification(nctx, body))
 
         case STypeApplication(body, ty):
             # Recursively apply itself.
@@ -458,55 +438,41 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
             nt, unions, intersections = replace_unification_variables(ctx, ty)
 
             # 1. Removal of polar variable
-            all_positive = [
-                x.name for u in unions for x in u.united
-                if isinstance(x, UnificationVar)
+            all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
+            all_negative = [x.name for i in intersections for x in i.intersected if isinstance(x, UnificationVar)]
+            to_be_removed = [x for x in all_positive if x not in all_negative] + [
+                x for x in all_negative if x not in all_positive
             ]
-            all_negative = [
-                x.name for i in intersections for x in i.intersected
-                if isinstance(x, UnificationVar)
-            ]
-            to_be_removed = [
-                x for x in all_positive if x not in all_negative
-            ] + [x for x in all_negative if x not in all_positive]
 
             # 2. Unification of indistinguishable variables
             for union in unions:
-                unifications = [
-                    x for x in union.united if isinstance(x, UnificationVar)
-                ]
+                unifications = [x for x in union.united if isinstance(x, UnificationVar)]
                 for a, b in combinations(unifications, 2):
                     if all(a in u.united and b in u.united for u in unions):
                         to_be_removed.append(max(a.name, b.name))
 
             for i in intersections:
-                unifications = [
-                    x for x in i.intersected if isinstance(x, UnificationVar)
-                ]
+                unifications = [x for x in i.intersected if isinstance(x, UnificationVar)]
                 for a, b in combinations(unifications, 2):
-                    if all(a in j.intersected and b in j.intersected
-                           for j in intersections):
+                    if all(a in j.intersected and b in j.intersected for j in intersections):
                         to_be_removed.append(max(a.name, b.name))
 
             # 3. Flattening of variable sandwiches
-            unifications = [
-                x for union in unions for x in union.united
-                if isinstance(x, UnificationVar)
-            ]
+            unifications = [x for union in unions for x in union.united if isinstance(x, UnificationVar)]
             for u in unifications:
                 base_types_together_with_u_pos = [
-                    b for un in unions if u in un.united for b in un.united
-                    if not isinstance(b, UnificationVar)
+                    b for un in unions if u in un.united for b in un.united if not isinstance(b, UnificationVar)
                 ]
                 base_types_together_with_u_neg = [
-                    b for i in intersections if u in i.intersected
+                    b
+                    for i in intersections
+                    if u in i.intersected
                     for b in i.intersected
                     if not isinstance(b, UnificationVar)
                 ]
                 # TODO: I think we need subtyping here.
 
-                if any(bp in base_types_together_with_u_neg
-                       for bp in base_types_together_with_u_pos):
+                if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
                     to_be_removed.append(u.name)
 
             remove_from_union_and_intersection(
@@ -553,9 +519,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
             assert False, f"{t} ({type(t)}) not an STerm."
 
 
-def elaborate(ctx: ElaborationTypingContext,
-              e: STerm,
-              expected_type: SType = SBaseType("Top")) -> STerm:
+def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = SBaseType("Top")) -> STerm:
     e2 = elaborate_foralls(e)
     e3 = elaborate_check(ctx, e2, expected_type)
     e4 = elaborate_remove_unification(ctx, e3)

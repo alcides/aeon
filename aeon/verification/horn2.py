@@ -14,5 +14,4 @@ class SMTQuery:
     functions: dict[str, AbstractionType] = field(default_factory=lambda: {})
     variables: dict[str, BaseType] = field(default_factory=lambda: {})
     premises: list[LiquidTerm] = field(default_factory=lambda: [])
-    conclusion: LiquidTerm = field(
-        default_factory=lambda: LiquidLiteralBool(True))
+    conclusion: LiquidTerm = field(default_factory=lambda: LiquidLiteralBool(True))

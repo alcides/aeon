@@ -29,12 +29,10 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
             if name in ops:
                 return entailment(prev, c)
             else:
-                if is_first_order_function(AbstractionType(
-                        vname, vtype, rtype)):
+                if is_first_order_function(AbstractionType(vname, vtype, rtype)):
                     return entailment(
-                        prev,
-                        UninterpretedFunctionDeclaration(
-                            name, AbstractionType(vname, vtype, rtype), c))
+                        prev, UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c)
+                    )
                 else:
                     return entailment(prev, c)
         case VariableBinder(prev, name, TypePolymorphism(_, _, _)):
@@ -48,8 +46,7 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
             (nname, base, cond) = extract_parts(ty)
             match base:
                 case BaseType(_):
-                    ncond = substitution_in_liquid(cond, LiquidVar(name),
-                                                   nname)
+                    ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                     return entailment(
                         prev,
                         Implication(name, base, ncond, c),

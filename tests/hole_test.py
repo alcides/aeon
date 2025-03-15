@@ -40,5 +40,4 @@ def test_hole3():
         def g: Int = 1;
         def e: Int = (?q:Int) + (?c:Int);
     """
-    assert extract_target_functions(source) == [("d", ["r", "p"]),
-                                                ("e", ["q", "c"])]
+    assert extract_target_functions(source) == [("d", ["r", "p"]), ("e", ["q", "c"])]

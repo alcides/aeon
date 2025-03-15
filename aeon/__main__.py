@@ -35,19 +35,15 @@ sys.setrecursionlimit(10000)
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename",
-                        help="name of the aeon files to be synthesized")
-    parser.add_argument("--core",
-                        action="store_true",
-                        help="synthesize a aeon core file")
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
 
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -90,15 +86,9 @@ def parse_arguments():
         help="Show timing information",
     )
 
-    parser.add_argument("-n",
-                        "--no-main",
-                        action="store_true",
-                        help="Disables introducing hole in main")
+    parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
-    parser.add_argument("-n",
-                        "--no-main",
-                        action="store_true",
-                        help="Disables introducing hole in main")
+    parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     parser.add_argument(
         "-lsp",
@@ -108,8 +98,8 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        '--tcp',
-        help='listen on tcp port or hostname:port on IPv4.',
+        "--tcp",
+        help="listen on tcp port or hostname:port on IPv4.",
         type=str,
     )
 
@@ -150,10 +140,7 @@ def main() -> None:
 
     if args.core:
         with RecordTime("ParseCore"):
-            core_typing_vars = {
-                k: type_to_core(typing_vars[k])
-                for k in typing_vars
-            }
+            core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
             typing_ctx = build_context(core_typing_vars)
             core_ast = parse_term(aeon_code)
             metadata: Metadata = {}
@@ -162,14 +149,12 @@ def main() -> None:
             prog: Program = parse_program(aeon_code)
 
         with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(
-                prog, is_main_hole=not args.no_main)
+            desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
             metadata = desugared.metadata
 
         try:
             with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext,
-                                         desugared.program, SBaseType("Top"))
+                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, SBaseType("Top"))
         except UnificationException as e:
             log_type_errors([e])
             sys.exit(1)
@@ -194,10 +179,12 @@ def main() -> None:
         evaluation_ctx = EvaluationContext(evaluation_vars)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[
-            str,
-            list[str],
-        ]] = incomplete_functions_and_holes(
+        incomplete_functions: list[
+            tuple[
+                str,
+                list[str],
+            ]
+        ] = incomplete_functions_and_holes(
             typing_ctx,
             core_ast_anf,
         )
@@ -205,9 +192,9 @@ def main() -> None:
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (parse_config(args.gp_config, args.config_section)
-                            if args.gp_config and args.config_section else
-                            None)
+            synth_config = (
+                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+            )
 
         ui = select_synthesis_ui()
 

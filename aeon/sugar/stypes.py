@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class SType(ABC):
     "Surface-level Type Representation"
+
     pass
 
 
@@ -75,7 +76,6 @@ def get_type_vars(ty: SType) -> set[STypeVar]:
         case STypePolymorphism(name, _, body):
             return {t1 for t1 in get_type_vars(body) if t1.name != name}
         case STypeConstructor(name, args):
-            return reduce(lambda acc, v: acc.union(get_type_vars(v)), args,
-                          set())
+            return reduce(lambda acc, v: acc.union(get_type_vars(v)), args, set())
         case _:
             assert False, f"Unknown type ({ty}) ({type(ty)})"

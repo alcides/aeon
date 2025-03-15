@@ -55,7 +55,6 @@ def substitute_vartype(t: Type, rep: Type, name: str):
 
 
 def substitute_vartype_in_term(t: Term, rep: Type, name: str):
-
     def rec(x: Term):
         return substitute_vartype_in_term(x, rep, name)
 
@@ -97,7 +96,7 @@ def substitution_in_liquid(
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
     if isinstance(
-            t,
+        t,
         (
             LiquidLiteralInt,
             LiquidLiteralBool,
@@ -122,8 +121,7 @@ def substitution_in_liquid(
         else:
             return LiquidHornApplication(
                 t.name,
-                [(substitution_in_liquid(a, rep, name), t)
-                 for (a, t) in t.argtypes],
+                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
             )
     else:
         assert False
@@ -254,7 +252,8 @@ def liquefy_app(app: Application) -> LiquidApp | None:
                     fun.var_name,
                 ),
                 app.arg,
-            ), )
+            ),
+        )
     else:
         raise Exception(f"{app} is not a valid predicate.")
 

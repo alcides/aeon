@@ -20,7 +20,6 @@ from aeon.core.types import Type
 
 
 class TypingContext(ABC):
-
     def type_of(self, name: str) -> Type | None:
         assert False
 
@@ -38,16 +37,14 @@ class TypingContext(ABC):
 
     def kind_of(self, ty: Type) -> Kind:
         match ty:
-            case BaseType(_) | Top() | RefinedType(
-                _, BaseType(_), _) | RefinedType(_, TypeConstructor(_, _), _):
+            case BaseType(_) | Top() | RefinedType(_, BaseType(_), _) | RefinedType(_, TypeConstructor(_, _), _):
                 return BaseKind()
             case TypeVar(name):
                 assert (name, BaseKind()) in self.typevars()
                 # TODO Polytypes: What it * is in context?
                 return BaseKind()
             case RefinedType(_, TypeVar(name), _):
-                assert (name, BaseKind()) in self.typevars(
-                ), f"{name} not in {self.typevars()}"
+                assert (name, BaseKind()) in self.typevars(), f"{name} not in {self.typevars()}"
                 return BaseKind()
             case AbstractionType(_, _, _):
                 return StarKind()
@@ -59,20 +56,16 @@ class TypingContext(ABC):
                 assert False, f"Unknown type in context: {ty}"
 
     @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]:
-        ...
+    def typevars(self) -> list[tuple[str, Kind]]: ...
 
     @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]:
-        ...
+    def vars(self) -> list[tuple[str, Type]]: ...
 
     @abstractmethod
-    def get_type_constructor(self, name: str) -> list[str] | None:
-        ...
+    def get_type_constructor(self, name: str) -> list[str] | None: ...
 
 
 class EmptyContext(TypingContext):
-
     def __init__(self):
         self.counter = 0
 
@@ -180,10 +173,10 @@ class TypeBinder(NonEmptyContext):
     type_kind: Kind
 
     def __init__(
-            self,
-            prev: TypingContext,
-            type_name: str,
-            type_kind: Kind = StarKind(),
+        self,
+        prev: TypingContext,
+        type_name: str,
+        type_kind: Kind = StarKind(),
     ):
         self.prev = prev
         self.type_name = type_name

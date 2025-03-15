@@ -17,10 +17,12 @@ example = Implication(
     "x",
     t_int,
     LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp(
-        "==",
-        [LiquidVar("x"), LiquidLiteralInt(3)],
-    ), ),
+    LiquidConstraint(
+        LiquidApp(
+            "==",
+            [LiquidVar("x"), LiquidLiteralInt(3)],
+        ),
+    ),
 )
 
 
@@ -36,10 +38,12 @@ example2 = Implication(
         "y",
         BaseType("a"),
         LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
-        LiquidConstraint(LiquidApp(
-            "==",
-            [LiquidVar("x"), LiquidVar("y")],
-        ), ),
+        LiquidConstraint(
+            LiquidApp(
+                "==",
+                [LiquidVar("x"), LiquidVar("y")],
+            ),
+        ),
     ),
 )
 
@@ -81,8 +85,7 @@ def main (x:Int) : Unit {
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType("y", SBaseType("Bool"),
-                                  parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType("y", SBaseType("Bool"), parse_expression("y == (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",

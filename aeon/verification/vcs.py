@@ -65,8 +65,7 @@ class TypeVarDeclaration(Constraint):
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
-    if isinstance(t, LiquidLiteralBool) or isinstance(
-            t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
+    if isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         pass
     elif isinstance(t, LiquidVar):
         yield t.name
