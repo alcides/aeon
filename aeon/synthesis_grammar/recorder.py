@@ -9,7 +9,6 @@ from geneticengine.solutions import Individual
 
 
 class LazyCSVRecorder(SearchRecorder):
-
     def __init__(
         self,
         csv_path: str,
@@ -55,7 +54,6 @@ class LazyCSVRecorder(SearchRecorder):
 
 
 class CSVRecorder(SearchRecorder):
-
     def __init__(
         self,
         csv_path: str,

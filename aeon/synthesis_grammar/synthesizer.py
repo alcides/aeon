@@ -331,8 +331,9 @@ def set_budget(target_fitness, gp_params, tracker):
 
 
 def set_tracker(problem, recorders):
-    tracker = SingleObjectiveProgressTracker if isinstance(problem,
-                                                           SingleObjectiveProblem) else MultiObjectiveProgressTracker
+    tracker = (
+        SingleObjectiveProgressTracker if isinstance(problem, SingleObjectiveProblem) else MultiObjectiveProgressTracker
+    )
 
     return tracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
 

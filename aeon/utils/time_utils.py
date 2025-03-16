@@ -8,7 +8,6 @@ from loguru import logger
 
 
 def measure(func):
-
     @wraps(func)
     def _time_it(*args, **kwargs):
         start = int(round(process_time() * 1000))
@@ -26,7 +25,6 @@ def measure(func):
 
 
 class RecordTime:
-
     def __init__(self, name: str):
         self.name = name
 

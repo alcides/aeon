@@ -58,7 +58,7 @@ def extract_class_name(class_name: str) -> str:
     ]
     for prefix in prefixes:
         if class_name.startswith(prefix):
-            return class_name[len(prefix):]
+            return class_name[len(prefix) :]
     return class_name
 
 
@@ -68,16 +68,13 @@ class GrammarError(Exception):
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
-
-    def get_core(self):
-        ...
+    def get_core(self): ...
 
 
 classType = TypingType[HasGetCore]
 
 
 def mk_method_core(cls: classType) -> classType:
-
     def get_core(self):
         class_name = self.__class__.__name__
         # the prefix is either "var_", "app_", "refined_app" or "refined_var"
@@ -118,7 +115,6 @@ def mk_method_core(cls: classType) -> classType:
 
 
 def mk_method_core_literal(cls: classType) -> classType:
-
     def get_core(self):
         class_name = self.__class__.__name__
         class_name_without_prefix = extract_class_name(class_name)
@@ -286,7 +282,7 @@ def create_literal_class(
     new_class = make_dataclass(
         "literal_" + class_name,
         [("value", value_type)],
-        bases=(base_class, ),
+        bases=(base_class,),
     )
     return mk_method_core_literal(new_class)
 
@@ -416,7 +412,7 @@ def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
     """Creates a new class with the given name, parent class, and fields."""
     if fields is None:
         fields = []
-    new_class = make_dataclass(class_name, fields, bases=(parent_class, ))
+    new_class = make_dataclass(class_name, fields, bases=(parent_class,))
     new_class = mk_method_core(new_class)
 
     return new_class
@@ -537,9 +533,8 @@ def create_if_class(
 def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     types_names_set = {
         cls.__name__
-        for cls in grammar_nodes if cls.__base__ is ABC and not any(
-            issubclass(cls, other) and cls is not other
-            for other in grammar_nodes)
+        for cls in grammar_nodes
+        if cls.__base__ is ABC and not any(issubclass(cls, other) and cls is not other for other in grammar_nodes)
     }
     for ty_name in types_names_set:
         grammar_nodes = create_if_class(

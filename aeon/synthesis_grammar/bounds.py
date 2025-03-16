@@ -116,7 +116,6 @@ def conditional_to_interval(cond: list, name: str) -> Set:
 
 
 def sympy_exp_to_bounded_interval(exp: Expr | Basic) -> Any:
-
     if isinstance(exp, And):
         return [sympy_exp_to_bounded_interval(x) for x in exp.args]
     elif isinstance(exp, Or):

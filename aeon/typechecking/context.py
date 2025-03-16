@@ -24,12 +24,10 @@ class TypingContext(ABC):
         return "fresh_"
 
     @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]:
-        ...
+    def typevars(self) -> list[tuple[str, Kind]]: ...
 
     @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]:
-        ...
+    def vars(self) -> list[tuple[str, Type]]: ...
 
 
 class EmptyContext(TypingContext):

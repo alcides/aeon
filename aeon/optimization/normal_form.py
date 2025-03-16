@@ -19,7 +19,6 @@ from aeon.core.types import t_bool
 def normal_form(t: Term) -> Term:
     nf = normal_form
     match t:
-
         case Application(Abstraction(var_name, body), arg):
             return nf(substitution(body, arg, var_name))
 

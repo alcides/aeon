@@ -44,8 +44,7 @@ def parse_arguments():
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -160,18 +159,22 @@ def main() -> None:
         sys.exit(1)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[
-            str, list[str], ]] = incomplete_functions_and_holes(
-                typing_ctx,
-                core_ast_anf,
-            )
+        incomplete_functions: list[
+            tuple[
+                str,
+                list[str],
+            ]
+        ] = incomplete_functions_and_holes(
+            typing_ctx,
+            core_ast_anf,
+        )
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (parse_config(args.gp_config, args.config_section)
-                            if args.gp_config and args.config_section else
-                            None)
+            synth_config = (
+                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+            )
 
         ui = select_synthesis_ui()
 

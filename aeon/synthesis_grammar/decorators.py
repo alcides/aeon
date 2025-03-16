@@ -37,9 +37,7 @@ def minimize_int(
         metadata,
         fun,
         {
-            "minimize_int":
-            metadata.get(fun.name, {}).get("minimize_int", []) +
-            [minimize_function],
+            "minimize_int": metadata.get(fun.name, {}).get("minimize_int", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -71,9 +69,7 @@ def minimize_float(
         metadata,
         fun,
         {
-            "minimize_float":
-            metadata.get(fun.name, {}).get("minimize_float", []) +
-            [minimize_function],
+            "minimize_float": metadata.get(fun.name, {}).get("minimize_float", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -90,12 +86,16 @@ def multi_minimize_float(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert len(
-        args,
-    ) == 1, "multi_minimize_float decorator expects a single argument"
+    assert (
+        len(
+            args,
+        )
+        == 1
+    ), "multi_minimize_float decorator expects a single argument"
 
     n_decorators = len(
-        metadata.get(fun.name, {}).get("multi_minimize_float", []), )
+        metadata.get(fun.name, {}).get("multi_minimize_float", []),
+    )
     minimize_function_name = f"__internal__multi_minimize_float_{fun.name}_{n_decorators}"
     minimize_function = Definition(
         name=minimize_function_name,
@@ -108,9 +108,7 @@ def multi_minimize_float(
         metadata,
         fun,
         {
-            "multi_minimize_float":
-            metadata.get(fun.name, {}).get("multi_minimize_float", []) +
-            [minimize_function],
+            "multi_minimize_float": metadata.get(fun.name, {}).get("multi_minimize_float", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata

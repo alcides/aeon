@@ -65,7 +65,6 @@ class CouldNotGenerateConstraintException(Exception):
 
 
 class FailedConstraintException(Exception):
-
     def __init__(self, ctx, t, ty, ks):
         self.ctx = ctx
         self.t = t

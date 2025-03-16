@@ -19,7 +19,6 @@ from aeon.sugar.program import TypeDecl
 
 
 class TreeToSugar(TreeToCore):
-
     def list(self, args):
         return args
 

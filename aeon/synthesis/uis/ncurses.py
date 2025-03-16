@@ -9,7 +9,6 @@ import curses
 
 
 class NCursesUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,
@@ -54,7 +53,6 @@ class NCursesUI(SynthesisUI):
         curses.endwin()
 
     def wrapper(self, f):
-
         def w(stdscr):
             self.stdscr = stdscr
             return f()
