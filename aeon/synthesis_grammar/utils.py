@@ -4,6 +4,14 @@ from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from geneticengine.grammar.metahandlers.floats import FloatRange
 from geneticengine.grammar.metahandlers.ints import IntRange
 from geneticengine.grammar.metahandlers.strings import StringSizeBetween
+from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
+    DynamicStructuredGrammaticalEvolutionRepresentation,
+)
+from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
+from geneticengine.representations.grammatical_evolution.structured_ge import (
+    StructuredGrammaticalEvolutionRepresentation,
+)
+from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 
 from aeon.core.liquid import LiquidLiteralInt, LiquidLiteralString, LiquidLiteralFloat
 
@@ -52,4 +60,34 @@ aeon_to_liquid_terms: dict[str, Type[LiquidLiteralFloat | LiquidLiteralInt | Liq
     "Int": LiquidLiteralInt,
     "String": LiquidLiteralString,
     "Float": LiquidLiteralFloat,
+}
+
+representations = {
+    "tree": TreeBasedRepresentation,
+    "ge": GrammaticalEvolutionRepresentation,
+    "sge": StructuredGrammaticalEvolutionRepresentation,
+    "dsge": DynamicStructuredGrammaticalEvolutionRepresentation,
+}
+
+fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
+
+gengy_default_config = {
+    "seed": 123,
+    "verbose": 2,
+    "config_name": "DEFAULT",
+    # Stopping criteria
+    "timer_stop_criteria": True,
+    "timer_limit": 60,
+    # Recording
+    "only_record_best_inds": True,
+    # Representation
+    "representation": "tree",
+    "max_depth": 8,
+    # Population and Steps
+    "population_size": 20,
+    "n_elites": 1,
+    "novelty": 1,
+    "probability_mutation": 0.1,
+    "probability_crossover": 0.7,
+    "tournament_size": 2,
 }

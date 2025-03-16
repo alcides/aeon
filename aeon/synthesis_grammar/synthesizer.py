@@ -1,29 +1,25 @@
 from __future__ import annotations
 
-
 import builtins
 import configparser
-import csv
 import os
 import sys
 import time
-from io import TextIOWrapper
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple
 from typing import Callable
 
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.elitism import ElitismStep
-from geneticengine.algorithms.gp.operators.initializers import (
-    StandardInitializer, )
+from geneticengine.algorithms.gp.operators.initializers import StandardInitializer
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
 from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.selection import TournamentSelection
 from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.budget import TimeBudget, TargetFitness, AnyOf, SearchBudget, TargetMultiFitness
-from geneticengine.evaluation.recorder import SearchRecorder, FieldMapper
+from geneticengine.evaluation.recorder import SearchRecorder
 from geneticengine.evaluation.tracker import (
     MultiObjectiveProgressTracker,
     ProgressTracker,
@@ -32,12 +28,6 @@ from geneticengine.evaluation.tracker import (
 from geneticengine.grammar import extract_grammar, Grammar
 from geneticengine.prelude import GeneticProgramming, NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
-from geneticengine.random.sources import RandomSource
-from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
-    DynamicStructuredGrammaticalEvolutionRepresentation, )
-from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
-from geneticengine.representations.grammatical_evolution.structured_ge import (
-    StructuredGrammaticalEvolutionRepresentation, )
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.solutions import Individual
 from loguru import logger
@@ -61,6 +51,8 @@ from aeon.synthesis_grammar.grammar import (
     build_control_flow_grammar_nodes,
 )
 from aeon.synthesis_grammar.identification import get_holes_info
+from aeon.synthesis_grammar.recorder import LazyCSVRecorder, CSVRecorder
+from aeon.synthesis_grammar.utils import representations, fitness_decorators, gengy_default_config
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 
@@ -75,37 +67,8 @@ ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
 ERROR_FITNESS = ERROR_NUMBER
 TIMEOUT_DURATION: int = 60  # seconds
 
-representations = {
-    "tree": TreeBasedRepresentation,
-    "ge": GrammaticalEvolutionRepresentation,
-    "sge": StructuredGrammaticalEvolutionRepresentation,
-    "dsge": DynamicStructuredGrammaticalEvolutionRepresentation,
-}
-
-gengy_default_config = {
-    "seed": 123,
-    "verbose": 2,
-    "config_name": "DEFAULT",
-    # Stopping criteria
-    "timer_stop_criteria": True,
-    "timer_limit": 60,
-    # Recording
-    "only_record_best_inds": True,
-    # Representation
-    "representation": "tree",
-    "max_depth": 8,
-    # Population and Steps
-    "population_size": 200,
-    "n_elites": 1,
-    "novelty": 1,
-    "probability_mutation": 0.1,
-    "probability_crossover": 0.7,
-    "tournament_size": 2,
-}
-
 
 class TargetMultiSameFitness(SearchBudget):
-
     def __init__(self, target_fitness: float):
         self.target_fitness = target_fitness
 
@@ -113,52 +76,6 @@ class TargetMultiSameFitness(SearchBudget):
         assert isinstance(tracker, MultiObjectiveProgressTracker)
         comps = tracker.get_best_individuals()[0].get_fitness(tracker.get_problem()).fitness_components
         return all(abs(c - self.target_fitness) < 0.001 for c in comps)
-
-
-class LazyCSVRecorder(SearchRecorder):
-
-    def __init__(
-        self,
-        csv_path: str,
-        problem: Problem,
-        fields: dict[str, FieldMapper] = None,
-        extra_fields: dict[str, FieldMapper] = None,
-        only_record_best_individuals: bool = True,
-    ):
-        assert csv_path is not None
-        self.csv_writer: Optional[Any] = None
-        self.csv_file: Optional[TextIOWrapper] = None
-        self.csv_file_path = csv_path
-        self.fields = fields
-        self.extra_fields = extra_fields
-        self.only_record_best_individuals = only_record_best_individuals
-        self.problem = problem
-        self.header_printed = False
-        if fields is not None:
-            self.fields = fields
-
-    def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=True):
-        if self.csv_file is None:
-            self.csv_file = open(self.csv_file_path, "w", newline="")
-            self.csv_writer = csv.writer(self.csv_file)
-            if self.fields is None:
-                self.fields = {
-                    "Execution Time": lambda t, i, _: (time.monotonic_ns() - t.start_time) * 0.000000001,
-                    "Fitness Aggregated": lambda t, i, p: i.get_fitness(p).maximizing_aggregate,
-                    "Phenotype": lambda t, i, _: i.get_phenotype(),
-                    "Fitness": lambda t, i, p: i.get_fitness(p).fitness_components,
-                }
-
-            if self.extra_fields is not None:
-                for name in self.extra_fields:
-                    self.fields[name] = self.extra_fields[name]
-            self.csv_writer.writerow([name for name in self.fields])
-            self.csv_file.flush()
-        if not self.only_record_best_individuals or is_best:
-            self.csv_writer.writerow(
-                [self.fields[name](tracker, individual, problem) for name in self.fields],
-            )
-            self.csv_file.flush()
 
 
 def parse_config(config_file: str, section: str) -> dict[str, Any]:
@@ -169,7 +86,6 @@ def parse_config(config_file: str, section: str) -> dict[str, Any]:
         raise OSError(f"An error occurred while reading the file: {e}")
 
     assert section in config, f"Section '{section}' not found in the configuration file"
-    gp_params = {}
     gp_params = {k: builtins.eval(v) for k, v in config[section].items()}
     gp_params["config_name"] = section
 
@@ -226,18 +142,11 @@ def create_evaluator(
     ctx: TypingContext,
     ectx: EvaluationContext,
     program: Term,
-    fun_name: str,
-    metadata: Metadata,
+    objectives_list: list[Definition],
     holes: list[str],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
-    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name]]
-    assert used_decorators, "No fitness decorators used in metadata for function."
 
-    objectives_list: list[Definition] = [
-        objective for decorator in used_decorators for objective in metadata[fun_name][decorator]
-    ]
     programs_to_evaluate: list[Term] = [
         substitution(program, Var(objective.name), "main") for objective in objectives_list
     ]
@@ -283,6 +192,37 @@ def is_multiobjective(used_decorators: list[str]) -> bool:
     return len(used_decorators) > 1 or used_decorators[0].startswith("multi")
 
 
+def set_problem_type_and_error_fitness(metadata, used_fitness_decorators):
+    global ERROR_FITNESS, ERROR_NUMBER
+    fun_decorators = metadata.keys()
+
+    ERROR_NUMBER = metadata["error_fitness"] if "error_fitness" in fun_decorators else ERROR_NUMBER
+
+    if is_multiobjective(used_fitness_decorators):
+        # TODO ver melhor
+        ERROR_FITNESS = (
+            [ERROR_NUMBER] * metadata["objective_number"] if "objective_number" in fun_decorators else [ERROR_NUMBER]
+        )
+        return MultiObjectiveProblem
+    else:
+        ERROR_FITNESS = ERROR_NUMBER
+        return SingleObjectiveProblem
+
+
+def get_target_fitness(metadata, problem_type):
+    # FIXME: TargetMultiFitness is not supported yet! Only TargetMultiSameFitness is supported
+
+    minimize = metadata.get("minimize", False) or metadata.get("multi_minimize", False)
+    target_fitness = 0 if minimize else (sys.maxsize - 1)
+    if isinstance(problem_type, MultiObjectiveProblem) and "objective_number" in metadata:
+        target_fitness = [target_fitness] * metadata["objective_number"]
+    return target_fitness, minimize
+
+
+def get_function_objectives(used_fitness_decorators, fun_metadata) -> list[Definition]:
+    return [objective for decorator in used_fitness_decorators for objective in fun_metadata[decorator]]
+
+
 def problem_for_fitness_function(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -293,21 +233,21 @@ def problem_for_fitness_function(
 ) -> Tuple[Problem, float | list[float]]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
-    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
 
-    if fun_name in metadata:
-        used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
-        assert used_decorators, "No valid fitness decorators found."
+    fun_metadata = metadata.get(fun_name, {})
+    if fun_metadata:
+        used_fitness_decorators = [decorator for decorator in fitness_decorators if decorator in fun_metadata]
+        assert used_fitness_decorators, f"No fitness decorators used for function {fun_name}."
 
-        set_error_fitness(used_decorators)
+        problem_type = set_problem_type_and_error_fitness(fun_metadata, used_fitness_decorators)
 
-        fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
-        problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
-        target_fitness: float | list[float] = (
-            0 if isinstance(problem_type, SingleObjectiveProblem) else 0
-        )  # TODO: add support to maximize decorators
+        objectives_list = get_function_objectives(used_fitness_decorators, fun_metadata)
 
-        return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), target_fitness
+        fitness_function = create_evaluator(ctx, ectx, term, objectives_list, hole_names)
+
+        target_fitness, minimize = get_target_fitness(fun_metadata, problem_type)
+
+        return problem_type(fitness_function=fitness_function, minimize=minimize), target_fitness
     else:
         return SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0
 
@@ -320,7 +260,9 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata
     hole_type_name = process_type_name(ty)
     grammar_nodes, starting_node = find_class_by_name("t_" + hole_type_name, grammar_nodes, ty)
     assert starting_node is not None, "Starting Node is None"
-    grammar_nodes = build_control_flow_grammar_nodes(grammar_nodes)
+    grammar_nodes = (
+        build_control_flow_grammar_nodes(grammar_nodes) if "allow_control_flow" in metadata[fun_name] else grammar_nodes
+    )
     return grammar_nodes, starting_node
 
 
@@ -337,9 +279,9 @@ def random_search_synthesis(grammar: Grammar, problem: Problem, budget: int = 10
     """Performs a synthesis procedure with Random Search."""
     max_depth = 5
     rep = TreeBasedRepresentation(grammar, max_depth)
-    r = RandomSource(42)
+    r = NativeRandomSource(seed=42)
 
-    population = [rep.create_individual(r, max_depth) for _ in range(budget)]
+    population = [rep.create_genotype(r) for _ in range(budget)]
     population_with_score = [(problem.evaluate(phenotype), phenotype.get_core()) for phenotype in population]
     return min(population_with_score, key=lambda x: x[0])[1]
 
@@ -370,6 +312,31 @@ def create_gp_step(problem: Problem, gp_params: dict[str, Any]):
     )
 
 
+def set_budget(target_fitness, gp_params, tracker):
+    budget = TimeBudget(time=gp_params["timer_limit"])
+
+    if target_fitness is not None:
+        if isinstance(tracker, SingleObjectiveProgressTracker):
+            search_budget = TargetFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, list):
+            search_budget = TargetMultiFitness(target_fitness)
+        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, (float, int)):
+            search_budget = TargetMultiSameFitness(target_fitness)
+        else:
+            assert False
+
+        budget = AnyOf(budget, search_budget)
+
+    return budget
+
+
+def set_tracker(problem, recorders):
+    tracker = SingleObjectiveProgressTracker if isinstance(problem,
+                                                           SingleObjectiveProblem) else MultiObjectiveProgressTracker
+
+    return tracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
+
+
 def geneticengine_synthesis(
     grammar: Grammar,
     problem: Problem,
@@ -396,16 +363,14 @@ def geneticengine_synthesis(
     recorders = []
     if filename:
         csv_file_path = get_csv_file_path(filename, representation, seed, hole_name, config_name)
+        csv_recorder = CSVRecorder if isinstance(target_fitness, list) else LazyCSVRecorder
         recorders.append(
-            LazyCSVRecorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"]),
+            csv_recorder(csv_file_path, problem, only_record_best_individuals=gp_params["only_record_best_inds"])
         )
-    if isinstance(problem, SingleObjectiveProblem):
-        tracker = SingleObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
-    else:
-        tracker = MultiObjectiveProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=recorders)
+
+    tracker = set_tracker(problem, recorders)
 
     class UIBackendRecorder(SearchRecorder):
-
         def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=False):
             ui.register(
                 individual.get_phenotype().get_core(),
@@ -416,21 +381,12 @@ def geneticengine_synthesis(
 
     recorders.append(UIBackendRecorder())
 
-    budget = TimeBudget(time=gp_params["timer_limit"])
-    if target_fitness is not None:
-        if isinstance(tracker, SingleObjectiveProgressTracker):
-            search_budget = TargetFitness(target_fitness)
-        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, list):
-            search_budget = TargetMultiFitness(target_fitness)
-        elif isinstance(tracker, MultiObjectiveProgressTracker) and isinstance(target_fitness, (float, int)):
-            search_budget = TargetMultiSameFitness(target_fitness)
-        else:
-            assert False
-        budget = AnyOf(budget, search_budget)
+    budget = set_budget(target_fitness, gp_params, tracker)
+
     alg = GeneticProgramming(
         problem=problem,
         budget=budget,
-        representation=representation,
+        representation=representation,  # type: ignore
         random=NativeRandomSource(seed),
         tracker=tracker,
         population_size=gp_params["population_size"],
@@ -439,26 +395,18 @@ def geneticengine_synthesis(
     )
 
     ui.start(
-        typing_ctx=None,
-        evaluation_ctx=None,
+        typing_ctx=None,  # type: ignore
+        evaluation_ctx=None,  # type: ignore
         target_name=hole_name,
-        target_type=None,
+        target_type=None,  # type: ignore
         budget=gengy_default_config["timer_limit"],
     )
-    best: Individual = ui.wrapper(lambda: alg.search()) #TODO
+    best: Individual = alg.search()
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
     )
     ui.end(best.get_phenotype().get_core(), best.get_fitness(problem))
     return best.get_phenotype().get_core()
-
-
-def set_error_fitness(decorators):
-    global ERROR_FITNESS
-    if is_multiobjective(decorators):
-        ERROR_FITNESS = [ERROR_NUMBER]
-    else:
-        ERROR_FITNESS = ERROR_NUMBER
 
 
 def synthesize_single_function(

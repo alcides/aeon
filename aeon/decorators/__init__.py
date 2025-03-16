@@ -12,7 +12,16 @@ eventual complementary definitions.
 from aeon.decorators.api import DecoratorType
 from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, hide, allow_recursion
+from aeon.synthesis_grammar.decorators import (
+    minimize_int,
+    minimize_float,
+    multi_minimize_float,
+    hide,
+    allow_recursion,
+    error_fitness,
+    objective_number,
+    allow_control_flow,
+)
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
@@ -20,6 +29,9 @@ decorators_environment: dict[str, DecoratorType] = {
     "multi_minimize_float": multi_minimize_float,
     "hide": hide,
     "allow_recursion": allow_recursion,
+    "error_fitness": error_fitness,
+    "objective_number": objective_number,
+    "allow_control_flow": allow_control_flow,
 }
 
 
