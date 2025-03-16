@@ -9,7 +9,9 @@ from aeon.sugar.program import Decorator
 
 single_objective_decorators = ["minimize", "maximize", "assert_property"]
 multi_objective_decorators = [
-    "multi_minimize", "multi_maximize", "assert_properties"
+    "multi_minimize",
+    "multi_maximize",
+    "assert_properties",
 ]
 
 
@@ -28,7 +30,8 @@ def get_type_from_decorators(macro_list) -> BaseType:
             return BaseType("List")
         else:
             raise Exception(
-                "decorator not in lists single and multi objective decorators")
+                "decorator not in lists single and multi objective decorators",
+            )
     else:
         raise NotImplementedError("Not yet supported")
 
@@ -47,8 +50,11 @@ def extract_fitness_from_synth(d: Definition) -> tuple[Term, list[Decorator]]:
 
     fitness_return_type = get_type_from_decorators(decorators_list)
 
-    fitness_function = generate_term(d.name, fitness_return_type,
-                                     fitness_terms)
+    fitness_function = generate_term(
+        d.name,
+        fitness_return_type,
+        fitness_terms,
+    )
 
     return fitness_function, decorators_list
 
@@ -68,10 +74,12 @@ def generate_definition(
     fitness_terms: list[Term],
 ) -> Definition:
     if len(fitness_terms) == 1:
-        return Definition(name="fitness",
-                          args=[],
-                          type=fitness_return_type,
-                          body=fitness_terms[0])
+        return Definition(
+            name="fitness",
+            args=[],
+            type=fitness_return_type,
+            body=fitness_terms[0],
+        )
     else:
         raise NotImplementedError("Not yet supported")
 

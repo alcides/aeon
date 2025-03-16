@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import builtins
 import configparser
 import csv
@@ -14,7 +15,8 @@ import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.elitism import ElitismStep
-from geneticengine.algorithms.gp.operators.initializers import StandardInitializer
+from geneticengine.algorithms.gp.operators.initializers import (
+    StandardInitializer, )
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
 from geneticengine.algorithms.gp.operators.novelty import NoveltyStep
 from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
@@ -32,12 +34,10 @@ from geneticengine.prelude import GeneticProgramming, NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.random.sources import RandomSource
 from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
-    DynamicStructuredGrammaticalEvolutionRepresentation,
-)
+    DynamicStructuredGrammaticalEvolutionRepresentation, )
 from geneticengine.representations.grammatical_evolution.ge import GrammaticalEvolutionRepresentation
 from geneticengine.representations.grammatical_evolution.structured_ge import (
-    StructuredGrammaticalEvolutionRepresentation,
-)
+    StructuredGrammaticalEvolutionRepresentation, )
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.solutions import Individual
 from loguru import logger
@@ -206,7 +206,6 @@ def get_csv_file_path(file_path: str, representation: type, seed: int, hole_name
 
 
 def filter_nan_values(result):
-
     def isnan(obj):
         return obj != obj
 
@@ -256,7 +255,7 @@ def create_evaluator(
             result = filter_nan_values(result)
             result_queue.put(result)
             end = time.time()
-            logger.info(f"Individual evaluation time: {end-start} ")
+            logger.info(f"Individual evaluation time: {end - start} ")
 
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
@@ -446,7 +445,7 @@ def geneticengine_synthesis(
         target_type=None,
         budget=gengy_default_config["timer_limit"],
     )
-    best: Individual = alg.search()
+    best: Individual = ui.wrapper(lambda: alg.search()) #TODO
     print(
         f"Fitness of {best.get_fitness(problem)} by genotype: {best.genotype} with phenotype: {best.get_phenotype()}",
     )

@@ -48,23 +48,31 @@ def parse_arguments():
         """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
-    parser.add_argument("-f",
-                        "--logfile",
-                        action="store_true",
-                        help="export log file")
+    parser.add_argument(
+        "-f",
+        "--logfile",
+        action="store_true",
+        help="export log file",
+    )
 
-    parser.add_argument("-csv",
-                        "--csv-synth",
-                        action="store_true",
-                        help="export synthesis csv file")
+    parser.add_argument(
+        "-csv",
+        "--csv-synth",
+        action="store_true",
+        help="export synthesis csv file",
+    )
 
-    parser.add_argument("-gp",
-                        "--gp-config",
-                        help="path to the GP configuration file")
+    parser.add_argument(
+        "-gp",
+        "--gp-config",
+        help="path to the GP configuration file",
+    )
 
-    parser.add_argument("-csec",
-                        "--config-section",
-                        help="section name in the GP configuration file")
+    parser.add_argument(
+        "-csec",
+        "--config-section",
+        help="section name in the GP configuration file",
+    )
 
     parser.add_argument(
         "-d",
@@ -153,8 +161,10 @@ def main() -> None:
 
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[tuple[
-            str, list[str]]] = incomplete_functions_and_holes(
-                typing_ctx, core_ast_anf)
+            str, list[str], ]] = incomplete_functions_and_holes(
+                typing_ctx,
+                core_ast_anf,
+            )
 
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
