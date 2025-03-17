@@ -94,6 +94,7 @@ def test_e2e_synthesis_ref4():
     assert isinstance(t, Literal)
     assert (t.value > 3 and t.value < 10) or (t.value > 20 and t.value < 30)
 
+
 @pytest.mark.skip(reason="Synthesis-only")
 def test_e2e_synthesis_ref5():
     code = """def synth : {x:Float | x > 3 && x < 10} = ?hole;"""

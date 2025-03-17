@@ -97,7 +97,7 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 ctx = prev
             case VariableBinder(prev, name, TypeVar(tvname)):
                 known_types.append(tvname)
-                variables[name] = BaseType(tvname)
+                variables[name] = TypeVar(tvname)
                 ctx = prev
             case VariableBinder(prev, name, TypePolymorphism(_) as ty):
                 functions[name] = lower_abstraction_type(ty)
@@ -129,7 +129,7 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
 def type_infer_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
-) -> BaseType | TypeConstructor:
+) -> BaseType | TypeConstructor | TypeVar:
     match liq:
         case LiquidLiteralBool(_):
             return t_bool
@@ -143,8 +143,9 @@ def type_infer_liquid(
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(
                     f"Variable {name} not in context in {ctx}.")
+
             rt = ctx.variables[name]
-            assert isinstance(rt, BaseType)
+            assert isinstance(rt, BaseType) or isinstance(rt, TypeVar)
             return rt
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
@@ -158,9 +159,10 @@ def type_infer_liquid(
                 raise LiquidTypeCheckException(
                     f"Function application {liq} needs {len(ftype)-1} arguments, but was passed {len(args)}."
                 )
-
+            type_of_args = []
             for arg, exp_t in zip(args, ftype):
                 k = type_infer_liquid(ctx, arg)
+                type_of_args.append(k)
                 match (k, exp_t):
                     case (BaseType(t), BaseType(e)):
                         if t != e:
@@ -174,11 +176,42 @@ def type_infer_liquid(
                             raise LiquidTypeCheckException(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t} ({equalities[name]}), but {k} was found instead."
                             )
+                    case (TypeVar(t), TypeVar(name)):
+                        if t != name:
+                            raise LiquidTypeCheckException(
+                                f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
+                            )
                     case _:
-                        assert False, "Case not considered in liquid unification"
+                        assert (
+                            False
+                        ), f"Case not considered in liquid unification: {k} ({type(k)}) and {exp_t} ({type(exp_t)})"
+
+            if fun in ["<", "<=", ">", ">="]:
+                if type_of_args[0] not in [
+                        BaseType(x) for x in ["Float", "Int"]
+                ] and not isinstance(type_of_args[0], TypeVar):
+                    raise LiquidTypeCheckException(
+                        f"Function {fun} only applies to Floats or Ints.")
+            elif fun in ["==", "!="
+                         ] and not isinstance(type_of_args[0], TypeVar):
+                # TODO: Add type equality
+                if type_of_args[0] not in [
+                        BaseType(x)
+                        for x in ["Unit", "Bool", "Float", "Int", "String"]
+                ]:
+                    raise LiquidTypeCheckException(
+                        f"Function {fun} only applies to built-in types.")
+            elif fun in ["+", "-", "*", "/"
+                         ] and not isinstance(type_of_args[0], TypeVar):
+                if type_of_args[0] not in [
+                        BaseType(x) for x in ["Float", "Int"]
+                ]:
+                    raise LiquidTypeCheckException(
+                        f"Function {fun} only applies to Floats or Ints.")
 
             if isinstance(ftype[-1], TypeVar):
                 return equalities[ftype[-1].name]
+
             return ftype[-1]
         case LiquidHornApplication(_, _):
             return t_bool

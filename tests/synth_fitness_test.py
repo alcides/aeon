@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from aeon.core.terms import Term
+import pytest
+
+from aeon.core.terms import Term, Literal
+from aeon.core.types import BaseType
 from aeon.logger.logger import setup_logger
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
@@ -61,3 +64,22 @@ def test_fitness2():
                          synth_config=synth_config)
 
     assert isinstance(term, Term)
+
+
+@pytest.mark.skip(reason="Synthesis-only")
+def test_literal_int_range():
+    source = """
+            @minimize_int(1)
+            def synth : Int = ?hole;
+        """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    term, _ = synthesize(ctx,
+                         ectx,
+                         core_ast_anf, [("synth", ["hole"])],
+                         metadata,
+                         synth_config=synth_config)
+
+    assert isinstance(term, Term)
+    assert isinstance(term, Literal)
+    assert term.type == BaseType("Int")
+    assert -1 <= term.value <= 256

@@ -10,7 +10,7 @@ from typing import Any, Tuple, Optional
 from typing import Callable
 
 import configparser
-from geneticengine.algorithms.enumerative import EnumerativeSearch
+from geneticengine.algorithms.random_search import RandomSearch
 from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
@@ -468,20 +468,20 @@ def geneticengine_synthesis(
     #     step=create_gp_step(problem=problem, gp_params=gp_params),
     # )
 
-    alg = EnumerativeSearch(
-        problem=problem,
-        budget=budget,
-        grammar=grammar,
-        tracker=tracker,
-    )
-
-    # alg = RandomSearch(
+    # alg = EnumerativeSearch(
     #     problem=problem,
     #     budget=budget,
-    #     representation=representation,
-    #     random=NativeRandomSource(seed),
-    #     recorder=tracker,
+    #     grammar=grammar,
+    #     tracker=tracker,
     # )
+
+    alg = RandomSearch(
+        problem=problem,
+        budget=budget,
+        representation=representation,
+        random=NativeRandomSource(seed),
+        tracker=tracker,
+    )
 
     ui.start(
         typing_ctx=None,

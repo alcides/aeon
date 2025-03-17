@@ -27,7 +27,18 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             else:
                 return t
         case RefinedType(name, ity, ref):
-            return RefinedType(name, rec(ity), ref)
+            match rec(ity):
+                case RefinedType(iname, iity, iref) as city:
+                    return RefinedType(
+                        name, iity,
+                        mk_liquid_and(
+                            ref,
+                            substitution_in_liquid(iref, LiquidVar(name),
+                                                   iname)))
+                case AbstractionType(_, _, _):
+                    assert False, f"Abstraction types cannot be refined: {t} -> {ity} -> {rec(ity)}"
+                case city:
+                    return RefinedType(name, city, ref)
         case AbstractionType(aname, aty, rty):
             return AbstractionType(aname, rec(aty), rec(rty))
         case TypePolymorphism(name, kind, body):

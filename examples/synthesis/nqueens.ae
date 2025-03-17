@@ -3,23 +3,23 @@ type Board;
 
 def N : {n:Int | n == 9} = 9;
 
-def C_mk :
-    (q1x:Int | 0 <= q1x && q1x < N ) ->
-    (q1y:Int | 0 <= q1y && q1y < N ) ->
-    Coordinate = native "lambda x: lambda y: (x, y)";
+def C_mk
+    (q1x:Int | 0 <= q1x && q1x < N )
+    (q1y:Int | 0 <= q1y && q1y < N ) :
+    Coordinate { native "(x, y)" }
 
-def C_x : (s:Coordinate) -> Int = native "lambda s: s[0]";
-def C_y : (s:Coordinate) -> Int = native "lambda s: s[1]";
+def C_x (s:Coordinate) : Int { native "s[0]" }
+def C_y (s:Coordinate) : Int { native "s[1]" }
 
 
 
 def Board_size : (b:Board) -> Int = uninterpreted;
 
-def Board_is_empty : (b:Board) -> Bool = \b -> native "len(b) == 0";
+def Board_is_empty (b:Board) : Bool { native "len(b) == 0" }
 
-def Board_head : (b:Board | Board_size b > 0) -> Coordinate = \b -> native "b[0]";
+def Board_head (b:Board | Board_size b > 0) : Coordinate { native "b[0]" }
 
-def Board_tail : (b:Board | Board_size b > 0) -> {b2:Board | Board_size b2 == Board_size b - 1} = \b -> native "b[1:]";
+def Board_tail (b:Board | Board_size b > 0) : {b2:Board | Board_size b2 == (Board_size b - 1)} { native "b[1:]" }
 
 
 def conflicts (t:Coordinate) (b:Board) : Int {
@@ -46,17 +46,17 @@ def Board_quality (b:Board) : Int {
 }
 
 
-def create_solution :
-    (q1 : Coordinate) ->
-    (q2 : Coordinate) ->
-    (q3 : Coordinate) ->
-    (q4 : Coordinate) ->
-    (q5 : Coordinate) ->
-    (q6 : Coordinate) ->
-    (q7 : Coordinate) ->
-    (q8 : Coordinate) ->
-    (q9 : Coordinate) ->
-   {b:Board | Board_size b == N} = native "lambda q1: lambda q2: lambda q3: lambda q4: lambda q5: lambda q6: lambda q7: lambda q8: lambda q9: [q1, q2, q3, q4, q5, q6, q7, q8, q9]";
+def create_solution
+    (q1 : Coordinate)
+    (q2 : Coordinate)
+    (q3 : Coordinate)
+    (q4 : Coordinate)
+    (q5 : Coordinate)
+    (q6 : Coordinate)
+    (q7 : Coordinate)
+    (q8 : Coordinate)
+    (q9 : Coordinate) :
+   {b:Board | Board_size b == N} { native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]" }
 
 
 @minimize_int(Board_quality nqueens)

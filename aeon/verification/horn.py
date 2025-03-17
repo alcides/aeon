@@ -188,8 +188,8 @@ def build_possible_assignment(
             # At least one LiquidVar must be used.
             if not any(isinstance(a, LiquidVar) for a in args):
                 continue
-
-            app = LiquidApp(fname, list(args))
+            arg_list = list(args)
+            app = LiquidApp(fname, arg_list)
 
             if check_liquid(ctx, app, t_bool):
                 yield app

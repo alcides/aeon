@@ -54,7 +54,7 @@ class TypingContext(ABC):
             case TypePolymorphism(_, _, _):
                 return StarKind()
             case TypeConstructor(_, _):
-                return StarKind()
+                return BaseKind()
             case _:
                 assert False, f"Unknown type in context: {ty}"
 
