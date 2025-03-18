@@ -1,4 +1,4 @@
-type List;
+import "List.ae";
 
 def String_len (i:String) : Int { native "len(i)" }
 

@@ -3,14 +3,14 @@ import load_dataset from "PSB2.ae";
 type List;
 
 
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
 
-def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
-def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
+def String_intToString : (i:Int) -> String = \i -> native "str(i)";
 
 
 def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200);
-def calculate_square_digits_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
+def calculate_square_digits_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> List  =  \data -> \func -> native " [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
 
 
 @hide(extract_train_data,

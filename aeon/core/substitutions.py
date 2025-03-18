@@ -8,7 +8,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.terms import Abstraction, TypeApplication
+from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -50,6 +50,11 @@ def substitute_vartype(t: Type, rep: Type, name: str):
             return RefinedType(name, rec(ty), ref)
         case AbstractionType(a, aty, rty):
             return AbstractionType(a, rec(aty), rec(rty))
+        case TypePolymorphism(pname, kind, body):
+            if name == pname:
+                return t
+            else:
+                return TypePolymorphism(pname, kind, rec(body))
         case _:
             assert False, f"type {t} ({type(t)}) not allows in substition."
 
@@ -126,7 +131,7 @@ def substitution_in_liquid(
                  for (a, t) in t.argtypes],
             )
     else:
-        assert False
+        assert False, f"{t} not supported"
 
 
 def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: str) -> Type:
@@ -273,8 +278,10 @@ def substitution(t: Term, rep: Term, name: str) -> Term:
             return If(rec(cond), rec(then), rec(otherwise))
         case TypeApplication(expr, ty):
             return TypeApplication(rec(expr), ty)
+        case TypeAbstraction(pname, kind, body):
+            return TypeAbstraction(pname, kind, rec(body))
         case _:
-            assert False
+            assert False, f"{t} not supported."
 
 
 def liquefy_app(app: Application) -> LiquidApp | None:

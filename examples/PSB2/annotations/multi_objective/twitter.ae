@@ -1,10 +1,10 @@
 import extract_train_data from "PSB2.ae";
 import load_dataset from "PSB2.ae";
 
-def String_len : (i:String) -> Int = native "lambda i: len(i)";
-def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+def String_len : (i:String) -> Int = \i -> native "len(i)";
+def String_intToString : (i:Int) -> String = \i -> native "str(i)";
 
-def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
 
 def const1 : String = "You didn't type anything";
 def const2 : String = "Too many characters";
@@ -15,7 +15,7 @@ def const4 : String = " characters";
 def train: TrainData = extract_train_data (load_dataset "twitter" 200 200);
 
 
-def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
+def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  \data -> \func -> native " [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
 
 
 @hide(extract_train_data,

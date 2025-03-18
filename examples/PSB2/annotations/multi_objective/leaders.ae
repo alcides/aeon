@@ -4,21 +4,21 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
+def List_reversed: (l: List)-> List = \xs -> native " xs[::-1]";
 def List_new : List = native "[]" ;
-def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
-def List_get: (l:List) -> (i:Int) -> Int = native "lambda xs: lambda i: xs[i]";
+def List_append: (l:List) -> (i: Int) -> List = \xs -> \x -> native "xs + [x]";
+def List_get: (l:List) -> (i:Int) -> Int = \xs -> \i -> native "xs[i]";
 
-def Scanl_max : (xs:List) -> List = native "lambda xs: list(itertools.accumulate(xs, max))";
-def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
-def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
-def Map : (f: (s:List) -> Int) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Scanl_max : (xs:List) -> List = \xs -> native "list(itertools.accumulate(xs, max))";
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
+def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
+def Map : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
 
 #PSB2 functions
 def train: TrainData = extract_train_data (load_dataset "leaders" 50 50);
 
 
-def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]";
+def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  \data -> \func -> native " [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]";
 
 
 @hide(extract_train_data,

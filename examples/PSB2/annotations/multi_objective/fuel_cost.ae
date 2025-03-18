@@ -10,25 +10,25 @@ import load_dataset from "PSB2.ae";
 type List;
 
 def List_size: (l:List) -> Int = uninterpreted;
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
-def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
-def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def sum: (l:List) -> Int = \xs -> native "sum(xs)";
+def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
 
-def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: List) -> List = native "lambda f:lambda xs: map(f, xs)";
+def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)";
 
 def train: TrainData = extract_train_data (load_dataset "fuel-cost" 200 200);
 
 def input_list : List = get_input_list (unpack_train_data train);
 
 def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = native "lambda l: __import__('functools').reduce(lambda x, y: x + y, l)";
+def flatten_list : (t:List) -> List = \l -> native "__import__('functools').reduce(lambda x, y: x + y, l)";
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
+def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native " [abs(func(x[0][0]) - x[1][0]) for x in data]";
 
 
 

@@ -13,7 +13,7 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, TypePolymorphism, refined_to_unrefined_type
+from aeon.core.types import AbstractionType, TypePolymorphism, TypeVar, refined_to_unrefined_type
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
@@ -68,7 +68,7 @@ def get_holes_info(
                 ctx = ctx.with_var(vname, ty.var_type)
                 return get_holes_info(ctx, body, ret, targets, refined_types)
             else:
-                assert False, f"Synthesis cannot infer the type of {t}"
+                assert False, f"Synthesis cannot infer the type of {t} with type {ty}"
         case Let(var_name=vname, var_value=value, body=body):
             _, t1 = synth(ctx, value)
             t1 = t1 if refined_types else refined_to_unrefined_type(t1)
@@ -103,8 +103,16 @@ def get_holes_info(
             else:
                 assert False, f"Synthesis cannot infer the type of {t}"
         case TypeAbstraction(name=n, kind=k, body=body):
-            return get_holes_info(ctx.with_typevar(n, k), body, ty, targets,
-                                  refined_types)
+            match ty:
+                case TypePolymorphism(n2, k2, ity):
+                    assert k == k2, "Kinds do not match"
+                    return get_holes_info(
+                        ctx.with_typevar(n, k), body,
+                        substitute_vartype(ity, TypeVar(n), n2), targets,
+                        refined_types)
+                case _:
+                    assert False, "TypeAbstraction does not have the TypePolymorphism type."
+
         case _:
             assert False, f"Could not infer the type of {t} for synthesis."
 

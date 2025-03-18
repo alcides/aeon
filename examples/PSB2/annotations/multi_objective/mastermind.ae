@@ -13,26 +13,26 @@ type Counter;
 def itertools : Unit = native_import "itertools";
 def collections : Unit = native_import "collections";
 
-def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
-def Map : (f: (s:List) -> String) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
-def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
+def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
+def Map : (f: (s:List) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
+def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
 
-def String_eq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
-def List_sum : (l:List) -> Int = native "lambda xs: sum(xs)";
-def String_toList : (s:String) -> List = native "lambda s: list(s)";
-def String_Zip : (xs:String) -> (ys:String) -> List = native "lambda xs: lambda ys: (zip(xs, ys))";
-def List_get_fst : (s: List) -> String = native "lambda s: s[0]";
-def List_get_snd : (s: List) -> String = native "lambda s: s[1]";
-def String_neq : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i != j";
-def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = native "lambda f: lambda xs: [x for x in xs if f(x)]";
-def Counter : (l:List) -> Counter = native "lambda xs: collections.Counter(xs)";
-def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = native "lambda c1: lambda c2: c1 & c2";
-def Counter_values : (c:Counter) -> List = native "lambda c: list(c.values())";
-def Tuple : (a:Int) -> (b:Int) -> List = native "lambda a: lambda b: [a,b]";
+def String_eq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
+def List_sum : (l:List) -> Int = \xs -> native "sum(xs)";
+def String_toList : (s:String) -> List = \s -> native "list(s)";
+def String_Zip : (xs:String) -> (ys:String) -> List = \xs -> \ys -> native "(zip(xs, ys))";
+def List_get_fst : (s: List) -> String = \s -> native "s[0]";
+def List_get_snd : (s: List) -> String = \s -> native "s[1]";
+def String_neq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i != j";
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
+def Counter : (l:List) -> Counter = \xs -> native "collections.Counter(xs)";
+def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = \c1 -> \c2 -> native "c1 & c2";
+def Counter_values : (c:Counter) -> List = \c -> native "list(c.values())";
+def Tuple : (a:Int) -> (b:Int) -> List = \a -> \b -> native "[a,b]";
 
 def train: TrainData = extract_train_data (load_dataset "mastermind" 200 200);
 
-def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:String) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]";
+def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:String) -> List ) -> List  =  \data -> \func -> native " [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]";
 
 
 @hide(extract_train_data,

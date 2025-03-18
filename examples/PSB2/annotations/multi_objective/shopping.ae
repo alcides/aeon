@@ -10,26 +10,26 @@ type List;
 type Map;
 
 def List_size: (l:List) -> Int = uninterpreted;
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
-def List_sum: (l:List) -> Int = native "lambda xs: sum(xs)";
-def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def List_sum: (l:List) -> Int = \xs -> native "sum(xs)";
+def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
 
 def List_map_Int_Int_Int_List: (function: (a: Int) -> (b: Int) -> Int) ->
                                (l: List) ->
                                (l2: List) ->
                                List =
-    native "lambda f: lambda xs: lambda ys: list(map(lambda x, y: f(x)(y), xs, ys))";
+    \f -> \xs -> \ys -> native " list(map(lambda x, y: f(x)(y), xs, ys))";
 
 
 
 def train: TrainData = extract_train_data (load_dataset "shopping-list" 200 200);
 
 
-def calculate_shopping_errors : (train : TrainData) -> (f:(a: List) -> (b: List) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0])(x[1]) - y[0]) for x , y in data]";
+def calculate_shopping_errors : (train : TrainData) -> (f:(a: List) -> (b: List) -> Int)  -> List  =  \data -> \func -> native " [abs(func(x[0])(x[1]) - y[0]) for x , y in data]";
 
 
 @hide(extract_train_data,
