@@ -170,7 +170,7 @@ def objective_number(
     return fun, [], metadata
 
 
-def allow_control_flow(
+def disable_control_flow(
     args: list[Term], fun: Definition, metadata: Metadata
 ) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects zero arguments .
@@ -180,7 +180,7 @@ def allow_control_flow(
     """
     assert len(args) == 0
 
-    aux_dict = {"allow_control_flow": True}
+    aux_dict = {"disable_control_flow": True}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata

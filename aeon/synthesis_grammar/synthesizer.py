@@ -261,7 +261,9 @@ def get_grammar_components(ctx: TypingContext, ty: Type, fun_name: str, metadata
     grammar_nodes, starting_node = find_class_by_name("t_" + hole_type_name, grammar_nodes, ty)
     assert starting_node is not None, "Starting Node is None"
     grammar_nodes = (
-        build_control_flow_grammar_nodes(grammar_nodes) if "allow_control_flow" in metadata[fun_name] else grammar_nodes
+        grammar_nodes
+        if "disable_control_flow" in metadata[fun_name]
+        else build_control_flow_grammar_nodes(grammar_nodes)
     )
     return grammar_nodes, starting_node
 

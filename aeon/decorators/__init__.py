@@ -20,7 +20,7 @@ from aeon.synthesis_grammar.decorators import (
     allow_recursion,
     error_fitness,
     objective_number,
-    allow_control_flow,
+    disable_control_flow,
 )
 
 decorators_environment: dict[str, DecoratorType] = {
@@ -31,7 +31,7 @@ decorators_environment: dict[str, DecoratorType] = {
     "allow_recursion": allow_recursion,
     "error_fitness": error_fitness,
     "objective_number": objective_number,
-    "allow_control_flow": allow_control_flow,
+    "disable_control_flow": disable_control_flow,
 }
 
 
