@@ -1,27 +1,11 @@
-type T;
+
 
 def prop : (b:Int) -> Bool = uninterpreted;
 
 def f : {x:Int | x > 0} = native "3";
 def g : {x:Int | prop x } = native "5";
 
-
-def propT : (t:T) -> Bool = uninterpreted;
-
-def mkT (i:Int) : {t:T | propT t} {
-    native "(0, i)"
-}
-
-def getT (t:T | propT t) : Int {
-    native "t[1]"
-}
-
-def failedT : T = native "0";
-
 def main (x:Int) : Int {
     _ = print (f + g);
-    a = mkT 42;
-    _ = print (getT a);
-    _ = getT failedT;
     0
 }

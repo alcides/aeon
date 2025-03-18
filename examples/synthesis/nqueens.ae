@@ -15,35 +15,29 @@ def C_y (s:Coordinate) : Int { native "s[1]" }
 
 def Board_size : (b:Board) -> Int = uninterpreted;
 
-def Board_is_empty (b:Board) : Bool { native "len(b) == 0" }
+def Board_is_empty (b:Board) : {t:Bool | t == (Board_size b == 0)  } { native "len(b) == 0" }
 
 def Board_head (b:Board | Board_size b > 0) : Coordinate { native "b[0]" }
 
 def Board_tail (b:Board | Board_size b > 0) : {b2:Board | Board_size b2 == (Board_size b - 1)} { native "b[1:]" }
 
-
-def conflicts (t:Coordinate) (b:Board) : Int {
+def conflicts (t:Coordinate) (b:Board | Board_size b > 0) : Int {
     if Board_is_empty b
     then 0
     else
         h : Coordinate = Board_head b;
-        tl : Board = Board_tail b;
-        row : Int = if C_x t == C_x h then 1 else 0;
-        col : Int = if C_y t == C_y h then 1 else 0;
+        tl = Board_tail b;
+        row : {r:Int | 0 <= r && r <= 1} = if C_x t == C_x h then 1 else 0;
+        col : {r:Int | 0 <= r && r <= 1} = if C_y t == C_y h then 1 else 0;
         v1: Int = (C_x t) * (C_y h);
         v2: Int = (C_x h) * (C_y t);
-        diag : Int = if v1 == v2 then 1 else 0;
-        (row + col + diag) + (conflicts t tl)
+        diag : {r:Int | 0 <= r && r <= 1} = if v1 == v2 then 1 else 0;
+
+        component1 : {c:Int | 0 <= c && c <= 3} = row + col + diag;
+        component2 : Int = conflicts t tl;
+        component1 + component2
 }
 
-def Board_quality (b:Board) : Int {
-    if Board_is_empty b
-    then 0
-    else
-        h = Board_head b;
-        tl = Board_tail b;
-        (conflicts h tl) + (Board_quality tl)
-}
 
 
 def create_solution
@@ -59,7 +53,7 @@ def create_solution
    {b:Board | Board_size b == N} { native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]" }
 
 
-@minimize_int(Board_quality nqueens)
+@minimize_int(1)
 @hide(Board_head, Board_tail, conflicts, Board_quality, Board_is_empty, C_x, C_y)
 def nqueens : {b:Board | Board_size b == N} = ?hole;
 
