@@ -1,19 +1,19 @@
 type List;
 
-def String_len : (i:String) -> Int = native "lambda i: len(i)";
+def String_len (i:String) : Int { native "len(i)" }
 
-def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+def String_intToString (i:Int) : String { native "str(i)"}
 
-def String_equal : (i:String) -> (j:String) -> Bool = native "lambda i: lambda j: i == j";
+def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
 
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = native "lambda i: lambda j: lambda l: i[j:l]" ;
+def String_slice : (i:String) -> (j:Int) -> (l:Int) -> String = \i -> \j -> \l -> native "i[j:l]";
 
-def String_upper : (i:String)  ->  String = native "lambda i: i.upper()" ;
+def String_upper : (i:String)  ->  String = \i -> native "i.upper()" ;
 
-def String_lower : (i:String)  ->  String = native "lambda i: i.lower()" ;
+def String_lower : (i:String)  ->  String = \i -> native "i.lower()" ;
 
-def String_replace : (i:String) -> (j:String) -> (l:String)-> String = native "lambda i: lambda j: lambda l: i.replace(j, l)";
+def String_replace (i:String) (j:String) (l:String) : String { native "i.replace(j, l)" }
 
-def String_split : (i:String) -> (j:String) ->  List = native "lambda i: lambda j: i.split(j)" ;
+def String_split (i:String) (j:String) : List { native "i.split(j)" }
 
-def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
+def String_concat (i:String) (j:String) : String { native "i + j" }

@@ -36,7 +36,7 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
                             substitution_in_liquid(iref, LiquidVar(name),
                                                    iname)))
                 case AbstractionType(_, _, _):
-                    assert False, f"Abstraction types cannot be refined: {t} -> {ity} -> {rec(ity)}"
+                    assert False, f"Abstraction types cannot be refined: {t} to {ity} to {rec(ity)}"
                 case city:
                     return RefinedType(name, city, ref)
         case AbstractionType(aname, aty, rty):
