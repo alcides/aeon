@@ -143,6 +143,52 @@ def hide(
     return fun, [], metadata
 
 
+def error_fitness(
+        args: list[STerm], fun: Definition,
+        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects one argument .
+
+    It does not modify the original definition. It makes sure that
+    the error fitness in case of any exception during the synthesis is the one defined in the argument
+    """
+    assert len(args) == 1
+
+    aux_dict = {"error_fitness": args[1]}
+    metadata = metadata_update(metadata, fun, aux_dict)
+
+    return fun, [], metadata
+
+
+def objective_number(
+        args: list[STerm], fun: Definition,
+        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects one argument .
+    It does not modify the original definition. It specifies the number of objective for multi objective problems
+    """
+    assert len(args) == 1
+
+    aux_dict = {"objective_number": args[1]}
+    metadata = metadata_update(metadata, fun, aux_dict)
+
+    return fun, [], metadata
+
+
+def disable_control_flow(
+        args: list[STerm], fun: Definition,
+        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects zero arguments .
+
+    It does not modify the original definition. It makes sure that
+    the control flow grammar nodes are allowed during synthesis
+    """
+    assert len(args) == 0
+
+    aux_dict = {"disable_control_flow": True}
+    metadata = metadata_update(metadata, fun, aux_dict)
+
+    return fun, [], metadata
+
+
 def allow_recursion(
     args: list[STerm],
     fun: Definition,

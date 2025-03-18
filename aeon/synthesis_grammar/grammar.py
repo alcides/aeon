@@ -454,10 +454,12 @@ def gen_grammar_nodes(
     abstractions = create_abstraction_nodes(type_info)
     applications = create_application_nodes(type_info)
     literals_ref = create_literal_ref_nodes(type_info)
-    # ifs = create_if_nodes(type_info)
+    ifs = create_if_nodes(type_info)
 
-    # TODO: reenable ifs
     ret = type_nodes + literals + literals_ref + vars + applications + abstractions
+    if synth_func_name in metadata and "disable_control_flow" in metadata[
+            synth_func_name]:
+        ret = ret + ifs
     return ret, type_info[synth_fun_type]
 
 

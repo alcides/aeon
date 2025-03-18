@@ -12,7 +12,16 @@ eventual complementary definitions.
 from aeon.decorators.api import DecoratorType
 from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import minimize_int, minimize_float, multi_minimize_float, hide, allow_recursion
+from aeon.synthesis_grammar.decorators import (
+    minimize_int,
+    minimize_float,
+    multi_minimize_float,
+    hide,
+    allow_recursion,
+    error_fitness,
+    objective_number,
+    disable_control_flow,
+)
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
@@ -20,18 +29,26 @@ decorators_environment: dict[str, DecoratorType] = {
     "multi_minimize_float": multi_minimize_float,
     "hide": hide,
     "allow_recursion": allow_recursion,
+    "error_fitness": error_fitness,
+    "objective_number": objective_number,
+    "disable_control_flow": disable_control_flow,
 }
 
 
-def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+def apply_decorators(
+        fun: Definition,
+        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
     "Applies each decorator in order, and returns the cumulative list of possible new definitions."
     if not metadata:
         metadata = {}
     total_extra = []
     for decorator in fun.decorators:
         if decorator.name not in decorators_environment:
-            raise Exception(f"Unknown decorator named {decorator.name}, in function {fun.name}.")
+            raise Exception(
+                f"Unknown decorator named {decorator.name}, in function {fun.name}."
+            )
         decorator_processor = decorators_environment[decorator.name]
-        (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
+        (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun,
+                                                     metadata)
         total_extra.extend(extra)
     return fun, total_extra, metadata
