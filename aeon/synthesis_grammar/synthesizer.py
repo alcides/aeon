@@ -11,7 +11,7 @@ from typing import Callable
 from typing import Type as TypingType
 
 import configparser
-from geneticengine.algorithms.enumerative import EnumerativeSearch
+from geneticengine.algorithms.gp.cooperativegp import StandardInitializer
 from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
@@ -26,7 +26,7 @@ from geneticengine.evaluation.budget import TimeBudget
 from geneticengine.evaluation.recorder import SearchRecorder, FieldMapper
 from geneticengine.evaluation.tracker import ProgressTracker
 from geneticengine.grammar import extract_grammar, Grammar
-from geneticengine.prelude import NativeRandomSource
+from geneticengine.prelude import GeneticProgramming, NativeRandomSource
 from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.random.sources import RandomSource
 from geneticengine.representations.grammatical_evolution.dynamic_structured_ge import (
@@ -429,7 +429,6 @@ def geneticengine_synthesis(
     representation_name = gp_params.pop("representation")
     config_name = gp_params.pop("config_name")
     seed = gp_params["seed"]
-    # r = NativeRandomSource(seed)
     assert isinstance(representation_name, str)
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
@@ -471,23 +470,23 @@ def geneticengine_synthesis(
     recorders.append(UIBackendRecorder())
 
     budget = TimeBudget(time=gp_params["timer_limit"])
-    # alg = GeneticProgramming(
-    #     problem=problem,
-    #     budget=budget,
-    #     representation=representation,
-    #     random=r,
-    #     tracker=tracker,
-    #     population_size=gp_params["population_size"],
-    #     population_initializer=StandardInitializer(),
-    #     step=create_gp_step(problem=problem, gp_params=gp_params),
-    # )
-
-    alg = EnumerativeSearch(
+    alg = GeneticProgramming(
         problem=problem,
         budget=budget,
-        grammar=grammar,
+        representation=representation,
+        random=NativeRandomSource(seed),
         tracker=tracker,
+        population_size=gp_params["population_size"],
+        population_initializer=StandardInitializer(),
+        step=create_gp_step(problem=problem, gp_params=gp_params),
     )
+
+    # alg = EnumerativeSearch(
+    #     problem=problem,
+    #     budget=budget,
+    #     grammar=grammar,
+    #     tracker=tracker,
+    # )
 
     # alg = RandomSearch(
     #     problem=problem,

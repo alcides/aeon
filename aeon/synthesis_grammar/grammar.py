@@ -102,19 +102,17 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                     class_name = mangle_type(ty)
                     ty_abstract_class = type(
                         class_name,
-                        (
-                            ae_top,
-                            ABC,
-                        ),
+                        (ae_top, ABC),
                         {},
                     )
                     # ty_abstract_class = abstract(ty_abstract_class)
+                    ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
                 case RefinedType(_, itype, _):
                     class_name = mangle_type(ty)
                     data.update(extract_all_types([itype]))
                     parent = data[itype]
-                    ty_abstract_class = type(class_name, (ABC, parent), {})
+                    ty_abstract_class = type(class_name, (parent, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
                     # TODO: alpha-equivalence
