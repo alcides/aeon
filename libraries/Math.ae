@@ -2,24 +2,24 @@ type Unit;
 
 def math : Unit = native_import "math";
 
-def Math_min : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: min(i,j)" ;
+def Math_min (i: Int) (j: Int) : Int { native "min(i, j)" }
+def Math_max (i: Int) (j: Int) : Int { native "max(i, j)" }
 
-def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
 
-def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
+def Math_abs (i:Int) : Int { native "abs(i)" }
 
-def Math_ceil : (i:Float) -> Int = native "lambda i: math.ceil(i)" ;
+def Math_ceil (i:Float) : Int { native "math.ceil(i)" }
 
-def Math_floor : (i:Float) -> Int = native "lambda i: math.floor(i)" ;
+def Math_floor (i:Float) : Int { native "math.floor(i)" }
 
-def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)" ;
+def Math_toFloat (i:Int) : Float { native "float(i)" }
 
-def Math_toInt : (i:Float) -> Int = native "lambda i: int(i)" ;
+def Math_toInt (i:Float) : Int { native "int(i)" }
 
-def Math_sqrt : (i:Int) -> Float = native "lambda i: math.sqrt(i)" ;
+def Math_sqrt (i:Int) : Float { native "math.sqrt(i)" }
 
-def Math_pow : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: i**j " ;
+def Math_pow (i:Int) (j:Int) : Int { native "i ** j" }
 
-def Math_round : (i:Float) -> Int = native "lambda i: round(i)" ;
+def Math_round (i:Float) : Int { native "round(i)" }
 
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def Math_floor_division (i:Int) (j:Int) : Int { native "i // j" }

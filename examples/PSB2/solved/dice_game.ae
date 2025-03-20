@@ -1,8 +1,8 @@
 type List;
 
 def math : Unit = native_import "math";
-def Math_toFloat : (i:Int) -> Float = native "lambda i: float(i)" ;
-def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
+def Math_toFloat : (i:Int) -> Float = \i -> native "float(i)" ;
+def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)" ;
 
 def peter_wins (n:Int) (m:Int) : Int {
     if m == 0 then 0 else Math_max 0 (n - m) + peter_wins n (m - 1)

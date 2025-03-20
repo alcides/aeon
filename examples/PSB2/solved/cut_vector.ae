@@ -2,29 +2,29 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda start: lambda end: lambda step: list(range(start, end, step ))";
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native "list(range(start, end, step ))";
 
-def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = native "lambda i: lambda j: lambda l: i[j:l]" ;
-def List_remove_last : (i:List) -> List = native "lambda i: i[:-1]";
-def List_remove_first : (i:List) -> List = native "lambda i: i[1:]";
-def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
+def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = \i -> \j -> \l -> native "i[j:l]" ;
+def List_remove_last : (i:List) -> List = \i -> native "i[:-1]";
+def List_remove_first : (i:List) -> List = \i -> native "i[1:]";
+def List_reversed: (l: List)-> List = \xs -> native "xs[::-1]";
 
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : List = native "[]" ;
-def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
+def List_append: (l:List) -> (i: Int) -> List = \xs -> \x -> native "xs + [x]";
 
-def Accumulate : (xs:List) -> List = native "lambda xs: list(itertools.accumulate(xs))";
-def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
-def Enumerate : (xs:List) -> List = native "lambda xs: list(enumerate(xs))";
-def Map : (f: (s:List) -> List) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
-def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
-def Tuple : (i:Int) -> (j:Int) -> List = native "lambda i: lambda j: (i, j)";
-def Tuple_list : (i:List) -> (j:List) -> List = native "lambda i: lambda j: (i, j)";
-def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = native "lambda i: lambda f: min(i,key=f)";
+def Accumulate : (xs:List) -> List = \xs -> native "list(itertools.accumulate(xs))";
+def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
+def Enumerate : (xs:List) -> List = \xs -> native "list(enumerate(xs))";
+def Map : (f: (s:List) -> List) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
+def Math_abs : (i:Int) -> Int = \i -> native "abs(i)" ;
+def Tuple : (i:Int) -> (j:Int) -> List = \i -> \j -> native "(i, j)";
+def Tuple_list : (i:List) -> (j:List) -> List = \i -> \j -> native "(i, j)";
+def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = \i -> \f -> native "min(i,key=f)";
 
-def get_fst : (i:List) -> Int = native "lambda i: i[0]";
-def get_snd : (i:List) -> Int = native "lambda i: i[1]";
-def get_zip : (i:List) -> List = native "lambda i: i[1]";
+def get_fst : (i:List) -> Int = \i -> native "i[0]";
+def get_snd : (i:List) -> Int = \i -> native "i[1]";
+def get_zip : (i:List) -> List = \i -> native "i[1]";
 
 def cut_vector ( ls : List ) : List {
     if (List_length ls == 1) then

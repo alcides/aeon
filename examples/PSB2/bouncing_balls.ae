@@ -11,10 +11,8 @@
 import "Math.ae";
 import "PSB2.ae";
 
-type Unit;
-
-def bounciness_index (starting_height: {x:Float | 1 <= x && x <= 100} )
-                     (bounce_height:{y:Float | 1 <= y && y <= 100} )
+def bounciness_index_c (starting_height: {x:Float | 1.0 <= x && x <= 100.0} )
+                     (bounce_height:{y:Float | 1.0 <= y && y <= 100.0} )
                      : Float {
    bounce_height / starting_height
 }
@@ -26,7 +24,7 @@ def calculate_distance_helper (bounciness_index: Float) (height: Float) (n: Int)
 def bouncing_balls (starting_height: {x:Float | 1.0 <= x && x <= 100.0} )
                    (bounce_height : {y:Float | 1.0 <= y && y <= 100.0} )
                    (bounces:{z:Int | 1 <= z && z <= 20}) : Float {
-   calculate_distance_helper (bounciness_index starting_height bounce_height) starting_height bounces 0.0
+   calculate_distance_helper (bounciness_index_c starting_height bounce_height) starting_height bounces 0.0
 }
 
 

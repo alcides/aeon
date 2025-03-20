@@ -4,18 +4,18 @@ type List;
 type Zip;
 type Dict;
 
-def Zip_String_String : (l1: String) -> (l2: String) -> Zip = native "lambda xs: lambda ys: zip(xs, ys)";
-def Dict_zip : (l: Zip) -> Dict = native "lambda xs: dict(xs)";
-def String_list_to_String : (l:List) -> String = native "lambda l: ''.join(l)";
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = native "lambda d: lambda k: lambda y: d.get(k, y)";
+def Zip_String_String : (l1: String) -> (l2: String) -> Zip = \xs -> \ys -> native "zip(xs, ys)";
+def Dict_zip : (l: Zip) -> Dict = \xs -> native "dict(xs)";
+def String_list_to_String : (l:List) -> String = \l -> native "''.join(l)";
+def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = \d -> \k -> \y -> native "d.get(k, y)";
 
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = native "lambda f:lambda xs: map(f, xs)";
+def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = \f -> \xs -> native "map(f, xs)";
 
 
 def train: TrainData = extract_train_data (load_dataset "substitution-cipher" 200 200);
 
-def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> List  =  native " lambda data: lambda func: [__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]";
+def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]";
 
 
 
@@ -23,7 +23,8 @@ def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String
             load_dataset,
             calculate_square_digits_errors,
             train)
-@multi_minimize_float(calculate_cipher_errors train synth )
+@multi_minimize_float(calculate_cipher_errors train synth)
+@objective_number(1)
 def synth (cipher_from: String) (cypher_to: String) (msg: String) : String {
     (?hole:String)
  }

@@ -1,33 +1,21 @@
 from __future__ import annotations
 
-from abc import ABC
+import pytest
 
-from aeon.core.terms import Term
+from aeon.core.terms import Term, Literal
+from aeon.core.types import BaseType
 from aeon.logger.logger import setup_logger
-from aeon.sugar.program import Definition, SApplication, SLiteral, SVar
+from aeon.sugar.program import Definition
+from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
+from aeon.sugar.program import SApplication, SLiteral, SVar
 from aeon.sugar.stypes import SBaseType
-from aeon.synthesis_grammar.grammar import mk_method_core_literal
-from aeon.synthesis_grammar.synthesizer import synthesize
 
 from tests.driver import check_and_return_core
 
 setup_logger()
 
-
-def mock_literal_individual(value: int):
-
-    class t_Int(ABC):
-        pass
-
-    class literal_Int(t_Int):
-        value: int
-
-        def __init__(self, value: int):
-            self.value = value
-
-    literal_int_instance = mk_method_core_literal(literal_Int)  # type: ignore
-
-    return literal_int_instance(value)  # type: ignore
+synth_config = gengy_default_config
+synth_config["timer_limit"] = 0.25
 
 
 def test_fitness():
@@ -57,6 +45,7 @@ def test_fitness():
                 "minimize_int": [internal_minimize],
             },
         },
+        synth_config=synth_config,
     )
 
     assert isinstance(term, Term)
@@ -68,7 +57,29 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
-    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])],
-                         metadata)
+    term, _ = synthesize(ctx,
+                         ectx,
+                         core_ast_anf, [("synth", ["hole"])],
+                         metadata,
+                         synth_config=synth_config)
 
     assert isinstance(term, Term)
+
+
+@pytest.mark.skip(reason="Synthesis-only")
+def test_literal_int_range():
+    source = """
+            @minimize_int(1)
+            def synth : Int = ?hole;
+        """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    term, _ = synthesize(ctx,
+                         ectx,
+                         core_ast_anf, [("synth", ["hole"])],
+                         metadata,
+                         synth_config=synth_config)
+
+    assert isinstance(term, Term)
+    assert isinstance(term, Literal)
+    assert term.type == BaseType("Int")
+    assert -1 <= term.value <= 256

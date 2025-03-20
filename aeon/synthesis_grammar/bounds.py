@@ -7,7 +7,15 @@ from sympy.logic.boolalg import to_cnf
 from sympy.sets.sets import Set
 from sympy.solvers.inequalities import reduce_rational_inequalities
 
-from aeon.core.liquid import LiquidApp, LiquidVar, LiquidTerm, LiquidLiteralInt, LiquidLiteralFloat, LiquidLiteralString
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidVar,
+    LiquidTerm,
+    LiquidLiteralInt,
+    LiquidLiteralFloat,
+    LiquidLiteralString,
+)
 
 sympy_context = {
     "+": lambda x: lambda y: x + y,
@@ -81,6 +89,8 @@ def refined_to_sympy_expression(ref: LiquidTerm) -> Any:
 
     elif isinstance(ref, LiquidVar):
         return Symbol(ref.name)
+    elif isinstance(ref, LiquidLiteralBool):
+        return ref.value
     elif isinstance(ref, LiquidLiteralInt):
         return ref.value
     elif isinstance(ref, LiquidLiteralFloat):

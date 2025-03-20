@@ -1,4 +1,4 @@
 let a : (x:Int) -> Int = native "print" ;
-let b : (x:Int) -> Int = native "lambda x: x+1";
+let b : (x:Int) -> Int = \x -> native "x+1";
 let k = 1;
 a (b 3)

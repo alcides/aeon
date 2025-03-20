@@ -1,6 +1,6 @@
 type List;
 
-def Math_floor_division : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: i // j" ;
+def Math_floor_division : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "i // j" ;
 
 def List_size : (l:List) -> Int = uninterpreted;
 

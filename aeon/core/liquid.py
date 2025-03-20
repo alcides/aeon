@@ -3,11 +3,6 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
-
 
 class LiquidTerm(ABC):
     pass
@@ -92,13 +87,9 @@ class LiquidLiteralString(LiquidTerm):
         return hash(self.value)
 
 
-@dataclass(init=False)
+@dataclass
 class LiquidVar(LiquidTerm):
     name: str
-
-    def __init__(self, name: str):
-        assert isinstance(name, str)
-        self.name = name
 
     def __repr__(self):
         return f"{self.name}"
@@ -110,16 +101,10 @@ class LiquidVar(LiquidTerm):
         return hash(self.name)
 
 
-@dataclass(init=False)
+@dataclass
 class LiquidApp(LiquidTerm):
     fun: str
     args: list[LiquidTerm]
-
-    def __init__(self, fun: str, args: list[LiquidTerm]):
-        self.fun = fun
-        self.args = args
-        for a in self.args:
-            assert isinstance(a, LiquidTerm)
 
     def __repr__(self):
         if all([not c.isalnum() for c in self.fun]) and len(self.args) == 2:

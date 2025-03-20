@@ -12,16 +12,16 @@ import "PSB2.ae";
 def constant_f0 : Float = 0.0;
 def constant_f1 : Float = 1.0;
 
-def mult ( n:Int , m:Int ) : Int { n * m }
+def mult (n:Int) (m:Int ) : Int { n * m }
 
 def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math_max 0 (n - m)) + peter_wins n (m - 1);
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000} , m : {y:Int | 1 <= y && y <= 10000}) : Float {
+def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float {
     Math_toFloat(peter_wins n  m ) / Math_toFloat(mult n m)  }
 
-def synth ( n : {a:Int | 1 <= a && a <= 10000} , m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float)  }
+def synth ( n : {a:Int | 1 <= a && a <= 10000}) (m : {b:Int | 1 <= b && b <= 10000}) : Float { (?hole:Float) }
 
-def fitness : Float  {
+def fitness : Float =
     ds = load_dataset "dice-game" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;
@@ -29,5 +29,4 @@ def fitness : Float  {
     expected_values = get_output_list unpacked_data;
     actual_values : List = native "[synth(x)(y) for x, y in input_list]";
     mse = mean_square_error actual_values expected_values;
-    mse
-}
+    mse;

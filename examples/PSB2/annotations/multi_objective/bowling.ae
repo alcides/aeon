@@ -10,23 +10,23 @@ import load_dataset from "PSB2.ae";
 
 type List;
 
-#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  native " lambda data: lambda func: [abs(func(x[0][0]) - x[1][0]) for x in data]";
+#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]";
 
-def List_sum : (l:List) -> Int = native "sum";
+def List_sum : (l:List) -> Int = \x -> native "sum(x)";
 
 def List_map: (function: (a: Int) -> Int) ->
                                (l: List) ->
                                List =
-    native "lambda f: lambda xs: list(map(f, xs))";
+    \f -> \xs -> native "list(map(f, xs))";
 
 
-def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = native "lambda x: lambda y: lambda z: x.replace(y, z)";
-def String_length: (l:String) -> Int = native "lambda list: len(list)";
-def String_get : (l:String) -> (i:Int) -> String = native "lambda l: lambda i: l[i]";
-def String_to_int : (s:String) -> Int = native "int";
-def String_eq : (s:String) -> (s2:String) -> Bool = native "lambda s: lambda s2: s == s2";
+def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = \x -> \y -> \z -> native "x.replace(y, z)";
+def String_length: (l:String) -> Int = \list -> native "len(list)";
+def String_get : (l:String) -> (i:Int) -> String = \l -> \i -> native "l[i]";
+def String_to_int : (s:String) -> Int = \s -> native "int(s)";
+def String_eq : (s:String) -> (s2:String) -> Bool = \s -> \s2 -> native "s == s2";
 
-def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = native "lambda s: lambda e: lambda st: list(range(s, e, st))";
+def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = \s -> \e -> \st -> native "list(range(s, e, st))";
 
 def const1 : String = "X";
 def const2 : String = "/";
@@ -35,10 +35,13 @@ def train: TrainData = extract_train_data (load_dataset "bowling" 200 200);
 
 
 @hide(extract_train_data,
+            unpack_train_data,
             load_dataset,
             train,
             calculate_bowling_errors)
+@hide_types(TrainData)
 @multi_minimize_float(calculate_bowling_errors train synth)
+@objective_number(1)
 def synth (scores: String) : Int {
     (?hole: Int)
  }

@@ -1,0 +1,6 @@
+def abs (n:Int) : Int {
+    if n < 0 then - n else n
+}
+
+@minimize_int(abs(2024 - n))
+def n : Int = ?hole;

@@ -1,8 +1,8 @@
 
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
 
-def String_concat : (i:String) -> (j:String) -> String = native "lambda i: lambda j: i + j";
-def String_intToString : (i:Int) -> String = native "lambda i: str(i)";
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
+def String_intToString : (i:Int) -> String = \i -> native "str(i)";
 
 
 def square_digits ( n : Int) : String {

@@ -1,10 +1,10 @@
 type List;
 
-def String_len : (i:String) -> Int = native "lambda i: len(i)";
-def String_list_to_String : (l:List) -> String = native "lambda l: ' '.join(l)";
-def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = native "lambda f: lambda xs: map(f, xs)";
-def String_split : (i:String) -> (j:String) -> List = native "lambda i: lambda j: i.split(j)" ;
-def String_reverse : (i:String) -> String = native "lambda i: i[::-1]";
+def String_len : (i:String) -> Int = \i -> native "len(i)";
+def String_list_to_String : (l:List) -> String = \l -> native "' '.join(l)";
+def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)";
+def String_split : (i:String) -> (j:String) -> List = \i -> \j -> native "i.split(j)" ;
+def String_reverse : (i:String) -> String = \i -> native "i[::-1]";
 
 def spin_words (phrase: String) : String {
     words: List = String_split phrase " ";
