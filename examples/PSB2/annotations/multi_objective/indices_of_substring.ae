@@ -5,19 +5,19 @@ type List;
 
 def String_len : (i:String) -> Int = \i -> native "len(i)";
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native " list(range(start, end, step ))";
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native "list(range(start, end, step ))";
 
 def Filter :  (f: (s:Int) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
 
 def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
 
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native " i[j:l]" ;
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]" ;
 
 
 def train: TrainData = extract_train_data (load_dataset "indices-of-substring" 200 200);
 
 
-def calculate_indices_of_substring_errors : (train : TrainData) -> (f:(a: String) -> (b: String) -> List ) -> List  =  \data -> \func -> native " [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]";
+def calculate_indices_of_substring_errors : (train : TrainData) -> (f:(a: String) -> (b: String) -> List ) -> List  =  \data -> \func -> native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]";
 
 
 @hide(extract_train_data,
@@ -25,6 +25,7 @@ def calculate_indices_of_substring_errors : (train : TrainData) -> (f:(a: String
             calculate_indices_of_substring_errors,
             train )
 @multi_minimize_float(calculate_indices_of_substring_errors train synth)
+@objective_number(1)
 def synth ( text :String) (target: String) : List {
     (?hole:List)
 

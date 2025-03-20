@@ -16,7 +16,7 @@ def sum : (l:List) -> Int = \xs -> native "sum(xs)";
 def List_map_List_Range : (function:(a: Int) -> (b:Int) -> Int)
                         -> (l:List)
                         -> (r:Range)
-                        -> List = \f -> \xs -> \r -> native " list(map(lambda x, y:f(x)(y), xs, r))";
+                        -> List = \f -> \xs -> \r -> native "list(map(lambda x, y:f(x)(y), xs, r))";
 
 def List_map_List : (function:(a: Int) -> Int)
                         -> (l:List)
@@ -35,7 +35,7 @@ def map_digit (x:Int) (i:Int) : Int {
 #PSB2
 def train: TrainData = extract_train_data (load_dataset "luhn" 200 200);
 
-def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native " [abs(func(x[0]) - y[0]) for x , y  in data]";
+def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0]) - y[0]) for x , y  in data]";
 
 
 @hide(extract_train_data,
@@ -43,6 +43,8 @@ def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List
             calculate_luhn_errors,
             train )
 @multi_minimize_float(calculate_luhn_errors train synth)
+@objective_number(1)
+@disable_control_flow
 def synth (digits: List) : Int {
     (?hole: Int)
 }

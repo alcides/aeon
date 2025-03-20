@@ -15,7 +15,7 @@ def sum : (l:List) -> Int = \xs -> native "sum(xs)";
 def List_map_List_Range : (function:(a: Int) -> (b:Int) -> Int)
                         -> (l:List)
                         -> (r:Range)
-                        -> List = \f -> \xs -> \r -> native " list(map(lambda x, y:f(x)(y), xs, r))";
+                        -> List = \f -> \xs -> \r -> native "list(map(lambda x, y:f(x)(y), xs, r))";
 
 def Range_new : (a:Int) -> (b:Int) -> Range = \a -> \b -> native "range(a,b)";
 

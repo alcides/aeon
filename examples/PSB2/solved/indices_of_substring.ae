@@ -2,13 +2,13 @@ type List;
 
 def String_len : (i:String) -> Int = \i -> native "len(i)";
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native " list(range(start, end, step ))";
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native "list(range(start, end, step ))";
 
 def Filter :  (f: (s:Int) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
 
 def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
 
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native " i[j:l]" ;
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]" ;
 
 def indices_of_substring ( text :String) (target: String) : List {
     start: Int = 0;

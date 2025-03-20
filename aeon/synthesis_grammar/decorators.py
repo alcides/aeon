@@ -143,6 +143,32 @@ def hide(
     return fun, [], metadata
 
 
+def hide_types(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects more than zero arguments.
+
+    It does not modify the original definition. It makes sure that no
+    grammar nodes are generated from the var names passed as arguments.
+    """
+    assert len(args) != 0
+
+    # TODO How can I verify if the function is in the context?
+    def get_var_name(arg):
+        if isinstance(arg, SVar):
+            return arg.name
+        else:
+            raise_decorator_error("hide_types")
+
+    # rethink this
+    aux_dict = {"hide_types": [get_var_name(arg) for arg in args]}
+    metadata = metadata_update(metadata, fun, aux_dict)
+
+    return fun, [], metadata
+
+
 def error_fitness(
         args: list[STerm], fun: Definition,
         metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
@@ -153,7 +179,7 @@ def error_fitness(
     """
     assert len(args) == 1
 
-    aux_dict = {"error_fitness": args[1]}
+    aux_dict = {"error_fitness": args[0]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
@@ -167,7 +193,7 @@ def objective_number(
     """
     assert len(args) == 1
 
-    aux_dict = {"objective_number": args[1]}
+    aux_dict = {"objective_number": args[0]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata

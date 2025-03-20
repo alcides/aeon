@@ -3,7 +3,6 @@ import load_dataset from "PSB2.ae";
 import calculate_coin_sum_errors from "PSB2.ae";
 
 type List;
-type Tuple;
 
 def Math_floor_division : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "i // j" ;
 
@@ -11,7 +10,7 @@ def List_size : (l:List) -> Int = uninterpreted;
 
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
+def List_append (l:List) (i:Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
 def train: TrainData = extract_train_data (load_dataset "coin-sums" 200 200);
 
@@ -21,6 +20,7 @@ def train: TrainData = extract_train_data (load_dataset "coin-sums" 200 200);
             calculate_coin_sum_errors
             )
 @multi_minimize_float(calculate_coin_sum_errors train synth)
+@objective_number(4)
 def synth (cents: Int) : List {
   (?hole:List)
  }

@@ -40,7 +40,7 @@ def unique_ids(ctx: TypingContext, t: Term) -> tuple[TypingContext, Term]:
     def get_name(old_name: str) -> str:
         nonlocal counter
         counter += 1
-        return f"{old_name}§{counter}"
+        return f"{old_name}_{counter}"
 
     def unique_ctx(ctx: TypingContext) -> TypingContext:
         match ctx:

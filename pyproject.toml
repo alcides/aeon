@@ -25,7 +25,7 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine@https://github.com/alcides/GeneticEngine/archive/c66fac0ec05fbb30daddb47cc1a63602c5b889ad.zip',
+    'geneticengine@https://github.com/alcides/GeneticEngine/archive/0cc70d5df7516c61bd232bdd50ad02eb47d52b33.zip',
     'multiprocess',
     'numpy',
     'pathos',

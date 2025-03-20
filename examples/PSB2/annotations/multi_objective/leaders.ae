@@ -4,7 +4,7 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def List_reversed: (l: List)-> List = \xs -> native " xs[::-1]";
+def List_reversed: (l: List)-> List = \xs -> native "xs[::-1]";
 def List_new : List = native "[]" ;
 def List_append: (l:List) -> (i: Int) -> List = \xs -> \x -> native "xs + [x]";
 def List_get: (l:List) -> (i:Int) -> Int = \xs -> \i -> native "xs[i]";
@@ -18,7 +18,7 @@ def Map : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(m
 def train: TrainData = extract_train_data (load_dataset "leaders" 50 50);
 
 
-def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  \data -> \func -> native " [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]";
+def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  \data -> \func -> native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]";
 
 
 @hide(extract_train_data,
@@ -26,6 +26,7 @@ def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> 
             calculate_leaders_errors,
             train )
 @multi_minimize_float(calculate_leaders_errors train synth)
+@objective_number(1)
 def synth ( vector : List ) : List {
     (?hole:List)
 

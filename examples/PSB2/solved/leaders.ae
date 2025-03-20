@@ -2,7 +2,7 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def List_reversed: (l: List)-> List = \xs -> native " xs[::-1]";
+def List_reversed: (l: List)-> List = \xs -> native "xs[::-1]";
 def List_new : List = native "[]" ;
 def List_append: (l:List) -> (i: Int) -> List = \xs -> \x -> native "xs + [x]";
 def List_get: (l:List) -> (i:Int) -> Int = \xs -> \i -> native "xs[i]";

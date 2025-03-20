@@ -1,6 +1,5 @@
 import extract_train_data from "PSB2.ae";
 import load_dataset from "PSB2.ae";
-
 type List;
 
 def math : Unit = native_import "math";
@@ -12,14 +11,14 @@ def Math_round : (f:Float) -> (i:Int) -> Float = \f -> \i -> native "round(f, i)
 
 def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200);
 
-def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> List  =  \data -> \func -> native " [abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]";
+def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> List  =  \data -> \func -> native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]";
 
 @hide(extract_train_data,
             load_dataset,
             train,
             calculate_dice_game_errors)
 @multi_minimize_float(calculate_dice_game_errors train synth)
+@objective_number(1)
 def synth (n:Int) (m: Int) : Float {
     (?hole: Float)
-
 }

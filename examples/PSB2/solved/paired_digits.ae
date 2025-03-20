@@ -4,7 +4,7 @@ def get_fst: (l:String) -> String = \xs -> native "xs[0]";
 def get_snd: (l:String) -> String = \xs -> native "xs[1]";
 
 def String_len : (i:String) -> Int = \i -> native "len(i)";
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native " i[j:l]" ;
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]" ;
 def String_zip : (i:String) -> (j:String) -> String = \i -> \j -> native "zip(i,j)";
 def String_to_List : (i:String) -> List = \i -> native "list(i)";
 def String_to_Int : (i:String) -> Int = \i -> native "int(i)";

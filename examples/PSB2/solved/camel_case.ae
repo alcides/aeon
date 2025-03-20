@@ -7,7 +7,7 @@ def Map_string_string : (f: (s:String) -> String) -> (l:String) -> List = \f -> 
 def Map_string_list : (f: (s:String) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
 def Map_list_list : (f: (s:String) -> List) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
 
-def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native " s.join(l)";
+def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native "s.join(l)";
 def String_tail:(l:String) -> String = \xs -> native "xs[1:]";
 def String_capitalize : (s:String) -> String = \s -> native "s.capitalize()";
 def String_get : (s:String) -> (i:Int) -> String = \s -> \i -> native "s[i]";

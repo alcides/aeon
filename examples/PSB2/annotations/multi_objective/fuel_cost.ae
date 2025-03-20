@@ -28,7 +28,7 @@ def expected_values : List = get_output_list (unpack_train_data train);
 def flatten_list : (t:List) -> List = \l -> native "__import__('functools').reduce(lambda x, y: x + y, l)";
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native " [abs(func(x[0][0]) - x[1][0]) for x in data]";
+def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]";
 
 
 
@@ -37,6 +37,7 @@ def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  ->
             calculate_fuel_cost_errors,
             train)
 @multi_minimize_float(calculate_fuel_cost_errors train synth)
+@objective_number(1)
 def synth  (xs: List) : Int {
     (?hole: Int)
  }

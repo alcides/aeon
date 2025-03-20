@@ -55,6 +55,7 @@ aeon_prelude_ops_to_text = {
     "==": "eq",
     "&&": "and",
     "||": "or",
+    "!": "not",
 }
 
 

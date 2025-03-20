@@ -37,6 +37,6 @@ def mangle_type(ty: Type) -> str:
                 substitution_in_type(type, Var("__self__"), var_name))
             return f"{ty1}_arrow_{ty2}"
         case Top():
-            return "top"
+            return "Top"
         case _:
             assert False, f"Unsupported {ty}"

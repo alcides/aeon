@@ -8,9 +8,10 @@ import time
 from io import TextIOWrapper
 from typing import Any, Tuple, Optional
 from typing import Callable
+from typing import Type as TypingType
 
 import configparser
-from geneticengine.algorithms.random_search import RandomSearch
+from geneticengine.algorithms.enumerative import EnumerativeSearch
 from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
@@ -47,7 +48,7 @@ from aeon.core.types import top
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.optimization.normal_form import optimize
-from aeon.sugar.program import Definition
+from aeon.sugar.program import Definition, SLiteral
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
@@ -328,15 +329,26 @@ def problem_for_fitness_function(
             0 if isinstance(problem_type, SingleObjectiveProblem) else 0
         )  # TODO: add support to maximize decorators
 
+        minimize: bool | list[bool]
+
+        if fun_name in metadata and "objective_number" in metadata[fun_name]:
+            v = metadata[fun_name]["objective_number"]
+            assert isinstance(
+                v, SLiteral), "TODO: implement evaluation of arguments"
+            assert isinstance(v.value, int)
+            minimize = [True for _ in range(v.value)]
+        else:
+            minimize = MINIMIZE_OBJECTIVE
         return problem_type(fitness_function=fitness_function,
-                            minimize=MINIMIZE_OBJECTIVE), target_fitness
+                            minimize=minimize), target_fitness
     else:
         return SingleObjectiveProblem(fitness_function=lambda x: 0,
                                       minimize=True), 0
 
 
-def get_grammar_components(ctx: TypingContext, fun_type: Type, fun_name: str,
-                           metadata: Metadata):
+def get_grammar_components(
+        ctx: TypingContext, fun_type: Type, fun_name: str,
+        metadata: Metadata) -> tuple[list[TypingType], TypingType]:
     grammar_nodes, starting_node = gen_grammar_nodes(ctx, fun_type, fun_name,
                                                      metadata, [])
     assert len(grammar_nodes) > 0
@@ -354,7 +366,9 @@ def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str,
 
     grammar_nodes, starting_node = get_grammar_components(
         ctx, ty, fun_name, metadata)
-    return extract_grammar(grammar_nodes, starting_node)
+    g = extract_grammar(grammar_nodes, starting_node)
+    g = g.usable_grammar()
+    return g
 
 
 def random_search_synthesis(grammar: Grammar,
@@ -468,20 +482,20 @@ def geneticengine_synthesis(
     #     step=create_gp_step(problem=problem, gp_params=gp_params),
     # )
 
-    # alg = EnumerativeSearch(
-    #     problem=problem,
-    #     budget=budget,
-    #     grammar=grammar,
-    #     tracker=tracker,
-    # )
-
-    alg = RandomSearch(
+    alg = EnumerativeSearch(
         problem=problem,
         budget=budget,
-        representation=representation,
-        random=NativeRandomSource(seed),
+        grammar=grammar,
         tracker=tracker,
     )
+
+    # alg = RandomSearch(
+    #     problem=problem,
+    #     budget=budget,
+    #     representation=representation,
+    #     random=NativeRandomSource(seed),
+    #     tracker=tracker,
+    # )
 
     ui.start(
         typing_ctx=None,

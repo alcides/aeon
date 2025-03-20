@@ -6,10 +6,10 @@ def Math_toFloat : (i:Int) -> Float = \i -> native "float(i)";
 def Math_toInt : (i:Float) -> Int = \i -> native "int(i)";
 
 def String_len : (i:String) -> Int = \i -> native "len(i)";
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native " i[j:l]" ;
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]" ;
 
 
-def equal_int : (a: Int) -> (b: Int) -> Bool = \x -> \y -> native " x == y";
+def equal_int : (a: Int) -> (b: Int) -> Bool = \x -> \y -> native "x == y";
 
 def middle_char  (s: String) : String {
     str_len : Int = String_len s;

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import make_dataclass
 import sys
-from typing import Optional, Tuple, Protocol
+from typing import Generator, Optional, Tuple, Protocol
 from typing import Type as TypingType
 
 from geneticengine.grammar.decorators import weight
@@ -96,40 +96,48 @@ ae_top = type("ae_top", (ABC, ), {})
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     data: dict[Type, TypingType] = {Top(): ae_top}
     for ty in set(types):
-        match ty:
-            case BaseType(_):
-                class_name = mangle_type(ty)
-                ty_abstract_class = type(class_name, (ae_top, ), {})
-                ty_abstract_class = abstract(ty_abstract_class)
-                data[ty] = ty_abstract_class
-            case RefinedType(_, itype, _):
-                class_name = mangle_type(ty)
-                data.update(extract_all_types([itype]))
-                parent = data[itype]
-                ty_abstract_class = type(class_name, (parent, ), {})
-                ty_abstract_class = abstract(ty_abstract_class)
-                data[ty] = ty_abstract_class
-                # TODO: alpha-equivalence
-                # TODO: subtyping
-            case AbstractionType(var_name, var_type, return_type):
-                class_name = mangle_type(ty)
-                data.update(
-                    extract_all_types([
-                        var_type,
-                        substitution_in_type(return_type, Var("__self__"),
-                                             var_name)
-                    ]))
-                ty_abstract_class = type(class_name, (ae_top, ), {})
-                ty_abstract_class = abstract(ty_abstract_class)
-                data[ty] = ty_abstract_class
-                # TODO: alpha-equivalence
-            case Top():
-                data[ty] = ae_top
-            case TypePolymorphism(_, _, _):
-                # TODO: Polytypes in Synthesis
-                continue
-            case _:
-                assert False, f"Unsupported {ty}"
+        if ty not in data:
+            match ty:
+                case BaseType(_):
+                    class_name = mangle_type(ty)
+                    ty_abstract_class = type(
+                        class_name,
+                        (
+                            ae_top,
+                            ABC,
+                        ),
+                        {},
+                    )
+                    # ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                case RefinedType(_, itype, _):
+                    class_name = mangle_type(ty)
+                    data.update(extract_all_types([itype]))
+                    parent = data[itype]
+                    ty_abstract_class = type(class_name, (ABC, parent), {})
+                    ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                    # TODO: alpha-equivalence
+                    # TODO: subtyping
+                case AbstractionType(var_name, var_type, return_type):
+                    class_name = mangle_type(ty)
+                    data.update(
+                        extract_all_types([
+                            var_type,
+                            substitution_in_type(return_type, Var("__self__"),
+                                                 var_name)
+                        ]))
+                    ty_abstract_class = type(class_name, (ae_top, ABC), {})
+                    ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                    # TODO: alpha-equivalence
+                case Top():
+                    data[ty] = ae_top
+                case TypePolymorphism(_, _, _):
+                    # TODO: Polytypes in Synthesis
+                    continue
+                case _:
+                    assert False, f"Unsupported {ty}"
     return data
 
 
@@ -207,12 +215,46 @@ def create_var_node(name: str, ty: Type, python_ty: TypingType) -> TypingType:
     return dc
 
 
+def create_var_apps_node(name: str, ty: AbstractionType,
+                         type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a python type for a given variable in context that is a function."""
+
+    # Collect arguments
+    args = []
+    current: Type = ty
+    while isinstance(current, AbstractionType):
+        args.append((current.var_name, current.var_type))
+        current = current.type
+    rtype = current
+    python_ty = type_info[rtype]
+
+    vname = mangle_var(name)
+    dc = make_dataclass(f"var_app_{vname}",
+                        [(aname, type_info[ty]) for (aname, ty) in args],
+                        bases=(python_ty, ))
+
+    def get_core(_self):
+        current = Var(name)
+        for aname, _ in args:
+            current = Application(current, getattr(_self, aname).get_core())
+
+        return current
+
+    setattr(dc, "get_core", get_core)
+    dc = weight(VAR_WEIGHT)(dc)
+    return dc
+
+
 def create_var_nodes(vars: list[Tuple[str, Type]],
                      type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
     return [
-        create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars
-        if ty in type_info
+        create_var_node(var_name, ty, type_info[ty])
+        for (var_name, ty) in vars if ty in type_info
+    ] + [
+        create_var_apps_node(var_name, ty, type_info)
+        for (var_name, ty) in vars
+        if ty in type_info and isinstance(ty, AbstractionType)
     ]
 
 
@@ -232,11 +274,26 @@ def create_abstraction_node(ty: AbstractionType,
     return dc
 
 
+def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
+    match t:
+        case RefinedType(_, _, _) | BaseType(_) | TypeVar() | Top():
+            return
+        case AbstractionType(_, aty, rty):
+            yield t
+            yield from collect_all_abstractions(aty)
+            yield from collect_all_abstractions(rty)
+        case TypePolymorphism(_, _, body):
+            yield from collect_all_abstractions(body)
+        case _:
+            assert False, f"Unsupported {t}"
+
+
 def create_abstraction_nodes(
         type_info: dict[Type, TypingType]) -> list[TypingType]:
     return [
-        create_abstraction_node(ty, type_info) for ty in type_info
-        if isinstance(ty, AbstractionType)
+        create_abstraction_node(ity, type_info) for ty in type_info
+        for ity in collect_all_abstractions(ty)
+        if isinstance(ity, AbstractionType)
     ]
 
 
@@ -430,6 +487,7 @@ def gen_grammar_nodes(
     current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
     vars_to_ignore = current_metadata.get("hide", [])
+    types_to_ignore = current_metadata.get("hide_types", [])
 
     def skip(name: str) -> bool:
         if name == synth_func_name:
@@ -445,8 +503,12 @@ def gen_grammar_nodes(
 
     ctx_vars = [(var_name, ty) for (var_name, ty) in concrete_vars_in(ctx)
                 if not skip(var_name)]
-    type_info = extract_all_types([t_bool, t_float, t_int, t_string] +
-                                  [x[1] for x in ctx_vars] + [synth_fun_type])
+
+    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set(
+        [x[1] for x in ctx_vars]) | set([synth_fun_type])
+    types_to_consider = types_to_consider - set(
+        BaseType(t) for t in types_to_ignore)
+    type_info = extract_all_types(list(types_to_consider))
     type_nodes = list(set(type_info.values()))
 
     literals = create_literals_nodes(type_info)
@@ -472,7 +534,7 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
     for cls in grammar_nodes:
         parents = [base.__name__ for base in cls.__bases__]
         print("@dataclass")
-        print(f"class {cls.__name__}({''.join(parents)}):")
+        print(f"class {cls.__name__}({', '.join(parents)}):")
         class_vars = cls.__annotations__
         if class_vars:
             for var_name, var_type in class_vars.items():

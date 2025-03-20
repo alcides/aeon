@@ -2,12 +2,12 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native " list(range(start, end, step ))";
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native "list(range(start, end, step ))";
 
-def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = \i -> \j -> \l -> native " i[j:l]" ;
+def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = \i -> \j -> \l -> native "i[j:l]" ;
 def List_remove_last : (i:List) -> List = \i -> native "i[:-1]";
 def List_remove_first : (i:List) -> List = \i -> native "i[1:]";
-def List_reversed: (l: List)-> List = \xs -> native " xs[::-1]";
+def List_reversed: (l: List)-> List = \xs -> native "xs[::-1]";
 
 def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : List = native "[]" ;

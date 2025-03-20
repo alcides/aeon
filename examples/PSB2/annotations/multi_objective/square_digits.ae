@@ -10,7 +10,7 @@ def String_intToString : (i:Int) -> String = \i -> native "str(i)";
 
 
 def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200);
-def calculate_square_digits_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> List  =  \data -> \func -> native " [__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
+def calculate_square_digits_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]";
 
 
 @hide(extract_train_data,
@@ -18,6 +18,7 @@ def calculate_square_digits_errors : (train : TrainData) -> (f:(a: Int) -> Strin
             load_dataset,
             train)
 @multi_minimize_float(calculate_square_digits_errors train synth)
+@objective_number(1)
 def synth ( n : Int) : String {
     (?hole:String)
 }

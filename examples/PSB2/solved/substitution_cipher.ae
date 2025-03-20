@@ -5,7 +5,7 @@ type Dict;
 def Zip_String_String : (l1: String) -> (l2: String) -> Zip = \xs -> \ys -> native "zip(xs, ys)";
 def Dict_zip : (l: Zip) -> Dict = \xs -> native "dict(xs)";
 def String_list_to_String : (l:List) -> String = \l -> native "''.join(l)";
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = \d -> \k -> \y -> native " d.get(k, y)";
+def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = \d -> \k -> \y -> native "d.get(k, y)";
 
 
 def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = \f -> \xs -> native "map(f, xs)";
