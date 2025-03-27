@@ -150,7 +150,7 @@ def error_fitness(
     """
     assert len(args) == 1
 
-    aux_dict = {"error_fitness": args[1]}
+    aux_dict = {"error_fitness": args[0]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
@@ -164,7 +164,7 @@ def objective_number(
     """
     assert len(args) == 1
 
-    aux_dict = {"objective_number": args[1]}
+    aux_dict = {"objective_number": args[0]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
