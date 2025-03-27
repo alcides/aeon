@@ -101,6 +101,9 @@ def new_koompa: (x: Int | x >= 5 && x <= 95) ->
 def fitness_function: (level: Level) -> List =
     native "lambda x: __import__('examples.super_mario.super_mario_fitness', fromlist=['calculate_fitness']).calculate_fitness(x)";
 
+@disable_control_flow
+@error_fitness(1)
+@objective_number(2)
 @hide(np, fitness_function)
 @multi_minimize_float(fitness_function new_map)
 def new_map: Level = (?hole: Level);

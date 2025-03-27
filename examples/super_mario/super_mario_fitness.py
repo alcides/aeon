@@ -18,8 +18,8 @@ def calculate_fitness(level: tuple[list, list]) -> list[float]:
     number_of_chunks: float = float(max_chunks - float(np.sum(map)))
     conflicts: float = float(np.sum(map > 1))
 
-    normalized_number_of_chunks = number_of_chunks / max_chunks
-    normalized_conflicts = conflicts / max_chunks
+    normalized_number_of_chunks = round(number_of_chunks / max_chunks, 5)
+    normalized_conflicts = round(conflicts / max_chunks, 5)
 
     return [normalized_number_of_chunks, normalized_conflicts]
 
