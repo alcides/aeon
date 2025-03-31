@@ -10,13 +10,11 @@ from aeon.core.liquid import LiquidTerm
 
 
 class Kind(ABC):
-
     def __repr__(self):
         return str(self)
 
 
 class BaseKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -28,7 +26,6 @@ class BaseKind(Kind):
 
 
 class StarKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -72,7 +69,6 @@ class TypeVar(Type):
 
 
 class Top(Type):
-
     def __repr__(self):
         return "⊤"
 
@@ -105,10 +101,12 @@ class AbstractionType(Type):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractionType)
-                and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.type == other.type)
+        return (
+            isinstance(other, AbstractionType)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.type == other.type
+        )
 
     def __hash__(self) -> int:
         return hash(self.var_name) + hash(self.var_type) + hash(self.type)
@@ -124,9 +122,12 @@ class RefinedType(Type):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
 
     def __eq__(self, other):
-        return (isinstance(other, RefinedType) and self.name == other.name
-                and self.type == other.type
-                and self.refinement == other.refinement)
+        return (
+            isinstance(other, RefinedType)
+            and self.name == other.name
+            and self.type == other.type
+            and self.refinement == other.refinement
+        )
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.type) + hash(self.refinement)
@@ -165,21 +166,22 @@ class LiquidHornApplication(LiquidTerm):
         return f"?{self.name}({j})"
 
     def __eq__(self, other):
-        return isinstance(other,
-                          LiquidHornApplication) and other.name == self.name
+        return isinstance(other, LiquidHornApplication) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
 
 
-def extract_parts(
-        t: Type
-) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
-    assert (isinstance(t, BaseType) or isinstance(t, RefinedType)
-            or isinstance(
-                t,
-                TypeVar,
-            ) or isinstance(t, TypeConstructor))
+def extract_parts(t: Type) -> tuple[str, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
+    assert (
+        isinstance(t, BaseType)
+        or isinstance(t, RefinedType)
+        or isinstance(
+            t,
+            TypeVar,
+        )
+        or isinstance(t, TypeConstructor)
+    )
     if isinstance(t, TypeVar):
         return ("_", t_int, LiquidLiteralBool(True))
     elif isinstance(t, RefinedType):
@@ -198,8 +200,7 @@ def is_bare(t: Type) -> bool:
         case BaseType(_) | Top() | TypeVar():
             return True
         case RefinedType(_, _, ref):
-            return ref == LiquidHole() or isinstance(ref,
-                                                     LiquidHornApplication)
+            return ref == LiquidHole() or isinstance(ref, LiquidHornApplication)
         case AbstractionType(_, _, vtype):
             return is_bare(vtype) and is_bare(vtype)
         case TypePolymorphism(_, _, ty):

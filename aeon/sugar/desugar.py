@@ -39,10 +39,7 @@ class DesugaredProgram(NamedTuple):
     metadata: Metadata
 
 
-def desugar(p: Program,
-            is_main_hole: bool = True,
-            extra_vars: dict[str, SType] | None = None) -> DesugaredProgram:
-
+def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[str, SType] | None = None) -> DesugaredProgram:
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
     prog = determine_main_function(p, is_main_hole)
@@ -55,14 +52,12 @@ def desugar(p: Program,
 
     etctx = build_typing_context(vs, type_decls)
     etctx, prog = update_program_and_context(prog, defs, etctx)
-    prog, etctx = replace_concrete_types(
-        prog, etctx, builtin_types + [td.name for td in type_decls])
+    prog, etctx = replace_concrete_types(prog, etctx, builtin_types + [td.name for td in type_decls])
 
     return DesugaredProgram(prog, etctx, metadata)
 
 
-def introduce_forall_in_types(defs: list[Definition],
-                              type_decls: list[TypeDecl]) -> list[Definition]:
+def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
     types = [td.name for td in type_decls]
     ndefs = []
     for d in defs:
@@ -77,9 +72,7 @@ def introduce_forall_in_types(defs: list[Definition],
                             entry = (tname, BaseKind())
                             if entry not in new_foralls:
                                 new_foralls.append(entry)
-                ndefs.append(
-                    Definition(name, foralls + new_foralls, args, type, body,
-                               decorators))
+                ndefs.append(Definition(name, foralls + new_foralls, args, type, body, decorators))
     return ndefs
 
 
@@ -109,9 +102,7 @@ def handle_imports(
                 import_p.type_decls,
             )
         if imp.func:
-            import_p_definitions = [
-                d for d in import_p_definitions if str(d.name) == imp.func
-            ]
+            import_p_definitions = [d for d in import_p_definitions if str(d.name) == imp.func]
 
         defs = defs_recursive + import_p_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
@@ -129,8 +120,7 @@ def apply_decorators_in_program(prog: Program) -> Program:
     )
 
 
-def apply_decorators_in_definitions(
-        definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
+def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
     """We apply the decorators meta-programming code to each definition in the
     program."""
     metadata: Metadata = {}
@@ -156,8 +146,8 @@ def update_program_and_context(
 
 
 def replace_concrete_types(
-        t: STerm, etctx: ElaborationTypingContext,
-        types: list[str]) -> tuple[STerm, ElaborationTypingContext]:
+    t: STerm, etctx: ElaborationTypingContext, types: list[str]
+) -> tuple[STerm, ElaborationTypingContext]:
     """Replaces all occurrences of STypeVar with the corresponding SBaseType."""
     for name in types:
         t = substitution_svartype_in_sterm(t, SBaseType(name), name)
@@ -167,14 +157,12 @@ def replace_concrete_types(
             case ElabVariableBinder(vname, ty):
                 nty = ty
                 for name in types:
-                    nty = substitute_svartype_in_stype(nty, SBaseType(name),
-                                                       name)
+                    nty = substitute_svartype_in_stype(nty, SBaseType(name), name)
                 return ElabVariableBinder(vname, nty)
             case ElabUninterpretedBinder(vname, ty):
                 nty = ty
                 for name in types:
-                    nty = substitute_svartype_in_stype(nty, SBaseType(name),
-                                                       name)
+                    nty = substitute_svartype_in_stype(nty, SBaseType(name), name)
                 return ElabUninterpretedBinder(vname, nty)
             case _:
                 return e
@@ -202,13 +190,13 @@ def handle_import(path: str) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
     possible_containers = (
-        [Path.cwd()] + [Path.cwd() / "libraries"] +
-        [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s])
+        [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
+    )
     for container in possible_containers:
         file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
             return mk_parser("program").parse(contents)
     raise Exception(
-        f"Could not import {path} in any of the following paths: " +
-        ";".join([str(p) for p in possible_containers]), )
+        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
+    )

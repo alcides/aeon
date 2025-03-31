@@ -8,6 +8,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
 from aeon.decorators import Metadata
+from aeon.elaboration import UnificationException, elaborate
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.logger.logger import export_log
@@ -24,30 +25,41 @@ from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
+from lsp.server import start_language_server_mode
 
 sys.setrecursionlimit(10000)
 
 
 def parse_arguments():
+    if "-lsp" in sys.argv or "--language-server-mode" in sys.argv:
+        lsp_parser = argparse.ArgumentParser()
+        lsp_parser.add_argument(
+            "-lsp",
+            "--language-server-mode",
+            action="store_true",
+            help="Run language server mode (disables other options)",
+        )
+        lsp_parser.add_argument(
+            "--tcp",
+            help="listen on tcp port or hostname:port on IPv4.",
+            type=str,
+        )
+        return lsp_parser.parse_args()
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename",
-                        help="name of the aeon files to be synthesized")
-    parser.add_argument("--core",
-                        action="store_true",
-                        help="synthesize a aeon core file")
+    parser.add_argument("filename",help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
 
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -90,17 +102,7 @@ def parse_arguments():
         help="Show timing information",
     )
 
-    parser.add_argument(
-        "-rg",
-        "--refined-grammar",
-        action="store_true",
-        help="Use the refined grammar for synthesis",
-    )
-
-    parser.add_argument("-n",
-                        "--no-main",
-                        action="store_true",
-                        help="Disables introducing hole in main")
+    parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     return parser.parse_args()
 
@@ -128,6 +130,11 @@ def select_synthesis_ui() -> SynthesisUI:
 
 def main() -> None:
     args = parse_arguments()
+
+    if hasattr(args, 'language_server_mode'):
+        start_language_server_mode(args.tcp)
+        sys.exit(0)
+
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
     if args.debug:
@@ -139,10 +146,7 @@ def main() -> None:
 
     if args.core:
         with RecordTime("ParseCore"):
-            core_typing_vars = {
-                k: type_to_core(typing_vars[k])
-                for k in typing_vars
-            }
+            core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
             typing_ctx = build_context(core_typing_vars)
             core_ast = parse_term(aeon_code)
             metadata: Metadata = {}
@@ -151,14 +155,12 @@ def main() -> None:
             prog: Program = parse_program(aeon_code)
 
         with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(
-                prog, is_main_hole=not args.no_main)
+            desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
             metadata = desugared.metadata
 
         try:
             with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext,
-                                         desugared.program, SBaseType("Top"))
+                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, SBaseType("Top"))
         except UnificationException as e:
             log_type_errors([e])
             sys.exit(1)
@@ -183,10 +185,12 @@ def main() -> None:
         evaluation_ctx = EvaluationContext(evaluation_vars)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[
-            str,
-            list[str],
-        ]] = incomplete_functions_and_holes(
+        incomplete_functions: list[
+            tuple[
+                str,
+                list[str],
+            ]
+        ] = incomplete_functions_and_holes(
             typing_ctx,
             core_ast_anf,
         )
@@ -194,9 +198,9 @@ def main() -> None:
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (parse_config(args.gp_config, args.config_section)
-                            if args.gp_config and args.config_section else
-                            None)
+            synth_config = (
+                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+            )
 
         ui = select_synthesis_ui()
 

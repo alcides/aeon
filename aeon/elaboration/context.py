@@ -49,13 +49,11 @@ class ElaborationTypingContext:
 
     def with_var(self, name: str, ty: SType):
         """Creates a new context, with an extra variable."""
-        return ElaborationTypingContext(self.entries +
-                                        [ElabVariableBinder(name, ty)])
+        return ElaborationTypingContext(self.entries + [ElabVariableBinder(name, ty)])
 
     def with_typevar(self, name: str, kind: Kind):
         """Creates a new context, with an extra type variable"""
-        return ElaborationTypingContext(self.entries +
-                                        [ElabTypeVarBinder(name, kind)])
+        return ElaborationTypingContext(self.entries + [ElabTypeVarBinder(name, kind)])
 
     def fresh_typevar(self) -> str:
         """Returns a type variable that does not exist in context."""
@@ -63,18 +61,13 @@ class ElaborationTypingContext:
         while True:
             i += 1
             name = f"FreshT{i}"
-            if name not in [
-                    tvb.name for tvb in self.entries
-                    if isinstance(tvb, ElabTypeVarBinder)
-            ]:
+            if name not in [tvb.name for tvb in self.entries if isinstance(tvb, ElabTypeVarBinder)]:
                 return name
 
 
-def build_typing_context(
-        ls: dict[str, SType],
-        tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
+def build_typing_context(ls: dict[str, SType], tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
     if tdecl is None:
         tdecl = []
     return ElaborationTypingContext(
-        [ElabVariableBinder(name, ls[name])
-         for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl])
+        [ElabVariableBinder(name, ls[name]) for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl]
+    )

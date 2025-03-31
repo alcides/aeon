@@ -57,9 +57,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
                 v,
                 ity,
                 LiquidHornApplication(
-                    f"{id}", [(LiquidVar(n), t)
-                              for n, t in context.vars() + [(v, ty.type)]
-                              if isinstance(t, BaseType)]),
+                    f"{id}", [(LiquidVar(n), t) for n, t in context.vars() + [(v, ty.type)] if isinstance(t, BaseType)]
+                ),
             )
         case BaseType(_) | RefinedType(_, _, _) | Top() | TypeVar():
             return ty
@@ -78,9 +77,12 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
     if isinstance(t, LiquidHornApplication):
         return [t]
-    elif (isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt)
-          or isinstance(t, LiquidLiteralFloat)
-          or isinstance(t, LiquidLiteralString)):
+    elif (
+        isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralFloat)
+        or isinstance(t, LiquidLiteralString)
+    ):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -108,9 +110,12 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if (isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool)
-            or isinstance(t, LiquidLiteralString)
-            or isinstance(t, LiquidLiteralFloat)):
+    if (
+        isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralString)
+        or isinstance(t, LiquidLiteralFloat)
+    ):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -138,9 +143,12 @@ def contains_horn_constraint(c: Constraint) -> bool:
 def wellformed_horn(predicate: LiquidTerm) -> bool:
     if not contains_horn(predicate):
         return True
-    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
-          and not contains_horn(predicate.args[0])
-          and isinstance(predicate.args[1], LiquidHornApplication)):
+    elif (
+        isinstance(predicate, LiquidApp)
+        and predicate.fun == "&&"
+        and not contains_horn(predicate.args[0])
+        and isinstance(predicate.args[1], LiquidHornApplication)
+    ):
         return True
     elif isinstance(predicate, LiquidHornApplication):
         return True
@@ -152,9 +160,7 @@ def mk_arg(i: int) -> str:
     return f"_{i}"
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm,
-                                       BaseType | TypeVar | TypeConstructor]],
-                      arity: int):
+def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]], arity: int):
     if arity == 0:
         yield []
     else:
@@ -167,17 +173,11 @@ def get_possible_args(vars: list[tuple[LiquidTerm,
                 yield [LiquidLiteralInt(1)] + base
 
 
-def build_possible_assignment(
-        hole: LiquidHornApplication) -> Generator[LiquidApp]:
+def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidApp]:
     ctx = LiquidTypeCheckingContext(
-        known_types=[
-            BaseType(bn) for bn in ["Unit", "Bool", "Int", "Float", "String"]
-        ],
+        known_types=[BaseType(bn) for bn in ["Unit", "Bool", "Int", "Float", "String"]],
         functions=liquid_prelude,
-        variables={
-            mk_arg(i): t
-            for i, (_, t) in enumerate(hole.argtypes)
-        },
+        variables={mk_arg(i): t for i, (_, t) in enumerate(hole.argtypes)},
     )
 
     for fname in liquid_prelude:
@@ -219,10 +219,7 @@ def split(c: Constraint) -> list[Constraint]:
         case Implication(name, base, pre, post):
             return [Implication(name, base, pre, cp) for cp in split(post)]
         case UninterpretedFunctionDeclaration(name, type, seq):
-            return [
-                UninterpretedFunctionDeclaration(name, type, c)
-                for c in split(seq)
-            ]
+            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
         case _:
             assert False
 
@@ -243,8 +240,7 @@ def build_forall_implication(
     return cf
 
 
-def simpl(vs: list[tuple[str, Type]], p: LiquidTerm,
-          c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[str, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
@@ -286,14 +282,12 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
                 apply_constraint(assign, post),
             )
         case UninterpretedFunctionDeclaration(name, base, post):
-            return UninterpretedFunctionDeclaration(
-                name, base, apply_constraint(assign, post))
+            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
         case _:
             assert False
 
 
-def fill_horn_arguments(h: LiquidHornApplication,
-                        candidate: LiquidTerm) -> LiquidTerm:
+def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
@@ -323,22 +317,15 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[str, BaseType | TypeVar | AbstractionType | Top]], tuple[
-        LiquidTerm, LiquidTerm]]:
+) -> tuple[list[tuple[str, BaseType | TypeVar | AbstractionType | Top]], tuple[LiquidTerm, LiquidTerm]]:
     match c:
         case UninterpretedFunctionDeclaration(name, base, post):
             (vs1, (p, h)) = extract_components_of_imp(post)
-            vsh: list[tuple[str,
-                            BaseType | TypeVar | AbstractionType | Top]] = [
-                                (name, base)
-                            ]
+            vsh: list[tuple[str, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vsh + vs1, (p, h))
         case Implication(name, base, pre, seq):
             (vs1, (p, h)) = extract_components_of_imp(seq)
-            vs: list[tuple[str,
-                           BaseType | TypeVar | AbstractionType | Top]] = [
-                               (name, base)
-                           ]
+            vs: list[tuple[str, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vs + vs1, (mk_liquid_and(pre, p), h))
         case LiquidConstraint(e):
             return ([], (LiquidLiteralBool(True), e))

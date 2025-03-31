@@ -53,15 +53,18 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
         return beta
     elif isinstance(t, TypeVar) and t.name != alpha:
         return t
-    elif (isinstance(t, RefinedType) and isinstance(t.type, TypeVar)
-          and t.type.name == alpha and isinstance(beta, RefinedType)):
+    elif (
+        isinstance(t, RefinedType)
+        and isinstance(t.type, TypeVar)
+        and t.type.name == alpha
+        and isinstance(beta, RefinedType)
+    ):
         return RefinedType(
             t.name,
             beta.type,
             mk_liquid_and(
                 t.refinement,
-                substitution_in_liquid(beta.refinement, LiquidVar(t.name),
-                                       beta.name),
+                substitution_in_liquid(beta.refinement, LiquidVar(t.name), beta.name),
             ),
         )
     elif isinstance(t, RefinedType):

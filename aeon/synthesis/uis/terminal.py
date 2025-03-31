@@ -7,7 +7,6 @@ from aeon.typechecking.context import TypingContext
 
 
 class TerminalUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,
@@ -33,8 +32,9 @@ class TerminalUI(SynthesisUI):
 
         print(
             f"Target: {self.target_name} ({elapsed_time:.1f} / {self.budget:.1f}s) "
-            + f"| Best: {self.best_solution} ({self.best_quality}) " +
-            f"| Current: {solution} ({quality})", )
+            + f"| Best: {self.best_solution} ({self.best_quality}) "
+            + f"| Current: {solution} ({quality})",
+        )
 
     def end(self, solution: Term, quality: Any):
         pass

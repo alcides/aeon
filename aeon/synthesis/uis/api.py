@@ -8,7 +8,6 @@ from aeon.typechecking.context import TypingContext
 
 
 class SynthesisUI(abc.ABC):
-
     def start(
         self,
         typing_ctx: TypingContext,
@@ -16,8 +15,7 @@ class SynthesisUI(abc.ABC):
         target_name: str,
         target_type: Type,
         budget: Any,
-    ):
-        ...
+    ): ...
 
     def register(
         self,
@@ -25,11 +23,9 @@ class SynthesisUI(abc.ABC):
         quality: Any,
         elapsed_time: float,
         is_best: bool,
-    ):
-        ...
+    ): ...
 
-    def end(self, solution: Term, quality: Any):
-        ...
+    def end(self, solution: Term, quality: Any): ...
 
     def wrapper(self, f):
         """This wrapper is necessary for the NCurses version of the API"""
@@ -44,7 +40,6 @@ class SynthesisUI(abc.ABC):
 
 
 class SilentSynthesisUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,

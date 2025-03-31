@@ -57,7 +57,7 @@ def extract_class_name(class_name: str) -> str:
     ]
     for prefix in prefixes:
         if class_name.startswith(prefix):
-            return class_name[len(prefix):]
+            return class_name[len(prefix) :]
     return class_name
 
 
@@ -67,16 +67,13 @@ class GrammarError(Exception):
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
-
-    def get_core(self):
-        ...
+    def get_core(self): ...
 
 
 classType = TypingType[HasGetCore]
 
 
 def mk_method_core(cls: classType) -> classType:
-
     def get_core(self):
         class_name = self.__class__.__name__
         # the prefix is either "var_", "app_", "refined_app" or "refined_var"
@@ -116,7 +113,6 @@ def mk_method_core(cls: classType) -> classType:
 
 
 def mk_method_core_literal(cls: classType) -> classType:
-
     def get_core(self):
         class_name = self.__class__.__name__
         class_name_without_prefix = extract_class_name(class_name)
@@ -124,17 +120,21 @@ def mk_method_core_literal(cls: classType) -> classType:
         try:
             if value is not None:
                 if class_name_without_prefix == "Int" or class_name_without_prefix.startswith(
-                        "Int", ):
+                    "Int",
+                ):
                     base = Literal(int(value), type=t_int)
                 elif class_name_without_prefix == "Float" or class_name_without_prefix.startswith(
-                        "Float", ):
+                    "Float",
+                ):
                     base = Literal(float(value), type=t_float)
                 elif class_name_without_prefix == "Bool" or class_name_without_prefix.startswith(
-                        "Bool", ):
+                    "Bool",
+                ):
                     value = str(value) == "true"
                     base = Literal(value, type=t_bool)
                 elif class_name_without_prefix == "String" or class_name_without_prefix.startswith(
-                        "String", ):
+                    "String",
+                ):
                     v = str(value)[1:-1]
                     base = Literal(str(v), type=t_string)
                 else:
@@ -153,13 +153,19 @@ def liquid_term_to_str(ty: RefinedType) -> str:
     base_type_str: str = ty.type.name
     refinement: LiquidTerm = ty.refinement
     if isinstance(refinement, LiquidApp):
-        refined_type_str = (str(ty.refinement).replace(
-            var,
-            base_type_str,
-        ).replace("(", "").replace(
-            ")",
-            "",
-        ).replace(" ", "_"))
+        refined_type_str = (
+            str(ty.refinement)
+            .replace(
+                var,
+                base_type_str,
+            )
+            .replace("(", "")
+            .replace(
+                ")",
+                "",
+            )
+            .replace(" ", "_")
+        )
         for op, op_str in aeon_prelude_ops_to_text.items():
             refined_type_str = refined_type_str.replace(op, op_str)
     else:
@@ -242,21 +248,28 @@ def intervals_to_metahandlers(
     for interval in intervals_list:
         if isinstance(interval, Interval):
             if isinstance(ref, LiquidApp):
-                max_range = (max_number if isinstance(
-                    interval.sup,
-                    Infinity,
-                ) else interval.sup)  # or 2 ** 31 - 1
+                max_range = (
+                    max_number
+                    if isinstance(
+                        interval.sup,
+                        Infinity,
+                    )
+                    else interval.sup
+                )  # or 2 ** 31 - 1
                 max_range = max_range - 1 if interval.right_open else max_range
 
-                min_range = (min_number if isinstance(
-                    interval.inf,
-                    NegativeInfinity,
-                ) else interval.inf)  # or -2 ** 31
+                min_range = (
+                    min_number
+                    if isinstance(
+                        interval.inf,
+                        NegativeInfinity,
+                    )
+                    else interval.inf
+                )  # or -2 ** 31
                 min_range = min_range + 1 if interval.left_open else min_range
 
                 metahandler_instance = gengy_metahandler(min_range, max_range)
-                metahandler_type = Annotated[
-                    python_type, metahandler_instance]  # type: ignore
+                metahandler_type = Annotated[python_type, metahandler_instance]  # type: ignore
                 metahandler_list.append(metahandler_type)
             else:
                 assert False
@@ -277,7 +290,8 @@ def get_metahandler_union(
 
 
 def refined_type_to_metahandler(
-    ty: RefinedType, ) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
+    ty: RefinedType,
+) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
     base_type_str = str(ty.type.name)
     gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
     name, ref = ty.name, ty.refinement
@@ -299,9 +313,8 @@ def refined_type_to_metahandler(
 
 def create_abstract_class(class_name: str) -> type:
     """Create and return a new abstract class with the given name."""
-    class_name = "t_" + class_name if not class_name.startswith(
-        "t_") else class_name
-    return make_dataclass(class_name, [], bases=(ABC, ))
+    class_name = "t_" + class_name if not class_name.startswith("t_") else class_name
+    return make_dataclass(class_name, [], bases=(ABC,))
 
 
 def create_literal_class(
@@ -313,7 +326,7 @@ def create_literal_class(
     new_class = make_dataclass(
         "literal_" + class_name,
         [("value", value_type)],
-        bases=(base_class, ),
+        bases=(base_class,),
     )
     return mk_method_core_literal(new_class)
 
@@ -324,8 +337,7 @@ def handle_refined_type(
     grammar_nodes: list[type],
 ) -> tuple[list[type], type]:
     """Handle the creation of classes for refined types and update grammar nodes accordingly."""
-    class_name = "t_" + class_name if not class_name.startswith(
-        "t_") else class_name
+    class_name = "t_" + class_name if not class_name.startswith("t_") else class_name
     new_abs_class = create_abstract_class(class_name)
     grammar_nodes.append(new_abs_class)
 
@@ -379,8 +391,7 @@ def find_class_by_name(
 
         return grammar_nodes, new_abs_class
 
-    if ty is not None and isinstance(ty, RefinedType) and str(
-            ty.type.name) in aeon_to_gengy_metahandlers:
+    if ty is not None and isinstance(ty, RefinedType) and str(ty.type.name) in aeon_to_gengy_metahandlers:
         return handle_refined_type(class_name, ty, grammar_nodes)
 
     new_abs_class = create_abstract_class(class_name)
@@ -390,7 +401,8 @@ def find_class_by_name(
 
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(
-        ("_anf_", "target"), )
+        ("_anf_", "target"),
+    )
 
 
 def get_attribute_type_name(
@@ -423,10 +435,14 @@ def generate_class_components(
     fields = []
     parent_name = ""
     while isinstance(class_type, AbstractionType):
-        attribute_name = (class_type.var_name.value if isinstance(
-            class_type.var_name,
-            Token,
-        ) else class_type.var_name)
+        attribute_name = (
+            class_type.var_name.value
+            if isinstance(
+                class_type.var_name,
+                Token,
+            )
+            else class_type.var_name
+        )
         attribute_type = class_type.var_type
 
         attribute_type_name = get_attribute_type_name(attribute_type)
@@ -457,7 +473,7 @@ def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
     """Creates a new class with the given name, parent class, and fields."""
     if fields is None:
         fields = []
-    new_class = make_dataclass(class_name, fields, bases=(parent_class, ))
+    new_class = make_dataclass(class_name, fields, bases=(parent_class,))
     new_class = mk_method_core(new_class)
 
     return new_class
@@ -589,9 +605,8 @@ def create_if_class(
 def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
     types_names_set = {
         cls.__name__
-        for cls in grammar_nodes if cls.__base__ is ABC and not any(
-            issubclass(cls, other) and cls is not other
-            for other in grammar_nodes)
+        for cls in grammar_nodes
+        if cls.__base__ is ABC and not any(issubclass(cls, other) and cls is not other for other in grammar_nodes)
     }
     for ty_name in types_names_set:
         grammar_nodes = create_if_class(

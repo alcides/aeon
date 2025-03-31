@@ -27,8 +27,7 @@ def test_wf2():
     assert wellformed(empty, parse_type("(x:Int) -> Int"))
     assert wellformed(empty, parse_type("(x:Int) -> Bool"))
     assert wellformed(empty, parse_type("(x:Int) -> (y:Bool) -> Bool"))
-    assert wellformed(empty,
-                      parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
+    assert wellformed(empty, parse_type("(x:((y:Int) -> Bool)) -> (y:Bool) -> Bool"))
 
 
 def test_refined():
@@ -36,14 +35,12 @@ def test_refined():
     assert wellformed(empty, parse_type("{x:Int | false}"))
     assert wellformed(empty, parse_type("{x:Bool | x }"))
 
-    assert wellformed(built_std_context(),
-                      parse_type("{x:Bool | x == false }"))
+    assert wellformed(built_std_context(), parse_type("{x:Bool | x == false }"))
     assert wellformed(built_std_context(), parse_type("{x:Int | x > 0}"))
 
 
 def test_dependent():
-    assert wellformed(built_std_context(),
-                      parse_type("(y:Int) -> {x:Int | x > y}"))
+    assert wellformed(built_std_context(), parse_type("(y:Int) -> {x:Int | x > y}"))
     assert wellformed(
         VariableBinder(built_std_context(), "x", t_int),
         parse_type("(y:Int) -> {z:Int | x > y}"),
