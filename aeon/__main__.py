@@ -28,14 +28,30 @@ from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
+from lsp.server import start_language_server_mode
 
 sys.setrecursionlimit(10000)
 
 
 def parse_arguments():
+    if "-lsp" in sys.argv or "--language-server-mode" in sys.argv:
+        lsp_parser = argparse.ArgumentParser()
+        lsp_parser.add_argument(
+            "-lsp",
+            "--language-server-mode",
+            action="store_true",
+            help="Run language server mode (disables other options)",
+        )
+        lsp_parser.add_argument(
+            "--tcp",
+            help="listen on tcp port or hostname:port on IPv4.",
+            type=str,
+        )
+        return lsp_parser.parse_args()
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("filename",help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
 
     parser.add_argument(
@@ -88,21 +104,6 @@ def parse_arguments():
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
-    parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
-
-    parser.add_argument(
-        "-lsp",
-        "--language-server-mode",
-        action="store_true",
-        help="Run language server mode (disables other options)",
-    )
-
-    parser.add_argument(
-        "--tcp",
-        help="listen on tcp port or hostname:port on IPv4.",
-        type=str,
-    )
-
     return parser.parse_args()
 
 
@@ -129,6 +130,11 @@ def select_synthesis_ui() -> SynthesisUI:
 
 def main() -> None:
     args = parse_arguments()
+
+    if hasattr(args, 'language_server_mode'):
+        start_language_server_mode(args.tcp)
+        sys.exit(0)
+
     logger = setup_logger()
     export_log(args.log, args.logfile, args.filename)
     if args.debug:
