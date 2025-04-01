@@ -9,7 +9,7 @@ from typing import Any
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.core.unique import unique_ids
+from aeon.core.unique import bind_ids
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
@@ -17,11 +17,11 @@ from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
+from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_program
 from aeon.sugar.program import Program, STerm
-from aeon.sugar.stypes import SBaseType
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
@@ -31,6 +31,7 @@ from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
+from aeon.utils.name import Name
 
 sys.setrecursionlimit(10000)
 
@@ -145,7 +146,7 @@ def main() -> None:
             # TODO: Remove old version
             # core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
 
-            core_typing_vars: dict[str, Any] = reduce(
+            core_typing_vars: dict[Name, Any] = reduce(
                 lambda acc, el: acc | {
                     el[0]:
                     type_to_core(el[1],
@@ -170,7 +171,7 @@ def main() -> None:
         try:
             with RecordTime("Elaboration"):
                 sterm: STerm = elaborate(desugared.elabcontext,
-                                         desugared.program, SBaseType("Top"))
+                                         desugared.program, st_top)
         except UnificationException as e:
             log_type_errors([e])
             sys.exit(1)
@@ -178,7 +179,7 @@ def main() -> None:
         with RecordTime("Core generation"):
             typing_ctx = lower_to_core_context(desugared.elabcontext)
             core_ast = lower_to_core(sterm)
-            typing_ctx, core_ast = unique_ids(typing_ctx, core_ast)
+            typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
             logger.debug(core_ast)
 
     with RecordTime("ANF conversion"):
@@ -196,8 +197,8 @@ def main() -> None:
 
     with RecordTime("DetectSynthesis"):
         incomplete_functions: list[tuple[
-            str,
-            list[str],
+            Name,
+            list[Name],
         ]] = incomplete_functions_and_holes(
             typing_ctx,
             core_ast_anf,

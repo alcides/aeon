@@ -38,6 +38,7 @@ from aeon.sugar.stypes import (
 from aeon.sugar.ast_helpers import i0
 from aeon.sugar.ast_helpers import mk_binop
 from aeon.sugar.stypes import builtin_types
+from aeon.utils.name import Name
 
 
 class TreeToSugar(Transformer):
@@ -69,7 +70,7 @@ class TreeToSugar(Transformer):
         if name in builtin_types:
             return SBaseType(name)
         else:
-            return STypeVar(str(args[0]))
+            return STypeVar(Name(args[0]))
 
     def constructor_t(self, args):
         return STypeConstructor(str(args[0]), args[1:])
@@ -95,7 +96,7 @@ class TreeToSugar(Transformer):
         return SIf(args[0], args[1], args[2])
 
     def nnot(self, args):
-        return SApplication(SVar("!"), args[0])
+        return SApplication(SVar(Name("!")), args[0])
 
     def binop_eq(self, args):
         return self.binop(args, "==")
@@ -155,7 +156,7 @@ class TreeToSugar(Transformer):
         return STypeApplication(args[0], args[1])
 
     def var(self, args):
-        return SVar(str(args[0]).strip())
+        return SVar(Name(args[0]))
 
     def hole(self, args):
         return SHole(str(args[0]))
@@ -207,16 +208,14 @@ class TreeToSugar(Transformer):
             return Definition(str(args[0]), [], [], args[1], args[2])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), [], [], args[2], args[3],
-                              decorators)
+            return Definition(str(args[1]), [], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
         if len(args) == 4:
             return Definition(str(args[0]), [], args[1], args[2], args[3])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), [], args[2], args[3], args[4],
-                              decorators)
+            return Definition(str(args[1]), [], args[2], args[3], args[4], decorators)
 
     def macros(self, args):
         return args
@@ -246,8 +245,7 @@ class TreeToSugar(Transformer):
     def abstraction_et(self, args):
         return SAnnotation(
             SAbstraction(str(args[0]), args[2]),
-            SAbstractionType(str(args[0]), args[1],
-                             STypeVar("?t")),  # TODO NOW: understand this?
+            SAbstractionType(str(args[0]), args[1], STypeVar(Name("?t"))),  # TODO NOW: understand this?
         )
 
 
@@ -258,9 +256,7 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[
-            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
-        ],
+        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
     )
 
 

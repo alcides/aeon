@@ -1,9 +1,9 @@
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseType, Type, TypeVar
+from aeon.core.types import AbstractionType, BaseType, Type, TypeVar, t_bool, t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid, lower_abstraction_type, lower_context
-from aeon.verification.smt import get_new_name, rename_constraint
+from aeon.verification.smt import rename_constraint
 from aeon.verification.vcs import (
     Constraint,
     Implication,
@@ -13,6 +13,7 @@ from aeon.verification.vcs import (
     TypeVarDeclaration,
     UninterpretedFunctionDeclaration,
 )
+from aeon.utils.name import Name, fresh_counter
 
 
 def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext,
@@ -21,7 +22,7 @@ def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext,
         case LiquidConstraint(expr):
             assert check_liquid(
                 ctx, expr,
-                BaseType("Bool")), f"Expected boolean expression, got {expr}."
+                t_bool), f"Expected boolean expression, got {expr}."
         case Conjunction(c1, c2):
             wellformed_constraint_liquid(ctx, c1)
             wellformed_constraint_liquid(ctx, c2)
@@ -50,7 +51,7 @@ def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext,
             assert name not in ctx.variables, f"Variable {name} already exists in context."
 
             assert check_liquid(
-                nctx, pred, BaseType("Bool")
+                nctx, pred, t_bool
             ), f"Predicate {pred} is either not valid, or not of type boolean."
             wellformed_constraint_liquid(nctx, seq)
         case _:
@@ -60,7 +61,7 @@ def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext,
 def canonicalize_type(t: Type) -> Type:
     match t:
         case Top():
-            return BaseType("Unit")
+            return t_unit
         case BaseType(_):
             return t
         case TypeVar(tv):
@@ -73,7 +74,7 @@ def canonicalize_type(t: Type) -> Type:
 
 
 def canonicalize_constraint(c: Constraint,
-                            stack: list[str] = None) -> Constraint:
+                            stack: list[Name] = None) -> Constraint:
     if stack is None:
         stack = []
 
@@ -84,7 +85,7 @@ def canonicalize_constraint(c: Constraint,
             return Conjunction(canonicalize_constraint(c1, stack),
                                canonicalize_constraint(c2, stack))
         case UninterpretedFunctionDeclaration(name, ft, seq):
-            new_name = get_new_name(name, stack)
+            new_name = Name(name, fresh_counter.fresh())
             if new_name != name:
                 nseq = rename_constraint(c, name, new_name)
             else:
@@ -100,7 +101,7 @@ def canonicalize_constraint(c: Constraint,
             return TypeVarDeclaration(
                 name, canonicalize_constraint(seq, stack + [name]))
         case Implication(name, base, pred, seq):
-            new_name = get_new_name(name, stack)
+            new_name = Name(name, fresh_counter.fresh())
             if new_name != name:
                 npred = substitution_in_liquid(pred, LiquidVar(new_name), name)
                 nseq = rename_constraint(c, name, new_name)

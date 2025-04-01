@@ -6,11 +6,12 @@ from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.pprint import aeon_prelude_ops_to_text
+from aeon.utils.name import Name
 
 
 def mangle_liquid_term(refinement: LiquidTerm) -> str:
     match refinement:
-        case LiquidApp(fun, args):
+        case LiquidApp(Name(fun, _), args):
             fun_name = aeon_prelude_ops_to_text.get(fun, fun)
             args_text = "__comma__".join([mangle_liquid_term(t) for t in args])
             return f"__opar__{fun_name}__{args_text}__cpar__"
@@ -18,9 +19,9 @@ def mangle_liquid_term(refinement: LiquidTerm) -> str:
             return str(refinement)
 
 
-def mangle_var(name: str) -> str:
+def mangle_var(name: Name) -> str:
     """Mangles the name of variable, so it is a valid Python identifier."""
-    return aeon_prelude_ops_to_text.get(name, name)
+    return aeon_prelude_ops_to_text.get(name.name, str(name))
 
 
 def mangle_type(ty: Type) -> str:
@@ -29,12 +30,11 @@ def mangle_type(ty: Type) -> str:
         case BaseType(name):
             return f"æ{name}"
         case RefinedType(name, ty, ref):
-            ref2 = substitution_in_liquid(ref, LiquidVar("__self__"), name)
+            ref2 = substitution_in_liquid(ref, LiquidVar(Name("__self__", 0)), name)
             return f"_{mangle_type(ty)}_{mangle_liquid_term(ref2)}"
         case AbstractionType(var_name, var_type, type):
             ty1 = mangle_type(var_type)
-            ty2 = mangle_type(
-                substitution_in_type(type, Var("__self__"), var_name))
+            ty2 = mangle_type(substitution_in_type(type, Var(Name("__self__", 0)), var_name))
             return f"{ty1}_arrow_{ty2}"
         case Top():
             return "Top"

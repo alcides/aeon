@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from aeon.core.types import Kind
 from aeon.core.types import t_string
 from aeon.core.types import Type
+from aeon.utils.name import Name
 
 
 class Term:
@@ -24,14 +25,12 @@ class Literal(Term):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            Literal) and self.value == other.value and self.type == other.type
+        return isinstance(other, Literal) and self.value == other.value and self.type == other.type
 
 
 @dataclass(frozen=True)
 class Var(Term):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"{self.name}"
@@ -60,7 +59,7 @@ class Annotation(Term):
 
 @dataclass(frozen=True)
 class Hole(Term):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"?{self.name}"
@@ -81,28 +80,24 @@ class Application(Term):
         return f"({self.fun} {self.arg})"
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            Application) and self.fun == other.fun and self.arg == other.arg
+        return isinstance(other, Application) and self.fun == other.fun and self.arg == other.arg
 
 
 @dataclass(frozen=True)
 class Abstraction(Term):
-    var_name: str
+    var_name: Name
     body: Term
 
     def __repr__(self):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
-        return isinstance(
-            other, Abstraction
-        ) and self.var_name == other.var_name and self.body == other.body
+        return isinstance(other, Abstraction) and self.var_name == other.var_name and self.body == other.body
 
 
 @dataclass(frozen=True)
 class Let(Term):
-    var_name: str
+    var_name: Name
     var_value: Term
     body: Term
 
@@ -110,14 +105,17 @@ class Let(Term):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
-        return (isinstance(other, Let) and self.var_name == other.var_name
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Let)
+            and self.var_name == other.var_name
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
 class Rec(Term):
-    var_name: str
+    var_name: Name
     var_type: Type
     var_value: Term
     body: Term
@@ -134,10 +132,13 @@ class Rec(Term):
         )
 
     def __eq__(self, other):
-        return (isinstance(other, Rec) and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, Rec)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
@@ -150,14 +151,17 @@ class If(Term):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
 
     def __eq__(self, other):
-        return (isinstance(other, If) and self.cond == other.cond
-                and self.then == other.then
-                and self.otherwise == other.otherwise)
+        return (
+            isinstance(other, If)
+            and self.cond == other.cond
+            and self.then == other.then
+            and self.otherwise == other.otherwise
+        )
 
 
 @dataclass(frozen=True)
 class TypeAbstraction(Term):
-    name: str
+    name: Name
     kind: Kind
     body: Term
 

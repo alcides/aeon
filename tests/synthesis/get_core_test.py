@@ -29,4 +29,9 @@ vars_to_test = [("x", t_int), ("t", t_bool)]
 def test_core_var(name, ty):
     type_info = extract_all_types([ty])
     node = create_var_node(name, ty, type_info[ty])
-    assert node().get_core() == Var(name)
+
+    match node().get_core():
+        case Var(var_name):
+            assert var_name == name
+        case _:
+            assert False, f"Expected Var, got {node().get_core()}"

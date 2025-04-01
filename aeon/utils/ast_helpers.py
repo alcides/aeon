@@ -13,6 +13,7 @@ from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
+from aeon.utils.name import Name
 
 
 def is_anf(t: Term) -> bool:
@@ -47,7 +48,7 @@ def is_anf(t: Term) -> bool:
 
 
 def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Term:
-    return Application(Application(Var(op), a1), a2)
+    return Application(Application(Var(Name(op)), a1), a2)
 
 
 true = Literal(True, t_bool)

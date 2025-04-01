@@ -5,6 +5,7 @@ from aeon.core.types import top, t_bool, t_int, t_float, t_string
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
 from aeon.typechecking.typeinfer import check_type
 from tests.driver import check_and_return_core
+from aeon.utils.name import Name
 
 
 def synthesis_and_return(code):
@@ -16,12 +17,9 @@ def synthesis_and_return(code):
     term, ctx, ectx, metadata = check_and_return_core(code)
     assert check_type(ctx, term, top)
 
-    _, holes = synthesize(ctx,
-                          ectx,
-                          term, [("synth", [hole_name])],
-                          metadata,
-                          synth_config=synth_config,
-                          refined_grammar=True)
+    _, holes = synthesize(
+        ctx, ectx, term, [("synth", [hole_name])], metadata, synth_config=synth_config, refined_grammar=True
+    )
     return holes[hole_name], ctx
 
 
@@ -40,7 +38,7 @@ def test_e2e_synthesis_var():
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
-    assert t == Var("a")
+    assert t == Var(Name("a"))
 
 
 def test_e2e_synthesis_abs():
@@ -56,7 +54,11 @@ def test_e2e_synthesis_app():
 
     assert isinstance(t, Term)
     assert isinstance(t, Application)
-    assert t.fun == Var("f")
+    match t.fun:
+        case Var(Name("f", _)):
+            assert True
+        case _:
+            assert False
 
 
 def test_e2e_synthesis_ref():

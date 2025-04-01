@@ -49,7 +49,7 @@ def apply_decorators(
             raise Exception(
                 f"Unknown decorator named {decorator.name}, in function {fun.name}."
             )
-        decorator_processor = decorators_environment[decorator.name]
+        decorator_processor = decorators_environment[decorator.name.name]
         (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun,
                                                      metadata)
         total_extra.extend(extra)

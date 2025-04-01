@@ -9,6 +9,7 @@ from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
 from aeon.sugar.program import SApplication, SLiteral, SVar
 from aeon.sugar.stypes import SBaseType
+from aeon.utils.name import Name, fresh_counter
 
 from tests.driver import check_and_return_core
 
@@ -26,13 +27,13 @@ def test_fitness():
     core_ast_anf, ctx, ectx, _ = check_and_return_core(source)
 
     internal_minimize = Definition(
-        name="__internal__minimize_int_synth_0",
+        name=Name("__internal__minimize_int_synth_0", fresh_counter.fresh()),
         foralls=[],
         args=[],
         type=SBaseType("Int"),
         body=SApplication(
-            SApplication(SVar("synth"), SLiteral(7, SBaseType("Int"))),
-            SApplication(SVar("-"), SVar("synth")),
+            SApplication(SVar(Name("synth")), SLiteral(7, SBaseType("Int"))),
+            SApplication(SVar(Name("-")), SVar(Name("synth"))),
         ),
     )
     term, _ = synthesize(
@@ -57,11 +58,7 @@ def test_fitness2():
             def synth (i:Int) : Int {(?hole: Int) * i}
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
-    term, _ = synthesize(ctx,
-                         ectx,
-                         core_ast_anf, [("synth", ["hole"])],
-                         metadata,
-                         synth_config=synth_config)
+    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])], metadata, synth_config=synth_config)
 
     assert isinstance(term, Term)
 
@@ -73,11 +70,7 @@ def test_literal_int_range():
             def synth : Int = ?hole;
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
-    term, _ = synthesize(ctx,
-                         ectx,
-                         core_ast_anf, [("synth", ["hole"])],
-                         metadata,
-                         synth_config=synth_config)
+    term, _ = synthesize(ctx, ectx, core_ast_anf, [("synth", ["hole"])], metadata, synth_config=synth_config)
 
     assert isinstance(term, Term)
     assert isinstance(term, Literal)

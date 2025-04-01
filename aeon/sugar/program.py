@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 
+from aeon.utils.name import Name
 from aeon.core.types import Kind
 from aeon.sugar.stypes import SType
 
@@ -24,14 +25,12 @@ class SLiteral(STerm):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            SLiteral) and self.value == other.value and self.type == other.type
+        return isinstance(other, SLiteral) and self.value == other.value and self.type == other.type
 
 
 @dataclass(frozen=True)
 class SVar(STerm):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"{self.name}"
@@ -60,7 +59,7 @@ class SAnnotation(STerm):
 
 @dataclass(frozen=True)
 class SHole(STerm):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"?{self.name}"
@@ -81,28 +80,24 @@ class SApplication(STerm):
         return f"({self.fun} {self.arg})"
 
     def __eq__(self, other):
-        return isinstance(
-            other,
-            SApplication) and self.fun == other.fun and self.arg == other.arg
+        return isinstance(other, SApplication) and self.fun == other.fun and self.arg == other.arg
 
 
 @dataclass(frozen=True)
 class SAbstraction(STerm):
-    var_name: str
+    var_name: Name
     body: STerm
 
     def __repr__(self):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
-        return isinstance(
-            other, SAbstraction
-        ) and self.var_name == other.var_name and self.body == other.body
+        return isinstance(other, SAbstraction) and self.var_name == other.var_name and self.body == other.body
 
 
 @dataclass(frozen=True)
 class SLet(STerm):
-    var_name: str
+    var_name: Name
     var_value: STerm
     body: STerm
 
@@ -110,14 +105,17 @@ class SLet(STerm):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
-        return (isinstance(other, SLet) and self.var_name == other.var_name
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, SLet)
+            and self.var_name == other.var_name
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
 class SRec(STerm):
-    var_name: str
+    var_name: Name
     var_type: SType
     var_value: STerm
     body: STerm
@@ -134,10 +132,13 @@ class SRec(STerm):
         )
 
     def __eq__(self, other):
-        return (isinstance(other, SRec) and self.var_name == other.var_name
-                and self.var_type == other.var_type
-                and self.var_value == other.var_value
-                and self.body == other.body)
+        return (
+            isinstance(other, SRec)
+            and self.var_name == other.var_name
+            and self.var_type == other.var_type
+            and self.var_value == other.var_value
+            and self.body == other.body
+        )
 
 
 @dataclass(frozen=True)
@@ -150,14 +151,17 @@ class SIf(STerm):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
 
     def __eq__(self, other):
-        return (isinstance(other, SIf) and self.cond == other.cond
-                and self.then == other.then
-                and self.otherwise == other.otherwise)
+        return (
+            isinstance(other, SIf)
+            and self.cond == other.cond
+            and self.then == other.then
+            and self.otherwise == other.otherwise
+        )
 
 
 @dataclass(frozen=True)
 class STypeAbstraction(STerm):
-    name: str
+    name: Name
     kind: Kind
     body: STerm
 
@@ -197,8 +201,8 @@ class ImportAe(Node):
 
 @dataclass
 class TypeDecl(Node):
-    name: str
-    args: list[str] = field(default_factory=list)
+    name: Name
+    args: list[Name] = field(default_factory=list)
 
     def __repr__(self):
         return f"type {self.name};"
@@ -206,7 +210,7 @@ class TypeDecl(Node):
 
 @dataclass
 class Decorator(Node):
-    name: str
+    name: Name
     macro_args: list[STerm]
 
     def __repr__(self):
@@ -216,9 +220,9 @@ class Decorator(Node):
 
 @dataclass
 class Definition(Node):
-    name: str
-    foralls: list[tuple[str, Kind]]
-    args: list[tuple[str, SType]]
+    name: Name
+    foralls: list[tuple[Name, Kind]]
+    args: list[tuple[Name, SType]]
     type: SType
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)

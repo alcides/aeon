@@ -34,6 +34,7 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.utils.ast_helpers import i0
 from aeon.utils.ast_helpers import mk_binop
+from aeon.utils.name import Name
 
 
 class TreeToCore(Transformer):
@@ -42,9 +43,9 @@ class TreeToCore(Transformer):
     def __init__(self, start_counter=0):
         self.counter = start_counter
 
-    def fresh(self) -> str:
+    def fresh(self) -> Name:
         self.counter += 1
-        return f"_anf_{self.counter}"
+        return Name("anf", self.counter)
 
     def same(self, args):
         return args[0]
@@ -66,7 +67,7 @@ class TreeToCore(Transformer):
         elif n in ["Unit", "Int", "Bool", "Float", "String"]:
             return BaseType(n)
         else:
-            return TypeVar(n)
+            return TypeVar(Name(n))
 
     def constructor_t(self, args):
         return TypeConstructor(str(args[0]), args[1:])
@@ -91,7 +92,7 @@ class TreeToCore(Transformer):
         return If(args[0], args[1], args[2])
 
     def nnot(self, args):
-        return Application(Var("!"), args[0])
+        return Application(Var(Name("!")), args[0])
 
     def binop_eq(self, args):
         return self.binop(args, "==")

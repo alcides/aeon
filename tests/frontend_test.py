@@ -29,14 +29,15 @@ from aeon.utils.ast_helpers import i2
 from aeon.utils.ast_helpers import is_anf
 from aeon.utils.ast_helpers import mk_binop
 from aeon.utils.ast_helpers import true
+from aeon.utils.name import Name
 
 
 def test_basetypes():
     assert parse_type("Int") == t_int
     assert parse_type("Bool") == t_bool
-    assert parse_type("a") == TypeVar("a")
-    assert parse_type("(a)") == TypeVar("a")
-    assert parse_type("((a))") == TypeVar("a")
+    assert parse_type("a") == TypeVar(Name("a"))
+    assert parse_type("(a)") == TypeVar(Name("a"))
+    assert parse_type("((a))") == TypeVar(Name("a"))
 
 
 def test_abstractiontypes():
@@ -68,8 +69,7 @@ def test_refinedtypes():
             "==",
             [
                 LiquidVar("y"),
-                LiquidApp("+", [LiquidLiteralInt(1),
-                                LiquidLiteralInt(1)]),
+                LiquidApp("+", [LiquidLiteralInt(1), LiquidLiteralInt(1)]),
             ],
         ),
     )
@@ -84,22 +84,19 @@ def test_literals():
 def test_operators():
     assert parse_term("-a") == mk_binop(lambda: "t", "-", i0, Var("a"))
 
-    assert parse_term("!true") == Application(Var("!"), true)
+    assert parse_term("!true") == Application(Var(Name("!")), true)
 
     assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
     assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
-    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true,
-                                                  true)
-    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true,
-                                                  true)
+    assert parse_term("true && true") == mk_binop(lambda: "t", "&&", true, true)
+    assert parse_term("true || true") == mk_binop(lambda: "t", "||", true, true)
 
     assert parse_term("0 < 1") == mk_binop(lambda: "t", "<", i0, i1)
     assert parse_term("0 > 1") == mk_binop(lambda: "t", ">", i0, i1)
     assert parse_term("0 <= 1") == mk_binop(lambda: "t", "<=", i0, i1)
     assert parse_term("0 >= 1") == mk_binop(lambda: "t", ">=", i0, i1)
 
-    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true,
-                                                    false)
+    assert parse_term("true --> false") == mk_binop(lambda: "t", "-->", true, false)
 
     assert parse_term("1 + 1") == mk_binop(lambda: "t", "+", i1, i1)
     assert parse_term("1 - 1") == mk_binop(lambda: "t", "-", i1, i1)
@@ -129,7 +126,7 @@ def test_abs():
 def test_ann():
     assert parse_term("\\x -> (x : Int)") == Abstraction(
         "x",
-        Annotation(Var("x"), t_int),
+        Annotation(Var(Name("x")), t_int),
     )
 
 
@@ -137,13 +134,12 @@ def test_poly_parse():
     assert parse_type("forall a:B, (_:a) -> a") == TypePolymorphism(
         "a",
         BaseKind(),
-        AbstractionType("_", TypeVar("a"), TypeVar("a")),
+        AbstractionType("_", TypeVar(Name("a")), TypeVar(Name("a"))),
     )
 
 
 def test_poly_abs():
-    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(),
-                                                      parse_term("1"))
+    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(), parse_term("1"))
 
 
 def test_poly_abs_plus():
@@ -155,6 +151,6 @@ def test_poly_abs_plus():
 
 
 def test_poly_app():
-    one_a = TypeApplication(parse_term("1"), TypeVar("a"))
+    one_a = TypeApplication(parse_term("1"), TypeVar(Name("a")))
     e = TypeAbstraction("a", BaseKind(), one_a)
     assert parse_term("(Λa:B => 1[a])[Int]") == TypeApplication(e, t_int)

@@ -28,7 +28,8 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.substitutions import substitution_sterm_in_stype
-
+from aeon.utils.name import Name, fresh_counter
+from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
 class UnificationException(Exception):
     pass
@@ -43,7 +44,7 @@ def base(ty: SType) -> SType:
 
 @dataclass
 class UnificationVar(SType):
-    name: str
+    name: Name
     lower: list[SType] = field(default_factory=list)
     upper: list[SType] = field(default_factory=list)
 
@@ -166,9 +167,9 @@ def unify(ctx: ElaborationTypingContext, sub: SType,
 
 
 def unify_single(vname: str, xs: list[SType]) -> SType:
-    match [x for x in xs if x != SBaseType("Top")]:
+    match [x for x in xs if x != st_top]:
         case []:
-            return SBaseType("Unit")
+            return st_unit
         case other:
             fst = other[0]
             for snd in other[1:]:
@@ -269,7 +270,7 @@ def elaborate_synth(ctx: ElaborationTypingContext,
             (nbody, nbody_type) = elaborate_synth(ctx.with_var(name, u), body)
             return SLet(name, nval, nbody), nbody_type
         case SIf(cond, then, otherwise):
-            ncond = elaborate_check(ctx, cond, SBaseType("Bool"))
+            ncond = elaborate_check(ctx, cond, st_bool)
             nthen, nthen_type = elaborate_synth(ctx, then)
             nelse, nelse_type = elaborate_synth(ctx, otherwise)
             u = UnificationVar(ctx.fresh_typevar())
@@ -301,7 +302,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             nbody = elaborate_check(nctx, body, ty)
             return SRec(name, vty, nval, nbody)
         case (SIf(cond, then, otherwise), _):
-            ncond = elaborate_check(ctx, cond, SBaseType("Bool"))
+            ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
             nelse = elaborate_check(ctx, otherwise, ty)
             return SIf(ncond, nthen, nelse)
@@ -316,7 +317,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm,
             return STypeAbstraction(name, kind, nbody)
         case (SApplication(fun, arg), _):
             u = UnificationVar(ctx.fresh_typevar())
-            nfun = elaborate_check(ctx, fun, SAbstractionType("_", u, ty))
+            nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
             narg = elaborate_check(ctx, arg, u)
             return SApplication(nfun, narg)
         case _:
@@ -394,7 +395,7 @@ def replace_unification_variables(
 def remove_from_union_and_intersection(
     unions: list[Union],
     intersections: list[Intersection],
-    to_be_removed: list[str],
+    to_be_removed: list[Name],
 ):
     """Removes all unification vars whose name is in the to_be_removed list."""
 
@@ -424,7 +425,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
             return SAbstraction(name, elaborate_remove_unification(ctx, body))
         case SLet(name, val, body):
             nctx = ctx.with_var(t.var_name,
-                                SBaseType("Unit"))  # TODO poly: Unit??
+                                st_unit)  # TODO poly: Unit??
             return SLet(name, elaborate_remove_unification(ctx, val),
                         elaborate_remove_unification(nctx, body))
         case SRec(name, ty, val, body):
@@ -516,46 +517,49 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext,
             )
             nt = remove_unions_and_intersections(ctx, nt)
 
-            if nt == SBaseType("Top"):
-                return STypeApplication(body, nt)
-            else:
-                should_be_refined = True
-                match body:
-                    case SVar(name):
-                        match ctx.type_of(name):
-                            case STypePolymorphism(_, BaseKind(), _):
-                                should_be_refined = False
-                match nt:
-                    case SBaseType(_) | STypeVar(_) | STypeConstructor(_, _):
-                        new_type: SType
-                        if should_be_refined:
-                            new_var = ctx.fresh_typevar()
+            match nt:
+                case SBaseType(Name("Top", _)):
+                    return STypeApplication(body, nt)
+                case _:
+                    should_be_refined = True
+                    match body:
+                        case SVar(name):
+                            match ctx.type_of(name):
+                                case STypePolymorphism(_, BaseKind(), _):
+                                    should_be_refined = False
+                    match nt:
+                        case SBaseType(_) | STypeVar(_) | STypeConstructor(_, _):
+                            new_type: SType
+                            if should_be_refined:
+                                nv = Name("self", fresh_counter.fresh())
+                                nh = Name("k", fresh_counter.fresh())
+                                # TODO NOW: liquidhornapp
+                                # ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
+                                new_type = SRefinedType(nv, nt, SHole(nh))
+                            else:
+                                new_type = nt
+                            return STypeApplication(body, new_type)
+                        case SRefinedType(name, ity, ref):
                             # TODO NOW: liquidhornapp
-                            # ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
-                            new_type = SRefinedType(new_var, nt, SHole("k"))
-                        else:
-                            new_type = nt
-                        return STypeApplication(body, new_type)
-                    case SRefinedType(name, ity, ref):
-                        # TODO NOW: liquidhornapp
-                        # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
-                        ref = SHole("k")
-                        new_type = SRefinedType(name, ity, ref)
-                        return STypeApplication(body, new_type)
-                    case SAbstractionType(_, _, _):
-                        # AbstractionTypes are not refined
-                        return STypeApplication(body, nt)
-                    # case TypePolymorphism(name, kind, body_):
+                            # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
+                            nh = Name("k", fresh_counter.fresh())
+                            ref = SHole(nh)
+                            new_type = SRefinedType(name, ity, ref)
+                            return STypeApplication(body, new_type)
+                        case SAbstractionType(_, _, _):
+                            # AbstractionTypes are not refined
+                            return STypeApplication(body, nt)
+                        # case TypePolymorphism(name, kind, body_):
 
-                    case _:
-                        assert False, f"{nt} ({type(nt)}) not an SType."
+                        case _:
+                            assert False, f"{nt} ({type(nt)}) not an SType."
         case _:
             assert False, f"{t} ({type(t)}) not an STerm."
 
 
 def elaborate(ctx: ElaborationTypingContext,
               e: STerm,
-              expected_type: SType = SBaseType("Top")) -> STerm:
+              expected_type: SType = st_top) -> STerm:
     e2 = elaborate_foralls(e)
     e3 = elaborate_check(ctx, e2, expected_type)
     e4 = elaborate_remove_unification(ctx, e3)

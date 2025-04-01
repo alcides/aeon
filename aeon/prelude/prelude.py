@@ -5,6 +5,7 @@ from typing import Any
 
 from aeon.sugar.parser import parse_type
 from aeon.sugar.stypes import SType
+from aeon.utils.name import Name
 
 INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
 COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
@@ -23,7 +24,7 @@ def native_import(name):
     return importlib.import_module(name)
 
 
-native_types = ["Unit", "Bool", "Int", "Float", "String"]
+native_types : list[Name] = [Name("Unit"), Name("Bool"), Name("Int"), Name("Float"), Name("String")]
 
 # TODO: polymorphic signatures
 prelude = [
@@ -47,9 +48,10 @@ prelude = [
     ("!", "(x:Bool) -> Bool", lambda x: not x),
 ]
 
-typing_vars: dict[str, SType] = {}
-evaluation_vars: dict[str, Any] = {}
+typing_vars: dict[Name, SType] = {}
+evaluation_vars: dict[Name, Any] = {}
 
 for n, ty, ex in prelude:
-    typing_vars[n] = parse_type(ty)
-    evaluation_vars[n] = ex
+    nn = Name(n, 0)
+    typing_vars[nn] = parse_type(ty)
+    evaluation_vars[nn] = ex

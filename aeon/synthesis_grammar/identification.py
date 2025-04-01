@@ -17,16 +17,16 @@ from aeon.core.types import AbstractionType, TypePolymorphism, TypeVar, refined_
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
-
+from aeon.utils.name import Name
 
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_info(
     ctx: TypingContext,
     t: Term,
     ty: Type,
-    targets: list[tuple[str, list[str]]],
+    targets: list[tuple[Name, list[Name]]],
     refined_types: bool,
-) -> dict[str, tuple[Type, TypingContext]]:
+) -> dict[Name, tuple[Type, TypingContext]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 
     This function recursively navigates through the Term 't', updating the TypingContext and hole Type as necessary.
@@ -72,33 +72,27 @@ def get_holes_info(
         case Let(var_name=vname, var_value=value, body=body):
             _, t1 = synth(ctx, value)
             t1 = t1 if refined_types else refined_to_unrefined_type(t1)
-            if not isinstance(value, Hole) and not (isinstance(
-                    value, Annotation) and isinstance(value.expr, Hole)):
+            if not isinstance(value, Hole) and not (isinstance(value, Annotation) and isinstance(value.expr, Hole)):
                 ctx = ctx.with_var(vname, t1)
-                hs1 = get_holes_info(ctx, t.var_value, ty, targets,
-                                     refined_types)
+                hs1 = get_holes_info(ctx, t.var_value, ty, targets, refined_types)
                 hs2 = get_holes_info(ctx, t.body, ty, targets, refined_types)
             else:
-                hs1 = get_holes_info(ctx, t.var_value, ty, targets,
-                                     refined_types)
+                hs1 = get_holes_info(ctx, t.var_value, ty, targets, refined_types)
                 ctx = ctx.with_var(vname, t1)
                 hs2 = get_holes_info(ctx, t.body, ty, targets, refined_types)
             return hs1 | hs2
         case Rec(var_name=vname, var_type=vtype, var_value=value, body=body):
-            vtype = vtype if refined_types else refined_to_unrefined_type(
-                vtype)
+            vtype = vtype if refined_types else refined_to_unrefined_type(vtype)
             ctx = ctx.with_var(vname, vtype)
             hs1 = get_holes_info(ctx, value, vtype, targets, refined_types)
             hs2 = get_holes_info(ctx, body, ty, targets, refined_types)
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):
             _, bty = synth(ctx, body)
-            argty = argty if refined_types else refined_to_unrefined_type(
-                argty)
+            argty = argty if refined_types else refined_to_unrefined_type(argty)
             if isinstance(bty, TypePolymorphism):
                 ntype = substitute_vartype(bty.body, argty, bty.name)
-                ntype = ntype if refined_types else refined_to_unrefined_type(
-                    ntype)
+                ntype = ntype if refined_types else refined_to_unrefined_type(ntype)
                 return get_holes_info(ctx, body, ntype, targets, refined_types)
             else:
                 assert False, f"Synthesis cannot infer the type of {t}"
@@ -107,9 +101,8 @@ def get_holes_info(
                 case TypePolymorphism(n2, k2, ity):
                     assert k == k2, "Kinds do not match"
                     return get_holes_info(
-                        ctx.with_typevar(n, k), body,
-                        substitute_vartype(ity, TypeVar(n), n2), targets,
-                        refined_types)
+                        ctx.with_typevar(n, k), body, substitute_vartype(ity, TypeVar(n), n2), targets, refined_types
+                    )
                 case _:
                     assert False, "TypeAbstraction does not have the TypePolymorphism type."
 
@@ -117,7 +110,7 @@ def get_holes_info(
             assert False, f"Could not infer the type of {t} for synthesis."
 
 
-def get_holes(term: Term) -> list[str]:
+def get_holes(term: Term) -> list[Name]:
     """Returns the names of holes in a particular term."""
     match term:
         case Hole(name=name):
@@ -155,10 +148,8 @@ def iterate_top_level(term: Term):
         term = term.body
 
 
-def incomplete_functions_and_holes(ctx: TypingContext,
-                                   term: Term) -> list[tuple[str, list[str]]]:
+def incomplete_functions_and_holes(ctx: TypingContext, term: Term) -> list[tuple[Name, list[Name]]]:
     """Given a typing context and a term, this function identifies which top-
     level functions have holes, and returns a list of holes in each
     function."""
-    return [(rec.var_name, get_holes(rec.var_value))
-            for rec in iterate_top_level(term) if get_holes(rec.var_value)]
+    return [(rec.var_name, get_holes(rec.var_value)) for rec in iterate_top_level(term) if get_holes(rec.var_value)]

@@ -23,10 +23,11 @@ from aeon.core.terms import (
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar
+from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar, t_unit
 from aeon.elaboration.context import (
     ElabTypeDecl,
     ElabTypeVarBinder,
+    ElabTypingContextEntry,
     ElabUninterpretedBinder,
     ElabVariableBinder,
     ElaborationTypingContext,
@@ -56,14 +57,14 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.substitutions import normalize, substitution_sterm_in_sterm, substitution_sterm_in_stype
 from aeon.typechecking.context import (
-    EmptyContext,
     TypeBinder,
     TypeConstructorBinder,
     TypingContext,
+    TypingContextEntry,
     UninterpretedBinder,
     VariableBinder,
 )
-
+from aeon.utils.name import Name, fresh_counter
 
 class LoweringException(Exception):
     pass
@@ -103,7 +104,7 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
 def liquefy(
     t: STerm,
-    available_vars: list[tuple[str, BaseType | TypeVar | TypeConstructor]]
+    available_vars: list[tuple[Name, BaseType | TypeVar | TypeConstructor]]
     | None = None
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
@@ -129,7 +130,7 @@ def liquefy(
             th = liquefy(then, available_vars)
             ot = liquefy(otherwise, available_vars)
             if co is not None and th is not None and ot is not None:
-                return LiquidApp("ite", [co, th, ot])
+                return LiquidApp(Name("ite"), [co, th, ot])
             return None
         case SAnnotation(expr, _):
             return liquefy(expr, available_vars)
@@ -169,14 +170,14 @@ def basic_type(ty: Type) -> BaseType | TypeVar:
         case RefinedType(_, it, _):
             return basic_type(it)
         case Top():
-            return BaseType("Unit")
+            return t_unit
         case _:
             assert False, f"Unknown base type {ty} ({type(ty)})"
 
 
 def type_to_core(
     ty: SType,
-    available_vars: list[tuple[str, BaseType | TypeVar]] | None = None
+    available_vars: list[tuple[Name, BaseType | TypeVar]] | None = None
 ) -> Type:
     """Converts Surface Types into Core Types"""
 
@@ -191,7 +192,7 @@ def type_to_core(
         case STypeVar(name):
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
-            nname = f"{name}__{len(available_vars)}"
+            nname = Name(name.name, fresh_counter.fresh())
             at = type_to_core(vty, available_vars)
             if isinstance(at, BaseType) or isinstance(
                     at, TypeVar) or isinstance(at, RefinedType):
@@ -248,22 +249,22 @@ def lower_to_core(t: STerm) -> Term:
             assert False, f"{t} ({type(t)}) not supported"
 
 
+def wrap_ctx_entry(e:ElabTypingContextEntry) -> TypingContextEntry:
+    match e:
+        case ElabVariableBinder(name, ty):
+            return VariableBinder(name, type_to_core(ty))
+        case ElabUninterpretedBinder(name, ty):
+            absty = type_to_core(ty)
+            assert isinstance(absty, AbstractionType)
+            return UninterpretedBinder(name, absty)
+        case ElabTypeVarBinder(name, kind):
+            return TypeBinder(name, kind)
+        case ElabTypeDecl(name, args):
+            return TypeConstructorBinder(name, args)
+        case _:
+            assert False, f"{e} not supported in Core."
+
+
 def lower_to_core_context(elctx: ElaborationTypingContext) -> TypingContext:
     """Lowers the elaboration context down to the Core Typing Context."""
-    tail: TypingContext = EmptyContext()
-
-    for entry in elctx.entries[::-1]:
-        match entry:
-            case ElabVariableBinder(name, ty):
-                tail = VariableBinder(tail, name, type_to_core(ty))
-            case ElabUninterpretedBinder(name, ty):
-                absty = type_to_core(ty)
-                assert isinstance(absty, AbstractionType)
-                tail = UninterpretedBinder(tail, name, absty)
-            case ElabTypeVarBinder(name, kind):
-                tail = TypeBinder(tail, name, kind)
-            case ElabTypeDecl(name, args):
-                tail = TypeConstructorBinder(tail, name, args)
-            case _:
-                assert False, f"{entry} not supported in Core."
-    return tail
+    return TypingContext([ wrap_ctx_entry(e) for e in elctx.entries  ])

@@ -12,14 +12,19 @@ from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
+from aeon.sugar.ast_helpers import st_int
+from aeon.utils.name import Name
 
+name_a = Name("a", 102)
+name_x = Name("x", 103)
+name_y = Name("y", 104)
 example = Implication(
-    "x",
+    name_x,
     t_int,
-    LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
+    LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidLiteralInt(3)]),
     LiquidConstraint(LiquidApp(
-        "==",
-        [LiquidVar("x"), LiquidLiteralInt(3)],
+        Name("==", 0),
+        [LiquidVar(name_x), LiquidLiteralInt(3)],
     ), ),
 )
 
@@ -29,16 +34,16 @@ def test_smt_example3():
 
 
 example2 = Implication(
-    "x",
-    BaseType("a"),
+    name_x,
+    BaseType(name_a),
     LiquidLiteralBool(True),
     Implication(
-        "y",
-        BaseType("a"),
-        LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
+        name_y,
+        BaseType(name_a),
+        LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidVar(name_y)]),
         LiquidConstraint(LiquidApp(
-            "==",
-            [LiquidVar("x"), LiquidVar("y")],
+            Name("==", 0),
+            [LiquidVar(name_x), LiquidVar(name_y)],
         ), ),
     ),
 )
@@ -88,7 +93,7 @@ def test_poly_to_smt():
         "(x + z) > 9",
         expected_stype,
         extra_vars={
-            "x": SBaseType("Int"),
-            "z": SBaseType("Int"),
+            "x": st_int,
+            "z": st_int,
         },
     )

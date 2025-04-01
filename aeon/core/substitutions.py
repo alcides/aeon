@@ -28,9 +28,10 @@ from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
+from aeon.utils.name import Name
 
 
-def substitute_vartype(t: Type, rep: Type, name: str):
+def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
     """Replaces all occurrences of vartypes name in t by rep."""
 
     def rec(k: Type):
@@ -59,7 +60,7 @@ def substitute_vartype(t: Type, rep: Type, name: str):
             assert False, f"type {t} ({type(t)}) not allows in substition."
 
 
-def substitute_vartype_in_term(t: Term, rep: Type, name: str):
+def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
 
     def rec(x: Term):
         return substitute_vartype_in_term(x, rep, name)
@@ -97,7 +98,7 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: str):
 def substitution_in_liquid(
     t: LiquidTerm,
     rep: LiquidTerm,
-    name: str,
+    name: Name,
 ) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     assert isinstance(rep, LiquidTerm)
@@ -134,40 +135,22 @@ def substitution_in_liquid(
         assert False, f"{t} not supported"
 
 
-def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: str) -> Type:
+def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
 
     def rec(t: Type) -> Type:
         return substitution_liquid_in_type(t, rep, name)
 
-    renamed: Type
 
     match t:
         case Top() | BaseType(_) | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype):
-            if isinstance(rep, Var) and rep.name == aname:
-                nname = aname + "1"
-                renamed = AbstractionType(
-                    nname,
-                    atype,
-                    substitution_liquid_in_type(rtype, LiquidVar(nname),
-                                                aname),
-                )
-                return substitution_liquid_in_type(renamed, rep, name)
-            elif aname == name:
+            if aname == name:
                 return t
             else:
                 return AbstractionType(aname, rec(atype), rec(rtype))
         case RefinedType(vname, ity, ref):
-            if isinstance(rep, Var) and rep.name == vname:
-                nname = vname + "1"
-                renamed = RefinedType(
-                    nname,
-                    ity,
-                    substitution_in_liquid(ref, LiquidVar(nname), vname),
-                )
-                return rec(renamed)
-            elif name == vname:
+            if name == vname:
                 return t
             else:
                 return RefinedType(
@@ -183,7 +166,7 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: str) -> Type:
             assert False, f"{t} not allowed"
 
 
-def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
+def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
     """Substitutes name in type t with the new replacement term rep."""
     replacement: LiquidTerm | None = liquefy(rep)
     if replacement is None:
@@ -192,34 +175,16 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
     def rec(t: Type) -> Type:
         return substitution_in_type(t, rep, name)
 
-    renamed: Type
-
     match t:
         case Top() | BaseType(_) | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype):
-            if isinstance(rep, Var) and rep.name == aname:
-                nname = aname + "1"
-                renamed = AbstractionType(
-                    nname,
-                    atype,
-                    substitution_in_type(rtype, Var(nname), aname),
-                )
-                return substitution_in_type(renamed, rep, name)
-            elif aname == name:
+            if aname == name:
                 return t
             else:
                 return AbstractionType(aname, rec(atype), rec(rtype))
         case RefinedType(vname, ity, ref):
-            if isinstance(rep, Var) and rep.name == vname:
-                nname = vname + "1"
-                renamed = RefinedType(
-                    nname,
-                    ity,
-                    substitution_in_liquid(ref, LiquidVar(nname), vname),
-                )
-                return substitution_in_type(renamed, rep, name)
-            elif name == vname:
+            if name == vname:
                 return t
             else:
                 return RefinedType(
@@ -235,7 +200,7 @@ def substitution_in_type(t: Type, rep: Term, name: str) -> Type:
             assert False, f"{t} not allowed"
 
 
-def substitution(t: Term, rep: Term, name: str) -> Term:
+def substitution(t: Term, rep: Term, name: Name) -> Term:
     """Substitutes name in term t with the new replacement term rep."""
 
     def rec(x: Term):
@@ -336,7 +301,7 @@ def liquefy_if(t: If) -> LiquidTerm | None:
     th = liquefy(t.then)
     ot = liquefy(t.otherwise)
     if co and th and ot:
-        return LiquidApp("ite", [co, th, ot])
+        return LiquidApp(Name("ite"), [co, th, ot])
     return None
 
 

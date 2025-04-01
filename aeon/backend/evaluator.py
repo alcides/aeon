@@ -12,25 +12,26 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
+from aeon.utils.name import Name
 
 real_eval = eval
 
 
 class EvaluationContext:
-    variables: dict[str, Any]
+    variables: dict[Name, Any]
 
-    def __init__(self, prev: dict[str, Any] | None = None):
+    def __init__(self, prev: dict[Name, Any] | None = None):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
         else:
             self.variables = {}
 
-    def with_var(self, name: str, value: Any):
+    def with_var(self, name: Name, value: Any):
         v = self.variables.copy()
         v.update({name: value})
         return EvaluationContext(v)
 
-    def get(self, name: str):
+    def get(self, name: Name):
         return self.variables[name]
 
 
@@ -38,7 +39,7 @@ def is_native_var(fun: Term):
     match fun:
         case TypeApplication(t, _):
             return is_native_var(t)
-        case Var("native"):
+        case Var(Name("native", _)):
             return True
         case _:
             return False
@@ -54,7 +55,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Literal(value, _):
             return value
         case Var(name):
-            return ctx.get(str(name))
+            return ctx.get(name)
         case Abstraction(var_name, body):
             return lambda k: eval(body, ctx.with_var(var_name, k))
         case Application(fun, arg):
@@ -62,7 +63,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             argv = eval(arg, ctx)
             if is_native_var(fun):
                 assert isinstance(argv, str)
-                e = real_eval(argv, ctx.variables)
+                e = real_eval(argv, {str(name): v for name, v in ctx.variables.items()})
             else:
                 e = f(argv)
             if is_native_import(fun):
@@ -95,7 +96,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             args = ", ".join([str(n) for n in ctx.variables])
             print(f"Context ({args})")
             h = input(f"Enter value for hole {t} in Python: ")
-            return real_eval(h, ctx.variables)
+            return real_eval(h, {str(name): v for name, v in ctx.variables.items()})
 
         case TypeAbstraction(_, _, body):
             return eval(body, ctx)

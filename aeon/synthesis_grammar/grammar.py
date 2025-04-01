@@ -36,15 +36,16 @@ from aeon.synthesis_grammar.mangling import mangle_var, mangle_type
 from aeon.synthesis_grammar.refinements import refined_type_to_metahandler
 from aeon.synthesis_grammar.utils import prelude_ops, aeon_to_python
 from aeon.typechecking.context import (
-    EmptyContext,
     TypeBinder,
     TypeConstructorBinder,
     TypingContext,
+    TypingContextEntry,
     UninterpretedBinder,
     VariableBinder,
-    concrete_vars_in,
 )
 from aeon.core.liquid_ops import ops
+from aeon.utils.name import Name, fresh_counter
+
 
 VAR_WEIGHT = 10000
 LITERAL_WEIGHT = 3000
@@ -67,7 +68,7 @@ def extract_class_name(class_name: str) -> str:
     ]
     for prefix in prefixes:
         if class_name.startswith(prefix):
-            return class_name[len(prefix):]
+            return class_name[len(prefix) :]
     return class_name
 
 
@@ -78,8 +79,7 @@ class GrammarError(Exception):
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
 
-    def get_core(self):
-        ...
+    def get_core(self): ...
 
 
 classType = TypingType[HasGetCore]
@@ -87,10 +87,11 @@ classType = TypingType[HasGetCore]
 
 def is_valid_class_name(class_name: str) -> bool:
     return class_name not in prelude_ops and not class_name.startswith(
-        ("_anf_", "target"), )
+        ("_anf_", "target"),
+    )
 
 
-ae_top = type("ae_top", (ABC, ), {})
+ae_top = type("ae_top", (ABC,), {})
 
 
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
@@ -120,11 +121,8 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 case AbstractionType(var_name, var_type, return_type):
                     class_name = mangle_type(ty)
                     data.update(
-                        extract_all_types([
-                            var_type,
-                            substitution_in_type(return_type, Var("__self__"),
-                                                 var_name)
-                        ]))
+                        extract_all_types([var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)])
+                    )
                     ty_abstract_class = type(class_name, (ae_top, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
@@ -140,9 +138,8 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
 
 
 def create_literal_class(
-        aeon_type: Type,
-        parent_class: type,
-        value_type: None | type | MetaHandlerGenerator = None) -> type:
+    aeon_type: Type, parent_class: type, value_type: None | type | MetaHandlerGenerator = None
+) -> type:
     """Create and return a new literal class with the given name and value type, based on the provided abstract class."""
     if value_type is None:
         value_type = aeon_to_python[aeon_type]
@@ -151,7 +148,7 @@ def create_literal_class(
     new_class = make_dataclass(
         f"literal_{class_name}",
         [("value", value_type)],
-        bases=(parent_class, ),
+        bases=(parent_class,),
     )
 
     def get_core(self):
@@ -163,47 +160,38 @@ def create_literal_class(
     return new_class
 
 
-def create_literals_nodes(
-        type_info: dict[Type, TypingType],
-        types: Optional[list[Type]] = None) -> list[TypingType]:
+def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[list[Type]] = None) -> list[TypingType]:
     """Creates all literal nodes for known types with literals (bool, int, float, string)"""
     if types is None:
         types = [t_bool, t_int, t_float, t_string]
 
-    gtm1 = LiquidApp("<=", [LiquidLiteralInt(-1), LiquidVar("x")])
-    lt256 = LiquidApp("<=", [LiquidVar("x"), LiquidLiteralInt(256)])
+    xname = Name("x", fresh_counter.fresh())
+
+    gtm1 = LiquidApp(Name("<=", 0), [LiquidLiteralInt(-1), LiquidVar(xname)])
+    lt256 = LiquidApp(Name("<=", 0), [LiquidVar(xname), LiquidLiteralInt(256)])
     base_int = [
         create_literal_class(
             t_int,
             type_info[t_int],
-            refined_type_to_metahandler(
-                RefinedType("x", t_int, LiquidApp("&&", [gtm1, lt256]))),
+            refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
         )
     ]
 
-    return [
-        create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types
-    ] + base_int
+    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types] + base_int
 
 
-def create_literal_ref_nodes(
-        type_info: dict[Type, TypingType] = None) -> list[TypingType]:
+def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
     """Creates all literal nodes for refined types, via metahandlers"""
-    ref_types = [
-        ty for ty in type_info
-        if isinstance(ty, RefinedType) and ty.type in aeon_to_python
-    ]
+    ref_types = [ty for ty in type_info if isinstance(ty, RefinedType) and ty.type in aeon_to_python]
     return [
-        create_literal_class(aeon_ty, type_info[aeon_ty],
-                             refined_type_to_metahandler(aeon_ty))
-        for aeon_ty in ref_types
+        create_literal_class(aeon_ty, type_info[aeon_ty], refined_type_to_metahandler(aeon_ty)) for aeon_ty in ref_types
     ]
 
 
-def create_var_node(name: str, ty: Type, python_ty: TypingType) -> TypingType:
+def create_var_node(name: Name, ty: Type, python_ty: TypingType) -> TypingType:
     """Creates a python type for a given variable in context."""
     vname = mangle_var(name)
-    dc = make_dataclass(f"var_{vname}", [], bases=(python_ty, ))
+    dc = make_dataclass(f"var_{vname}", [], bases=(python_ty,))
 
     def get_core(_):
         return Var(name)
@@ -213,12 +201,11 @@ def create_var_node(name: str, ty: Type, python_ty: TypingType) -> TypingType:
     return dc
 
 
-def create_var_apps_node(name: str, ty: AbstractionType,
-                         type_info: dict[Type, TypingType]) -> TypingType:
+def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a python type for a given variable in context that is a function."""
 
     # Collect arguments
-    args = []
+    args : list[tuple[Name, Type]] = []
     current: Type = ty
     while isinstance(current, AbstractionType):
         args.append((current.var_name, current.var_type))
@@ -227,9 +214,7 @@ def create_var_apps_node(name: str, ty: AbstractionType,
     python_ty = type_info[rtype]
 
     vname = mangle_var(name)
-    dc = make_dataclass(f"var_app_{vname}",
-                        [(aname, type_info[ty]) for (aname, ty) in args],
-                        bases=(python_ty, ))
+    dc = make_dataclass(f"var_app_{vname}", [(str(aname), type_info[ty]) for (aname, ty) in args], bases=(python_ty,))
 
     def get_core(_self):
         current = Var(name)
@@ -243,25 +228,19 @@ def create_var_apps_node(name: str, ty: AbstractionType,
     return dc
 
 
-def create_var_nodes(vars: list[Tuple[str, Type]],
-                     type_info: dict[Type, TypingType]) -> list[TypingType]:
+def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    return [
-        create_var_node(var_name, ty, type_info[ty])
-        for (var_name, ty) in vars if ty in type_info
-    ] + [
+    return [create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars if ty in type_info] + [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
         if ty in type_info and isinstance(ty, AbstractionType)
     ]
 
 
-def create_abstraction_node(ty: AbstractionType,
-                            type_info: dict[Type, TypingType]) -> TypingType:
+def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("body", type_info[ty.type])],
-                        bases=(type_info[ty], ))
+    dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
 
     def get_core(_self):
         return Annotation(Abstraction("_0", _self.body.get_core()), ty)
@@ -286,22 +265,19 @@ def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
             assert False, f"Unsupported {t}"
 
 
-def create_abstraction_nodes(
-        type_info: dict[Type, TypingType]) -> list[TypingType]:
+def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
     return [
-        create_abstraction_node(ity, type_info) for ty in type_info
+        create_abstraction_node(ity, type_info)
+        for ty in type_info
         for ity in collect_all_abstractions(ty)
         if isinstance(ity, AbstractionType)
     ]
 
 
-def create_application_node(ty: AbstractionType,
-                            type_info: dict[Type, TypingType]) -> TypingType:
+def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("fun", type_info[ty]),
-                                ("arg", type_info[ty.var_type])],
-                        bases=(type_info[ty.type], ))
+    dc = make_dataclass(vname, [("fun", type_info[ty]), ("arg", type_info[ty.var_type])], bases=(type_info[ty.type],))
 
     # Note: this would require dependent type dynamic processing on the return type (parent class)
 
@@ -313,27 +289,20 @@ def create_application_node(ty: AbstractionType,
     return dc
 
 
-def create_application_nodes(
-        type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [
-        create_application_node(ty, type_info) for ty in type_info
-        if isinstance(ty, AbstractionType)
-    ]
+def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
 
 
 def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
     v_name = f"if_{mangle_type(ty)}"
     dc = make_dataclass(
         v_name,
-        [("cond", type_info[t_bool]), ("then", type_info[ty]),
-         ("otherwise", type_info[ty])],
-        bases=(type_info[ty], ),
+        [("cond", type_info[t_bool]), ("then", type_info[ty]), ("otherwise", type_info[ty])],
+        bases=(type_info[ty],),
     )
 
     def get_core(_self):
-        return Annotation(
-            If(_self.cond.get_core(), _self.then.get_core(),
-               _self.otherwise.get_core()), ty)
+        return Annotation(If(_self.cond.get_core(), _self.then.get_core(), _self.otherwise.get_core()), ty)
 
     setattr(dc, "get_core", get_core)
     dc = weight(IF_WEIGHT)(dc)
@@ -348,8 +317,7 @@ def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
     match lt:
         case LiquidHole():
             return lt
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(
-            _) | LiquidLiteralString(_) | LiquidVar(_):
+        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_) | LiquidVar(_):
             return lt
         case LiquidApp(fun, args):
             if fun in ["&&", "||"]:
@@ -389,72 +357,54 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
             else:
                 return RefinedType(name, type, ref_filtered)
         case TypePolymorphism(name, kind, body):
-            return TypePolymorphism(
-                name, kind, remove_uninterpreted_functions_from_type(body))
+            return TypePolymorphism(name, kind, remove_uninterpreted_functions_from_type(body))
         case _:
             assert False, f"Unsupported {ty}"
 
 
-def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
-    match ctx:
-        case EmptyContext():
-            return ctx
-        case UninterpretedBinder(prev, name, type):
-            return UninterpretedBinder(remove_uninterpreted_functions(prev),
-                                       name, type)
-        case VariableBinder(prev, name, type):
+
+def remove_uninterpreted_functions_wrap(e:TypingContextEntry) -> TypingContextEntry:
+    match e:
+        case VariableBinder(name, type):
             type = remove_uninterpreted_functions_from_type(type)
-            return VariableBinder(remove_uninterpreted_functions(prev), name,
-                                  type)
-        case TypeBinder(prev, type_name, type_kind):
-            return TypeBinder(remove_uninterpreted_functions(prev), type_name,
-                              type_kind)
-        case TypeConstructorBinder(prev, name, args):
-            return TypeConstructorBinder(remove_uninterpreted_functions(prev),
-                                         name, args)
+            return VariableBinder(name, type)
+        case UninterpretedBinder(_, _)| TypeBinder(_, _) |  TypeConstructorBinder(_, _):
+            return e
         case _:
-            assert False, f"Unsupported {ctx}"
+            assert False, f"Unsupported {e}"
+
+def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
+    return TypingContext([ remove_uninterpreted_functions_wrap(el) for el in ctx.entries ])
 
 
-def propagate_constants(
-        ctx: TypingContext) -> tuple[TypingContext, dict[str, LiquidTerm]]:
-    match ctx:
-        case EmptyContext():
-            return ctx, {}
-        case UninterpretedBinder(prev, name, type):
-            p, subst = propagate_constants(prev)
-            return UninterpretedBinder(p, name, type), subst
-        case VariableBinder(prev, name, type):
-            p, subst = propagate_constants(prev)
+def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, LiquidTerm]]:
+    substitutions :dict[Name, LiquidTerm] = {}
+    entries = []
+    for e in ctx.entries:
+        match e:
+            case VariableBinder(name, ty):
+                # Apply all pending substitions
 
-            # Apply all pending substitions
+                for k in substitutions:
+                    ty = substitution_liquid_in_type(ty, substitutions[k], k)
 
-            for k in subst:
-                type = substitution_liquid_in_type(type, subst[k], k)
+                # Detect the pattern {n:T | n == C}
+                match ty:
+                    case RefinedType(name, _, LiquidApp(Name("==", _), [LiquidVar(iname), val]) ):
+                        if name == iname:
+                            substitutions[name] = val
+                entries.append(VariableBinder(name, ty))
+            case _:
+                # TODO: we might want to apply the substitions on other types of entries
+                entries.append(e)
 
-            # Detect the pattern {n:T | n == C}
-            if (isinstance(type, RefinedType)
-                    and isinstance(type.refinement, LiquidApp)
-                    and type.refinement.fun == "=="
-                    and type.refinement.args[0] == LiquidVar(type.name)):
-                v = type.refinement.args[1]
-                subst[name] = v
-
-            return VariableBinder(p, name, type), subst
-        case TypeBinder(prev, type_name, type_kind):
-            p, subst = propagate_constants(prev)
-            return TypeBinder(p, type_name, type_kind), subst
-        case TypeConstructorBinder(p, name, args):
-            p, subst = propagate_constants(p)
-            return TypeConstructorBinder(p, name, args), subst
-        case _:
-            assert False, f"Failed {ctx}"
+    return TypingContext(entries), substitutions
 
 
 def gen_grammar_nodes(
     ctx: TypingContext,
     synth_fun_type,
-    synth_func_name: str,
+    synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
 ) -> tuple[list[type], type]:
@@ -482,30 +432,27 @@ def gen_grammar_nodes(
     ctx = remove_uninterpreted_functions(ctx)
     synth_fun_type = remove_uninterpreted_functions_from_type(synth_fun_type)
 
-    current_metadata = metadata.get(synth_func_name, {})
+    current_metadata = metadata.get(str(synth_func_name), {})
     is_recursion_allowed = current_metadata.get("recursion", False)
     vars_to_ignore = current_metadata.get("hide", [])
     types_to_ignore = current_metadata.get("hide_types", [])
 
-    def skip(name: str) -> bool:
-        if name == synth_func_name:
+    def skip(name: Name) -> bool:
+        if name.name == synth_func_name:
             return not is_recursion_allowed
         elif name in vars_to_ignore:
             return True
-        elif name.startswith("__internal__"):
+        elif name.name.startswith("__internal__"):
             return True
-        elif name in ["native", "native_import", "print"]:
+        elif name.name in ["native", "native_import", "print"]:
             return True
         else:
             return False
 
-    ctx_vars = [(var_name, ty) for (var_name, ty) in concrete_vars_in(ctx)
-                if not skip(var_name)]
+    ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.concrete_vars() if not skip(var_name)]
 
-    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set(
-        [x[1] for x in ctx_vars]) | set([synth_fun_type])
-    types_to_consider = types_to_consider - set(
-        BaseType(t) for t in types_to_ignore)
+    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([synth_fun_type])
+    types_to_consider = types_to_consider - set(BaseType(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider))
     type_nodes = list(set(type_info.values()))
 
@@ -517,8 +464,7 @@ def gen_grammar_nodes(
     ifs = create_if_nodes(type_info)
 
     ret = type_nodes + literals + literals_ref + vars + applications + abstractions
-    if synth_func_name in metadata and "disable_control_flow" in metadata[
-            synth_func_name]:
+    if str(synth_func_name) in metadata and "disable_control_flow" in metadata[str(synth_func_name)]:
         ret = ret + ifs
     return ret, type_info[synth_fun_type]
 

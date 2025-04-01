@@ -9,9 +9,10 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.utils.name import Name
 
 
-def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
+def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
     """t[alpha := beta], standard substition."""
     assert isinstance(t, Type)
 
@@ -30,11 +31,8 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             match rec(ity):
                 case RefinedType(iname, iity, iref) as city:
                     return RefinedType(
-                        name, iity,
-                        mk_liquid_and(
-                            ref,
-                            substitution_in_liquid(iref, LiquidVar(name),
-                                                   iname)))
+                        name, iity, mk_liquid_and(ref, substitution_in_liquid(iref, LiquidVar(name), iname))
+                    )
                 case AbstractionType(_, _, _):
                     assert False, f"Abstraction types cannot be refined: {t} to {ity} to {rec(ity)}"
                 case city:
@@ -52,7 +50,7 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             assert False, f"Not considered: {t} ({type(t)})"
 
 
-def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
+def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
     """t[alpha |-> beta], instantiation."""
 
     def rec(x):
@@ -64,30 +62,25 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
         return beta
     elif isinstance(t, TypeVar) and t.name != alpha:
         return t
-    elif (isinstance(t, RefinedType) and isinstance(t.type, TypeVar)
-          and t.type.name == alpha and isinstance(beta, RefinedType)):
+    elif (
+        isinstance(t, RefinedType)
+        and isinstance(t.type, TypeVar)
+        and t.type.name == alpha
+        and isinstance(beta, RefinedType)
+    ):
         return RefinedType(
             t.name,
             beta.type,
             mk_liquid_and(
                 t.refinement,
-                substitution_in_liquid(beta.refinement, LiquidVar(t.name),
-                                       beta.name),
+                substitution_in_liquid(beta.refinement, LiquidVar(t.name), beta.name),
             ),
         )
     elif isinstance(t, RefinedType):
         return RefinedType(t.name, rec(t.type), t.refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, TypePolymorphism):  # Todo: alpha renaming?
-        target = t
-        while target.name == alpha:
-            new_name = target.name + "_fresh_"
-            target = TypePolymorphism(
-                new_name,
-                t.kind,
-                type_substitution(t.body, alpha, TypeVar(new_name)),
-            )
-        return TypePolymorphism(target.name, target.kind, rec(target.body))
+    elif isinstance(t, TypePolymorphism):
+        return TypePolymorphism(t.name, t.kind, rec(t.body))
     else:
         assert False

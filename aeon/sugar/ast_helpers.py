@@ -2,17 +2,23 @@ from typing import Callable
 
 from aeon.sugar.program import SApplication, SLiteral, STerm, SVar
 from aeon.sugar.stypes import SBaseType
+from aeon.utils.name import Name
 
 
-def mk_binop(fresh: Callable[[], str], op: str, a1: STerm, a2: STerm) -> STerm:
+def mk_binop(fresh: Callable[[], str], op: Name, a1: STerm, a2: STerm) -> STerm:
     return SApplication(SApplication(SVar(op), a1), a2)
 
 
-t_bool = SBaseType("Bool")
-t_int = SBaseType("Int")
-true = SLiteral(True, t_bool)
-false = SLiteral(False, t_bool)
+st_top = SBaseType(Name("Top", 0))
+st_unit = SBaseType(Name("Unit", 0))
+st_bool = SBaseType(Name("Bool", 0))
+st_int = SBaseType(Name("Int", 0))
+st_float = SBaseType(Name("Float", 0))
+st_string = SBaseType(Name("String", 0))
 
-i0 = SLiteral(0, t_int)
-i1 = SLiteral(1, t_int)
-i2 = SLiteral(2, t_int)
+true = SLiteral(True, st_bool)
+false = SLiteral(False, st_bool)
+
+i0 = SLiteral(0, st_int)
+i1 = SLiteral(1, st_int)
+i2 = SLiteral(2, st_int)

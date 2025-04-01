@@ -42,7 +42,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Literal, Var
-from aeon.core.types import BaseType, Top
+from aeon.core.types import t_int, Top
 from aeon.core.types import Type
 from aeon.core.types import top
 from aeon.decorators import Metadata
@@ -57,7 +57,7 @@ from aeon.synthesis_grammar.grammar import (
 from aeon.synthesis_grammar.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
-
+from aeon.utils.name import Name
 
 # TODO add timer to synthesis
 class SynthesisError(Exception):
@@ -173,7 +173,7 @@ def parse_config(config_file: str, section: str) -> dict[str, Any]:
 
 def is_valid_term_literal(term_literal: Term) -> bool:
     return (isinstance(term_literal, Literal)
-            and term_literal.type == BaseType("Int")
+            and term_literal.type == t_int
             and isinstance(term_literal.value, int) and term_literal.value > 0)
 
 
@@ -213,7 +213,7 @@ def filter_nan_values(result):
 
 
 def individual_type_check(ctx: TypingContext, program: Term,
-                          first_hole_name: str, individual_term: Term):
+                          first_hole_name: Name, individual_term: Term):
     new_program = substitution(program, individual_term, first_hole_name)
     core_ast_anf = ensure_anf(new_program)
     assert check_type(ctx, core_ast_anf, Top())
@@ -223,9 +223,9 @@ def create_evaluator(
     ctx: TypingContext,
     ectx: EvaluationContext,
     program: Term,
-    fun_name: str,
+    fun_name: Name,
     metadata: Metadata,
-    holes: list[str],
+    holes: list[Name],
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
     fitness_decorators = [
@@ -233,16 +233,16 @@ def create_evaluator(
     ]
     used_decorators = [
         decorator for decorator in fitness_decorators
-        if decorator in metadata[fun_name]
+        if decorator in metadata.get(str(fun_name), [])
     ]
     assert used_decorators, "No fitness decorators used in metadata for function."
 
     objectives_list: list[Definition] = [
         objective for decorator in used_decorators
-        for objective in metadata[fun_name][decorator]
+        for objective in metadata.get(str(fun_name), [])[decorator]
     ]
     programs_to_evaluate: list[Term] = [
-        substitution(program, Var(objective.name), "main")
+        substitution(program, Var(objective.name), Name("main", 0))
         for objective in objectives_list
     ]
 
@@ -302,9 +302,9 @@ def problem_for_fitness_function(
     ctx: TypingContext,
     ectx: EvaluationContext,
     term: Term,
-    fun_name: str,
+    fun_name: Name,
     metadata: Metadata,
-    hole_names: list[str],
+    hole_names: list[Name],
 ) -> Tuple[Problem, float | list[float]]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
@@ -315,7 +315,7 @@ def problem_for_fitness_function(
     if fun_name in metadata:
         used_decorators = [
             decorator for decorator in fitness_decorators
-            if decorator in metadata[fun_name].keys()
+            if decorator in metadata[str(fun_name)].keys()
         ]
         assert used_decorators, "No valid fitness decorators found."
 
@@ -331,8 +331,8 @@ def problem_for_fitness_function(
 
         minimize: bool | list[bool]
 
-        if fun_name in metadata and "objective_number" in metadata[fun_name]:
-            v = metadata[fun_name]["objective_number"]
+        if str(fun_name) in metadata and "objective_number" in metadata[str(fun_name)]:
+            v = metadata[str(fun_name)]["objective_number"]
             assert isinstance(
                 v, SLiteral), "TODO: implement evaluation of arguments"
             assert isinstance(v.value, int)
@@ -347,7 +347,7 @@ def problem_for_fitness_function(
 
 
 def get_grammar_components(
-        ctx: TypingContext, fun_type: Type, fun_name: str,
+        ctx: TypingContext, fun_type: Type, fun_name: Name,
         metadata: Metadata) -> tuple[list[TypingType], TypingType]:
     grammar_nodes, starting_node = gen_grammar_nodes(ctx, fun_type, fun_name,
                                                      metadata, [])
@@ -356,7 +356,7 @@ def get_grammar_components(
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[str, tuple[Type, TypingContext]], fun_name: str,
+def create_grammar(holes: dict[Name, tuple[Type, TypingContext]], fun_name: Name,
                    metadata: dict[str, Any]) -> Grammar:
     assert len(
         holes
@@ -417,7 +417,7 @@ def geneticengine_synthesis(
         grammar: Grammar,
         problem: Problem,
         filename: str | None,
-        hole_name: str,
+        hole_name: Name,
         target_fitness: float | list[float],
         gp_params: dict[str, Any] | None = None,
         ui: SynthesisUI = SilentSynthesisUI(),
@@ -442,7 +442,7 @@ def geneticengine_synthesis(
     recorders = []
     if filename:
         csv_file_path = get_csv_file_path(filename, representation, seed,
-                                          hole_name, config_name)
+                                          str(hole_name), config_name)
         recorders.append(
             LazyCSVRecorder(
                 csv_file_path,
@@ -499,7 +499,7 @@ def geneticengine_synthesis(
     ui.start(
         typing_ctx=None,
         evaluation_ctx=None,
-        target_name=hole_name,
+        target_name=str(hole_name),
         target_type=None,
         budget=gengy_default_config["timer_limit"],
     )
@@ -525,13 +525,13 @@ def synthesize_single_function(
         ctx: TypingContext,
         ectx: EvaluationContext,
         term: Term,
-        fun_name: str,
-        holes: dict[str, tuple[Type, TypingContext]],
+        fun_name: Name,
+        holes: dict[Name, tuple[Type, TypingContext]],
         metadata: Metadata,
         filename: str | None,
         synth_config: dict[str, Any] | None = None,
         ui: SynthesisUI = SynthesisUI(),
-) -> Tuple[Term, dict[str, Term]]:
+) -> Tuple[Term, dict[Name, Term]]:
 
     # Step 1 Create a Single or Multi-Objective Problem instance.
     problem, target_fitness = problem_for_fitness_function(
@@ -567,13 +567,13 @@ def synthesize(
         ctx: TypingContext,
         ectx: EvaluationContext,
         term: Term,
-        targets: list[tuple[str, list[str]]],
+        targets: list[tuple[Name, list[Name]]],
         metadata: Metadata,
         filename: str | None = None,
         synth_config: dict[str, Any] | None = None,
         refined_grammar: bool = False,
         ui: SynthesisUI = SynthesisUI(),
-) -> Tuple[Term, dict[str, Term]]:
+) -> Tuple[Term, dict[Name, Term]]:
     """Synthesizes code for multiple functions, each with multiple holes."""
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
