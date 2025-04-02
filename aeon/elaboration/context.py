@@ -1,5 +1,5 @@
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.types import Kind
 from aeon.sugar.program import TypeDecl
@@ -37,7 +37,7 @@ class ElabTypeDecl(ElabTypingContextEntry):
 
 @dataclass
 class ElaborationTypingContext:
-    entries: list[ElabTypingContextEntry]
+    entries: list[ElabTypingContextEntry] = field(default_factory=list)
 
     def type_of(self, name: Name):
         """Returns the type of the variable name."""
@@ -50,13 +50,11 @@ class ElaborationTypingContext:
 
     def with_var(self, name: Name, ty: SType):
         """Creates a new context, with an extra variable."""
-        return ElaborationTypingContext(self.entries +
-                                        [ElabVariableBinder(name, ty)])
+        return ElaborationTypingContext(self.entries + [ElabVariableBinder(name, ty)])
 
     def with_typevar(self, name: Name, kind: Kind):
         """Creates a new context, with an extra type variable"""
-        return ElaborationTypingContext(self.entries +
-                                        [ElabTypeVarBinder(name, kind)])
+        return ElaborationTypingContext(self.entries + [ElabTypeVarBinder(name, kind)])
 
     def fresh_typevar(self) -> Name:
         """Returns a type variable that does not exist in context."""
@@ -64,18 +62,13 @@ class ElaborationTypingContext:
         while True:
             i += 1
             name = Name("fresh", fresh_counter.fresh())
-            if name not in [
-                    tvb.name for tvb in self.entries
-                    if isinstance(tvb, ElabTypeVarBinder)
-            ]:
+            if name not in [tvb.name for tvb in self.entries if isinstance(tvb, ElabTypeVarBinder)]:
                 return name
 
 
-def build_typing_context(
-        ls: dict[Name, SType],
-        tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
+def build_typing_context(ls: dict[Name, SType], tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
     if tdecl is None:
         tdecl = []
     return ElaborationTypingContext(
-        [ElabVariableBinder(name, ls[name])
-         for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl])
+        [ElabVariableBinder(name, ls[name]) for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl]
+    )

@@ -11,10 +11,12 @@ from aeon.utils.ast_helpers import i1
 from tests.driver import check_compile
 from aeon.utils.name import Name
 
+x_name = Name("x", 42)
+x2_name = Name("x2", 42)
 l1 = LiquidLiteralInt(1)
-lx = LiquidVar("x")
-lx1 = LiquidApp("x", [l1])
-x = Var(Name("x"))
+lx = LiquidVar(x_name)
+lx1 = LiquidApp(x_name, [l1])
+x = Var(x_name)
 x1 = Application(x, i1)
 
 
@@ -25,15 +27,15 @@ def test_liquefaction():
 
 
 def test_simple_eq():
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) == LiquidApp(
-        "x",
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) == LiquidApp(
+        x_name,
         [LiquidLiteralInt(1)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
-        "x",
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) != LiquidApp(
+        x_name,
         [LiquidLiteralInt(2)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp("x", [LiquidVar("x2")])
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) != LiquidApp(x_name, [LiquidVar(x2_name)])
 
 
 def test_liquid_types_syntax():

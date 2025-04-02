@@ -180,7 +180,7 @@ def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeCons
 
 def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidApp]:
     ctx = LiquidTypeCheckingContext(
-        known_types=[BaseType(Name(bn, 0)) for bn in builtin_core_types],
+        known_types=[BaseType(Name(bn.name.name, 0)) for bn in builtin_core_types],
         functions=liquid_prelude,
         variables={mk_arg(i): t for i, (_, t) in enumerate(hole.argtypes)},
     )

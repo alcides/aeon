@@ -7,17 +7,16 @@ from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
-class SynthesisUI(abc.ABC):
 
+class SynthesisUI(abc.ABC):
     def start(
         self,
         typing_ctx: TypingContext,
         evaluation_ctx: EvaluationContext,
         target_name: str,
-        target_type: Type,
+        target_type: Type | None,
         budget: Any,
-    ):
-        ...
+    ): ...
 
     def register(
         self,
@@ -25,11 +24,9 @@ class SynthesisUI(abc.ABC):
         quality: Any,
         elapsed_time: float,
         is_best: bool,
-    ):
-        ...
+    ): ...
 
-    def end(self, solution: Term, quality: Any):
-        ...
+    def end(self, solution: Term, quality: Any): ...
 
     def wrapper(self, f):
         """This wrapper is necessary for the NCurses version of the API"""
@@ -44,7 +41,6 @@ class SynthesisUI(abc.ABC):
 
 
 class SilentSynthesisUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,

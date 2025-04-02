@@ -6,6 +6,7 @@ from aeon.core.terms import Literal, Var
 from aeon.core.types import BaseType, t_int, t_float, t_string, t_bool
 from aeon.synthesis_grammar.grammar import create_literals_nodes, create_var_node, extract_all_types
 from aeon.prelude.prelude import native_types
+from aeon.utils.name import Name
 
 types_and_values = [
     (t_bool, True),
@@ -22,7 +23,7 @@ def test_core_literal(ty, val):
     assert literal(val).get_core() == Literal(val, ty)
 
 
-vars_to_test = [("x", t_int), ("t", t_bool)]
+vars_to_test = [(Name("x", 5), t_int), (Name("t", 8), t_bool)]
 
 
 @pytest.mark.parametrize("name,ty", vars_to_test)

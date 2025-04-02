@@ -6,10 +6,12 @@ import sys
 import argparse
 from typing import Any
 
+from sugar import bind
+
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from aeon.core.unique import bind_ids
+from core.bind import bind_ids
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
@@ -39,19 +41,15 @@ sys.setrecursionlimit(10000)
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename",
-                        help="name of the aeon files to be synthesized")
-    parser.add_argument("--core",
-                        action="store_true",
-                        help="synthesize a aeon core file")
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
 
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help=
-        """set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -101,10 +99,7 @@ def parse_arguments():
         help="Use the refined grammar for synthesis",
     )
 
-    parser.add_argument("-n",
-                        "--no-main",
-                        action="store_true",
-                        help="Disables introducing hole in main")
+    parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     return parser.parse_args()
 
@@ -147,11 +142,7 @@ def main() -> None:
             # core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
 
             core_typing_vars: dict[Name, Any] = reduce(
-                lambda acc, el: acc | {
-                    el[0]:
-                    type_to_core(el[1],
-                                 available_vars=[e for e in acc.items()])
-                },
+                lambda acc, el: acc | {el[0]: type_to_core(el[1], available_vars=[e for e in acc.items()])},
                 typing_vars.items(),
                 {},
             )
@@ -164,14 +155,16 @@ def main() -> None:
             prog: Program = parse_program(aeon_code)
 
         with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(
-                prog, is_main_hole=not args.no_main)
+            desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
+
+        with RecordTime("Bind"):
+            ctx, progt = bind(desugared.elabcontext, desugared.program)
+            desugared = DesugaredProgram(progt, ctx, desugared.metadata)
             metadata = desugared.metadata
 
         try:
             with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext,
-                                         desugared.program, st_top)
+                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
         except UnificationException as e:
             log_type_errors([e])
             sys.exit(1)
@@ -196,10 +189,12 @@ def main() -> None:
         evaluation_ctx = EvaluationContext(evaluation_vars)
 
     with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[tuple[
-            Name,
-            list[Name],
-        ]] = incomplete_functions_and_holes(
+        incomplete_functions: list[
+            tuple[
+                Name,
+                list[Name],
+            ]
+        ] = incomplete_functions_and_holes(
             typing_ctx,
             core_ast_anf,
         )
@@ -207,9 +202,9 @@ def main() -> None:
     if incomplete_functions:
         filename = args.filename if args.csv_synth else None
         with RecordTime("ParseConfig"):
-            synth_config = (parse_config(args.gp_config, args.config_section)
-                            if args.gp_config and args.config_section else
-                            None)
+            synth_config = (
+                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
+            )
 
         ui = select_synthesis_ui()
 

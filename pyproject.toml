@@ -61,14 +61,6 @@ requires = ['setuptools >= 67.6.0']
 py-modules = ["aeon"]
 include-package-data = true
 
-[tool.setuptools.packages.find]
-where = ["aeon"]
-include = ["*"]
-
-[tool.setuptools.package-data]
-"resources.artifacts" = ["*"]
-recipe = ["*.lark"]
-
 [tool.docformatter]
 syntax = 'google'
 black = true

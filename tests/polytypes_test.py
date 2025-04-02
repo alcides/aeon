@@ -2,6 +2,7 @@ from aeon.core.types import TypeConstructor
 from aeon.frontend.parser import parse_type
 
 from aeon.sugar.stypes import SBaseType
+from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 
 
@@ -29,7 +30,7 @@ def test_polytypes_link():
             def r : (List Int) = f k;
             def r2 : (List Float) = f k2;
         """
-    assert check_compile(source, SBaseType("Top"))
+    assert check_compile(source, st_top)
 
     source = """
             type List a;

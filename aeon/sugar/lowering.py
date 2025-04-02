@@ -66,6 +66,7 @@ from aeon.typechecking.context import (
 )
 from aeon.utils.name import Name, fresh_counter
 
+
 class LoweringException(Exception):
     pass
 
@@ -95,30 +96,27 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
                 )
             return None
         case SLet(name, val, body):
-            app = SApplication(substitution_sterm_in_sterm(body, val, name),
-                               app.arg)
+            app = SApplication(substitution_sterm_in_sterm(body, val, name), app.arg)
             return liquefy_app(app)
         case _:
             raise LiquefactionException(f"{app} is not a valid predicate.")
 
 
 def liquefy(
-    t: STerm,
-    available_vars: list[tuple[Name, BaseType | TypeVar | TypeConstructor]]
-    | None = None
+    t: STerm, available_vars: list[tuple[Name, BaseType | TypeVar | TypeConstructor]] | None = None
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
-        case SLiteral(val, SBaseType("Bool")):
+        case SLiteral(val, SBaseType(Name("Bool", _))):
             assert isinstance(val, bool)
             return LiquidLiteralBool(val)
-        case SLiteral(val, SBaseType("Int")):
+        case SLiteral(val, SBaseType(Name("Int", _))):
             assert isinstance(val, int)
             return LiquidLiteralInt(val)
-        case SLiteral(val, SBaseType("Float")):
+        case SLiteral(val, SBaseType(Name("Float", _))):
             assert isinstance(val, float)
             return LiquidLiteralFloat(val)
-        case SLiteral(val, SBaseType("String")):
+        case SLiteral(val, SBaseType(Name("String", _))):
             assert isinstance(val, str)
             return LiquidLiteralString(val)
         case SLiteral(_, _):
@@ -156,9 +154,7 @@ def liquefy(
             return None
         case SHole(name):
             avars = available_vars or []
-            return LiquidHornApplication(name=name,
-                                         argtypes=[(LiquidVar(x), ty)
-                                                   for (x, ty) in avars])
+            return LiquidHornApplication(name=name, argtypes=[(LiquidVar(x), ty) for (x, ty) in avars])
         case _:
             assert False
 
@@ -175,10 +171,7 @@ def basic_type(ty: Type) -> BaseType | TypeVar:
             assert False, f"Unknown base type {ty} ({type(ty)})"
 
 
-def type_to_core(
-    ty: SType,
-    available_vars: list[tuple[Name, BaseType | TypeVar]] | None = None
-) -> Type:
+def type_to_core(ty: SType, available_vars: list[tuple[Name, BaseType | TypeVar]] | None = None) -> Type:
     """Converts Surface Types into Core Types"""
 
     if available_vars is None:
@@ -194,26 +187,20 @@ def type_to_core(
         case SAbstractionType(name, vty, rty):
             nname = Name(name.name, fresh_counter.fresh())
             at = type_to_core(vty, available_vars)
-            if isinstance(at, BaseType) or isinstance(
-                    at, TypeVar) or isinstance(at, RefinedType):
+            if isinstance(at, BaseType) or isinstance(at, TypeVar) or isinstance(at, RefinedType):
                 available_vars = available_vars + [(nname, basic_type(at))]
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
                 nrty = rty
-            return AbstractionType(nname, at,
-                                   type_to_core(nrty, available_vars))
+            return AbstractionType(nname, at, type_to_core(nrty, available_vars))
         case STypePolymorphism(name, kind, rty):
-            return TypePolymorphism(name, kind,
-                                    type_to_core(rty, available_vars))
+            return TypePolymorphism(name, kind, type_to_core(rty, available_vars))
         case SRefinedType(name, ity, ref):
             basety = type_to_core(ity, available_vars)
-            assert isinstance(basety, BaseType) or isinstance(
-                basety, TypeVar) or isinstance(basety, TypeConstructor)
-            return RefinedType(name, basety,
-                               liquefy(ref, available_vars + [(name, basety)]))
+            assert isinstance(basety, BaseType) or isinstance(basety, TypeVar) or isinstance(basety, TypeConstructor)
+            return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]))
         case STypeConstructor(name, args):
-            return TypeConstructor(
-                name, [type_to_core(ity, available_vars) for ity in args])
+            return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args])
         case _:
             assert False, f"Unknown {ty} / {normalize(ty)}."
 
@@ -228,15 +215,13 @@ def lower_to_core(t: STerm) -> Term:
         case SVar(name):
             return Var(name)
         case SIf(cond, then, otherwise):
-            return If(lower_to_core(cond), lower_to_core(then),
-                      lower_to_core(otherwise))
+            return If(lower_to_core(cond), lower_to_core(then), lower_to_core(otherwise))
         case SApplication(fun, arg):
             return Application(lower_to_core(fun), lower_to_core(arg))
         case SLet(name, val, body):
             return Let(name, lower_to_core(val), lower_to_core(body))
         case SRec(name, ty, val, body):
-            return Rec(name, type_to_core(ty), lower_to_core(val),
-                       lower_to_core(body))
+            return Rec(name, type_to_core(ty), lower_to_core(val), lower_to_core(body))
         case SAnnotation(expr, ty):
             return Annotation(lower_to_core(expr), type_to_core(ty))
         case SAbstraction(name, body):
@@ -249,7 +234,7 @@ def lower_to_core(t: STerm) -> Term:
             assert False, f"{t} ({type(t)}) not supported"
 
 
-def wrap_ctx_entry(e:ElabTypingContextEntry) -> TypingContextEntry:
+def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
     match e:
         case ElabVariableBinder(name, ty):
             return VariableBinder(name, type_to_core(ty))
@@ -267,4 +252,4 @@ def wrap_ctx_entry(e:ElabTypingContextEntry) -> TypingContextEntry:
 
 def lower_to_core_context(elctx: ElaborationTypingContext) -> TypingContext:
     """Lowers the elaboration context down to the Core Typing Context."""
-    return TypingContext([ wrap_ctx_entry(e) for e in elctx.entries  ])
+    return TypingContext([wrap_ctx_entry(e) for e in elctx.entries])

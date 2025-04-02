@@ -78,7 +78,6 @@ class GrammarError(Exception):
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
-
     def get_core(self): ...
 
 
@@ -121,7 +120,9 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 case AbstractionType(var_name, var_type, return_type):
                     class_name = mangle_type(ty)
                     data.update(
-                        extract_all_types([var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)])
+                        extract_all_types(
+                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)]
+                        )
                     )
                     ty_abstract_class = type(class_name, (ae_top, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
@@ -205,7 +206,7 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
     """Creates a python type for a given variable in context that is a function."""
 
     # Collect arguments
-    args : list[tuple[Name, Type]] = []
+    args: list[tuple[Name, Type]] = []
     current: Type = ty
     while isinstance(current, AbstractionType):
         args.append((current.var_name, current.var_type))
@@ -362,24 +363,24 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
             assert False, f"Unsupported {ty}"
 
 
-
-def remove_uninterpreted_functions_wrap(e:TypingContextEntry) -> TypingContextEntry:
+def remove_uninterpreted_functions_wrap(e: TypingContextEntry) -> TypingContextEntry:
     match e:
         case VariableBinder(name, type):
             type = remove_uninterpreted_functions_from_type(type)
             return VariableBinder(name, type)
-        case UninterpretedBinder(_, _)| TypeBinder(_, _) |  TypeConstructorBinder(_, _):
+        case UninterpretedBinder(_, _) | TypeBinder(_, _) | TypeConstructorBinder(_, _):
             return e
         case _:
             assert False, f"Unsupported {e}"
 
+
 def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
-    return TypingContext([ remove_uninterpreted_functions_wrap(el) for el in ctx.entries ])
+    return TypingContext([remove_uninterpreted_functions_wrap(el) for el in ctx.entries])
 
 
 def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, LiquidTerm]]:
-    substitutions :dict[Name, LiquidTerm] = {}
-    entries = []
+    substitutions: dict[Name, LiquidTerm] = {}
+    entries: list[TypingContextEntry] = []
     for e in ctx.entries:
         match e:
             case VariableBinder(name, ty):
@@ -390,7 +391,7 @@ def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, L
 
                 # Detect the pattern {n:T | n == C}
                 match ty:
-                    case RefinedType(name, _, LiquidApp(Name("==", _), [LiquidVar(iname), val]) ):
+                    case RefinedType(name, _, LiquidApp(Name("==", _), [LiquidVar(iname), val])):
                         if name == iname:
                             substitutions[name] = val
                 entries.append(VariableBinder(name, ty))

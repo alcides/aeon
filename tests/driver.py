@@ -1,7 +1,7 @@
 from typing import Any
 from aeon.core.terms import Term
 from aeon.core.types import Type
-from aeon.core.unique import bind_ids
+from aeon.core.bind import bind_ids
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
@@ -20,6 +20,7 @@ from aeon.decorators import Metadata
 
 from aeon.frontend.parser import parse_term
 from aeon.core.types import top
+from aeon.utils.name import Name
 
 from aeon.frontend.anf_converter import ensure_anf
 
@@ -45,10 +46,7 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     return True
 
 
-def check_compile_expr(source: str,
-                       ty: SType,
-                       val: Any = None,
-                       extra_vars: dict[str, SType] | None = None) -> bool:
+def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict[Name, SType] | None = None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
@@ -97,8 +95,7 @@ def extract_core(source: str) -> Term:
     return core_ast_anf
 
 
-def check_and_return_core(
-        source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
+def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
     ectx = EvaluationContext(evaluation_vars)
     prog = parse_program(source)
     desugared = desugar(prog)

@@ -43,7 +43,7 @@ def contains_tuples(lst):
     return any(isinstance(item, tuple) for item in lst)
 
 
-def split_or_intervals(bounded_intervals, name, intervals_list=None):
+def split_or_intervals(bounded_intervals, name: str, intervals_list=None):
     intervals_list = [] if intervals_list is None else intervals_list
     # if it is a tuple, it is an Or Interval
     if isinstance(bounded_intervals, tuple):
@@ -100,7 +100,7 @@ def get_metahandler_union(
 
 
 def refined_type_to_metahandler(ty: RefinedType) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
-    name, ref = ty.name, ty.refinement
+    name, ref = str(ty.name), ty.refinement
     sympy_exp = refined_to_sympy_expression(ref)
     sympy_exp = simplify(sympy_exp)
     sympy_exp = to_dnf(sympy_exp)

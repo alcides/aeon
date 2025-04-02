@@ -24,13 +24,12 @@ def native_import(name):
     return importlib.import_module(name)
 
 
-native_types : list[Name] = [Name("Unit"), Name("Bool"), Name("Int"), Name("Float"), Name("String")]
+native_types: list[Name] = [Name("Unit", 0), Name("Bool", 0), Name("Int", 0), Name("Float", 0), Name("String", 0)]
 
 # TODO: polymorphic signatures
 prelude = [
     ("native", "forall a:B, (x:String) -> {x:a | false}", eval),
-    ("native_import", "forall a:B, (x:String) -> {x:a | false}",
-     native_import),
+    ("native_import", "forall a:B, (x:String) -> {x:a | false}", native_import),
     ("print", "forall a:B, (x:a) -> Unit", p),
     ("==", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x == y),
     ("!=", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x != y),
@@ -50,6 +49,7 @@ prelude = [
 
 typing_vars: dict[Name, SType] = {}
 evaluation_vars: dict[Name, Any] = {}
+
 
 for n, ty, ex in prelude:
     nn = Name(n, 0)

@@ -48,7 +48,7 @@ def is_anf(t: Term) -> bool:
 
 
 def mk_binop(fresh: Callable[[], str], op: str, a1: Term, a2: Term) -> Term:
-    return Application(Application(Var(Name(op)), a1), a2)
+    return Application(Application(Var(Name(op, 0)), a1), a2)
 
 
 true = Literal(True, t_bool)

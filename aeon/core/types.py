@@ -11,13 +11,11 @@ from aeon.utils.name import Name
 
 
 class Kind(ABC):
-
     def __repr__(self):
         return str(self)
 
 
 class BaseKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -29,7 +27,6 @@ class BaseKind(Kind):
 
 
 class StarKind(Kind):
-
     def __eq__(self, o):
         return self.__class__ == o.__class__
 
@@ -62,6 +59,10 @@ class BaseType(Type):
 class TypeVar(Type):
     name: Name
 
+    def __post_init__(self):
+        if self.name.name in ["Int", "Bool"]:
+            assert False
+
     def __repr__(self):
         return f"{self.name}"
 
@@ -73,7 +74,6 @@ class TypeVar(Type):
 
 
 class Top(Type):
-
     def __repr__(self):
         return "⊤"
 
@@ -87,11 +87,11 @@ class Top(Type):
         return hash("Top")
 
 
-t_unit = BaseType(Name("Unit", 2))
-t_bool = BaseType(Name("Bool", 3))
-t_int = BaseType(Name("Int", 4))
-t_float = BaseType(Name("Float", 5))
-t_string = BaseType(Name("String", 6))
+t_unit = BaseType(Name("Unit", 0))
+t_bool = BaseType(Name("Bool", 0))
+t_int = BaseType(Name("Int", 0))
+t_float = BaseType(Name("Float", 0))
+t_string = BaseType(Name("String", 0))
 
 builtin_core_types = [t_unit, t_bool, t_int, t_float, t_string]
 
