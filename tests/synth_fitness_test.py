@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 
 from aeon.core.terms import Term, Literal
-from aeon.core.types import BaseType
+from aeon.core.types import t_int
 from aeon.logger.logger import setup_logger
 from aeon.sugar.program import Definition
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
 from aeon.sugar.program import SApplication, SLiteral, SVar
-from aeon.sugar.stypes import SBaseType
 from aeon.utils.name import Name, fresh_counter
+from aeon.sugar.ast_helpers import st_int
 
 from tests.driver import check_and_return_core
 
@@ -30,9 +30,9 @@ def test_fitness():
         name=Name("__internal__minimize_int_synth_0", fresh_counter.fresh()),
         foralls=[],
         args=[],
-        type=SBaseType("Int"),
+        type=st_int,
         body=SApplication(
-            SApplication(SVar(Name("synth")), SLiteral(7, SBaseType("Int"))),
+            SApplication(SVar(Name("synth")), SLiteral(7, st_int)),
             SApplication(SVar(Name("-")), SVar(Name("synth"))),
         ),
     )
@@ -74,5 +74,5 @@ def test_literal_int_range():
 
     assert isinstance(term, Term)
     assert isinstance(term, Literal)
-    assert term.type == BaseType("Int")
+    assert term.type == t_int
     assert -1 <= term.value <= 256

@@ -6,8 +6,8 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.terms import Application
 from aeon.core.terms import Var
-from aeon.sugar.stypes import SBaseType
 from aeon.utils.ast_helpers import i1
+from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 from aeon.utils.name import Name
 
@@ -48,4 +48,4 @@ def test_liquid_types_syntax():
             print(test 5 5)
         }
 """
-    check_compile(source, SBaseType("Top"), 0)
+    check_compile(source, st_top, 0)

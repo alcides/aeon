@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.sugar.stypes import SBaseType
 from tests.driver import check_compile
+from aeon.sugar.ast_helpers import st_top
 
 
 def test_anf():
@@ -11,7 +11,7 @@ def test_anf():
         def pow (x: {c:Int | ((c >= 1) && (c <= 100))}) (y:{d:Int | ((d >= 1) && (d <= 100))}) : Int { native "math.pow(x, y)" }
 
 """
-    check_compile(source, SBaseType("Top"))
+    check_compile(source, st_top)
 
 
 def test_abs():
@@ -25,4 +25,4 @@ def test_abs():
             1
         }
 """
-    check_compile(source, SBaseType("Top"))
+    check_compile(source, st_top)

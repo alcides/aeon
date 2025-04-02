@@ -6,13 +6,13 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import BaseType
 from aeon.core.types import t_int
-from aeon.sugar.stypes import SBaseType, SRefinedType
+from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
-from aeon.sugar.ast_helpers import st_int, st_top
+from aeon.sugar.ast_helpers import st_int, st_top, st_bool
 from aeon.utils.name import Name
 
 name_a = Name("a", 102)
@@ -90,7 +90,7 @@ def main (x:Int) : Unit {
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType("y", SBaseType("Bool"), parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType("y", st_bool, parse_expression("y == (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",

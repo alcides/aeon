@@ -1,7 +1,6 @@
 from aeon.core.types import TypeConstructor
 from aeon.frontend.parser import parse_type
 
-from aeon.sugar.stypes import SBaseType
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 
@@ -18,7 +17,7 @@ def test_polytypes_e2e():
             def b : (l:(List Int)) -> Int = \\x -> 0;
             def c : Int = b a;
         """
-    assert check_compile(source, SBaseType("Top"))
+    assert check_compile(source, st_top)
 
 
 def test_polytypes_link():
@@ -38,11 +37,11 @@ def test_polytypes_link():
             def f : (l:(List a)) -> (List a) = \\x -> x;
             def r : (List Float) = f k;
         """
-    assert not check_compile(source, SBaseType("Top"))
+    assert not check_compile(source, st_top)
 
 
 def test_polytypes_missing_decl():
     source = """
             def k : (List Int) = native "1";
         """
-    assert not check_compile(source, SBaseType("Top"))
+    assert not check_compile(source, st_top)
