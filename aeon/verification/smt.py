@@ -122,22 +122,16 @@ class SMTContext:
     premises: list[LiquidTerm]
 
     def with_sort(self, name: Name) -> SMTContext:
-        return SMTContext(self.sorts + [name.name], self.functions, self.variables,
-                          self.premises)
+        return SMTContext(self.sorts + [name.name], self.functions, self.variables, self.premises)
 
     def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
-        return SMTContext(self.sorts, {
-            **self.functions, name.name: ty
-        }, self.variables, self.premises)
+        return SMTContext(self.sorts, {**self.functions, name.name: ty}, self.variables, self.premises)
 
     def with_var(self, name: Name, ty: BaseType) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, {
-            **self.variables, name.name: ty
-        }, self.premises)
+        return SMTContext(self.sorts, self.functions, {**self.variables, name.name: ty}, self.premises)
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, self.variables,
-                          self.premises + [p])
+        return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
 
 
 @dataclass(init=False)
@@ -154,27 +148,23 @@ class CanonicConstraint:
         self.sorts = ctx.sorts
         self.functions = ctx.functions
         self.variables = ctx.variables
-        self.premise = reduce(mk_liquid_and, ctx.premises,
-                              LiquidLiteralBool(True))
+        self.premise = reduce(mk_liquid_and, ctx.premises, LiquidLiteralBool(True))
         self.conclusion = pos
 
 
-def rename_constraint(c: Constraint, old_name: Name,
-                      new_name: Name) -> Constraint:
+def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
     match c:
         case LiquidConstraint(expr):
             nexpr = substitution_in_liquid(expr, LiquidVar(new_name), old_name)
             return LiquidConstraint(expr=nexpr)
         case Conjunction(c1, c2):
-            return Conjunction(rename_constraint(c1, old_name, new_name),
-                               rename_constraint(c2, old_name, new_name))
+            return Conjunction(rename_constraint(c1, old_name, new_name), rename_constraint(c2, old_name, new_name))
         case Implication(name, base, pred, seq):
             if name == new_name:
                 return c
             else:
-                npred = substitution_in_liquid(pred, LiquidVar(new_name),
-                                               old_name)
+                npred = substitution_in_liquid(pred, LiquidVar(new_name), old_name)
                 nseq = rename_constraint(seq, old_name, new_name)
                 return Implication(name, base, npred, nseq)
         case UninterpretedFunctionDeclaration(name, absty, seq):
@@ -188,9 +178,7 @@ def rename_constraint(c: Constraint, old_name: Name,
             assert False, f"Unexpected case {c} ({type(c)})"
 
 
-
-def flatten(c: Constraint,
-            ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
+def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
         ctx = SMTContext(["Top"], {}, {}, [])
@@ -215,8 +203,7 @@ def flatten(c: Constraint,
                     base = BaseType(nname)
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq,
-                               ctx.with_var(name, base).with_premise(pred))
+            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
         case UninterpretedFunctionDeclaration(oname, ty, seq):
             name = Name(oname.name, fresh_counter.fresh())
             seq = rename_constraint(seq, oname, name)
@@ -227,7 +214,7 @@ def flatten(c: Constraint,
 
 
 s = Solver()
-(s.set(timeout=200), )
+(s.set(timeout=200),)
 
 
 def smt_valid(constraint: Constraint) -> bool:
@@ -267,12 +254,8 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache: dict[str, SortRef] = {}
 
 
-def mk_vars(variables: dict[str, BaseType],
-            sorts: dict[str, SortRef]) -> dict[str, Any]:
-    return {
-        name: make_variable(name, base)
-        for name, base in variables.items()
-    }
+def mk_vars(variables: dict[str, BaseType], sorts: dict[str, SortRef]) -> dict[str, Any]:
+    return {name: make_variable(name, base) for name, base in variables.items()}
 
 
 def get_sort(base: Type) -> SortRef:
@@ -305,8 +288,7 @@ def unrefine_type(base: Type):
         case RefinedType(_, ty, _):
             return ty
         case AbstractionType(name, aty, rty):
-            return AbstractionType(name, unrefine_type(aty),
-                                   unrefine_type(rty))
+            return AbstractionType(name, unrefine_type(aty), unrefine_type(rty))
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, unrefine_type(body))
         case TypeConstructor(name, args):
@@ -361,8 +343,7 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
                 return base_functions[name]
             else:
                 input_types, output_type = uncurry(base)
-                args = [get_sort(x)
-                        for x in input_types] + [get_sort(output_type)]
+                args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
                 return Function(name, *args)
         case _:
             assert False, f"No var: {name}, with base {base} of type {type(base)}"
@@ -399,18 +380,20 @@ def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
     return {name: get_sort(BaseType(Name(name, 0))) for name in sorts}
 
 
-def mk_funs(functions: dict[str, AbstractionType],
-            sorts: dict[str, SortRef]) -> dict[str, Any]:
+def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
     funs = {}
     for name, ty in functions.items():
         input_types, output_type = uncurry(ty)
-        args = [sorts.get(str(x), get_sort(x)) for x in input_types
-                ] + [sorts.get(str(output_type), get_sort(output_type))]
+        args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
+            sorts.get(str(output_type), get_sort(output_type))
+        ]
         funs[name] = Function(name, *args)
     return funs
 
 
-def translate(c: CanonicConstraint, ) -> BoolRef | bool:
+def translate(
+    c: CanonicConstraint,
+) -> BoolRef | bool:
     sorts = mk_sorts(c.sorts)
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)

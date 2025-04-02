@@ -6,10 +6,8 @@ from aeon.core.types import t_int
 
 
 def test_sub():
-    subt = parse_type(
-        r"(x:(z:{a:Int| a > 1 }) -> Int) -> {k:Int | k > fresh_2}")
-    supt = parse_type(
-        r"(y:(m:{b:Int| b > 0 }) -> Int) -> {z:Int | z >= fresh_2}")
+    subt = parse_type(r"(x:(z:{a:Int| a > 1 }) -> Int) -> {k:Int | k > fresh_2}")
+    supt = parse_type(r"(y:(m:{b:Int| b > 0 }) -> Int) -> {z:Int | z >= fresh_2}")
     c = sub(TypingContext(), subt, supt)
     assert entailment(VariableBinder(TypingContext(), "fresh_2", t_int), c)
 

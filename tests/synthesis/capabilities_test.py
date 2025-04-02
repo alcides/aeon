@@ -25,7 +25,6 @@ def synthesis_and_return(code):
 
 @pytest.mark.parametrize("ty", [t_bool, t_int, t_float, t_string])
 def test_e2e_synthesis_basic_types(ty):
-
     code = f"""def synth : {ty} = ?hole;"""
     t, ctx = synthesis_and_return(code)
 

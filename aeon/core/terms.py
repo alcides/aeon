@@ -9,7 +9,6 @@ from aeon.utils.name import Name
 
 
 class Term:
-
     def __hash__(self) -> int:
         return str(self).__hash__()
 

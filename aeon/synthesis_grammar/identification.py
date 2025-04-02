@@ -19,6 +19,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.utils.name import Name
 
+
 # dict (hole_name , (hole_type, hole_typingContext))
 def get_holes_info(
     ctx: TypingContext,

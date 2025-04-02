@@ -69,7 +69,6 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
 
 
 def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
-
     def rec(k: SType):
         return substitution_sterm_in_stype(k, beta, alpha)
 
@@ -89,7 +88,6 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
 
 
 def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
-
     def rec(x: STerm):
         return substitution_sterm_in_sterm(x, beta, alpha)
 
@@ -134,7 +132,6 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
 
 
 def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
-
     def rec(x: STerm):
         return substitution_svartype_in_sterm(x, rep, name)
 

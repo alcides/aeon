@@ -40,8 +40,7 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                 (nname, base, cond) = extract_parts(ty)
                 match base:
                     case BaseType(_):
-                        ncond = substitution_in_liquid(cond, LiquidVar(name),
-                                                    nname)
+                        ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                         c = Implication(name, base, ncond, c)
                     case TypeVar(_):
                         assert False

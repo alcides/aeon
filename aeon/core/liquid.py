@@ -16,7 +16,6 @@ def ensure_liqterm(a: LiquidTerm | Name) -> LiquidTerm:
 
 
 class LiquidHole(LiquidTerm):
-
     def __eq__(self, other):
         return isinstance(other, self.__class__)
 

@@ -11,9 +11,6 @@ def raise_decorator_error(name: str) -> None:
     raise Exception(f"Exception in decorator named {name}.")
 
 
-
-
-
 def minimize_int(
     args: list[STerm],
     fun: Definition,
@@ -42,9 +39,7 @@ def minimize_int(
         metadata,
         fun,
         {
-            "minimize_int":
-            metadata.get(str(fun.name), {}).get("minimize_int", []) +
-            [minimize_function],
+            "minimize_int": metadata.get(str(fun.name), {}).get("minimize_int", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -77,9 +72,7 @@ def minimize_float(
         metadata,
         fun,
         {
-            "minimize_float":
-            metadata.get(str(fun.name), {}).get("minimize_float", []) +
-            [minimize_function],
+            "minimize_float": metadata.get(str(fun.name), {}).get("minimize_float", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -96,17 +89,22 @@ def multi_minimize_float(
     definition to the program. This new definition has the name
     "_fitness_function", prefixed by the original definition's name
     """
-    assert (len(args, ) == 1
-            ), "multi_minimize_float decorator expects a single argument"
+    assert (
+        len(
+            args,
+        )
+        == 1
+    ), "multi_minimize_float decorator expects a single argument"
 
     n_decorators = len(
-        metadata.get(str(fun.name), {}).get("multi_minimize_float", []), )
+        metadata.get(str(fun.name), {}).get("multi_minimize_float", []),
+    )
     minimize_function_name = Name(f"__internal__multi_minimize_float_{fun.name}_{n_decorators}", fresh_counter.fresh())
     minimize_function = Definition(
         name=minimize_function_name,
         foralls=[],
         args=[],
-        type=SBaseType(Name("List")), # Maybe this does work on decorator-time?
+        type=SBaseType(Name("List")),  # Maybe this does work on decorator-time?
         body=args[0],
     )
 
@@ -114,9 +112,8 @@ def multi_minimize_float(
         metadata,
         fun,
         {
-            "multi_minimize_float":
-            metadata.get(str(fun.name), {}).get("multi_minimize_float", []) +
-            [minimize_function],
+            "multi_minimize_float": metadata.get(str(fun.name), {}).get("multi_minimize_float", [])
+            + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -175,8 +172,8 @@ def hide_types(
 
 
 def error_fitness(
-        args: list[STerm], fun: Definition,
-        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    args: list[STerm], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects one argument .
 
     It does not modify the original definition. It makes sure that
@@ -191,8 +188,8 @@ def error_fitness(
 
 
 def objective_number(
-        args: list[STerm], fun: Definition,
-        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    args: list[STerm], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects one argument .
     It does not modify the original definition. It specifies the number of objective for multi objective problems
     """
@@ -205,8 +202,8 @@ def objective_number(
 
 
 def disable_control_flow(
-        args: list[STerm], fun: Definition,
-        metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    args: list[STerm], fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects zero arguments .
 
     It does not modify the original definition. It makes sure that

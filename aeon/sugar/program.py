@@ -9,7 +9,6 @@ from aeon.sugar.stypes import SType
 
 
 class STerm:
-
     def __hash__(self) -> int:
         return str(self).__hash__()
 

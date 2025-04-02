@@ -1,5 +1,5 @@
-from aeon.sugar.stypes import SBaseType
 from aeon.synthesis_grammar.identification import iterate_top_level
+from aeon.sugar.ast_helpers import st_top
 
 from tests.driver import check_compile, extract_core
 
@@ -25,4 +25,4 @@ def test_eq() -> None:
             print z3
         }"""
 
-    check_compile(aeon_code, SBaseType("Top"))
+    check_compile(aeon_code, st_top)

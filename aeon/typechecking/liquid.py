@@ -35,6 +35,7 @@ from aeon.typechecking.context import (
 
 from aeon.utils.name import Name
 
+
 class LiquidTypeCheckException(Exception):
     pass
 
@@ -46,21 +47,21 @@ class LiquidTypeCheckingContext:
     functions: dict[Name, list[BaseType | TypeVar | TypeConstructor]]
 
 
-def lower_abstraction_type(
-        ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
+def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
     args: list[BaseType | TypeVar | TypeConstructor] = []
     while True:
         match ty:
-        # TODO: Should these be removed?
+            # TODO: Should these be removed?
             case Top() | RefinedType(_, Top(), _):
                 return args + [t_unit]
             case BaseType(_) | TypeVar(_):
                 assert args
                 return args + [ty]
-            case (AbstractionType(_, RefinedType(_, aty, _),
-                                  RefinedType(_, rty, _))
-                  | AbstractionType(_, RefinedType(_, aty, _), rty)
-                  | AbstractionType(_, aty, rty)):
+            case (
+                AbstractionType(_, RefinedType(_, aty, _), RefinedType(_, rty, _))
+                | AbstractionType(_, RefinedType(_, aty, _), rty)
+                | AbstractionType(_, aty, rty)
+            ):
                 match aty:
                     case BaseType(_) | TypeVar(_):
                         args.append(aty)
@@ -103,23 +104,18 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 functions[name] = lower_abstraction_type(ty)
             case TypeBinder(name, _):
                 known_types.append(name)
-            case UninterpretedBinder(name,
-                                     AbstractionType(_, _, _) as
-                                     ty) | VariableBinder(
-                                         name,
-                                         AbstractionType(_, _, _) as ty):
+            case UninterpretedBinder(name, AbstractionType(_, _, _) as ty) | VariableBinder(
+                name, AbstractionType(_, _, _) as ty
+            ):
                 functions[name] = lower_abstraction_type(ty)
-            case VariableBinder(name,
-                                RefinedType(_,
-                                            BaseType(_) as bt, _)):
+            case VariableBinder(name, RefinedType(_, BaseType(_) as bt, _)):
                 variables[name] = bt
             case TypeConstructorBinder(_, _):
                 pass
             case _:
                 assert False, f"Unknown context type ({type(ctx)})"
 
-    return LiquidTypeCheckingContext([BaseType(n) for n in known_types],
-                                     variables, functions)
+    return LiquidTypeCheckingContext([BaseType(n) for n in known_types], variables, functions)
 
 
 def type_infer_liquid(
@@ -137,23 +133,20 @@ def type_infer_liquid(
             return t_string
         case LiquidVar(name):
             if name not in ctx.variables:
-                raise LiquidTypeCheckException(
-                    f"Variable {name} not in context in {ctx}.")
+                raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")
 
             rt = ctx.variables[name]
             assert isinstance(rt, BaseType) or isinstance(rt, TypeVar)
             return rt
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
-                raise LiquidTypeCheckException(
-                    f"Function {fun} not in context in {liq} ({ctx.functions})."
-                )
+                raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
             equalities: dict[Name, BaseType] = {}
 
             if len(ftype) != len(args) + 1:
                 raise LiquidTypeCheckException(
-                    f"Function application {liq} needs {len(ftype)-1} arguments, but was passed {len(args)}."
+                    f"Function application {liq} needs {len(ftype) - 1} arguments, but was passed {len(args)}."
                 )
             type_of_args = []
             for arg, exp_t in zip(args, ftype):
@@ -178,36 +171,32 @@ def type_infer_liquid(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
                             )
                     case _:
-                        assert (
-                            False
-                        ), f"Case not considered in liquid unification: {k} ({type(k)}) and {exp_t} ({type(exp_t)})"
+                        assert False, (
+                            f"Case not considered in liquid unification: {k} ({type(k)}) and {exp_t} ({type(exp_t)})"
+                        )
 
-            def is_base_type_in(t:Type, names:list[str]) -> bool:
+            def is_base_type_in(t: Type, names: list[str]) -> bool:
                 match t:
                     case BaseType(Name(name, _)):
                         return name in names
                     case _:
                         return False
 
-
             first_argument = type_of_args[0]
             match fun:
                 case Name(fun_name, _):
                     if fun_name in ["<", "<=", ">", ">="]:
-                        if not is_base_type_in(first_argument, ["Float", "Int"]) and not isinstance(type_of_args[0], TypeVar):
-                            raise LiquidTypeCheckException(
-                                f"Function {fun_name} only applies to Floats or Ints.")
-                    elif fun_name in ["==", "!="
-                                ] and not isinstance(first_argument, TypeVar):
+                        if not is_base_type_in(first_argument, ["Float", "Int"]) and not isinstance(
+                            type_of_args[0], TypeVar
+                        ):
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
+                    elif fun_name in ["==", "!="] and not isinstance(first_argument, TypeVar):
                         # TODO: Add type equality
-                        if not  is_base_type_in(first_argument, ["Unit", "Bool", "Float", "Int", "String"]):
-                            raise LiquidTypeCheckException(
-                                f"Function {fun_name} only applies to built-in types.")
-                    elif fun_name in ["+", "-", "*", "/"
-                                ] and not isinstance(first_argument, TypeVar):
+                        if not is_base_type_in(first_argument, ["Unit", "Bool", "Float", "Int", "String"]):
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to built-in types.")
+                    elif fun_name in ["+", "-", "*", "/"] and not isinstance(first_argument, TypeVar):
                         if not is_base_type_in(first_argument, ["Float", "Int"]):
-                            raise LiquidTypeCheckException(
-                                f"Function {fun_name} only applies to Floats or Ints.")
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
 
             if isinstance(ftype[-1], TypeVar):
                 return equalities[ftype[-1].name]

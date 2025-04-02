@@ -34,6 +34,7 @@ from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_
 from aeon.utils.name import Name
 from aeon.sugar.ast_helpers import st_int
 
+
 class DesugaredProgram(NamedTuple):
     program: STerm
     elabcontext: ElaborationTypingContext
@@ -41,8 +42,7 @@ class DesugaredProgram(NamedTuple):
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
-
-    vs : dict[Name, SType] = {} if extra_vars is None else extra_vars
+    vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
     prog = determine_main_function(p, is_main_hole)
 
@@ -54,7 +54,9 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 
     etctx = build_typing_context(vs, type_decls)
     etctx, prog = update_program_and_context(prog, defs, etctx)
-    prog, etctx = replace_concrete_types(prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls])
+    prog, etctx = replace_concrete_types(
+        prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
+    )
 
     return DesugaredProgram(prog, etctx, metadata)
 

@@ -9,7 +9,6 @@ import curses
 
 
 class NCursesUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,
@@ -42,8 +41,7 @@ class NCursesUI(SynthesisUI):
             self.stdscr.addstr(6, 0, f"Best: {self.best_solution}")
             self.stdscr.addstr(7, 0, f"Best Fitness: {self.best_quality}")
             self.stdscr.addstr(9, 0, "====================================")
-            self.stdscr.addstr(10, 0,
-                               f"""{elapsed_time:.1f} / {self.budget:.1f}s""")
+            self.stdscr.addstr(10, 0, f"""{elapsed_time:.1f} / {self.budget:.1f}s""")
 
             self.stdscr.refresh()
         except curses.error:
@@ -53,7 +51,6 @@ class NCursesUI(SynthesisUI):
         curses.endwin()
 
     def wrapper(self, f):
-
         def w(stdscr):
             self.stdscr = stdscr
             return f()

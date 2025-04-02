@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aeon.sugar.parser import parse_type
+from aeon.utils.name import Name
 
 import sys
 
@@ -10,10 +11,7 @@ sys.setrecursionlimit(1500)  # TODO: fix this?
 
 
 def tt(e: str, t: str, vars: None | dict[str, str] = None):
-    vs = {
-        k: parse_type(v)
-        for (k, v) in vars.items()
-    } if vars is not None else None
+    vs = {Name(k): parse_type(v) for (k, v) in vars.items()} if vars is not None else None
     return check_compile_expr(e, parse_type(t), extra_vars=vs)
 
 

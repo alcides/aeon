@@ -33,11 +33,9 @@ def ensure_refined(t: Type) -> Type:
         case BaseType(Name(name)):
             return RefinedType(Name(f"singleton_{name}", fresh_counter.fresh()), t, LiquidLiteralBool(True))
         case TypeVar(Name(name)):
-            return RefinedType(Name(f"singleton_{name}", fresh_counter.fresh()), t,
-                               LiquidLiteralBool(True))
+            return RefinedType(Name(f"singleton_{name}", fresh_counter.fresh()), t, LiquidLiteralBool(True))
         case TypeConstructor(Name(name), _):
-            return RefinedType(Name(f"singleton_{name}", fresh_counter.fresh()), t,
-                               LiquidLiteralBool(True))
+            return RefinedType(Name(f"singleton_{name}", fresh_counter.fresh()), t, LiquidLiteralBool(True))
         case _:
             return t
 
@@ -48,8 +46,7 @@ def is_first_order_function(at: AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case BaseType(_) | Top() | RefinedType(
-                _, _, _) | TypeVar(_) | TypeConstructor(_, _):
+            case BaseType(_) | Top() | RefinedType(_, _, _) | TypeVar(_) | TypeConstructor(_, _):
                 pass
             case _:
                 assert False
@@ -66,8 +63,7 @@ def lower_constraint_type(ttype: Type) -> Type:
         case Top():
             return t_unit
         case AbstractionType(name, b, r):
-            return AbstractionType(name, lower_constraint_type(b),
-                                   lower_constraint_type(r))
+            return AbstractionType(name, lower_constraint_type(b), lower_constraint_type(r))
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
@@ -112,7 +108,6 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             if ty1 != ty2:
                 return cfalse
 
-
             new_name: Name = Name(n1.name + n2.name, fresh_counter.fresh())
 
             # Performs substition on t2 to have the same name of t1
@@ -120,8 +115,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             r1_ = substitution_in_liquid(r1, LiquidVar(new_name), n1)
             lowert = lower_constraint_type(ty1)
             assert isinstance(lowert, BaseType)
-            rconstraint = Implication(new_name, lowert, r1_,
-                                      LiquidConstraint(r2_))
+            rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_))
 
             return rconstraint
         case TypePolymorphism(_, _, _), _:

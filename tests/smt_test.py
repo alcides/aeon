@@ -12,7 +12,7 @@ from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
-from aeon.sugar.ast_helpers import st_int
+from aeon.sugar.ast_helpers import st_int, st_top
 from aeon.utils.name import Name
 
 name_a = Name("a", 102)
@@ -22,10 +22,12 @@ example = Implication(
     name_x,
     t_int,
     LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidLiteralInt(3)]),
-    LiquidConstraint(LiquidApp(
-        Name("==", 0),
-        [LiquidVar(name_x), LiquidLiteralInt(3)],
-    ), ),
+    LiquidConstraint(
+        LiquidApp(
+            Name("==", 0),
+            [LiquidVar(name_x), LiquidLiteralInt(3)],
+        ),
+    ),
 )
 
 
@@ -41,10 +43,12 @@ example2 = Implication(
         name_y,
         BaseType(name_a),
         LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidVar(name_y)]),
-        LiquidConstraint(LiquidApp(
-            Name("==", 0),
-            [LiquidVar(name_x), LiquidVar(name_y)],
-        ), ),
+        LiquidConstraint(
+            LiquidApp(
+                Name("==", 0),
+                [LiquidVar(name_x), LiquidVar(name_y)],
+            ),
+        ),
     ),
 )
 
@@ -67,7 +71,7 @@ def main (x:Int) : Unit {
     one = List_append empty 3;
     print(one)
 }"""
-    check_compile(aeon_code, SBaseType("Top"))
+    check_compile(aeon_code, st_top)
 
 
 def test_uninterpreted2() -> None:
@@ -82,12 +86,11 @@ def main (x:Int) : Unit {
     one = List_append empty 3;
     print(one)
 }"""
-    check_compile(aeon_code, SBaseType("Top"))
+    check_compile(aeon_code, st_top)
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType("y", SBaseType("Bool"),
-                                  parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType("y", SBaseType("Bool"), parse_expression("y == (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",
