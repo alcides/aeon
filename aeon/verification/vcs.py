@@ -52,6 +52,9 @@ class Implication(Constraint):
     pred: LiquidTerm
     seq: Constraint
 
+    def __post_init__(self):
+        assert isinstance(self.name, Name)
+
     def __repr__(self):
         return f"∀{self.name}:{self.base}, ({self.pred}) => {self.seq}"
 

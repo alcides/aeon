@@ -20,7 +20,7 @@ def test_polytypes_e2e():
     assert check_compile(source, st_top)
 
 
-def test_polytypes_link():
+def test_polytypes_link1():
     source = """
             type List a;
             def k : (List Int) = native "1";
@@ -31,6 +31,8 @@ def test_polytypes_link():
         """
     assert check_compile(source, st_top)
 
+
+def test_polytypes_link2():
     source = """
             type List a;
             def k : (List Int) = native "1";

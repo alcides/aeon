@@ -178,7 +178,7 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, BaseType | TypeVar]
         available_vars = []
 
     match normalize(ty):
-        case SBaseType("Top"):
+        case SBaseType(Name("Top", 0)):
             return Top()
         case SBaseType(name):
             return BaseType(name)
@@ -195,7 +195,12 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, BaseType | TypeVar]
             return AbstractionType(nname, at, type_to_core(nrty, available_vars))
         case STypePolymorphism(name, kind, rty):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars))
-        case SRefinedType(name, ity, ref):
+        case SRefinedType(oname, ity, ref):
+            if oname.id == -1:
+                name = Name(oname.name, fresh_counter.fresh())
+                ref = substitution_sterm_in_sterm(ref, SVar(name), oname)
+            else:
+                name = oname
             basety = type_to_core(ity, available_vars)
             assert isinstance(basety, BaseType) or isinstance(basety, TypeVar) or isinstance(basety, TypeConstructor)
             return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]))

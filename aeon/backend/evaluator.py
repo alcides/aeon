@@ -27,6 +27,7 @@ class EvaluationContext:
             self.variables = {}
 
     def with_var(self, name: Name, value: Any):
+        assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
         return EvaluationContext(v)

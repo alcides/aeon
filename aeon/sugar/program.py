@@ -226,6 +226,12 @@ class Definition(Node):
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)
 
+    def __post_init__(self):
+        assert isinstance(self.name, Name)
+
+        for aname, atype in self.args:
+            assert isinstance(aname, Name)
+
     def __repr__(self):
         if not self.args:
             return f"def {self.name} : {self.type} = {self.body};"

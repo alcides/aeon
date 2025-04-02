@@ -44,7 +44,7 @@ class ElaborationTypingContext:
         for entry in self.entries[::-1]:
             match entry:
                 case ElabVariableBinder(bname, ty):
-                    if bname == name:
+                    if bname.name == name.name:
                         return ty
         return None
 

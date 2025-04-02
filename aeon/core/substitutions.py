@@ -45,10 +45,9 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
                 return rep
             else:
                 return t
-        case RefinedType(name, ty, ref):
-            # Note: A previous version of this code would inline recursive refinedtypes.
+        case RefinedType(rname, ty, ref):
             assert not isinstance(ty, RefinedType)
-            return RefinedType(name, rec(ty), ref)
+            return RefinedType(rname, rec(ty), ref)
         case AbstractionType(a, aty, rty):
             return AbstractionType(a, rec(aty), rec(rty))
         case TypePolymorphism(pname, kind, body):
@@ -56,6 +55,8 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
                 return t
             else:
                 return TypePolymorphism(pname, kind, rec(body))
+        case TypeConstructor(cname, args):
+            return TypeConstructor(cname, [rec(arg) for arg in args])
         case _:
             assert False, f"type {t} ({type(t)}) not allows in substition."
 
@@ -100,37 +101,31 @@ def substitution_in_liquid(
     name: Name,
 ) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
-    assert isinstance(rep, LiquidTerm)
-    if isinstance(
-        t,
-        (
-            LiquidLiteralInt,
-            LiquidLiteralBool,
-            LiquidLiteralString,
-            LiquidLiteralFloat,
-        ),
-    ):
-        return t
-    elif isinstance(t, LiquidVar):
-        if t.name == name:
-            return rep
-        else:
+    match t:
+        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
             return t
-    elif isinstance(t, LiquidApp):
-        return LiquidApp(
-            t.fun,
-            [substitution_in_liquid(a, rep, name) for a in t.args],
-        )
-    elif isinstance(t, LiquidHornApplication):
-        if t.name == name:
-            return rep
-        else:
-            return LiquidHornApplication(
-                t.name,
-                [(substitution_in_liquid(a, rep, name), t) for (a, t) in t.argtypes],
-            )
-    else:
-        assert False, f"{t} not supported"
+        case LiquidVar(tname):
+            if tname == name:
+                return rep
+            else:
+                return t
+        case LiquidApp(aname, args):
+            if aname == name:
+                assert isinstance(rep, LiquidVar)
+                nname = rep.name
+            else:
+                nname = aname
+            return LiquidApp(nname, [substitution_in_liquid(a, rep, name) for a in args])
+
+        case LiquidHornApplication(aname, argtypes):
+            if aname == name:
+                assert isinstance(rep, LiquidVar)
+                nname = rep.name
+            else:
+                nname = aname
+            return LiquidHornApplication(aname, [(substitution_in_liquid(a, rep, name), t) for (a, t) in argtypes])
+        case _:
+            assert False, f"{t} ({type(t)}) not allowed in substitution."
 
 
 def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
@@ -308,6 +303,7 @@ def liquefy_ann(t: Annotation) -> LiquidTerm | None:
 
 # patterm matching term
 def liquefy(rep: Term) -> LiquidTerm | None:
+    assert isinstance(rep, Term), "not term"
     if isinstance(rep, Literal) and rep.type == t_int:
         assert isinstance(rep.value, int)
         return LiquidLiteralInt(rep.value)

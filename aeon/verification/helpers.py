@@ -98,12 +98,12 @@ def is_used(n: Name, c: Constraint) -> bool:
 
 def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
     """Simplifies a liquid term by reducing it."""
-    if isinstance(expr, LiquidApp) and expr.fun == "&&":
+    if isinstance(expr, LiquidApp) and expr.fun == Name("&&", 0):
         if expr.args[0] == LiquidLiteralBool(True):
             return simplify_expr(expr.args[1])
         elif expr.args[1] == LiquidLiteralBool(True):
             return simplify_expr(expr.args[0])
-    if isinstance(expr, LiquidApp) and expr.fun == "||":
+    if isinstance(expr, LiquidApp) and expr.fun == Name("||", 0):
         if expr.args[0] == LiquidLiteralBool(False):
             return simplify_expr(expr.args[1])
         elif expr.args[1] == LiquidLiteralBool(False):
@@ -153,7 +153,7 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
 
 def used_variables(c: LiquidTerm) -> set[Name]:
     """Returns all non-function variables used in an expression."""
-    return {x for x in liquid_free_vars(c) if x not in base_functions}
+    return {x for x in liquid_free_vars(c) if x.name not in base_functions}
 
 
 def simplify_constraint(c: Constraint) -> Constraint:
@@ -177,9 +177,9 @@ def simplify_constraint(c: Constraint) -> Constraint:
         # Preds are usually built as in (cond) && ( this = other)
         if (
             isinstance(c.pred, LiquidApp)
-            and c.pred.fun == "&&"
+            and c.pred.fun == Name("&&", 0)
             and isinstance(c.pred.args[1], LiquidApp)
-            and c.pred.args[1].fun == "=="
+            and c.pred.args[1].fun == Name("==", 0)
             and c.pred.args[1].args[0] == LiquidVar(c.name)
         ):
             rep = c.pred.args[1].args[1]

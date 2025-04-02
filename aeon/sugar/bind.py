@@ -158,8 +158,8 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             nname, nsubs = check_name(name, nsubs)
             foralls.append((nname, kind))
         args = []
-        for name, ty in df.args:
-            nname, nsubs = check_name(name, nsubs)
+        for aname, ty in df.args:
+            nname, nsubs = check_name(aname, nsubs)
             ty = bind_stype(ty, nsubs)
             args.append((nname, ty))
         ntype = bind_stype(df.type, nsubs)
