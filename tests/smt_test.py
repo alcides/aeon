@@ -90,13 +90,13 @@ def main (x:Int) : Unit {
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType("y", st_bool, parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType(Name("y"), st_bool, parse_expression("y == (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",
         expected_stype,
         extra_vars={
-            "x": st_int,
-            "z": st_int,
+            Name("x"): st_int,
+            Name("z"): st_int,
         },
     )

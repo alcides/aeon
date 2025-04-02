@@ -104,7 +104,7 @@ def elaborate_foralls(e: STerm) -> STerm:
 
 def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
     match (sub, sup):
-        case (_, SBaseType("Top")):
+        case (_, SBaseType(Name("Top", 0))):
             return []
         case (SBaseType(subn), SBaseType(supn)):
             if subn != supn:

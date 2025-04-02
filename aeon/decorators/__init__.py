@@ -43,9 +43,10 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
         metadata = {}
     total_extra = []
     for decorator in fun.decorators:
-        if decorator.name not in decorators_environment:
-            raise Exception(f"Unknown decorator named {decorator.name}, in function {fun.name}.")
-        decorator_processor = decorators_environment[decorator.name.name]
+        dname = decorator.name.name
+        if dname not in decorators_environment:
+            raise Exception(f"Unknown decorator named {dname}, in function {fun.name}.")
+        decorator_processor = decorators_environment[dname]
         (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
         total_extra.extend(extra)
     return fun, total_extra, metadata

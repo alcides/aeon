@@ -53,8 +53,8 @@ def smt_base_type(ty: Type) -> str | None:
 def fresh(context: TypingContext, ty: Type) -> Type:
     match ty:
         case RefinedType(name, ity, LiquidHornApplication(_, _)):
-            vname = Name("v", fresh_counter.fresh())
-            hole_name = Name("k", fresh_counter.fresh())
+            vname = Name("√", fresh_counter.fresh())
+            hole_name = Name("hole", fresh_counter.fresh())
 
             # TODO Poly: check if t should be in LiquidTypes
             return RefinedType(
@@ -162,7 +162,7 @@ def wellformed_horn(predicate: LiquidTerm) -> bool:
 
 
 def mk_arg(i: int) -> Name:
-    return Name("_{i}", fresh_counter.fresh())
+    return Name(f"arg_{i}", 0)
 
 
 def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]], arity: int):
@@ -194,7 +194,6 @@ def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidAp
                 continue
             arg_list = list(args)
             app = LiquidApp(fname, arg_list)
-
             if check_liquid(ctx, app, t_bool):
                 yield app
 
@@ -236,11 +235,15 @@ def build_forall_implication(
 ) -> Constraint:
     if not vs:
         return c
+    else:
+        for name, _ in vs:
+            assert isinstance(name, Name)
     lastEl = vs[-1]
     assert isinstance(lastEl[1], BaseType)
     cf = Implication(lastEl[0], lastEl[1], p, c)
     for n, t in vs[-2::-1]:
         assert isinstance(t, BaseType)
+        assert isinstance(n, Name)
         cf = Implication(n, t, LiquidLiteralBool(True), cf)
     return cf
 

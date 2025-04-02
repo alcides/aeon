@@ -20,18 +20,19 @@ from aeon.utils.name import Name
 
 def test_fresh():
     x_name = Name("x")
+    v_name = Name("v")
+    q_name = Name("?")
     ctx = build_context({x_name: t_int})
 
-    t = RefinedType("v", t_int, LiquidHornApplication("?", argtypes=[]))
+    t = RefinedType(v_name, t_int, LiquidHornApplication(q_name, argtypes=[]))
     r = fresh(ctx, t)
-    assert r == RefinedType(
-        "v_fresh_1",
-        t_int,
-        LiquidHornApplication(
-            "fresh_1",
-            [(parse_liquid("x"), t_int), (parse_liquid("v_fresh_1"), t_int)],
-        ),
-    )
+
+    assert isinstance(r, RefinedType)
+    assert r.type == t_int
+    assert isinstance(r.refinement, LiquidHornApplication)
+
+    assert r.refinement.argtypes == [(LiquidVar(x_name), t_int), (LiquidVar(r.name), t_int)]
+
     assert wellformed_horn(r.refinement)
 
 
@@ -48,28 +49,32 @@ def test_possible_args2():
 
 
 def test_base_assignment_helper():
+    k = Name("k")
     assign = build_initial_assignment(
-        LiquidConstraint(LiquidHornApplication("k", [(parse_liquid("x"), t_int)])),
+        LiquidConstraint(LiquidHornApplication(k, [(parse_liquid("x"), t_int)])),
     )
-    assert "k" in assign
-    assert len(assign["k"]) == 30
+    print(assign)
+    assert k in assign
+    assert len(assign[k]) == 30
 
 
 def test_base_assignment_helper2():
     assign = build_initial_assignment(
         LiquidConstraint(
-            LiquidHornApplication("k", [(parse_liquid("x"), t_int), (parse_liquid("y"), t_int)]),
+            LiquidHornApplication(Name("k"), [(parse_liquid("x"), t_int), (parse_liquid("y"), t_int)]),
         ),
     )
-    assert "k" in assign
-    assert len(assign["k"]) == 120
+    k = Name("k")
+    assert k in assign
+    assert len(assign[k]) == 120
 
 
 def test_merge_assignments():
+    k = Name("k")
     assign = build_initial_assignment(
         LiquidConstraint(
             LiquidHornApplication(
-                "k",
+                k,
                 [
                     (parse_liquid("x"), t_int),
                     (parse_liquid("y"), t_int),
@@ -78,7 +83,7 @@ def test_merge_assignments():
             ),
         ),
     )
-    t = merge_assignments(assign["k"])
+    t = merge_assignments(assign[k])
     assert isinstance(t, LiquidApp)
 
 

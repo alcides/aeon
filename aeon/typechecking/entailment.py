@@ -22,13 +22,15 @@ from aeon.core.liquid_ops import ops
 
 
 def entailment(ctx: TypingContext, c: Constraint) -> bool:
-    for entry in ctx.entries:
+    for entry in ctx.entries[::-1]:
         match entry:
             case VariableBinder(name, AbstractionType(vname, vtype, rtype)):
                 if name in ops:
                     pass
                 elif is_first_order_function(AbstractionType(vname, vtype, rtype)):
                     c = UninterpretedFunctionDeclaration(name, AbstractionType(vname, vtype, rtype), c)
+                else:
+                    pass
             case VariableBinder(name, TypePolymorphism(_, _, _)):
                 if name in ops:
                     pass
@@ -39,11 +41,9 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)
                 match base:
-                    case BaseType(_):
+                    case BaseType(_) | TypeVar(_):
                         ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                         c = Implication(name, base, ncond, c)
-                    case TypeVar(_):
-                        assert False
                     case _:
                         assert False, f"Unknown base: {base}"
             case TypeBinder(name, _):

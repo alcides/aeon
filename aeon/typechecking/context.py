@@ -62,9 +62,6 @@ class TypingContext:
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
         return TypingContext(self.entries + [TypeBinder(name, kind)])
 
-    def fresh_var(self):
-        assert False, "Replace with fresh_counter"
-
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:

@@ -24,10 +24,16 @@ class SType(ABC):
 class STypeVar(SType):
     name: Name
 
+    def __str__(self):
+        return f"'{self.name}"
+
 
 @dataclass(unsafe_hash=True)
 class SBaseType(SType):
     name: Name
+
+    def __str__(self):
+        return f"{self.name}"
 
 
 @dataclass(unsafe_hash=True)
@@ -36,6 +42,9 @@ class SRefinedType(SType):
     type: SType
     refinement: "STerm"
 
+    def __str__(self):
+        return f"{{{self.name} : {self.type} | {self.refinement} }}"
+
 
 @dataclass(unsafe_hash=True)
 class SAbstractionType(SType):
@@ -43,12 +52,18 @@ class SAbstractionType(SType):
     var_type: SType
     type: SType
 
+    def __str__(self):
+        return f"({self.var_name} : {self.var_type}) -> {self.type}"
+
 
 @dataclass(unsafe_hash=True)
 class STypePolymorphism(SType):
     name: Name
     kind: Kind
     body: SType
+
+    def __str__(self):
+        return f"∀{self.name}:{self.kind}. {self.body}"
 
 
 @dataclass

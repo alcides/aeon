@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from aeon.sugar.equality import term_equality
+
 from aeon.sugar.bind import bind_ectx, bind_sterm
 from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext, build_typing_context
@@ -43,7 +45,7 @@ def test_elaboration_unification():
     v2 = elaborate_remove_unification(ectx, v)
     expected = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
     expected = bind_sterm(expected, subs)
-    assert v2 == expected
+    assert term_equality(v2, expected)
 
 
 def test_luhn():

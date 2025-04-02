@@ -4,14 +4,14 @@ from loguru import logger
 from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.types import LiquidHornApplication, StarKind
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
-from aeon.core.substitutions import liquefy
+from aeon.core.substitutions import liquefy, substitute_vartype
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction
 from aeon.core.terms import Annotation
@@ -188,7 +188,7 @@ def make_binary_app_type(t: Name, ity: BaseType | TypeVar, oty: BaseType | TypeV
 
 
 def prim_op(t: Name) -> Type:
-    match t:
+    match t.name:
         case "%":
             return make_binary_app_type(t, t_int, t_int)
         case "+" | "-" | "*" | "/":
@@ -206,7 +206,7 @@ def prim_op(t: Name) -> Type:
             assert False, f"Unknown selfication of {t}"
 
 
-def rename_liquid_term(refinement, old_name, new_name):
+def rename_liquid_term(refinement: LiquidTerm, old_name: Name, new_name: Name):
     if isinstance(refinement, LiquidVar):
         if refinement.name == old_name:
             return LiquidVar(new_name)
@@ -346,98 +346,70 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     elif isinstance(t, Hole):
         name_a = Name("a", fresh_counter.fresh())
         return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
-    # TODO: add if term
-    # elif isinstance(t, If):
-    #     y = ctx.fresh_var()
-    #     (c0, t0) = synth(ctx, t.cond)
-    #     if not check_type(ctx, t.cond, t_bool):
-    #         raise CouldNotGenerateConstraintException("If condition not boolean")
-    #
-    #     (c1, t1) = synth(ctx, t.then)
-    #     (c2, t2) = synth(ctx, t.otherwise)
-    #     t1 = ensure_refined(t1)
-    #     t2 = ensure_refined(t2)
-    #     assert t1.type == t2.type
-    #     # t1s = substitution_in_liquid(t1.refinement, LiquidVar(y), t1.name)
-    #     # t2s = substitution_in_liquid(t2.refinement, LiquidVar(y), t2.name)
-    #     # print(t1s)
-    #     # print(t2s)
-    #     liquid_term_if = liquefy_if(t)
-    #     print("term----", t)
-    #     print("liquidterm----", liquid_term_if)
-    #     x = Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, liquid_term_if)
-    #     print(x)
-    #     # return Conjunction(c0, Conjunction(c1, c2)), RefinedType(y, t1.type, LiquidApp("||", [t1s, t2s]))
-    #     return x
     else:
         logger.log("SYNTH_TYPE", ("Unhandled:", t))
         logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
-        assert False
+        assert False, f"Unhandled term {t} in synth. Type: {type(t)}"
 
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     try:
+        print(1, ty)
         assert wellformed(ctx, ty)
+        print(2)
     except AssertionError:
         raise TypeNotWellformed(ty)
-    if isinstance(t, Abstraction) and isinstance(
-        ty,
-        AbstractionType,
-    ):  # ??? (\__equal_1__ -> (let _anf_1 = (== _anf_1) in(_anf_1 __equal_1__))) , basetype INT
-        ret = substitution_in_type(ty.type, Var(t.var_name), ty.var_name)
-        c = check(ctx.with_var(t.var_name, ty.var_type), t.body, ret)
-        return implication_constraint(t.var_name, ty.var_type, c)
 
-    elif isinstance(t, Let):
-        (c1, t1) = synth(ctx, t.var_value)
-        nctx: TypingContext = ctx.with_var(t.var_name, t1)
-        c2 = check(nctx, t.body, ty)
-        return Conjunction(c1, implication_constraint(t.var_name, t1, c2))
+    match t, ty:
+        case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
+            ret = substitution_in_type(ret, Var(name), var_name)
+            c = check(ctx.with_var(name, var_type), body, ret)
+            return implication_constraint(name, var_type, c)
+        case Let(name, val, body), _:
+            (c1, t1) = synth(ctx, val)
+            nctx: TypingContext = ctx.with_var(name, t1)
+            c2 = check(nctx, body, ty)
+            return Conjunction(c1, implication_constraint(name, t1, c2))
+        case Rec(var_name, var_type, var_value, body), _:
+            t1 = fresh(ctx, var_type)
+            nrctx: TypingContext = ctx.with_var(var_name, t1)
+            c1 = check(nrctx, var_value, var_type)
+            c2 = check(nrctx, body, ty)
+            c1 = implication_constraint(var_name, t1, c1)
+            c2 = implication_constraint(var_name, t1, c2)
+            return Conjunction(c1, c2)
+        case If(cond, then, otherwise), _:
+            y = Name("_cond", fresh_counter.fresh())
+            liq_cond = liquefy(cond)
+            assert liq_cond is not None
+            if not check_type(ctx, cond, t_bool):
+                raise CouldNotGenerateConstraintException("If condition not boolean")
+            c0 = check(ctx, cond, t_bool)
+            name_pos = Name("branch_pos", fresh_counter.fresh())
+            c1 = implication_constraint(
+                y,
+                RefinedType(name_pos, t_int, liq_cond),
+                check(ctx, then, ty),
+            )
+            name_neg = Name("branch_neg", fresh_counter.fresh())
+            c2 = implication_constraint(
+                y,
+                RefinedType(name_neg, t_int, LiquidApp(Name("!", 0), [liq_cond])),
+                check(ctx, otherwise, ty),
+            )
+            return Conjunction(c0, Conjunction(c1, c2))
+        case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
+            if var_kind == BaseKind() and kind != var_kind:
+                raise WrongKindException(found=var_kind, expected=var_kind, t=t, ty=ty)
+            itype = substitute_vartype(var_body, TypeVar(name), var_name)
+            return check(ctx.with_typevar(name, var_kind), body, itype)
+        case _:
+            (c, s) = synth(ctx, t)
+            cp = sub(ctx, s, ty)
 
-    elif isinstance(t, Rec):
-        t1 = fresh(ctx, t.var_type)
-        nrctx: TypingContext = ctx.with_var(t.var_name, t1)
-        c1 = check(nrctx, t.var_value, t.var_type)
-        c2 = check(nrctx, t.body, ty)
-        c1 = implication_constraint(t.var_name, t1, c1)
-        c2 = implication_constraint(t.var_name, t1, c2)
-        return Conjunction(c1, c2)
-    elif isinstance(t, If):
-        y = ctx.fresh_var()
-        liq_cond = liquefy(t.cond)
-        assert liq_cond is not None
-        if not check_type(ctx, t.cond, t_bool):
-            raise CouldNotGenerateConstraintException("If condition not boolean")
-        c0 = check(ctx, t.cond, t_bool)
-        name_pos = Name("branch_pos", fresh_counter.fresh())
-        c1 = implication_constraint(
-            y,
-            RefinedType(name_pos, t_int, liq_cond),
-            check(ctx, t.then, ty),
-        )
-        name_neg = Name("branch_neg", fresh_counter.fresh())
-        c2 = implication_constraint(
-            y,
-            RefinedType(name_neg, t_int, LiquidApp(Name("!", 0), [liq_cond])),
-            check(ctx, t.otherwise, ty),
-        )
-        return Conjunction(c0, Conjunction(c1, c2))
-    elif isinstance(t, TypeAbstraction) and isinstance(ty, TypePolymorphism):
-        if t.name != ty.name:
-            ty_right = type_substitution(ty, ty.name, TypeVar(t.name))
-        else:
-            ty_right = ty
-        assert isinstance(ty_right, TypePolymorphism)
-        if ty_right.kind == BaseKind() and t.kind != ty_right.kind:
-            raise WrongKindException(found=ty_right.kind, expected=ty_right.kind, t=t, ty=ty)
-        return check(ctx.with_typevar(t.name, t.kind), t.body, ty_right.body)
-    else:
-        (c, s) = synth(ctx, t)
-        cp = sub(ctx, s, ty)
-
-        if cp == LiquidConstraint(LiquidLiteralBool(False)):
-            raise FailedSubtypingException(ctx, t, s, ty)
-        return Conjunction(c, cp)
+            if cp == LiquidConstraint(LiquidLiteralBool(False)):
+                raise FailedSubtypingException(ctx, t, s, ty)
+            return Conjunction(c, cp)
 
 
 def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:

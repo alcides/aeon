@@ -48,6 +48,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
+
     defs, metadata = apply_decorators_in_definitions(defs)
 
     defs = introduce_forall_in_types(defs, type_decls)
@@ -177,11 +178,11 @@ def replace_concrete_types(
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
     match d:
-        case Definition(dname, foralls, args, type, body, _):
-            ntype = type
+        case Definition(dname, foralls, args, rtype, body, _):
+            ntype = rtype
             nbody = body
-            for name, type in reversed(args):
-                ntype = SAbstractionType(name, type, ntype)
+            for name, atype in reversed(args):
+                ntype = SAbstractionType(name, atype, ntype)
                 nbody = SAbstraction(name, nbody)
             for name, kind in reversed(foralls):
                 ntype = STypePolymorphism(name, kind, ntype)

@@ -140,7 +140,7 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
 
 def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
     match t:
-        case Literal(_, _) | Var(_) | Hole(_):
+        case Literal(_, _):
             return t
         case Var(name):
             return Var(apply_subs_name(subs, name))

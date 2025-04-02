@@ -7,7 +7,7 @@ from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteral
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
-from aeon.utils.name import Name
+from aeon.utils.name import fresh_counter, Name
 
 
 class Kind(ABC):
@@ -172,17 +172,17 @@ class LiquidHornApplication(LiquidTerm):
     argtypes: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]]
 
     def __post_init__(self):
-        assert isinstance(self.name, str)
+        assert isinstance(self.name, Name)
         for term, ty in self.argtypes:
             match term:
                 case LiquidLiteralBool(_):
-                    assert ty == BaseType("Bool")
+                    assert ty == BaseType(Name("Bool", 0))
                 case LiquidLiteralInt(_):
-                    assert ty == BaseType("Int")
+                    assert ty == BaseType(Name("Int", 0))
                 case LiquidLiteralFloat(_):
-                    assert ty == BaseType("Float")
+                    assert ty == BaseType(Name("Float", 0))
                 case LiquidLiteralString(_):
-                    assert ty == BaseType("String")
+                    assert ty == BaseType(Name("String", 0))
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
@@ -195,6 +195,9 @@ class LiquidHornApplication(LiquidTerm):
         return hash(self.name)
 
 
+liq_true = LiquidLiteralBool(True)
+
+
 def extract_parts(t: Type) -> tuple[Name, BaseType | TypeVar | TypeConstructor, LiquidTerm]:
     assert (
         isinstance(t, BaseType)
@@ -205,16 +208,11 @@ def extract_parts(t: Type) -> tuple[Name, BaseType | TypeVar | TypeConstructor, 
         )
         or isinstance(t, TypeConstructor)
     )
-    if isinstance(t, TypeVar):
-        return (Name("_"), t_int, LiquidLiteralBool(True))
-    elif isinstance(t, RefinedType):
-        return (t.name, t.type, t.refinement)
-    else:
-        return (
-            Name("_"),
-            t,
-            LiquidLiteralBool(True),
-        )  # None could be a fresh name from context
+    match t:
+        case RefinedType(name, ity, ref):
+            return (name, ity, ref)
+        case _:
+            return (Name("_", fresh_counter.fresh()), t, liq_true)
 
 
 def is_bare(t: Type) -> bool:

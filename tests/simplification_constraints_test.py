@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from aeon.core.bind import bind_lq
+from aeon.utils.name import Name
+
 from aeon.core.liquid import LiquidVar
-from aeon.core.types import BaseType
+from aeon.core.types import t_int
 from aeon.verification.helpers import parse_liquid
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.helpers import simplify_expr
@@ -14,21 +17,21 @@ def test_simplify_liquid_right():
     x = parse_liquid("true && a")
     r = simplify_expr(x)
     assert x != r
-    assert r == LiquidVar("a")
+    assert r == LiquidVar(Name("a"))
 
 
 def test_simplify_liquid_left():
     x = parse_liquid("a && true")
     r = simplify_expr(x)
     assert x != r
-    assert r == LiquidVar("a")
+    assert r == LiquidVar(Name("a"))
 
 
 def test_simplify_liquid_multiple():
     x = parse_liquid("true && (a && true)")
     r = simplify_expr(x)
     assert x != r
-    assert r == LiquidVar("a")
+    assert r == LiquidVar(Name("a"))
 
 
 def test_simplify_constraint():
@@ -40,12 +43,15 @@ def test_simplify_constraint():
 
 
 def test_simplify_constraint_implication():
-    x = Implication("x", BaseType("Int"), parse_liquid("true"), LiquidConstraint(parse_liquid("a > 0")))
+    x = Implication(Name("x"), t_int, parse_liquid("true"), LiquidConstraint(parse_liquid("a > 0")))
     r = simplify_constraint(x)
     assert r == LiquidConstraint(parse_liquid("a > 0"))
 
 
 def test_simplify_constraint_implication2():
-    x = Implication("x", BaseType("Int"), parse_liquid("x > 0"), LiquidConstraint(parse_liquid("a > 0")))
+    x_gt_0 = bind_lq(parse_liquid("x > 0"), [("x", Name("x", 42))])
+    a_gt_0 = bind_lq(parse_liquid("a > 0"), [("a", Name("a", 42))])
+
+    x = Implication(Name("x", 42), t_int, x_gt_0, LiquidConstraint(a_gt_0))
     r = simplify_constraint(x)
-    assert r == LiquidConstraint(parse_liquid("a > 0"))
+    assert r == LiquidConstraint(a_gt_0), f"{r} is not a > 0"

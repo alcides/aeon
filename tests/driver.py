@@ -1,7 +1,7 @@
 from typing import Any
 from aeon.core.terms import Term
 from aeon.core.types import Type
-from aeon.core.bind import bind_ids
+from aeon.core.bind import bind_ctx, bind_ids, bind_term, bind_type
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
@@ -37,7 +37,10 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
-    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+    ty_core = type_to_core(ty)
+    if not check_type(typing_ctx, core_ast_anf, ty_core):
+        print("unic", core_ast_anf)
+        print(ty_core)
         return False
 
     if val:
@@ -58,9 +61,14 @@ def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(elabcontext)
-    typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+
+    # Bind everything, so we also bind type at the same type:
+    typing_ctx, subs = bind_ctx(typing_ctx, [])
+    core_ast = bind_term(core_ast, subs)
+    core_ty = bind_type(type_to_core(ty), subs)
+
     core_ast_anf = ensure_anf(core_ast)
-    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+    if not check_type(typing_ctx, core_ast_anf, core_ty):
         return False
 
     if val is None:
@@ -104,5 +112,5 @@ def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContex
     ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
-    assert check_type(ctx, core_ast_anf, top)
-    return core_ast_anf, ctx, ectx, desugared.metadata
+    assert check_type(typing_ctx, core_ast_anf, top)
+    return core_ast_anf, typing_ctx, ectx, desugared.metadata

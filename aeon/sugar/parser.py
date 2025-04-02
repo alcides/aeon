@@ -235,7 +235,7 @@ class TreeToSugar(Transformer):
         return args
 
     def arg(self, args):
-        return (str(args[0]), args[1])
+        return (Name(args[0]), args[1])
 
     def refined_arg(self, args):
         return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2])

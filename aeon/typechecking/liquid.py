@@ -142,13 +142,26 @@ def type_infer_liquid(
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
-            equalities: dict[Name, BaseType] = {}
+            equalities: dict[Name, BaseType | TypeVar] = {}
+
+            def resolve_type(ty: Type) -> BaseType | TypeVar:
+                match ty:
+                    case BaseType(_):
+                        return ty
+                    case TypeVar(tv):
+                        if tv in equalities:
+                            return resolve_type(equalities[tv])
+                        else:
+                            return ty
+                    case _:
+                        assert False, "unknown stuff"
 
             if len(ftype) != len(args) + 1:
                 raise LiquidTypeCheckException(
                     f"Function application {liq} needs {len(ftype) - 1} arguments, but was passed {len(args)}."
                 )
             type_of_args = []
+
             for arg, exp_t in zip(args, ftype):
                 k = type_infer_liquid(ctx, arg)
                 type_of_args.append(k)
@@ -160,13 +173,15 @@ def type_infer_liquid(
                             )
                     case (BaseType(t), TypeVar(name)):
                         if name not in equalities:
-                            equalities[name] = k
-                        elif equalities[name] != k:
+                            equalities[name] = resolve_type(k)
+                        elif resolve_type(TypeVar(name)) != k:
                             raise LiquidTypeCheckException(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t} ({equalities[name]}), but {k} was found instead."
                             )
                     case (TypeVar(t), TypeVar(name)):
-                        if t != name:
+                        if name not in equalities:
+                            equalities[name] = resolve_type(k)
+                        elif resolve_type(TypeVar(name)) != k:
                             raise LiquidTypeCheckException(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
                             )
@@ -197,11 +212,7 @@ def type_infer_liquid(
                     elif fun_name in ["+", "-", "*", "/"] and not isinstance(first_argument, TypeVar):
                         if not is_base_type_in(first_argument, ["Float", "Int"]):
                             raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
-
-            if isinstance(ftype[-1], TypeVar):
-                return equalities[ftype[-1].name]
-
-            return ftype[-1]
+            return resolve_type(ftype[-1])
         case LiquidHornApplication(_, _):
             return t_bool
         case _:
@@ -225,4 +236,5 @@ def typecheck_liquid(
     liq: LiquidTerm,
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
-    return type_infer_liquid(lower_context(ctx), liq)
+    v = type_infer_liquid(lower_context(ctx), liq)
+    return v

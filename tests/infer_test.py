@@ -82,13 +82,19 @@ def test_fifteen():
 # Branches
 
 
-def test_if():
+def test_if1():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
+
+
+def test_if2():
     assert tt(
         "if x == 1 then 1 else 0",
         "{k:Int | (k == 1) || (k == 0) }",
         {"x": "Int"},
     )
+
+
+def test_if3():
     assert not tt("if x then 1 else 0", "Int", {"x": "Int"})
 
 

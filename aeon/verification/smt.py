@@ -122,13 +122,13 @@ class SMTContext:
     premises: list[LiquidTerm]
 
     def with_sort(self, name: Name) -> SMTContext:
-        return SMTContext(self.sorts + [name.name], self.functions, self.variables, self.premises)
+        return SMTContext(self.sorts + [str(name)], self.functions, self.variables, self.premises)
 
     def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
-        return SMTContext(self.sorts, {**self.functions, name.name: ty}, self.variables, self.premises)
+        return SMTContext(self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises)
 
     def with_var(self, name: Name, ty: BaseType) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, {**self.variables, name.name: ty}, self.premises)
+        return SMTContext(self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises)
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
         return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
@@ -168,12 +168,8 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
                 nseq = rename_constraint(seq, old_name, new_name)
                 return Implication(name, base, npred, nseq)
         case UninterpretedFunctionDeclaration(name, absty, seq):
-            # If it shadows, leave it.
-            if name == new_name:
-                return c
-            else:
-                nseq = rename_constraint(seq, old_name, new_name)
-                return UninterpretedFunctionDeclaration(name, absty, nseq)
+            nseq = rename_constraint(seq, old_name, new_name)
+            return UninterpretedFunctionDeclaration(name, absty, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
 
@@ -204,9 +200,7 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
             yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
-        case UninterpretedFunctionDeclaration(oname, ty, seq):
-            name = Name(oname.name, fresh_counter.fresh())
-            seq = rename_constraint(seq, oname, name)
+        case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             yield from flatten(seq, ctx.with_function(name, ty))
         case _:
@@ -260,15 +254,15 @@ def mk_vars(variables: dict[str, BaseType], sorts: dict[str, SortRef]) -> dict[s
 
 def get_sort(base: Type) -> SortRef:
     match base:
-        case Top():
+        case Top() | BaseType(Name("Top", _)):
             return DeclareSort("Top")
-        case BaseType("Int"):
+        case BaseType(Name("Int", _)):
             return IntSort()
-        case BaseType("Bool"):
+        case BaseType(Name("Bool", _)):
             return BoolSort()
-        case BaseType("Float"):
+        case BaseType(Name("Float", _)):
             return Float64()
-        case BaseType("String"):
+        case BaseType(Name("String", _)):
             return StringSort()
         case BaseType(name):
             return IntSort()
@@ -323,14 +317,18 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
     match base:
         case Top():
             return Const(name, get_sort(base))
-        case BaseType("Int"):
+        case BaseType(Name("Int", _)):
             return Int(name)
-        case BaseType("Bool"):
+        case BaseType(
+            Name(
+                "Bool",
+            )
+        ):
             return Bool(name)
-        case BaseType("Float"):
+        case BaseType(Name("Float", _)):
             fpsort = FPSort(8, 24)
             return FP(name, fpsort)
-        case BaseType("String"):
+        case BaseType(Name("String", _)):
             return String(name)
         case BaseType(_):
             return Int(name)
@@ -360,12 +358,12 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidLiteralString(s):
             return s
         case LiquidVar(name):
-            return variables[str(name.name)]
+            return variables[str(name)]
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
-        case LiquidApp(Name(fun_name, _), args):
-            fun = base_functions.get(fun_name, variables.get(fun_name, None))
-            assert fun is not None, f"Function {fun_name} not found."
+        case LiquidApp(fun_name, args):
+            fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
+            assert fun is not None, f"Function {fun_name} not found." + str(variables)
             args = [translate_liq(a, variables) for a in args]
             try:
                 return fun(*args)
@@ -397,7 +395,6 @@ def translate(
     sorts = mk_sorts(c.sorts)
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
-
     e1 = translate_liq(c.premise, variables | functions)
     e2 = translate_liq(c.conclusion, variables | functions)
     if isinstance(e1, bool) and isinstance(e2, bool):

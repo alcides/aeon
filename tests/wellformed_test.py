@@ -64,3 +64,10 @@ def test_poly():
         TypePolymorphism(a, StarKind(), TypeVar(a)),
         BaseKind(),
     )
+
+
+def test_refinement_poly_binder():
+    assert wf_check(
+        built_std_context().with_typevar(Name("a"), BaseKind()),
+        parse_type("(x:a) -> {z:a | x == z}"),
+    )
