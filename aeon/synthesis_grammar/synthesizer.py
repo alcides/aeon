@@ -61,10 +61,9 @@ class SynthesisError(Exception):
     pass
 
 
-# TODO: refactor
-MINIMIZE_OBJECTIVE = True
+MINIMIZE_OBJECTIVE = True  # default value
 # TODO remove this if else statement if we invert the result of the maximize decorators
-ERROR_NUMBER = (sys.maxsize - 1) if MINIMIZE_OBJECTIVE else -(sys.maxsize - 1)
+ERROR_NUMBER = (sys.maxsize - 1)  # default value
 ERROR_FITNESS = ERROR_NUMBER
 TIMEOUT_DURATION: int = 60  # seconds
 
@@ -202,7 +201,6 @@ def set_problem_type_and_error_fitness(metadata, used_fitness_decorators):
     ERROR_NUMBER = metadata["error_fitness"].value if "error_fitness" in fun_decorators else ERROR_NUMBER
 
     if is_multiobjective(used_fitness_decorators):
-        # TODO ver melhor
         ERROR_FITNESS = (
             [ERROR_NUMBER] * metadata["objective_number"].value if "objective_number" in fun_decorators else [
                 ERROR_NUMBER]
@@ -215,12 +213,10 @@ def set_problem_type_and_error_fitness(metadata, used_fitness_decorators):
 
 def get_target_fitness(metadata, problem_type):
     # FIXME: TargetMultiFitness is not supported yet! Only TargetMultiSameFitness is supported
-
-    minimize = metadata.get("minimize", False) or metadata.get("multi_minimize", False)
-    target_fitness = 0 if minimize else (sys.maxsize - 1)
+    target_fitness = 0 if MINIMIZE_OBJECTIVE else (sys.maxsize - 1)
     if problem_type == MultiObjectiveProblem and "objective_number" in metadata:
         target_fitness = [target_fitness] * metadata["objective_number"].value
-    return target_fitness, minimize
+    return target_fitness
 
 
 def get_function_objectives(used_fitness_decorators, fun_metadata) -> list[Definition]:
@@ -249,7 +245,7 @@ def problem_for_fitness_function(
 
         fitness_function = create_evaluator(ctx, ectx, term, objectives_list, hole_names)
 
-        target_fitness, minimize = get_target_fitness(fun_metadata, problem_type)
+        target_fitness = get_target_fitness(fun_metadata, problem_type)
 
         return problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), target_fitness
     else:
