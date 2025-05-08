@@ -84,9 +84,11 @@ def get_holes_info(
             return hs1 | hs2
         case Rec(var_name=vname, var_type=vtype, var_value=value, body=body):
             vtype = vtype if refined_types else refined_to_unrefined_type(vtype)
-            ctx = ctx.with_var(vname, vtype)
-            hs1 = get_holes_info(ctx, value, vtype, targets, refined_types)
-            hs2 = get_holes_info(ctx, body, ty, targets, refined_types)
+            if isinstance(vtype, AbstractionType) or isinstance(vtype, TypePolymorphism):
+                hs1 = get_holes_info(ctx.with_var(vname, vtype), value, vtype, targets, refined_types)
+            else:
+                hs1 = get_holes_info(ctx, value, vtype, targets, refined_types)
+            hs2 = get_holes_info(ctx.with_var(vname, vtype), body, ty, targets, refined_types)
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):
             _, bty = synth(ctx, body)

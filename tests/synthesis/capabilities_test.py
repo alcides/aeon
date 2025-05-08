@@ -2,6 +2,7 @@ import pytest
 
 from aeon.core.terms import Application, Literal, Term, Var
 from aeon.core.types import top, t_bool, t_int, t_float, t_string
+from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
 from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
 from aeon.typechecking.typeinfer import check_type
 from tests.driver import check_and_return_core
@@ -12,15 +13,18 @@ def synthesis_and_return(code):
     synth_config = gengy_default_config
     synth_config["timer_limit"] = 0.25
 
-    hole_name = "hole"
-
     term, ctx, ectx, metadata = check_and_return_core(code)
     assert check_type(ctx, term, top)
 
-    _, holes = synthesize(
-        ctx, ectx, term, [("synth", [hole_name])], metadata, synth_config=synth_config, refined_grammar=True
+    incomplete_functions = incomplete_functions_and_holes(
+        ctx,
+        term,
     )
-    return holes[hole_name], ctx
+
+    _, holes = synthesize(
+        ctx, ectx, term, incomplete_functions, metadata, synth_config=synth_config, refined_grammar=True
+    )
+    return holes[list(holes.keys())[0]], ctx
 
 
 @pytest.mark.parametrize("ty", [t_bool, t_int, t_float, t_string])
@@ -37,7 +41,12 @@ def test_e2e_synthesis_var():
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
-    assert t == Var(Name("a"))
+
+    match t:
+        case Var(Name("a", _)):
+            assert True
+        case _:
+            assert False
 
 
 def test_e2e_synthesis_abs():
@@ -60,7 +69,7 @@ def test_e2e_synthesis_app():
             assert False
 
 
-def test_e2e_synthesis_ref():
+def test_e2e_synthesis_ref1():
     code = """def synth : {x:Int | x == 3} = ?hole;"""
     t, _ = synthesis_and_return(code)
 

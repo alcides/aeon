@@ -326,6 +326,8 @@ def create_grammar(holes: dict[Name, tuple[Type, TypingContext]], fun_name: Name
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
+    print("CONTEXT", ctx)
+
     grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name, metadata)
     g = extract_grammar(grammar_nodes, starting_node)
     g = g.usable_grammar()
@@ -483,6 +485,7 @@ def synthesize_single_function(
     ui: SynthesisUI = SynthesisUI(),
 ) -> Tuple[Term, dict[Name, Term]]:
     # Step 1 Create a Single or Multi-Objective Problem instance.
+
     problem, target_fitness = problem_for_fitness_function(
         ctx,
         ectx,
@@ -524,8 +527,6 @@ def synthesize(
     """Synthesizes code for multiple functions, each with multiple holes."""
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_grammar)
-    assert len(program_holes) == len(targets), "No support for function with more than one hole"
-
     results = {}
 
     for name, holes_names in targets:
