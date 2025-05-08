@@ -47,7 +47,13 @@ def is_native_var(fun: Term):
 
 
 def is_native_import(fun: Term):
-    return isinstance(fun, Var) and fun.name == "native_import"
+    match fun:
+        case TypeApplication(t, _):
+            return is_native_import(t)
+        case Var(Name("native_import", _)):
+            return True
+        case _:
+            return False
 
 
 # pattern match term
@@ -64,7 +70,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             argv = eval(arg, ctx)
             if is_native_var(fun):
                 assert isinstance(argv, str)
-                e = real_eval(argv, {str(name): v for name, v in ctx.variables.items()})
+
+                python_ctx = {str(name): v for name, v in globals().items()}
+                python_ctx.update({str(name.name): v for name, v in ctx.variables.items()})
+                e = real_eval(argv, python_ctx)
             else:
                 e = f(argv)
             if is_native_import(fun):
@@ -94,7 +103,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Annotation(expr, _):
             return eval(expr, ctx)
         case Hole(name):
-            args = ", ".join([str(n) for n in ctx.variables])
+            args = ", ".join([str(n.name) for n in ctx.variables])
             print(f"Context ({args})")
             h = input(f"Enter value for hole {t} in Python: ")
             return real_eval(h, {str(name): v for name, v in ctx.variables.items()})

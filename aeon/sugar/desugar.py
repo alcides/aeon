@@ -82,9 +82,11 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
 
 
 def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
-    if "main" in [d.name for d in p.definitions]:
-        return SApplication(SVar(Name("main", 0)), SLiteral(1, type=st_int))
-    elif is_main_hole:
+    for d in p.definitions:
+        match d.name:
+            case Name("main", id):
+                return SApplication(SVar(Name("main", id)), SLiteral(1, type=st_int))
+    if is_main_hole:
         return SHole(Name("main", 0))
     else:
         return SLiteral(1, st_int)
