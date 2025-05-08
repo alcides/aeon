@@ -42,6 +42,10 @@ def type_equality(a: SType, b: SType, rename_left: dict[Name, Name] | None = Non
             return aname == bname and all([type_equality(a, b, rename_left) for a, b in zip(a1, b1)])
         case STypePolymorphism(aname, akind, abody), STypePolymorphism(bname, bkind, bbody):
             return akind == bkind and type_equality(abody, bbody, rename_left | {aname: bname})
+        case STypeApplication(ab, at), STypeApplication(bb, bt):
+            return term_equality(ab, bb, rename_left) and type_equality(at, bt, rename_left)
+        case STypeAbstraction(aname, akind, abody), STypeAbstraction(bname, bkind, bbody):
+            return akind == bkind and term_equality(abody, bbody, rename_left | {aname: bname})
         case _:
             return False
 

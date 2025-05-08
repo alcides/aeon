@@ -354,7 +354,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     try:
+        print(1, ty)
         assert wellformed(ctx, ty)
+        print(2)
     except AssertionError:
         raise TypeNotWellformed(ty)
 
