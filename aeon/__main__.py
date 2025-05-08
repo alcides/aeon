@@ -6,12 +6,11 @@ import sys
 import argparse
 from typing import Any
 
-from sugar import bind
-
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
-from core.bind import bind_ids
+from aeon.core.bind import bind_ids
+from aeon.sugar.bind import bind
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
