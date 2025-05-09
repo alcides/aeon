@@ -22,6 +22,9 @@ def nf(t: Term) -> Term:
         case Application(Abstraction(var_name, body), arg):
             return substitution(body, arg, var_name)
 
+        case Application(Annotation(Abstraction(var_name, body), ty), arg):
+            return substitution(body, arg, var_name)
+
         case TypeApplication(TypeAbstraction(vty, kind, body), ty):
             return substitute_vartype_in_term(body, ty, vty)
 
