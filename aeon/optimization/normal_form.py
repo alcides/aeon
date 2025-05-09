@@ -17,11 +17,10 @@ from aeon.core.types import t_bool, t_int
 from aeon.utils.name import Name
 
 
-def normal_form(t: Term) -> Term:
-    nf = normal_form
+def nf(t: Term) -> Term:
     match t:
         case Application(Abstraction(var_name, body), arg):
-            return nf(substitution(body, arg, var_name))
+            return substitution(body, arg, var_name)
 
         case TypeApplication(TypeAbstraction(vty, kind, body), ty):
             return substitute_vartype_in_term(body, ty, vty)
@@ -145,9 +144,13 @@ def normal_form(t: Term) -> Term:
             assert False, f"No case for {t} ({type(t)})"
 
 
-def optimize(t: Term) -> Term:
+def normal_form(t: Term) -> Term:
     while True:
-        nt = normal_form(t)
+        nt = nf(t)
         if t == nt:
             return nt
         t = nt
+
+
+def optimize(t: Term) -> Term:
+    return normal_form(t)

@@ -21,10 +21,6 @@ from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_string
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
@@ -240,36 +236,58 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
             assert False, f"{t} not supported."
 
 
+def inline_lets(t: Term) -> Term:
+    """Inlines all lets in the term t."""
+    match t:
+        case Let(var_name, var_value, body):
+            return inline_lets(substitution(body, var_value, var_name))
+        case Rec(var_name, _, var_value, body):
+            return inline_lets(substitution(body, var_value, var_name))
+        case Application(Annotation(Abstraction(var_name, body), _), arg):
+            return inline_lets(substitution(body, arg, var_name))
+        case Application(Abstraction(var_name, body), arg):
+            return inline_lets(substitution(body, arg, var_name))
+        case Application(fun, arg):
+            return Application(inline_lets(fun), inline_lets(arg))
+        case Abstraction(var_name, body):
+            return Abstraction(var_name, inline_lets(body))
+        case If(cond, then, otherwise):
+            return If(inline_lets(cond), inline_lets(then), inline_lets(otherwise))
+        case TypeApplication(TypeAbstraction(name, _, body), ty):
+            return inline_lets(substitute_vartype_in_term(body, ty, name))
+        case TypeApplication(expr, ty):
+            return TypeApplication(inline_lets(expr), ty)
+        case _:
+            return t
+
+
+def uncurry(t: Term, args: list[LiquidTerm]) -> LiquidTerm | None:
+    """Uncurries the term t."""
+    match t:
+        case TypeApplication(body, _):
+            return uncurry(body, args)
+        case Application(fun, arg):
+            liquid_arg = liquefy(arg)
+            if liquid_arg is None:
+                return None
+            else:
+                return uncurry(fun, [liquid_arg] + args)
+        case _:
+            liquid_t = liquefy(t)
+            match liquid_t:
+                case None:
+                    return None
+                case LiquidVar(name):
+                    return LiquidApp(name, args)
+                case _:
+                    assert False, f"Unknown term {t} {type(t)} in uncurry: {liquid_t}"
+
+
 def liquefy_app(app: Application) -> LiquidApp | None:
-    arg = liquefy(app.arg)
-    fun = app.fun
-    while isinstance(fun, TypeApplication):
-        fun = fun.body
-    if not arg:
-        return None
-    if isinstance(fun, Var):
-        return LiquidApp(fun.name, [arg])
-    elif isinstance(fun, Application):
-        liquid_pseudo_fun = liquefy_app(fun)
-        if liquid_pseudo_fun:
-            return LiquidApp(
-                liquid_pseudo_fun.fun,
-                liquid_pseudo_fun.args + [arg],
-            )
-        return None
-    elif isinstance(fun, Let):
-        return liquefy_app(
-            Application(
-                substitution(
-                    fun.body,
-                    fun.var_value,
-                    fun.var_name,
-                ),
-                app.arg,
-            ),
-        )
-    else:
-        raise Exception(f"{app} is not a valid predicate.")
+    assert isinstance(app, Application), "not application"
+    lapp = uncurry(app, [])
+    assert isinstance(lapp, LiquidApp) or lapp is None
+    return lapp
 
 
 def liquefy_rec(t: Rec) -> LiquidTerm | None:
@@ -303,33 +321,41 @@ def liquefy_ann(t: Annotation) -> LiquidTerm | None:
 
 # patterm matching term
 def liquefy(rep: Term) -> LiquidTerm | None:
+    """Converts a term to a liquid term."""
+
+    rep = inline_lets(rep)
+
     assert isinstance(rep, Term), "not term"
-    if isinstance(rep, Literal) and rep.type == t_int:
-        assert isinstance(rep.value, int)
-        return LiquidLiteralInt(rep.value)
-    elif isinstance(rep, Literal) and rep.type == t_float:
-        assert isinstance(rep.value, float)
-        return LiquidLiteralFloat(rep.value)
-    elif isinstance(rep, Literal) and rep.type == t_bool:
-        assert isinstance(rep.value, bool)
-        return LiquidLiteralBool(rep.value)
-    elif isinstance(rep, Literal) and rep.type == t_string:
-        assert isinstance(rep.value, str)
-        return LiquidLiteralString(rep.value)
-    elif isinstance(rep, Application):
-        return liquefy_app(rep)
-    elif isinstance(rep, TypeApplication):
-        return liquefy(rep.body)
-    elif isinstance(rep, Var):
-        return LiquidVar(rep.name)
-    elif isinstance(rep, Hole):
-        return LiquidHornApplication(rep.name, argtypes=[])
-    elif isinstance(rep, Let):
-        return liquefy_let(rep)
-    elif isinstance(rep, Rec):
-        return liquefy_rec(rep)
-    elif isinstance(rep, If):
-        return liquefy_if(rep)
-    elif isinstance(rep, Annotation):
-        return liquefy_ann(rep)
-    raise Exception(f"Unable to liquefy {rep} {type(rep)}")
+    match rep:
+        case Literal(val, BaseType(Name("Int", 0))):
+            assert isinstance(val, int)
+            return LiquidLiteralInt(val)
+        case Literal(val, BaseType(Name("Float", 0))):
+            assert isinstance(val, float)
+            return LiquidLiteralFloat(val)
+        case Literal(val, BaseType(Name("Bool", 0))):
+            assert isinstance(val, bool)
+            return LiquidLiteralBool(val)
+        case Literal(val, BaseType(Name("String", 0))):
+            assert isinstance(val, str)
+            return LiquidLiteralString(val)
+        case Application(_, _):
+            return liquefy_app(rep)
+        case TypeAbstraction(_, _, body):
+            return liquefy(body)
+        case Var(name):
+            return LiquidVar(name)
+        case Hole(name):
+            return LiquidHornApplication(name, argtypes=[])
+        case Let(_, _, _):
+            return liquefy_let(rep)
+        case Rec(_, _, _, _):
+            return liquefy_rec(rep)
+        case If(_, _, _):
+            return liquefy_if(rep)
+        case Annotation(_, _):
+            return liquefy_ann(rep)
+        case Abstraction(_, _):
+            return None
+        case _:
+            raise Exception(f"Unable to liquefy {rep} {type(rep)}")

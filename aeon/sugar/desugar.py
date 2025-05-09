@@ -109,7 +109,7 @@ def handle_imports(
                 import_p.type_decls,
             )
         if imp.func:
-            import_p_definitions = [d for d in import_p_definitions if str(d.name) == imp.func]
+            import_p_definitions = [d for d in import_p_definitions if str(d.name.name) == imp.func]
 
         defs = defs_recursive + import_p_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls

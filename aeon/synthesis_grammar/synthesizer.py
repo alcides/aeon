@@ -12,7 +12,7 @@ from typing import Type as TypingType
 
 import configparser
 from geneticengine.algorithms.gp.cooperativegp import StandardInitializer
-from geneticengine.representations.tree.initializations import ProgressivelyTerminalDecider
+from geneticengine.representations.tree.initializations import MaxDepthDecider
 import multiprocess as mp
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
@@ -326,8 +326,6 @@ def create_grammar(holes: dict[Name, tuple[Type, TypingContext]], fun_name: Name
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]
 
-    print("CONTEXT", ctx)
-
     grammar_nodes, starting_node = get_grammar_components(ctx, ty, fun_name, metadata)
     g = extract_grammar(grammar_nodes, starting_node)
     g = g.usable_grammar()
@@ -393,7 +391,7 @@ def geneticengine_synthesis(
     assert isinstance(config_name, str)
     assert isinstance(seed, int)
     representation: type = representations[representation_name](
-        grammar, decider=ProgressivelyTerminalDecider(NativeRandomSource(seed), grammar)
+        grammar, decider=MaxDepthDecider(NativeRandomSource(seed), grammar, max_depth=5)
     )
 
     tracker: ProgressTracker
@@ -503,11 +501,15 @@ def synthesize_single_function(
     # TODO Synthesis: This function (and its parent) should be parameterized with the type of search procedure
     #  to use (e.g., Random Search, Genetic Programming, others...)
 
-    # Step 3 Synthesize an element
-    synthesized_element = geneticengine_synthesis(
-        ctx, ectx, grammar, problem, filename, hole_name, target_fitness, synth_config, ui
-    )
-    # synthesized_element = random_search_synthesis(grammar, problem)
+    try:
+        # Step 3 Synthesize an element
+        synthesized_element = geneticengine_synthesis(
+            ctx, ectx, grammar, problem, filename, hole_name, target_fitness, synth_config, ui
+        )
+        # synthesized_element = random_search_synthesis(grammar, problem)
+
+    except RecursionError as e:
+        raise SynthesisError(f"Recursion error: {e}")
 
     # Step 4 Substitute the synthesized element in the original program and return it.
     return substitution(term, synthesized_element, hole_name), {hole_name: synthesized_element}
@@ -545,4 +547,4 @@ def synthesize(
             term = holes_mapping[name]
             results[name] = optimize(term)
 
-    return term, results
+    return optimize(term), results

@@ -87,6 +87,9 @@ class Abstraction(Term):
     var_name: Name
     body: Term
 
+    def __post_init__(self):
+        assert isinstance(self.var_name, Name)
+
     def __repr__(self):
         return f"(\\{self.var_name} -> {self.body})"
 

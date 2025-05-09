@@ -34,6 +34,8 @@ from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
 from aeon.utils.name import Name
 
+from aeon.synthesis_grammar.synthesizer import SynthesisError
+
 sys.setrecursionlimit(10000)
 
 
@@ -208,18 +210,25 @@ def main() -> None:
         ui = select_synthesis_ui()
 
         with RecordTime("Synthesis"):
-            program, terms = synthesize(
-                typing_ctx,
-                evaluation_ctx,
-                core_ast_anf,
-                incomplete_functions,
-                metadata,
-                filename,
-                synth_config,
-                args.refined_grammar,
-                ui,
-            )
-            ui.display_results(program, terms)
+            try:
+                program, terms = synthesize(
+                    typing_ctx,
+                    evaluation_ctx,
+                    core_ast_anf,
+                    incomplete_functions,
+                    metadata,
+                    filename,
+                    synth_config,
+                    args.refined_grammar,
+                    ui,
+                )
+                ui.display_results(program, terms)
+            except SynthesisError as e:
+                print("SYNTHESIZER", "-------------------------------")
+                print("SYNTHESIZER", "+     Synthesis Error     +")
+                print("SYNTHESIZER", e)
+                print("SYNTHESIZER", "-------------------------------")
+                sys.exit(1)
         sys.exit(0)
     with RecordTime("Evaluation"):
         eval(core_ast, evaluation_ctx)

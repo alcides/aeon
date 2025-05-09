@@ -246,7 +246,7 @@ def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
     dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
 
     def get_core(_self):
-        return Annotation(Abstraction("_0", _self.body.get_core()), ty)
+        return Annotation(Abstraction(Name("_0", fresh_counter.fresh()), _self.body.get_core()), ty)
 
     # Note: We cannot use the variable inside Abstraction.
     setattr(dc, "get_core", get_core)

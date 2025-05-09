@@ -1,4 +1,3 @@
-type Unit;
 def math : Unit = native_import "math";
 def pow (x:Int | ((x >= 1)  && (x <= 100)))
         (y:Int | ((y >= 1)  && (y <= 100)))

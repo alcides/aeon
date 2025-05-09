@@ -66,7 +66,7 @@ def test_e2e_synthesis_app():
         case Var(Name("f", _)):
             assert True
         case _:
-            assert False
+            assert False, f"{t} is not f of sth"
 
 
 def test_e2e_synthesis_ref1():
