@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import make_dataclass
-import sys
 from typing import Generator, Optional, Tuple, Protocol
 from typing import Type as TypingType
 
@@ -52,9 +51,6 @@ LITERAL_WEIGHT = 3000
 IF_WEIGHT = 1
 APP_WEIGHT = 1000
 ABS_WEIGHT = 100
-
-max_number = sys.maxsize - 1
-min_number = -(sys.maxsize - 1)
 
 
 def extract_class_name(class_name: str) -> str:
