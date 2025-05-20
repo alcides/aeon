@@ -37,11 +37,12 @@ from aeon.sugar.stypes import (
 
 from aeon.sugar.ast_helpers import i0
 from aeon.sugar.ast_helpers import mk_binop
+from aeon.sugar.ast_helpers import st_int, st_bool, st_string, st_float
 from aeon.sugar.stypes import builtin_types
+from aeon.utils.name import Name
 
 
 class TreeToSugar(Transformer):
-
     counter: int
 
     def __init__(self, start_counter=0):
@@ -56,23 +57,25 @@ class TreeToSugar(Transformer):
 
     # Types
     def refined_t(self, args):
-        return SRefinedType(str(args[0]), args[1], args[2])
+        return SRefinedType(Name(args[0]), args[1], args[2])
 
     def abstraction_t(self, args):
-        return SAbstractionType(str(args[0]), args[1], args[2])
+        return SAbstractionType(Name(args[0]), args[1], args[2])
 
     def polymorphism_t(self, args):
-        return STypePolymorphism(str(args[0]), args[1], args[2])
+        return STypePolymorphism(Name(args[0]), args[1], args[2])
 
     def simple_t(self, args):
-        name = str(args[0])
-        if name in builtin_types:
+        name_str = str(args[0])
+        if name_str in builtin_types:
+            name = Name(name_str, 0)
             return SBaseType(name)
         else:
-            return STypeVar(str(args[0]))
+            name = Name(name_str)
+            return STypeVar(name)
 
     def constructor_t(self, args):
-        return STypeConstructor(str(args[0]), args[1:])
+        return STypeConstructor(Name(args[0]), args[1:])
 
     # Expressions
 
@@ -83,19 +86,19 @@ class TreeToSugar(Transformer):
         # TODO: check for length of args instead?
         if isinstance(args[0], SLiteral) and type(args[0]) is int:
             return SLiteral(-args[0].value, args[0].type)
-        return mk_binop(lambda: self.fresh(), "-", i0, args[0])
+        return mk_binop(lambda: self.fresh(), Name("-", 0), i0, args[0])
 
     def let_e(self, args):
-        return SLet(str(args[0]), args[1], args[2])
+        return SLet(Name(args[0]), args[1], args[2])
 
     def rec_e(self, args):
-        return SRec(str(args[0]), args[1], args[2], args[3])
+        return SRec(Name(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
         return SIf(args[0], args[1], args[2])
 
     def nnot(self, args):
-        return SApplication(SVar("!"), args[0])
+        return SApplication(SVar(Name("!", 0)), args[0])
 
     def binop_eq(self, args):
         return self.binop(args, "==")
@@ -140,38 +143,38 @@ class TreeToSugar(Transformer):
         return self.binop(args, "%")
 
     def binop(self, args, op):
-        return mk_binop(lambda: self.fresh(), op, args[0], args[1])
+        return mk_binop(lambda: self.fresh(), Name(op, 0), args[0], args[1])
 
     def application_e(self, args):
         return SApplication(args[0], args[1])
 
     def abstraction_e(self, args):
-        return SAbstraction(str(args[0]), args[1])
+        return SAbstraction(Name(args[0]), args[1])
 
     def tabstraction_e(self, args):
-        return STypeAbstraction(str(args[0]), args[1], args[2])
+        return STypeAbstraction(Name(args[0]), args[1], args[2])
 
     def type_application_e(self, args):
         return STypeApplication(args[0], args[1])
 
     def var(self, args):
-        return SVar(str(args[0]).strip())
+        return SVar(Name(args[0]))
 
     def hole(self, args):
-        return SHole(str(args[0]))
+        return SHole(Name(args[0]))
 
     def int_lit(self, args):
-        return SLiteral(int(args[0]), type=SBaseType("Int"))
+        return SLiteral(int(args[0]), type=st_int)
 
     def float_lit(self, args):
-        return SLiteral(float(args[0]), type=SBaseType("Float"))
+        return SLiteral(float(args[0]), type=st_float)
 
     def bool_lit(self, args):
         value = str(args[0]) == "true"
-        return SLiteral(value, type=SBaseType("Bool"))
+        return SLiteral(value, type=st_bool)
 
     def string_lit(self, args):
-        return SLiteral(args[0], type=SBaseType("String"))
+        return SLiteral(args[0], type=st_string)
 
     def ESCAPED_STRING(self, val):
         # TODO: This is terrible and doesn't handle escapes
@@ -197,32 +200,30 @@ class TreeToSugar(Transformer):
         return ImportAe(args[1], args[0])
 
     def type_decl(self, args):
-        return TypeDecl(str(args[0]), [])
+        return TypeDecl(Name(args[0]), [])
 
     def type_constructor_decl(self, args):
-        return TypeDecl(str(args[0]), [str(i) for i in args[1:]])
+        return TypeDecl(Name(args[0]), [Name(i) for i in args[1:]])
 
     def def_cons(self, args):
         if len(args) == 3:
-            return Definition(str(args[0]), [], [], args[1], args[2])
+            return Definition(Name(args[0]), [], [], args[1], args[2])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), [], [], args[2], args[3],
-                              decorators)
+            return Definition(Name(args[1]), [], [], args[2], args[3], decorators)
 
     def def_fun(self, args):
         if len(args) == 4:
-            return Definition(str(args[0]), [], args[1], args[2], args[3])
+            return Definition(Name(args[0]), [], args[1], args[2], args[3])
         else:
             decorators = args[0]
-            return Definition(str(args[1]), [], args[2], args[3], args[4],
-                              decorators)
+            return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators)
 
     def macros(self, args):
         return args
 
     def macro(self, args):
-        return Decorator(str(args[0]), args[1])
+        return Decorator(Name(args[0]), args[1])
 
     def macro_args(self, args):
         return args
@@ -234,20 +235,19 @@ class TreeToSugar(Transformer):
         return args
 
     def arg(self, args):
-        return (str(args[0]), args[1])
+        return (Name(args[0]), args[1])
 
     def refined_arg(self, args):
-        return str(args[0]), SRefinedType(str(args[0]), args[1], args[2])
+        return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2])
 
     def abstraction_refined_t(self, args):
-        type = SRefinedType(str(args[0]), args[1], args[2])
-        return SAbstractionType(str(args[0]), type, args[3])
+        type = SRefinedType(Name(args[0]), args[1], args[2])
+        return SAbstractionType(Name(args[0]), type, args[3])
 
     def abstraction_et(self, args):
         return SAnnotation(
-            SAbstraction(str(args[0]), args[2]),
-            SAbstractionType(str(args[0]), args[1],
-                             STypeVar("?t")),  # TODO NOW: understand this?
+            SAbstraction(Name(args[0]), args[2]),
+            SAbstractionType(Name(args[0]), args[1], STypeVar(Name("?t"))),  # TODO NOW: understand this?
         )
 
 
@@ -258,9 +258,7 @@ def mk_parser(rule="start", start_counter=0):
         # lexer='standard',
         start=rule,
         transformer=TreeToSugar(start_counter),
-        import_paths=[
-            pathlib.Path(__file__).parent.parent.absolute() / "frontend"
-        ],
+        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
     )
 
 

@@ -12,25 +12,27 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
+from aeon.utils.name import Name
 
 real_eval = eval
 
 
 class EvaluationContext:
-    variables: dict[str, Any]
+    variables: dict[Name, Any]
 
-    def __init__(self, prev: dict[str, Any] | None = None):
+    def __init__(self, prev: dict[Name, Any] | None = None):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
         else:
             self.variables = {}
 
-    def with_var(self, name: str, value: Any):
+    def with_var(self, name: Name, value: Any):
+        assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
         return EvaluationContext(v)
 
-    def get(self, name: str):
+    def get(self, name: Name):
         return self.variables[name]
 
 
@@ -38,14 +40,20 @@ def is_native_var(fun: Term):
     match fun:
         case TypeApplication(t, _):
             return is_native_var(t)
-        case Var("native"):
+        case Var(Name("native", _)):
             return True
         case _:
             return False
 
 
 def is_native_import(fun: Term):
-    return isinstance(fun, Var) and fun.name == "native_import"
+    match fun:
+        case TypeApplication(t, _):
+            return is_native_import(t)
+        case Var(Name("native_import", _)):
+            return True
+        case _:
+            return False
 
 
 # pattern match term
@@ -62,7 +70,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             argv = eval(arg, ctx)
             if is_native_var(fun):
                 assert isinstance(argv, str)
-                e = real_eval(argv, ctx.variables)
+
+                python_ctx = {str(name): v for name, v in globals().items()}
+                python_ctx.update({str(name.name): v for name, v in ctx.variables.items()})
+                e = real_eval(argv, python_ctx)
             else:
                 e = f(argv)
             if is_native_import(fun):
@@ -92,10 +103,10 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Annotation(expr, _):
             return eval(expr, ctx)
         case Hole(name):
-            args = ", ".join([str(n) for n in ctx.variables])
+            args = ", ".join([str(n.name) for n in ctx.variables])
             print(f"Context ({args})")
             h = input(f"Enter value for hole {t} in Python: ")
-            return real_eval(h, ctx.variables)
+            return real_eval(h, {str(name): v for name, v in ctx.variables.items()})
 
         case TypeAbstraction(_, _, body):
             return eval(body, ctx)

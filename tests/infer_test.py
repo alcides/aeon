@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from aeon.utils.name import Name
+
 from aeon.sugar.parser import parse_type
 from tests.driver import check_compile_expr
 
 
 def tt(e: str, t: str, vars: None | dict[str, str] = None):
-    vs = {
-        k: parse_type(v)
-        for (k, v) in vars.items()
-    } if vars is not None else None
+    vs = {Name(k): parse_type(v) for (k, v) in vars.items()} if vars is not None else None
     return check_compile_expr(e, parse_type(t), extra_vars=vs)
 
 
@@ -83,13 +82,19 @@ def test_fifteen():
 # Branches
 
 
-def test_if():
+def test_if1():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
+
+
+def test_if2():
     assert tt(
         "if x == 1 then 1 else 0",
         "{k:Int | (k == 1) || (k == 0) }",
         {"x": "Int"},
     )
+
+
+def test_if3():
     assert not tt("if x then 1 else 0", "Int", {"x": "Int"})
 
 
@@ -125,17 +130,12 @@ def test_abs_f():
 
 
 def test_abs_if():
-    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0",
-                  "Int")
-    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0",
-              "Int")
+    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0", "Int")
+    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
 
 
 def test_sumSimple1():
-    assert tt("if b then 0 else sum 0", "Int", {
-        "b": "Bool",
-        "sum": "(x:Int) -> Int"
-    })
+    assert tt("if b then 0 else sum 0", "Int", {"b": "Bool", "sum": "(x:Int) -> Int"})
 
 
 def test_sumSimple2():
@@ -146,10 +146,7 @@ def test_sumSimple3():
     assert tt(
         "let k = sum b in if k then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -157,10 +154,7 @@ def test_sumSimple4():
     assert tt(
         "if sum b then 1 else 0",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -168,10 +162,7 @@ def test_sumSimple5():
     assert tt(
         r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
         "Int",
-        {
-            "b": "Bool",
-            "sum": "(x:Bool) -> Bool"
-        },
+        {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
 
 
@@ -236,5 +227,4 @@ def test_capture_avoiding_subs():
 
 def test_max():
     max_type = "forall a:B, (x:a) -> (y:a) -> a"
-    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int",
-              {"max": max_type})
+    assert tt("let r = max[{x:Int | ?hole }] 0 5 in r + 1", "Int", {"max": max_type})

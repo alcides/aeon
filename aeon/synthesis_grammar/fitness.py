@@ -2,6 +2,8 @@ from aeon.decorators import decorators_environment
 from aeon.sugar.program import Definition, SRec, STerm, SVar
 from aeon.sugar.program import Decorator
 from aeon.sugar.stypes import SBaseType, SType
+from aeon.sugar.ast_helpers import st_float
+from aeon.utils.name import Name, fresh_counter
 
 single_objective_decorators = ["minimize", "maximize", "assert_property"]
 multi_objective_decorators = [
@@ -21,9 +23,9 @@ def get_minimize(minimize: list[bool]):
 def get_type_from_decorators(macro_list) -> SBaseType:
     if len(macro_list) == 1:
         if macro_list[0].name in single_objective_decorators:
-            return SBaseType("Float")
+            return st_float
         elif macro_list[0].name in multi_objective_decorators:
-            return SBaseType("List")
+            return SBaseType(Name("List", -1))
         else:
             raise Exception(
                 "decorator not in lists single and multi objective decorators",
@@ -38,7 +40,7 @@ def extract_fitness_from_synth(d: Definition) -> tuple[STerm, list[Decorator]]:
 
     fitness_terms: list[STerm] = []
     for dec in decorators_list:
-        annotation_func = getattr(decorators_environment, dec.name)
+        annotation_func = getattr(decorators_environment, str(dec.name))
         expr_term = annotation_func(dec.macro_args)
         add_to_list(expr_term, fitness_terms)
 
@@ -71,7 +73,7 @@ def generate_definition(
 ) -> Definition:
     if len(fitness_terms) == 1:
         return Definition(
-            name="fitness",
+            name=Name("fitness", fresh_counter.fresh()),
             foralls=[],
             args=[],
             type=fitness_return_type,
@@ -82,12 +84,12 @@ def generate_definition(
 
 
 def generate_term(
-    fitness_name: str,
+    fitness_name: Name,
     fitness_return_type: SBaseType,
     fitness_terms: list[STerm],
 ) -> STerm:
     if len(fitness_terms) == 1:
-        rec_name = f"fitness_{fitness_name}"
+        rec_name = Name(f"fitness_{fitness_name}", fresh_counter.fresh())
         return SRec(
             var_name=rec_name,
             var_type=fitness_return_type,

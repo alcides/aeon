@@ -12,6 +12,8 @@ from aeon.core.terms import (
     Var,
 )
 
+from aeon.utils.name import Name
+
 
 class ANFConverter:
     """Recursive visitor that applies ANF transformation."""
@@ -19,9 +21,9 @@ class ANFConverter:
     def __init__(self, starting_counter: int = 0):
         self.counter = starting_counter
 
-    def fresh(self):
+    def fresh(self) -> Name:
         self.counter += 1
-        return f"_anf_{self.counter}"
+        return Name("anf", self.counter)
 
     def convert(self, t: Term):
         """Converts term to ANF form."""

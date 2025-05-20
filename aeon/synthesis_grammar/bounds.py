@@ -7,7 +7,15 @@ from sympy.logic.boolalg import to_cnf
 from sympy.sets.sets import Set
 from sympy.solvers.inequalities import reduce_rational_inequalities
 
-from aeon.core.liquid import LiquidApp, LiquidVar, LiquidTerm, LiquidLiteralInt, LiquidLiteralFloat, LiquidLiteralString
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidVar,
+    LiquidTerm,
+    LiquidLiteralInt,
+    LiquidLiteralFloat,
+    LiquidLiteralString,
+)
 
 sympy_context = {
     "+": lambda x: lambda y: x + y,
@@ -30,7 +38,8 @@ sympy_context = {
 
 
 def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
-    ref_fun = ref.fun
+    assert ref.fun.id == 0
+    ref_fun = ref.fun.name
     assert len(ref.args) == 2
     # if ref_fun in sympy_context:
     #    return sympy_context[ref_fun](*[refined_to_sympy_expression(arg) for arg in ref.args])
@@ -76,19 +85,15 @@ def refined_to_sympy_expression(ref: LiquidTerm) -> Any:
     # name = ty.name
     # base_type_str = ty.type
 
-    if isinstance(ref, LiquidApp):
-        return liquid_app_to_sympy(ref)
-
-    elif isinstance(ref, LiquidVar):
-        return Symbol(ref.name)
-    elif isinstance(ref, LiquidLiteralInt):
-        return ref.value
-    elif isinstance(ref, LiquidLiteralFloat):
-        return ref.value
-    elif isinstance(ref, LiquidLiteralString):
-        return ref.value
-    else:
-        raise ValueError(f"Unknown Liquid term {ref} : {type(ref)}")
+    match ref:
+        case LiquidApp(_, _):
+            return liquid_app_to_sympy(ref)
+        case LiquidVar(name):
+            return Symbol(str(name))
+        case LiquidLiteralBool(v) | LiquidLiteralInt(v) | LiquidLiteralFloat(v) | LiquidLiteralString(v):
+            return v
+        case _:
+            raise ValueError(f"Unknown Liquid term {ref} : {type(ref)}")
 
     # return ty.predicate.to_sympy_expression(ty.variable)
 
@@ -101,6 +106,7 @@ def flatten_conditions(lista: list | Any) -> list:
 
 
 def conditional_to_interval(cond: list, name: str) -> Set:
+    assert isinstance(name, str)
     try:
         return reduce_rational_inequalities(
             [cond],
@@ -112,7 +118,6 @@ def conditional_to_interval(cond: list, name: str) -> Set:
 
 
 def sympy_exp_to_bounded_interval(exp: Expr | Basic) -> Any:
-
     if isinstance(exp, And):
         return [sympy_exp_to_bounded_interval(x) for x in exp.args]
     elif isinstance(exp, Or):

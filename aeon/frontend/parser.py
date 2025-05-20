@@ -34,6 +34,7 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.utils.ast_helpers import i0
 from aeon.utils.ast_helpers import mk_binop
+from aeon.utils.name import Name
 
 
 class TreeToCore(Transformer):
@@ -42,34 +43,34 @@ class TreeToCore(Transformer):
     def __init__(self, start_counter=0):
         self.counter = start_counter
 
-    def fresh(self) -> str:
+    def fresh(self) -> Name:
         self.counter += 1
-        return f"_anf_{self.counter}"
+        return Name("anf", self.counter)
 
     def same(self, args):
         return args[0]
 
     # Types
     def refined_t(self, args):
-        return RefinedType(str(args[0]), args[1], liquefy(args[2]))
+        return RefinedType(Name(args[0]), args[1], liquefy(args[2]))
 
     def abstraction_t(self, args):
-        return AbstractionType(str(args[0]), args[1], args[2])
+        return AbstractionType(Name(args[0]), args[1], args[2])
 
     def polymorphism_t(self, args):
-        return TypePolymorphism(str(args[0]), args[1], args[2])
+        return TypePolymorphism(Name(args[0]), args[1], args[2])
 
     def simple_t(self, args):
         n = str(args[0])
         if n == "Top":
             return top
         elif n in ["Unit", "Int", "Bool", "Float", "String"]:
-            return BaseType(n)
+            return BaseType(Name(n, 0))
         else:
-            return TypeVar(n)
+            return TypeVar(Name(n))
 
     def constructor_t(self, args):
-        return TypeConstructor(str(args[0]), args[1:])
+        return TypeConstructor(Name(args[0]), args[1:])
 
     # Expressions
 
@@ -82,16 +83,16 @@ class TreeToCore(Transformer):
         return mk_binop(lambda: self.fresh(), "-", i0, args[0])
 
     def let_e(self, args):
-        return Let(str(args[0]), args[1], args[2])
+        return Let(Name(args[0]), args[1], args[2])
 
     def rec_e(self, args):
-        return Rec(str(args[0]), args[1], args[2], args[3])
+        return Rec(Name(args[0]), args[1], args[2], args[3])
 
     def if_e(self, args):
         return If(args[0], args[1], args[2])
 
     def nnot(self, args):
-        return Application(Var("!"), args[0])
+        return Application(Var(Name("!", 0)), args[0])
 
     def binop_eq(self, args):
         return self.binop(args, "==")
@@ -142,19 +143,19 @@ class TreeToCore(Transformer):
         return Application(args[0], args[1])
 
     def abstraction_e(self, args):
-        return Abstraction(str(args[0]), args[1])
+        return Abstraction(Name(args[0]), args[1])
 
     def tabstraction_e(self, args):
-        return TypeAbstraction(str(args[0]), args[1], args[2])
+        return TypeAbstraction(Name(args[0]), args[1], args[2])
 
     def type_application_e(self, args):
         return TypeApplication(args[0], args[1])
 
     def var(self, args):
-        return Var(str(args[0]).strip())
+        return Var(Name(str(args[0]).strip()))
 
     def hole(self, args):
-        return Hole(str(args[0]))
+        return Hole(Name(args[0]))
 
     def int_lit(self, args):
         return Literal(int(args[0]), type=t_int)

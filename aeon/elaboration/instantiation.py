@@ -10,9 +10,10 @@ from aeon.sugar.stypes import (
     STypeVar,
 )
 from aeon.sugar.substitutions import normalize
+from aeon.utils.name import Name
 
 
-def type_substitution(ty: SType, alpha: str, beta: SType) -> SType:
+def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
     """t[alpha := beta], standard substition."""
 
     def rec(x):

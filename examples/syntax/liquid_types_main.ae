@@ -1,5 +1,5 @@
-def sqrt : (i: {x:Int | x > 0} ) -> Float = native "__import__('math').sqrt";
-def sqrt : (i:Int | i > 0) -> Float = native "__import__('math').sqrt";
+def sqrt : (i: {x:Int | x > 0} ) -> Float = \i -> native "__import__('math').sqrt(i)";
+def sqrt : (i:Int | i > 0) -> Float = \i -> native "__import__('math').sqrt(i)";
 
 def main (i:Int) : Unit {
     print (sqrt 25)

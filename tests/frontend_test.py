@@ -29,46 +29,50 @@ from aeon.utils.ast_helpers import i2
 from aeon.utils.ast_helpers import is_anf
 from aeon.utils.ast_helpers import mk_binop
 from aeon.utils.ast_helpers import true
+from aeon.utils.name import Name
+
+x_name = Name("x")
+y_name = Name("y")
 
 
 def test_basetypes():
     assert parse_type("Int") == t_int
     assert parse_type("Bool") == t_bool
-    assert parse_type("a") == TypeVar("a")
-    assert parse_type("(a)") == TypeVar("a")
-    assert parse_type("((a))") == TypeVar("a")
+    assert parse_type("a") == TypeVar(Name("a"))
+    assert parse_type("(a)") == TypeVar(Name("a"))
+    assert parse_type("((a))") == TypeVar(Name("a"))
 
 
 def test_abstractiontypes():
-    assert parse_type("(x:Int) -> Int") == AbstractionType("x", t_int, t_int)
-    assert parse_type("(y:Int) -> Int") != AbstractionType("x", t_int, t_int)
-    assert parse_type("(x:Bool) -> Int") != AbstractionType("x", t_int, t_int)
+    assert parse_type("(x:Int) -> Int") == AbstractionType(x_name, t_int, t_int)
+    assert parse_type("(y:Int) -> Int") != AbstractionType(x_name, t_int, t_int)
+    assert parse_type("(x:Bool) -> Int") != AbstractionType(x_name, t_int, t_int)
     assert parse_type("(x:Bool) -> (y:Bool) -> Int") == AbstractionType(
-        "x",
+        x_name,
         t_bool,
-        AbstractionType("y", t_bool, t_int),
+        AbstractionType(y_name, t_bool, t_int),
     )
 
 
 def test_refinedtypes():
     assert parse_type("{x:Int|true}") == RefinedType(
-        "x",
+        x_name,
         t_int,
         LiquidLiteralBool(True),
     )
     assert parse_type("{y:Int|y > x}") == RefinedType(
-        "y",
+        y_name,
         t_int,
-        LiquidApp(">", [LiquidVar("y"), LiquidVar("x")]),
+        LiquidApp(Name(">", 0), [LiquidVar(y_name), LiquidVar(x_name)]),
     )
     assert parse_type("{y:Int | y == 1 + 1}") == RefinedType(
-        "y",
+        y_name,
         t_int,
         LiquidApp(
-            "==",
+            Name("==", 0),
             [
-                LiquidVar("y"),
-                LiquidApp("+", [LiquidLiteralInt(1), LiquidLiteralInt(1)]),
+                LiquidVar(y_name),
+                LiquidApp(Name("+", 0), [LiquidLiteralInt(1), LiquidLiteralInt(1)]),
             ],
         ),
     )
@@ -81,9 +85,9 @@ def test_literals():
 
 
 def test_operators():
-    assert parse_term("-a") == mk_binop(lambda: "t", "-", i0, Var("a"))
+    assert parse_term("-a") == mk_binop(lambda: "t", "-", i0, Var(Name("a")))
 
-    assert parse_term("!true") == Application(Var("!"), true)
+    assert parse_term("!true") == Application(Var(Name("!", 0)), true)
 
     assert parse_term("1 == 1") == mk_binop(lambda: "t", "==", i1, i1)
     assert parse_term("1 != 1") == mk_binop(lambda: "t", "!=", i1, i1)
@@ -111,7 +115,7 @@ def test_precedence():
 
 
 def test_let():
-    assert parse_term("let x = 1 in x") == Let("x", i1, Var("x"))
+    assert parse_term("let x = 1 in x") == Let(x_name, i1, Var(x_name))
 
 
 def test_if():
@@ -119,37 +123,38 @@ def test_if():
 
 
 def test_abs():
-    assert parse_term("\\x -> x") == Abstraction("x", Var("x"))
+    assert parse_term("\\x -> x") == Abstraction(x_name, Var(x_name))
 
 
 def test_ann():
     assert parse_term("\\x -> (x : Int)") == Abstraction(
-        "x",
-        Annotation(Var("x"), t_int),
+        x_name,
+        Annotation(Var(x_name), t_int),
     )
 
 
 def test_poly_parse():
+    a_name = Name("a")
     assert parse_type("forall a:B, (_:a) -> a") == TypePolymorphism(
-        "a",
+        a_name,
         BaseKind(),
-        AbstractionType("_", TypeVar("a"), TypeVar("a")),
+        AbstractionType(Name("_"), TypeVar(a_name), TypeVar(a_name)),
     )
 
 
 def test_poly_abs():
-    assert parse_term("Λa:B => 1") == TypeAbstraction("a", BaseKind(), parse_term("1"))
+    assert parse_term("Λa:B => 1") == TypeAbstraction(Name("a"), BaseKind(), parse_term("1"))
 
 
 def test_poly_abs_plus():
     assert parse_term("Λa:B => \\ x -> x + 1") == TypeAbstraction(
-        "a",
+        Name("a"),
         BaseKind(),
         parse_term("\\ x -> x + 1"),
     )
 
 
 def test_poly_app():
-    one_a = TypeApplication(parse_term("1"), TypeVar("a"))
-    e = TypeAbstraction("a", BaseKind(), one_a)
+    one_a = TypeApplication(parse_term("1"), TypeVar(Name("a")))
+    e = TypeAbstraction(Name("a"), BaseKind(), one_a)
     assert parse_term("(Λa:B => 1[a])[Int]") == TypeApplication(e, t_int)

@@ -25,7 +25,7 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine@https://github.com/alcides/GeneticEngine/archive/3feb0b48494f6b4352a3ed87a0fef29a98e4b4a1.zip',
+    'geneticengine@https://github.com/alcides/GeneticEngine/archive/0cc70d5df7516c61bd232bdd50ad02eb47d52b33.zip',
     'multiprocess',
     'numpy',
     'pathos',
@@ -60,14 +60,6 @@ requires = ['setuptools >= 67.6.0']
 [tool.setuptools]
 py-modules = ["aeon"]
 include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["aeon"]
-include = ["*"]
-
-[tool.setuptools.package-data]
-"resources.artifacts" = ["*"]
-recipe = ["*.lark"]
 
 [tool.docformatter]
 syntax = 'google'

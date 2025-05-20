@@ -1,17 +1,17 @@
 type List;
 
 def math : Unit = native_import "math";
-def Math_sqrt_Float : (i:Float) -> Float = native "lambda i: math.sqrt(i)" ;
-def Math_pow : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: i ** j";
-def Math_pow_Float : (i:Float) -> (j:Float) -> Float = native "lambda i: lambda j: i ** j";
+def Math_sqrt_Float : (i:Float) -> Float = \i -> native "math.sqrt(i)" ;
+def Math_pow : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "i ** j";
+def Math_pow_Float : (i:Float) -> (j:Float) -> Float = \i -> \j -> native "i ** j";
 
 def Map_Float_Float_Float_List_List: (function: (a: Float) -> (b: Float) -> Float) ->
                                (l: List) ->
                                (l2: List) ->
                                List =
-    native "lambda f: lambda xs: lambda ys: list(map(lambda x, y: f(x)(y), xs, ys))";
+    \f -> \xs -> \ys -> native "list(map(lambda x, y: f(x)(y), xs, ys))";
 
-def List_sum_Float : (l:List) -> Float = native "lambda xs: sum(xs)";
+def List_sum_Float : (l:List) -> Float = \xs -> native "sum(xs)";
 
 def List_size: (l:List) -> Int = uninterpreted;
 

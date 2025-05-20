@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 from aeon.sugar.parser import parse_type
-from aeon.sugar.stypes import SBaseType
+from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile_expr
-
-top = SBaseType("Top")
 
 
 def test_anf():
     source = r"""let f : (x:Int) -> (y:Int) -> Int = (\x -> (\y -> x)) in
            let r = f (f 1 2) (f 2 3) in
            r"""
-    assert check_compile_expr(source, top, 1)
+    assert check_compile_expr(source, st_top, 1)
 
 
 def test_anf_typed():
     source = r"""let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (\x -> (\y -> x)) in
            let r = f (f 1 2) (f 2 3) in
            r"""
-    assert check_compile_expr(source, top, 1)
+    assert check_compile_expr(source, st_top, 1)
 
 
 def test_anf_typed_smaller():

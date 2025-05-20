@@ -1,6 +1,7 @@
 from typing import Any
 from aeon.core.terms import Term
 from aeon.core.types import Type
+from aeon.core.bind import bind_ctx, bind_ids, bind_term, bind_type
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
@@ -19,6 +20,7 @@ from aeon.decorators import Metadata
 
 from aeon.frontend.parser import parse_term
 from aeon.core.types import top
+from aeon.utils.name import Name
 
 from aeon.frontend.anf_converter import ensure_anf
 
@@ -33,9 +35,12 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
-
+    typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
-    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+    ty_core = type_to_core(ty)
+    if not check_type(typing_ctx, core_ast_anf, ty_core):
+        print("unic", core_ast_anf)
+        print(ty_core)
         return False
 
     if val:
@@ -44,10 +49,7 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     return True
 
 
-def check_compile_expr(source: str,
-                       ty: SType,
-                       val: Any = None,
-                       extra_vars: dict[str, SType] | None = None) -> bool:
+def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict[Name, SType] | None = None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
     vs = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
@@ -59,8 +61,14 @@ def check_compile_expr(source: str,
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(elabcontext)
+
+    # Bind everything, so we also bind type at the same type:
+    typing_ctx, subs = bind_ctx(typing_ctx, [])
+    core_ast = bind_term(core_ast, subs)
+    core_ty = bind_type(type_to_core(ty), subs)
+
     core_ast_anf = ensure_anf(core_ast)
-    if not check_type(typing_ctx, core_ast_anf, type_to_core(ty)):
+    if not check_type(typing_ctx, core_ast_anf, core_ty):
         return False
 
     if val is None:
@@ -76,6 +84,7 @@ def check_compile_core(source: str, ty: Type, val: Any = None):
     typing_ctx = lower_to_core_context(elabcontext)
 
     core_ast = parse_term(source)
+    typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     assert check_type(typing_ctx, core_ast_anf, ty)
 
@@ -89,20 +98,19 @@ def extract_core(source: str) -> Term:
     desugared = desugar(prog)
     sterm = elaborate(desugared.elabcontext, desugared.program)
     core_ast = lower_to_core(sterm)
-
+    typing_ctx, core_ast = bind_ids(TypingContext(), core_ast)
     core_ast_anf = ensure_anf(core_ast)
     return core_ast_anf
 
 
-def check_and_return_core(
-        source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
+def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
     ectx = EvaluationContext(evaluation_vars)
     prog = parse_program(source)
     desugared = desugar(prog)
     sterm = elaborate(desugared.elabcontext, desugared.program)
     core_ast = lower_to_core(sterm)
     ctx = lower_to_core_context(desugared.elabcontext)
-
+    typing_ctx, core_ast = bind_ids(ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
-    assert check_type(ctx, core_ast_anf, top)
-    return core_ast_anf, ctx, ectx, desugared.metadata
+    assert check_type(typing_ctx, core_ast_anf, top)
+    return core_ast_anf, typing_ctx, ectx, desugared.metadata

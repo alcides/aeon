@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from functools import reduce
 from typing import Any, Generator
 
+from aeon.core.types import builtin_core_types
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.liquid import LiquidLiteralBool
@@ -32,8 +34,9 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from aeon.utils.name import Name, fresh_counter
 
-Assignment = dict[str, list[LiquidTerm]]
+Assignment = dict[Name, list[LiquidTerm]]
 
 
 def smt_base_type(ty: Type) -> str | None:
@@ -50,16 +53,17 @@ def smt_base_type(ty: Type) -> str | None:
 def fresh(context: TypingContext, ty: Type) -> Type:
     match ty:
         case RefinedType(name, ity, LiquidHornApplication(_, _)):
-            id = context.fresh_var()
-            v = f"v_{id}"
+            vname = Name("√", fresh_counter.fresh())
+            hole_name = Name("hole", fresh_counter.fresh())
+
             # TODO Poly: check if t should be in LiquidTypes
             return RefinedType(
-                v,
+                vname,
                 ity,
                 LiquidHornApplication(
-                    f"{id}", [(LiquidVar(n), t)
-                              for n, t in context.vars() + [(v, ty.type)]
-                              if isinstance(t, BaseType)]),
+                    hole_name,
+                    [(LiquidVar(n), t) for n, t in context.vars() + [(vname, ty.type)] if isinstance(t, BaseType)],
+                ),
             )
         case BaseType(_) | RefinedType(_, _, _) | Top() | TypeVar():
             return ty
@@ -78,9 +82,12 @@ def fresh(context: TypingContext, ty: Type) -> Type:
 def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
     if isinstance(t, LiquidHornApplication):
         return [t]
-    elif (isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt)
-          or isinstance(t, LiquidLiteralFloat)
-          or isinstance(t, LiquidLiteralString)):
+    elif (
+        isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralFloat)
+        or isinstance(t, LiquidLiteralString)
+    ):
         return []
     elif isinstance(t, LiquidVar):
         return []
@@ -108,9 +115,12 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if (isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralBool)
-            or isinstance(t, LiquidLiteralString)
-            or isinstance(t, LiquidLiteralFloat)):
+    if (
+        isinstance(t, LiquidLiteralInt)
+        or isinstance(t, LiquidLiteralBool)
+        or isinstance(t, LiquidLiteralString)
+        or isinstance(t, LiquidLiteralFloat)
+    ):
         return False
     elif isinstance(t, LiquidVar):
         return False
@@ -138,9 +148,12 @@ def contains_horn_constraint(c: Constraint) -> bool:
 def wellformed_horn(predicate: LiquidTerm) -> bool:
     if not contains_horn(predicate):
         return True
-    elif (isinstance(predicate, LiquidApp) and predicate.fun == "&&"
-          and not contains_horn(predicate.args[0])
-          and isinstance(predicate.args[1], LiquidHornApplication)):
+    elif (
+        isinstance(predicate, LiquidApp)
+        and predicate.fun == "&&"
+        and not contains_horn(predicate.args[0])
+        and isinstance(predicate.args[1], LiquidHornApplication)
+    ):
         return True
     elif isinstance(predicate, LiquidHornApplication):
         return True
@@ -148,13 +161,11 @@ def wellformed_horn(predicate: LiquidTerm) -> bool:
         return False
 
 
-def mk_arg(i: int) -> str:
-    return f"_{i}"
+def mk_arg(i: int) -> Name:
+    return Name(f"arg_{i}", 0)
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm,
-                                       BaseType | TypeVar | TypeConstructor]],
-                      arity: int):
+def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]], arity: int):
     if arity == 0:
         yield []
     else:
@@ -167,17 +178,11 @@ def get_possible_args(vars: list[tuple[LiquidTerm,
                 yield [LiquidLiteralInt(1)] + base
 
 
-def build_possible_assignment(
-        hole: LiquidHornApplication) -> Generator[LiquidApp]:
+def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidApp]:
     ctx = LiquidTypeCheckingContext(
-        known_types=[
-            BaseType(bn) for bn in ["Unit", "Bool", "Int", "Float", "String"]
-        ],
+        known_types=[BaseType(Name(bn.name.name, 0)) for bn in builtin_core_types],
         functions=liquid_prelude,
-        variables={
-            mk_arg(i): t
-            for i, (_, t) in enumerate(hole.argtypes)
-        },
+        variables={mk_arg(i): t for i, (_, t) in enumerate(hole.argtypes)},
     )
 
     for fname in liquid_prelude:
@@ -187,16 +192,15 @@ def build_possible_assignment(
             # At least one LiquidVar must be used.
             if not any(isinstance(a, LiquidVar) for a in args):
                 continue
-
-            app = LiquidApp(fname, list(args))
-
+            arg_list = list(args)
+            app = LiquidApp(fname, arg_list)
             if check_liquid(ctx, app, t_bool):
                 yield app
 
 
 def build_initial_assignment(c: Constraint) -> Assignment:
     holes = obtain_holes_constraint(c)
-    assign: dict[str, list[LiquidTerm]] = {}
+    assign: dict[Name, list[LiquidTerm]] = {}
     for h in holes:
         if h.name not in assign:
             assign[h.name] = list(build_possible_assignment(h))
@@ -219,32 +223,32 @@ def split(c: Constraint) -> list[Constraint]:
         case Implication(name, base, pre, post):
             return [Implication(name, base, pre, cp) for cp in split(post)]
         case UninterpretedFunctionDeclaration(name, type, seq):
-            return [
-                UninterpretedFunctionDeclaration(name, type, c)
-                for c in split(seq)
-            ]
+            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
         case _:
             assert False
 
 
 def build_forall_implication(
-    vs: list[tuple[str, Type]],
+    vs: list[tuple[Name, Type]],
     p: LiquidTerm,
     c: Constraint,
 ) -> Constraint:
     if not vs:
         return c
+    else:
+        for name, _ in vs:
+            assert isinstance(name, Name)
     lastEl = vs[-1]
     assert isinstance(lastEl[1], BaseType)
     cf = Implication(lastEl[0], lastEl[1], p, c)
     for n, t in vs[-2::-1]:
         assert isinstance(t, BaseType)
+        assert isinstance(n, Name)
         cf = Implication(n, t, LiquidLiteralBool(True), cf)
     return cf
 
 
-def simpl(vs: list[tuple[str, Type]], p: LiquidTerm,
-          c: Constraint) -> Constraint:
+def simpl(vs: list[tuple[Name, Type]], p: LiquidTerm, c: Constraint) -> Constraint:
     if isinstance(c, Implication):
         return simpl(vs + [(c.name, c.base)], mk_liquid_and(p, c.pred), c.seq)
     else:
@@ -286,14 +290,12 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
                 apply_constraint(assign, post),
             )
         case UninterpretedFunctionDeclaration(name, base, post):
-            return UninterpretedFunctionDeclaration(
-                name, base, apply_constraint(assign, post))
+            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
         case _:
             assert False
 
 
-def fill_horn_arguments(h: LiquidHornApplication,
-                        candidate: LiquidTerm) -> LiquidTerm:
+def fill_horn_arguments(h: LiquidHornApplication, candidate: LiquidTerm) -> LiquidTerm:
     for i, (n, _) in enumerate(h.argtypes):
         assert isinstance(n, LiquidTerm)
         candidate = substitution_in_liquid(candidate, n, mk_arg(i))
@@ -323,22 +325,15 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[str, BaseType | TypeVar | AbstractionType | Top]], tuple[
-        LiquidTerm, LiquidTerm]]:
+) -> tuple[list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]], tuple[LiquidTerm, LiquidTerm]]:
     match c:
         case UninterpretedFunctionDeclaration(name, base, post):
             (vs1, (p, h)) = extract_components_of_imp(post)
-            vsh: list[tuple[str,
-                            BaseType | TypeVar | AbstractionType | Top]] = [
-                                (name, base)
-                            ]
+            vsh: list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vsh + vs1, (p, h))
         case Implication(name, base, pre, seq):
             (vs1, (p, h)) = extract_components_of_imp(seq)
-            vs: list[tuple[str,
-                           BaseType | TypeVar | AbstractionType | Top]] = [
-                               (name, base)
-                           ]
+            vs: list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vs + vs1, (mk_liquid_and(pre, p), h))
         case LiquidConstraint(e):
             return ([], (LiquidLiteralBool(True), e))
@@ -386,9 +381,11 @@ def solve(c: Constraint) -> bool:
     assignment0: Assignment = build_initial_assignment(c)
     subst = fixpoint(csk, assignment0)
 
+    def merge(acc: Constraint, pi: Constraint) -> Constraint:
+        return Conjunction(acc, pi)
+
     merged_csps: Constraint
-    merged_csps = LiquidConstraint(LiquidLiteralBool(True))
-    for pi in csp:
-        merged_csps = Conjunction(merged_csps, pi)
+    seed: Constraint = LiquidConstraint(LiquidLiteralBool(True))
+    merged_csps = reduce(merge, csp, seed)
     c_final: Constraint = apply(subst, merged_csps)
     return smt_valid(c_final)

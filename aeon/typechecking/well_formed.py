@@ -21,31 +21,29 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
         case BaseType(name):
             return ctx.get_type_constructor(name) is not None
         case RefinedType(name, BaseType(_) as ty, refinement):
-            inferred_type = typecheck_liquid(ctx.with_var(name, ty),
-                                             refinement)
+            inferred_type = typecheck_liquid(ctx.with_var(name, ty), refinement)
             return inferred_type == t_bool
         case TypeVar(tvname):
             return tvname in [v[0] for v in ctx.typevars()]
         case RefinedType(name, TypeVar(tvname), LiquidLiteralBool(True)):
             return (tvname, k) in ctx.typevars()
         case RefinedType(name, TypeVar(tvname) as ty, refinement):
-            return (k == BaseKind() and (tvname, BaseKind()) in ctx.typevars()
-                    and typecheck_liquid(ctx.with_var(name, ty),
-                                         refinement) == t_bool)
+            return (
+                k == BaseKind()
+                and (tvname, BaseKind()) in ctx.typevars()
+                and typecheck_liquid(ctx.with_var(name, ty), refinement) == t_bool
+            )
         case AbstractionType(aname, atype, rtype):
-            return k == StarKind() and wellformed(ctx, atype) and wellformed(
-                ctx.with_var(aname, atype), rtype)
+            return k == StarKind() and wellformed(ctx, atype) and wellformed(ctx.with_var(aname, atype), rtype)
         case TypePolymorphism(name, kind, body):
-            return k == StarKind() and wellformed(ctx.with_typevar(name, kind),
-                                                  body)
+            return k == StarKind() and wellformed(ctx.with_typevar(name, kind), body)
         case TypeConstructor(name, args):
             cargs = ctx.get_type_constructor(name)
             if not cargs or len(cargs) != len(args):
                 return False
             return all(wf_inner(ctx, t) for t in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
-            return wf_inner(ctx, ity) and typecheck_liquid(
-                ctx.with_var(name, ity), refinement) == t_bool
+            return wf_inner(ctx, ity) and typecheck_liquid(ctx.with_var(name, ity), refinement) == t_bool
         case _:
             return False
 

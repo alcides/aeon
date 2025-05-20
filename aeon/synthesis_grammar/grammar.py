@@ -1,24 +1,28 @@
 from __future__ import annotations
 
-import sys
 from abc import ABC
 from dataclasses import make_dataclass
-from typing import Annotated, Union, Protocol, Any
+from typing import Generator, Optional, Tuple, Protocol
 from typing import Type as TypingType
 
+from geneticengine.grammar.decorators import weight
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
-from lark.lexer import Token
-from sympy.core.numbers import Infinity, NegativeInfinity
-from sympy.logic.boolalg import to_dnf
-from sympy.sets.sets import Interval, EmptySet
-from sympy.simplify.simplify import simplify
+from geneticengine.prelude import abstract
 
-from aeon.core.liquid import LiquidApp, LiquidTerm
-from aeon.core.terms import Application
-from aeon.core.terms import If
-from aeon.core.terms import Literal
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidHole,
+    LiquidLiteralBool,
+    LiquidLiteralFloat,
+    LiquidLiteralInt,
+    LiquidLiteralString,
+    LiquidTerm,
+    LiquidVar,
+)
+from aeon.core.substitutions import substitution_in_type, substitution_liquid_in_type
+from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypeConstructor, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
 from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -27,23 +31,26 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
-from aeon.synthesis_grammar.bounds import (
-    refined_to_sympy_expression,
-    sympy_exp_to_bounded_interval,
-    conditional_to_interval,
-    flatten_conditions,
+from aeon.synthesis_grammar.mangling import mangle_name, mangle_var, mangle_type
+from aeon.synthesis_grammar.refinements import refined_type_to_metahandler
+from aeon.synthesis_grammar.utils import prelude_ops, aeon_to_python
+from aeon.typechecking.context import (
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    TypingContextEntry,
+    UninterpretedBinder,
+    VariableBinder,
 )
-from aeon.synthesis_grammar.utils import (
-    text_to_aeon_prelude_ops,
-    aeon_prelude_ops_to_text,
-    aeon_to_python_types,
-    aeon_to_gengy_metahandlers,
-    prelude_ops,
-)
-from aeon.typechecking.context import TypingContext
+from aeon.core.liquid_ops import ops
+from aeon.utils.name import Name, fresh_counter
 
-max_number = sys.maxsize - 1
-min_number = -(sys.maxsize - 1)
+
+VAR_WEIGHT = 10000
+LITERAL_WEIGHT = 3000
+IF_WEIGHT = 1
+APP_WEIGHT = 1000
+ABS_WEIGHT = 100
 
 
 def extract_class_name(class_name: str) -> str:
@@ -57,7 +64,7 @@ def extract_class_name(class_name: str) -> str:
     ]
     for prefix in prefixes:
         if class_name.startswith(prefix):
-            return class_name[len(prefix):]
+            return class_name[len(prefix) :]
     return class_name
 
 
@@ -67,547 +74,339 @@ class GrammarError(Exception):
 
 # Protocol for classes that can have a get_core method
 class HasGetCore(Protocol):
-
-    def get_core(self):
-        ...
+    def get_core(self): ...
 
 
 classType = TypingType[HasGetCore]
 
 
-def mk_method_core(cls: classType) -> classType:
-
-    def get_core(self):
-        class_name = self.__class__.__name__
-        # the prefix is either "var_", "app_", "refined_app" or "refined_var"
-        class_name_without_prefix = extract_class_name(class_name)
-
-        if class_name_without_prefix in text_to_aeon_prelude_ops.keys():
-            op = text_to_aeon_prelude_ops.get(class_name_without_prefix)
-            var_values = []
-            base = Var(op)
-            for attr_name, _ in cls.__annotations__.items():
-                value = getattr(self, attr_name, None)
-                base = Application(base, value.get_core())
-                var_values.append(value)
-
-            assert len(var_values) == 2
-        elif class_name.startswith("If"):
-            if_dict = {}
-            for attr_name, ty in cls.__annotations__.items():
-                value = getattr(self, attr_name, None)
-                # aeon_type = ty.__name__[2:]
-                if_dict[attr_name] = value.get_core()
-                # if_dict[attr_name] = Annotation(value.get_core(), BaseType(aeon_type))
-
-            base = If(if_dict["cond"], if_dict["then"], if_dict["otherwise"])
-
-        else:
-            base = Var(class_name_without_prefix)
-            for attr_name, _ in cls.__annotations__.items():
-                value = getattr(self, attr_name, None)
-
-                base = Application(base, value.get_core())
-
-        return base
-
-    setattr(cls, "get_core", get_core)
-    return cls
-
-
-def mk_method_core_literal(cls: classType) -> classType:
-
-    def get_core(self):
-        class_name = self.__class__.__name__
-        class_name_without_prefix = extract_class_name(class_name)
-        value = getattr(self, "value", None)
-        try:
-            if value is not None:
-                if class_name_without_prefix == "Int" or class_name_without_prefix.startswith(
-                        "Int", ):
-                    base = Literal(int(value), type=t_int)
-                elif class_name_without_prefix == "Float" or class_name_without_prefix.startswith(
-                        "Float", ):
-                    base = Literal(float(value), type=t_float)
-                elif class_name_without_prefix == "Bool" or class_name_without_prefix.startswith(
-                        "Bool", ):
-                    value = str(value) == "true"
-                    base = Literal(value, type=t_bool)
-                elif class_name_without_prefix == "String" or class_name_without_prefix.startswith(
-                        "String", ):
-                    v = str(value)[1:-1]
-                    base = Literal(str(v), type=t_string)
-                else:
-                    assert False
-
-                return base
-        except Exception as e:
-            raise GrammarError("no value\n ", e)
-
-    setattr(cls, "get_core", get_core)
-    return cls
-
-
-def liquid_term_to_str(ty: RefinedType) -> str:
-    var: str = ty.name
-    base_type_str: str = ty.type.name
-    refinement: LiquidTerm = ty.refinement
-    if isinstance(refinement, LiquidApp):
-        refined_type_str = (str(ty.refinement).replace(
-            var,
-            base_type_str,
-        ).replace("(", "").replace(
-            ")",
-            "",
-        ).replace(" ", "_"))
-        for op, op_str in aeon_prelude_ops_to_text.items():
-            refined_type_str = refined_type_str.replace(op, op_str)
-    else:
-        assert False
-    return refined_type_str
-
-
-def process_type_name(ty: Type) -> str:
-    match ty:
-        case Top():
-            return str(ty)
-        case BaseType(name):
-            return name
-        case RefinedType(_, _, _):
-            refinement_str = liquid_term_to_str(ty)
-            refined_type_name = f"Refined_{refinement_str}"
-            return refined_type_name
-        case AbstractionType(vname, vtype, rtype):
-            r1 = process_type_name(vtype)
-            r2 = process_type_name(rtype)
-            return f"{vname}_{r1}_to_{r2}"
-        case TypeVar(name):
-            return name
-        case TypePolymorphism(name, kind, body):
-            r = process_type_name(body)
-            return f"{name}_{kind}_{r}"
-        case TypeConstructor(name, args):
-            rest = "_".join(process_type_name(t) for t in args)
-            return f"{name}_{rest}"
-        case _:
-            assert False, f"Unknown type {ty} ({type(ty)})"
-
-
-def replace_tuples_with_lists(structure):
-    if isinstance(structure, tuple):
-        return [replace_tuples_with_lists(item) for item in structure]
-    elif isinstance(structure, list):
-        return [replace_tuples_with_lists(item) for item in structure]
-    else:
-        return structure
-
-
-def contains_tuples(lst):
-    return any(isinstance(item, tuple) for item in lst)
-
-
-def split_or_intervals(bounded_intervals, name, intervals_list=None):
-    intervals_list = [] if intervals_list is None else intervals_list
-    # if it is a tuple, it is an Or Interval
-    if isinstance(bounded_intervals, tuple):
-        for b_interval in bounded_intervals:
-            intervals_list = split_or_intervals(
-                b_interval,
-                name,
-                intervals_list,
-            )
-    elif isinstance(bounded_intervals, list):
-        if contains_tuples(bounded_intervals):
-            for b_interval in bounded_intervals:
-                intervals_list = split_or_intervals(
-                    b_interval,
-                    name,
-                    intervals_list,
-                )
-        else:
-            cond = flatten_conditions(bounded_intervals)
-            interval = conditional_to_interval(cond, name)
-            intervals_list.append(interval)
-    return intervals_list
-
-
-def intervals_to_metahandlers(
-    gengy_metahandler: Any,
-    intervals_list: list,
-    base_type_str: str,
-    ref: LiquidTerm,
-) -> list[MetaHandlerGenerator]:
-    metahandler_list: list[MetaHandlerGenerator] = []
-    python_type: type = aeon_to_python_types[base_type_str]
-    for interval in intervals_list:
-        if isinstance(interval, Interval):
-            if isinstance(ref, LiquidApp):
-                max_range = (max_number if isinstance(
-                    interval.sup,
-                    Infinity,
-                ) else interval.sup)  # or 2 ** 31 - 1
-                max_range = max_range - 1 if interval.right_open else max_range
-
-                min_range = (min_number if isinstance(
-                    interval.inf,
-                    NegativeInfinity,
-                ) else interval.inf)  # or -2 ** 31
-                min_range = min_range + 1 if interval.left_open else min_range
-
-                metahandler_instance = gengy_metahandler(min_range, max_range)
-                metahandler_type = Annotated[
-                    python_type, metahandler_instance]  # type: ignore
-                metahandler_list.append(metahandler_type)
-            else:
-                assert False
-        elif isinstance(interval, EmptySet):
-            pass
-        else:
-            assert False
-    return metahandler_list
-
-
-def get_metahandler_union(
-    metahandler_list: list[MetaHandlerGenerator],
-) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
-    if len(metahandler_list) == 1:
-        return metahandler_list[0]
-    else:
-        return Union[tuple(metahandler_list)]
-
-
-def refined_type_to_metahandler(
-    ty: RefinedType, ) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
-    base_type_str = str(ty.type.name)
-    gengy_metahandler = aeon_to_gengy_metahandlers[base_type_str]
-    name, ref = ty.name, ty.refinement
-
-    sympy_exp = refined_to_sympy_expression(ref)
-    sympy_exp = simplify(sympy_exp)
-    sympy_exp = to_dnf(sympy_exp)
-    bounded_intervals = sympy_exp_to_bounded_interval(sympy_exp)
-    intervals_list = split_or_intervals(bounded_intervals, name)
-    metahandler_list = intervals_to_metahandlers(
-        gengy_metahandler,
-        intervals_list,
-        base_type_str,
-        ref,
+def is_valid_class_name(class_name: str) -> bool:
+    return class_name not in prelude_ops and not class_name.startswith(
+        ("_anf_", "target"),
     )
 
-    return get_metahandler_union(metahandler_list)
+
+ae_top = type("ae_top", (ABC,), {})
 
 
-def create_abstract_class(class_name: str) -> type:
-    """Create and return a new abstract class with the given name."""
-    class_name = "t_" + class_name if not class_name.startswith(
-        "t_") else class_name
-    return make_dataclass(class_name, [], bases=(ABC, ))
+def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
+    data: dict[Type, TypingType] = {Top(): ae_top}
+    for ty in set(types):
+        if ty not in data:
+            match ty:
+                case BaseType(_):
+                    class_name = mangle_type(ty)
+                    ty_abstract_class = type(
+                        class_name,
+                        (ae_top, ABC),
+                        {},
+                    )
+                    # ty_abstract_class = abstract(ty_abstract_class)
+                    ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                case RefinedType(_, itype, _):
+                    class_name = mangle_type(ty)
+                    data.update(extract_all_types([itype]))
+                    parent = data[itype]
+                    ty_abstract_class = type(class_name, (parent, ABC), {})
+                    ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                    # TODO: alpha-equivalence
+                    # TODO: subtyping
+                case AbstractionType(var_name, var_type, return_type):
+                    class_name = mangle_type(ty)
+                    data.update(
+                        extract_all_types(
+                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)]
+                        )
+                    )
+                    ty_abstract_class = type(class_name, (ae_top, ABC), {})
+                    ty_abstract_class = abstract(ty_abstract_class)
+                    data[ty] = ty_abstract_class
+                    # TODO: alpha-equivalence
+                case Top():
+                    data[ty] = ae_top
+                case TypePolymorphism(_, _, _):
+                    # TODO: Polytypes in Synthesis
+                    continue
+                case _:
+                    assert False, f"Unsupported {ty}"
+    return data
 
 
 def create_literal_class(
-    class_name: str,
-    value_type: type | MetaHandlerGenerator,
-    base_class: type,
+    aeon_type: Type, parent_class: type, value_type: None | type | MetaHandlerGenerator = None
 ) -> type:
     """Create and return a new literal class with the given name and value type, based on the provided abstract class."""
+    if value_type is None:
+        value_type = aeon_to_python[aeon_type]
+
+    class_name = mangle_type(aeon_type)
     new_class = make_dataclass(
-        "literal_" + class_name,
+        f"literal_{class_name}",
         [("value", value_type)],
-        bases=(base_class, ),
+        bases=(parent_class,),
     )
-    return mk_method_core_literal(new_class)
 
+    def get_core(self):
+        value = getattr(self, "value", None)
+        return Literal(value, type=aeon_type)
 
-def handle_refined_type(
-    class_name: str,
-    ty: RefinedType,
-    grammar_nodes: list[type],
-) -> tuple[list[type], type]:
-    """Handle the creation of classes for refined types and update grammar nodes accordingly."""
-    class_name = "t_" + class_name if not class_name.startswith(
-        "t_") else class_name
-    new_abs_class = create_abstract_class(class_name)
-    grammar_nodes.append(new_abs_class)
-
-    metahandler_type = refined_type_to_metahandler(ty)
-    new_class = create_literal_class(
-        class_name[2:],
-        metahandler_type,
-        new_abs_class,
-    )
-    grammar_nodes.append(new_class)
-
-    base_type_name = process_type_name(ty.type)
-    grammar_nodes, _ = find_class_by_name(base_type_name, grammar_nodes)
-
-    return grammar_nodes, new_abs_class
-
-
-def find_class_by_name(
-    class_name: str,
-    grammar_nodes: list[type],
-    ty: Type | None = None,
-) -> tuple[list[type], type]:
-    """This function iterates over the provided list of grammar nodes and
-    returns the node whose name matches the provided name. If no match is found
-    it creates a new abstract class and a new data class, adds them to the
-    list, and returns the abstract class and the updated list of grammar nodes.
-
-    Args:
-        class_name (str): The name of the class to find.
-        grammar_nodes (list[type]): A list of grammar nodes to search through.
-        ty (Type): Aeon type of the class we are trying to find or create
-
-    Returns:
-        tuple[list[type], type]: A tuple containing the updated list of grammar nodes and the found or
-        newly created class.
-    """
-    for cls in grammar_nodes:
-        if cls.__name__ in [class_name, "t_" + class_name]:
-            return grammar_nodes, cls
-
-    if class_name in aeon_to_python_types:
-        new_abs_class = create_abstract_class(class_name)
-        grammar_nodes.append(new_abs_class)
-
-        new_class = create_literal_class(
-            class_name,
-            aeon_to_python_types[class_name],
-            new_abs_class,
-        )
-        grammar_nodes.append(new_class)
-
-        return grammar_nodes, new_abs_class
-
-    if ty is not None and isinstance(ty, RefinedType) and str(
-            ty.type.name) in aeon_to_gengy_metahandlers:
-        return handle_refined_type(class_name, ty, grammar_nodes)
-
-    new_abs_class = create_abstract_class(class_name)
-    grammar_nodes.append(new_abs_class)
-    return grammar_nodes, new_abs_class
-
-
-def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith(
-        ("_anf_", "target"), )
-
-
-def get_attribute_type_name(
-    attribute_type: Type,
-    parent_name: str = None,
-) -> str:
-    parent_name = parent_name or ""
-    while isinstance(attribute_type, AbstractionType):
-        parent_name += f"t_{process_type_name(attribute_type.var_type)}_"
-        attribute_type = attribute_type.type
-    attribute_type_name = f"t_{process_type_name(attribute_type)}"
-    return parent_name + attribute_type_name
-
-
-def generate_class_components(
-    class_type: Type,
-    grammar_nodes: list[type],
-) -> tuple[list[type], list[tuple[str, type]], Type, str]:
-    """Generates the attributes, superclass, and abstraction_type class name
-    from a Type object.
-
-    Args:
-        class_type (Type): The class type to generate attributes and superclass for.
-        grammar_nodes (List[Type]): The list of grammar nodes to search for classes.
-
-    Returns:
-        Tuple[List[Type], Dict[str, Type], Type, str]: A tuple containing the grammar_nodes list updated,
-        attributes dictionary, the superclass, and the abstraction_type class name.
-    """
-    fields = []
-    parent_name = ""
-    while isinstance(class_type, AbstractionType):
-        attribute_name = (class_type.var_name.value if isinstance(
-            class_type.var_name,
-            Token,
-        ) else class_type.var_name)
-        attribute_type = class_type.var_type
-
-        attribute_type_name = get_attribute_type_name(attribute_type)
-
-        grammar_nodes, cls = find_class_by_name(
-            attribute_type_name,
-            grammar_nodes,
-            attribute_type,
-        )
-        fields.append((attribute_name, cls))
-
-        parent_name += f"{attribute_type_name}_"
-        class_type = class_type.type
-
-    class_type_str = process_type_name(class_type)
-
-    superclass_type_name = f"{parent_name}t_{class_type_str}"
-
-    return grammar_nodes, fields, class_type, superclass_type_name
-
-
-def process_class_name(class_name: str) -> str:
-    """Processes the class name depending on its type."""
-    return class_name.value if isinstance(class_name, Token) else class_name
-
-
-def create_new_class(class_name: str, parent_class: type, fields=None) -> type:
-    """Creates a new class with the given name, parent class, and fields."""
-    if fields is None:
-        fields = []
-    new_class = make_dataclass(class_name, fields, bases=(parent_class, ))
-    new_class = mk_method_core(new_class)
-
+    setattr(new_class, "get_core", get_core)
+    new_class = weight(LITERAL_WEIGHT)(new_class)
     return new_class
 
 
-def create_refined_class(
-    class_name: str,
-    parent_class: type,
-    fields: list[tuple[str, type]],
-    class_type: RefinedType,
-    grammar_nodes: list[type],
-) -> list[type]:
-    """Create a refined class and update the grammar nodes list."""
-    new_class_app = create_new_class(
-        f"refined_app_{class_name}",
-        parent_class,
-        fields,
-    )
-    grammar_nodes.append(new_class_app)
+def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[list[Type]] = None) -> list[TypingType]:
+    """Creates all literal nodes for known types with literals (bool, int, float, string)"""
+    if types is None:
+        types = [t_bool, t_int, t_float, t_string]
 
-    parent_base_type_name = process_type_name(class_type.type)
-    grammar_nodes, _ = find_class_by_name(
-        parent_base_type_name,
-        grammar_nodes,
-        class_type.type,
-    )
-    return grammar_nodes
+    xname = Name("x", fresh_counter.fresh())
 
-
-def create_abstraction_class(
-    class_name: str,
-    abstraction_type_class_name: str,
-    grammar_nodes: list[type],
-) -> list[type]:
-    """Create an abstraction class and update the grammar nodes list."""
-    grammar_nodes, parent_class = find_class_by_name(
-        abstraction_type_class_name,
-        grammar_nodes,
-    )
-    new_class_var = create_new_class(f"var_{class_name}", parent_class)
-    grammar_nodes.append(new_class_var)
-    return grammar_nodes
-
-
-def create_class_from_ctx_var(
-    var: tuple,
-    grammar_nodes: list[type],
-) -> list[type]:
-    """Creates a new class based on a context variable and adds it to the list
-    of grammar nodes.
-
-    This function takes a context variable (a tuple with the class name and type) and a list of existing grammar nodes.
-    It creates a new class or classes with the given name, and generate his attributes and superclass based on the type
-    provided by the tuple.
-    The new class or classes are then added to the list of grammar nodes.
-
-    Args:
-        var (tuple): A tuple containing the class name and type.
-        grammar_nodes (list[type]): The list of existing grammar nodes.
-
-    Returns:
-        list[type]: The updated list of grammar nodes with the new class added,
-        or the original list if no class was added.
-    """
-    class_name, class_type = var
-    class_name = process_class_name(class_name)
-
-    if not is_valid_class_name(class_name):
-        return grammar_nodes
-
-    class_name = aeon_prelude_ops_to_text.get(class_name, class_name)
-    grammar_nodes, fields, parent_type, abstraction_type_class_name = generate_class_components(
-        class_type,
-        grammar_nodes,
-    )
-
-    parent_class_name = process_type_name(parent_type)
-    grammar_nodes, parent_class = find_class_by_name(
-        parent_class_name,
-        grammar_nodes,
-        parent_type,
-    )
-
-    if isinstance(class_type, RefinedType):
-        grammar_nodes = create_refined_class(
-            class_name,
-            parent_class,
-            fields,
-            class_type,
-            grammar_nodes,
+    gtm1 = LiquidApp(Name("<=", 0), [LiquidLiteralInt(-1), LiquidVar(xname)])
+    lt256 = LiquidApp(Name("<=", 0), [LiquidVar(xname), LiquidLiteralInt(256)])
+    base_int = [
+        create_literal_class(
+            t_int,
+            type_info[t_int],
+            refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
         )
-
-    new_class_app = create_new_class(f"app_{class_name}", parent_class, fields)
-    grammar_nodes.append(new_class_app)
-
-    if isinstance(class_type, AbstractionType):
-        grammar_nodes = create_abstraction_class(
-            class_name,
-            abstraction_type_class_name,
-            grammar_nodes,
-        )
-
-    return grammar_nodes
-
-
-def create_if_class(
-    class_name: str,
-    parent_class_name: str,
-    grammar_nodes: list[type],
-) -> list[type]:
-    grammar_nodes, cond_class = find_class_by_name("Bool", grammar_nodes)
-    grammar_nodes, parent_class = find_class_by_name(
-        parent_class_name,
-        grammar_nodes,
-    )
-
-    fields = [
-        ("cond", cond_class),
-        ("then", parent_class),
-        ("otherwise", parent_class),
     ]
 
-    if_class = create_new_class(class_name, parent_class, fields)
-    grammar_nodes.append(if_class)
-
-    return grammar_nodes
+    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types] + base_int
 
 
-def build_control_flow_grammar_nodes(grammar_nodes: list[type]) -> list[type]:
-    types_names_set = {
-        cls.__name__
-        for cls in grammar_nodes if cls.__base__ is ABC and not any(
-            issubclass(cls, other) and cls is not other
-            for other in grammar_nodes)
-    }
-    for ty_name in types_names_set:
-        grammar_nodes = create_if_class(
-            f"If_{ty_name}",
-            ty_name,
-            grammar_nodes,
-        )
-    return grammar_nodes
+def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
+    """Creates all literal nodes for refined types, via metahandlers"""
+    ref_types = [ty for ty in type_info if isinstance(ty, RefinedType) and ty.type in aeon_to_python]
+    return [
+        create_literal_class(aeon_ty, type_info[aeon_ty], refined_type_to_metahandler(aeon_ty)) for aeon_ty in ref_types
+    ]
+
+
+def create_var_node(name: Name, ty: Type, python_ty: TypingType) -> TypingType:
+    """Creates a python type for a given variable in context."""
+    vname = mangle_var(name)
+    dc = make_dataclass(f"var_{vname}", [], bases=(python_ty,))
+
+    def get_core(_):
+        return Var(name)
+
+    setattr(dc, "get_core", get_core)
+    dc = weight(VAR_WEIGHT)(dc)
+    return dc
+
+
+def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a python type for a given variable in context that is a function."""
+
+    # Collect arguments
+    args: list[tuple[Name, Type]] = []
+    current: Type = ty
+    while isinstance(current, AbstractionType):
+        args.append((current.var_name, current.var_type))
+        current = current.type
+    rtype = current
+    python_ty = type_info[rtype]
+
+    vname = mangle_var(name)
+    dc = make_dataclass(
+        f"var_app_{vname}", [(mangle_name(aname), type_info[ty]) for (aname, ty) in args], bases=(python_ty,)
+    )
+
+    def get_core(_self):
+        current = Var(name)
+        for aname, _ in args:
+            current = Application(current, getattr(_self, mangle_name(aname)).get_core())
+
+        return current
+
+    setattr(dc, "get_core", get_core)
+    dc = weight(VAR_WEIGHT)(dc)
+    return dc
+
+
+def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
+    """Creates a list of python types for all variables in context."""
+    return [create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars if ty in type_info] + [
+        create_var_apps_node(var_name, ty, type_info)
+        for (var_name, ty) in vars
+        if ty in type_info and isinstance(ty, AbstractionType)
+    ]
+
+
+def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    vname = f"lambda_{mangle_type(ty)}"
+    dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
+
+    def get_core(_self):
+        return Annotation(Abstraction(Name("_0", fresh_counter.fresh()), _self.body.get_core()), ty)
+
+    # Note: We cannot use the variable inside Abstraction.
+    setattr(dc, "get_core", get_core)
+    dc = weight(ABS_WEIGHT)(dc)
+    return dc
+
+
+def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
+    match t:
+        case RefinedType(_, _, _) | BaseType(_) | TypeVar() | Top():
+            return
+        case AbstractionType(_, aty, rty):
+            yield t
+            yield from collect_all_abstractions(aty)
+            yield from collect_all_abstractions(rty)
+        case TypePolymorphism(_, _, body):
+            yield from collect_all_abstractions(body)
+        case _:
+            assert False, f"Unsupported {t}"
+
+
+def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [
+        create_abstraction_node(ity, type_info)
+        for ty in type_info
+        for ity in collect_all_abstractions(ty)
+        if isinstance(ity, AbstractionType)
+    ]
+
+
+def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    vname = f"app_{mangle_type(ty)}"
+    dc = make_dataclass(vname, [("fun", type_info[ty]), ("arg", type_info[ty.var_type])], bases=(type_info[ty.type],))
+
+    # Note: this would require dependent type dynamic processing on the return type (parent class)
+
+    def get_core(_self):
+        return Application(_self.fun.get_core(), _self.arg.get_core())
+
+    setattr(dc, "get_core", get_core)
+    dc = weight(APP_WEIGHT)(dc)
+    return dc
+
+
+def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+
+
+def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
+    v_name = f"if_{mangle_type(ty)}"
+    dc = make_dataclass(
+        v_name,
+        [("cond", type_info[t_bool]), ("then", type_info[ty]), ("otherwise", type_info[ty])],
+        bases=(type_info[ty],),
+    )
+
+    def get_core(_self):
+        return Annotation(If(_self.cond.get_core(), _self.then.get_core(), _self.otherwise.get_core()), ty)
+
+    setattr(dc, "get_core", get_core)
+    dc = weight(IF_WEIGHT)(dc)
+    return dc
+
+
+def create_if_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
+    return [create_if_node(ty, type_info) for ty in type_info]
+
+
+def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
+    match lt:
+        case LiquidHole():
+            return lt
+        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_) | LiquidVar(_):
+            return lt
+        case LiquidApp(fun, args):
+            if fun in ["&&", "||"]:
+                nargs = [filter_uninterpreted(x) for x in args]
+                if nargs[0] is None:
+                    return nargs[1]
+                if nargs[1] is None:
+                    return nargs[0]
+                return LiquidApp(fun, nargs)
+            elif fun in ops:
+                nargs = [filter_uninterpreted(x) for x in args]
+                if None not in nargs:
+                    return LiquidApp(fun, nargs)
+                else:
+                    return None
+            else:
+                # user-defined uninterpreted function
+                return None
+        case _:
+            assert False, f"Failed {lt}"
+
+
+def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
+    match ty:
+        case BaseType() | TypeVar() | Top():
+            return ty
+        case AbstractionType(var_name, var_type, type):
+            return AbstractionType(
+                var_name,
+                remove_uninterpreted_functions_from_type(var_type),
+                remove_uninterpreted_functions_from_type(type),
+            )
+        case RefinedType(name, type, ref):
+            ref_filtered = filter_uninterpreted(ref)
+            if ref_filtered is None:
+                return type
+            else:
+                return RefinedType(name, type, ref_filtered)
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, remove_uninterpreted_functions_from_type(body))
+        case _:
+            assert False, f"Unsupported {ty}"
+
+
+def remove_uninterpreted_functions_wrap(e: TypingContextEntry) -> TypingContextEntry:
+    match e:
+        case VariableBinder(name, type):
+            type = remove_uninterpreted_functions_from_type(type)
+            return VariableBinder(name, type)
+        case UninterpretedBinder(_, _) | TypeBinder(_, _) | TypeConstructorBinder(_, _):
+            return e
+        case _:
+            assert False, f"Unsupported {e}"
+
+
+def remove_uninterpreted_functions(ctx: TypingContext) -> TypingContext:
+    return TypingContext([remove_uninterpreted_functions_wrap(el) for el in ctx.entries])
+
+
+def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, LiquidTerm]]:
+    substitutions: dict[Name, LiquidTerm] = {}
+    entries: list[TypingContextEntry] = []
+    for e in ctx.entries:
+        match e:
+            case VariableBinder(name, ty):
+                # Apply all pending substitions
+
+                for k in substitutions:
+                    ty = substitution_liquid_in_type(ty, substitutions[k], k)
+
+                # Detect the pattern {n:T | n == C}
+                match ty:
+                    case RefinedType(name, _, LiquidApp(Name("==", _), [LiquidVar(iname), val])):
+                        if name == iname:
+                            substitutions[name] = val
+                entries.append(VariableBinder(name, ty))
+            case _:
+                # TODO: we might want to apply the substitions on other types of entries
+                entries.append(e)
+
+    return TypingContext(entries), substitutions
 
 
 def gen_grammar_nodes(
     ctx: TypingContext,
-    synth_func_name: str,
+    synth_fun_type,
+    synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
-) -> list[type]:
+) -> tuple[list[type], type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
     This function iterates over the variables in the provided TypingContext. For each variable,
@@ -626,40 +425,46 @@ def gen_grammar_nodes(
     if grammar_nodes is None:
         grammar_nodes = []
 
-    current_metadata = metadata.get(synth_func_name, {})
+    # Clean context to remove non-interpreted functions from the context.
+    # Simple refinements like 0 < n && n < 10 are kept.
+    ctx, _ = propagate_constants(ctx)
+    ctx = remove_uninterpreted_functions(ctx)
+    synth_fun_type = remove_uninterpreted_functions_from_type(synth_fun_type)
+
+    current_metadata = metadata.get(mangle_name(synth_func_name), {})
     is_recursion_allowed = current_metadata.get("recursion", False)
     vars_to_ignore = current_metadata.get("hide", [])
+    types_to_ignore = current_metadata.get("hide_types", [])
 
-    def skip(name: str) -> bool:
+    def skip(name: Name) -> bool:
         if name == synth_func_name:
             return not is_recursion_allowed
         elif name in vars_to_ignore:
             return True
-        elif name.startswith("__internal__"):
+        elif name.name.startswith("__internal__"):
+            return True
+        elif name.name in ["native", "native_import", "print"]:
             return True
         else:
             return False
 
-    for var_name, ty in ctx.vars():
-        if not skip(var_name):
-            grammar_nodes = create_class_from_ctx_var(
-                (var_name, ty),
-                grammar_nodes,
-            )
+    ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.concrete_vars() if not skip(var_name)]
+    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([synth_fun_type])
+    types_to_consider = types_to_consider - set(BaseType(t) for t in types_to_ignore)
+    type_info = extract_all_types(list(types_to_consider))
+    type_nodes = list(set(type_info.values()))
 
-    return grammar_nodes
+    literals = create_literals_nodes(type_info)
+    vars = create_var_nodes(ctx_vars, type_info)
+    abstractions = create_abstraction_nodes(type_info)
+    applications = create_application_nodes(type_info)
+    literals_ref = create_literal_ref_nodes(type_info)
+    ifs = create_if_nodes(type_info)
 
-
-def convert_to_term(inp):
-    if isinstance(inp, str):
-        return Literal(inp, type=t_string)
-    elif isinstance(inp, int):
-        return Literal(inp, type=t_int)
-    elif isinstance(inp, bool):
-        return Literal(inp, type=t_bool)
-    elif isinstance(inp, float):
-        return Literal(inp, type=t_float)
-    raise GrammarError(f"Unable to converto to term : {type(inp)}")
+    ret = type_nodes + literals + literals_ref + vars + applications + abstractions
+    if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[mangle_name(synth_func_name)]:
+        ret = ret + ifs
+    return ret, type_info[synth_fun_type]
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
@@ -671,11 +476,11 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
     for cls in grammar_nodes:
         parents = [base.__name__ for base in cls.__bases__]
         print("@dataclass")
-        print(f"class {cls.__name__} ({''.join(parents)}):")
+        print(f"class {cls.__name__}({', '.join(parents)}):")
         class_vars = cls.__annotations__
         if class_vars:
             for var_name, var_type in class_vars.items():
-                print(f"\t {var_name}: {var_type.__name__}")
+                print(f"\t {var_name}: {str(var_type)}")
         else:
             print("\t pass")
         print()

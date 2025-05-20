@@ -1,0 +1,11 @@
+
+
+def prop : (b:Int) -> Bool = uninterpreted;
+
+def f : {x:Int | x > 0} = native "3";
+def g : {x:Int | prop x } = native "5";
+
+def main (x:Int) : Int {
+    _ = print (f + g);
+    0
+}

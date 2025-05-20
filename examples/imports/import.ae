@@ -6,6 +6,6 @@ def pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) ->
 
 
 def main (args:Int) : Unit {
-    int_to_string : (x:Int) -> String = native "str";
+    int_to_string : (x:Int) -> String = \x -> native "str(x)";
     print (int_to_string (pow 3 4))
 }

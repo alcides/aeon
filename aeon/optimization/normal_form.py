@@ -13,15 +13,17 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import t_bool
+from aeon.core.types import t_bool, t_int
+from aeon.utils.name import Name
 
 
-def normal_form(t: Term) -> Term:
-    nf = normal_form
+def nf(t: Term) -> Term:
     match t:
-
         case Application(Abstraction(var_name, body), arg):
-            return nf(substitution(body, arg, var_name))
+            return substitution(body, arg, var_name)
+
+        case Application(Annotation(Abstraction(var_name, body), ty), arg):
+            return substitution(body, arg, var_name)
 
         case TypeApplication(TypeAbstraction(vty, kind, body), ty):
             return substitute_vartype_in_term(body, ty, vty)
@@ -34,63 +36,86 @@ def normal_form(t: Term) -> Term:
 
         # Basic opts
 
-        case Application(Application(Var("&&"), Literal(True, tb)), e):
+        case Application(Application(Var(Name("&&", _)), Literal(True, tb)), e):
             return e
-        case Application(Application(Var("&&"), Literal(False, tb)), e):
+        case Application(Application(Var(Name("&&", _)), Literal(False, tb)), e):
             return Literal(False, tb)
-        case Application(Application(Var("&&"), e), Literal(True, tb)):
+        case Application(Application(Var(Name("&&", _)), e), Literal(True, tb)):
             return e
-        case Application(Application(Var("&&"), e), Literal(False, tb)):
+        case Application(Application(Var(Name("&&", _)), e), Literal(False, tb)):
             return Literal(False, tb)
 
-        case Application(Application(Var("||"), Literal(True, tb)), e):
+        case Application(Application(Var(Name("||", _)), Literal(True, tb)), e):
             return Literal(True, tb)
-        case Application(Application(Var("||"), Literal(False, tb)), e):
+        case Application(Application(Var(Name("||", _)), Literal(False, tb)), e):
             return e
-        case Application(Application(Var("||"), e), Literal(True, tb)):
+        case Application(Application(Var(Name("||", _)), e), Literal(True, tb)):
             return Literal(True, tb)
-        case Application(Application(Var("||"), e), Literal(False, tb)):
+        case Application(Application(Var(Name("||", _)), e), Literal(False, tb)):
             return e
 
-        case Application(Application(Var("+"), Literal(0, ti)), e):
+        case Application(Application(Var(Name("+", _)), Literal(0, ti)), e):
             return e
-        case Application(Application(Var("+"), e), Literal(0, ti)):
+        case Application(Application(Var(Name("+", _)), e), Literal(0, ti)):
             return e
-        case Application(Application(Var("+"), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("+", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a + b, ti)  # type: ignore
 
-        case Application(Application(Var("-"), e), Literal(0, ti)):
+        case Application(Application(Var(Name("-", _)), e), Literal(0, ti)):
             return e
-        case Application(Application(Var("-"), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("-", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a - b, ti)  # type: ignore
+        case Application(Application(Var(Name("-", _)), x1), x2):
+            if x1 == x2:
+                return Literal(0, t_int)
+            else:
+                return t
 
-        case Application(Application(Var("*"), Literal(0, ti)), e):
+        case Application(Application(Var(Name("*", _)), Literal(0, ti)), e):
             return Literal(0, ti)
-        case Application(Application(Var("*"), e), Literal(0, ti)):
+        case Application(Application(Var(Name("*", _)), e), Literal(0, ti)):
             return Literal(0, ti)
-        case Application(Application(Var("*"), Literal(1, ti)), e):
+        case Application(Application(Var(Name("*", _)), Literal(1, ti)), e):
             return e
-        case Application(Application(Var("*"), e), Literal(1, ti)):
+        case Application(Application(Var(Name("*", _)), e), Literal(1, ti)):
             return e
-        case Application(Application(Var("*"), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("*", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a * b, ti)  # type: ignore
 
-        case Application(Application(Var("=="), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("/", _)), Literal(0, ti)), e):
+            return Literal(0, ti)
+
+        case Application(Application(Var(Name("/", _)), x1), x2):
+            if x1 == x2:
+                return Literal(1, t_int)
+            else:
+                return t
+
+        case Application(Application(Var(Name("%", _)), Literal(0, ti)), _):
+            return Literal(0, t_int)
+
+        case Application(Application(Var(Name("%", _)), x1), x2):
+            if x1 == x2:
+                return Literal(0, t_int)
+            else:
+                return t
+
+        case Application(Application(Var(Name("==", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a == b, t_bool)
 
-        case Application(Application(Var("!="), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("!=", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a != b, t_bool)
 
-        case Application(Application(Var(">"), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name(">", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a > b, t_bool)  # type: ignore
 
-        case Application(Application(Var(">="), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name(">=", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a >= b, t_bool)  # type: ignore
 
-        case Application(Application(Var("<"), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("<", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a < b, t_bool)  # type: ignore
 
-        case Application(Application(Var("<="), Literal(a, ti)), Literal(b, tb)):
+        case Application(Application(Var(Name("<=", _)), Literal(a, ti)), Literal(b, tb)):
             return Literal(a <= b, t_bool)  # type: ignore
 
         case Literal(_, _):
@@ -118,12 +143,17 @@ def normal_form(t: Term) -> Term:
             return TypeAbstraction(ty, kind, nf(body))
         case TypeApplication(body, ty):
             return TypeApplication(nf(body), ty)
-    assert False
+        case _:
+            assert False, f"No case for {t} ({type(t)})"
 
 
-def optimize(t: Term) -> Term:
+def normal_form(t: Term) -> Term:
     while True:
-        nt = normal_form(t)
+        nt = nf(t)
         if t == nt:
             return nt
         t = nt
+
+
+def optimize(t: Term) -> Term:
+    return normal_form(t)

@@ -5,19 +5,18 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
+from aeon.utils.name import Name
 
 
 class SynthesisUI(abc.ABC):
-
     def start(
         self,
         typing_ctx: TypingContext,
         evaluation_ctx: EvaluationContext,
         target_name: str,
-        target_type: Type,
+        target_type: Type | None,
         budget: Any,
-    ):
-        ...
+    ): ...
 
     def register(
         self,
@@ -25,17 +24,15 @@ class SynthesisUI(abc.ABC):
         quality: Any,
         elapsed_time: float,
         is_best: bool,
-    ):
-        ...
+    ): ...
 
-    def end(self, solution: Term, quality: Any):
-        ...
+    def end(self, solution: Term, quality: Any): ...
 
     def wrapper(self, f):
         """This wrapper is necessary for the NCurses version of the API"""
         return f()
 
-    def display_results(self, program: Term, terms: dict[str, Term]):
+    def display_results(self, program: Term, terms: dict[Name, Term]):
         print("Synthesized holes:")
         for name in terms:
             print(f"?{name}: {terms[name]}")
@@ -44,7 +41,6 @@ class SynthesisUI(abc.ABC):
 
 
 class SilentSynthesisUI(SynthesisUI):
-
     def start(
         self,
         typing_ctx: TypingContext,

@@ -5,42 +5,43 @@ type List;
 
 def itertools : Unit = native_import "itertools";
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = native "lambda start: lambda end: lambda step: list(range(start, end, step ))";
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> List = \start -> \end -> \step -> native "list(range(start, end, step ))";
 
-def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = native "lambda i: lambda j: lambda l: i[j:l]" ;
-def List_remove_last : (i:List) -> List = native "lambda i: i[:-1]";
-def List_remove_first : (i:List) -> List = native "lambda i: i[1:]";
-def List_reversed: (l: List)-> List = native "lambda xs : xs[::-1]";
+def List_slice : (i:List) -> (j:Int) -> (l:Int)-> List = \i -> \j -> \l -> native "i[j:l]" ;
+def List_remove_last : (i:List) -> List = \i -> native "i[:-1]";
+def List_remove_first : (i:List) -> List = \i -> native "i[1:]";
+def List_reversed: (l: List)-> List = \xs -> native "xs[::-1]";
 
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : List = native "[]" ;
-def List_append: (l:List) -> (i: Int) -> List = native "lambda xs: lambda x: xs + [x]";
+def List_append: (l:List) -> (i: Int) -> List = \xs -> \x -> native "xs + [x]";
 
-def Accumulate : (xs:List) -> List = native "lambda xs: list(itertools.accumulate(xs))";
-def Zip : (xs:List) -> (ys:List) -> List = native "lambda xs: lambda ys: list(zip(xs, ys))";
-def Enumerate : (xs:List) -> List = native "lambda xs: list(enumerate(xs))";
-def Map : (f: (s:List) -> List) -> (l:List) -> List = native "lambda f: lambda xs: list(map(f, xs))";
-def Math_abs : (i:Int) -> Int = native "lambda i: abs(i)" ;
-def Tuple : (i:Int) -> (j:Int) -> List = native "lambda i: lambda j: (i, j)";
-def Tuple_list : (i:List) -> (j:List) -> List = native "lambda i: lambda j: [i, j]";
-def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = native "lambda i: lambda f: min(i,key=f)";
+def Accumulate : (xs:List) -> List = \xs -> native "list(itertools.accumulate(xs))";
+def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
+def Enumerate : (xs:List) -> List = \xs -> native "list(enumerate(xs))";
+def Map : (f: (s:List) -> List) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
+def Math_abs : (i:Int) -> Int = \i -> native "abs(i)" ;
+def Tuple : (i:Int) -> (j:Int) -> List = \i -> \j -> native "(i, j)";
+def Tuple_list : (i:List) -> (j:List) -> List = \i -> \j -> native "[i, j]";
+def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = \i -> \f -> native "min(i,key=f)";
 
-def get_fst : (i:List) -> Int = native "lambda i: i[0]";
-def get_snd : (i:List) -> Int = native "lambda i: i[1] if len(i) > 1 else i[0]";
-def get_zip : (i:List) -> List = native "lambda i: i[1]";
+def get_fst : (i:List) -> Int = \i -> native "i[0]";
+def get_snd : (i:List) -> Int = \i -> native "i[1] if len(i) > 1 else i[0]";
+def get_zip : (i:List) -> List = \i -> native "i[1]";
 
 #PSB2 functions
 
 def train: TrainData = extract_train_data (load_dataset "cut-vector" 200 200);
 
-def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  native " lambda data: lambda func: [(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]";
+def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: List) -> List ) -> List  =  \data -> \func -> native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]";
 
 
 @hide(extract_train_data,
             load_dataset,
             train,
-            calculate_cut_vector_errors
+            calculate_cut_vector_errors)
 @multi_minimize_float(calculate_cut_vector_errors train cut_vector)
-def synth ( ls : List ) : List {
+@objective_number(2)
+def cut_vector ( ls : List ) : List {
     (?hole:List)
-    }
+}

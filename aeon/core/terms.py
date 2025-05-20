@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from aeon.core.types import Kind
 from aeon.core.types import t_string
 from aeon.core.types import Type
+from aeon.utils.name import Name
 
 
 class Term:
@@ -28,7 +29,7 @@ class Literal(Term):
 
 @dataclass(frozen=True)
 class Var(Term):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"{self.name}"
@@ -57,7 +58,7 @@ class Annotation(Term):
 
 @dataclass(frozen=True)
 class Hole(Term):
-    name: str
+    name: Name
 
     def __str__(self):
         return f"?{self.name}"
@@ -83,8 +84,11 @@ class Application(Term):
 
 @dataclass(frozen=True)
 class Abstraction(Term):
-    var_name: str
+    var_name: Name
     body: Term
+
+    def __post_init__(self):
+        assert isinstance(self.var_name, Name)
 
     def __repr__(self):
         return f"(\\{self.var_name} -> {self.body})"
@@ -95,7 +99,7 @@ class Abstraction(Term):
 
 @dataclass(frozen=True)
 class Let(Term):
-    var_name: str
+    var_name: Name
     var_value: Term
     body: Term
 
@@ -113,7 +117,7 @@ class Let(Term):
 
 @dataclass(frozen=True)
 class Rec(Term):
-    var_name: str
+    var_name: Name
     var_type: Type
     var_value: Term
     body: Term
@@ -159,7 +163,7 @@ class If(Term):
 
 @dataclass(frozen=True)
 class TypeAbstraction(Term):
-    name: str
+    name: Name
     kind: Kind
     body: Term
 
