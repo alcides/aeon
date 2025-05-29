@@ -39,6 +39,10 @@ Aeon has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbo
 * [Alcides Fonseca](http://alcidesfonseca.com)
 * [Paulo Santos](https://pcanelas.com/)
 * [Eduardo Madeira](https://www.lasige.pt/member/jose-eduardo-madeira)
+* [Guilherme Espada](https://espada.dev)
+* [Lishun Su](https://lasige.pt/member/su-lishun/)
+* [Paulo Silva](https://github.com/PauloHS-Silva)
+* [Diogo Sousa](https://github.com/SousaTrashBin)
 
 Acknowledgements
 ----------------
