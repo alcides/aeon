@@ -19,7 +19,6 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
@@ -34,8 +33,6 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
         return substitute_vartype(k, rep, name)
 
     match t:
-        case BaseType(_):
-            return t
         case TypeVar(tname):
             if tname == name:
                 return rep
@@ -54,7 +51,7 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
         case TypeConstructor(cname, args):
             return TypeConstructor(cname, [rec(arg) for arg in args])
         case _:
-            assert False, f"type {t} ({type(t)}) not allows in substition."
+            assert False, f"type {t} ({type(t)}) not allows in substitution."
 
 
 def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
@@ -129,7 +126,7 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
         return substitution_liquid_in_type(t, rep, name)
 
     match t:
-        case Top() | BaseType(_) | TypeVar(_):
+        case Top() | TypeConstructor(_) | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype):
             if aname == name:
@@ -163,7 +160,7 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
         return substitution_in_type(t, rep, name)
 
     match t:
-        case Top() | BaseType(_) | TypeVar(_):
+        case Top() | TypeConstructor(_) | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype):
             if aname == name:
@@ -327,16 +324,16 @@ def liquefy(rep: Term) -> LiquidTerm | None:
 
     assert isinstance(rep, Term), "not term"
     match rep:
-        case Literal(val, BaseType(Name("Int", 0))):
+        case Literal(val, TypeConstructor(Name("Int", 0))):
             assert isinstance(val, int)
             return LiquidLiteralInt(val)
-        case Literal(val, BaseType(Name("Float", 0))):
+        case Literal(val, TypeConstructor(Name("Float", 0))):
             assert isinstance(val, float)
             return LiquidLiteralFloat(val)
-        case Literal(val, BaseType(Name("Bool", 0))):
+        case Literal(val, TypeConstructor(Name("Bool", 0))):
             assert isinstance(val, bool)
             return LiquidLiteralBool(val)
-        case Literal(val, BaseType(Name("String", 0))):
+        case Literal(val, TypeConstructor(Name("String", 0))):
             assert isinstance(val, str)
             return LiquidLiteralString(val)
         case Application(_, _):

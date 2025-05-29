@@ -27,7 +27,7 @@ from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import BaseKind
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -163,7 +163,7 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
-def make_binary_app_type(t: Name, ity: BaseType | TypeVar, oty: BaseType | TypeVar) -> Type:
+def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConstructor | TypeVar) -> Type:
     """Creates the type of a binary operator"""
     xname = Name("x", fresh_counter.fresh())
     yname = Name("y", fresh_counter.fresh())
@@ -272,7 +272,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             raise CouldNotGenerateConstraintException(
                 f"Variable {t.name} not in context",
             )
-        if isinstance(ty, BaseType) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
+        if isinstance(ty, TypeConstructor) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
             ty = ensure_refined(ty)
             assert isinstance(ty, RefinedType)
             # assert ty.name != t.name

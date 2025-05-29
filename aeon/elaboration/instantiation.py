@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     SType,
     STypeConstructor,
@@ -22,8 +21,6 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
     ty = normalize(ty)
 
     match ty:
-        case SBaseType(_):
-            return ty
         case STypeVar(name):
             if name == alpha:
                 return beta
@@ -55,8 +52,6 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
         return type_variable_instantiation(x, alpha, beta)
 
     match ty:
-        case SBaseType(_):
-            return ty
         case STypeVar(name):
             if name == alpha:
                 return beta

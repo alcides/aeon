@@ -1,7 +1,6 @@
 from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     STypeConstructor,
     STypeVar,
     SRefinedType,
@@ -46,8 +45,6 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
 
     ty = normalize(ty)
     match ty:
-        case SBaseType(_):
-            return ty
         case STypeVar(tname):
             if tname == alpha:
                 return beta
@@ -73,7 +70,7 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
         return substitution_sterm_in_stype(k, beta, alpha)
 
     match ty:
-        case SBaseType(_) | STypeVar(_):
+        case STypeVar(_):
             return ty
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), substitution_sterm_in_sterm(ref, beta, alpha))

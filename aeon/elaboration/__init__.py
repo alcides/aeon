@@ -19,7 +19,6 @@ from aeon.sugar.program import (
 )
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     STypeConstructor,
     STypeVar,
@@ -104,13 +103,18 @@ def elaborate_foralls(e: STerm) -> STerm:
 
 def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
     match (sub, sup):
-        case (_, SBaseType(Name("Top", 0))):
+        case (_, STypeConstructor(Name("Top", 0))):
             return []
-        case (SBaseType(subn), SBaseType(supn)):
+        case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
             if subn != supn:
                 raise UnificationException(f"Found {sub}, but expected {sup}")
+            elif len(subargs) != len(supargs):
+                raise UnificationException(f"Found {sub}, but expected {sup}")
             else:
-                return []
+                rt = []
+                for subarg, suparg in zip(subargs, supargs):
+                    rt += unify(ctx, subarg, suparg)
+                return rt
         case (SRefinedType(_, ty, _), _):
             return unify(ctx, ty, sup)
         case (_, SRefinedType(_, ty, _)):
@@ -272,8 +276,18 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             unify(ctx, nthen_type, u)
             unify(ctx, nelse_type, u)
             return SIf(ncond, nthen, nelse), u
+        # TODO: here now
+        # case SApplication(fun, arg):
+        #     _in = UnificationVar(ctx.fresh_typevar())
+        #     _out = UnificationVar(ctx.fresh_typevar())
+        #     fun_abst = SAbstractionType(Name("_", fresh_counter.fresh()), _in, _out)
+        #     (nfun, nfun_type) = elaborate_synth(ctx, fun)
+        #     (c, s) = get_rid_of_polymorphism(ctx, nfun, nfun_type, fun_abst)
+        #     assert isinstance(s, SAbstractionType), f"Expected an abstraction type, got {s} ({type(s)})"
+        #     arg = elaborate_check(ctx, arg, _in)
+        #     return SApplication(c, arg), fun_abst
         case _:
-            raise UnificationException(f"Could not infer the type of {t}")
+            raise UnificationException(f"Could not infer the type of {t}.")
 
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
@@ -313,7 +327,13 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
         case _:
             (c, s) = elaborate_synth(ctx, t)
             (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
-            unify(ctx, s, ty)
+            try:
+                unify(ctx, s, ty)
+            except UnificationException as e:
+                print("DEBUG", t)
+                print(s)
+                print(ty)
+                raise e
             return c
 
 
@@ -351,7 +371,7 @@ def replace_unification_variables(
     def go(ctx: ElaborationTypingContext, ty: SType, polarity: bool) -> SType:
         """The recursive part of the function."""
         match ty:
-            case SBaseType(_) | STypeVar(_):
+            case STypeVar(_):
                 return ty
             case SAbstractionType(name, vty, rty):
                 return SAbstractionType(
@@ -485,7 +505,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             nt = remove_unions_and_intersections(ctx, nt)
 
             match nt:
-                case SBaseType(Name("Top", _)):
+                case STypeConstructor(Name("Top", _)):
                     return STypeApplication(body, nt)
                 case _:
                     should_be_refined = True
@@ -495,7 +515,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                                 case STypePolymorphism(_, BaseKind(), _):
                                     should_be_refined = False
                     match nt:
-                        case SBaseType(_) | STypeVar(_) | STypeConstructor(_, _):
+                        case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):
                             new_type: SType
                             if should_be_refined:
                                 nv = Name("self", fresh_counter.fresh())

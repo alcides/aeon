@@ -8,7 +8,7 @@
 # from sympy.simplify.simplify import simplify
 
 # from aeon.core.liquid import LiquidApp, LiquidVar, LiquidLiteralInt
-# from aeon.core.types import AbstractionType, BaseType, RefinedType, t_int, Top, Bottom
+# from aeon.core.types import AbstractionType, TypeConstructor, RefinedType, t_int, Top, Bottom
 # from aeon.synthesis_grammar.bounds import refined_to_sympy_expression, sympy_exp_to_bounded_interval
 # from aeon.synthesis_grammar.grammar import (
 #     get_attribute_type_name,
@@ -21,7 +21,7 @@
 
 
 # def test_abstract_type_name():
-#     abstract_ty = AbstractionType("x", BaseType("Int"), AbstractionType("y", BaseType("Float"), BaseType("String")))
+#     abstract_ty = AbstractionType("x", TypeConstructor("Int"), AbstractionType("y", TypeConstructor("Float"), TypeConstructor("String")))
 #     assert get_attribute_type_name(abstract_ty) == "t_Int_t_Float_t_String"
 
 
@@ -88,7 +88,7 @@
 #     )
 #     rt_str = process_type_name(refined_ty)
 #     assert rt_str == "Refined_Int_lt_0_or_Int_gt_10_and_Int_lt_20_or_Int_gt_30"
-#     ty = BaseType("test")
+#     ty = TypeConstructor("test")
 #     ty_str = process_type_name(ty)
 #     assert ty_str == "test"
 #     ty = Top()

@@ -17,8 +17,6 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import FP
-from z3.z3 import FPSort
 from z3.z3 import Float64
 from z3.z3 import Implies
 from z3.z3 import IntSort
@@ -40,7 +38,6 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
-from aeon.core.types import BaseType
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
@@ -118,7 +115,7 @@ base_functions: dict[str, Any] = {
 class SMTContext:
     sorts: list[str]
     functions: dict[str, AbstractionType]
-    variables: dict[str, BaseType]
+    variables: dict[str, TypeConstructor]
     premises: list[LiquidTerm]
 
     def with_sort(self, name: Name) -> SMTContext:
@@ -127,7 +124,7 @@ class SMTContext:
     def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
         return SMTContext(self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises)
 
-    def with_var(self, name: Name, ty: BaseType) -> SMTContext:
+    def with_var(self, name: Name, ty: TypeConstructor) -> SMTContext:
         return SMTContext(self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises)
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
@@ -140,7 +137,7 @@ class CanonicConstraint:
 
     sorts: list[str]
     functions: dict[str, AbstractionType]
-    variables: dict[str, BaseType]
+    variables: dict[str, TypeConstructor]
     premise: LiquidTerm
     conclusion: LiquidTerm
 
@@ -189,14 +186,14 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             pred = substitution_in_liquid(pred, LiquidVar(name), oname)
             seq = rename_constraint(seq, oname, name)
             match base:
-                case BaseType(iname):
-                    pass
                 case TypeVar(iname):
-                    base = BaseType(iname)
+                    base = TypeConstructor(iname)
+                case TypeConstructor(iname, []):
+                    pass
                 case TypeConstructor(iname, args):
                     mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
                     nname = Name(mangle_name, fresh_counter.fresh())
-                    base = BaseType(nname)
+                    base = TypeConstructor(nname)
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
             yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
@@ -248,23 +245,23 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache: dict[str, SortRef] = {}
 
 
-def mk_vars(variables: dict[str, BaseType], sorts: dict[str, SortRef]) -> dict[str, Any]:
+def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) -> dict[str, Any]:
     return {name: make_variable(name, base) for name, base in variables.items()}
 
 
 def get_sort(base: Type) -> SortRef:
     match base:
-        case Top() | BaseType(Name("Top", _)):
+        case Top() | TypeConstructor(Name("Top", _)):
             return DeclareSort("Top")
-        case BaseType(Name("Int", _)):
+        case TypeConstructor(Name("Int", _)):
             return IntSort()
-        case BaseType(Name("Bool", _)):
+        case TypeConstructor(Name("Bool", _)):
             return BoolSort()
-        case BaseType(Name("Float", _)):
+        case TypeConstructor(Name("Float", _)):
             return Float64()
-        case BaseType(Name("String", _)):
+        case TypeConstructor(Name("String", _)):
             return StringSort()
-        case BaseType(name):
+        case TypeConstructor(name, _):
             return IntSort()
             # This will be reenable once we have typeclasses
             # if name not in sort_cache:
@@ -292,45 +289,57 @@ def unrefine_type(base: Type):
             return base
 
 
-def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
+def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstructor]:
     current: Type = unrefine_type(base)
     inputs = []
+    vars_to_remove = []
+
+    while isinstance(current, TypePolymorphism):
+        vars_to_remove.append(current.name)
+        current = current.body
+
     while isinstance(current, AbstractionType):
         match current.var_type:
-            case BaseType(_):
+            case TypeConstructor(_, []):
                 inputs.append(current.var_type)
+            case TypeConstructor(_, _):
+                inputs.append(t_int)
             case Top():
                 inputs.append(t_unit)
             case TypeVar(name):
-                inputs.append(BaseType(name))
+                if name in vars_to_remove:
+                    inputs.append(t_int)
+                else:
+                    inputs.append(TypeConstructor(name))
             case _:
                 assert False, f"Unknown SMT type {current.var_type} in {base}."
         current = current.type
 
     if isinstance(current, Top):
         current = t_unit
-    assert isinstance(current, BaseType)
+    assert isinstance(current, TypeConstructor), f"Unknown SMT type {current} in {base}."
     return (inputs, current)
 
 
-def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
+def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
     match base:
         case Top():
             return Const(name, get_sort(base))
-        case BaseType(Name("Int", _)):
+        case TypeConstructor(Name("Int", _)):
             return Int(name)
-        case BaseType(
-            Name(
-                "Bool",
-            )
-        ):
+        case TypeConstructor(Name("Bool", _)):
             return Bool(name)
-        case BaseType(Name("Float", _)):
-            fpsort = FPSort(8, 24)
-            return FP(name, fpsort)
-        case BaseType(Name("String", _)):
+        case TypeConstructor(Name("Float", _), _):
+            import z3
+
+            v = z3.Real(name)
+            return v
+            # TODO: see problem with version below
+            # fpsort = FPSort(8, 24)
+            # return FP(name, fpsort)
+        case TypeConstructor(Name("String", _)):
             return String(name)
-        case BaseType(_):
+        case TypeConstructor(_, _):
             return Int(name)
             # TODO: we always use int, in the case of a typevar.
             # return Const(name, get_sort(base))
@@ -344,7 +353,7 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
                 args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
                 return Function(name, *args)
         case _:
-            assert False, f"No var: {name}, with base {base} of type {type(base)}"
+            assert False, f"No var: {name}, with base {base}."
 
 
 def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
@@ -375,7 +384,7 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
 
 
 def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
-    return {name: get_sort(BaseType(Name(name, 0))) for name in sorts}
+    return {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
 
 
 def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
@@ -397,6 +406,8 @@ def translate(
     variables = mk_vars(c.variables, sorts)
     e1 = translate_liq(c.premise, variables | functions)
     e2 = translate_liq(c.conclusion, variables | functions)
+    if isinstance(e2, bool) and e2 is True:
+        return False
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
     return And(e1, Not(e2))

@@ -4,7 +4,7 @@ from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import t_int
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
@@ -37,11 +37,11 @@ def test_smt_example3():
 
 example2 = Implication(
     name_x,
-    BaseType(name_a),
+    TypeConstructor(name_a),
     LiquidLiteralBool(True),
     Implication(
         name_y,
-        BaseType(name_a),
+        TypeConstructor(name_a),
         LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidVar(name_y)]),
         LiquidConstraint(
             LiquidApp(

@@ -1,0 +1,5 @@
+def test (angle: {deg:Float | 0.0 <= deg && deg < 360.0}) :
+         {r:Float | 0.0 <= r && r < 2.0} {
+    half_turn = 180.0;
+    angle / half_turn
+}
