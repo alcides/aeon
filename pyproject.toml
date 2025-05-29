@@ -58,7 +58,7 @@ build-backend = 'setuptools.build_meta'
 requires = ['setuptools >= 67.6.0']
 
 [tool.setuptools]
-# Package a folder (aeon/) and its subpackages instead of a single 
+# Package a folder (aeon/) and its subpackages instead of a single
 # file aeon.py as the module
 
 # py-modules = ["aeon"]
