@@ -35,7 +35,6 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
-from aeon.core.types import t_unit
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
 from aeon.typechecking.context import TypingContext
@@ -248,108 +247,109 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
 
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
-    if isinstance(t, Literal) and t.type == t_unit:
-        return (
-            ctrue,
-            prim_litbool(True),
-        )  # TODO: Unit is encoded as True, replace with custom Sort
-    elif isinstance(t, Literal) and t.type == t_bool:
-        assert isinstance(t.value, bool)
-        return (ctrue, prim_litbool(t.value))
-    elif isinstance(t, Literal) and t.type == t_int:
-        assert isinstance(t.value, int)
-        return (ctrue, prim_litint(t.value))
-    elif isinstance(t, Literal) and t.type == t_float:
-        assert isinstance(t.value, float)
-        return (ctrue, prim_litfloat(t.value))
-    elif isinstance(t, Literal):
-        return (ctrue, t.type)
-    elif isinstance(t, Var):
-        if t.name in ops:
-            return (ctrue, prim_op(t.name))
-        ty = ctx.type_of(t.name)
-        if not ty:
-            raise CouldNotGenerateConstraintException(
-                f"Variable {t.name} not in context",
-            )
-        if isinstance(ty, TypeConstructor) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
-            ty = ensure_refined(ty)
-            assert isinstance(ty, RefinedType)
-            # assert ty.name != t.name
-            if ty.name == t.name:
-                ty = renamed_refined_type(ty)
-            # Self
-            ty = RefinedType(
-                ty.name,
-                ty.type,
-                LiquidApp(
-                    Name("&&", 0),
-                    [
-                        ty.refinement,
-                        LiquidApp(
-                            Name("==", 0),
-                            [
-                                LiquidVar(ty.name),
-                                LiquidVar(t.name),
-                            ],
-                        ),
-                    ],
-                ),
-            )
-        return (ctrue, ty)
-    elif isinstance(t, Application):
-        (c, ty) = synth(ctx, t.fun)
-        match ty:
-            case AbstractionType(aname, atype, rtype):
-                cp = check(ctx, t.arg, atype)
-                t_subs = substitution_in_type(rtype, t.arg, aname)
-                c0 = Conjunction(c, cp)
-                return (c0, t_subs)
-            case _:
+    match t:
+        case Literal(_, TypeConstructor(Name("Unit", _))):
+            # TODO: Unit is encoded as True, replace with custom Sort
+            return (ctrue, prim_litbool(True))
+        case Literal(vb, TypeConstructor(Name("Bool", _))):
+            assert isinstance(vb, bool)
+            return (ctrue, prim_litbool(vb))
+        case Literal(vi, TypeConstructor(Name("Int", _))):
+            assert isinstance(vi, int)
+            return (ctrue, prim_litint(vi))
+        case Literal(vf, TypeConstructor(Name("Float", _))):
+            assert isinstance(vf, float)
+            return (ctrue, prim_litfloat(vf))
+        case Literal(_, TypeConstructor(Name("String", _))):
+            # TODO: String support
+            return (ctrue, t.type)
+        case Var(name):
+            if name in ops:
+                return (ctrue, prim_op(name))
+            ty = ctx.type_of(name)
+            if not ty:
                 raise CouldNotGenerateConstraintException(
-                    f"Application {t} ({ty}) is not a function.",
+                    f"Variable {name} not in context {ctx}",
                 )
-    elif isinstance(t, Let):
-        (c1, t1) = synth(ctx, t.var_value)
-        nctx: TypingContext = ctx.with_var(t.var_name, t1)
-        (c2, t2) = synth(nctx, t.body)
-        term_vars = type_free_term_vars(t1)
-        assert t.var_name not in term_vars
-        r = (Conjunction(c1, implication_constraint(t.var_name, t1, c2)), t2)
-        return r
-    elif isinstance(t, Rec):
-        nrctx: TypingContext = ctx.with_var(t.var_name, t.var_type)
-        c1 = check(nrctx, t.var_value, t.var_type)
-        (c2, t2) = synth(nrctx, t.body)
-        c1 = implication_constraint(t.var_name, t.var_type, c1)
-        c2 = implication_constraint(t.var_name, t.var_type, c2)
-        return Conjunction(c1, c2), t2
-    elif isinstance(t, Annotation):
-        ty = fresh(ctx, t.type)
-        c = check(ctx, t.expr, ty)
-        return c, ty
-    elif isinstance(t, TypeApplication):
-        if not is_bare(t.type):
-            # Type Application only works on bare types.
-            raise TypeApplicationOnlyWorksOnBareTypesException(t, t.type)
-        (c, tabs) = synth(ctx, t.body)
-        assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
-        ty = fresh(ctx, t.type)
-        s = type_substitution(tabs.body, tabs.name, ty)
-        k = ctx.kind_of(ty)
-        if isinstance(ty, RefinedType) and isinstance(ty.refinement, LiquidHornApplication):
-            ty = ty.type
-            k = ctx.kind_of(ty)
-        if k is None or not is_compatible(k, tabs.kind):
-            raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
-        return (c, s)
-    elif isinstance(t, Hole):
-        name_a = Name("a", fresh_counter.fresh())
-        return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
-    else:
-        logger.log("SYNTH_TYPE", ("Unhandled:", t))
-        logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
-        assert False, f"Unhandled term {t} in synth. Type: {type(t)}"
+            if isinstance(ty, TypeConstructor) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
+                ty = ensure_refined(ty)
+                assert isinstance(ty, RefinedType)
+                # assert ty.name != t.name
+                if ty.name == t.name:
+                    ty = renamed_refined_type(ty)
+                # Self
+                ty = RefinedType(
+                    ty.name,
+                    ty.type,
+                    LiquidApp(
+                        Name("&&", 0),
+                        [
+                            ty.refinement,
+                            LiquidApp(
+                                Name("==", 0),
+                                [
+                                    LiquidVar(ty.name),
+                                    LiquidVar(t.name),
+                                ],
+                            ),
+                        ],
+                    ),
+                )
+            return (ctrue, ty)
+        case Application(fun, arg):
+            print("SYNTH", fun, arg)
+            (c, ty) = synth(ctx, fun)
+            match ty:
+                case AbstractionType(aname, atype, rtype):
+                    cp = check(ctx, arg, atype)
+                    t_subs = substitution_in_type(rtype, arg, aname)
+                    c0 = Conjunction(c, cp)
+                    return (c0, t_subs)
+                case _:
+                    raise CouldNotGenerateConstraintException(
+                        f"Application {t} ({ty}) is not a function.",
+                    )
+        case Let(var_name, var_value, body):
+            (c1, t1) = synth(ctx, var_value)
+            nctx: TypingContext = ctx.with_var(var_name, t1)
+            (c2, t2) = synth(nctx, body)
+            term_vars = type_free_term_vars(t1)
+            assert t.var_name not in term_vars
+            r = (Conjunction(c1, implication_constraint(var_name, t1, c2)), t2)
+            return r
+        case Rec(var_name, var_type, var_value, body):
+            nrctx: TypingContext = ctx.with_var(var_name, var_type)
+            c1 = check(nrctx, var_value, var_type)
+            (c2, t2) = synth(nrctx, body)
+            c1 = implication_constraint(var_name, var_type, c1)
+            c2 = implication_constraint(var_name, var_type, c2)
+            return Conjunction(c1, c2), t2
+        case Annotation(expr, ty):
+            nty = fresh(ctx, ty)
+            c = check(ctx, expr, nty)
+            return c, nty
+        case TypeApplication(body, ty):
+            if not is_bare(ty):
+                # Type Application only works on bare types.
+                raise TypeApplicationOnlyWorksOnBareTypesException(t, ty)
+            (c, tabs) = synth(ctx, body)
+            assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
+            nty = fresh(ctx, ty)
+            s = type_substitution(tabs.body, tabs.name, nty)
+            k = ctx.kind_of(nty)
+            if isinstance(nty, RefinedType) and isinstance(nty.refinement, LiquidHornApplication):
+                nty = nty.type
+                k = ctx.kind_of(nty)
+            if k is None or not is_compatible(k, tabs.kind):
+                raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
+            return (c, s)
+        case Hole(name):
+            name_a = Name(name.name, fresh_counter.fresh())
+            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
+        case _:
+            logger.log("SYNTH_TYPE", ("Unhandled:", t))
+            logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
+            assert False, f"Unhandled term {t} in synth. Type: {type(t)}"
 
 
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
@@ -357,7 +357,6 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         assert wellformed(ctx, ty)
     except AssertionError:
         raise TypeNotWellformed(ty)
-
     match t, ty:
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
             ret = substitution_in_type(ret, Var(name), var_name)

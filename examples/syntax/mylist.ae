@@ -24,6 +24,6 @@ def size (l:IntList) : Int {
 
 
 def main (args:Int) : Unit {
-    a : {x:(MList Int) | len x > 0} = cons 3 empty;
+    a : {x:(IntList) | len x > 0} = cons 3 empty;
     print "Hello World"
 }
