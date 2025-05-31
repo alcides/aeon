@@ -39,8 +39,6 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     core_ast_anf = ensure_anf(core_ast)
     ty_core = type_to_core(ty)
     if not check_type(typing_ctx, core_ast_anf, ty_core):
-        print("unic", core_ast_anf)
-        print(ty_core)
         return False
 
     if val:

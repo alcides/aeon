@@ -50,7 +50,7 @@ from aeon.core.types import top
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.optimization.normal_form import optimize
-from aeon.sugar.program import Definition, SLiteral
+from aeon.sugar.program import Definition
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI
 from aeon.synthesis_grammar.grammar import (
     gen_grammar_nodes,
@@ -220,11 +220,11 @@ def create_evaluator(
 ) -> Callable[[classType], Any]:
     """Creates the fitness function for a given synthesis context."""
     fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata.get(str(fun_name), [])]
+    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata.get(fun_name, [])]
     assert used_decorators, "No fitness decorators used in metadata for function."
 
     objectives_list: list[Definition] = [
-        objective for decorator in used_decorators for objective in metadata.get(str(fun_name), [])[decorator]
+        objective for decorator in used_decorators for objective in metadata.get(fun_name, [])[decorator]
     ]
     programs_to_evaluate: list[Term] = [
         substitution(program, Var(objective.name), Name("main", 0)) for objective in objectives_list
@@ -281,35 +281,20 @@ def problem_for_fitness_function(
     fun_name: Name,
     metadata: Metadata,
     hole_names: list[Name],
-) -> Tuple[Problem, float | list[float]]:
+) -> Tuple[Problem, Any]:
     """Creates a problem for a particular function, based on the name and type
     of its fitness function."""
     fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-
     if fun_name in metadata:
-        used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[str(fun_name)].keys()]
+        used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata[fun_name].keys()]
         assert used_decorators, "No valid fitness decorators found."
-
         set_error_fitness(used_decorators)
 
         fitness_function = create_evaluator(ctx, ectx, term, fun_name, metadata, hole_names)
         problem_type = MultiObjectiveProblem if is_multiobjective(used_decorators) else SingleObjectiveProblem
-        target_fitness: float | list[float] = (
-            0 if isinstance(problem_type, SingleObjectiveProblem) else 0
-        )  # TODO: add support to maximize decorators
-
-        minimize: bool | list[bool]
-
-        if str(fun_name) in metadata and "objective_number" in metadata[str(fun_name)]:
-            v = metadata[str(fun_name)]["objective_number"]
-            assert isinstance(v, SLiteral), "TODO: implement evaluation of arguments"
-            assert isinstance(v.value, int)
-            minimize = [True for _ in range(v.value)]
-        else:
-            minimize = MINIMIZE_OBJECTIVE
-        return problem_type(fitness_function=fitness_function, minimize=minimize), target_fitness
+        return (problem_type(fitness_function=fitness_function, minimize=MINIMIZE_OBJECTIVE), None)
     else:
-        return SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0
+        return (SingleObjectiveProblem(fitness_function=lambda x: 0, minimize=True), 0)
 
 
 def get_grammar_components(
@@ -321,7 +306,7 @@ def get_grammar_components(
     return grammar_nodes, starting_node
 
 
-def create_grammar(holes: dict[Name, tuple[Type, TypingContext]], fun_name: Name, metadata: dict[str, Any]) -> Grammar:
+def create_grammar(holes: dict[Name, tuple[Type, TypingContext]], fun_name: Name, metadata: Metadata) -> Grammar:
     assert len(holes) == 1, "More than one hole per function is not supported at the moment."
     hole_name = list(holes.keys())[0]
     ty, ctx = holes[hole_name]

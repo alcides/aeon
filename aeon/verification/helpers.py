@@ -10,7 +10,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseType, Top, TypeVar
+from aeon.core.types import AbstractionType, TypeConstructor, Top, TypeVar
 from aeon.core.types import t_bool
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
@@ -44,7 +44,7 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]], exp: Constraint):
+def constraint_builder(vs: list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]], exp: Constraint):
     for n, t in vs[::-1]:
         if isinstance(t, AbstractionType):
             exp = UninterpretedFunctionDeclaration(n, t, exp)

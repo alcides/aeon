@@ -1,6 +1,6 @@
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseType, Type, TypeVar, t_bool, t_unit
+from aeon.core.types import AbstractionType, TypeConstructor, Type, TypeVar, t_bool, t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid, lower_abstraction_type, lower_context
 from aeon.verification.smt import rename_constraint
@@ -30,14 +30,14 @@ def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext, c: Constraint) 
             assert isinstance(ft, AbstractionType), f"{ft} is expected to be an AbstractionType."
             wellformed_constraint_liquid(nctx, seq)
         case TypeVarDeclaration(name, seq):
-            nctx = LiquidTypeCheckingContext(ctx.known_types + [BaseType(name)], ctx.variables, ctx.functions)
+            nctx = LiquidTypeCheckingContext(ctx.known_types + [TypeConstructor(name)], ctx.variables, ctx.functions)
             assert name in ctx.known_types, f"Type {name} not found in known types ({ctx.known_types})."
             wellformed_constraint_liquid(nctx, seq)
         case Implication(name, base, pred, seq):
             if isinstance(base, Top):
                 assert False, "Top type is not allowed in Implication."
             nctx = LiquidTypeCheckingContext(ctx.known_types, ctx.variables | {name: base}, ctx.functions)
-            assert isinstance(base, BaseType), f"Expected BaseType, got {base}."
+            assert isinstance(base, TypeConstructor), f"Expected TypeConstructor, got {base}."
             assert name not in ctx.variables, f"Variable {name} already exists in context."
 
             assert check_liquid(nctx, pred, t_bool), f"Predicate {pred} is either not valid, or not of type boolean."
@@ -50,10 +50,10 @@ def canonicalize_type(t: Type) -> Type:
     match t:
         case Top():
             return t_unit
-        case BaseType(_):
+        case TypeConstructor(_, _):
             return t
         case TypeVar(tv):
-            return BaseType(tv)
+            return TypeConstructor(tv)
         case AbstractionType(name, at, rt):
             return AbstractionType(name, canonicalize_type(at), canonicalize_type(rt))
         case _:
@@ -93,8 +93,8 @@ def canonicalize_constraint(c: Constraint, stack: list[Name] = None) -> Constrai
                 nseq = seq
             nseq = canonicalize_constraint(nseq, stack + [new_name])
             nty = canonicalize_type(base)
-            assert isinstance(nty, BaseType) or isinstance(nty, Top) or isinstance(nty, TypeVar), (
-                f"Expected BaseType, got {nty}."
+            assert isinstance(nty, TypeConstructor) or isinstance(nty, Top) or isinstance(nty, TypeVar), (
+                f"Expected TypeConstructor, got {nty}."
             )
 
             return Implication(new_name, nty, npred, nseq)

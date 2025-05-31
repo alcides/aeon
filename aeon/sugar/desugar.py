@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os.path
+import os
 from pathlib import Path
 from typing import NamedTuple
 
@@ -28,11 +28,13 @@ from aeon.sugar.program import (
 )
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
-from aeon.sugar.program import TypeDecl
-from aeon.sugar.stypes import SAbstractionType, SBaseType, SType, STypePolymorphism, builtin_types, get_type_vars
+from aeon.sugar.program import TypeDecl, InductiveDecl
+from aeon.sugar.stypes import SAbstractionType, SType, STypePolymorphism, builtin_types, get_type_vars, STypeConstructor
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name
-from aeon.sugar.ast_helpers import st_int
+from aeon.sugar.ast_helpers import st_int, st_string
+
+from aeon.sugar.stypes import STypeVar
 
 
 class DesugaredProgram(NamedTuple):
@@ -44,6 +46,9 @@ class DesugaredProgram(NamedTuple):
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
+
+    p = expand_inductive_decls(p)
+
     prog = determine_main_function(p, is_main_hole)
 
     defs, type_decls = p.definitions, p.type_decls
@@ -58,8 +63,82 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     prog, etctx = replace_concrete_types(
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
     )
-
     return DesugaredProgram(prog, etctx, metadata)
+
+
+def expand_inductive_decls(p: Program) -> Program:
+    tds: list[TypeDecl] = []
+    defs: list[Definition] = []
+
+    uninterpreted_lit = SVar(Name("uninterpreted", 0))
+
+    for decl in p.inductive_decls:
+        match decl:
+            case InductiveDecl(name, args, constructors, measures):
+                tds.append(TypeDecl(name, args))
+
+                for measure in measures:
+                    match measure:
+                        case Definition(mname, mforalls, margs, mrtype, _, _):
+                            de = Definition(mname, mforalls, margs, mrtype, uninterpreted_lit)
+                            defs.append(de)
+
+                def key_for(tyname: Name, constructor_name: Name) -> str:
+                    return f"{tyname.name}_{constructor_name.name}"
+
+                for constructor in constructors:
+                    match constructor:
+                        case Definition(cname, cforalls, cargs, crtype, _, _):
+                            arg_s = ", ".join(str(arg.name) for (arg, _) in cargs)
+                            mk_tuple = SApplication(
+                                SVar(Name("native", 0)), SLiteral(f"('{key_for(name, cname)}', {arg_s})", st_string)
+                            )
+                            de = Definition(cname, cforalls, cargs, crtype, mk_tuple)
+                            defs.append(de)
+
+                def curry(args: list[tuple[Name, SType]], rty: SType) -> SType:
+                    for aname, aty in args[::-1]:
+                        rty = SAbstractionType(aname, aty, rty)
+                    return rty
+
+                def case_for(cname: Name, cargs: list[tuple[Name, SType]]) -> str:
+                    pargs = ", ".join(f"{arg.name}" for (arg, _) in cargs)
+                    args = "".join(f"({arg.name})" for (arg, _) in cargs)
+                    return f"\tcase ('{key_for(name, cname)}', {pargs}):\n\t\treturn case_{cname.name}{args}"
+
+                cases = "\n".join(case_for(cons.name, cons.args) for cons in constructors)
+                catchall = "\n\tcase _:\n\t\traise Exception('Invalid constructor')"
+                rec_body: STerm = SApplication(
+                    SVar(Name("native", 0)), SLiteral(f"""match this:\n{cases}{catchall}\n""", st_string)
+                )
+
+                foralls: list[tuple[Name, Kind]] = []
+                rec_args: list[tuple[Name, SType]] = []
+
+                # Return Type
+                return_generic_name = Name("ret", -1)
+                return_type = STypeVar(return_generic_name)
+                foralls.append((return_generic_name, BaseKind()))
+
+                # Target Type (First argument)
+                # foralls.extend([ (arg, BaseKind()) for arg in args ])
+                target_type = STypeConstructor(name, [STypeVar(a) for a in args])
+                rec_args.append((Name("this", -1), target_type))
+
+                # Prepare arguments for each constructor
+                for cons in constructors:
+                    rec_args.append((Name(f"case_{cons.name.name}", -1), curry(cons.args, return_type)))
+
+                rec_de = Definition(
+                    name=Name(name.name + "_rec", -1), foralls=foralls, args=rec_args, type=return_type, body=rec_body
+                )
+                print(rec_de, "...")
+                defs.append(rec_de)
+
+            case _:
+                assert False, f"Unexpected inductive decl {decl} in {p}"
+
+    return Program(p.imports, p.type_decls + tds, [], defs + p.definitions)
 
 
 def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
@@ -67,9 +146,10 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
     ndefs = []
     for d in defs:
         match d:
-            case Definition(name, foralls, args, type, body, decorators):
+            case Definition(name, foralls, args, rtype, body, decorators):
                 new_foralls: list[tuple[Name, Kind]] = []
-                tlst: list[SType] = [ty for _, ty in args] + [type]
+
+                tlst: list[SType] = [ty for _, ty in args] + [rtype]
                 for ty in tlst:
                     for t in get_type_vars(ty):
                         tname = t.name
@@ -77,7 +157,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                             entry = (tname, BaseKind())
                             if entry not in new_foralls:
                                 new_foralls.append(entry)
-                ndefs.append(Definition(name, foralls + new_foralls, args, type, body, decorators))
+                ndefs.append(Definition(name, foralls + new_foralls, args, rtype, body, decorators))
     return ndefs
 
 
@@ -123,6 +203,7 @@ def apply_decorators_in_program(prog: Program) -> Program:
     return Program(
         imports=prog.imports,
         type_decls=prog.type_decls,
+        inductive_decls=prog.inductive_decls,
         definitions=defs,
     )
 
@@ -147,7 +228,7 @@ def update_program_and_context(
     for d in defs[::-1]:
         match d.body:
             case SVar(Name("uninterpreted", _)):
-                ctx.entries.append(ElabUninterpretedBinder(d.name, d.type))
+                ctx.entries.append(ElabUninterpretedBinder(d.name, type_of_definition(d)))
             case _:
                 prog = convert_definition_to_srec(prog, d)
     return ctx, prog
@@ -156,26 +237,39 @@ def update_program_and_context(
 def replace_concrete_types(
     t: STerm, etctx: ElaborationTypingContext, types: list[Name]
 ) -> tuple[STerm, ElaborationTypingContext]:
-    """Replaces all occurrences of STypeVar with the corresponding SBaseType."""
+    """Replaces all occurrences of STypeVar with the corresponding STypeConstructor."""
     for name in types:
-        t = substitution_svartype_in_sterm(t, SBaseType(name), name)
+        t = substitution_svartype_in_sterm(t, STypeConstructor(name), name)
 
     def fix_vartype(e: ElabTypingContextEntry) -> ElabTypingContextEntry:
         match e:
             case ElabVariableBinder(vname, ty):
                 nty = ty
                 for name in types:
-                    nty = substitute_svartype_in_stype(nty, SBaseType(name), name)
+                    nty = substitute_svartype_in_stype(nty, STypeConstructor(name), name)
                 return ElabVariableBinder(vname, nty)
             case ElabUninterpretedBinder(vname, ty):
                 nty = ty
                 for name in types:
-                    nty = substitute_svartype_in_stype(nty, SBaseType(name), name)
+                    nty = substitute_svartype_in_stype(nty, STypeConstructor(name), name)
                 return ElabUninterpretedBinder(vname, nty)
             case _:
                 return e
 
     return t, ElaborationTypingContext([fix_vartype(e) for e in etctx.entries])
+
+
+def type_of_definition(d: Definition) -> SType:
+    match d:
+        case Definition(_, foralls, args, rtype, _, _):
+            ntype = rtype
+            for name, atype in reversed(args):
+                ntype = SAbstractionType(name, atype, ntype)
+            for name, kind in reversed(foralls):
+                ntype = STypePolymorphism(name, kind, ntype)
+            return ntype
+        case _:
+            assert False, f"{d} is not a definition"
 
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
