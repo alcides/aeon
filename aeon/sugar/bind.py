@@ -1,3 +1,4 @@
+from typing import MutableSequence
 from aeon.elaboration.context import (
     ElabTypingContextEntry,
     ElabVariableBinder,
@@ -62,7 +63,7 @@ def apply_subs_name(subs: RenamingSubstitions, name: Name) -> Name:
 def bind_ectx(
     ectx: ElaborationTypingContext, subs: RenamingSubstitions
 ) -> tuple[ElaborationTypingContext, RenamingSubstitions]:
-    nentries = []
+    nentries: MutableSequence[ElabTypingContextEntry] = []
     for entry in ectx.entries:
         e: ElabTypingContextEntry
         match entry:

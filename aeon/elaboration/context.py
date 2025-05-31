@@ -1,5 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
+from typing import MutableSequence
 
 from aeon.core.types import Kind
 from aeon.sugar.program import TypeDecl
@@ -37,7 +38,7 @@ class ElabTypeDecl(ElabTypingContextEntry):
 
 @dataclass
 class ElaborationTypingContext:
-    entries: list[ElabTypingContextEntry] = field(default_factory=list)
+    entries: MutableSequence[ElabTypingContextEntry] = field(default_factory=list)
 
     def type_of(self, name: Name):
         """Returns the type of the variable name."""
@@ -50,11 +51,13 @@ class ElaborationTypingContext:
 
     def with_var(self, name: Name, ty: SType):
         """Creates a new context, with an extra variable."""
-        return ElaborationTypingContext(self.entries + [ElabVariableBinder(name, ty)])
+        nentries = [x for x in self.entries] + [ElabVariableBinder(name, ty)]
+        return ElaborationTypingContext(nentries)
 
     def with_typevar(self, name: Name, kind: Kind):
         """Creates a new context, with an extra type variable"""
-        return ElaborationTypingContext(self.entries + [ElabTypeVarBinder(name, kind)])
+        nentries = [x for x in self.entries] + [ElabTypeVarBinder(name, kind)]
+        return ElaborationTypingContext(nentries)
 
     def fresh_typevar(self) -> Name:
         """Returns a type variable that does not exist in context."""

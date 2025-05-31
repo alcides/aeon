@@ -1,3 +1,4 @@
+from typing import MutableSequence
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -83,7 +84,7 @@ def bind_lq(liq: LiquidTerm, subs: RenamingSubstitions) -> LiquidTerm:
 
 
 def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingContext, RenamingSubstitions]:
-    entries = []
+    entries: MutableSequence[TypingContextEntry] = []
     subs = []
     for entry in ctx.entries:
         e: TypingContextEntry

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
+from typing import MutableSequence
 
 from aeon.core.types import (
     AbstractionType,
@@ -65,7 +66,7 @@ class TypeConstructorBinder(TypingContextEntry):
 
 @dataclass
 class TypingContext:
-    entries: list[TypingContextEntry] = field(default_factory=list)
+    entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
@@ -76,10 +77,12 @@ class TypingContext:
         return f"[[{fields}]]"
 
     def with_var(self, name: Name, type: Type) -> TypingContext:
-        return TypingContext(self.entries + [VariableBinder(name, type)])
+        nentries = [e for e in self.entries] + [VariableBinder(name, type)]
+        return TypingContext(nentries)
 
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
-        return TypingContext(self.entries + [TypeBinder(name, kind)])
+        nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
+        return TypingContext(nentries)
 
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
