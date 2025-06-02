@@ -297,7 +297,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 )
             return (ctrue, ty)
         case Application(fun, arg):
-            print("SYNTH", fun, arg)
             (c, ty) = synth(ctx, fun)
             match ty:
                 case AbstractionType(aname, atype, rtype):

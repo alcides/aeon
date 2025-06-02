@@ -18,12 +18,12 @@ inductive IntList
 | cons (hd:Int) (tl:IntList) : IntList
 
 
-def size (l:IntList) : Int {
-    IntList_rec l 0 (\hd -> \tl -> 1 + (size tl))
-}
+#def size (l:IntList) : Int {
+#    IntList_rec l 0 (\hd -> \tl -> 1 + (size tl))
+#}
 
 
 def main (args:Int) : Unit {
-    a : {x:(IntList) | len x > 0} = cons 3 empty;
+    #a : {x:(IntList) | len x > 0} = cons 3 empty;
     print "Hello World"
 }
