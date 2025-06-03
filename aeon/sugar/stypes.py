@@ -1,5 +1,5 @@
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import reduce
 
 from aeon.core.types import Kind
@@ -26,14 +26,6 @@ class STypeVar(SType):
 
     def __str__(self):
         return f"'{self.name}"
-
-
-@dataclass(unsafe_hash=True)
-class SBaseType(SType):
-    name: Name
-
-    def __str__(self):
-        return f"{self.name}"
 
 
 @dataclass(unsafe_hash=True)
@@ -69,7 +61,7 @@ class STypePolymorphism(SType):
 @dataclass
 class STypeConstructor(SType):
     name: Name
-    args: list[SType]
+    args: list[SType] = field(default_factory=list)
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
@@ -84,8 +76,6 @@ builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit"]
 
 def get_type_vars(ty: SType) -> set[STypeVar]:
     match ty:
-        case SBaseType(name):
-            return set()
         case STypeVar(name):
             return {ty}
         case SAbstractionType(_, vtype, rtype):

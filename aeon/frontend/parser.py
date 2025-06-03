@@ -21,7 +21,6 @@ from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.core.types import BaseKind
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import StarKind
 from aeon.core.types import t_bool
@@ -65,7 +64,7 @@ class TreeToCore(Transformer):
         if n == "Top":
             return top
         elif n in ["Unit", "Int", "Bool", "Float", "String"]:
-            return BaseType(Name(n, 0))
+            return TypeConstructor(Name(n, 0))
         else:
             return TypeVar(Name(n))
 

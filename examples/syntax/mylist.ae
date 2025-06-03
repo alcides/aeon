@@ -1,0 +1,29 @@
+# inductive MList a
+# | empty : {e:(MList a) | len e == 0}
+# | cons (x:a) (y:(MList a)) : {z:(MList a) | len z == (len y + 1)}
+# + len (m:(MList a)) : Int
+
+#def size (l:(MList a)) : {n:Int | n == len l} {
+#    match l with
+#    | MList.empty => 0
+#    | Mlist.cons v tl => 1 + (size tl)
+#}
+
+# def size (l:(MList a)) : {n:Int | n == len l} {
+#     MList_rec l 0 (\hd -> \tl -> 1 + (size tl))
+# }
+
+inductive IntList
+| empty : IntList
+| cons (hd:Int) (tl:IntList) : IntList
+
+
+#def size (l:IntList) : Int {
+#    IntList_rec l 0 (\hd -> \tl -> 1 + (size tl))
+#}
+
+
+def main (args:Int) : Unit {
+    #a : {x:(IntList) | len x > 0} = cons 3 empty;
+    print "Hello World"
+}

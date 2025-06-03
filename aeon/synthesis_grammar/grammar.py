@@ -23,7 +23,7 @@ from aeon.core.substitutions import substitution_in_type, substitution_liquid_in
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import t_bool
@@ -94,7 +94,8 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     for ty in set(types):
         if ty not in data:
             match ty:
-                case BaseType(_):
+                case TypeConstructor(_, args):
+                    assert not args, "Polytypes in not supported in Synthesis"
                     class_name = mangle_type(ty)
                     ty_abstract_class = type(
                         class_name,
@@ -252,7 +253,7 @@ def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
 
 def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
     match t:
-        case RefinedType(_, _, _) | BaseType(_) | TypeVar() | Top():
+        case RefinedType(_, _, _) | TypeConstructor(_) | TypeVar() | Top():
             return
         case AbstractionType(_, aty, rty):
             yield t
@@ -341,7 +342,7 @@ def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
 
 def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
     match ty:
-        case BaseType() | TypeVar() | Top():
+        case TypeConstructor(_, _) | TypeVar(_) | Top():
             return ty
         case AbstractionType(var_name, var_type, type):
             return AbstractionType(
@@ -431,7 +432,7 @@ def gen_grammar_nodes(
     ctx = remove_uninterpreted_functions(ctx)
     synth_fun_type = remove_uninterpreted_functions_from_type(synth_fun_type)
 
-    current_metadata = metadata.get(mangle_name(synth_func_name), {})
+    current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
     vars_to_ignore = current_metadata.get("hide", [])
     types_to_ignore = current_metadata.get("hide_types", [])
@@ -450,7 +451,7 @@ def gen_grammar_nodes(
 
     ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.concrete_vars() if not skip(var_name)]
     types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([synth_fun_type])
-    types_to_consider = types_to_consider - set(BaseType(t) for t in types_to_ignore)
+    types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider))
     type_nodes = list(set(type_info.values()))
 
@@ -462,7 +463,7 @@ def gen_grammar_nodes(
     ifs = create_if_nodes(type_info)
 
     ret = type_nodes + literals + literals_ref + vars + applications + abstractions
-    if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[mangle_name(synth_func_name)]:
+    if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[synth_func_name]:
         ret = ret + ifs
     return ret, type_info[synth_fun_type]
 

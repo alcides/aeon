@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
@@ -41,7 +41,7 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)
                 match base:
-                    case BaseType(_) | TypeVar(_):
+                    case TypeConstructor(_, []) | TypeVar(_):
                         ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                         c = Implication(name, base, ncond, c)
                     case _:
