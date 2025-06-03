@@ -7,6 +7,8 @@ from aeon.utils.name import Name
 from aeon.core.types import Kind
 from aeon.sugar.stypes import SType, STypeConstructor
 
+from aeon.utils.location import Location, SynthesizedLocation
+
 
 class STerm:
     def __hash__(self) -> int:
@@ -17,6 +19,7 @@ class STerm:
 class SLiteral(STerm):
     value: object
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         if type(self.value) is str:
@@ -35,6 +38,7 @@ class SLiteral(STerm):
 @dataclass(frozen=True)
 class SVar(STerm):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"{self.name}"
@@ -50,6 +54,7 @@ class SVar(STerm):
 class SAnnotation(STerm):
     expr: STerm
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.expr} : {self.type})"
@@ -64,6 +69,7 @@ class SAnnotation(STerm):
 @dataclass(frozen=True)
 class SHole(STerm):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"?{self.name}"
@@ -79,6 +85,7 @@ class SHole(STerm):
 class SApplication(STerm):
     fun: STerm
     arg: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"({self.fun} {self.arg})"
@@ -94,6 +101,7 @@ class SApplication(STerm):
 class SAbstraction(STerm):
     var_name: Name
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(\\{self.var_name} -> {self.body})"
@@ -107,6 +115,7 @@ class SLet(STerm):
     var_name: Name
     var_value: STerm
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
@@ -126,6 +135,7 @@ class SRec(STerm):
     var_type: SType
     var_value: STerm
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return str(self)
@@ -153,6 +163,7 @@ class SIf(STerm):
     cond: STerm
     then: STerm
     otherwise: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
@@ -171,6 +182,7 @@ class STypeAbstraction(STerm):
     name: Name
     kind: Kind
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
@@ -180,11 +192,7 @@ class STypeAbstraction(STerm):
 class STypeApplication(STerm):
     body: STerm
     type: SType
-
-    def __init__(self, body, type):
-        assert isinstance(body, STerm)
-        self.body = body
-        self.type = type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
@@ -198,6 +206,7 @@ class Node:
 class ImportAe(Node):
     path: str
     func: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         if not self.func:
@@ -210,6 +219,7 @@ class ImportAe(Node):
 class TypeDecl(Node):
     name: Name
     args: list[Name] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"type {self.name};"
@@ -221,6 +231,7 @@ class InductiveDecl(Node):
     args: list[Name] = field(default_factory=list)
     constructors: list[Definition] = field(default_factory=list)
     measures: list[Definition] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
         assert isinstance(self.name, Name)
@@ -239,6 +250,7 @@ class InductiveDecl(Node):
 class Decorator(Node):
     name: Name
     macro_args: list[STerm]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         macro_args = ", ".join([f"{term}" for (term) in self.macro_args])
@@ -253,6 +265,7 @@ class Definition(Node):
     type: SType
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
         assert isinstance(self.type, SType)

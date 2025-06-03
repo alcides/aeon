@@ -132,7 +132,6 @@ def expand_inductive_decls(p: Program) -> Program:
                 rec_de = Definition(
                     name=Name(name.name + "_rec", -1), foralls=foralls, args=rec_args, type=return_type, body=rec_body
                 )
-                print(rec_de, "...")
                 defs.append(rec_de)
 
             case _:
@@ -298,7 +297,8 @@ def handle_import(path: str) -> Program:
         file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
-            return mk_parser("program").parse(contents)
+            parse = mk_parser("program")
+            return parse(contents)
     raise Exception(
         f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
     )

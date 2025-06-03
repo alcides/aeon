@@ -21,7 +21,7 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
-from aeon.sugar.parser import parse_program
+from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
@@ -153,7 +153,7 @@ def main() -> None:
             metadata: Metadata = {}
     else:
         with RecordTime("ParseSugar"):
-            prog: Program = parse_program(aeon_code)
+            prog: Program = parse_main_program(aeon_code, filename=args.filename)
 
         with RecordTime("Desugar"):
             desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
