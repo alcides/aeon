@@ -1,48 +1,51 @@
-type Set;
+type Set a;
 
 # Returns the size (number of elements) of the set.
-def Set_size: (s:Set) -> Int = uninterpreted;
+def Set_size: (s:(Set a)) -> Int = uninterpreted;
+
+# Returns whether the set contains an element.
+def Set_contains: (s:(Set a)) -> (x:a) -> Bool = uninterpreted;
 
 # Creates a new empty set.
-def Set_new : {s:Set | Set_size s == 0} = native "set()";
+def Set_new : {s:(Set a) | Set_size s == 0} = native "set()";
 
 # Adds an element to the set.
 # s: set
 # x: element to add
 # returns: new set with element added
-def Set_add (s:Set) (x:a) : {s2:Set | Set_size s2 >= Set_size s} { native "set.add(x)" }
-
-# Removes an element from the set.
-# s: set
-# x: element to remove
-# returns: new set with element removed
-def Set_remove (s:Set) (x: {el: a | Set_has s x}) : Set { native "set.remove(x)" }
+def Set_add: (s:(Set a)) -> (x:a) -> {s2:(Set a) | Set_size s2 >= Set_size s} = native "set.add(x)";
 
 # Checks if the set contains an element.
 # s: set
 # x: element to check
 # returns: true if element is in set
-def Set_has (s:Set) (x:a) : Bool { native "x in s" }
+def Set_has: (s:(Set a)) -> (x:a) -> Bool = native "x in s";
+
+# Removes an element from the set.
+# s: set
+# x: element to remove
+# returns: new set with element removed
+def Set_remove: (s:(Set a)) -> (x: {el: a | Set_contains s el}) -> (Set a) = native "set.remove(x)";
 
 # Returns the union of two sets.
 # s1: set
 # s2: set
 # returns: union of s1 and s2
-def Set_union (s1:Set) (s2:Set) : Set { native "s1 | s2" }
+def Set_union: (s1:(Set a)) -> (s2:(Set a)) -> (Set a) = native "s1 | s2";
 
 # Returns the intersection of two sets.
 # s1: set
 # s2: set
 # returns: intersection of s1 and s2
-def Set_intersection (s1:Set) (s2:Set) : Set { native "s1 & s2" }
+def Set_intersection: (s1:(Set a)) -> (s2:(Set a)) -> (Set a) = native "s1 & s2";
 
 # Returns the difference of two sets.
 # s1: set
 # s2: set
 # returns: elements in s1 but not in s2
-def Set_difference (s1:Set) (s2:Set) : Set { native "s1 - s2" }
+def Set_difference: (s1:(Set a)) -> (s2:(Set a)) -> (Set a) = native "s1 - s2";
 
 # Returns the list of elements in the set.
 # s: set
 # returns: list of elements
-def Set_toList (s:Set) : List { native "list(s)" }
+def Set_toList: (s:(Set a)) -> (List a) = native "list(s)";

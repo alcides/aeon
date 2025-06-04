@@ -9,16 +9,16 @@ def Random_seed (seed: Int) : Unit { native "random.seed(seed)" }
 def Random_randint (a: Int) (b: Int) : {r:Int | r >= a && r <= b} { native "random.randint(a, b)" }
 
 # Returns a random float in the range [0.0, 1.0).
-def Random_random () : {r:Float | r >= 0.0 && r < 1.0} { native "random.random()" }
+def Random_random : {r:Float | r >= 0.0 && r < 1.0} = native "random.random()";
 
 # Returns a random float N such that a <= N < b.
 def Random_uniform (a: Float) (b: Float) : {r:Float | r >= a && r < b} { native "random.uniform(a, b)" }
 
 # Returns a random element from a non-empty list.
-def Random_choice (xs: {l: List | List_size l > 0}) : a { native "random.choice(xs)" }
+def Random_choice (xs: {l: (List a) | List_size l > 0}) : a { native "random.choice(xs)" }
 
 # Shuffles a list in place.
-def Random_shuffle (xs: List) : Unit { native "random.shuffle(xs)" }
+def Random_shuffle (xs: (List a)) : Unit { native "random.shuffle(xs)" }
 
 # Returns a k length list of unique elements chosen from the population sequence.
-def Random_sample (xs: {l: List | List_size l >= k}) (k: Int) : {l: List | List_size l == k} { native "random.sample(xs, k)" }
+def Random_sample (k: Int) (xs: {l: (List a) | List_size l >= k}) : {l: (List a) | List_size l == k} { native "random.sample(xs, k)" }

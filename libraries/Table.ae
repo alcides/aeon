@@ -2,7 +2,6 @@
 # and values to the respective entries in the table
 
 import "List.ae";
-import "py:aeon.aeon.bindings.table" as pyTable;
 
 type Table;
 type Row;
@@ -24,7 +23,7 @@ def Table_to_csv(table: Table) (path: String): Unit {
 # Returns the list of column names in the table.
 # table: the table to inspect
 # returns: list of column names
-def Table_columns(table: Table): List {
+def Table_columns(table: Table): (List String) {
     native "list(table[0].keys()) if len(table) > 0 else []"
 }
 
@@ -32,7 +31,7 @@ def Table_columns(table: Table): List {
 # table: the table to select from
 # columns: columns to select
 # returns: new table with only the selected columns
-def Table_select(table: Table) (columns: List): Table {
+def Table_select(table: Table) (columns: (List String)): Table {
     native "[{col: row[col] for col in columns} for row in table]"
 }
 
@@ -49,7 +48,7 @@ def Table_filter(table: Table) (predicate: (row: Row) -> Bool): Table {
 # column: column to modify
 # f: function to apply to each value in the column
 # returns: table with updated column values
-def Table_map_column(table: Table) (column: String) (f: (a) -> b): Table {
+def Table_map_column(table: Table) (column: String) (f: (a: t) -> b): Table {
     native "[dict(row, **{column: f(row[column])}) for row in table]"
 }
 
@@ -58,7 +57,7 @@ def Table_map_column(table: Table) (column: String) (f: (a) -> b): Table {
 # column: column to summarize
 # f: summary function (e.g., sum, mean)
 # returns: result of the summary function
-def Table_summary(table: Table) (column: String) (f: (List) -> b): b {
+def Table_summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b {
     native "f([row[column] for row in table])"
 }
 
@@ -67,8 +66,8 @@ def Table_summary(table: Table) (column: String) (f: (List) -> b): b {
 # table: the table to group
 # column: column to group by
 # returns: list of tables, each corresponding to a group
-def Table_group_by(table: Table) (column: String): List {
-    native "pyTable.group_by(table, column)"
+def Table_group_by(table: Table) (column: String): (List Table) {
+    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.group_by(table, column)"
 }
 
 # Pivots a table: turns unique values from one column into new columns.
@@ -81,7 +80,7 @@ def Table_group_by(table: Table) (column: String): List {
 # values: column to fill values from
 # returns: reshaped table (list of dicts)
 def Table_pivot(table: Table) (index: String) (columns: String) (values: String): Table {
-    native "pyTable.pivot(table, index, columns, values)"
+    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.pivot(table, index, columns, values)"
 }
 
 # Melts a table: turns columns into rows (unpivot).
@@ -93,6 +92,6 @@ def Table_pivot(table: Table) (index: String) (columns: String) (values: String)
 # var_name: name for the new variable column
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
-def Table_melt(table: Table) (id_vars: List) (value_vars: List) (var_name: String) (value_name: String): Table {
-    native "pyTable.melt(table, id_vars, value_vars, var_name, value_name)"
+def Table_melt(table: Table) (id_vars: (List String)) (value_vars: (List String)) (var_name: String) (value_name: String): Table {
+    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
 }

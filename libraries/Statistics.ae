@@ -1,93 +1,95 @@
+import "List.ae";
+
 # Returns the mean (average) of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: mean of the numbers
-def mean(xs: {x: List | List_size x > 0}): Number { native "__import__('numpy').mean(xs)" }
+def mean(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').mean(xs)" }
 
 # Returns the median (middle value) of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: median of the numbers
-def median(xs: {x: List | List_size x > 0}): Number { native "__import__('numpy').median(xs)" }
+def median(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').median(xs)" }
 
 # Returns the sample standard deviation of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: standard deviation
-def std(xs: {x: List | List_size x > 0}): Number { native "__import__('numpy').std(xs, ddof=1)" }
+def std(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').std(xs, ddof=1)" }
 
 # Returns the sample variance of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: variance
-def var(xs: {x: List | List_size x > 0}): Number { native "__import__('numpy').var(xs, ddof=1)" }
+def var(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').var(xs, ddof=1)" }
 
 # Returns the minimum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: minimum value
-def min(xs: {x: List | List_size x > 0}): Number { native "min(xs)" }
+def min(xs: {x: (List Float) | List_size x > 0}): Float { native "min(xs)" }
 
 # Returns the maximum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: maximum value
-def max(xs: {x: List | List_size x > 0}): Number { native "max(xs)" }
+def max(xs: {x: (List Float) | List_size x > 0}): Float { native "max(xs)" }
 
 # Returns the sum of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: sum of the numbers
-def sum(xs: {x: List | List_size x > 0}): Number { native "sum(xs)" }
+def sum(xs: {x: (List Float) | List_size x > 0}): Float { native "sum(xs)" }
 
 # Returns the quantile of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # q: quantile to compute (between 0 and 1, e.g., 0.25 for Q1, 0.5 for median, 0.75 for Q3)
 # returns: quantile value
-def quantile(xs: {x: List | List_size x > 0}) (q: Number): Number { native "__import__('numpy').quantile(xs, q)" }
+def quantile(xs: {x: (List Float) | List_size x > 0}) (q: Float): Float { native "__import__('numpy').quantile(xs, q)" }
 
 # Returns the product of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: product of the numbers
-def prod(xs: {x: List | List_size x > 0}): Number { native "__import__('numpy').prod(xs)" }
+def prod(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').prod(xs)" }
 
 # Returns the cumulative sum of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: list of cumulative sums
-def cumsum(xs: {x: List | List_size x > 0}): List { native "list(__import__('numpy').cumsum(xs))" }
+def cumsum(xs: {x: (List Float) | List_size x > 0}): (List Float) { native "list(__import__('numpy').cumsum(xs))" }
 
 # Returns the cumulative product of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: list of cumulative products
-def cumprod(xs: {x: List | List_size x > 0}): List { native "list(__import__('numpy').cumprod(xs))" }
+def cumprod(xs: {x: (List Float) | List_size x > 0}): (List Float) { native "list(__import__('numpy').cumprod(xs))" }
 
 # Returns the 1st (Q1), 2nd (median), and 3rd (Q3) quartiles of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: list [Q1, Q2, Q3]
-def quartiles(xs: {x: List | List_size x > 0}): List { native "list(__import__('numpy').quantile(xs, [0.25, 0.5, 0.75]))" }
+def quartiles(xs: {x: (List Float) | List_size x > 0}): (List Float) { native "list(__import__('numpy').quantile(xs, [0.25, 0.5, 0.75]))" }
 
 # Returns the unique values in a non-empty list.
 # xs: non-empty list of numbers
 # returns: list of unique values
-def unique(xs: {x: List | List_size x > 0}): List { native "list(__import__('numpy').unique(xs))" }
+def unique(xs: {x: (List Float) | List_size x > 0}): (List Float) { native "list(__import__('numpy').unique(xs))" }
 
 # Returns the index of the maximum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: index of the maximum value
-def argmax(xs: {x: List | List_size x > 0}): Int { native "__import__('numpy').argmax(xs)" }
+def argmax(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').argmax(xs)" }
 
 # Returns the index of the minimum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: index of the minimum value
-def argmin(xs: {x: List | List_size x > 0}): Int { native "__import__('numpy').argmin(xs)" }
+def argmin(xs: {x: (List Float) | List_size x > 0}): Float { native "__import__('numpy').argmin(xs)" }
 
 # Returns the percentile of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # p: percentile to compute (between 0 and 100)
 # returns: percentile value
-def percentile(xs: {x: List | List_size x > 0}) (p: Number): Number { native "__import__('numpy').percentile(xs, p)" }
+def percentile(xs: {x: (List Float) | List_size x > 0}) (p: Float): Float { native "__import__('numpy').percentile(xs, p)" }
 
 # Returns the correlation coefficient of two non-empty lists of equal length.
 # xs: non-empty list of numbers
 # ys: non-empty list of numbers, same length as xs
 # returns: correlation coefficient
-def corrcoef(xs: {x: List | List_size x > 0}) (ys: {y: List | List_size y == List_size xs}): Number { native "__import__('numpy').corrcoef(xs, ys)[0,1]" }
+def corrcoef(xs: {x: (List Float) | List_size x > 0}) (ys: {y: (List Float) | List_size y == List_size xs}): Float { native "__import__('numpy').corrcoef(xs, ys)[0,1]" }
 
 # Returns the covariance of two non-empty lists of equal length.
 # xs: non-empty list of numbers
 # ys: non-empty list of numbers, same length as xs
 # returns: covariance
-def cov(xs: {x: List | List_size x > 0}) (ys: {y: List | List_size y == List_size xs}): Number { native "__import__('numpy').cov(xs, ys, ddof=1)[0,1]" }
+def cov(xs: {x: (List Float) | List_size x > 0}) (ys: {y: (List Float) | List_size y == List_size xs}): Float { native "__import__('numpy').cov(xs, ys, ddof=1)[0,1]" }

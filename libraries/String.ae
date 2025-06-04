@@ -1,5 +1,7 @@
 import "List.ae";
 
+type String;
+
 # Returns the length of the string.
 # i: input string
 # returns: number of characters in the string
@@ -45,7 +47,7 @@ def String_replace(i: String) (j: {s: String | String_len s > 0}) (l: String): S
 # i: input string
 # j: separator string (non-empty)
 # returns: list of substrings
-def String_split(i: String) (j: {s: String | String_len s > 0}): List { native "i.split(j)" }
+def String_split(i: String) (j: {s: String | String_len s > 0}): (List String) { native "i.split(j)" }
 
 # Concatenates two strings.
 # i: first string
@@ -112,4 +114,4 @@ def String_isEmpty(i: String): Bool { native "i == ''" }
 # Splits the string into a list of characters.
 # i: input string
 # returns: list of single-character strings
-def String_toCharList(i: String): List { native "list(i)" }
+def String_toCharList(i: String): (List String) { native "list(i)" }
