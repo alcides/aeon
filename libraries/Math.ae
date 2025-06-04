@@ -1,23 +1,67 @@
 def math : Unit = native_import "math";
 
+# Returns the minimum of two integers.
 def Math_min (i: Int) (j: Int) : Int { native "min(i, j)" }
+
+# Returns the maximum of two integers.
 def Math_max (i: Int) (j: Int) : Int { native "max(i, j)" }
 
-
+# Returns the absolute value of an integer.
 def Math_abs (i:Int) : Int { native "abs(i)" }
 
+# Returns the ceiling of a float as an integer.
 def Math_ceil (i:Float) : Int { native "math.ceil(i)" }
 
-def Math_floor (i:Float) : Int { native "math.floor(i)" }
+# Returns the floor of an integer as an integer.
+def Math_floor (i:Int) : Int { native "math.floor(i)" }
 
+# Converts an integer to a float.
 def Math_toFloat (i:Int) : Float { native "float(i)" }
 
+# Converts a float to an integer (truncates towards zero).
 def Math_toInt (i:Float) : Int { native "int(i)" }
 
+# Returns the square root of an integer as a float.
 def Math_sqrt (i:Int) : Float { native "math.sqrt(i)" }
 
+# Raises an integer to the power of another integer.
 def Math_pow (i:Int) (j:Int) : Int { native "i ** j" }
 
+# Rounds a float to the nearest integer.
 def Math_round (i:Float) : Int { native "round(i)" }
 
-def Math_floor_division (i:Int) (j:Int) : Int { native "i // j" }
+# Performs integer division (floor division).
+def Math_floor_division (i:Int) (j: Int) : Int { native "i // j" }
+
+# Returns the sine of a float (in radians).
+def Math_sin (i: Float) : Float { native "math.sin(i)" }
+
+# Returns the cosine of a float (in radians).
+def Math_cos (i: Float) : Float { native "math.cos(i)" }
+
+# Returns the arc tangent of sinVal/cosVal, in radians.
+def Math_atan2 (sinVal: Float) (cosVal: Float) : Float { native "math.atan2(sinVal, cosVal)" }
+
+# The value of PI.
+def Math_PI : Float = native "math.pi";
+
+# Returns the minimum of two floats.
+def Math_minf (i: Float) (j: Float): Float { native "min(i, j)" }
+
+# Returns the square root of a float.
+def Math_sqrtf (i: Float) : Float { native "math.sqrt(i)" }
+
+# Returns the absolute value of a float.
+def Math_absf (i:Float) : Float { native "abs(i)" }
+
+# Returns the natural logarithm (base e) of a float.
+def Math_log (i: Float) : Float { native "math.log(i)" }
+
+# Returns the base-10 logarithm of a float.
+def Math_log10 (i: Float) : Float { native "math.log10(i)" }
+
+# Returns the base-2 logarithm of a float.
+def Math_log2 (i: Float) : Float { native "math.log2(i)" }
+
+# Returns e raised to the power of the given float.
+def Math_exp (i: Float) : Float { native "math.exp(i)" }

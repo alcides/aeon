@@ -2,25 +2,57 @@ type List;
 
 def functools : Unit = native_import "functools";
 
+# Returns the size (length) of the list.
 def List_size: (l:List) -> Int = uninterpreted;
 
+# Returns the length of the list.
+# l: list
+# returns: number of elements in the list
 def List_length (l:List) : Int { native "len(l)" }
 
+# Creates a new empty list.
+# returns: an empty list
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 
+# Appends an item to the end of the list.
+# l: list
+# i: item to append
+# returns: new list with item appended
 def List_append  (l:List) (i: a) : {l2:List | List_size l2 == (List_size l) + 1} { native "l + [i]" }
 
+# Prepends an item to the start of the list.
+# l: list
+# i: item to prepend
+# returns: new list with item prepended
 def List_cons (l:List) (i:Int) : {l2:List | List_size l2 == List_size l + 1} { native "[i] + l"}
 
+# Applies a recursive reduction over the list.
+# l: list
+# cb: initial value
+# rec: recursive function
+# returns: result of reduction
 def List_recursive (l:List) (cb:b) (rec:(v:a) -> (o:b) -> b) : b { native "functools.reduce(lambda seed, next: rec(next)(seed), l, cb)" }
 
+# Returns the sum of the list.
+# l: list of numbers
+# returns: sum of elements
 def List_sum (l:List) : Int {native "sum(l)"}
 
+# Returns the first element of a non-empty list.
+# l: non-empty list
+# returns: first element
 def List_head (l: {x:List | List_size x > 0 }) : a { native "l[0]" }
 
+# Maps a function over the list.
+# f: function to apply
+# l: list
+# returns: new list with function applied to each element
 def List_map (f: (v:a) -> b) (l:List) : List { native "list(map(f, l))" }
 
-# def List_head: (l: {x:List | List_size x > 0 }) -> {i:Int | List_elem l i }  = \xs -> native "xs[0]";
+# Returns a reversed copy of the list.
+# l: list
+# returns: reversed list
+def List_reversed (l: List) : {x:List | List_size x == List_size l } { native "l[::-1]" }
 
 # def List_tail:(l:{x:List | List_size x > 0 }) -> {l2:List | List_size l2 ==  List_size l - 1 }  = \xs -> native "xs[1:]";
 
@@ -35,8 +67,6 @@ def List_map (f: (v:a) -> b) (l:List) : List { native "list(map(f, l))" }
 # def List_extends: (l:List)->(l2:List)-> {x:List | List_size x == (List_size l + List_size l2) } = \xs -> \ys -> native "xs + ys";
 
 # def List_sort: (l:List) -> {x:List | List_size x == List_size l } = \xs -> native "sorted(xs, key=lambda x: x)";
-
-def List_reversed (l: List) : {x:List | List_size x == List_size l } { native "l[::-1]" }
 
 # def List_count:(l:List) -> (i:Int) -> Int= \xs -> \x -> native "xs.count(x)";
 

@@ -1,10 +1,20 @@
 type Color;
 type Image;
 
+# Returns the red component of a color (0-255).
 def Color_r: (c:Color) -> Int = uninterpreted;
+
+# Returns the green component of a color (0-255).
 def Color_g: (c:Color) -> Int = uninterpreted;
+
+# Returns the blue component of a color (0-255).
 def Color_b: (c:Color) -> Int = uninterpreted;
 
+# Constructs a color from red, green, and blue components.
+# r: red (0-255)
+# g: green (0-255)
+# b: blue (0-255)
+# returns: color with specified RGB values
 def Color_mk
     (r:{r:Int | r >= 0 && r < 256})
     (g:{r:Int | r >= 0 && r < 256})
@@ -12,9 +22,17 @@ def Color_mk
     {c:Color | (Color_r c == r) && (Color_g c == g) && (Color_b c == b) } { native "(r, g, b)" }
 
 
+# Returns the height of the image in pixels.
 def Image_height : (im:Image) -> Int = uninterpreted;
+
+# Returns the width of the image in pixels.
 def Image_width : (im:Image) -> Int = uninterpreted;
 
+# Creates a new image of given width, height, and color.
+# width: image width (>0)
+# height: image height (>0)
+# color: fill color
+# returns: image with specified dimensions and color
 def Image_mk
     (width:{p:Int | p > 0})
     (height:{p:Int | p > 0})
@@ -22,12 +40,34 @@ def Image_mk
     {i : Image | (Image_width i == width) && (Image_height i == height) } {
 native "__import__('aeon.bindings.image').bindings.image.Image_mk" }
 
+# Displays the image.
+# image: image to display
 def Image_show (image:Image) : Unit { native "im.show()" }
+
+# Saves the image to a file.
+# image: image to save
+# path: file path
 def Image_save (image:Image) (path:String) : Unit { native "im.save(path)" }
+
+# Opens an image from a file.
+# path: file path
+# returns: loaded image
 def Image_open (path:String) : Image { native "__import__('PIL.Image').Image.open" }
 
+# Computes the mean squared error (MSE) difference between two images.
+# img: first image
+# img2: second image
+# returns: MSE difference as float
 def Image_diff (img : Image) (img2 : Image) : Float { native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse(img, img2)" }
 
+# Draws a rectangle on the image.
+# im: input image
+# x: x-coordinate of top-left corner (>0 and < image width)
+# y: y-coordinate of top-left corner (>0 and < image height)
+# width: rectangle width (>0 and x+width < image width)
+# height: rectangle height (>0 and y+height < image height)
+# color: rectangle color
+# returns: new image with rectangle drawn
 def Image_draw_rectangle
     (im:Image)
     (x:{p:Int | p > 0 && p < Image_width im })
