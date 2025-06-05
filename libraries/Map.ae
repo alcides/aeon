@@ -1,32 +1,32 @@
-type Map;
+type Map k v;
 
 # Returns the size (number of entries) of the map.
-def Map_size: (m:Map) -> Int = uninterpreted;
+def Map_size: (m: (Map k v)) -> Int = uninterpreted;
 
 # Creates a new empty map.
-def Map_new : {m:Map | Map_size m == 0} = native "{}";
+def Map_new : {m: (Map k v) | Map_size m == 0} = native "{}";
 
 # Sets the value for a key in the map.
 # m: map
 # k: key
 # v: value
 # returns: new map with key set to value
-def Map_set (m:Map) (k:a) (v:b) : Map { native "{**m, k: v}" }
+def Map_set (m: (Map k v)) (key: k) (value: v) : (Map k v) { native "{**m, key: value}" }
 
 # Gets the value for a key in the map.
 # m: map
 # k: key
 # returns: value for key, or default if not found
-def Map_get (m:Map) (k:a) : b { native "m.get(k)" }
+def Map_get (m: (Map k v)) (key: k) : v { native "m.get(key)" }
 
 # Checks if the map contains a key.
 # m: map
 # k: key
 # returns: true if key is in map
-def Map_has (m:Map) (k:a) : Bool { native "k in m" }
+def Map_has (m: (Map k v)) (key: k) : Bool { native "key in m" }
 
 # Removes a key from the map.
 # m: map
 # k: key
 # returns: new map with key removed
-def Map_delete (m:Map) (k:a) : Map { native "{key: val for key, val in m.items() if key != k}" }
+def Map_delete (m: (Map k v)) (key: k) : (Map k v) { native "{k_: v_ for k_, v_ in m.items() if k_ != key}" }
