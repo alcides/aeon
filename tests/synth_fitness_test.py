@@ -5,15 +5,13 @@ import pytest
 from aeon.core.terms import Term, Literal
 from aeon.core.types import t_int
 from aeon.logger.logger import setup_logger
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
-from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
+from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.entrypoint import synthesize
+from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 
 from tests.driver import check_and_return_core
 
 setup_logger()
-
-synth_config = gengy_default_config
-synth_config["timer_limit"] = 0.25
 
 
 def test_fitness():
@@ -26,7 +24,7 @@ def test_fitness():
         ctx,
         core_ast_anf,
     )
-    term, _ = synthesize(ctx, ectx, core_ast_anf, incomplete_functions, metadata, synth_config=synth_config)
+    term, _ = synthesize(ctx, ectx, core_ast_anf, incomplete_functions, metadata, budget=0.25)
 
     assert isinstance(term, Term)
 
@@ -42,7 +40,10 @@ def test_literal_int_range():
         ctx,
         core_ast_anf,
     )
-    term, _ = synthesize(ctx, ectx, core_ast_anf, incomplete_functions, metadata, synth_config=synth_config)
+
+    synthesizer = GESynthesizer()
+
+    term, _ = synthesize(ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer, budget=0.25)
 
     assert isinstance(term, Term)
     assert isinstance(term, Literal)

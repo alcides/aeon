@@ -112,4 +112,5 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             return eval(body, ctx)
         case TypeApplication(body, _):
             return eval(body, ctx)
-    assert False
+        case _:
+            assert False, f"Unknown case {t}"

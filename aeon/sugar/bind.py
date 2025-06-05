@@ -1,3 +1,4 @@
+from typing import MutableSequence
 from aeon.elaboration.context import (
     ElabTypingContextEntry,
     ElabVariableBinder,
@@ -26,7 +27,6 @@ from aeon.sugar.program import (
 )
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     SType,
     STypeConstructor,
@@ -63,7 +63,7 @@ def apply_subs_name(subs: RenamingSubstitions, name: Name) -> Name:
 def bind_ectx(
     ectx: ElaborationTypingContext, subs: RenamingSubstitions
 ) -> tuple[ElaborationTypingContext, RenamingSubstitions]:
-    nentries = []
+    nentries: MutableSequence[ElabTypingContextEntry] = []
     for entry in ectx.entries:
         e: ElabTypingContextEntry
         match entry:
@@ -87,8 +87,6 @@ def bind_ectx(
 
 def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
     match ty:
-        case SBaseType(name):
-            return SBaseType(apply_subs_name(subs, name))
         case STypeVar(name):
             return STypeVar(apply_subs_name(subs, name))
         case STypeConstructor(name, args):
@@ -172,7 +170,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             decorators.append(Decorator(dec.name, dargs))
         d = Definition(name, foralls, args, ntype, body, decorators)
         definitions.append(d)
-    return Program(p.imports, type_decls, definitions)
+    return Program(p.imports, type_decls, [], definitions)
 
 
 def bind(ectx: ElaborationTypingContext, s: STerm) -> tuple[ElaborationTypingContext, STerm]:

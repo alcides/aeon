@@ -12,7 +12,6 @@ from aeon.core.terms import Term, Literal, Var, Application, Abstraction, Let, R
 from aeon.core.types import (
     LiquidHornApplication,
     Type,
-    BaseType,
     TypeVar,
     AbstractionType,
     RefinedType,
@@ -50,8 +49,6 @@ def core_type_equality(type1: Type, type2: Type, rename_left: dict[Name, Name] |
     match type1, type2:
         case TypeVar(an), TypeVar(bn):
             return rename_left.get(an, an) == bn
-        case BaseType(av), BaseType(bv):
-            return av == bv
         case RefinedType(aname, aty, aref), RefinedType(bname, bty, bref):
             return core_type_equality(aty, bty, rename_left) and core_liquid_equality(
                 aref, bref, rename_left | {aname: bname}

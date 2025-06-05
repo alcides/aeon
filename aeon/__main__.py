@@ -9,8 +9,10 @@ from typing import Any
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.core.types import top
+from aeon.core.terms import Term
 from aeon.core.bind import bind_ids
-from aeon.sugar.bind import bind
+from aeon.core.substitutions import substitution
+from aeon.sugar.bind import bind, bind_program
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
@@ -21,20 +23,21 @@ from aeon.prelude.prelude import typing_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
-from aeon.sugar.parser import parse_program
+from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
-from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
+from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.entrypoint import synthesize
+from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.api import SynthesisError
 from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.time_utils import RecordTime
 from aeon.typechecking import check_type_errors
 from aeon.utils.name import Name
 
-from aeon.synthesis_grammar.synthesizer import SynthesisError
 
 sys.setrecursionlimit(10000)
 
@@ -44,7 +47,7 @@ def parse_arguments():
 
     parser.add_argument("filename", help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
-
+    parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
         "-l",
         "--log",
@@ -59,26 +62,6 @@ def parse_arguments():
         action="store_true",
         help="export log file",
     )
-
-    parser.add_argument(
-        "-csv",
-        "--csv-synth",
-        action="store_true",
-        help="export synthesis csv file",
-    )
-
-    parser.add_argument(
-        "-gp",
-        "--gp-config",
-        help="path to the GP configuration file",
-    )
-
-    parser.add_argument(
-        "-csec",
-        "--config-section",
-        help="section name in the GP configuration file",
-    )
-
     parser.add_argument(
         "-d",
         "--debug",
@@ -91,13 +74,6 @@ def parse_arguments():
         "--timings",
         action="store_true",
         help="Show timing information",
-    )
-
-    parser.add_argument(
-        "-rg",
-        "--refined-grammar",
-        action="store_true",
-        help="Use the refined grammar for synthesis",
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
@@ -153,7 +129,8 @@ def main() -> None:
             metadata: Metadata = {}
     else:
         with RecordTime("ParseSugar"):
-            prog: Program = parse_program(aeon_code)
+            prog: Program = parse_main_program(aeon_code, filename=args.filename)
+            prog = bind_program(prog, [])
 
         with RecordTime("Desugar"):
             desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
@@ -201,28 +178,26 @@ def main() -> None:
         )
 
     if incomplete_functions:
-        filename = args.filename if args.csv_synth else None
-        with RecordTime("ParseConfig"):
-            synth_config = (
-                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-            )
-
         ui = select_synthesis_ui()
 
         with RecordTime("Synthesis"):
             try:
-                program, terms = synthesize(
+                synthesizer = GESynthesizer()
+                mapping: dict[Name, Term] = synthesize(
                     typing_ctx,
                     evaluation_ctx,
                     core_ast_anf,
                     incomplete_functions,
                     metadata,
-                    filename,
-                    synth_config,
-                    args.refined_grammar,
+                    synthesizer,
+                    args.budget,
                     ui,
                 )
-                ui.display_results(program, terms)
+
+                for k, v in mapping.items():
+                    core_ast_anf = substitution(core_ast_anf, v, k)
+
+                ui.display_results(core_ast_anf, mapping)
             except SynthesisError as e:
                 print("SYNTHESIZER", "-------------------------------")
                 print("SYNTHESIZER", "+     Synthesis Error     +")
@@ -231,7 +206,7 @@ def main() -> None:
                 sys.exit(1)
         sys.exit(0)
     with RecordTime("Evaluation"):
-        eval(core_ast, evaluation_ctx)
+        eval(core_ast_anf, evaluation_ctx)
 
 
 if __name__ == "__main__":

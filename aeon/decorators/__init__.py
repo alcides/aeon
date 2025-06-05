@@ -12,7 +12,7 @@ eventual complementary definitions.
 from aeon.decorators.api import DecoratorType
 from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
-from aeon.synthesis_grammar.decorators import (
+from aeon.synthesis.decorators import (
     minimize_int,
     minimize_float,
     multi_minimize_float,

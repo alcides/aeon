@@ -5,7 +5,9 @@ from dataclasses import field
 
 from aeon.utils.name import Name
 from aeon.core.types import Kind
-from aeon.sugar.stypes import SType
+from aeon.sugar.stypes import SType, STypeConstructor
+
+from aeon.utils.location import Location, SynthesizedLocation
 
 
 class STerm:
@@ -17,6 +19,7 @@ class STerm:
 class SLiteral(STerm):
     value: object
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         if type(self.value) is str:
@@ -26,10 +29,16 @@ class SLiteral(STerm):
     def __eq__(self, other):
         return isinstance(other, SLiteral) and self.value == other.value and self.type == other.type
 
+    def __str__(self):
+        if self.type == STypeConstructor(Name("String", 0)):
+            return f'"{self.value}"'
+        return f"{self.value}"
+
 
 @dataclass(frozen=True)
 class SVar(STerm):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"{self.name}"
@@ -45,6 +54,7 @@ class SVar(STerm):
 class SAnnotation(STerm):
     expr: STerm
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.expr} : {self.type})"
@@ -59,6 +69,7 @@ class SAnnotation(STerm):
 @dataclass(frozen=True)
 class SHole(STerm):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"?{self.name}"
@@ -74,6 +85,7 @@ class SHole(STerm):
 class SApplication(STerm):
     fun: STerm
     arg: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"({self.fun} {self.arg})"
@@ -81,13 +93,17 @@ class SApplication(STerm):
     def __eq__(self, other):
         return isinstance(other, SApplication) and self.fun == other.fun and self.arg == other.arg
 
+    def __str__(self):
+        return f"({self.fun} {self.arg})"
+
 
 @dataclass(frozen=True)
 class SAbstraction(STerm):
     var_name: Name
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-    def __repr__(self):
+    def __str__(self):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
@@ -99,6 +115,7 @@ class SLet(STerm):
     var_name: Name
     var_value: STerm
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
@@ -118,6 +135,7 @@ class SRec(STerm):
     var_type: SType
     var_value: STerm
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return str(self)
@@ -145,6 +163,7 @@ class SIf(STerm):
     cond: STerm
     then: STerm
     otherwise: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
@@ -163,6 +182,7 @@ class STypeAbstraction(STerm):
     name: Name
     kind: Kind
     body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
@@ -172,11 +192,7 @@ class STypeAbstraction(STerm):
 class STypeApplication(STerm):
     body: STerm
     type: SType
-
-    def __init__(self, body, type):
-        assert isinstance(body, STerm)
-        self.body = body
-        self.type = type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
@@ -190,8 +206,9 @@ class Node:
 class ImportAe(Node):
     path: str
     func: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-    def __repr__(self):
+    def __str__(self):
         if not self.func:
             return f"import {self.path};"
         else:
@@ -202,15 +219,38 @@ class ImportAe(Node):
 class TypeDecl(Node):
     name: Name
     args: list[Name] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-    def __repr__(self):
+    def __str__(self):
         return f"type {self.name};"
+
+
+@dataclass
+class InductiveDecl(Node):
+    name: Name
+    args: list[Name] = field(default_factory=list)
+    constructors: list[Definition] = field(default_factory=list)
+    measures: list[Definition] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __post_init__(self):
+        assert isinstance(self.name, Name)
+
+        for aname in self.args:
+            assert isinstance(aname, Name)
+
+    def __str__(self):
+        args = " ".join(str(arg) for arg in self.args)
+        constructors = " ".join(f"| {cons}" for (cons) in self.constructors)
+        measures = " ".join(f"+ {dec}" for dec in self.measures)
+        return f"inductive {self.name} {args} {constructors} {measures}"
 
 
 @dataclass
 class Decorator(Node):
     name: Name
     macro_args: list[STerm]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         macro_args = ", ".join([f"{term}" for (term) in self.macro_args])
@@ -225,29 +265,30 @@ class Definition(Node):
     type: SType
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
-        assert isinstance(self.name, Name)
+        assert isinstance(self.type, SType)
 
-        for aname, atype in self.args:
-            assert isinstance(aname, Name)
-
-    def __repr__(self):
+    def __str__(self):
         if not self.args:
             return f"def {self.name} : {self.type} = {self.body};"
         else:
             args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
-            return f"def {self.name} {args} -> {self.type} {{\n {self.body} \n}}"
+            foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
+            return f"def {self.name} {foralls} {args} : {self.type} {{\n {self.body} \n}}"
 
 
 @dataclass
 class Program(Node):
     imports: list[ImportAe]
     type_decls: list[TypeDecl]
+    inductive_decls: list[InductiveDecl]
     definitions: list[Definition]
 
-    def __repr__(self):
+    def __str__(self):
         imps = "\n".join([str(td) for td in self.imports])
         decls = "\n".join([str(td) for td in self.type_decls])
+        inductives = "\n".join([str(td) for td in self.inductive_decls])
         defs = "\n".join([str(d) for d in self.definitions])
-        return f"{imps}\n{decls}\n{defs}"
+        return f"{imps}\n{decls}\n{inductives}\n{defs}"

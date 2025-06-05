@@ -1,3 +1,4 @@
+from typing import MutableSequence
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -23,7 +24,6 @@ from aeon.core.terms import (
 )
 from aeon.core.types import (
     AbstractionType,
-    BaseType,
     LiquidHornApplication,
     RefinedType,
     Top,
@@ -84,7 +84,7 @@ def bind_lq(liq: LiquidTerm, subs: RenamingSubstitions) -> LiquidTerm:
 
 
 def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingContext, RenamingSubstitions]:
-    entries = []
+    entries: MutableSequence[TypingContextEntry] = []
     subs = []
     for entry in ctx.entries:
         e: TypingContextEntry
@@ -113,8 +113,6 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
     match ty:
         case Top():
             return Top()
-        case BaseType(name):
-            return BaseType(apply_subs_name(subs, name))
         case TypeVar(name):
             return TypeVar(apply_subs_name(subs, name))
         case TypeConstructor(name, args):
@@ -129,7 +127,7 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
             nty = bind_type(ty, subs)
             nname, nsubs = check_name(name, subs)
             nref = bind_lq(ref, nsubs)
-            assert isinstance(nty, BaseType) or isinstance(nty, TypeVar) or isinstance(nty, TypeConstructor)
+            assert isinstance(nty, TypeConstructor) or isinstance(nty, TypeVar) or isinstance(nty, TypeConstructor)
             return RefinedType(nname, nty, nref)
         case TypePolymorphism(name, kind, body):
             name, subs = check_name(name, subs)

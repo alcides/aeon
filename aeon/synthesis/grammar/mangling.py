@@ -2,7 +2,7 @@ from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Type
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.pprint import aeon_prelude_ops_to_text
@@ -35,7 +35,7 @@ def mangle_var(name: Name) -> str:
 def mangle_type(ty: Type) -> str:
     """Mangles the Aeon Type name, to be a valid Python name."""
     match ty:
-        case BaseType(name):
+        case TypeConstructor(name, _):
             return f"æ{mangle_name(name)}"
         case RefinedType(name, ty, ref):
             ref2 = substitution_in_liquid(ref, LiquidVar(Name("__self__", 0)), name)
