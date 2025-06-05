@@ -2,7 +2,7 @@
 
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Definition, STerm, SVar
-from aeon.sugar.stypes import SBaseType
+from aeon.sugar.stypes import STypeConstructor
 from aeon.sugar.ast_helpers import st_int, st_float
 from aeon.utils.name import Name, fresh_counter
 
@@ -24,7 +24,7 @@ def minimize_int(
     """
     assert len(args) == 1, "minimize_int decorator expects a single argument"
 
-    n_decorators = len(metadata.get(str(fun.name), {}).get("minimize_int", []))
+    n_decorators = len(metadata.get(fun.name, {}).get("minimize_int", []))
 
     minimize_function_name = Name(f"__internal__minimize_int_{fun.name}_{n_decorators}", fresh_counter.fresh())
     minimize_function = Definition(
@@ -39,7 +39,7 @@ def minimize_int(
         metadata,
         fun,
         {
-            "minimize_int": metadata.get(str(fun.name), {}).get("minimize_int", []) + [minimize_function],
+            "minimize_int": metadata.get(fun.name, {}).get("minimize_int", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -58,7 +58,7 @@ def minimize_float(
     """
     assert len(args) == 1, "minimize_float decorator expects a single argument"
 
-    n_decorators = len(metadata.get(str(fun.name), {}).get("minimize_float", []))
+    n_decorators = len(metadata.get(fun.name, {}).get("minimize_float", []))
     minimize_function_name = Name(f"__internal__minimize_float_{fun.name}_{n_decorators}", fresh_counter.fresh())
     minimize_function = Definition(
         name=minimize_function_name,
@@ -72,7 +72,7 @@ def minimize_float(
         metadata,
         fun,
         {
-            "minimize_float": metadata.get(str(fun.name), {}).get("minimize_float", []) + [minimize_function],
+            "minimize_float": metadata.get(fun.name, {}).get("minimize_float", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
@@ -97,14 +97,14 @@ def multi_minimize_float(
     ), "multi_minimize_float decorator expects a single argument"
 
     n_decorators = len(
-        metadata.get(str(fun.name), {}).get("multi_minimize_float", []),
+        metadata.get(fun.name, {}).get("multi_minimize_float", []),
     )
     minimize_function_name = Name(f"__internal__multi_minimize_float_{fun.name}_{n_decorators}", fresh_counter.fresh())
     minimize_function = Definition(
         name=minimize_function_name,
         foralls=[],
         args=[],
-        type=SBaseType(Name("List")),  # Maybe this does work on decorator-time?
+        type=STypeConstructor(Name("List")),  # Maybe this does work on decorator-time?
         body=args[0],
     )
 
@@ -112,8 +112,7 @@ def multi_minimize_float(
         metadata,
         fun,
         {
-            "multi_minimize_float": metadata.get(str(fun.name), {}).get("multi_minimize_float", [])
-            + [minimize_function],
+            "multi_minimize_float": metadata.get(fun.name, {}).get("multi_minimize_float", []) + [minimize_function],
         },
     )
     return fun, [minimize_function], metadata
