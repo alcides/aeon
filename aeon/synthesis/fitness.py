@@ -25,6 +25,8 @@ def get_type_from_decorators(macro_list) -> STypeConstructor:
         if macro_list[0].name in single_objective_decorators:
             return st_float
         elif macro_list[0].name in multi_objective_decorators:
+            # TODO: replace -1 with the index of List, if defined as a special type
+            # Or array.
             return STypeConstructor(Name("List", -1))
         else:
             raise Exception(

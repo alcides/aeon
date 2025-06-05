@@ -308,7 +308,7 @@ def liquefy_if(t: If) -> LiquidTerm | None:
     th = liquefy(t.then)
     ot = liquefy(t.otherwise)
     if co and th and ot:
-        return LiquidApp(Name("ite"), [co, th, ot])
+        return LiquidApp(Name("ite", 0), [co, th, ot])
     return None
 
 

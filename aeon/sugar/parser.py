@@ -38,7 +38,7 @@ from aeon.sugar.stypes import (
 from aeon.sugar.ast_helpers import i0
 from aeon.sugar.ast_helpers import st_int, st_bool, st_string, st_float, st_unit
 from aeon.sugar.stypes import builtin_types
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 
 from aeon.utils.location import FileLocation, Location
 
@@ -67,10 +67,6 @@ class TreeToSugar(Transformer):
 
     def _loc(self, meta):
         return FileLocation(self.filename, start=(meta.line, meta.column), end=(meta.end_line, meta.end_column))
-
-    def fresh(self) -> str:
-        self.counter += 1
-        return f"_anf_{self.counter}"
 
     def same(self, args):
         return args[0]
@@ -319,7 +315,9 @@ class TreeToSugar(Transformer):
     def abstraction_et(self, args):
         return SAnnotation(
             SAbstraction(Name(args[0]), args[2]),
-            SAbstractionType(Name(args[0]), args[1], STypeVar(Name("?t"))),  # TODO NOW: understand this?
+            SAbstractionType(
+                Name(args[0]), args[1], STypeVar(Name("?t", fresh_counter.fresh()))
+            ),  # TODO NOW: understand this?
         )
 
 

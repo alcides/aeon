@@ -15,13 +15,13 @@ from sympy.logic.boolalg import to_dnf
 
 from aeon.core.types import Type
 from aeon.core.types import RefinedType
-from aeon.synthesis_grammar.bounds import (
+from aeon.synthesis.grammar.bounds import (
     conditional_to_interval,
     flatten_conditions,
     refined_to_sympy_expression,
     sympy_exp_to_bounded_interval,
 )
-from aeon.synthesis_grammar.utils import (
+from aeon.synthesis.grammar.utils import (
     aeon_to_gengy_metahandlers,
     aeon_to_python,
 )

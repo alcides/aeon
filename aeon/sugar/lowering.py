@@ -127,7 +127,7 @@ def liquefy(
             th = liquefy(then, available_vars)
             ot = liquefy(otherwise, available_vars)
             if co is not None and th is not None and ot is not None:
-                return LiquidApp(Name("ite"), [co, th, ot])
+                return LiquidApp(Name("ite", 0), [co, th, ot])
             return None
         case SAnnotation(expr, _):
             return liquefy(expr, available_vars)

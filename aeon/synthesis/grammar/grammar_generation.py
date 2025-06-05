@@ -5,6 +5,7 @@ from dataclasses import make_dataclass
 from typing import Generator, Optional, Tuple, Protocol
 from typing import Type as TypingType
 
+from geneticengine.grammar import extract_grammar, Grammar
 from geneticengine.grammar.decorators import weight
 from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
 from geneticengine.prelude import abstract
@@ -31,9 +32,9 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
-from aeon.synthesis_grammar.mangling import mangle_name, mangle_var, mangle_type
-from aeon.synthesis_grammar.refinements import refined_type_to_metahandler
-from aeon.synthesis_grammar.utils import prelude_ops, aeon_to_python
+from aeon.synthesis.grammar.mangling import mangle_name, mangle_var, mangle_type
+from aeon.synthesis.grammar.refinements import refined_type_to_metahandler
+from aeon.synthesis.grammar.utils import prelude_ops, aeon_to_python
 from aeon.typechecking.context import (
     TypeBinder,
     TypeConstructorBinder,
@@ -403,7 +404,7 @@ def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, L
 
 def gen_grammar_nodes(
     ctx: TypingContext,
-    synth_fun_type,
+    ty: Type,
     synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
@@ -430,7 +431,7 @@ def gen_grammar_nodes(
     # Simple refinements like 0 < n && n < 10 are kept.
     ctx, _ = propagate_constants(ctx)
     ctx = remove_uninterpreted_functions(ctx)
-    synth_fun_type = remove_uninterpreted_functions_from_type(synth_fun_type)
+    ty = remove_uninterpreted_functions_from_type(ty)
 
     current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
@@ -450,7 +451,7 @@ def gen_grammar_nodes(
             return False
 
     ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.concrete_vars() if not skip(var_name)]
-    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([synth_fun_type])
+    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([ty])
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider))
     type_nodes = list(set(type_info.values()))
@@ -465,7 +466,7 @@ def gen_grammar_nodes(
     ret = type_nodes + literals + literals_ref + vars + applications + abstractions
     if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[synth_func_name]:
         ret = ret + ifs
-    return ret, type_info[synth_fun_type]
+    return ret, type_info[ty]
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
@@ -486,3 +487,10 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
             print("\t pass")
         print()
         # print("---------------------------------------------------")
+
+
+def create_grammar(ctx: TypingContext, ty: Type, fun_name: Name, metadata: Metadata) -> Grammar:
+    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [])
+    g = extract_grammar(grammar_nodes, starting_node)
+    g = g.usable_grammar()
+    return g

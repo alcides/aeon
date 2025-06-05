@@ -26,7 +26,7 @@ def get_holes_info(
     t: Term,
     ty: Type,
     targets: list[tuple[Name, list[Name]]],
-    refined_types: bool,
+    refined_types: bool = False,
 ) -> dict[Name, tuple[Type, TypingContext]]:
     """Retrieve the Types of "holes" in a given Term and TypingContext.
 

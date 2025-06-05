@@ -104,9 +104,10 @@ def multi_minimize_float(
         name=minimize_function_name,
         foralls=[],
         args=[],
-        type=STypeConstructor(Name("List")),  # Maybe this does work on decorator-time?
+        type=STypeConstructor(Name("List", -1)),  # Maybe this does work on decorator-time?
         body=args[0],
     )
+    # List -1 should be Array 0?
 
     metadata = metadata_update(
         metadata,
