@@ -62,26 +62,6 @@ def parse_arguments():
         action="store_true",
         help="export log file",
     )
-
-    parser.add_argument(
-        "-csv",
-        "--csv-synth",
-        action="store_true",
-        help="export synthesis csv file",
-    )
-
-    parser.add_argument(
-        "-gp",
-        "--gp-config",
-        help="path to the GP configuration file",
-    )
-
-    parser.add_argument(
-        "-csec",
-        "--config-section",
-        help="section name in the GP configuration file",
-    )
-
     parser.add_argument(
         "-d",
         "--debug",
@@ -94,13 +74,6 @@ def parse_arguments():
         "--timings",
         action="store_true",
         help="Show timing information",
-    )
-
-    parser.add_argument(
-        "-rg",
-        "--refined-grammar",
-        action="store_true",
-        help="Use the refined grammar for synthesis",
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
