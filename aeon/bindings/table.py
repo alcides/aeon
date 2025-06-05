@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+
 def group_by(table, column):
     """
     Groups rows in the table by the value in the specified column.
@@ -15,6 +16,7 @@ def group_by(table, column):
     for row in table:
         groups[row[column]].append(row)
     return list(groups.values())
+
 
 def pivot(table, index, columns, values):
     """
@@ -37,6 +39,7 @@ def pivot(table, index, columns, values):
         result[row_idx][col_key] = val
     # Convert to list of dicts, including index as a column
     return [dict({index: idx}, **cols) for idx, cols in result.items()]
+
 
 def melt(table, id_vars, value_vars, var_name, value_name):
     """

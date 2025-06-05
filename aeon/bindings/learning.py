@@ -1,11 +1,11 @@
 import sklearn.model_selection
-import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from collections import Counter
 from imblearn.over_sampling import SMOTE
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import pandas as pd
+
 
 def train_test_split_pairs(X, y, test_size):
     """
@@ -24,6 +24,7 @@ def train_test_split_pairs(X, y, test_size):
     test = list(zip(X_test, y_test))
     return train, test
 
+
 def balanced(ds):
     """
     Checks if a dataset is balanced (all classes have the same number of samples).
@@ -35,8 +36,9 @@ def balanced(ds):
         bool: True if all classes have the same count, False otherwise.
     """
     _, y = ds
-    counts = Counter(y) # count occurrences of each class label
-    return len(set(counts.values())) == 1 # ensure all classes have the same count
+    counts = Counter(y)  # count occurrences of each class label
+    return len(set(counts.values())) == 1  # ensure all classes have the same count
+
 
 def load_dataset(filename):
     """
@@ -53,6 +55,7 @@ def load_dataset(filename):
     y = df.iloc[:, -1].tolist()
     return (X, y)
 
+
 def split_dataset(ds, fraction):
     """
     Splits a dataset into training and test sets according to the given fraction.
@@ -65,10 +68,9 @@ def split_dataset(ds, fraction):
         tuple: ((X_train, y_train), (X_test, y_test))
     """
     X, y = ds
-    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
-        X, y, test_size=1-fraction
-    )
-    return ( (X_train, y_train), (X_test, y_test) )
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=1 - fraction)
+    return ((X_train, y_train), (X_test, y_test))
+
 
 def train_random_forest(dataset):
     """
@@ -85,6 +87,7 @@ def train_random_forest(dataset):
     clf.fit(X, y)
     return clf
 
+
 def smote_oversample(ds):
     """
     Applies SMOTE oversampling to balance the classes in the dataset.
@@ -98,6 +101,7 @@ def smote_oversample(ds):
     X, y = ds
     X_res, y_res = SMOTE().fit_resample(X, y)
     return (X_res.tolist(), y_res.tolist())
+
 
 def predict(model, ds):
     """
@@ -114,6 +118,7 @@ def predict(model, ds):
     y_pred = model.predict(X)
     return y_pred.tolist()
 
+
 def score(model, ds):
     """
     Computes the accuracy score of the model on the given dataset.
@@ -127,6 +132,7 @@ def score(model, ds):
     """
     X, y = ds
     return float(model.score(X, y))
+
 
 def confusion_matrix_(model, ds):
     """
@@ -144,6 +150,7 @@ def confusion_matrix_(model, ds):
     cm = confusion_matrix(y, y_pred)
     return cm.tolist()
 
+
 def standard_scale(ds):
     """
     Scales features in the dataset to have zero mean and unit variance.
@@ -158,6 +165,7 @@ def standard_scale(ds):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     return (X_scaled.tolist(), y)
+
 
 def minmax_scale(ds):
     """
