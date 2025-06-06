@@ -43,7 +43,7 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
     return validate
 
 
-type Evaluators = list[Callable[[Term], float]]
+Evaluators = list[Callable[[Term], float]]
 
 
 def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata) -> Evaluators:
