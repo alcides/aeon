@@ -1,19 +1,117 @@
 import "List.ae";
 
-def String_len (i:String) : Int { native "len(i)" }
+type String;
 
-def String_intToString (i:Int) : String { native "str(i)"}
+# Returns the length of the string.
+# i: input string
+# returns: number of characters in the string
+def String_len(i: String): Int { native "len(i)" }
 
-def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
+# Converts an integer to a string.
+# i: integer
+# returns: string representation of the integer
+def String_intToString(i: Int): String { native "str(i)" }
 
-def String_slice : (i:String) -> (j:Int) -> (l:Int) -> String = \i -> \j -> \l -> native "i[j:l]";
+# Checks if two strings are equal.
+# i: first string
+# j: second string
+# returns: true if strings are equal, false otherwise
+def String_equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == j";
 
-def String_upper : (i:String)  ->  String = \i -> native "i.upper()" ;
+# Returns a substring (slice) of the string from index j to l (exclusive).
+# i: input string
+# j: start index (>= 0, < length of i)
+# l: end index (>= j, <= length of i)
+# returns: substring from j to l
+def String_slice: (i: String) -> (j: {x: Int | x >= 0 && x < String_len i}) -> (l: {y: Int | y >= j && y <= String_len i}) -> String =
+    \i -> \j -> \l -> native "i[j:l]";
 
-def String_lower : (i:String)  ->  String = \i -> native "i.lower()" ;
+# Converts the string to uppercase.
+# i: input string
+# returns: uppercase version of the string
+def String_upper: (i: String) -> String = \i -> native "i.upper()" ;
 
-def String_replace (i:String) (j:String) (l:String) : String { native "i.replace(j, l)" }
+# Converts the string to lowercase.
+# i: input string
+# returns: lowercase version of the string
+def String_lower: (i: String) -> String = \i -> native "i.lower()" ;
 
-def String_split (i:String) (j:String) : List { native "i.split(j)" }
+# Replaces all occurrences of substring j with l in string i.
+# i: input string
+# j: substring to replace (non-empty)
+# l: replacement string
+# returns: new string with replacements
+def String_replace(i: String) (j: {s: String | String_len s > 0}) (l: String): String { native "i.replace(j, l)" }
 
-def String_concat (i:String) (j:String) : String { native "i + j" }
+# Splits the string by the given separator.
+# i: input string
+# j: separator string (non-empty)
+# returns: list of substrings
+def String_split(i: String) (j: {s: String | String_len s > 0}): (List String) { native "i.split(j)" }
+
+# Concatenates two strings.
+# i: first string
+# j: second string
+# returns: concatenated string
+def String_concat(i: String) (j: String): String { native "i + j" }
+
+# Checks if the string starts with the given prefix.
+# i: input string
+# prefix: prefix string
+# returns: true if i starts with prefix
+def String_startsWith(i: String) (prefix: String): Bool { native "i.startswith(prefix)" }
+
+# Checks if the string ends with the given suffix.
+# i: input string
+# suffix: suffix string
+# returns: true if i ends with suffix
+def String_endsWith(i: String) (suffix: String): Bool { native "i.endswith(suffix)" }
+
+# Finds the first index of substring sub in i, or -1 if not found.
+# i: input string
+# sub: substring to find
+# returns: index of first occurrence or -1
+def String_indexOf(i: String) (sub: String): Int { native "i.find(sub)" }
+
+# Finds the last index of substring sub in i, or -1 if not found.
+# i: input string
+# sub: substring to find
+# returns: index of last occurrence or -1
+def String_lastIndexOf(i: String) (sub: String): Int { native "i.rfind(sub)" }
+
+# Checks if the string contains the given substring.
+# i: input string
+# sub: substring to check
+# returns: true if sub is in i
+def String_contains(i: String) (sub: String): Bool { native "sub in i" }
+
+# Removes whitespace from both ends of the string.
+# i: input string
+# returns: trimmed string
+def String_trim(i: String): String { native "i.strip()" }
+
+# Removes whitespace from the left end of the string.
+# i: input string
+# returns: left-trimmed string
+def String_trimLeft(i: String): String { native "i.lstrip()" }
+
+# Removes whitespace from the right end of the string.
+# i: input string
+# returns: right-trimmed string
+def String_trimRight(i: String): String { native "i.rstrip()" }
+
+# Repeats the string n times.
+# i: input string
+# n: number of repetitions (>= 0)
+# returns: repeated string
+def String_repeat(i: String) (n: {x: Int | x >= 0}): String { native "i * n" }
+
+# Returns true if the string is empty.
+# i: input string
+# returns: true if i is empty
+def String_isEmpty(i: String): Bool { native "i == ''" }
+
+# Splits the string into a list of characters.
+# i: input string
+# returns: list of single-character strings
+def String_toCharList(i: String): (List String) { native "list(i)" }

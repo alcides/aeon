@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
+from typing import MutableSequence
 
 from aeon.core.types import (
     AbstractionType,
     BaseKind,
-    BaseType,
     RefinedType,
     Top,
     TypeConstructor,
@@ -29,11 +29,17 @@ class VariableBinder(TypingContextEntry):
     name: Name
     type: Type
 
+    def __repr__(self):
+        return f"{self.name} : {self.type}"
+
 
 @dataclass
 class UninterpretedBinder(TypingContextEntry):
     name: Name
     type: AbstractionType
+
+    def __repr__(self):
+        return f"uninterpreted {self.name} : {self.type}"
 
 
 @dataclass
@@ -41,26 +47,42 @@ class TypeBinder(TypingContextEntry):
     type_name: Name
     type_kind: Kind = field(default_factory=StarKind)
 
+    def __repr__(self):
+        return f"type {self.type_name} {self.type_kind}"
+
 
 @dataclass
 class TypeConstructorBinder(TypingContextEntry):
     name: Name
     args: list[Name]
 
+    def __repr__(self):
+        if self.args:
+            argsf = "(" + ", ".join(map(str, self.args)) + ")"
+        else:
+            argsf = ""
+        return f"type {self.name}{argsf}"
+
 
 @dataclass
 class TypingContext:
-    entries: list[TypingContextEntry] = field(default_factory=list)
+    entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
             self.entries.insert(0, TypeConstructorBinder(bt.name, []))
 
+    def __repr__(self):
+        fields = "; ".join(map(repr, self.entries))
+        return f"[[{fields}]]"
+
     def with_var(self, name: Name, type: Type) -> TypingContext:
-        return TypingContext(self.entries + [VariableBinder(name, type)])
+        nentries = [e for e in self.entries] + [VariableBinder(name, type)]
+        return TypingContext(nentries)
 
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
-        return TypingContext(self.entries + [TypeBinder(name, kind)])
+        nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
+        return TypingContext(nentries)
 
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
@@ -72,7 +94,7 @@ class TypingContext:
 
     def kind_of(self, ty: Type) -> Kind:
         match ty:
-            case BaseType(_) | Top() | RefinedType(_, BaseType(_), _) | RefinedType(_, TypeConstructor(_, _), _):
+            case Top() | RefinedType(_, TypeConstructor(_), _) | RefinedType(_, TypeConstructor(_, _), _):
                 return BaseKind()
             case TypeVar(name):
                 assert (name, BaseKind()) in self.typevars()
@@ -113,9 +135,6 @@ class TypingContext:
         if name.name in ["Unit", "Int", "Bool", "Float", "String"]:
             return []
         return None
-
-    def __repr__(self):
-        return "{" + ",".join(repr(e) for e in self.entries) + "}"
 
     def __hash__(self):
         return sum(hash(e) for e in self.entries)

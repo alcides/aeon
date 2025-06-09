@@ -15,7 +15,6 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import Top
@@ -42,7 +41,7 @@ Assignment = dict[Name, list[LiquidTerm]]
 def smt_base_type(ty: Type) -> str | None:
     if isinstance(ty, AbstractionType):
         return None
-    if isinstance(ty, BaseType):
+    if isinstance(ty, TypeConstructor):
         return str(ty)
     elif isinstance(ty, RefinedType):
         return smt_base_type(ty.type)
@@ -62,10 +61,14 @@ def fresh(context: TypingContext, ty: Type) -> Type:
                 ity,
                 LiquidHornApplication(
                     hole_name,
-                    [(LiquidVar(n), t) for n, t in context.vars() + [(vname, ty.type)] if isinstance(t, BaseType)],
+                    [
+                        (LiquidVar(n), t)
+                        for n, t in context.vars() + [(vname, ty.type)]
+                        if isinstance(t, TypeConstructor)
+                    ],
                 ),
             )
-        case BaseType(_) | RefinedType(_, _, _) | Top() | TypeVar():
+        case RefinedType(_, _, _) | Top() | TypeVar():
             return ty
         case AbstractionType(name, aty, rty):
             sp = fresh(context, aty)
@@ -165,7 +168,7 @@ def mk_arg(i: int) -> Name:
     return Name(f"arg_{i}", 0)
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeConstructor]], arity: int):
+def get_possible_args(vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar | TypeConstructor]], arity: int):
     if arity == 0:
         yield []
     else:
@@ -180,7 +183,7 @@ def get_possible_args(vars: list[tuple[LiquidTerm, BaseType | TypeVar | TypeCons
 
 def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidApp]:
     ctx = LiquidTypeCheckingContext(
-        known_types=[BaseType(Name(bn.name.name, 0)) for bn in builtin_core_types],
+        known_types=[TypeConstructor(Name(bn.name.name, 0)) for bn in builtin_core_types],
         functions=liquid_prelude,
         variables={mk_arg(i): t for i, (_, t) in enumerate(hole.argtypes)},
     )
@@ -239,10 +242,10 @@ def build_forall_implication(
         for name, _ in vs:
             assert isinstance(name, Name)
     lastEl = vs[-1]
-    assert isinstance(lastEl[1], BaseType)
+    assert isinstance(lastEl[1], TypeConstructor)
     cf = Implication(lastEl[0], lastEl[1], p, c)
     for n, t in vs[-2::-1]:
-        assert isinstance(t, BaseType)
+        assert isinstance(t, TypeConstructor)
         assert isinstance(n, Name)
         cf = Implication(n, t, LiquidLiteralBool(True), cf)
     return cf
@@ -325,15 +328,15 @@ def apply(assign: Assignment, c: Any):
 
 def extract_components_of_imp(
     c: Constraint,
-) -> tuple[list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]], tuple[LiquidTerm, LiquidTerm]]:
+) -> tuple[list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]], tuple[LiquidTerm, LiquidTerm]]:
     match c:
         case UninterpretedFunctionDeclaration(name, base, post):
             (vs1, (p, h)) = extract_components_of_imp(post)
-            vsh: list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
+            vsh: list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vsh + vs1, (p, h))
         case Implication(name, base, pre, seq):
             (vs1, (p, h)) = extract_components_of_imp(seq)
-            vs: list[tuple[Name, BaseType | TypeVar | AbstractionType | Top]] = [(name, base)]
+            vs: list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]] = [(name, base)]
             return (vs + vs1, (mk_liquid_and(pre, p), h))
         case LiquidConstraint(e):
             return ([], (LiquidLiteralBool(True), e))

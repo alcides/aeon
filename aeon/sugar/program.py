@@ -5,7 +5,7 @@ from dataclasses import field
 
 from aeon.utils.name import Name
 from aeon.core.types import Kind
-from aeon.sugar.stypes import SType
+from aeon.sugar.stypes import SType, STypeConstructor
 
 
 class STerm:
@@ -25,6 +25,11 @@ class SLiteral(STerm):
 
     def __eq__(self, other):
         return isinstance(other, SLiteral) and self.value == other.value and self.type == other.type
+
+    def __str__(self):
+        if self.type == STypeConstructor(Name("String", 0)):
+            return f'"{self.value}"'
+        return f"{self.value}"
 
 
 @dataclass(frozen=True)
@@ -81,13 +86,16 @@ class SApplication(STerm):
     def __eq__(self, other):
         return isinstance(other, SApplication) and self.fun == other.fun and self.arg == other.arg
 
+    def __str__(self):
+        return f"({self.fun} {self.arg})"
+
 
 @dataclass(frozen=True)
 class SAbstraction(STerm):
     var_name: Name
     body: STerm
 
-    def __repr__(self):
+    def __str__(self):
         return f"(\\{self.var_name} -> {self.body})"
 
     def __eq__(self, other):
@@ -191,7 +199,7 @@ class ImportAe(Node):
     path: str
     func: str
 
-    def __repr__(self):
+    def __str__(self):
         if not self.func:
             return f"import {self.path};"
         else:
@@ -203,8 +211,28 @@ class TypeDecl(Node):
     name: Name
     args: list[Name] = field(default_factory=list)
 
-    def __repr__(self):
+    def __str__(self):
         return f"type {self.name};"
+
+
+@dataclass
+class InductiveDecl(Node):
+    name: Name
+    args: list[Name] = field(default_factory=list)
+    constructors: list[Definition] = field(default_factory=list)
+    measures: list[Definition] = field(default_factory=list)
+
+    def __post_init__(self):
+        assert isinstance(self.name, Name)
+
+        for aname in self.args:
+            assert isinstance(aname, Name)
+
+    def __str__(self):
+        args = " ".join(str(arg) for arg in self.args)
+        constructors = " ".join(f"| {cons}" for (cons) in self.constructors)
+        measures = " ".join(f"+ {dec}" for dec in self.measures)
+        return f"inductive {self.name} {args} {constructors} {measures}"
 
 
 @dataclass
@@ -227,27 +255,27 @@ class Definition(Node):
     decorators: list[Decorator] = field(default_factory=list)
 
     def __post_init__(self):
-        assert isinstance(self.name, Name)
+        assert isinstance(self.type, SType)
 
-        for aname, atype in self.args:
-            assert isinstance(aname, Name)
-
-    def __repr__(self):
+    def __str__(self):
         if not self.args:
             return f"def {self.name} : {self.type} = {self.body};"
         else:
             args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
-            return f"def {self.name} {args} -> {self.type} {{\n {self.body} \n}}"
+            foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
+            return f"def {self.name} {foralls} {args} : {self.type} {{\n {self.body} \n}}"
 
 
 @dataclass
 class Program(Node):
     imports: list[ImportAe]
     type_decls: list[TypeDecl]
+    inductive_decls: list[InductiveDecl]
     definitions: list[Definition]
 
-    def __repr__(self):
+    def __str__(self):
         imps = "\n".join([str(td) for td in self.imports])
         decls = "\n".join([str(td) for td in self.type_decls])
+        inductives = "\n".join([str(td) for td in self.inductive_decls])
         defs = "\n".join([str(d) for d in self.definitions])
-        return f"{imps}\n{decls}\n{defs}"
+        return f"{imps}\n{decls}\n{inductives}\n{defs}"

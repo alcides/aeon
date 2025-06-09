@@ -1,7 +1,6 @@
 from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     SType,
     STypeConstructor,
@@ -30,8 +29,6 @@ def type_equality(a: SType, b: SType, rename_left: dict[Name, Name] | None = Non
     match a, b:
         case STypeVar(an), STypeVar(bn):
             return rename_left.get(an, an) == bn
-        case SBaseType(av), SBaseType(bv):
-            return av == bv
         case SRefinedType(aname, aty, aref), SRefinedType(bname, bty, bref):
             return type_equality(aty, bty, rename_left | {aname: bname}) and term_equality(
                 aref, bref, rename_left | {aname: bname}

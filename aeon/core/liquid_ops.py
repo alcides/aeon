@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
-from aeon.core.types import BaseType, TypeConstructor, TypeVar, t_bool, t_int
+from aeon.core.types import TypeConstructor, TypeVar, t_bool, t_int
 from aeon.utils.name import Name
 
 
@@ -11,7 +11,7 @@ def tv(name: str) -> TypeVar:
     return TypeVar(Name(name))
 
 
-liquid_prelude: dict[Name, list[BaseType | TypeVar | TypeConstructor]] = {
+liquid_prelude: dict[Name, list[TypeConstructor | TypeVar | TypeConstructor]] = {
     Name("==", 0): [tv("a"), tv("a"), t_bool],
     Name("!=", 0): [tv("a"), tv("a"), t_bool],
     Name("<", 0): [tv("a"), tv("a"), t_bool],  # TODO typeclasses: order

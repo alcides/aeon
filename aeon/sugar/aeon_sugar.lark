@@ -11,6 +11,15 @@ defs : def*                                          -> list
 
 type_decl : "type" TYPENAME ";"                            -> type_decl
           | "type" TYPENAME ID+ ";"                            -> type_constructor_decl
+          | type_def                                           -> same
+
+
+type_def : "inductive" ID iargs constructors measures      -> inductive
+iargs: (ID)*                                                -> list
+constructors : cons_rule*                                  -> list
+cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
+measures : measure_rule*                                  -> list
+measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
 def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
     | soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun

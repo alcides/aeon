@@ -7,8 +7,8 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import LiquidHornApplication, TypeConstructor
-from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.types import LiquidHornApplication, TypeConstructor, t_int
+from aeon.core.substitutions import substitution_in_liquid, substitute_vartype
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -23,7 +23,7 @@ from aeon.core.terms import (
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, BaseType, RefinedType, Type, TypePolymorphism, Top, TypeVar, t_unit
+from aeon.core.types import AbstractionType, RefinedType, Type, TypePolymorphism, Top, TypeVar, t_unit
 from aeon.elaboration.context import (
     ElabTypeDecl,
     ElabTypeVarBinder,
@@ -48,7 +48,6 @@ from aeon.sugar.program import (
 )
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     SType,
     STypeConstructor,
@@ -103,20 +102,20 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
 
 def liquefy(
-    t: STerm, available_vars: list[tuple[Name, BaseType | TypeVar | TypeConstructor]] | None = None
+    t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar | TypeConstructor]] | None = None
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
-        case SLiteral(val, SBaseType(Name("Bool", _))):
+        case SLiteral(val, STypeConstructor(Name("Bool", _))):
             assert isinstance(val, bool)
             return LiquidLiteralBool(val)
-        case SLiteral(val, SBaseType(Name("Int", _))):
+        case SLiteral(val, STypeConstructor(Name("Int", _))):
             assert isinstance(val, int)
             return LiquidLiteralInt(val)
-        case SLiteral(val, SBaseType(Name("Float", _))):
+        case SLiteral(val, STypeConstructor(Name("Float", _))):
             assert isinstance(val, float)
             return LiquidLiteralFloat(val)
-        case SLiteral(val, SBaseType(Name("String", _))):
+        case SLiteral(val, STypeConstructor(Name("String", _))):
             assert isinstance(val, str)
             return LiquidLiteralString(val)
         case SLiteral(_, _):
@@ -159,9 +158,9 @@ def liquefy(
             assert False
 
 
-def basic_type(ty: Type) -> BaseType | TypeVar:
+def basic_type(ty: Type) -> TypeConstructor | TypeVar:
     match ty:
-        case BaseType(_) | TypeVar(_):
+        case TypeConstructor(_, _) | TypeVar(_):
             return ty
         case RefinedType(_, it, _):
             return basic_type(it)
@@ -171,23 +170,21 @@ def basic_type(ty: Type) -> BaseType | TypeVar:
             assert False, f"Unknown base type {ty} ({type(ty)})"
 
 
-def type_to_core(ty: SType, available_vars: list[tuple[Name, BaseType | TypeVar]] | None = None) -> Type:
+def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None) -> Type:
     """Converts Surface Types into Core Types"""
 
     if available_vars is None:
         available_vars = []
 
     match normalize(ty):
-        case SBaseType(Name("Top", 0)):
+        case STypeConstructor(Name("Top", 0)):
             return Top()
-        case SBaseType(name):
-            return BaseType(name)
         case STypeVar(name):
             return TypeVar(name)
         case SAbstractionType(name, vty, rty):
             nname = Name(name.name, fresh_counter.fresh())
             at = type_to_core(vty, available_vars)
-            if isinstance(at, BaseType) or isinstance(at, TypeVar) or isinstance(at, RefinedType):
+            if isinstance(at, TypeConstructor) or isinstance(at, TypeVar) or isinstance(at, RefinedType):
                 available_vars = available_vars + [(nname, basic_type(at))]
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
@@ -202,7 +199,11 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, BaseType | TypeVar]
             else:
                 name = oname
             basety = type_to_core(ity, available_vars)
-            assert isinstance(basety, BaseType) or isinstance(basety, TypeVar) or isinstance(basety, TypeConstructor)
+            assert (
+                isinstance(basety, TypeConstructor)
+                or isinstance(basety, TypeVar)
+                or isinstance(basety, TypeConstructor)
+            )
             return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]))
         case STypeConstructor(name, args):
             return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args])
@@ -239,14 +240,24 @@ def lower_to_core(t: STerm) -> Term:
             assert False, f"{t} ({type(t)}) not supported"
 
 
+def monomorphic_type(ty: Type) -> AbstractionType:
+    match ty:
+        case TypePolymorphism(name, _, body):
+            return monomorphic_type(substitute_vartype(body, t_int, name))
+        case AbstractionType(_, _, _):
+            return ty
+        case _:
+            assert False, f"Type {ty} is not a monomorphic type, cannot be used in uninterpreted binders."
+
+
 def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
     match e:
         case ElabVariableBinder(name, ty):
             return VariableBinder(name, type_to_core(ty))
         case ElabUninterpretedBinder(name, ty):
             absty = type_to_core(ty)
-            assert isinstance(absty, AbstractionType)
-            return UninterpretedBinder(name, absty)
+            concrete_absty = monomorphic_type(absty)
+            return UninterpretedBinder(name, concrete_absty)
         case ElabTypeVarBinder(name, kind):
             return TypeBinder(name, kind)
         case ElabTypeDecl(name, args):

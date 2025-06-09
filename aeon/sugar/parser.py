@@ -25,9 +25,9 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
+from aeon.sugar.program import InductiveDecl
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SType,
     STypeConstructor,
     STypeVar,
@@ -37,9 +37,16 @@ from aeon.sugar.stypes import (
 
 from aeon.sugar.ast_helpers import i0
 from aeon.sugar.ast_helpers import mk_binop
-from aeon.sugar.ast_helpers import st_int, st_bool, st_string, st_float
+from aeon.sugar.ast_helpers import st_int, st_bool, st_string, st_float, st_unit
 from aeon.sugar.stypes import builtin_types
 from aeon.utils.name import Name
+
+
+def ensure_list(a):
+    if isinstance(a, list):
+        return a
+    else:
+        return [a]
 
 
 class TreeToSugar(Transformer):
@@ -69,7 +76,7 @@ class TreeToSugar(Transformer):
         name_str = str(args[0])
         if name_str in builtin_types:
             name = Name(name_str, 0)
-            return SBaseType(name)
+            return STypeConstructor(name)
         else:
             name = Name(name_str)
             return STypeVar(name)
@@ -191,7 +198,9 @@ class TreeToSugar(Transformer):
         return args
 
     def program(self, args):
-        return Program(args[0], args[1], args[2])
+        non_inductive = [el for el in args[1] if not isinstance(el, InductiveDecl)]
+        inductive = [el for el in args[1] if isinstance(el, InductiveDecl)]
+        return Program(args[0], non_inductive, inductive, args[2])
 
     def regular_imp(self, args):
         return ImportAe(args[0], [])
@@ -204,6 +213,12 @@ class TreeToSugar(Transformer):
 
     def type_constructor_decl(self, args):
         return TypeDecl(Name(args[0]), [Name(i) for i in args[1:]])
+
+    def inductive(self, args):
+        return InductiveDecl(Name(args[0]), [Name(i) for i in args[1]], ensure_list(args[2]), ensure_list(args[3]))
+
+    def def_ind_cons(self, args):
+        return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit))
 
     def def_cons(self, args):
         if len(args) == 3:

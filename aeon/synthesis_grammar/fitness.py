@@ -1,7 +1,7 @@
 from aeon.decorators import decorators_environment
 from aeon.sugar.program import Definition, SRec, STerm, SVar
 from aeon.sugar.program import Decorator
-from aeon.sugar.stypes import SBaseType, SType
+from aeon.sugar.stypes import STypeConstructor, SType
 from aeon.sugar.ast_helpers import st_float
 from aeon.utils.name import Name, fresh_counter
 
@@ -20,12 +20,12 @@ def get_minimize(minimize: list[bool]):
         return minimize
 
 
-def get_type_from_decorators(macro_list) -> SBaseType:
+def get_type_from_decorators(macro_list) -> STypeConstructor:
     if len(macro_list) == 1:
         if macro_list[0].name in single_objective_decorators:
             return st_float
         elif macro_list[0].name in multi_objective_decorators:
-            return SBaseType(Name("List", -1))
+            return STypeConstructor(Name("List", -1))
         else:
             raise Exception(
                 "decorator not in lists single and multi objective decorators",
@@ -68,7 +68,7 @@ def add_to_list(item: list, my_list: list):
 
 def generate_definition(
     fitness_args: list[tuple[str, SType]],
-    fitness_return_type: SBaseType,
+    fitness_return_type: STypeConstructor,
     fitness_terms: list[STerm],
 ) -> Definition:
     if len(fitness_terms) == 1:
@@ -85,7 +85,7 @@ def generate_definition(
 
 def generate_term(
     fitness_name: Name,
-    fitness_return_type: SBaseType,
+    fitness_return_type: STypeConstructor,
     fitness_terms: list[STerm],
 ) -> STerm:
     if len(fitness_terms) == 1:
