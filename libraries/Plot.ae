@@ -1,0 +1,77 @@
+# Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.
+type Plot;
+
+type List a; # Assuming this is how you define generic lists
+
+def plt : Unit = native_import "matplotlib.pyplot";
+
+# Creates a new, empty plot.
+def Plot_new : Plot = native "(plt.figure(), plt.gca())[0]"; # Returns the figure object; gca() ensures axes are created
+
+# Adds a line plot to an existing plot object.
+# p_old: The existing plot object (Matplotlib Figure instance).
+# x_values: List of Floats for the x-coordinates.
+# y_values: List of Floats for the y-coordinates.
+# color: String representing the color (e.g., "red", "blue").
+# linestyle: String representing the line style (e.g., "-", "--", ":").
+# returns: The plot object, now with the added line.
+#          (Matplotlib's plot modifies in place; we return the same figure object).
+def Plot_add_line (p_old: Plot)
+                   (x_values: (List Float))
+                   (y_values: (List Float))
+                   (color: String)
+                   (linestyle: String) : Plot {
+    native "(lambda fig, x, y, c, ls: (fig.gca().plot(x, y, color=c, linestyle=ls), fig)[1])(p_old, x_values, y_values, color, linestyle)"
+}
+
+# Adds a scatter plot to an existing plot object.
+# p_old: The existing plot object.
+# x_values: List of Floats for the x-coordinates.
+# y_values: List of Floats for the y-coordinates.
+# color: String representing the color.
+# marker: String representing the marker style (e.g., "o", "x", "+").
+# returns: The plot object, now with the added scatter plot.
+def Plot_add_scatter (p_old: Plot)
+                      (x_values: (List Float))
+                      (y_values: (List Float))
+                      (color: String)
+                      (marker: String) : Plot {
+    native "(lambda fig, x, y, c, m: (fig.gca().scatter(x, y, color=c, marker=m), fig)[1])(p_old, x_values, y_values, color, marker)"
+}
+
+# Sets the title of the plot.
+# p_old: The existing plot object.
+# title_text: The string for the title.
+# returns: The plot object with the title set.
+def Plot_set_title (p_old: Plot) (title_text: String) : Plot {
+    native "(lambda fig, text: (fig.gca().set_title(text), fig)[1])(p_old, title_text)"
+}
+
+# Sets the X-axis label of the plot.
+# p_old: The existing plot object.
+# label_text: The string for the X-axis label.
+# returns: The plot object with the X-axis label set.
+def Plot_set_xlabel (p_old: Plot) (label_text: String) : Plot {
+    native "(lambda fig, text: (fig.gca().set_xlabel(text), fig)[1])(p_old, label_text)"
+}
+
+# Sets the Y-axis label of the plot.
+# p_old: The existing plot object.
+# label_text: The string for the Y-axis label.
+# returns: The plot object with the Y-axis label set.
+def Plot_set_ylabel (p_old: Plot) (label_text: String) : Plot {
+    native "(lambda fig, text: (fig.gca().set_ylabel(text), fig)[1])(p_old, label_text)"
+}
+
+# Displays the plot.
+# p: The plot object to display.
+def Plot_show (p: Plot) : Unit {
+    native "plt.show(p)" # Pass the specific figure to show, or just plt.show() for all active
+}
+
+# Saves the plot to a file.
+# p: The plot object to save.
+# filename: The name of the file (e.g., "myplot.png").
+def Plot_save (p: Plot) (filename: String) : Unit {
+    native "p.savefig(filename)"
+}
