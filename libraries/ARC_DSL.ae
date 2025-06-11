@@ -1,0 +1,212 @@
+type Tuple;
+type Any;
+type Container;
+type Callable;
+type FrozenSet;
+
+type Boolean;
+type Integer;
+type IntegerTuple;
+type Numerical;
+type IntegerSet;
+type Grid;
+type Cell;
+type Object;
+type Objects;
+type Indices;
+type IndicesSet;
+type Patch;
+type Element;
+type Piece;
+type TupleTuple;
+type ContainerContainer;
+
+def identity(x: Any): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.identity(x)" }
+def add(a: Numerical) (b: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.add(a, b)" }
+def subtract(a: Numerical) (b: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.subtract(a, b)" }
+def multiply(a: Numerical) (b: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.multiply(a, b)" }
+def divide(a: Numerical) (b: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.divide(a, b)" }
+def invert(n: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.invert(n)" }
+def even(n: Integer): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.even(n)" }
+def double(n: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.double(n)" }
+def halve(n: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.halve(n)" }
+def flip(b: Boolean): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.flip(b)" }
+def equality(a: Any) (b: Any): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.equality(a, b)" }
+def contained(value: Any) (container: Container): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.contained(value, container)" }
+def combine(a: Container) (b: Container): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.combine(a, b)" }
+def intersection(a: FrozenSet) (b: FrozenSet): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.intersection(a, b)" }
+def difference(a: FrozenSet) (b: FrozenSet): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.difference(a, b)" }
+def dedupe(tup: Tuple): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.dedupe(tup)" }
+def order(container: Container) (compfunc: Callable): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.order(container, compfunc)" }
+def repeat(item: Any) (num: Integer): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.repeat(item, num)" }
+def greater(a: Integer) (b: Integer): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.greater(a, b)" }
+def size(container: Container): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.size(container)" }
+def merge(containers: ContainerContainer): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.merge(containers)" }
+def maximum(container: IntegerSet): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.maximum(container)" }
+def minimum(container: IntegerSet): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.minimum(container)" }
+def valmax(container: Container) (compfunc: Callable): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.valmax(container, compfunc)" }
+def valmin(container: Container) (compfunc: Callable): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.valmin(container, compfunc)" }
+def argmax(container: Container) (compfunc: Callable): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.argmax(container, compfunc)" }
+def argmin(container: Container) (compfunc: Callable): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.argmin(container, compfunc)" }
+def mostcommon(container: Container): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.mostcommon(container)" }
+def leastcommon(container: Container): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.leastcommon(container)" }
+def initset(value: Any): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.initset(value)" }
+def both(a: Boolean) (b: Boolean): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.both(a, b)" }
+def either(a: Boolean) (b: Boolean): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.either(a, b)" }
+def increment(x: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.increment(x)" }
+def decrement(x: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.decrement(x)" }
+def crement(x: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.crement(x)" }
+def sign(x: Numerical): Numerical { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.sign(x)" }
+def positive(x: Integer): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.positive(x)" }
+def toivec(i: Integer): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.toivec(i)" }
+def tojvec(j: Integer): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.tojvec(j)" }
+def sfilter(container: Container) (condition: Callable): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.sfilter(container, condition)" }
+def mfilter(container: Container) (function: Callable): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.mfilter(container, function)" }
+def extract(container: Container) (condition: Callable): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.extract(container, condition)" }
+def totuple(container: FrozenSet): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.totuple(container)" }
+def first(container: Container): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.first(container)" }
+def last(container: Container): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.last(container)" }
+def insert(value: Any) (container: FrozenSet): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.insert(value, container)" }
+def remove(value: Any) (container: Container): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.remove(value, container)" }
+def other(container: Container) (value: Any): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.other(container, value)" }
+def interval(start: Integer) (stop: Integer) (step: Integer): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.interval(start, stop, step)" }
+def astuple(a: Integer) (b: Integer): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.astuple(a, b)" }
+def product(a: Container) (b: Container): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.product(a, b)" }
+def pair(a: Tuple) (b: Tuple): TupleTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.pair(a, b)" }
+def branch(condition: Boolean) (a: Any) (b: Any): Any { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.branch(condition, a, b)" }
+def compose(outer: Callable) (inner: Callable): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.compose(outer, inner)" }
+def chain(h: Callable) (g: Callable) (f: Callable): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.chain(h, g, f)" }
+def matcher(function: Callable) (target: Any): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.matcher(function, target)" }
+def rbind(function: Callable) (fixed: Any): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rbind(function, fixed)" }
+def lbind(function: Callable) (fixed: Any): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.lbind(function, fixed)" }
+def power(function: Callable) (n: Integer): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.power(function, n)" }
+def fork(outer: Callable) (a: Callable) (b: Callable): Callable { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.fork(outer, a, b)" }
+def apply(function: Callable) (container: Container): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.apply(function, container)" }
+def rapply(functions: Container) (value: Any): Container { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rapply(functions, value)" }
+def mapply(function: Callable) (container: ContainerContainer): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.mapply(function, container)" }
+def papply(function: Callable) (a: Tuple) (b: Tuple): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.papply(function, a, b)" }
+def mpapply(function: Callable) (a: Tuple) (b: Tuple): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.mpapply(function, a, b)" }
+def prapply(function: Callable) (a: Container) (b: Container): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.prapply(function, a, b)" }
+def mostcolor(element: Element): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.mostcolor(element)" }
+def leastcolor(element: Element): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.leastcolor(element)" }
+def height(piece: Piece): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.height(piece)" }
+def width(piece: Piece): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.width(piece)" }
+def shape(piece: Piece): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.shape(piece)" }
+def portrait(piece: Piece): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.portrait(piece)" }
+def colorcount(element: Element) (value: Integer): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.colorcount(element, value)" }
+def colorfilter(objs: Objects) (value: Integer): Objects { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.colorfilter(objs, value)" }
+def sizefilter(container: Container) (n: Integer): FrozenSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.sizefilter(container, n)" }
+def asindices(grid: Grid): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.asindices(grid)" }
+def ofcolor(grid: Grid) (value: Integer): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.ofcolor(grid, value)" }
+def ulcorner(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.ulcorner(patch)" }
+def urcorner(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.urcorner(patch)" }
+def llcorner(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.llcorner(patch)" }
+def lrcorner(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.lrcorner(patch)" }
+def crop(grid: Grid) (start: IntegerTuple) (dims: IntegerTuple): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.crop(grid, start, dims)" }
+def toindices(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.toindices(patch)" }
+def recolor(value: Integer) (patch: Patch): Object { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.recolor(value, patch)" }
+def shift(patch: Patch) (directions: IntegerTuple): Patch { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.shift(patch, directions)" }
+def normalize(patch: Patch): Patch { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.normalize(patch)" }
+def dneighbors(loc: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.dneighbors(loc)" }
+def ineighbors(loc: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.ineighbors(loc)" }
+def neighbors(loc: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.neighbors(loc)" }
+def objects(grid: Grid) (univalued: Boolean) (diagonal: Boolean) (without_bg: Boolean): Objects { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.objects(grid, univalued, diagonal, without_bg)" }
+def partition(grid: Grid): Objects { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.partition(grid)" }
+def fgpartition(grid: Grid): Objects { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.fgpartition(grid)" }
+def uppermost(patch: Patch): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.uppermost(patch)" }
+def lowermost(patch: Patch): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.lowermost(patch)" }
+def leftmost(patch: Patch): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.leftmost(patch)" }
+def rightmost(patch: Patch): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rightmost(patch)" }
+def square(piece: Piece): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.square(piece)" }
+def vline(patch: Patch): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vline(patch)" }
+def hline(patch: Patch): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hline(patch)" }
+def hmatching(a: Patch) (b: Patch): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hmatching(a, b)" }
+def vmatching(a: Patch) (b: Patch): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vmatching(a, b)" }
+def manhattan(a: Patch) (b: Patch): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.manhattan(a, b)" }
+def adjacent(a: Patch) (b: Patch): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.adjacent(a, b)" }
+def bordering(patch: Patch) (grid: Grid): Boolean { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.bordering(patch, grid)" }
+def centerofmass(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.centerofmass(patch)" }
+def palette(element: Element): IntegerSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.palette(element)" }
+def numcolors(element: Element): IntegerSet { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.numcolors(element)" }
+def color(obj: Object): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.color(obj)" }
+def toobject(patch: Patch) (grid: Grid): Object { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.toobject(patch, grid)" }
+def asobject(grid: Grid): Object { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.asobject(grid)" }
+def rot90(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rot90(grid)" }
+def rot180(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rot180(grid)" }
+def rot270(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.rot270(grid)" }
+def hmirror(piece: Piece): Piece { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hmirror(piece)" }
+def vmirror(piece: Piece): Piece { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vmirror(piece)" }
+def dmirror(piece: Piece): Piece { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.dmirror(piece)" }
+def cmirror(piece: Piece): Piece { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.cmirror(piece)" }
+def fill(grid: Grid) (value: Integer) (patch: Patch): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.fill(grid, value, patch)" }
+def paint(grid: Grid) (obj: Object): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.paint(grid, obj)" }
+def underfill(grid: Grid) (value: Integer) (patch: Patch): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.underfill(grid, value, patch)" }
+def underpaint(grid: Grid) (obj: Object): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.underpaint(grid, obj)" }
+def hupscale(grid: Grid) (factor: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hupscale(grid, factor)" }
+def vupscale(grid: Grid) (factor: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vupscale(grid, factor)" }
+def upscale(element: Element) (factor: Integer): Element { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.upscale(element, factor)" }
+def downscale(grid: Grid) (factor: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.downscale(grid, factor)" }
+def hconcat(a: Grid) (b: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hconcat(a, b)" }
+def vconcat(a: Grid) (b: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vconcat(a, b)" }
+def subgrid(patch: Patch) (grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.subgrid(patch, grid)" }
+def hsplit(grid: Grid) (n: Integer): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hsplit(grid, n)" }
+def vsplit(grid: Grid) (n: Integer): Tuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vsplit(grid, n)" }
+def cellwise(a: Grid) (b: Grid) (fallback: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.cellwise(a, b, fallback)" }
+def replace(grid: Grid) (replacee: Integer) (replacer: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.replace(grid, replacee, replacer)" }
+def switch(grid: Grid) (a: Integer) (b: Integer): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.switch(grid, a, b)" }
+def center(patch: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.center(patch)" }
+def position(a: Patch) (b: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.position(a, b)" }
+def index(grid: Grid) (loc: IntegerTuple): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.index(grid, loc)" }
+def canvas(value: Integer) (dimensions: IntegerTuple): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.canvas(value, dimensions)" }
+def corners(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.corners(patch)" }
+def connect(a: IntegerTuple) (b: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.connect(a, b)" }
+def cover(grid: Grid) (patch: Patch): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.cover(grid, patch)" }
+def trim(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.trim(grid)" }
+def move(grid: Grid) (obj: Object) (offset: IntegerTuple): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.move(grid, obj, offset)" }
+def tophalf(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.tophalf(grid)" }
+def bottomhalf(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.bottomhalf(grid)" }
+def lefthalf(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.lefthalf(grid)" }
+def righthalf(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.righthalf(grid)" }
+def vfrontier(location: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vfrontier(location)" }
+def hfrontier(location: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hfrontier(location)" }
+def backdrop(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.backdrop(patch)" }
+def delta(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.delta(patch)" }
+def gravitate(source: Patch) (destination: Patch): IntegerTuple { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.gravitate(source, destination)" }
+def inbox(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.inbox(patch)" }
+def outbox(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.outbox(patch)" }
+def box(patch: Patch): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.box(patch)" }
+def shoot(start: IntegerTuple) (direction: IntegerTuple): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.shoot(start, direction)" }
+def occurrences(grid: Grid) (obj: Object): Indices { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.occurrences(grid, obj)" }
+def frontiers(grid: Grid): Objects { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.frontiers(grid)" }
+def compress(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.compress(grid)" }
+def hperiod(obj: Object): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.hperiod(obj)" }
+def vperiod(obj: Object): Integer { native "__import__('aeon.aeon.bindings.arc_dsl').aeon.aeon.bindings.arc_dsl.vperiod(obj)" }
+
+def F: Boolean = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.F";
+def T: Boolean = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.T";
+def ZERO: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.ZERO";
+def ONE: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.ONE";
+def TWO: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.TWO";
+def THREE: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.THREE";
+def FOUR: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.FOUR";
+def FIVE: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.FIVE";
+def SIX: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.SIX";
+def SEVEN: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.SEVEN";
+def EIGHT: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.EIGHT";
+def NINE: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.NINE";
+def TEN: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.TEN";
+def NEG_ONE: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.NEG_ONE";
+def NEG_TWO: Integer = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.NEG_TWO";
+def DOWN: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.DOWN";
+def RIGHT: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.RIGHT";
+def UP: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.UP";
+def LEFT: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.LEFT";
+def ORIGIN: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.ORIGIN";
+def UNITY: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.UNITY";
+def NEG_UNITY: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.NEG_UNITY";
+def UP_RIGHT: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.UP_RIGHT";
+def DOWN_LEFT: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.DOWN_LEFT";
+def ZERO_BY_TWO: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.ZERO_BY_TWO";
+def TWO_BY_ZERO: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.TWO_BY_ZERO";
+def TWO_BY_TWO: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.TWO_BY_TWO";
+def THREE_BY_THREE: IntegerTuple = native "__import__('aeon.aeon.bindings.arc_constants').aeon.aeon.bindings.arc_constants.THREE_BY_THREE";
