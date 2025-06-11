@@ -1,0 +1,27 @@
+# ARC Synthesis Solver (Aeon)
+# This module synthesizes a program for a given ARC task using DSL primitives implemented in Python.
+
+# Types for ARC tasks
+type Grid;
+type Task;
+type Program;
+
+def load_task(filename: String): Task { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.load_task_impl(filename)" }
+
+def mirror_horizontal(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.mirror_horizontal(grid)" }
+
+def mirror_vertical(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.mirror_vertical(grid)" }
+
+def rotate_90(grid: Grid): Grid { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.rotate_90(grid)" }
+
+def glue_horizontal(grid1: Grid) (grid2: Grid): Grid { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.glue_horizontal(grid1, grid2)" }
+
+def glue_vertical(grid1: Grid) (grid2: Grid): Grid { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.glue_vertical(grid1, grid2)" }
+
+def evaluate_candidate(program: Program) (task: Task): Float { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.evaluate_candidate_impl(program, task)" }
+
+def evaluate_on_validation(program: Program) (task: Task): Float { native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.evaluate_on_validation_impl(program, task)" }
+
+# Synthesis hole for the program, with a decorator to maximize correct outputs
+@minimize_float (- (evaluate_candidate prog (load_task "./3af2c5a8.json")))
+def prog(grid: Grid): Grid { ?hole }
