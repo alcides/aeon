@@ -1,0 +1,21 @@
+import "ARC_DSL.ae";
+
+def load_arc_task_by_id(task_id: String): Task {
+  native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.load_arc_task_by_id(task_id)"
+}
+
+def evaluate_on_train(program: Program) (task: Task): Float {
+  native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.evaluate_on_train_impl(program, task)"
+}
+
+def evaluate_on_test(program: Program) (task: Task): Float {
+  native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.evaluate_on_test_impl(program, task)"
+}
+
+# Synthesis hole for the program, with a decorator to maximize correct outputs
+@minimize_float (- (evaluate_on_train prog (load_arc_task_by_id "3af2c5a8")))
+def prog(grid: Grid): Grid { ?hole }
+
+def main (args:Int) : Unit {
+    print (evaluate_on_test (prog) (load_arc_task_by_id "3af2c5a8"))
+}
