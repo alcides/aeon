@@ -1,4 +1,4 @@
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
+from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.utils.name import Name
 from tests.driver import check_and_return_core
 

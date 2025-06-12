@@ -10,7 +10,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import AbstractionType, Top, TypeVar
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.utils.name import Name
 
 
@@ -48,7 +48,7 @@ class UninterpretedFunctionDeclaration(Constraint):
 @dataclass
 class Implication(Constraint):
     name: Name
-    base: BaseType | TypeVar | Top
+    base: TypeConstructor | TypeVar | Top
     pred: LiquidTerm
     seq: Constraint
 

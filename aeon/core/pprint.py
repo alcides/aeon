@@ -16,7 +16,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
@@ -61,7 +61,7 @@ aeon_prelude_ops_to_text = {
 
 
 def pretty_print(t: Type) -> str:
-    if isinstance(t, BaseType):
+    if isinstance(t, TypeConstructor):
         return str(t)
     elif isinstance(t, TypeVar):
         return str(t)

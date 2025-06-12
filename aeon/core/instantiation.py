@@ -4,7 +4,6 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, TypeConstructor
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -20,8 +19,6 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
         return type_substitution(x, alpha, beta)
 
     match t:
-        case BaseType(_):
-            return t
         case TypeVar(name):
             if name == alpha:
                 return beta
@@ -56,7 +53,7 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
     def rec(x):
         return type_variable_instantiation(x, alpha, beta)
 
-    if isinstance(t, BaseType):
+    if isinstance(t, TypeConstructor):
         return t
     elif isinstance(t, TypeVar) and t.name == alpha:
         return beta

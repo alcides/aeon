@@ -35,7 +35,7 @@ x_name = Name("x")
 y_name = Name("y")
 
 
-def test_basetypes():
+def test_TypeConstructors():
     assert parse_type("Int") == t_int
     assert parse_type("Bool") == t_bool
     assert parse_type("a") == TypeVar(Name("a"))
