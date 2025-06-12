@@ -4,6 +4,7 @@ import sys
 import time
 from typing import Any, Optional
 from typing import Callable
+from typing import TypeAlias
 
 import multiprocess as mp
 from loguru import logger
@@ -43,7 +44,7 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
     return validate
 
 
-Evaluators = list[Callable[[Term], float]]
+Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
 def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata) -> Evaluators:
