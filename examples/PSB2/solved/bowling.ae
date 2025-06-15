@@ -1,12 +1,13 @@
 type List;
 
 
-def List_sum : (l:List) -> Int = native "sum";
+def List_sum (l:List) : Int { native "sum(l)" }
 
-def List_map: (function: (a: Int) -> Int) ->
-                               (l: List) ->
-                               List =
-    \f -> \xs -> native "list(map(f, xs))";
+def List_map (f: (a: Int) -> Int)
+             (xs: List) :
+              List {
+    native "list(map(f, xs))"
+}
 
 
 def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = \x -> \y -> \z -> native "x.replace(y, z)";
