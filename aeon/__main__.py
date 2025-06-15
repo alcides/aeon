@@ -29,7 +29,7 @@ from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.entrypoint import synthesize
+from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.api import SynthesisError
 from aeon.elaboration import UnificationException, elaborate
@@ -183,7 +183,7 @@ def main() -> None:
         with RecordTime("Synthesis"):
             try:
                 synthesizer = GESynthesizer()
-                mapping: dict[Name, Term] = synthesize(
+                mapping: dict[Name, Term] = synthesize_holes(
                     typing_ctx,
                     evaluation_ctx,
                     core_ast_anf,

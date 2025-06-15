@@ -13,7 +13,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Var
 from aeon.core.types import Top
-from aeon.core.types import top
+from aeon.core.types import top, Type
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.backend.evaluator import eval
@@ -52,10 +52,13 @@ def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata)
 
     fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
     used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata.get(fun_name, [])]
-    assert used_decorators, "No fitness decorators used in metadata for function."
-    objectives_list: list[Definition] = [
-        objective for decorator in used_decorators for objective in metadata.get(fun_name, [])[decorator]
-    ]
+
+    if used_decorators:
+        objectives_list: list[Definition] = [
+            objective for decorator in used_decorators for objective in metadata.get(fun_name, [])[decorator]
+        ]
+    else:
+        objectives_list = []
 
     fitnesses: list[Callable[[Term], float]] = []
     for objective in objectives_list:
@@ -84,7 +87,6 @@ def make_evaluator(
         try:
             results = [ev(program) for ev in evaluators]
             assert isinstance(results, list)
-            assert results
             result_queue.put(results)
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
@@ -94,13 +96,14 @@ def make_evaluator(
             logger.info(f"Individual evaluation time: {end - start} ")
 
     def evaluate(candidate: Term, timeout: float = budget_eval) -> list[float]:
+        # import faulthandler; faulthandler.enable()
         prog = replace(candidate)
         result_queue = mp.Queue()
         eval_process = mp.Process(target=evaluate_individual, args=(prog, result_queue))
         eval_process.start()
         eval_process.join(timeout=timeout)
-
         if eval_process.is_alive():
+            eval_process.close()
             eval_process.terminate()
             eval_process.join()
             raise TimeoutInEvaluationException()
@@ -111,7 +114,7 @@ def make_evaluator(
     return evaluate
 
 
-def synthesize(
+def synthesize_holes(
     ctx: TypingContext,
     ectx: EvaluationContext,
     term: Term,
@@ -142,7 +145,18 @@ def synthesize(
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
         evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
+        assert isinstance(tyctx, TypingContext)
+        assert isinstance(ty, Type)
+        t = synthesizer.synthesize(
+            ctx=tyctx,
+            type=ty,
+            validate=validator,
+            evaluate=evaluator,
+            fun_name=fun_name,
+            metadata=metadata,
+            budget=budget,
+            ui=ui,
+        )
 
-        t = synthesizer.synthesize(tyctx, ty, validator, evaluator, fun_name, metadata, budget, ui)
         mapping[hole_name] = t
     return mapping

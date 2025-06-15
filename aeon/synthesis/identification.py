@@ -40,7 +40,7 @@ def get_holes_info(
         targets (list(tuple(str, list(str)))): List of tuples functions names that contains holes and the name holes
         refined_types (bool): Whether to use refined types.
     """
-    ty = ty if refined_types else refined_to_unrefined_type(ty)
+    # ty = ty if refined_types else refined_to_unrefined_type(ty)
     match t:
         case Annotation(expr=Hole(name=hname), type=hty):
             hty = hty if refined_types else refined_to_unrefined_type(hty)
