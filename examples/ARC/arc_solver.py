@@ -28,7 +28,7 @@ from aeon.bindings.task_dsl import load_arc_task_by_id, evaluate_on_train_impl, 
 
 
 class Expression(ABC):
-    """Base class for all expressions in our DSL."""
+    """Base class for all expressions in the DSL."""
 
     @abstractmethod
     def evaluate(self, *args, **kwargs) -> Any:
@@ -2281,10 +2281,14 @@ class ThreeByThreeConstant(TupleExpression):
         return "(3,3)"
 
 
+# ======================================================================================
+# Solver
+# ======================================================================================
+
+
 def create_program(expression: Expression) -> Callable:
     """
     Creates a callable function from an evolved expression tree.
-    This function contains the crucial fix.
     """
 
     def program(*args, **kwargs) -> Any:
@@ -2342,7 +2346,7 @@ def program_uses_input(expression: Expression) -> bool:
     return False
 
 
-def solve_task(task_id: str, max_depth: int = 5, population_size: int = 200, time_limit: int = 300):
+def solve_task(task_id: str, max_depth: int = 2, population_size: int = 150, time_limit: int = 180):
     task = load_arc_task_by_id(task_id)
 
     grammar = extract_grammar(
@@ -2544,6 +2548,8 @@ def solve_task(task_id: str, max_depth: int = 5, population_size: int = 200, tim
     def train_fitness_function(individual: GridExpression) -> float:
         program = create_program(individual)
         score = evaluate_on_train_impl(program, task)
+        if score < 0.0:
+            return -1
 
         # Heavily penalize programs that don't use the input grid
         if not program_uses_input(individual):
@@ -2574,7 +2580,7 @@ def solve_task(task_id: str, max_depth: int = 5, population_size: int = 200, tim
     # Configure GP parameters
     gp_params = {
         "population_size": population_size,
-        "n_elites": 5,
+        "n_elites": 3,
         "novelty": 15,
         "probability_mutation": 0.15,
         "probability_crossover": 0.8,
@@ -2628,4 +2634,4 @@ def solve_task(task_id: str, max_depth: int = 5, population_size: int = 200, tim
 
 if __name__ == "__main__":
     # Solve the specific task
-    program = solve_task("67a3c6ac")
+    program = solve_task("74dd1130")

@@ -72,20 +72,23 @@ def _evaluate_on_dataset(program: Callable, dataset: List[Tuple[Grid, Grid]]) ->
     """
     total_score = 0.0
     total_examples = 0
-    for input_grid, expected_output in dataset:
-        if expected_output is None:
-            continue  # Skip if no ground truth
-        actual_output = program(input_grid)
-        arr_actual = np.array(actual_output)
-        arr_expected = np.array(expected_output)
-        if arr_actual.shape != arr_expected.shape:
-            # If output shape is wrong, score is 0 for this example
-            continue
-        total_pixels = arr_expected.size
-        correct_pixels = np.sum(arr_actual == arr_expected)
-        total_score += correct_pixels / total_pixels
-        total_examples += 1
-    return total_score / total_examples if total_examples > 0 else 0.0
+    try:
+        for input_grid, expected_output in dataset:
+            if expected_output is None:
+                continue  # Skip if no ground truth
+            actual_output = program(input_grid)
+            arr_actual = np.array(actual_output)
+            arr_expected = np.array(expected_output)
+            if arr_actual.shape != arr_expected.shape:
+                # If output shape is wrong, score is 0 for this example
+                continue
+            total_pixels = arr_expected.size
+            correct_pixels = np.sum(arr_actual == arr_expected)
+            total_score += correct_pixels / total_pixels
+            total_examples += 1
+        return total_score / total_examples if total_examples > 0 else 0.0
+    except Exception:
+        return -1
 
 
 def evaluate_on_train_impl(program, task):
