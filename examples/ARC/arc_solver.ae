@@ -1,10 +1,10 @@
 import "ARC_DSL.ae";
 
-def load_arc_task_by_id(task_id: String): Task {
+def load_arc_task_by_id (task_id: String): Task {
   native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.load_arc_task_by_id(task_id)"
 }
 
-def evaluate_on_train(program: Program) (task: Task): Float {
+def evaluate_on_train (program: Program) (task: Task): Float {
   native "__import__('aeon.aeon.bindings.arc').aeon.aeon.bindings.arc.evaluate_on_train_impl(program, task)"
 }
 

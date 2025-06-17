@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from typing import List, Tuple, Dict, Callable, Any
+from typing import List, Tuple, Callable
 import os
 
 # Type aliases for clarity
@@ -86,5 +86,3 @@ def evaluate_on_train_impl(program, task):
 def evaluate_on_test_impl(program, task):
     _, test = task
     return _evaluate_on_dataset(program, test)
-
-
