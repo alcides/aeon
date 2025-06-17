@@ -405,6 +405,7 @@ def first(container: Container) -> Any:
 def last(container: Container) -> Any:
     """last item of container"""
     try:
+        # This works for sequences and can be a fallback for iterables
         c_list = list(container)
         return c_list[-1] if c_list else None
     except TypeError:
@@ -617,6 +618,30 @@ def leastcolor(element: Element) -> Integer:
         return 0
 
 
+def height(piece: Piece) -> Integer:
+    """height of grid or patch"""
+    try:
+        if isinstance(piece, tuple):
+            return len(piece)
+        if not piece:
+            return 0
+        return lowermost(piece) - uppermost(piece) + 1
+    except TypeError:
+        return 0
+
+
+def width(piece: Piece) -> Integer:
+    """width of grid or patch"""
+    try:
+        if isinstance(piece, tuple):
+            return len(piece[0]) if piece else 0
+        if not piece:
+            return 0
+        return rightmost(piece) - leftmost(piece) + 1
+    except (TypeError, IndexError):
+        return 0
+
+
 def shape(piece: Piece) -> IntegerTuple:
     """height and width of grid or patch"""
     return (height(piece), width(piece))
@@ -747,10 +772,27 @@ def width(piece: Piece) -> Integer:
         return 0
 
 
+def mostcolor(element: Element) -> Integer:
+    """most common color"""
+    if not element:
+        return 0
+    try:
+        values = [v for r in element for v in r] if isinstance(element, tuple) else [v for v, _ in element]
+        if not values:
+            return 0
+        return Counter(values).most_common(1)[0][0]
+    except (TypeError, IndexError, ValueError):
+        return 0
+
+
 def shift(patch: Patch, directions: IntegerTuple) -> Patch:
     """shift patch"""
+    # Robustness checks
     if not patch:
         return patch
+    if not isinstance(directions, tuple) or len(directions) != 2:
+        return patch  # Return unmodified patch if directions are invalid
+
     try:
         di, dj = directions
         # Check if patch is an Object (has colors) or just Indices
@@ -826,6 +868,11 @@ def ofcolor(grid: Grid, value: Integer) -> Indices:
 def crop(grid: Grid, start: IntegerTuple, dims: IntegerTuple) -> Grid:
     """subgrid specified by start and dimension"""
     try:
+        if not isinstance(start, tuple) or len(start) != 2:
+            return tuple()
+        if not isinstance(dims, tuple) or len(dims) != 2:
+            return tuple()
+
         si, sj = start
         h, w = dims
         return tuple(r[sj : sj + w] for r in grid[si : si + h])
@@ -1163,6 +1210,11 @@ def hconcat(a: Grid, b: Grid) -> Grid:
     if not is_b_grid:
         return a
 
+    if not a:
+        return b
+    if not b:
+        return a
+
     if len(a) != len(b):
         return a  # Incompatible height
 
@@ -1176,6 +1228,11 @@ def vconcat(a: Grid, b: Grid) -> Grid:
     if not is_a_grid:
         return b if is_b_grid else tuple()
     if not is_b_grid:
+        return a
+
+    if not a:
+        return b
+    if not b:
         return a
 
     if len(a[0]) != len(b[0]):
@@ -1250,6 +1307,8 @@ def position(a: Patch, b: Patch) -> IntegerTuple:
 
 def index(grid: Grid, loc: IntegerTuple) -> Integer:
     """Gets the color at a specific location in a grid."""
+    if not isinstance(loc, tuple) or len(loc) != 2:
+        return -1  # Return -1 for invalid location format
     try:
         i, j = loc
         h, w = shape(grid)
@@ -1310,6 +1369,8 @@ def connect(a: IntegerTuple, b: IntegerTuple) -> Indices:
 
 def cover(grid: Grid, patch: Patch) -> Grid:
     """remove object from grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return fill(grid, mostcolor(grid), toindices(patch))
 
 
@@ -1322,26 +1383,36 @@ def trim(grid: Grid) -> Grid:
 
 def move(grid: Grid, obj: Object, offset: IntegerTuple) -> Grid:
     """move object on grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return paint(cover(grid, obj), shift(obj, offset))
 
 
 def tophalf(grid: Grid) -> Grid:
     """upper half of grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return grid[: len(grid) // 2]
 
 
 def bottomhalf(grid: Grid) -> Grid:
     """lower half of grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return grid[len(grid) // 2 + len(grid) % 2 :]
 
 
 def lefthalf(grid: Grid) -> Grid:
     """left half of grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return rot270(tophalf(rot90(grid)))
 
 
 def righthalf(grid: Grid) -> Grid:
     """right half of grid"""
+    if not isinstance(grid, tuple) or not grid:
+        return tuple()
     return rot270(bottomhalf(rot90(grid)))
 
 
