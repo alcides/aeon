@@ -1,3 +1,7 @@
+import argparse
+import os
+import time
+import csv
 from typing import Any
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -2488,7 +2492,7 @@ def program_uses_input(expression: Expression) -> bool:
     return False
 
 
-def solve_task(task_id: str, max_depth: int = 10, population_size: int = 200, time_limit: int = 60):
+def solve_task(task_id: str, csv_file_path: str, max_depth: int = 5, population_size: int = 150, time_limit: int = 60):
     task = load_arc_task_by_id(task_id)
 
     grammar = extract_grammar(
@@ -2702,20 +2706,10 @@ def solve_task(task_id: str, max_depth: int = 10, population_size: int = 200, ti
         GridExpression,
     )
 
-    # print(grammar.get_weights())
-    # assert False
-
-    hack = {"best": -1}
-
     def train_fitness_function(individual: GridExpression) -> float:
         program = create_program(individual)
         score = evaluate_on_train_impl(program, task)
 
-        if score > hack["best"]:
-            hack["best"] = score
-
-        if score >= 0.0:
-            print(f"{individual.__class__.__name__} {score:.2f} - {hack['best']:.2f}")
         if score < 0.0:
             return -1
 
@@ -2786,20 +2780,39 @@ def solve_task(task_id: str, max_depth: int = 10, population_size: int = 200, ti
         step=gp_step,
     )
 
-    # Run the search
+    print(f"--- Starting search for task {task_id} ---")
+    start_time = time.time()
     best_individuals = alg.search()
-    best_individual = best_individuals[0]  # Get the first (best) individual from the list
+    end_time = time.time()
+    
+    time_taken = end_time - start_time
 
-    print("\nBest solution found:")
-    print(f"Train fitness: {best_individual.get_fitness(problem)}")
-    print(f"Test fitness: {test_fitness_function(best_individual.get_phenotype())}")
-    print("\nSolution tree:")
-    print(pretty_print_program(best_individual.get_phenotype()))
+    # --- Result Handling and CSV Writing ---
+    if not best_individuals:
+        print(f"No solution found for task {task_id}")
+        result_row = [task_id, 0.0, time_taken, "No solution found"]
+    else:
+        best_individual = best_individuals[0]
+        final_program = create_program(best_individual.get_phenotype())
+        test_fitness = evaluate_on_test_impl(final_program, task)
+        solution_str = pretty_print_program(best_individual.get_phenotype())
+        
+        result_row = [task_id, test_fitness, time_taken, solution_str]
+        print(f"--- Finished search for task {task_id}. Test Fitness: {test_fitness:.4f} ---")
 
-    # Create and return the final program
-    return create_program(best_individual)
+    # Append the result to the CSV file
+    with open(csv_file_path, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(result_row)
 
 
 if __name__ == "__main__":
-    # Solve the specific task
-    program = solve_task("40853293")
+    # --- Command-Line Argument Parsing ---
+    parser = argparse.ArgumentParser(description="Solve a specific ARC task and log results to CSV.")
+    parser.add_argument("--task_id", required=True, type=str, help="The ID of the ARC task to solve.")
+    parser.add_argument("--csv_file", default="arc_results.csv", type=str, help="Path to the output CSV file.")
+    
+    args = parser.parse_args()
+    
+    # Call the solver with the provided arguments
+    solve_task(args.task_id, args.csv_file)
