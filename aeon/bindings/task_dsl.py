@@ -27,7 +27,7 @@ def load_task_impl(filename: str) -> Task:
 
 
 def load_arc_task_by_id(task_id: str) -> Task:
-    arc_data_path = os.environ.get("ARC_DATA_PATH", "/Users/paulo/Desktop/ARC-AGI/data/training")
+    arc_data_path = os.environ.get("ARC_DATA_PATH", "/mnt/storage/admindi/home/phsilva/ARC-AGI-2/data/evaluation/")
     file_path = os.path.join(arc_data_path, f"{task_id}.json")
     with open(file_path) as f:
         data = json.load(f)
@@ -89,11 +89,29 @@ def _evaluate_on_dataset(program: Callable, dataset: List[Tuple[Grid, Grid]]) ->
         return total_score / total_examples if total_examples > 0 else 0.0
     except Exception:
         return -1
+    
+def _evaluate_on_dataset_multi(program: Callable, dataset: List[Tuple[Grid, Grid]]) -> List[float]:
+    """
+    Evaluates a program on a dataset and returns a LIST of scores, one for each example.
+    This is required for Lexicase and Multi-Objective selection.
+    """
+    scores = []
+    for input_grid, expected_output in dataset:
+        score = 0.0
+        if expected_output is not None:
+            try:
+                actual_output = np.array(program(input_grid))
+                expected_output = np.array(expected_output)
+                if actual_output.shape == expected_output.shape:
+                    score = np.sum(actual_output == expected_output) / expected_output.size
+            except Exception:
+                score = -1
+        scores.append(score)
+    return scores
 
-
-def evaluate_on_train_impl(program, task):
+def evaluate_on_train_impl_multi(program, task):
     train, _ = task
-    return _evaluate_on_dataset(program, train)
+    return _evaluate_on_dataset_multi(program, train)
 
 
 def evaluate_on_test_impl(program, task):

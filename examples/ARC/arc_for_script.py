@@ -1,5 +1,6 @@
 import argparse
 import os
+import subprocess
 import time
 import csv
 from typing import Any
@@ -7,9 +8,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from geneticengine.grammar import extract_grammar
 from geneticengine.prelude import abstract
-from typing import Tuple, Callable
+from typing import Tuple, Callable, List
 from geneticengine.grammar.decorators import weight
-from geneticengine.problems import SingleObjectiveProblem
+from geneticengine.problems import MultiObjectiveProblem
+from geneticengine.algorithms.gp.operators.selection import LexicaseSelection
 from geneticengine.algorithms.gp.operators.combinators import ParallelStep, SequenceStep
 from geneticengine.algorithms.gp.operators.crossover import GenericCrossoverStep
 from geneticengine.algorithms.gp.operators.mutation import GenericMutationStep
@@ -24,7 +26,7 @@ from geneticengine.representations.tree.initializations import MaxDepthDecider
 from geneticengine.grammar.grammar import extract_grammar
 from aeon.bindings.arc_dsl import *
 from aeon.bindings.arc_constants import *
-from aeon.bindings.task_dsl import load_arc_task_by_id, evaluate_on_train_impl, evaluate_on_test_impl
+from aeon.bindings.task_dsl import load_arc_task_by_id, evaluate_on_train_impl_multi, evaluate_on_test_impl
 
 # ======================================================================================
 # Abstract Base Classes for the Genetic Programming Grammar
@@ -2431,6 +2433,15 @@ class ThreeByThreeConstant(TupleExpression):
 # Solver
 # ======================================================================================
 
+def get_git_commit_hash() -> str:
+    """Gets the current git commit hash of the repository."""
+    try:
+        # Run the git command to get the short commit hash
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode('utf-8')
+        return commit_hash
+    except Exception:
+        # Fallback if not in a git repository or git is not installed
+        return "N/A"
 
 def create_program(expression: Expression) -> Callable:
     """
@@ -2492,7 +2503,22 @@ def program_uses_input(expression: Expression) -> bool:
     return False
 
 
-def solve_task(task_id: str, csv_file_path: str, max_depth: int = 5, population_size: int = 150, time_limit: int = 60):
+def solve_task(task_id: str, output_dir: str, max_depth: int = 10, population_size: int = 200, time_limit: int = 300):
+
+    # --- Get Versioning Info ---
+    dsl_version = get_git_commit_hash()
+    algorithm_version = "multi_objective_lexicase"
+
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define a unique CSV file path FOR THIS TASK inside the output directory
+    csv_file_path = os.path.join(output_dir, f"{task_id}.csv")
+
+    if os.path.exists(csv_file_path):
+        print(f"Result for task {task_id} already exists. Skipping.")
+        return
+
     task = load_arc_task_by_id(task_id)
 
     grammar = extract_grammar(
@@ -2706,47 +2732,45 @@ def solve_task(task_id: str, csv_file_path: str, max_depth: int = 5, population_
         GridExpression,
     )
 
-    def train_fitness_function(individual: GridExpression) -> float:
+    def train_fitness_function(individual: GridExpression) -> List[float]:
         program = create_program(individual)
-        score = evaluate_on_train_impl(program, task)
+        
+        scores = evaluate_on_train_impl_multi(program, task)
 
-        if score < 0.0:
-            return -1
-
-        # Heavily penalize programs that don't use the input grid
+        # Apply penalties to the entire list of scores
         if not program_uses_input(individual):
-            return 0.001
+            return [0.001] * len(scores)
 
-        # Penalize trivial (single-color) solutions
         try:
-            output_grid = program(input_grid=task.train[0].input)
+            output_grid = program(input_grid=task[0])
             if len(palette(output_grid)) <= 1:
-                score *= 0.1  # Reduce score by 90%
+                scores = [s * 0.1 for s in scores]
         except Exception:
-            pass  # Ignore errors during penalty calculation
+            pass
 
-        # Apply a parsimony pressure for size
-        parsimony_coefficient = 0.001  # A very small penalty
+        # Apply parsimony pressure to each score
+        parsimony_coefficient = 0.0001
         penalty = count_nodes(individual) * parsimony_coefficient
-        final_score = score - penalty
+        final_scores = [max(0, s - penalty) for s in scores]
 
-        return max(0, final_score)
+        return final_scores
 
     def test_fitness_function(individual: GridExpression) -> float:
         program = create_program(individual)
         return evaluate_on_test_impl(program, task)
 
     # Create the problem
-    problem = SingleObjectiveProblem(fitness_function=train_fitness_function, minimize=False)
+
+    num_objectives = len(task[0])
+    minimize_list = [False] * num_objectives
+    problem = MultiObjectiveProblem(fitness_function=train_fitness_function, minimize=minimize_list)
 
     # Configure GP parameters
     gp_params = {
         "population_size": population_size,
-        "n_elites": 3,
-        "novelty": 15,
-        "probability_mutation": 0.15,
+        "n_elites": 5,
+        "probability_mutation": 0.1,
         "probability_crossover": 0.8,
-        "tournament_size": 5,
         "timer_limit": time_limit,
     }
 
@@ -2754,17 +2778,15 @@ def solve_task(task_id: str, csv_file_path: str, max_depth: int = 5, population_
     gp_step = ParallelStep(
         [
             ElitismStep(),
-            NoveltyStep(),
             SequenceStep(
-                TournamentSelection(gp_params["tournament_size"]),
+                LexicaseSelection(),
                 GenericCrossoverStep(gp_params["probability_crossover"]),
                 GenericMutationStep(gp_params["probability_mutation"]),
             ),
         ],
         weights=[
             gp_params["n_elites"],
-            gp_params["novelty"],
-            gp_params["population_size"] - gp_params["n_elites"] - gp_params["novelty"],
+            gp_params["population_size"] - gp_params["n_elites"]
         ],
     )
 
@@ -2787,32 +2809,34 @@ def solve_task(task_id: str, csv_file_path: str, max_depth: int = 5, population_
     
     time_taken = end_time - start_time
 
-    # --- Result Handling and CSV Writing ---
-    if not best_individuals:
-        print(f"No solution found for task {task_id}")
-        result_row = [task_id, 0.0, time_taken, "No solution found"]
-    else:
-        best_individual = best_individuals[0]
-        final_program = create_program(best_individual.get_phenotype())
-        test_fitness = evaluate_on_test_impl(final_program, task)
-        solution_str = pretty_print_program(best_individual.get_phenotype())
-        
-        result_row = [task_id, test_fitness, time_taken, solution_str]
-        print(f"--- Finished search for task {task_id}. Test Fitness: {test_fitness:.4f} ---")
+    # --- Write Results to the unique CSV file ---
 
-    # Append the result to the CSV file
-    with open(csv_file_path, 'a', newline='') as f:
+    with open(csv_file_path, 'w', newline='') as f:
         writer = csv.writer(f)
+        writer.writerow(['task_id', 'dsl_version', 'algorithm_version', 'test_fitness', 'time_taken', 'solution_tree'])
+
+        if not best_individuals:
+            print(f"No solution found for task {task_id}")
+            result_row = [task_id, dsl_version, algorithm_version, 0.0, time_taken, "No solution found"]
+        else:
+            best_individual = best_individuals[0]
+            final_program = create_program(best_individual.get_phenotype())
+            test_fitness = evaluate_on_test_impl(final_program, task)
+            solution_str = best_individual.get_phenotype()
+            result_row = [task_id, dsl_version, algorithm_version, test_fitness, time_taken, solution_str]
+        
         writer.writerow(result_row)
+
+    print(f"--- Finished task {task_id}. Results saved to {csv_file_path} ---")
 
 
 if __name__ == "__main__":
     # --- Command-Line Argument Parsing ---
     parser = argparse.ArgumentParser(description="Solve a specific ARC task and log results to CSV.")
     parser.add_argument("--task_id", required=True, type=str, help="The ID of the ARC task to solve.")
-    parser.add_argument("--csv_file", default="arc_results.csv", type=str, help="Path to the output CSV file.")
+    parser.add_argument("--output_dir", default="arc_results", type=str, help="Directory to save the CSV result files.")
     
     args = parser.parse_args()
     
     # Call the solver with the provided arguments
-    solve_task(args.task_id, args.csv_file)
+    solve_task(args.task_id, args.output_dir)
