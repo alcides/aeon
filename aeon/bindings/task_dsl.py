@@ -27,7 +27,7 @@ def load_task_impl(filename: str) -> Task:
 
 
 def load_arc_task_by_id(task_id: str) -> Task:
-    arc_data_path = os.environ.get("ARC_DATA_PATH", "/mnt/storage/admindi/home/phsilva/ARC-AGI-2/data/evaluation/")
+    arc_data_path = os.environ.get("ARC_DATA_PATH", "/Users/paulo/Desktop/ARC-AGI/data/evaluation")
     file_path = os.path.join(arc_data_path, f"{task_id}.json")
     with open(file_path) as f:
         data = json.load(f)
@@ -112,6 +112,10 @@ def _evaluate_on_dataset_multi(program: Callable, dataset: List[Tuple[Grid, Grid
 def evaluate_on_train_impl_multi(program, task):
     train, _ = task
     return _evaluate_on_dataset_multi(program, train)
+
+def evaluate_on_train_impl(program, task):
+    train, _ = task
+    return _evaluate_on_dataset(program, train)
 
 
 def evaluate_on_test_impl(program, task):
