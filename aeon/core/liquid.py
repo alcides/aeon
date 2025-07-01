@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC
-from dataclasses import dataclass
-from aeon.utils.location import Location
+from dataclasses import dataclass, field
+from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 
 
@@ -34,6 +34,7 @@ def is_safe_for_application(x: LiquidTerm):
 @dataclass
 class LiquidLiteralBool(LiquidTerm):
     value: bool
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -48,6 +49,7 @@ class LiquidLiteralBool(LiquidTerm):
 @dataclass
 class LiquidLiteralInt(LiquidTerm):
     value: int
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -62,6 +64,7 @@ class LiquidLiteralInt(LiquidTerm):
 @dataclass
 class LiquidLiteralFloat(LiquidTerm):
     value: float
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -76,6 +79,7 @@ class LiquidLiteralFloat(LiquidTerm):
 @dataclass
 class LiquidLiteralString(LiquidTerm):
     value: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -90,6 +94,7 @@ class LiquidLiteralString(LiquidTerm):
 @dataclass
 class LiquidVar(LiquidTerm):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.name}"
@@ -105,6 +110,7 @@ class LiquidVar(LiquidTerm):
 class LiquidApp(LiquidTerm):
     fun: Name
     args: list[LiquidTerm]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         if all([not c.isalnum() for c in self.fun.name]) and len(self.args) == 2:
