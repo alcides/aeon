@@ -3,6 +3,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.core.bind import bind_ctx, bind_ids, bind_term, bind_type
 from aeon.elaboration.context import build_typing_context
+from aeon.facade.api import AeonError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.desugar import desugar
@@ -11,7 +12,7 @@ from aeon.sugar.parser import parse_program
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.program import STerm
 from aeon.sugar.stypes import SType
-from aeon.elaboration import UnificationException, elaborate
+from aeon.elaboration import elaborate
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.backend.evaluator import EvaluationContext
@@ -31,7 +32,7 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     desugared = desugar(prog, extra_vars)
     try:
         sterm = elaborate(desugared.elabcontext, desugared.program)
-    except UnificationException:
+    except AeonError:
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
@@ -55,7 +56,7 @@ def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict
     expr = parse_expression(source)
     try:
         sterm: STerm = elaborate(elabcontext, expr, ty)
-    except UnificationException:
+    except AeonError:
         return False
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(elabcontext)

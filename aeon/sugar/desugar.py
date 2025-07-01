@@ -35,6 +35,7 @@ from aeon.utils.name import Name
 from aeon.sugar.ast_helpers import st_int, st_string
 
 from aeon.sugar.stypes import STypeVar
+from aeon.facade.api import ImportError
 
 
 class DesugaredProgram(NamedTuple):
@@ -299,6 +300,4 @@ def handle_import(path: str) -> Program:
             contents = open(file).read()
             parse = mk_parser("program")
             return parse(contents)
-    raise Exception(
-        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
-    )
+    raise ImportError(path=path, possible_containers=possible_containers)
