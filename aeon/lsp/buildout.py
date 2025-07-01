@@ -84,8 +84,8 @@ async def parse(
 
     parsed_uri = urllib.parse.urlparse(uri)
     if parsed_uri.scheme in (
-            "http",
-            "https",
+        "http",
+        "https",
     ):
         try:
             fp = io.StringIO(requests_session.get(uri).text)
@@ -99,10 +99,7 @@ async def parse(
             if not allow_errors:
                 raise
             fp = io.StringIO("")
-    parsed = await _parse(
-        fp,
-        aeon_lsp.aeon_driver
-    )
+    parsed = await _parse(fp, aeon_lsp.aeon_driver)
     _parse_cache[uri] = copy.deepcopy(parsed)
     return parsed
 

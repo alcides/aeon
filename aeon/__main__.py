@@ -94,9 +94,9 @@ def main() -> None:
 
     logger = setup_logger()
     logfile_name = None
-    if hasattr(args, 'filename'):
+    if hasattr(args, "filename"):
         logfile_name = args.filename
-    elif hasattr(args, 'language_server_mode'):
+    elif hasattr(args, "language_server_mode"):
         logfile_name = "lsp"
     export_log(args.log, args.logfile, logfile_name)
 
@@ -110,7 +110,7 @@ def main() -> None:
     )
     driver = AeonDriver(cfg)
 
-    if hasattr(args, 'language_server_mode'):
+    if hasattr(args, "language_server_mode"):
         aeon_lsp = AeonLanguageServer(driver)
         aeon_lsp.start(args.tcp)
         sys.exit(0)
