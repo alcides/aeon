@@ -4,30 +4,13 @@ import os
 import sys
 import argparse
 
-from aeon.backend.evaluator import EvaluationContext
-from aeon.backend.evaluator import eval
-from aeon.core.types import top
-from aeon.decorators import Metadata
-from aeon.elaboration import UnificationException, elaborate
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.frontend.parser import parse_term
+from aeon.facade.api import AeonError
+from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
-from aeon.prelude.prelude import evaluation_vars
-from aeon.prelude.prelude import typing_vars
-from aeon.sugar.desugar import DesugaredProgram, desugar
-from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
-from aeon.sugar.parser import parse_program
-from aeon.sugar.program import Program, STerm
-from aeon.sugar.stypes import SBaseType
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
-from aeon.synthesis_grammar.synthesizer import synthesize, parse_config
-from aeon.utils.ctx_helpers import build_context
-from aeon.utils.time_utils import RecordTime
-from aeon.typechecking import check_type_errors
 from lsp.server import start_language_server_mode
 
 sys.setrecursionlimit(10000)
@@ -54,12 +37,17 @@ def parse_arguments():
     parser.add_argument("filename",help="name of the aeon files to be synthesized")
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
 
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
         "-l",
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
                 \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
@@ -68,26 +56,6 @@ def parse_arguments():
         action="store_true",
         help="export log file",
     )
-
-    parser.add_argument(
-        "-csv",
-        "--csv-synth",
-        action="store_true",
-        help="export synthesis csv file",
-    )
-
-    parser.add_argument(
-        "-gp",
-        "--gp-config",
-        help="path to the GP configuration file",
-    )
-
-    parser.add_argument(
-        "-csec",
-        "--config-section",
-        help="section name in the GP configuration file",
-    )
-
     parser.add_argument(
         "-d",
         "--debug",
@@ -107,20 +75,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def read_file(filename: str) -> str:
-    with open(filename) as file:
-        return file.read()
-
-
-def log_type_errors(errors: list[Exception | str]):
-    print("TYPECHECKER", "-------------------------------")
-    print("TYPECHECKER", "+     Type Checking Error     +")
-    for error in errors:
-        print("TYPECHECKER", "-------------------------------")
-        print("TYPECHECKER", error)
-    print("TYPECHECKER", "-------------------------------")
-
-
 def select_synthesis_ui() -> SynthesisUI:
     if os.environ.get("TERM", None):
         return NCursesUI()
@@ -128,9 +82,18 @@ def select_synthesis_ui() -> SynthesisUI:
         return TerminalUI()
 
 
+def handle_error(err: AeonError):
+    # TODO: handle each error with proper printing
+    match err:
+        case _:
+            print(f">>> Error at {err.position()}:")
+            print(err)
+
+
 def main() -> None:
     args = parse_arguments()
 
+    #TODO ver onde adicionar isto
     if hasattr(args, 'language_server_mode'):
         start_language_server_mode(args.tcp)
         sys.exit(0)
@@ -142,84 +105,25 @@ def main() -> None:
     if args.timings:
         logger.add(sys.stderr, level="TIME")
 
-    aeon_code = read_file(args.filename)
+    cfg = AeonConfig(
+        synthesis_ui=select_synthesis_ui(), synthesis_budget=args.budget, timings=args.timings, no_main=args.no_main
+    )
+    driver = AeonDriver(cfg)
 
     if args.core:
-        with RecordTime("ParseCore"):
-            core_typing_vars = {k: type_to_core(typing_vars[k]) for k in typing_vars}
-            typing_ctx = build_context(core_typing_vars)
-            core_ast = parse_term(aeon_code)
-            metadata: Metadata = {}
+        errors = driver.parse_core(args.filename)
     else:
-        with RecordTime("ParseSugar"):
-            prog: Program = parse_program(aeon_code)
+        errors = driver.parse(args.filename)
 
-        with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(prog, is_main_hole=not args.no_main)
-            metadata = desugared.metadata
-
-        try:
-            with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, SBaseType("Top"))
-        except UnificationException as e:
-            log_type_errors([e])
-            sys.exit(1)
-
-        with RecordTime("Core generation"):
-            core_ast = lower_to_core(sterm)
-            logger.debug(core_ast)
-
-            typing_ctx = lower_to_core_context(desugared.elabcontext)
-
-    with RecordTime("ANF conversion"):
-        core_ast_anf = ensure_anf(core_ast)
-        logger.debug(core_ast_anf)
-
-    with RecordTime("TypeChecking"):
-        type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
-    if type_errors:
-        log_type_errors(type_errors)
-        sys.exit(1)
-
-    with RecordTime("Preparing execution env"):
-        evaluation_ctx = EvaluationContext(evaluation_vars)
-
-    with RecordTime("DetectSynthesis"):
-        incomplete_functions: list[
-            tuple[
-                str,
-                list[str],
-            ]
-        ] = incomplete_functions_and_holes(
-            typing_ctx,
-            core_ast_anf,
-        )
-
-    if incomplete_functions:
-        filename = args.filename if args.csv_synth else None
-        with RecordTime("ParseConfig"):
-            synth_config = (
-                parse_config(args.gp_config, args.config_section) if args.gp_config and args.config_section else None
-            )
-
-        ui = select_synthesis_ui()
-
-        with RecordTime("Synthesis"):
-            program, terms = synthesize(
-                typing_ctx,
-                evaluation_ctx,
-                core_ast_anf,
-                incomplete_functions,
-                metadata,
-                filename,
-                synth_config,
-                args.refined_grammar,
-                ui,
-            )
-            ui.display_results(program, terms)
-        sys.exit(0)
-    with RecordTime("Evaluation"):
-        eval(core_ast, evaluation_ctx)
+    if errors:
+        for err in errors:
+            handle_error(err)
+    elif driver.has_synth():
+        term = driver.synth()
+        print("Synthesized:")
+        print(term)
+    else:
+        driver.run()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,3 @@
+type K;
+
+def fun (x:Int) (m:Int| m > x) : K { native "m * x" }

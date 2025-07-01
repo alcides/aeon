@@ -16,12 +16,12 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import type_free_term_vars
-from aeon.synthesis_grammar.grammar import aeon_prelude_ops_to_text
+from aeon.utils.name import Name
 
 ops_to_abstraction: dict[str, str] = {
     "%": "Int) -> Int",
@@ -37,9 +37,31 @@ ops_to_abstraction: dict[str, str] = {
     "==": "Int) -> Bool",
 }
 
+aeon_prelude_ops_to_text = {
+    "%": "mod",
+    "/": "div",
+    "*": "mul",
+    "-": "sub",
+    "+": "add",
+    "%.": "modf",
+    "/.": "divf",
+    "*.": "mulf",
+    "-.": "subf",
+    "+.": "addf",
+    ">=": "gte",
+    ">": "gt",
+    "<=": "lte",
+    "<": "lt",
+    "!=": "ne",
+    "==": "eq",
+    "&&": "and",
+    "||": "or",
+    "!": "not",
+}
+
 
 def pretty_print(t: Type) -> str:
-    if isinstance(t, BaseType):
+    if isinstance(t, TypeConstructor):
         return str(t)
     elif isinstance(t, TypeVar):
         return str(t)
@@ -68,7 +90,7 @@ def pretty_print_term(term: Term):
 def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[str, int]:
     prelude_operations: dict[str, str] = aeon_prelude_ops_to_text
     match term:
-        case Application(fun=Var(name=var_name), arg=arg) if var_name in prelude_operations.keys():
+        case Application(fun=Var(name=Name(var_name, _)), arg=arg) if var_name in prelude_operations.keys():
             op = var_name
             arg_str, counter = custom_preludes_ops_representation(arg, counter)
             counter += 1

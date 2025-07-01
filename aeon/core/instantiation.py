@@ -4,14 +4,14 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, TypeConstructor
-from aeon.core.types import BaseType
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.utils.name import Name
 
 
-def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
+def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
     """t[alpha := beta], standard substition."""
     assert isinstance(t, Type)
 
@@ -19,15 +19,21 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
         return type_substitution(x, alpha, beta)
 
     match t:
-        case BaseType(_):
-            return t
         case TypeVar(name):
             if name == alpha:
                 return beta
             else:
                 return t
         case RefinedType(name, ity, ref):
-            return RefinedType(name, rec(ity), ref)
+            match rec(ity):
+                case RefinedType(iname, iity, iref) as city:
+                    return RefinedType(
+                        name, iity, mk_liquid_and(ref, substitution_in_liquid(iref, LiquidVar(name), iname))
+                    )
+                case AbstractionType(_, _, _):
+                    assert False, f"Abstraction types cannot be refined: {t} to {ity} to {rec(ity)}"
+                case city:
+                    return RefinedType(name, city, ref)
         case AbstractionType(aname, aty, rty):
             return AbstractionType(aname, rec(aty), rec(rty))
         case TypePolymorphism(name, kind, body):
@@ -41,13 +47,13 @@ def type_substitution(t: Type, alpha: str, beta: Type) -> Type:
             assert False, f"Not considered: {t} ({type(t)})"
 
 
-def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
+def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
     """t[alpha |-> beta], instantiation."""
 
     def rec(x):
         return type_variable_instantiation(x, alpha, beta)
 
-    if isinstance(t, BaseType):
+    if isinstance(t, TypeConstructor):
         return t
     elif isinstance(t, TypeVar) and t.name == alpha:
         return beta
@@ -71,15 +77,7 @@ def type_variable_instantiation(t: Type, alpha: str, beta: Type) -> Type:
         return RefinedType(t.name, rec(t.type), t.refinement)
     elif isinstance(t, AbstractionType):
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
-    elif isinstance(t, TypePolymorphism):  # Todo: alpha renaming?
-        target = t
-        while target.name == alpha:
-            new_name = target.name + "_fresh_"
-            target = TypePolymorphism(
-                new_name,
-                t.kind,
-                type_substitution(t.body, alpha, TypeVar(new_name)),
-            )
-        return TypePolymorphism(target.name, target.kind, rec(target.body))
+    elif isinstance(t, TypePolymorphism):
+        return TypePolymorphism(t.name, t.kind, rec(t.body))
     else:
         assert False

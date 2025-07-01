@@ -22,7 +22,7 @@ def  expected_values : List =  get_output_list ( unpack_train_data  train);
             get_dg_synth_values,
             calculate_list_errors)
 @minimize_float(mean_absolute_error  (get_dg_synth_values input_list synth)(expected_values))
-def synth (n: Int , m: Int) : Float
+def synth (n: Int) (m: Int) : Float
     {
         (?hole:Float)
     }

@@ -10,7 +10,8 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import AbstractionType, Top, TypeVar
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
+from aeon.utils.name import Name
 
 
 class Constraint:
@@ -36,7 +37,7 @@ class Conjunction(Constraint):
 
 @dataclass
 class UninterpretedFunctionDeclaration(Constraint):
-    name: str
+    name: Name
     type: AbstractionType
     seq: Constraint
 
@@ -46,10 +47,13 @@ class UninterpretedFunctionDeclaration(Constraint):
 
 @dataclass
 class Implication(Constraint):
-    name: str
-    base: BaseType | TypeVar | Top
+    name: Name
+    base: TypeConstructor | TypeVar | Top
     pred: LiquidTerm
     seq: Constraint
+
+    def __post_init__(self):
+        assert isinstance(self.name, Name)
 
     def __repr__(self):
         return f"∀{self.name}:{self.base}, ({self.pred}) => {self.seq}"
@@ -57,7 +61,7 @@ class Implication(Constraint):
 
 @dataclass
 class TypeVarDeclaration(Constraint):
-    name: str
+    name: Name
     seq: Constraint
 
     def __repr__(self):
@@ -68,9 +72,9 @@ def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
     if isinstance(t, LiquidLiteralBool) or isinstance(t, LiquidLiteralInt) or isinstance(t, LiquidLiteralString):
         pass
     elif isinstance(t, LiquidVar):
-        yield t.name
+        yield str(t.name)
     elif isinstance(t, LiquidApp):
-        yield t.fun
+        yield str(t.fun)
         for a in t.args:
             yield from variables_in_liq(a)
 

@@ -1,20 +1,20 @@
 type List;
 
 def List_size: (l:List) -> Int = uninterpreted;
-def List_length: (l:List) -> Int = native "lambda list: len(list)";
+def List_length: (l:List) -> Int = \list -> native "len(list)";
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
 
 
-def sum: (l:List) -> Int = native "lambda xs: sum(xs)";
-def Math_max : (i:Int) -> (j:Int) -> Int = native "lambda i: lambda j: max(i,j)" ;
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = native "lambda i: lambda j: i // j" ;
+def Math_sum (xs:List) : Int { native "sum(xs)" }
+def Math_max (i:Int) (j:Int) : Int { if i > j then i else j }
+def Math_floor_division (i:Int) (j:Int) : Int { native "i // j" }
 
-def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: List) -> List = native "lambda f:lambda xs: map(f, xs)";
+def List_map_Int_Int (fun:(a: Int) -> Int)  (xs: List) : List { native "map(fun, xs)" }
 
 def fuel_cost  (xs: List) : Int {
     mapper : (x: Int) -> Int = \x -> Math_max (Math_floor_division x 3 - 2) 0;
-    sum (List_map_Int_Int mapper xs)
+    Math_sum (List_map_Int_Int mapper xs)
 }
 
 def main (args:Int) : Unit {

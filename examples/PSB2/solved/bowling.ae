@@ -1,21 +1,22 @@
 type List;
 
 
-def List_sum : (l:List) -> Int = native "sum";
+def List_sum (l:List) : Int { native "sum(l)" }
 
-def List_map: (function: (a: Int) -> Int) ->
-                               (l: List) ->
-                               List =
-    native "lambda f: lambda xs: list(map(f, xs))";
+def List_map (f: (a: Int) -> Int)
+             (xs: List) :
+              List {
+    native "list(map(f, xs))"
+}
 
 
-def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = native "lambda x: lambda y: lambda z: x.replace(y, z)";
-def String_length: (l:String) -> Int = native "lambda list: len(list)";
-def String_get : (l:String) -> (i:Int) -> String = native "lambda l: lambda i: l[i]";
-def String_to_int : (s:String) -> Int = native "int";
-def String_eq : (s:String) -> (s2:String) -> Bool = native "lambda s: lambda s2: s == s2";
+def String_replace (s:String) (t:String) (rep:String) : String { native "s.replace(t, rep)" }
+def String_length (list:String) : Int { native "len(list)" }
+def String_get (l:String) (i:Int) : String { native "l[i]" }
+def String_to_int (s:String) : Int { native "int(s)" }
+def String_eq (s:String) (s2:String) : Bool { native "s == s2" }
 
-def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = native "lambda s: lambda e: lambda st: list(range(s, e, st))";
+def List_range_step (start:Int) (end:Int) (step:Int) : List { native "list(range(start, end, step))" }
 
  def convert_bowling(score: String) : Int {
  if String_eq score "X" then

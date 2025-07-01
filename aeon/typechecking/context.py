@@ -1,43 +1,100 @@
 from __future__ import annotations
 
 from abc import ABC
-from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import MutableSequence
 
 from aeon.core.types import (
     AbstractionType,
     BaseKind,
-    BaseType,
     RefinedType,
     Top,
     TypeConstructor,
     TypePolymorphism,
     TypeVar,
+    builtin_core_types,
 )
 from aeon.core.types import Kind
 from aeon.core.types import StarKind
 from aeon.core.types import Type
+from aeon.utils.name import Name
 
 
-class TypingContext(ABC):
-    def type_of(self, name: str) -> Type | None:
-        assert False
+class TypingContextEntry(ABC):
+    pass
 
-    def with_var(self, name: str, type: Type) -> TypingContext:
-        return VariableBinder(self, name, type)
 
-    def with_typevar(self, name: str, kind: Kind) -> TypingContext:
-        return TypeBinder(self, name, kind)
+@dataclass
+class VariableBinder(TypingContextEntry):
+    name: Name
+    type: Type
 
-    def fresh_var(self):
-        if not hasattr(self, "global_counter"):
-            self.global_counter = 0
-        self.global_counter += 1
-        return f"fresh_{self.global_counter}"
+    def __repr__(self):
+        return f"{self.name} : {self.type}"
+
+
+@dataclass
+class UninterpretedBinder(TypingContextEntry):
+    name: Name
+    type: AbstractionType
+
+    def __repr__(self):
+        return f"uninterpreted {self.name} : {self.type}"
+
+
+@dataclass
+class TypeBinder(TypingContextEntry):
+    type_name: Name
+    type_kind: Kind = field(default_factory=StarKind)
+
+    def __repr__(self):
+        return f"type {self.type_name} {self.type_kind}"
+
+
+@dataclass
+class TypeConstructorBinder(TypingContextEntry):
+    name: Name
+    args: list[Name]
+
+    def __repr__(self):
+        if self.args:
+            argsf = "(" + ", ".join(map(str, self.args)) + ")"
+        else:
+            argsf = ""
+        return f"type {self.name}{argsf}"
+
+
+@dataclass
+class TypingContext:
+    entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
+
+    def __post_init__(self):
+        for bt in builtin_core_types[::-1]:
+            self.entries.insert(0, TypeConstructorBinder(bt.name, []))
+
+    def __repr__(self):
+        fields = "; ".join(map(repr, self.entries))
+        return f"[[{fields}]]"
+
+    def with_var(self, name: Name, type: Type) -> TypingContext:
+        nentries = [e for e in self.entries] + [VariableBinder(name, type)]
+        return TypingContext(nentries)
+
+    def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
+        nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
+        return TypingContext(nentries)
+
+    def type_of(self, name: Name) -> Type | None:
+        for e in self.entries:
+            match e:
+                case VariableBinder(iname, ty):
+                    if iname == name:
+                        return ty
+        return None
 
     def kind_of(self, ty: Type) -> Kind:
         match ty:
-            case BaseType(_) | Top() | RefinedType(_, BaseType(_), _) | RefinedType(_, TypeConstructor(_, _), _):
+            case Top() | RefinedType(_, TypeConstructor(_), _) | RefinedType(_, TypeConstructor(_, _), _):
                 return BaseKind()
             case TypeVar(name):
                 assert (name, BaseKind()) in self.typevars()
@@ -51,166 +108,33 @@ class TypingContext(ABC):
             case TypePolymorphism(_, _, _):
                 return StarKind()
             case TypeConstructor(_, _):
-                return StarKind()
+                return BaseKind()
             case _:
                 assert False, f"Unknown type in context: {ty}"
 
-    @abstractmethod
-    def typevars(self) -> list[tuple[str, Kind]]: ...
+    def typevars(self) -> list[tuple[Name, Kind]]:
+        return [(e.type_name, e.type_kind) for e in self.entries if isinstance(e, TypeBinder)]
 
-    @abstractmethod
-    def vars(self) -> list[tuple[str, Type]]: ...
+    def vars(self) -> list[tuple[Name, Type]]:
+        return [
+            (e.name, e.type)
+            for e in self.entries
+            if isinstance(e, VariableBinder) or isinstance(e, UninterpretedBinder)
+        ]
 
-    @abstractmethod
-    def get_type_constructor(self, name: str) -> list[str] | None: ...
+    def concrete_vars(self) -> list[tuple[Name, Type]]:
+        return [(e.name, e.type) for e in self.entries if isinstance(e, VariableBinder)]
 
-
-class EmptyContext(TypingContext):
-    def __init__(self):
-        self.counter = 0
-
-    def type_of(self, name: str) -> Type | None:
-        return None
-
-    def __repr__(self) -> str:
-        return "ø"
-
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return []
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return []
-
-    def __hash__(self) -> int:
-        return 0
-
-    def get_type_constructor(self, name: str) -> list[str] | None:
-        if name in ["Unit", "Int", "Bool", "Float", "String"]:
+    def get_type_constructor(self, name: Name) -> list[Name] | None:
+        for entry in self.entries[::-1]:
+            match entry:
+                case TypeConstructorBinder(ename, eargs):
+                    if ename == name:
+                        return eargs
+        # TODO: enter in context.
+        if name.name in ["Unit", "Int", "Bool", "Float", "String"]:
             return []
         return None
 
-
-@dataclass
-class NonEmptyContext(TypingContext):
-    prev: TypingContext
-
-    def type_of(self, name: str) -> Type | None:
-        return self.prev.type_of(name)
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return self.prev.vars()
-
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return self.prev.typevars()
-
-    def get_type_constructor(self, name: str) -> list[str] | None:
-        return self.prev.get_type_constructor(name)
-
-
-@dataclass
-class UninterpretedBinder(NonEmptyContext):
-    name: str
-    type: AbstractionType
-
-    def type_of(self, name: str) -> Type | None:
-        if name == self.name:
-            return self.type
-        return self.prev.type_of(name)
-
-    def fresh_var(self):
-        name = self.name
-        while name == self.name:
-            name = self.prev.fresh_var()
-        return name
-
-    def __repr__(self) -> str:
-        return f"{self.prev},{self.name}:{self.type}"
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return [(self.name, self.type)] + self.prev.vars()
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.name) + hash(self.type)
-
-
-@dataclass(init=False)
-class VariableBinder(NonEmptyContext):
-    name: str
-    type: Type
-
-    def __init__(self, prev: TypingContext, name: str, type: Type):
-        self.prev = prev
-        self.name = name
-        self.type = type
-        assert isinstance(prev, TypingContext)
-        assert isinstance(type, Type)
-        assert name not in prev.vars()
-
-    def type_of(self, name: str) -> Type | None:
-        if name == self.name:
-            return self.type
-        return self.prev.type_of(name)
-
-    def fresh_var(self):
-        name = self.name
-        while name == self.name:
-            name = self.prev.fresh_var()
-        return name
-
-    def __repr__(self) -> str:
-        return f"{self.prev},{self.name}:{self.type}"
-
-    def vars(self) -> list[tuple[str, Type]]:
-        return [(self.name, self.type)] + self.prev.vars()
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.name) + hash(self.type)
-
-
-@dataclass(init=False)
-class TypeBinder(NonEmptyContext):
-    type_name: str
-    type_kind: Kind
-
-    def __init__(
-        self,
-        prev: TypingContext,
-        type_name: str,
-        type_kind: Kind = StarKind(),
-    ):
-        self.prev = prev
-        self.type_name = type_name
-        self.type_kind = type_kind
-
-    def fresh_var(self):
-        name = self.type_name
-        while name == self.type_name:
-            name = self.prev.fresh_var()
-        return name
-
-    def typevars(self) -> list[tuple[str, Kind]]:
-        return [(self.type_name, self.type_kind)] + self.prev.typevars()
-
-    def __repr__(self) -> str:
-        return f"{self.prev},<{self.type_name}:{self.type_kind}>"
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.type_name) + hash(self.type_kind)
-
-
-@dataclass
-class TypeConstructorBinder(NonEmptyContext):
-    name: str
-    args: list[str]
-
-    def get_type_constructor(self, name: str) -> list[str] | None:
-        if name == self.name:
-            return self.args
-        return self.prev.get_type_constructor(name)
-
-    def __repr__(self) -> str:
-        argss = " ".join(self.args)
-        return f"{self.prev},[{self.name} {argss}]"
-
-    def __hash__(self) -> int:
-        return hash(self.prev) + hash(self.name)
+    def __hash__(self):
+        return sum(hash(e) for e in self.entries)

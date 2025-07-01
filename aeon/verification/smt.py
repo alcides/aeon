@@ -17,8 +17,6 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import FP
-from z3.z3 import FPSort
 from z3.z3 import Float64
 from z3.z3 import Implies
 from z3.z3 import IntSort
@@ -40,19 +38,15 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
-from aeon.core.types import BaseType
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
+from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
-
-t_bool = BaseType("Bool")
-t_int = BaseType("Int")
-t_float = BaseType("Float")
-t_string = BaseType("String")
+from aeon.utils.name import Name, fresh_counter
 
 smt_function_types: dict[str, list[Type]] = {
     "smtEqInt": [t_int, t_int, t_bool],
@@ -121,17 +115,17 @@ base_functions: dict[str, Any] = {
 class SMTContext:
     sorts: list[str]
     functions: dict[str, AbstractionType]
-    variables: dict[str, BaseType]
+    variables: dict[str, TypeConstructor]
     premises: list[LiquidTerm]
 
-    def with_sort(self, name: str) -> SMTContext:
-        return SMTContext(self.sorts + [name], self.functions, self.variables, self.premises)
+    def with_sort(self, name: Name) -> SMTContext:
+        return SMTContext(self.sorts + [str(name)], self.functions, self.variables, self.premises)
 
-    def with_function(self, name: str, ty: AbstractionType) -> SMTContext:
-        return SMTContext(self.sorts, {**self.functions, name: ty}, self.variables, self.premises)
+    def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
+        return SMTContext(self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises)
 
-    def with_var(self, name: str, ty: BaseType) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, {**self.variables, name: ty}, self.premises)
+    def with_var(self, name: Name, ty: TypeConstructor) -> SMTContext:
+        return SMTContext(self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises)
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
         return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
@@ -143,7 +137,7 @@ class CanonicConstraint:
 
     sorts: list[str]
     functions: dict[str, AbstractionType]
-    variables: dict[str, BaseType]
+    variables: dict[str, TypeConstructor]
     premise: LiquidTerm
     conclusion: LiquidTerm
 
@@ -155,7 +149,7 @@ class CanonicConstraint:
         self.conclusion = pos
 
 
-def rename_constraint(c: Constraint, old_name: str, new_name: str) -> Constraint:
+def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
     match c:
         case LiquidConstraint(expr):
@@ -171,22 +165,10 @@ def rename_constraint(c: Constraint, old_name: str, new_name: str) -> Constraint
                 nseq = rename_constraint(seq, old_name, new_name)
                 return Implication(name, base, npred, nseq)
         case UninterpretedFunctionDeclaration(name, absty, seq):
-            # If it shadows, leave it.
-            if name == new_name:
-                return c
-            else:
-                nseq = rename_constraint(seq, old_name, new_name)
-                return UninterpretedFunctionDeclaration(name, absty, nseq)
+            nseq = rename_constraint(seq, old_name, new_name)
+            return UninterpretedFunctionDeclaration(name, absty, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
-
-
-def get_new_name(name: str, used_vars: list[str]) -> None | str:
-    """If a new name for a variable is needed, return it, otherwise return
-    None."""
-    while name in used_vars:
-        name = name + "_"
-    return name
 
 
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
@@ -200,21 +182,23 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)
         case Implication(oname, base, pred, seq):
-            name = get_new_name(oname, list(ctx.variables.keys()))
-            if name != oname:
-                seq = rename_constraint(seq, oname, name)
-                assert isinstance(c, Implication)
-            if isinstance(base, TypeVar):
-                base = BaseType(base.name)
-            elif isinstance(base, TypeConstructor):
-                base = BaseType(base.name + "_" + "_".join(str(a) for a in base.args))
-            assert isinstance(base, BaseType), f"{base} ({type(base)}) is not a base type."
+            name = Name(oname.name, fresh_counter.fresh())
+            pred = substitution_in_liquid(pred, LiquidVar(name), oname)
+            seq = rename_constraint(seq, oname, name)
+            match base:
+                case TypeVar(iname):
+                    base = TypeConstructor(iname)
+                case TypeConstructor(iname, []):
+                    pass
+                case TypeConstructor(iname, args):
+                    mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
+                    nname = Name(mangle_name, fresh_counter.fresh())
+                    base = TypeConstructor(nname)
+                case _:
+                    assert False, f"{base} ({type(base)}) is not a base type."
             yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
-        case UninterpretedFunctionDeclaration(oname, ty, seq):
-            name = get_new_name(oname, list(ctx.functions.keys()))
-            if name != oname:
-                seq = rename_constraint(seq, oname, name)
-                assert isinstance(c, UninterpretedFunctionDeclaration)
+        case UninterpretedFunctionDeclaration(name, ty, seq):
+            assert isinstance(c, UninterpretedFunctionDeclaration)
             yield from flatten(seq, ctx.with_function(name, ty))
         case _:
             assert False, f"Cannot flatten {c}."
@@ -232,7 +216,10 @@ def smt_valid(constraint: Constraint) -> bool:
         s.push()
 
         # TODO now: Add monomorphic, uncurried functions here
-        smt_c = translate(c)
+        try:
+            smt_c = translate(c)
+        except ZeroDivisionError:
+            continue
         if smt_c is False:
             continue
         s.add(smt_c)
@@ -258,23 +245,23 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache: dict[str, SortRef] = {}
 
 
-def mk_vars(variables: dict[str, BaseType], sorts: dict[str, SortRef]) -> dict[str, Any]:
+def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) -> dict[str, Any]:
     return {name: make_variable(name, base) for name, base in variables.items()}
 
 
 def get_sort(base: Type) -> SortRef:
     match base:
-        case Top():
+        case Top() | TypeConstructor(Name("Top", _)):
             return DeclareSort("Top")
-        case BaseType("Int"):
+        case TypeConstructor(Name("Int", _)):
             return IntSort()
-        case BaseType("Bool"):
+        case TypeConstructor(Name("Bool", _)):
             return BoolSort()
-        case BaseType("Float"):
+        case TypeConstructor(Name("Float", _)):
             return Float64()
-        case BaseType("String"):
+        case TypeConstructor(Name("String", _)):
             return StringSort()
-        case BaseType(name):
+        case TypeConstructor(name, _):
             return IntSort()
             # This will be reenable once we have typeclasses
             # if name not in sort_cache:
@@ -302,45 +289,61 @@ def unrefine_type(base: Type):
             return base
 
 
-def uncurry(base: AbstractionType) -> tuple[list[BaseType], BaseType]:
+def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstructor]:
     current: Type = unrefine_type(base)
     inputs = []
+    vars_to_remove = []
+
+    while isinstance(current, TypePolymorphism):
+        vars_to_remove.append(current.name)
+        current = current.body
+
     while isinstance(current, AbstractionType):
         match current.var_type:
-            case BaseType(_):
+            case TypeConstructor(_, []):
                 inputs.append(current.var_type)
+            case TypeConstructor(_, _):
+                inputs.append(t_int)
             case Top():
-                inputs.append(BaseType("Unit"))
+                inputs.append(t_unit)
             case TypeVar(name):
-                inputs.append(BaseType(name))
+                if name in vars_to_remove:
+                    inputs.append(t_int)
+                else:
+                    inputs.append(TypeConstructor(name))
             case _:
                 assert False, f"Unknown SMT type {current.var_type} in {base}."
         current = current.type
 
     if isinstance(current, Top):
-        current = BaseType("Unit")
-    assert isinstance(current, BaseType)
+        current = t_unit
+    assert isinstance(current, TypeConstructor), f"Unknown SMT type {current} in {base}."
     return (inputs, current)
 
 
-def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
+def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
     match base:
         case Top():
             return Const(name, get_sort(base))
-        case BaseType("Int"):
+        case TypeConstructor(Name("Int", _)):
             return Int(name)
-        case BaseType("Bool"):
+        case TypeConstructor(Name("Bool", _)):
             return Bool(name)
-        case BaseType("Float"):
-            fpsort = FPSort(8, 24)
-            return FP(name, fpsort)
-        case BaseType("String"):
+        case TypeConstructor(Name("Float", _), _):
+            import z3
+
+            v = z3.Real(name)
+            return v
+            # TODO: see problem with version below
+            # fpsort = FPSort(8, 24)
+            # return FP(name, fpsort)
+        case TypeConstructor(Name("String", _)):
             return String(name)
-        case BaseType(_):
+        case TypeConstructor(_, _):
             return Int(name)
             # TODO: we always use int, in the case of a typevar.
             # return Const(name, get_sort(base))
-        case TypeVar(name):
+        case TypeVar(_):
             return Int(name)
         case AbstractionType(_, _, _):
             if name in base_functions:
@@ -350,7 +353,7 @@ def make_variable(name: str, base: BaseType | AbstractionType | Top) -> Any:
                 args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
                 return Function(name, *args)
         case _:
-            assert False, f"No var: {name}, with base {base} of type {type(base)}"
+            assert False, f"No var: {name}, with base {base}."
 
 
 def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
@@ -364,12 +367,12 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidLiteralString(s):
             return s
         case LiquidVar(name):
-            return variables[name]
+            return variables[str(name)]
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
-            fun = base_functions.get(fun_name, variables.get(fun_name, None))
-            assert fun is not None, f"Function {fun_name} not found."
+            fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
+            assert fun is not None, f"Function {fun_name} not found." + str(variables)
             args = [translate_liq(a, variables) for a in args]
             try:
                 return fun(*args)
@@ -381,15 +384,15 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
 
 
 def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
-    return {name: get_sort(BaseType(name)) for name in sorts}
+    return {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
 
 
 def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
     funs = {}
     for name, ty in functions.items():
         input_types, output_type = uncurry(ty)
-        args = [sorts.get(x.name, get_sort(x)) for x in input_types] + [
-            sorts.get(output_type.name, get_sort(output_type))
+        args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
+            sorts.get(str(output_type), get_sort(output_type))
         ]
         funs[name] = Function(name, *args)
     return funs
@@ -401,9 +404,10 @@ def translate(
     sorts = mk_sorts(c.sorts)
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
-
     e1 = translate_liq(c.premise, variables | functions)
     e2 = translate_liq(c.conclusion, variables | functions)
+    if isinstance(e2, bool) and e2 is True:
+        return False
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
     return And(e1, Not(e2))

@@ -4,14 +4,14 @@ def Pair_fst_logical : (p:Pair) -> Int = uninterpreted;
 
 def Pair_snd_logical : (p:Pair) -> Int = uninterpreted;
 
-def Pair_mk : (x:Int) -> (y:{ y:Int | y > x}) -> Pair = native "lambda x: lambda y: (x,y)";
+def Pair_mk (x:Int) (y:{ y:Int | y > x}) : Pair { native "(x,y)" }
 
 
 def assert : (b:{b:Bool | b}) -> Unit = native "()";
 
-# def Pair_fst : (p:Pair) -> Int = native "lambda p: p[0]";
+# def Pair_fst (p:Pair) : Int { native "p[0]" }
 
-# def Pair_snd : (p:Pair) -> { y:Int | y == Pair_snd_logical p } = native "lambda p: p[1]";
+# def Pair_snd (p:Pair) : { y:Int | y == Pair_snd_logical p } { native "p[1]" }
 
 
 def main (args:Int) : Unit {

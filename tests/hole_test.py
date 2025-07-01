@@ -1,4 +1,5 @@
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
+from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.utils.name import Name
 from tests.driver import check_and_return_core
 
 
@@ -14,7 +15,12 @@ def test_hole_identification():
             @minimize_int( year - (synth 7) )
             def synth(a: Int) : Int { (?hole:Int) * a}
         """
-    assert extract_target_functions(code) == [("synth", ["hole"])]
+    holes = extract_target_functions(code)
+    match holes:
+        case [(Name("synth", _), [Name("hole", _)])]:
+            pass
+        case _:
+            assert False, "Wrong hole identification"
 
 
 def test_hole1():
@@ -23,7 +29,12 @@ def test_hole1():
         ?r
         }
     """
-    assert extract_target_functions(source) == [("test", ["r"])]
+    holes = extract_target_functions(source)
+    match holes:
+        case [(Name("test", _), [Name("r", _)])]:
+            pass
+        case _:
+            assert False, "Wrong hole identification"
 
 
 def test_hole2():
@@ -31,7 +42,12 @@ def test_hole2():
         type Example;
         def test: Example = ?r ;
     """
-    assert extract_target_functions(source) == [("test", ["r"])]
+    holes = extract_target_functions(source)
+    match holes:
+        case [(Name("test", _), [Name("r", _)])]:
+            pass
+        case _:
+            assert False, "Wrong hole identification"
 
 
 def test_hole3():
@@ -40,4 +56,9 @@ def test_hole3():
         def g: Int = 1;
         def e: Int = (?q:Int) + (?c:Int);
     """
-    assert extract_target_functions(source) == [("d", ["r", "p"]), ("e", ["q", "c"])]
+    holes = extract_target_functions(source)
+    match holes:
+        case [(Name("d", _), [Name("r", _), Name("p")]), (Name("e", _), [Name("q", _), Name("c")])]:
+            pass
+        case _:
+            assert False, "Wrong hole identification"

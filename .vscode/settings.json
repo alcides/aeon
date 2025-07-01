@@ -11,7 +11,4 @@
     "files.watcherExclude": {
         "**/target": true
     },
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    }
 }

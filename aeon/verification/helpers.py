@@ -10,7 +10,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, BaseType, Top, TypeVar
+from aeon.core.types import AbstractionType, TypeConstructor, Top, TypeVar
 from aeon.core.types import t_bool
 from aeon.frontend.parser import parse_term
 from aeon.verification.smt import base_functions
@@ -19,6 +19,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from aeon.utils.name import Name, fresh_counter
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -30,7 +31,7 @@ def parse_liquid(t: str) -> LiquidTerm | None:
 def imp(a: str | LiquidTerm, b: Constraint) -> Constraint:
     e = a if isinstance(a, LiquidTerm) else parse_liquid(a)
     assert e is not None
-    return Implication("_", t_bool, e, b)
+    return Implication(Name("_", fresh_counter.fresh()), t_bool, e, b)
 
 
 def conj(a: Constraint, b: Constraint) -> Constraint:
@@ -43,7 +44,7 @@ def end(a: str | LiquidTerm) -> LiquidConstraint:
     return LiquidConstraint(e)
 
 
-def constraint_builder(vs: list[tuple[str, BaseType | TypeVar | AbstractionType | Top]], exp: Constraint):
+def constraint_builder(vs: list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]], exp: Constraint):
     for n, t in vs[::-1]:
         if isinstance(t, AbstractionType):
             exp = UninterpretedFunctionDeclaration(n, t, exp)
@@ -76,11 +77,11 @@ def flatten_conjunctions(c: Conjunction) -> list[Constraint]:
     return conjunctions
 
 
-def is_used_liquid(n: str, c: LiquidTerm) -> bool:
+def is_used_liquid(n: Name, c: LiquidTerm) -> bool:
     return n in liquid_free_vars(c)
 
 
-def is_used(n: str, c: Constraint) -> bool:
+def is_used(n: Name, c: Constraint) -> bool:
     if isinstance(c, LiquidConstraint):
         return is_used_liquid(n, c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
@@ -97,12 +98,12 @@ def is_used(n: str, c: Constraint) -> bool:
 
 def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
     """Simplifies a liquid term by reducing it."""
-    if isinstance(expr, LiquidApp) and expr.fun == "&&":
+    if isinstance(expr, LiquidApp) and expr.fun == Name("&&", 0):
         if expr.args[0] == LiquidLiteralBool(True):
             return simplify_expr(expr.args[1])
         elif expr.args[1] == LiquidLiteralBool(True):
             return simplify_expr(expr.args[0])
-    if isinstance(expr, LiquidApp) and expr.fun == "||":
+    if isinstance(expr, LiquidApp) and expr.fun == Name("||", 0):
         if expr.args[0] == LiquidLiteralBool(False):
             return simplify_expr(expr.args[1])
         elif expr.args[1] == LiquidLiteralBool(False):
@@ -112,7 +113,7 @@ def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
     return expr
 
 
-def constraint_free_variables(c: Constraint) -> list[str]:
+def constraint_free_variables(c: Constraint) -> list[Name]:
     """Returns all free variables in a constraint."""
     if isinstance(c, LiquidConstraint):
         return liquid_free_vars(c.expr)
@@ -128,7 +129,7 @@ def constraint_free_variables(c: Constraint) -> list[str]:
         assert False, f"Unsupported Constraint: {c}"
 
 
-def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: str) -> Constraint:
+def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Constraint:
     """Substitues a LiquidVar by another expression within a constraint."""
     match c:
         case LiquidConstraint(expr):
@@ -150,9 +151,9 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: str) -> Con
             assert False
 
 
-def used_variables(c: LiquidTerm) -> set[str]:
+def used_variables(c: LiquidTerm) -> set[Name]:
     """Returns all non-function variables used in an expression."""
-    return {x for x in liquid_free_vars(c) if x not in base_functions}
+    return {x for x in liquid_free_vars(c) if x.name not in base_functions}
 
 
 def simplify_constraint(c: Constraint) -> Constraint:
@@ -176,21 +177,21 @@ def simplify_constraint(c: Constraint) -> Constraint:
         # Preds are usually built as in (cond) && ( this = other)
         if (
             isinstance(c.pred, LiquidApp)
-            and c.pred.fun == "&&"
+            and c.pred.fun == Name("&&", 0)
             and isinstance(c.pred.args[1], LiquidApp)
-            and c.pred.args[1].fun == "=="
+            and c.pred.args[1].fun == Name("==", 0)
             and c.pred.args[1].args[0] == LiquidVar(c.name)
         ):
             rep = c.pred.args[1].args[1]
             subs_pred = substitution_in_liquid(c.pred.args[0], rep, c.name)
             subs_seq = substitution_in_constraint(c.seq, rep, c.name)
-            rc = simplify_constraint(Implication("_", BaseType("Bool"), subs_pred, subs_seq))
+            rc = simplify_constraint(Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq))
             return rc
 
         cont = simplify_constraint(c.seq)
         s = simplify_expr(c.pred)
 
-        other_used_vars = [x for x in used_variables(s) if x not in c.name]
+        other_used_vars = [x for x in used_variables(s) if x != c.name]
         if not is_used(c.name, cont) and not other_used_vars:
             return c.seq
 
@@ -259,7 +260,7 @@ def is_implication_true(c: Constraint):
         assert False
 
 
-def remove_unrelated_context(c: Constraint, ignore_vars: set[str]) -> tuple[Constraint, set[str]]:
+def remove_unrelated_context(c: Constraint, ignore_vars: set[Name]) -> tuple[Constraint, set[Name]]:
     """Removes variables and conditions that are unrelated to the goal."""
     if isinstance(c, LiquidConstraint):
         return (c, used_variables(c.expr).difference(ignore_vars or []))
@@ -272,7 +273,7 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[str]) -> tuple[Cons
         if vs.isdisjoint(current_vars):
             return (ic, vs)
         else:
-            return (c, vs.union(current_vars).difference(set(c.name)))
+            return (c, vs.union(current_vars).difference({c.name}))
     elif isinstance(c, Conjunction):
         (p1, vs1) = remove_unrelated_context(c.c1, ignore_vars)
         (p2, vs2) = remove_unrelated_context(c.c2, ignore_vars)

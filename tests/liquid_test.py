@@ -6,14 +6,17 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
 from aeon.core.terms import Application
 from aeon.core.terms import Var
-from aeon.sugar.stypes import SBaseType
 from aeon.utils.ast_helpers import i1
+from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
+from aeon.utils.name import Name
 
+x_name = Name("x", 42)
+x2_name = Name("x2", 42)
 l1 = LiquidLiteralInt(1)
-lx = LiquidVar("x")
-lx1 = LiquidApp("x", [l1])
-x = Var("x")
+lx = LiquidVar(x_name)
+lx1 = LiquidApp(x_name, [l1])
+x = Var(x_name)
 x1 = Application(x, i1)
 
 
@@ -24,15 +27,15 @@ def test_liquefaction():
 
 
 def test_simple_eq():
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) == LiquidApp(
-        "x",
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) == LiquidApp(
+        x_name,
         [LiquidLiteralInt(1)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp(
-        "x",
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) != LiquidApp(
+        x_name,
         [LiquidLiteralInt(2)],
     )
-    assert LiquidApp("x", [LiquidLiteralInt(1)]) != LiquidApp("x", [LiquidVar("x2")])
+    assert LiquidApp(x_name, [LiquidLiteralInt(1)]) != LiquidApp(x_name, [LiquidVar(x2_name)])
 
 
 def test_liquid_types_syntax():
@@ -45,4 +48,4 @@ def test_liquid_types_syntax():
             print(test 5 5)
         }
 """
-    check_compile(source, SBaseType("Top"), 0)
+    check_compile(source, st_top, 0)

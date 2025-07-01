@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC
-from dataclasses import dataclass
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
+from dataclasses import dataclass, field
+from aeon.utils.location import Location, SynthesizedLocation
+from aeon.utils.name import Name
 
 
 class LiquidTerm(ABC):
-    pass
+    loc: Location
 
 
-def ensure_liqterm(a: LiquidTerm | str) -> LiquidTerm:
-    if isinstance(a, str):
+def ensure_liqterm(a: LiquidTerm | Name) -> LiquidTerm:
+    if isinstance(a, Name):
         return LiquidVar(a)
     return a
 
@@ -37,6 +34,7 @@ def is_safe_for_application(x: LiquidTerm):
 @dataclass
 class LiquidLiteralBool(LiquidTerm):
     value: bool
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -51,6 +49,7 @@ class LiquidLiteralBool(LiquidTerm):
 @dataclass
 class LiquidLiteralInt(LiquidTerm):
     value: int
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -65,6 +64,7 @@ class LiquidLiteralInt(LiquidTerm):
 @dataclass
 class LiquidLiteralFloat(LiquidTerm):
     value: float
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -79,6 +79,7 @@ class LiquidLiteralFloat(LiquidTerm):
 @dataclass
 class LiquidLiteralString(LiquidTerm):
     value: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.value}".lower()
@@ -90,13 +91,10 @@ class LiquidLiteralString(LiquidTerm):
         return hash(self.value)
 
 
-@dataclass(init=False)
+@dataclass
 class LiquidVar(LiquidTerm):
-    name: str
-
-    def __init__(self, name: str):
-        assert isinstance(name, str)
-        self.name = name
+    name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{self.name}"
@@ -108,19 +106,14 @@ class LiquidVar(LiquidTerm):
         return hash(self.name)
 
 
-@dataclass(init=False)
+@dataclass
 class LiquidApp(LiquidTerm):
-    fun: str
+    fun: Name
     args: list[LiquidTerm]
-
-    def __init__(self, fun: str, args: list[LiquidTerm]):
-        self.fun = fun
-        self.args = args
-        for a in self.args:
-            assert isinstance(a, LiquidTerm)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
-        if all([not c.isalnum() for c in self.fun]) and len(self.args) == 2:
+        if all([not c.isalnum() for c in self.fun.name]) and len(self.args) == 2:
             (a1, a2) = (repr(x) for x in self.args)
             return f"({a1} {self.fun} {a2})"
 
@@ -138,7 +131,7 @@ class LiquidApp(LiquidTerm):
         return hash(self.fun) + sum(hash(a) for a in self.args)
 
 
-def liquid_free_vars(e: LiquidTerm) -> list[str]:
+def liquid_free_vars(e: LiquidTerm) -> list[Name]:
     if isinstance(e, LiquidVar):
         return [e.name]
     elif isinstance(e, LiquidApp):

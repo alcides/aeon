@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from aeon.utils.name import Name
+
 from aeon.sugar.parser import parse_type
 from tests.driver import check_compile_expr
 
 
 def tt(e: str, t: str, vars: None | dict[str, str] = None):
-    vs = {k: parse_type(v) for (k, v) in vars.items()} if vars is not None else None
+    vs = {Name(k): parse_type(v) for (k, v) in vars.items()} if vars is not None else None
     return check_compile_expr(e, parse_type(t), extra_vars=vs)
 
 
@@ -80,13 +82,19 @@ def test_fifteen():
 # Branches
 
 
-def test_if():
+def test_if1():
     assert tt("if x == 1 then 1 else 0", "Int", {"x": "Int"})
+
+
+def test_if2():
     assert tt(
         "if x == 1 then 1 else 0",
         "{k:Int | (k == 1) || (k == 0) }",
         {"x": "Int"},
     )
+
+
+def test_if3():
     assert not tt("if x then 1 else 0", "Int", {"x": "Int"})
 
 

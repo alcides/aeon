@@ -1,10 +1,15 @@
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import reduce
 
 from aeon.core.types import Kind
 
 from typing import TYPE_CHECKING
+
+
+from aeon.utils.location import Location, SynthesizedLocation
+from aeon.utils.name import Name
+
 
 if TYPE_CHECKING:
     from aeon.sugar.program import STerm
@@ -13,44 +18,56 @@ if TYPE_CHECKING:
 class SType(ABC):
     "Surface-level Type Representation"
 
-    pass
+    loc: Location
 
 
 @dataclass(unsafe_hash=True)
 class STypeVar(SType):
-    name: str
+    name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-
-@dataclass(unsafe_hash=True)
-class SBaseType(SType):
-    name: str
+    def __str__(self):
+        return f"'{self.name}"
 
 
 @dataclass(unsafe_hash=True)
 class SRefinedType(SType):
-    name: str
+    name: Name
     type: SType
     refinement: "STerm"
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"{{{self.name} : {self.type} | {self.refinement} }}"
 
 
 @dataclass(unsafe_hash=True)
 class SAbstractionType(SType):
-    var_name: str
+    var_name: Name
     var_type: SType
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"({self.var_name} : {self.var_type}) -> {self.type}"
 
 
 @dataclass(unsafe_hash=True)
 class STypePolymorphism(SType):
-    name: str
+    name: Name
     kind: Kind
     body: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"∀{self.name}:{self.kind}. {self.body}"
 
 
 @dataclass
 class STypeConstructor(SType):
-    name: str
-    args: list[SType]
+    name: Name
+    args: list[SType] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
@@ -65,8 +82,6 @@ builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit"]
 
 def get_type_vars(ty: SType) -> set[STypeVar]:
     match ty:
-        case SBaseType(name):
-            return set()
         case STypeVar(name):
             return {ty}
         case SAbstractionType(_, vtype, rtype):

@@ -1,6 +1,6 @@
+from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     STypeConstructor,
     STypeVar,
     SRefinedType,
@@ -31,13 +31,13 @@ def normalize(ty: SType) -> SType:
                 SVar(oname),
                 iname,
             )
-            new_ref = SApplication(SApplication(SVar("&&"), a1), oref)
+            new_ref = SApplication(SApplication(SVar(Name("&&", 0)), a1), oref)
             return SRefinedType(oname, ity, new_ref)
         case _:
             return ty
 
 
-def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: str):
+def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
     """Replaces all occurrences of vartypes name in t by rep."""
 
     def rec(k: SType):
@@ -45,8 +45,6 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: str):
 
     ty = normalize(ty)
     match ty:
-        case SBaseType(_):
-            return ty
         case STypeVar(tname):
             if tname == alpha:
                 return beta
@@ -67,12 +65,12 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: str):
             assert False, f"Unknown node in substitute {ty}"
 
 
-def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: str) -> SType:
+def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
     def rec(k: SType):
         return substitution_sterm_in_stype(k, beta, alpha)
 
     match ty:
-        case SBaseType(_) | STypeVar(_):
+        case STypeVar(_):
             return ty
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), substitution_sterm_in_sterm(ref, beta, alpha))
@@ -86,7 +84,7 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: str) -> SType:
             assert False
 
 
-def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: str) -> STerm:
+def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
     def rec(x: STerm):
         return substitution_sterm_in_sterm(x, beta, alpha)
 
@@ -130,7 +128,7 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: str) -> STerm:
             assert False
 
 
-def substitution_svartype_in_sterm(t: STerm, rep: SType, name: str) -> STerm:
+def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
     def rec(x: STerm):
         return substitution_svartype_in_sterm(x, rep, name)
 

@@ -4,23 +4,28 @@ from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
-from aeon.core.types import BaseType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import t_int
-from aeon.sugar.stypes import SBaseType, SRefinedType
+from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
+from aeon.sugar.ast_helpers import st_int, st_top, st_bool
+from aeon.utils.name import Name
 
+name_a = Name("a", 102)
+name_x = Name("x", 103)
+name_y = Name("y", 104)
 example = Implication(
-    "x",
+    name_x,
     t_int,
-    LiquidApp("==", [LiquidVar("x"), LiquidLiteralInt(3)]),
+    LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidLiteralInt(3)]),
     LiquidConstraint(
         LiquidApp(
-            "==",
-            [LiquidVar("x"), LiquidLiteralInt(3)],
+            Name("==", 0),
+            [LiquidVar(name_x), LiquidLiteralInt(3)],
         ),
     ),
 )
@@ -31,17 +36,17 @@ def test_smt_example3():
 
 
 example2 = Implication(
-    "x",
-    BaseType("a"),
+    name_x,
+    TypeConstructor(name_a),
     LiquidLiteralBool(True),
     Implication(
-        "y",
-        BaseType("a"),
-        LiquidApp("==", [LiquidVar("x"), LiquidVar("y")]),
+        name_y,
+        TypeConstructor(name_a),
+        LiquidApp(Name("==", 0), [LiquidVar(name_x), LiquidVar(name_y)]),
         LiquidConstraint(
             LiquidApp(
-                "==",
-                [LiquidVar("x"), LiquidVar("y")],
+                Name("==", 0),
+                [LiquidVar(name_x), LiquidVar(name_y)],
             ),
         ),
     ),
@@ -66,7 +71,7 @@ def main (x:Int) : Unit {
     one = List_append empty 3;
     print(one)
 }"""
-    check_compile(aeon_code, SBaseType("Top"))
+    check_compile(aeon_code, st_top)
 
 
 def test_uninterpreted2() -> None:
@@ -81,17 +86,17 @@ def main (x:Int) : Unit {
     one = List_append empty 3;
     print(one)
 }"""
-    check_compile(aeon_code, SBaseType("Top"))
+    check_compile(aeon_code, st_top)
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType("y", SBaseType("Bool"), parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType(Name("y"), st_bool, parse_expression("y == (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",
         expected_stype,
         extra_vars={
-            "x": SBaseType("Int"),
-            "z": SBaseType("Int"),
+            Name("x"): st_int,
+            Name("z"): st_int,
         },
     )

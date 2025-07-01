@@ -3,6 +3,12 @@ from itertools import combinations
 from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
+from aeon.facade.api import (
+    UnificationFailedError,
+    UnificationKindError,
+    UnificationSubtypingError,
+    UnificationUnknownTypeError,
+)
 from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
@@ -19,7 +25,6 @@ from aeon.sugar.program import (
 )
 from aeon.sugar.stypes import (
     SAbstractionType,
-    SBaseType,
     SRefinedType,
     STypeConstructor,
     STypeVar,
@@ -28,10 +33,8 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.substitutions import substitution_sterm_in_stype
-
-
-class UnificationException(Exception):
-    pass
+from aeon.utils.name import Name, fresh_counter
+from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
 
 def base(ty: SType) -> SType:
@@ -43,7 +46,7 @@ def base(ty: SType) -> SType:
 
 @dataclass
 class UnificationVar(SType):
-    name: str
+    name: Name
     lower: list[SType] = field(default_factory=list)
     upper: list[SType] = field(default_factory=list)
 
@@ -102,13 +105,18 @@ def elaborate_foralls(e: STerm) -> STerm:
 
 def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
     match (sub, sup):
-        case (_, SBaseType("Top")):
+        case (_, STypeConstructor(Name("Top", 0))):
             return []
-        case (SBaseType(subn), SBaseType(supn)):
+        case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
             if subn != supn:
-                raise UnificationException(f"Found {sub}, but expected {sup}")
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+            elif len(subargs) != len(supargs):
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
             else:
-                return []
+                rt = []
+                for subarg, suparg in zip(subargs, supargs):
+                    rt += unify(ctx, subarg, suparg)
+                return rt
         case (SRefinedType(_, ty, _), _):
             return unify(ctx, ty, sup)
         case (_, SRefinedType(_, ty, _)):
@@ -143,18 +151,14 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             if subn == supn:
                 return []
             else:
-                raise UnificationException(
-                    f"Failed to unify {sub} with {sup} ({type(sup)})",
-                )
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
 
         case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
             if name1 != name2:
-                raise UnificationException(
-                    f"Failed to unify {name1} with {name2}",
-                )
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
             elif len(args) != len(args2):
-                raise UnificationException(
-                    f"Failed to unify {sub} with {sup} with different number of arguments.",
+                raise UnificationSubtypingError(
+                    SHole(Name("todo")), sub, sup, msg="Type constructor with different number of arguments."
                 )
             else:
                 for a1, a2 in zip(args, args2):
@@ -162,20 +166,18 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
                 return []
 
         case _:
-            raise UnificationException(
-                f"Failed to unify {sub} ({type(sub)}) with {sup} ({type(sup)})",
-            )
+            raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
 
 
 def unify_single(vname: str, xs: list[SType]) -> SType:
-    match [x for x in xs if x != SBaseType("Top")]:
+    match [x for x in xs if x != st_top]:
         case []:
-            return SBaseType("Unit")
+            return st_unit
         case other:
             fst = other[0]
             for snd in other[1:]:
                 if snd != fst:
-                    raise UnificationException(f"Type variable {vname} has conflicting meanings: {snd} and {fst}.")
+                    raise UnificationFailedError(vname, fst, snd)
             return fst
 
 
@@ -232,7 +234,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SVar(name):
             match ctx.type_of(name):
                 case None:
-                    raise UnificationException(f"Undefined variable {t}")
+                    raise UnificationUnknownTypeError(t)
                 case ty:
                     return (t, ty)
         case SHole(_):
@@ -244,9 +246,8 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SAbstraction(name, body):
             u = UnificationVar(ctx.fresh_typevar())
             nctx = ctx.with_var(name, u)
-            (_, bt) = elaborate_synth(nctx, body)
-            # TODO NOW!: use the _ value instead of t?
-            return (t, SAbstractionType(name, u, bt))
+            (t2, bt) = elaborate_synth(nctx, body)
+            return (SAbstraction(name, t2), SAbstractionType(name, u, bt))
         case STypeApplication(body, ty):
             (inner, innert) = elaborate_synth(ctx, body)
             assert isinstance(innert, STypePolymorphism)
@@ -263,15 +264,33 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             (nbody, nbody_type) = elaborate_synth(ctx.with_var(name, u), body)
             return SLet(name, nval, nbody), nbody_type
         case SIf(cond, then, otherwise):
-            ncond = elaborate_check(ctx, cond, SBaseType("Bool"))
+            ncond = elaborate_check(ctx, cond, st_bool)
             nthen, nthen_type = elaborate_synth(ctx, then)
             nelse, nelse_type = elaborate_synth(ctx, otherwise)
             u = UnificationVar(ctx.fresh_typevar())
             unify(ctx, nthen_type, u)
             unify(ctx, nelse_type, u)
             return SIf(ncond, nthen, nelse), u
+        case SApplication(fun, arg):
+            (nfun, nfun_type) = elaborate_synth(ctx, fun)
+            while isinstance(nfun_type, STypePolymorphism):
+                u = UnificationVar(ctx.fresh_typevar())
+                nfun = STypeApplication(nfun, u)
+                nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
+
+            match nfun_type:
+                case SAbstractionType(_, arg_type, return_type):
+                    narg = elaborate_check(ctx, arg, arg_type)
+                    match narg:
+                        case SLiteral(_) | SVar(_):
+                            return SApplication(nfun, narg), return_type
+                        case _:
+                            nname = Name("_anf", fresh_counter.fresh())
+                            return SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname))), return_type
+                case _:
+                    assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:
-            raise UnificationException(f"Could not infer the type of {t}")
+            raise UnificationUnknownTypeError(t)
 
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
@@ -292,20 +311,20 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nbody = elaborate_check(nctx, body, ty)
             return SRec(name, vty, nval, nbody)
         case (SIf(cond, then, otherwise), _):
-            ncond = elaborate_check(ctx, cond, SBaseType("Bool"))
+            ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
             nelse = elaborate_check(ctx, otherwise, ty)
             return SIf(ncond, nthen, nelse)
         case (STypeAbstraction(name, kind, body), STypePolymorphism(tname, tkind, tbody)):
             if kind != tkind:
-                assert UnificationException(f"Failed to unify the kind of {t} with kind of type {ty}")
+                assert UnificationKindError(t, ty, kind, tkind)
             nctx = ctx.with_typevar(name, kind)
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
             return STypeAbstraction(name, kind, nbody)
         case (SApplication(fun, arg), _):
             u = UnificationVar(ctx.fresh_typevar())
-            nfun = elaborate_check(ctx, fun, SAbstractionType("_", u, ty))
+            nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
             narg = elaborate_check(ctx, arg, u)
             return SApplication(nfun, narg)
         case _:
@@ -349,7 +368,7 @@ def replace_unification_variables(
     def go(ctx: ElaborationTypingContext, ty: SType, polarity: bool) -> SType:
         """The recursive part of the function."""
         match ty:
-            case SBaseType(_) | STypeVar(_):
+            case STypeVar(_):
                 return ty
             case SAbstractionType(name, vty, rty):
                 return SAbstractionType(
@@ -380,7 +399,7 @@ def replace_unification_variables(
 def remove_from_union_and_intersection(
     unions: list[Union],
     intersections: list[Intersection],
-    to_be_removed: list[str],
+    to_be_removed: list[Name],
 ):
     """Removes all unification vars whose name is in the to_be_removed list."""
 
@@ -397,6 +416,52 @@ def remove_from_union_and_intersection(
         union.united = list(filter(rem, union.united))
 
 
+def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> SType:
+    # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
+    nt, unions, intersections = replace_unification_variables(ctx, ty)
+
+    # 1. Removal of polar variable
+    all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
+    all_negative = [x.name for i in intersections for x in i.intersected if isinstance(x, UnificationVar)]
+    to_be_removed = [x for x in all_positive if x not in all_negative] + [
+        x for x in all_negative if x not in all_positive
+    ]
+
+    # 2. Unification of indistinguishable variables
+    for union in unions:
+        unifications = [x for x in union.united if isinstance(x, UnificationVar)]
+        for a, b in combinations(unifications, 2):
+            if all(a in u.united and b in u.united for u in unions):
+                to_be_removed.append(max(a.name, b.name))
+
+    for i in intersections:
+        unifications = [x for x in i.intersected if isinstance(x, UnificationVar)]
+        for a, b in combinations(unifications, 2):
+            if all(a in j.intersected and b in j.intersected for j in intersections):
+                to_be_removed.append(max(a.name, b.name))
+
+    # 3. Flattening of variable sandwiches
+    unifications = [x for union in unions for x in union.united if isinstance(x, UnificationVar)]
+    for u in unifications:
+        base_types_together_with_u_pos = [
+            b for un in unions if u in un.united for b in un.united if not isinstance(b, UnificationVar)
+        ]
+        base_types_together_with_u_neg = [
+            b for i in intersections if u in i.intersected for b in i.intersected if not isinstance(b, UnificationVar)
+        ]
+        # TODO: I think we need subtyping here.
+
+        if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
+            to_be_removed.append(u.name)
+
+    remove_from_union_and_intersection(
+        unions,
+        intersections,
+        to_be_removed,
+    )
+    return remove_unions_and_intersections(ctx, nt)
+
+
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
         case SLiteral() | SVar() | SHole():
@@ -407,11 +472,13 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
         case SAbstraction(name, body):
             return SAbstraction(name, elaborate_remove_unification(ctx, body))
         case SLet(name, val, body):
-            nctx = ctx.with_var(t.var_name, SBaseType("Unit"))  # TODO poly: Unit??
+            nctx = ctx.with_var(t.var_name, st_unit)  # TODO poly: Unit??
             return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body))
         case SRec(name, ty, val, body):
+            nty = handle_unification_in_type(ctx, ty)
+            nt = remove_unions_and_intersections(ctx, ty)
             nctx = ctx.with_var(t.var_name, t.var_type)
-            return SRec(name, ty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body))
+            return SRec(name, nty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body))
 
         case SIf(cond, then, otherwise):
             return SIf(
@@ -434,92 +501,49 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             # Recursively apply itself.
             body = elaborate_remove_unification(ctx, body)
 
-            # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
-            nt, unions, intersections = replace_unification_variables(ctx, ty)
+            nt = handle_unification_in_type(ctx, ty)
 
-            # 1. Removal of polar variable
-            all_positive = [x.name for u in unions for x in u.united if isinstance(x, UnificationVar)]
-            all_negative = [x.name for i in intersections for x in i.intersected if isinstance(x, UnificationVar)]
-            to_be_removed = [x for x in all_positive if x not in all_negative] + [
-                x for x in all_negative if x not in all_positive
-            ]
-
-            # 2. Unification of indistinguishable variables
-            for union in unions:
-                unifications = [x for x in union.united if isinstance(x, UnificationVar)]
-                for a, b in combinations(unifications, 2):
-                    if all(a in u.united and b in u.united for u in unions):
-                        to_be_removed.append(max(a.name, b.name))
-
-            for i in intersections:
-                unifications = [x for x in i.intersected if isinstance(x, UnificationVar)]
-                for a, b in combinations(unifications, 2):
-                    if all(a in j.intersected and b in j.intersected for j in intersections):
-                        to_be_removed.append(max(a.name, b.name))
-
-            # 3. Flattening of variable sandwiches
-            unifications = [x for union in unions for x in union.united if isinstance(x, UnificationVar)]
-            for u in unifications:
-                base_types_together_with_u_pos = [
-                    b for un in unions if u in un.united for b in un.united if not isinstance(b, UnificationVar)
-                ]
-                base_types_together_with_u_neg = [
-                    b
-                    for i in intersections
-                    if u in i.intersected
-                    for b in i.intersected
-                    if not isinstance(b, UnificationVar)
-                ]
-                # TODO: I think we need subtyping here.
-
-                if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
-                    to_be_removed.append(u.name)
-
-            remove_from_union_and_intersection(
-                unions,
-                intersections,
-                to_be_removed,
-            )
-            nt = remove_unions_and_intersections(ctx, nt)
-
-            if nt == SBaseType("Top"):
-                return STypeApplication(body, nt)
-            else:
-                should_be_refined = True
-                match body:
-                    case SVar(name):
-                        match ctx.type_of(name):
-                            case STypePolymorphism(_, BaseKind(), _):
-                                should_be_refined = False
-                match nt:
-                    case SBaseType(_) | STypeVar(_) | STypeConstructor(_, _):
-                        new_type: SType
-                        if should_be_refined:
-                            new_var = ctx.fresh_typevar()
+            match nt:
+                case STypeConstructor(Name("Top", _)):
+                    return STypeApplication(body, nt)
+                case _:
+                    should_be_refined = True
+                    match body:
+                        case SVar(name):
+                            match ctx.type_of(name):
+                                case STypePolymorphism(_, BaseKind(), _):
+                                    should_be_refined = False
+                    match nt:
+                        case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):
+                            new_type: SType
+                            if should_be_refined:
+                                nv = Name("self", fresh_counter.fresh())
+                                nh = Name("k", fresh_counter.fresh())
+                                # TODO NOW: liquidhornapp
+                                # ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
+                                new_type = SRefinedType(nv, nt, SHole(nh))
+                            else:
+                                new_type = nt
+                            return STypeApplication(body, new_type)
+                        case SRefinedType(name, ity, ref):
                             # TODO NOW: liquidhornapp
-                            # ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
-                            new_type = SRefinedType(new_var, nt, SHole("k"))
-                        else:
-                            new_type = nt
-                        return STypeApplication(body, new_type)
-                    case SRefinedType(name, ity, ref):
-                        # TODO NOW: liquidhornapp
-                        # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
-                        ref = SHole("k")
-                        new_type = SRefinedType(name, ity, ref)
-                        return STypeApplication(body, new_type)
-                    case SAbstractionType(_, _, _):
-                        # AbstractionTypes are not refined
-                        return STypeApplication(body, nt)
-                    # case TypePolymorphism(name, kind, body_):
+                            # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
+                            nh = Name("k", fresh_counter.fresh())
+                            ref = SHole(nh)
+                            new_type = SRefinedType(name, ity, ref)
+                            return STypeApplication(body, new_type)
+                        case SAbstractionType(_, _, _):
+                            # AbstractionTypes are not refined
+                            return STypeApplication(body, nt)
+                        # case TypePolymorphism(name, kind, body_):
 
-                    case _:
-                        assert False, f"{nt} ({type(nt)}) not an SType."
+                        case _:
+                            assert False, f"{nt} ({type(nt)}) not an SType."
         case _:
             assert False, f"{t} ({type(t)}) not an STerm."
 
 
-def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = SBaseType("Top")) -> STerm:
+def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = st_top) -> STerm:
     e2 = elaborate_foralls(e)
     e3 = elaborate_check(ctx, e2, expected_type)
     e4 = elaborate_remove_unification(ctx, e3)

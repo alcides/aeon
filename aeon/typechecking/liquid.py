@@ -10,7 +10,6 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import (
     AbstractionType,
-    BaseType,
     LiquidHornApplication,
     RefinedType,
     Top,
@@ -22,16 +21,18 @@ from aeon.core.types import (
 )
 from aeon.core.types import t_float
 from aeon.core.types import t_int
+from aeon.core.types import t_unit
 from aeon.core.types import t_string
 from aeon.prelude.prelude import native_types
 from aeon.typechecking.context import (
-    EmptyContext,
     TypeBinder,
     TypeConstructorBinder,
     TypingContext,
     UninterpretedBinder,
     VariableBinder,
 )
+
+from aeon.utils.name import Name
 
 
 class LiquidTypeCheckException(Exception):
@@ -40,19 +41,19 @@ class LiquidTypeCheckException(Exception):
 
 @dataclass
 class LiquidTypeCheckingContext:
-    known_types: list[BaseType]
-    variables: dict[str, BaseType | TypeVar | TypeConstructor]
-    functions: dict[str, list[BaseType | TypeVar | TypeConstructor]]
+    known_types: list[TypeConstructor]
+    variables: dict[Name, TypeConstructor | TypeVar | TypeConstructor]
+    functions: dict[Name, list[TypeConstructor | TypeVar | TypeConstructor]]
 
 
-def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar | TypeConstructor]:
-    args: list[BaseType | TypeVar | TypeConstructor] = []
+def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar | TypeConstructor]:
+    args: list[TypeConstructor | TypeVar | TypeConstructor] = []
     while True:
         match ty:
             # TODO: Should these be removed?
             case Top() | RefinedType(_, Top(), _):
-                return args + [BaseType("Unit")]
-            case BaseType(_) | TypeVar(_):
+                return args + [t_unit]
+            case TypeVar(_):
                 assert args
                 return args + [ty]
             case (
@@ -61,13 +62,13 @@ def lower_abstraction_type(ty: Type) -> list[BaseType | TypeVar | TypeConstructo
                 | AbstractionType(_, aty, rty)
             ):
                 match aty:
-                    case BaseType(_) | TypeVar(_):
+                    case TypeConstructor(_, _) | TypeVar(_):
                         args.append(aty)
                     case Top():
-                        args.append(BaseType("Unit"))
+                        args.append(t_unit)
                     case _:
                         # For Higher-order functions, we use an int parameter.
-                        args.append(BaseType("Int"))
+                        args.append(t_int)
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
@@ -87,44 +88,45 @@ def flatten(xs: list[list[T]]) -> list[T]:
 
 
 def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
-    known_types: list[str] = native_types + []
-    variables: dict[str, BaseType | TypeVar | TypeConstructor] = {}
+    known_types: list[Name] = native_types + []
+    variables: dict[Name, TypeConstructor | TypeVar | TypeConstructor] = {}
     functions = {}
-    while not isinstance(ctx, EmptyContext):
-        match ctx:
-            case VariableBinder(prev, name, BaseType(_) as bt):
+
+    for entry in ctx.entries[::-1]:
+        match entry:
+            case VariableBinder(name, TypeConstructor(_) as bt):
                 variables[name] = bt
-                ctx = prev
-            case VariableBinder(prev, name, TypeVar(tvname)):
+            case VariableBinder(name, TypeConstructor(_, _) as bt):
+                variables[name] = bt
+            case VariableBinder(name, TypeVar(tvname)):
                 known_types.append(tvname)
-                variables[name] = BaseType(tvname)
-                ctx = prev
-            case VariableBinder(prev, name, TypePolymorphism(_) as ty):
+                variables[name] = TypeVar(tvname)
+            case VariableBinder(name, TypePolymorphism(_, _, _) as ty):
                 functions[name] = lower_abstraction_type(ty)
-                ctx = prev
-            case TypeBinder(prev, name, _):
+            case TypeBinder(name, _):
                 known_types.append(name)
-                ctx = prev
-            case UninterpretedBinder(prev, name, AbstractionType(_, _, _) as ty) | VariableBinder(
-                prev, name, AbstractionType(_, _, _) as ty
+            case UninterpretedBinder(name, AbstractionType(_, _, _) as ty) | VariableBinder(
+                name, AbstractionType(_, _, _) as ty
             ):
                 functions[name] = lower_abstraction_type(ty)
-                ctx = prev
-            case VariableBinder(prev, name, RefinedType(_, BaseType(_) as bt, _)):
+            case UninterpretedBinder(name, TypePolymorphism(_, _, AbstractionType(_, _, _)) as ty):
+                functions[name] = lower_abstraction_type(ty)
+            case VariableBinder(name, RefinedType(_, TypeConstructor(_) as bt, _)):
                 variables[name] = bt
-                ctx = prev
-            case TypeConstructorBinder(prev, _, _):
-                ctx = prev
+            case VariableBinder(name, RefinedType(_, TypeConstructor(_, _) as bt, _)):
+                variables[name] = bt
+            case TypeConstructorBinder(_, _):
+                pass
             case _:
-                assert False, f"Unknown context type ({type(ctx)})"
+                assert False, f"Unknown context type {entry} ({type(entry)})"
 
-    return LiquidTypeCheckingContext([BaseType(n) for n in known_types], variables, functions)
+    return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
 
 
 def type_infer_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
-) -> BaseType | TypeConstructor:
+) -> TypeConstructor | TypeVar:
     match liq:
         case LiquidLiteralBool(_):
             return t_bool
@@ -136,42 +138,92 @@ def type_infer_liquid(
             return t_string
         case LiquidVar(name):
             if name not in ctx.variables:
-                raise LiquidTypeCheckException(f"Variable {name} not in context in {liq}.")
-            rt = ctx.variables[name]
-            assert isinstance(rt, BaseType)
-            return rt
+                raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")
+
+            match ctx.variables[name]:
+                case TypeConstructor(_, []) as ty:
+                    return ty
+                case TypeConstructor(_, _):
+                    return t_int
+                case TypeVar(_) as ty:
+                    return ty
+                case _:
+                    raise LiquidTypeCheckException("Could not find type for {liq} ({ctx.variables[name]})")
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
-            equalities: dict[str, BaseType] = {}
+            equalities: dict[Name, TypeConstructor | TypeVar] = {}
+
+            def resolve_type(ty: Type) -> TypeConstructor | TypeVar:
+                match ty:
+                    case TypeConstructor(_, _):
+                        return ty
+                    case TypeVar(tv):
+                        if tv in equalities:
+                            return resolve_type(equalities[tv])
+                        else:
+                            return ty
+                    case _:
+                        assert False, "unknown stuff"
 
             if len(ftype) != len(args) + 1:
                 raise LiquidTypeCheckException(
                     f"Function application {liq} needs {len(ftype) - 1} arguments, but was passed {len(args)}."
                 )
+            type_of_args = []
 
             for arg, exp_t in zip(args, ftype):
                 k = type_infer_liquid(ctx, arg)
+                type_of_args.append(k)
                 match (k, exp_t):
-                    case (BaseType(t), BaseType(e)):
+                    case (TypeConstructor(t), TypeConstructor(e)):
                         if t != e:
                             raise LiquidTypeCheckException(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
                             )
-                    case (BaseType(t), TypeVar(name)):
+                    case (TypeConstructor(t), TypeVar(name)):
                         if name not in equalities:
-                            equalities[name] = k
-                        elif equalities[name] != k:
+                            equalities[name] = resolve_type(k)
+                        elif resolve_type(TypeVar(name)) != k:
                             raise LiquidTypeCheckException(
                                 f"Argument {arg} in {liq} is expected to be of type {exp_t} ({equalities[name]}), but {k} was found instead."
                             )
+                    case (TypeVar(t), TypeVar(name)):
+                        if name not in equalities:
+                            equalities[name] = resolve_type(k)
+                        elif resolve_type(TypeVar(name)) != k:
+                            raise LiquidTypeCheckException(
+                                f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
+                            )
                     case _:
-                        assert False, "Case not considered in liquid unification"
+                        raise LiquidTypeCheckException(
+                            f"Could not unify {k} ({type(k)}) and {exp_t} ({type(exp_t)}) in {liq}."
+                        )
 
-            if isinstance(ftype[-1], TypeVar):
-                return equalities[ftype[-1].name]
-            return ftype[-1]
+            def is_base_type_in(t: Type, names: list[str]) -> bool:
+                match t:
+                    case TypeConstructor(Name(name, _)):
+                        return name in names
+                    case _:
+                        return False
+
+            first_argument = type_of_args[0]
+            match fun:
+                case Name(fun_name, _):
+                    if fun_name in ["<", "<=", ">", ">="]:
+                        if not is_base_type_in(first_argument, ["Float", "Int"]) and not isinstance(
+                            type_of_args[0], TypeVar
+                        ):
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
+                    elif fun_name in ["==", "!="] and not isinstance(first_argument, TypeVar):
+                        # TODO: Add type equality
+                        if not is_base_type_in(first_argument, ["Unit", "Bool", "Float", "Int", "String"]):
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to built-in types.")
+                    elif fun_name in ["+", "-", "*", "/"] and not isinstance(first_argument, TypeVar):
+                        if not is_base_type_in(first_argument, ["Float", "Int"]):
+                            raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
+            return resolve_type(ftype[-1])
         case LiquidHornApplication(_, _):
             return t_bool
         case _:
@@ -181,7 +233,7 @@ def type_infer_liquid(
 def check_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
-    exp: BaseType,
+    exp: TypeConstructor,
 ) -> bool:
     try:
         t = type_infer_liquid(ctx, liq)
@@ -195,4 +247,5 @@ def typecheck_liquid(
     liq: LiquidTerm,
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
-    return type_infer_liquid(lower_context(ctx), liq)
+    v = type_infer_liquid(lower_context(ctx), liq)
+    return v

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.types import AbstractionType, BaseKind, Top, TypeConstructor
-from aeon.core.types import BaseType
 from aeon.core.types import Kind
 from aeon.core.types import RefinedType
 from aeon.core.types import StarKind
@@ -18,9 +17,7 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
     match t:
         case Top():
             return True  # wf_no_refinement
-        case BaseType(name):
-            return ctx.get_type_constructor(name) is not None
-        case RefinedType(name, BaseType(_) as ty, refinement):
+        case RefinedType(name, TypeConstructor(_, _) as ty, refinement):
             inferred_type = typecheck_liquid(ctx.with_var(name, ty), refinement)
             return inferred_type == t_bool
         case TypeVar(tvname):
@@ -38,10 +35,13 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
         case TypePolymorphism(name, kind, body):
             return k == StarKind() and wellformed(ctx.with_typevar(name, kind), body)
         case TypeConstructor(name, args):
-            cargs = ctx.get_type_constructor(name)
-            if not cargs or len(cargs) != len(args):
-                return False
-            return all(wf_inner(ctx, t) for t in args)
+            if not args:
+                return ctx.get_type_constructor(name) is not None
+            else:
+                cargs = ctx.get_type_constructor(name)
+                if not cargs or len(cargs) != len(args):
+                    return False
+                return all(wf_inner(ctx, t) for t in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
             return wf_inner(ctx, ity) and typecheck_liquid(ctx.with_var(name, ity), refinement) == t_bool
         case _:
