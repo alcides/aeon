@@ -92,13 +92,14 @@ def handle_error(err: AeonError):
 def main() -> None:
     args = parse_arguments()
 
-    #TODO ver onde adicionar isto
-    if hasattr(args, 'language_server_mode'):
-        start_language_server_mode(args.tcp)
-        sys.exit(0)
-
     logger = setup_logger()
-    export_log(args.log, args.logfile, args.filename)
+    logfile_name = None
+    if hasattr(args, 'filename'):
+        logfile_name = args.filename
+    elif hasattr(args, 'language_server_mode'):
+        logfile_name = "lsp"
+    export_log(args.log, args.logfile, logfile_name)
+
     if args.debug:
         logger.add(sys.stderr)
     if args.timings:
