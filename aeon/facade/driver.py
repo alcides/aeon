@@ -1,8 +1,8 @@
-from abc import ABC
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Iterable
 
+from aeon.sugar.lifting import lift
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.utils.time_utils import RecordTime
 from aeon.backend.evaluator import EvaluationContext
@@ -25,18 +25,12 @@ from aeon.sugar.program import Program, STerm
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-from aeon.elaboration import UnificationException, elaborate
+from aeon.elaboration import elaborate
 from aeon.utils.ctx_helpers import build_context
-from aeon.typechecking import check_type_errors
+from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 
-
-class AeonError(ABC):
-    pass
-
-
-class CompilerFeedback(ABC):
-    def handle_error(self, e: AeonError): ...
+from aeon.facade.api import AeonError
 
 
 def read_file(filename: str) -> str:
@@ -53,9 +47,8 @@ class AeonConfig:
 
 
 class AeonDriver:
-    def __init__(self, cfg: AeonConfig, feedback: CompilerFeedback):
+    def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
-        self.feedback = feedback
 
     def parse_core(self, filename: str):
         # TODO: deprecate core parsing
@@ -78,7 +71,10 @@ class AeonDriver:
             prog = bind_program(prog, [])
 
         with RecordTime("Desugar"):
-            desugared: DesugaredProgram = desugar(prog, is_main_hole=not self.cfg.no_main)
+            try:
+                desugared: DesugaredProgram = desugar(prog, is_main_hole=not self.cfg.no_main)
+            except AeonError as e:
+                return [e]
 
         with RecordTime("Bind"):
             ctx, progt = bind(desugared.elabcontext, desugared.program)
@@ -88,8 +84,8 @@ class AeonDriver:
         try:
             with RecordTime("Elaboration"):
                 sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
-        except UnificationException as e:
-            return [e]  # TODO
+        except AeonError as e:
+            return [e]  # TODO: Support multiple errors
 
         with RecordTime("Core generation"):
             typing_ctx = lower_to_core_context(desugared.elabcontext)
@@ -114,7 +110,7 @@ class AeonDriver:
         self.evaluation_ctx = evaluation_ctx
         return []
 
-    def run(self):
+    def run(self) -> None:
         with RecordTime("Evaluation"):
             eval(self.core, self.evaluation_ctx)
 
@@ -131,7 +127,7 @@ class AeonDriver:
             )
             return bool(self.incomplete_functions)
 
-    def synth(self):
+    def synth(self) -> STerm:
         with RecordTime("Synthesis"):
             synthesizer = GESynthesizer()
             mapping: dict[Name, Term] = synthesize_holes(
@@ -150,3 +146,5 @@ class AeonDriver:
                 core_ast_anf = substitution(core_ast_anf, v, k)
 
             self.cfg.synthesis_ui.display_results(core_ast_anf, mapping)
+
+            return lift(core_ast_anf)

@@ -5,10 +5,13 @@ from dataclasses import dataclass
 from aeon.core.types import Kind
 from aeon.core.types import t_string
 from aeon.core.types import Type
+from aeon.utils.location import Location
 from aeon.utils.name import Name
 
 
 class Term:
+    loc: Location
+
     def __hash__(self) -> int:
         return str(self).__hash__()
 

@@ -7,6 +7,7 @@ from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteral
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.utils.location import Location
 from aeon.utils.name import fresh_counter, Name
 
 
@@ -39,7 +40,7 @@ class StarKind(Kind):
 
 
 class Type(ABC):
-    pass
+    loc: Location
 
 
 @dataclass

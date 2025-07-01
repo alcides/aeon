@@ -25,7 +25,7 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine@https://github.com/alcides/GeneticEngine/archive/4410ec1b345b81d314b99b4ee68ee0a5c0346732.zip',
+    'geneticengine@https://github.com/alcides/GeneticEngine/archive/fc542ca3c0eeec58de15f7439c87d2aed6002634.zip',
     'multiprocess',
     'numpy',
     'pathos',
@@ -58,8 +58,19 @@ build-backend = 'setuptools.build_meta'
 requires = ['setuptools >= 67.6.0']
 
 [tool.setuptools]
-py-modules = ["aeon"]
+# Package a folder (aeon/) and its subpackages instead of a single
+# file aeon.py as the module
+
+# py-modules = ["aeon"]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+# Include any package whose name starts with aeon
+include = ["aeon*"]
+
+[tool.setuptools.package-data]
+# Include .lark files found in subdirectories
+aeon = ["**/*.lark"]
 
 [tool.docformatter]
 syntax = 'google'

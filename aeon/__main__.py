@@ -4,13 +4,13 @@ import os
 import sys
 import argparse
 
+from aeon.facade.api import AeonError
+from aeon.facade.driver import AeonConfig, AeonDriver
+from aeon.logger.logger import export_log
+from aeon.logger.logger import setup_logger
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
-
-from aeon.facade import AeonConfig, AeonDriver, AeonError, CompilerFeedback
-from aeon.logger.logger import export_log
-from aeon.logger.logger import setup_logger
 
 sys.setrecursionlimit(10000)
 
@@ -61,9 +61,12 @@ def select_synthesis_ui() -> SynthesisUI:
         return TerminalUI()
 
 
-class CLIFeedback(CompilerFeedback):
-    def handle_error(self, e: AeonError):
-        print(e)
+def handle_error(err: AeonError):
+    # TODO: handle each error with proper printing
+    match err:
+        case _:
+            print(f">>> Error at {err.position()}:")
+            print(err)
 
 
 def main() -> None:
@@ -79,19 +82,20 @@ def main() -> None:
     cfg = AeonConfig(
         synthesis_ui=select_synthesis_ui(), synthesis_budget=args.budget, timings=args.timings, no_main=args.no_main
     )
-    feedback = CLIFeedback()
-    driver = AeonDriver(cfg, feedback)
+    driver = AeonDriver(cfg)
 
     if args.core:
         errors = driver.parse_core(args.filename)
     else:
         errors = driver.parse(args.filename)
-    if errors:
-        for e in errors:
-            feedback.handle_error(e)
 
-    if driver.has_synth():
-        driver.synth()
+    if errors:
+        for err in errors:
+            handle_error(err)
+    elif driver.has_synth():
+        term = driver.synth()
+        print("Synthesized:")
+        print(term)
     else:
         driver.run()
 

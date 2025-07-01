@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from aeon.utils.location import Location
 from aeon.utils.name import Name
 
 
 class LiquidTerm(ABC):
-    pass
+    loc: Location
 
 
 def ensure_liqterm(a: LiquidTerm | Name) -> LiquidTerm:

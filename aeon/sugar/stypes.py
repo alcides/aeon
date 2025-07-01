@@ -7,6 +7,7 @@ from aeon.core.types import Kind
 from typing import TYPE_CHECKING
 
 
+from aeon.utils.location import Location
 from aeon.utils.name import Name
 
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 class SType(ABC):
     "Surface-level Type Representation"
 
-    pass
+    loc: Location
 
 
 @dataclass(unsafe_hash=True)
