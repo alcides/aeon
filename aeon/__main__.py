@@ -1,45 +1,46 @@
 from __future__ import annotations
 
+import argparse
 import os
 import sys
-import argparse
+from argparse import ArgumentParser
 
 from aeon.facade.api import AeonError
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
+from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
-from lsp.server import start_language_server_mode
 
 sys.setrecursionlimit(10000)
 
 
 def parse_arguments():
+    parser = argparse.ArgumentParser()
+
     if "-lsp" in sys.argv or "--language-server-mode" in sys.argv:
-        lsp_parser = argparse.ArgumentParser()
-        lsp_parser.add_argument(
+        parser.add_argument(
             "-lsp",
             "--language-server-mode",
             action="store_true",
-            help="Run language server mode (disables other options)",
+            help="run language server mode",
         )
-        lsp_parser.add_argument(
+        parser.add_argument(
             "--tcp",
             help="listen on tcp port or hostname:port on IPv4.",
             type=str,
         )
-        return lsp_parser.parse_args()
 
-    parser = argparse.ArgumentParser()
+    else:
+        parser.add_argument("filename", help="name of the aeon files to be synthesized")
 
-    parser.add_argument("filename",help="name of the aeon files to be synthesized")
-    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
+    _parse_common_arguments(parser)
+    return parser.parse_args()
 
-    parser = argparse.ArgumentParser()
 
-    parser.add_argument("filename", help="name of the aeon files to be synthesized")
+def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
     parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
@@ -48,7 +49,7 @@ def parse_arguments():
         nargs="+",
         default="",
         help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
-                \nERROR \nCRITICAL\n TIME""",
+                        \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
         "-f",
@@ -71,8 +72,6 @@ def parse_arguments():
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
-
-    return parser.parse_args()
 
 
 def select_synthesis_ui() -> SynthesisUI:
