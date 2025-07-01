@@ -178,7 +178,7 @@ def handle_imports(
     type_decls: list[TypeDecl],
 ) -> tuple[list[Definition], list[TypeDecl]]:
     for imp in imports[::-1]:
-        import_p = handle_import(imp.path)
+        import_p = handle_import(imp)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
         type_decls_recursive: list[TypeDecl] = []
@@ -288,9 +288,10 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             assert False, f"{d} is not a definition"
 
 
-def handle_import(path: str) -> Program:
+def handle_import(imp: ImportAe) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
+    path = imp.path
     possible_containers = (
         [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
     )
@@ -300,4 +301,4 @@ def handle_import(path: str) -> Program:
             contents = open(file).read()
             parse = mk_parser("program")
             return parse(contents)
-    raise ImportError(path=path, possible_containers=possible_containers)
+    raise ImportError(importel=imp, possible_containers=possible_containers)

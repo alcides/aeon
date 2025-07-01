@@ -7,7 +7,7 @@ from aeon.facade.api import (
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
-    UnificationUnknownType,
+    UnificationUnknownTypeError,
 )
 from aeon.sugar.program import (
     SAbstraction,
@@ -234,7 +234,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SVar(name):
             match ctx.type_of(name):
                 case None:
-                    raise UnificationUnknownType(t)
+                    raise UnificationUnknownTypeError(t)
                 case ty:
                     return (t, ty)
         case SHole(_):
@@ -290,7 +290,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:
-            raise UnificationUnknownType(t)
+            raise UnificationUnknownTypeError(t)
 
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:

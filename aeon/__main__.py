@@ -77,9 +77,11 @@ def select_synthesis_ui() -> SynthesisUI:
 
 
 def handle_error(err: AeonError):
+    # TODO: handle each error with proper printing
     match err:
         case _:
-            print(f"Got error {err}")
+            print(f">>> Error at {err.position()}:")
+            print(err)
 
 
 def main() -> None:
@@ -101,10 +103,10 @@ def main() -> None:
     else:
         errors = driver.parse(args.filename)
 
-    for err in errors:
-        handle_error(err)
-
-    if driver.has_synth():
+    if errors:
+        for err in errors:
+            handle_error(err)
+    elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
         print(term)
