@@ -1,0 +1,3 @@
+#import "3";
+
+def a : Int = "hello";

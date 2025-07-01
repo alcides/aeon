@@ -7,6 +7,7 @@ from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteral
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import fresh_counter, Name
 
 
@@ -39,12 +40,13 @@ class StarKind(Kind):
 
 
 class Type(ABC):
-    pass
+    loc: Location
 
 
 @dataclass
 class TypeVar(Type):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
         if self.name.name in ["Int", "Bool"]:
@@ -79,6 +81,7 @@ class AbstractionType(Type):
     var_name: Name
     var_type: Type
     type: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"({self.var_name}:{self.var_type}) -> {self.type}"
@@ -100,6 +103,7 @@ class RefinedType(Type):
     name: Name
     type: TypeConstructor | TypeVar | TypeConstructor
     refinement: LiquidTerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"{{ {self.name}:{self.type} | {self.refinement} }}"
@@ -121,6 +125,7 @@ class TypePolymorphism(Type):
     name: Name  # alpha
     kind: Kind
     body: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"forall {self.name}:{self.kind}, {self.body}"
@@ -133,6 +138,7 @@ class TypePolymorphism(Type):
 class TypeConstructor(Type):
     name: Name
     args: list[Type] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
