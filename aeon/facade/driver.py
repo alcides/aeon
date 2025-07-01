@@ -53,6 +53,7 @@ class AeonDriver:
     def parse_core(self, filename: str):
         # TODO: deprecate core parsing
         aeon_code = read_file(filename)
+
         core_typing_vars: dict[Name, Any] = reduce(
             lambda acc, el: acc | {el[0]: type_to_core(el[1], available_vars=[e for e in acc.items()])},
             typing_vars.items(),
@@ -63,8 +64,9 @@ class AeonDriver:
         self.core_ast = parse_term(aeon_code)
         self.metadata: Metadata = {}
 
-    def parse(self, filename: str) -> Iterable[Any]:  # TODO Type
-        aeon_code = read_file(filename)
+    def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[Any]:  # TODO Type
+        if aeon_code is None:
+            aeon_code = read_file(filename)
 
         with RecordTime("ParseSugar"):
             prog: Program = parse_main_program(aeon_code, filename=filename)
