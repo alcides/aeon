@@ -15,84 +15,86 @@ from lsprotocol.types import (
 )
 from pygls.server import LanguageServer
 
-from . import buildout, diagnostic
-
-server = LanguageServer("aeon.lsp.server", "0.1.0")
-DEBOUNCE_DELAY = 0.3
+from ..facade.driver import AeonDriver
 
 
-def start_language_server_mode(tcp_server):
-    if not tcp_server:
-        server.start_io()
+class AeonLanguageServer:
+    def __init__(self, aeon_driver: AeonDriver):
+        self.server = LanguageServer("aeon.lsp.server", "0.1.0")
+        self.aeon_driver = aeon_driver
+        self.debounce_delay = 0.3
+        self._setup_handlers()
 
-    host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
+    def start(self, tcp_server):
+        if not tcp_server:
+            self.server.start_io()
 
-    print(f"Listening on {host}:{port}")
-    server.start_tcp(host, int(port))
+        host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
 
+        print(f"Listening on {host}:{port}")
+        self.server.start_tcp(host, int(port))
 
-async def parseAndSendDiagnostics(
-    ls: LanguageServer,
-    uri: str,
-) -> None:
-    await asyncio.sleep(DEBOUNCE_DELAY)
-    diagnostics = []
-    async for diag in diagnostic.getDiagnostics(ls, uri):
-        diagnostics.append(diag)
-    ls.publish_diagnostics(uri, diagnostics)
+    async def parseAndSendDiagnostics(self, uri) -> None:
+        from . import diagnostic
 
+        await asyncio.sleep(self.debounce_delay)
+        diagnostics = []
+        async for diag in diagnostic.getDiagnostics(self.server, uri):
+            diagnostics.append(diag)
+        self.server.publish_diagnostics(uri, diagnostics)
 
-@server.feature(TEXT_DOCUMENT_DID_OPEN)
-async def did_open(
-    ls: LanguageServer,
-    params: DidOpenTextDocumentParams,
-) -> None:
-    await parseAndSendDiagnostics(ls, params.text_document.uri)
+    def _setup_handlers(self):
+        @self.server.feature(TEXT_DOCUMENT_DID_OPEN)
+        async def did_open(
+            ls: LanguageServer,
+            params: DidOpenTextDocumentParams,
+        ) -> None:
+            await self.parseAndSendDiagnostics(ls, params.text_document.uri)
 
+        @self.server.feature(TEXT_DOCUMENT_DID_CHANGE)
+        async def did_change(
+            ls: LanguageServer,
+            params: DidChangeTextDocumentParams,
+        ) -> None:
+            from . import buildout
 
-@server.feature(TEXT_DOCUMENT_DID_CHANGE)
-async def did_change(
-    ls: LanguageServer,
-    params: DidChangeTextDocumentParams,
-) -> None:
-    buildout.clearCache(params.text_document.uri)
-    await parseAndSendDiagnostics(ls, params.text_document.uri)
+            buildout.clearCache(params.text_document.uri)
+            await self.parseAndSendDiagnostics(ls, params.text_document.uri)
 
+        @self.server.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
+        async def did_change_watched_file(
+            _: LanguageServer,
+            params: DidChangeWatchedFilesParams,
+        ) -> None:
+            from . import buildout
+            for change in params.changes:
+                buildout.clearCache(change.uri)
 
-@server.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
-async def did_change_watched_file(
-    _: LanguageServer,
-    params: DidChangeWatchedFilesParams,
-) -> None:
-    for change in params.changes:
-        buildout.clearCache(change.uri)
-
-
-@server.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
-async def lsp_completion(
-    ls: LanguageServer,
-    params: CompletionParams,
-) -> Optional[List[CompletionItem]]:
-    await asyncio.sleep(DEBOUNCE_DELAY)
-    return []  # TODO
-    # items: List[CompletionItem] = []
-    #
-    # ast = await buildout.parse(ls, params.text_document.uri, True)
-    # for line in ast.lines:
-    #   pos = params.position
-    #   (var_name, var_type, value) = line
-    #   ci = CompletionItem(
-    #       label=var_name,
-    #       text_edit=TextEdit(
-    #           range=Range(start=Position(line=pos.line, character=pos.character),
-    #                       end=Position(line=pos.line,
-    #                                    character=pos.character + len(var_name))),
-    #           new_text=var_name,
-    #       ),
-    #       kind=CompletionItemKind.Variable,
-    #       documentation=MarkupContent(
-    #           kind=MarkupKind.Markdown,
-    #           value=f"{var_name} : {var_type} = {value}",
-    #       ))
-    #   items.append(ci)
-    # return items
+        @self.server.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
+        async def lsp_completion(
+            ls: LanguageServer,
+            params: CompletionParams,
+        ) -> Optional[List[CompletionItem]]:
+            await asyncio.sleep(self.debounce_delay)
+            return []  # TODO
+            # items: List[CompletionItem] = []
+            #
+            # ast = await buildout.parse(ls, params.text_document.uri, True)
+            # for line in ast.lines:
+            #   pos = params.position
+            #   (var_name, var_type, value) = line
+            #   ci = CompletionItem(
+            #       label=var_name,
+            #       text_edit=TextEdit(
+            #           range=Range(start=Position(line=pos.line, character=pos.character),
+            #                       end=Position(line=pos.line,
+            #                                    character=pos.character + len(var_name))),
+            #           new_text=var_name,
+            #       ),
+            #       kind=CompletionItemKind.Variable,
+            #       documentation=MarkupContent(
+            #           kind=MarkupKind.Markdown,
+            #           value=f"{var_name} : {var_type} = {value}",
+            #       ))
+            #   items.append(ci)
+            # return items

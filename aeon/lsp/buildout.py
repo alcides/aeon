@@ -27,14 +27,8 @@ from lsprotocol.types import Diagnostic, DiagnosticSeverity
 from lsprotocol.types import Position, Range
 from pygls.server import LanguageServer
 
-from aeon.core.types import top
-from aeon.elaboration import elaborate
-from aeon.frontend.anf_converter import ensure_anf
-from aeon.sugar.desugar import desugar
-from aeon.sugar.lowering import lower_to_core, lower_to_core_context
-from aeon.sugar.parser import parse_program
-from aeon.sugar.stypes import SBaseType
-from aeon.typechecking import check_type_errors
+from aeon.facade.driver import AeonDriver
+from aeon.lsp.server import AeonLanguageServer
 
 logger = logging.getLogger(__name__)
 requests_session = requests.Session()
@@ -74,7 +68,7 @@ _isurl = re.compile("([a-zA-Z0-9+.-]+)://").match
 
 
 async def parse(
-    ls: LanguageServer,
+    aeon_lsp: AeonLanguageServer,
     uri: URI,
     allow_errors: bool = True,
 ) -> AST:
@@ -90,15 +84,15 @@ async def parse(
 
     parsed_uri = urllib.parse.urlparse(uri)
     if parsed_uri.scheme in (
-        "http",
-        "https",
+            "http",
+            "https",
     ):
         try:
             fp = io.StringIO(requests_session.get(uri).text)
         except requests.exceptions.ConnectionError:
             fp = io.StringIO("")
     else:
-        document = ls.workspace.get_text_document(uri)
+        document = aeon_lsp.server.workspace.get_text_document(uri)
         try:
             fp = io.StringIO(document.source)
         except IOError:
@@ -107,8 +101,7 @@ async def parse(
             fp = io.StringIO("")
     parsed = await _parse(
         fp,
-        uri,
-        allow_errors,
+        aeon_lsp.aeon_driver
     )
     _parse_cache[uri] = copy.deepcopy(parsed)
     return parsed
@@ -116,12 +109,10 @@ async def parse(
 
 async def _parse(
     fp: TextIO,
-    uri: URI,
-    allow_errors: bool,
+    driver: AeonDriver,
 ) -> AST:
     """
     Parse the code
-
     """
     diagnostics = []
     core_ast_anf = None
@@ -129,20 +120,7 @@ async def _parse(
 
     try:
         content = fp.read()
-        fp.seek(0)
-        program = parse_program(content)
-
-        desugared = desugar(program)
-        _ = desugared.metadata
-
-        sterm = elaborate(desugared.elabcontext, desugared.program, SBaseType("Top"))
-
-        core_ast = lower_to_core(sterm)
-        typing_ctx = lower_to_core_context(desugared.elabcontext)
-
-        core_ast_anf = ensure_anf(core_ast)
-
-        errors = check_type_errors(typing_ctx, core_ast_anf, top)
+        errors = driver.parse(aeon_code=content)
         for error in errors:
             error_message = str(error)
 
@@ -161,7 +139,7 @@ async def _parse(
     except UnexpectedToken as e:
         try:
             token_length = len(str(e.token.value))
-        except _:
+        except Exception:
             token_length = 1
 
         token_type = e.token.type if e.token.type else "unknown"

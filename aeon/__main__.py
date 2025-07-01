@@ -110,6 +110,11 @@ def main() -> None:
     )
     driver = AeonDriver(cfg)
 
+    if hasattr(args, 'language_server_mode'):
+        aeon_lsp = AeonLanguageServer(driver)
+        aeon_lsp.start(args.tcp)
+        sys.exit(0)
+
     if args.core:
         errors = driver.parse_core(args.filename)
     else:
