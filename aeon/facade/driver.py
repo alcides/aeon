@@ -143,7 +143,8 @@ class AeonDriver:
 
             core_ast_anf: Term = self.core
             for k, v in mapping.items():
-                core_ast_anf = substitution(core_ast_anf, v, k)
+                if v is not None:
+                    core_ast_anf = substitution(core_ast_anf, v, k)
 
             self.cfg.synthesis_ui.display_results(core_ast_anf, mapping)
 
