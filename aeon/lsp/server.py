@@ -49,7 +49,7 @@ class AeonLanguageServer:
             ls: LanguageServer,
             params: DidOpenTextDocumentParams,
         ) -> None:
-            await self.parseAndSendDiagnostics(ls, params.text_document.uri)
+            await self.parseAndSendDiagnostics(params.text_document.uri)
 
         @self.server.feature(TEXT_DOCUMENT_DID_CHANGE)
         async def did_change(
@@ -59,7 +59,7 @@ class AeonLanguageServer:
             from . import buildout
 
             buildout.clearCache(params.text_document.uri)
-            await self.parseAndSendDiagnostics(ls, params.text_document.uri)
+            await self.parseAndSendDiagnostics(params.text_document.uri)
 
         @self.server.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
         async def did_change_watched_file(
@@ -67,6 +67,7 @@ class AeonLanguageServer:
             params: DidChangeWatchedFilesParams,
         ) -> None:
             from . import buildout
+
             for change in params.changes:
                 buildout.clearCache(change.uri)
 
