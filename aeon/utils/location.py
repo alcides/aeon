@@ -6,13 +6,13 @@ class Location(ABC):
     pass
 
 
-@dataclass
+@dataclass(unsafe_hash=True, frozen=True)
 class FileLocation(Location):
     file: str
     start: tuple[int, int]
     end: tuple[int, int]
 
 
-@dataclass
+@dataclass(unsafe_hash=True, frozen=True)
 class SynthesizedLocation(Location):
     reason: str

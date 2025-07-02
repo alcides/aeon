@@ -11,6 +11,8 @@ from aeon.utils.location import Location, SynthesizedLocation
 
 
 class STerm:
+    loc: Location
+
     def __hash__(self) -> int:
         return str(self).__hash__()
 

@@ -3,6 +3,12 @@ from itertools import combinations
 from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
+from aeon.facade.api import (
+    UnificationFailedError,
+    UnificationKindError,
+    UnificationSubtypingError,
+    UnificationUnknownTypeError,
+)
 from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
@@ -29,10 +35,6 @@ from aeon.sugar.stypes import (
 from aeon.sugar.substitutions import substitution_sterm_in_stype
 from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
-
-
-class UnificationException(Exception):
-    pass
 
 
 def base(ty: SType) -> SType:
@@ -107,9 +109,9 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             return []
         case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
             if subn != supn:
-                raise UnificationException(f"Found {sub}, but expected {sup}")
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
             elif len(subargs) != len(supargs):
-                raise UnificationException(f"Found {sub}, but expected {sup}")
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
             else:
                 rt = []
                 for subarg, suparg in zip(subargs, supargs):
@@ -149,18 +151,14 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             if subn == supn:
                 return []
             else:
-                raise UnificationException(
-                    f"Failed to unify {sub} with {sup} ({type(sup)})",
-                )
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
 
         case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
             if name1 != name2:
-                raise UnificationException(
-                    f"Failed to unify {name1} with {name2}",
-                )
+                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
             elif len(args) != len(args2):
-                raise UnificationException(
-                    f"Failed to unify {sub} with {sup} with different number of arguments.",
+                raise UnificationSubtypingError(
+                    SHole(Name("todo")), sub, sup, msg="Type constructor with different number of arguments."
                 )
             else:
                 for a1, a2 in zip(args, args2):
@@ -168,9 +166,7 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
                 return []
 
         case _:
-            raise UnificationException(
-                f"Failed to unify {sub} ({type(sub)}) with {sup} ({type(sup)})",
-            )
+            raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
 
 
 def unify_single(vname: str, xs: list[SType]) -> SType:
@@ -181,7 +177,7 @@ def unify_single(vname: str, xs: list[SType]) -> SType:
             fst = other[0]
             for snd in other[1:]:
                 if snd != fst:
-                    raise UnificationException(f"Type variable {vname} has conflicting meanings: {snd} and {fst}.")
+                    raise UnificationFailedError(vname, fst, snd)
             return fst
 
 
@@ -238,7 +234,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SVar(name):
             match ctx.type_of(name):
                 case None:
-                    raise UnificationException(f"Undefined variable {t}")
+                    raise UnificationUnknownTypeError(t)
                 case ty:
                     return (t, ty)
         case SHole(_):
@@ -294,7 +290,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:
-            raise UnificationException(f"Could not infer the type of {t}.")
+            raise UnificationUnknownTypeError(t)
 
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
@@ -321,7 +317,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             return SIf(ncond, nthen, nelse)
         case (STypeAbstraction(name, kind, body), STypePolymorphism(tname, tkind, tbody)):
             if kind != tkind:
-                assert UnificationException(f"Failed to unify the kind of {t} with kind of type {ty}")
+                assert UnificationKindError(t, ty, kind, tkind)
             nctx = ctx.with_typevar(name, kind)
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
@@ -334,13 +330,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
         case _:
             (c, s) = elaborate_synth(ctx, t)
             (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
-            try:
-                unify(ctx, s, ty)
-            except UnificationException as e:
-                print("DEBUG", t)
-                print(s)
-                print(ty)
-                raise e
+            unify(ctx, s, ty)
             return c
 
 
