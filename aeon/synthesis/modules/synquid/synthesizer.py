@@ -10,19 +10,19 @@ from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
+
 def isBetter(v1, v2):
     if v2[0] < 0:
         return True
-    return all(x < y for x, y in zip(v1,v2))
+    return all(x < y for x, y in zip(v1, v2))
+
 
 def get_elapsed_time(start_time) -> float:
-        """The elapsed time since the start in seconds."""
-        return (monotonic_ns() - start_time) * 0.000000001
+    """The elapsed time since the start in seconds."""
+    return (monotonic_ns() - start_time) * 0.000000001
+
 
 class SynquidSynthesizer(Synthesizer):
-    def __init__(self, max_level: int = 1):
-        self.max_level = max_level
-
     def synthesize(
         self,
         ctx: TypingContext,
@@ -56,12 +56,10 @@ class SynquidSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         done = True
         level = 0
-        best = ([-1], None)
-        while done and level <= self.max_level:
+        best: tuple[list[float], Any] = ([-1], None)
+        while done:
             for result in synthes(ctx, level, type, skip):
-                print(result)
                 if validate(result):
-                    
                     score = evaluate(result)
                     if isBetter(score, best[0]):
                         best = (score, result)
@@ -70,6 +68,3 @@ class SynquidSynthesizer(Synthesizer):
                     break
             level += 1
         return best[1]
-                
-
-

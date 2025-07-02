@@ -25,12 +25,12 @@ from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
+from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.entrypoint import synthesize_holes
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.api import SynthesisError
 from aeon.elaboration import UnificationException, elaborate
 from aeon.utils.ctx_helpers import build_context
@@ -77,6 +77,14 @@ def parse_arguments():
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
+
+    parser.add_argument(
+        "-s",
+        "--synthesizer",
+        type=str,
+        default="GE",
+        help="Select a synthesizer for synthesis(GE for Genetic Engine(Defaut), synquid for Synquid)",
+    )
 
     return parser.parse_args()
 
@@ -182,7 +190,7 @@ def main() -> None:
 
         with RecordTime("Synthesis"):
             try:
-                synthesizer = GESynthesizer()
+                synthesizer = make_synthesizer(args.synthesizer)
                 mapping: dict[Name, Term] = synthesize_holes(
                     typing_ctx,
                     evaluation_ctx,
