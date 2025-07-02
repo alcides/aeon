@@ -58,8 +58,17 @@ def closing(elems: tuple, typ: TypeConstructor):
         return Application(closing(elems[:-1], typ), elems[-1])
 
 
-# @lru_cache
-def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool]):
+def synthes_memory(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
+    if (ctx, level, ret_t) in mem:
+        yield from mem[(ctx, level, ret_t)]
+    else:
+        mem[(ctx, level, ret_t)] = []
+        for item in synthes(ctx, level, ret_t, skip, mem):
+            mem[(ctx, level, ret_t)].append(item)
+            yield item
+
+
+def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
     if level == 0:
         for name, _ in [(n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and t == ret_t]:
             yield Var(name)
@@ -82,7 +91,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 params_t, t = uncurry(candidate)
                 if t != ret_t:
                     continue
-                params = [synthes(ctx, level - 1, i, skip) for i in params_t]
+                params = [synthes_memory(ctx, level - 1, i, skip, mem) for i in params_t]
                 params.insert(0, [Var(name)])
                 for i in itertools.product(*params):
                     a = closing(i, t)

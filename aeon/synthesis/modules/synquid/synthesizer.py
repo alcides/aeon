@@ -5,7 +5,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
-from aeon.synthesis.modules.synquid.build import synthes
+from aeon.synthesis.modules.synquid.build import synthes_memory
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -57,12 +57,16 @@ class SynquidSynthesizer(Synthesizer):
         done = True
         level = 0
         best: tuple[list[float], Any] = ([-1], None)
+        mem: dict = {}
         while done:
-            for result in synthes(ctx, level, type, skip):
+            for result in synthes_memory(ctx, level, type, skip, mem):
                 if validate(result):
                     score = evaluate(result)
                     if isBetter(score, best[0]):
                         best = (score, result)
+                        ui.register(result, score, get_elapsed_time(start_time), True)
+                    else:
+                        ui.register(result, score, get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
                     done = False
                     break
