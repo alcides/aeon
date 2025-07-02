@@ -12,7 +12,7 @@ from aeon.utils.name import Name
 
 
 def is_better(v1, v2):
-    if v2[0] < 0:
+    if not v2:
         return True
     return all(x < y for x, y in zip(v1, v2))
 
@@ -56,7 +56,7 @@ class SynquidSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         done = True
         level = 0
-        best: tuple[list[float], Any] = ([-1], None)
+        best: tuple[list[float], Any] = ([], None)
         mem: dict = {}
         while done:
             for result in synthes_memory(ctx, level, type, skip, mem):
