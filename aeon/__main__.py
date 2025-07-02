@@ -88,7 +88,11 @@ def main() -> None:
         logger.add(sys.stderr, level="TIME")
 
     cfg = AeonConfig(
-        synthesis_ui=select_synthesis_ui(), synthesis_budget=args.budget, timings=args.timings, no_main=args.no_main
+        synthesizer=args.synthesizer,
+        synthesis_ui=select_synthesis_ui(),
+        synthesis_budget=args.budget,
+        timings=args.timings,
+        no_main=args.no_main,
     )
     driver = AeonDriver(cfg)
 

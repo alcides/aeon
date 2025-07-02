@@ -3,6 +3,7 @@ from functools import reduce
 from typing import Any, Iterable
 
 from aeon.sugar.lifting import lift
+from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.utils.time_utils import RecordTime
 from aeon.backend.evaluator import EvaluationContext
@@ -24,7 +25,6 @@ from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.entrypoint import synthesize_holes
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.elaboration import elaborate
 from aeon.utils.ctx_helpers import build_context
 from aeon.typechecking.typeinfer import check_type_errors
@@ -40,6 +40,7 @@ def read_file(filename: str) -> str:
 
 @dataclass
 class AeonConfig:
+    synthesizer: str
     synthesis_ui: SynthesisUI
     synthesis_budget: int
     timings: bool = False
@@ -129,7 +130,7 @@ class AeonDriver:
 
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
-            synthesizer = GESynthesizer()
+            synthesizer = make_synthesizer(self.cfg.synthesizer)
             mapping: dict[Name, Term] = synthesize_holes(
                 self.typing_ctx,
                 self.evaluation_ctx,
