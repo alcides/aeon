@@ -11,7 +11,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
-def isBetter(v1, v2):
+def is_better(v1, v2):
     if v2[0] < 0:
         return True
     return all(x < y for x, y in zip(v1, v2))
@@ -62,7 +62,7 @@ class SynquidSynthesizer(Synthesizer):
             for result in synthes_memory(ctx, level, type, skip, mem):
                 if validate(result):
                     score = evaluate(result)
-                    if isBetter(score, best[0]):
+                    if is_better(score, best[0]):
                         best = (score, result)
                         ui.register(result, score, get_elapsed_time(start_time), True)
                     else:
