@@ -24,7 +24,7 @@ class TypingContextEntry(ABC):
     pass
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class VariableBinder(TypingContextEntry):
     name: Name
     type: Type
@@ -54,7 +54,7 @@ class TypeBinder(TypingContextEntry):
 @dataclass
 class TypeConstructorBinder(TypingContextEntry):
     name: Name
-    args: list[Name]
+    args: list[Name]  # cant hash
 
     def __repr__(self):
         if self.args:
@@ -62,6 +62,9 @@ class TypeConstructorBinder(TypingContextEntry):
         else:
             argsf = ""
         return f"type {self.name}{argsf}"
+
+    def __hash__(self):
+        return hash(self.name) + hash(tuple(self.args))
 
 
 @dataclass
