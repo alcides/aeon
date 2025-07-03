@@ -157,6 +157,6 @@ def synthesize_holes(
             budget=budget,
             ui=ui,
         )
-
+        ui.end(t, None)
         mapping[hole_name] = t
     return mapping
