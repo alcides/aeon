@@ -16,7 +16,7 @@ from aeon.synthesis.grammar.grammar_generation import create_grammar
 
 from geneticengine.evaluation.budget import TimeBudget
 from geneticengine.problems import InvalidFitnessException
-from geneticengine.problems import MultiObjectiveProblem, Problem
+from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.random.sources import NativeRandomSource
 from geneticengine.representations.tree.initializations import MaxDepthDecider
@@ -41,16 +41,19 @@ def create_problem(
     used_decorators = [
         decorator for decorator in fitness_decorators if fun_name in metadata and decorator in metadata[fun_name].keys()
     ]
-    minimize_list = [True for _ in used_decorators]
+    if used_decorators:
+        minimize_list = [True for _ in used_decorators]
 
-    def fitness_fun(phenotype: Any) -> list[float]:
-        p = phenotype.get_core()
-        assert isinstance(p, Term)
-        if not validate(p):
-            raise InvalidFitnessException()
-        return evaluate(p)
+        def fitness_fun(phenotype: Any) -> list[float]:
+            p = phenotype.get_core()
+            assert isinstance(p, Term)
+            if not validate(p):
+                raise InvalidFitnessException()
+            return evaluate(p)
 
-    return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
+        return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
+    else:
+        return SingleObjectiveProblem(fitness_function=lambda _: 0.0, minimize=False, target=0.0)
 
 
 class GESynthesizer(Synthesizer):
