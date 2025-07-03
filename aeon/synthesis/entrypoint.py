@@ -147,16 +147,21 @@ def synthesize_holes(
         evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
-        t = synthesizer.synthesize(
-            ctx=tyctx,
-            type=ty,
-            validate=validator,
-            evaluate=evaluator,
-            fun_name=fun_name,
-            metadata=metadata,
-            budget=budget,
-            ui=ui,
-        )
+        try:
+            t = synthesizer.synthesize(
+                ctx=tyctx,
+                type=ty,
+                validate=validator,
+                evaluate=evaluator,
+                fun_name=fun_name,
+                metadata=metadata,
+                budget=budget,
+                ui=ui,
+            )
+        except Exception as e:
+            ui.end(None, None)
+            raise e
+
         ui.end(t, None)
         mapping[hole_name] = t
     return mapping
