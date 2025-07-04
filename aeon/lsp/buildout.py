@@ -171,7 +171,7 @@ async def _parse(
 
 
 async def _open(
-    ls: LanguageServer,
+    aeon_lsp : AeonLanguageServer,
     base: str,
     uri: URI,
     seen: List[str],
@@ -188,5 +188,5 @@ async def _open(
     if not _isurl(uri):
         assert base
         uri = urllib.parse.urljoin(base, uri)
-    result = await parse(ls, uri, allow_errors=allow_errors)
+    result = await parse(aeon_lsp, uri, allow_errors=allow_errors)
     return copy.deepcopy(result)
