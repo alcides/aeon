@@ -40,8 +40,7 @@ def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: List) -> List ) 
             load_dataset,
             train,
             calculate_cut_vector_errors)
-@multi_minimize_float(calculate_cut_vector_errors train cut_vector)
-@objective_number(2)
+@multi_minimize_float(calculate_cut_vector_errors train cut_vector, 2)
 def cut_vector ( ls : List ) : List {
     (?hole:List)
 }

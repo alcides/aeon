@@ -30,6 +30,8 @@ from geneticengine.algorithms.hill_climbing import HC
 from geneticengine.solutions import Individual
 from geneticengine.evaluation.recorder import SearchRecorder
 
+from aeon.synthesis.decorators import Goal
+
 
 def create_problem(
     validate: Callable[[Term], bool],
@@ -37,12 +39,9 @@ def create_problem(
     fun_name: Name,
     metadata: Metadata,
 ) -> Problem:
-    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-    used_decorators = [
-        decorator for decorator in fitness_decorators if fun_name in metadata and decorator in metadata[fun_name].keys()
-    ]
-    if used_decorators:
-        minimize_list = [True for _ in used_decorators]
+    goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
+    minimize_list = [goal.minimize for goal in goals for _ in range(goal.length)]
+    if minimize_list:
 
         def fitness_fun(phenotype: Any) -> list[float]:
             p = phenotype.get_core()

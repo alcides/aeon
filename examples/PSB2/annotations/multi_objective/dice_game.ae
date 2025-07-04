@@ -17,8 +17,7 @@ def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -
             load_dataset,
             train,
             calculate_dice_game_errors)
-@multi_minimize_float(calculate_dice_game_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_dice_game_errors train synth, 1)
 def synth (n:Int) (m: Int) : Float {
     (?hole: Float)
 }

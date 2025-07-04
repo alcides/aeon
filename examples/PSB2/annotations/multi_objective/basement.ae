@@ -19,8 +19,7 @@ def train: TrainData = extract_train_data (load_dataset "basement" 200 200);
             train,
             calculate_basement_errors)
 @allow_recursion
-@objective_number(1)
-@multi_minimize_float(calculate_basement_errors train synth)
+@multi_minimize_float(calculate_basement_errors train synth, 1)
 def synth (nums: List) : Int {
     (?hole : Int)
  }

@@ -25,8 +25,7 @@ def calculate_leaders_errors : (train : TrainData) -> (f:(a: List) -> List ) -> 
             load_dataset,
             calculate_leaders_errors,
             train )
-@multi_minimize_float(calculate_leaders_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_leaders_errors train synth, 1)
 def synth ( vector : List ) : List {
     (?hole:List)
 
