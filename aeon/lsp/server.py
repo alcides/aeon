@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, AsyncIterable
 
 from lsprotocol.types import (
     TEXT_DOCUMENT_COMPLETION,
@@ -11,7 +11,7 @@ from lsprotocol.types import (
     CompletionParams,
     DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams,
-    DidOpenTextDocumentParams,
+    DidOpenTextDocumentParams, Diagnostic,
 )
 from pygls.server import LanguageServer
 
@@ -34,14 +34,18 @@ class AeonLanguageServer(LanguageServer):
         print(f"Listening on {host}:{port}")
         self.start_tcp(host, int(port))
 
-    async def parseAndSendDiagnostics(self, uri) -> None:
-        from . import diagnostic
-
+    async def _parse_and_send_diagnostics(self, uri) -> None:
         await asyncio.sleep(self.debounce_delay)
         diagnostics = []
-        async for diag in diagnostic.getDiagnostics(self.server, uri):
+        async for diag in self._get_diagnostics(uri):
             diagnostics.append(diag)
-        self.server.publish_diagnostics(uri, diagnostics)
+        self.publish_diagnostics(uri, diagnostics)
+
+    async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
+        from . import buildout
+        ast = await buildout.parse(self, uri)
+        for diag in ast.diagnostics:
+            yield diag
 
     def _setup_handlers(self):
         @self.feature(TEXT_DOCUMENT_DID_OPEN)
@@ -49,7 +53,7 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: DidOpenTextDocumentParams,
         ) -> None:
-            await self.parseAndSendDiagnostics(params.text_document.uri)
+            await ls._parse_and_send_diagnostics(params.text_document.uri)
 
         @self.feature(TEXT_DOCUMENT_DID_CHANGE)
         async def did_change(
@@ -57,9 +61,8 @@ class AeonLanguageServer(LanguageServer):
             params: DidChangeTextDocumentParams,
         ) -> None:
             from . import buildout
-
             buildout.clearCache(params.text_document.uri)
-            await self.parseAndSendDiagnostics(params.text_document.uri)
+            await ls._parse_and_send_diagnostics(params.text_document.uri)
 
         @self.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
         async def did_change_watched_file(
@@ -67,7 +70,6 @@ class AeonLanguageServer(LanguageServer):
             params: DidChangeWatchedFilesParams,
         ) -> None:
             from . import buildout
-
             for change in params.changes:
                 buildout.clearCache(change.uri)
 
@@ -77,7 +79,7 @@ class AeonLanguageServer(LanguageServer):
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
             await asyncio.sleep(self.debounce_delay)
-            return []  # TODO
+            return [] # TODO
             # items: List[CompletionItem] = []
             #
             # ast = await buildout.parse(ls, params.text_document.uri, True)
