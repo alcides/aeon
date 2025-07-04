@@ -55,8 +55,8 @@ def parse_arguments():
         "-s",
         "--synthesizer",
         type=str,
-        default="GE",
-        help="Select a synthesizer for synthesis(GE for Genetic Engine(Defaut), synquid for Synquid)",
+        default="gp",
+        help="Select a synthesizer for synthesis(gp for Genetic programming(Defaut), synquid for Synquid, random_search for Random Search, enumerative for Enumerative Search, hc for Hill Climbing, and 1p1 for One Plus One)",
     )
 
     return parser.parse_args()
