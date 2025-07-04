@@ -25,7 +25,6 @@ import requests
 from lark.exceptions import UnexpectedToken
 from lsprotocol.types import Diagnostic, DiagnosticSeverity
 from lsprotocol.types import Position, Range
-from pygls.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 from aeon.lsp.server import AeonLanguageServer
@@ -171,7 +170,7 @@ async def _parse(
 
 
 async def _open(
-    aeon_lsp : AeonLanguageServer,
+    aeon_lsp: AeonLanguageServer,
     base: str,
     uri: URI,
     seen: List[str],

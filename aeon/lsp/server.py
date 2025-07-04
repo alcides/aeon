@@ -11,7 +11,8 @@ from lsprotocol.types import (
     CompletionParams,
     DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams,
-    DidOpenTextDocumentParams, Diagnostic,
+    DidOpenTextDocumentParams,
+    Diagnostic,
 )
 from pygls.server import LanguageServer
 
@@ -43,6 +44,7 @@ class AeonLanguageServer(LanguageServer):
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
         from . import buildout
+
         ast = await buildout.parse(self, uri)
         for diag in ast.diagnostics:
             yield diag
@@ -61,6 +63,7 @@ class AeonLanguageServer(LanguageServer):
             params: DidChangeTextDocumentParams,
         ) -> None:
             from . import buildout
+
             buildout.clearCache(params.text_document.uri)
             await ls._parse_and_send_diagnostics(params.text_document.uri)
 
@@ -70,6 +73,7 @@ class AeonLanguageServer(LanguageServer):
             params: DidChangeWatchedFilesParams,
         ) -> None:
             from . import buildout
+
             for change in params.changes:
                 buildout.clearCache(change.uri)
 
@@ -79,7 +83,7 @@ class AeonLanguageServer(LanguageServer):
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
             await asyncio.sleep(self.debounce_delay)
-            return [] # TODO
+            return []  # TODO
             # items: List[CompletionItem] = []
             #
             # ast = await buildout.parse(ls, params.text_document.uri, True)
