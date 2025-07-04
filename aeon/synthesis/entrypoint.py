@@ -17,7 +17,6 @@ from aeon.core.types import top, Type
 from aeon.decorators import Metadata
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.backend.evaluator import eval
-from aeon.sugar.program import Definition
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
 from aeon.typechecking.context import TypingContext
@@ -25,6 +24,8 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 from aeon.synthesis.api import ErrorInSynthesis, Synthesizer, TimeoutInEvaluationException
+
+from aeon.synthesis.decorators import Goal
 
 
 def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]:
@@ -50,21 +51,13 @@ Evaluators: TypeAlias = list[Callable[[Term], float]]
 def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata) -> Evaluators:
     """Returns a list of functions that take the original program and return each fitness value"""
 
-    fitness_decorators = ["minimize_int", "minimize_float", "multi_minimize_float"]
-    used_decorators = [decorator for decorator in fitness_decorators if decorator in metadata.get(fun_name, [])]
-
-    if used_decorators:
-        objectives_list: list[Definition] = [
-            objective for decorator in used_decorators for objective in metadata.get(fun_name, [])[decorator]
-        ]
-    else:
-        objectives_list = []
-
+    goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
     fitnesses: list[Callable[[Term], float]] = []
-    for objective in objectives_list:
+    for goal in goals:
+        assert goal.length == 1, "Currently, we only support 1 fitness value per function"
 
         def fitness(v: Term) -> float:
-            program_for_fitness = substitution(v, Var(objective.name), Name("main", 0))
+            program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
             try:
                 result = eval(program_for_fitness, ectx)
             except Exception:
@@ -72,7 +65,6 @@ def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata)
             return result
 
         fitnesses.append(fitness)
-
     return fitnesses
 
 

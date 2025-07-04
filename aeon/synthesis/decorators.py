@@ -1,14 +1,54 @@
 """Meta-programming code for optimization-related decorators."""
 
+from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Definition, STerm, SVar
 from aeon.sugar.stypes import STypeConstructor
 from aeon.sugar.ast_helpers import st_int, st_float
 from aeon.utils.name import Name, fresh_counter
 
+from aeon.sugar.program import SLiteral
+
 
 def raise_decorator_error(name: str) -> None:
     raise Exception(f"Exception in decorator named {name}.")
+
+
+class Goal(NamedTuple):
+    minimize: bool
+    length: int
+    function: Name
+
+
+def make_optimizer(
+    args: list[STerm], fun: Definition, metadata: Metadata, typ: STypeConstructor, minimize: bool, length: int = 1
+) -> tuple[Definition, list[Definition], Metadata]:
+    """This decorator expects a single argument (the body of the definition).
+
+    It does not modify the original definition, but appends a new
+    definition to the program. This new definition has the name
+    "_fitness_function", prefixed by the original definition's name
+    """
+    current_goals = metadata.get(fun.name, {}).get("goals", [])
+    minimize_name = "minimize" if minimize else "maximize"
+    function_name = Name(f"__internal__{minimize_name}_{type}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
+    function = Definition(
+        name=function_name,
+        foralls=[],
+        args=[],
+        type=typ,
+        body=args[0],
+    )
+    goal = Goal(minimize, length, function_name)
+
+    metadata = metadata_update(
+        metadata,
+        fun,
+        {
+            "goals": current_goals + [goal],
+        },
+    )
+    return fun, [function], metadata
 
 
 def minimize_int(
@@ -16,33 +56,8 @@ def minimize_int(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects a single argument (the body of the definition).
-
-    It does not modify the original definition, but appends a new
-    definition to the program. This new definition has the name
-    "_fitness_function", prefixed by the original definition's name
-    """
     assert len(args) == 1, "minimize_int decorator expects a single argument"
-
-    n_decorators = len(metadata.get(fun.name, {}).get("minimize_int", []))
-
-    minimize_function_name = Name(f"__internal__minimize_int_{fun.name}_{n_decorators}", fresh_counter.fresh())
-    minimize_function = Definition(
-        name=minimize_function_name,
-        foralls=[],
-        args=[],
-        type=st_int,
-        body=args[0],
-    )
-
-    metadata = metadata_update(
-        metadata,
-        fun,
-        {
-            "minimize_int": metadata.get(fun.name, {}).get("minimize_int", []) + [minimize_function],
-        },
-    )
-    return fun, [minimize_function], metadata
+    return make_optimizer(args, fun, metadata, st_int, minimize=True)
 
 
 def minimize_float(
@@ -50,32 +65,8 @@ def minimize_float(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects a single argument (the body of the definition).
-
-    It does not modify the original definition, but appends a new
-    definition to the program. This new definition has the name
-    "_fitness_function", prefixed by the original definition's name
-    """
     assert len(args) == 1, "minimize_float decorator expects a single argument"
-
-    n_decorators = len(metadata.get(fun.name, {}).get("minimize_float", []))
-    minimize_function_name = Name(f"__internal__minimize_float_{fun.name}_{n_decorators}", fresh_counter.fresh())
-    minimize_function = Definition(
-        name=minimize_function_name,
-        foralls=[],
-        args=[],
-        type=st_float,
-        body=args[0],
-    )
-
-    metadata = metadata_update(
-        metadata,
-        fun,
-        {
-            "minimize_float": metadata.get(fun.name, {}).get("minimize_float", []) + [minimize_function],
-        },
-    )
-    return fun, [minimize_function], metadata
+    return make_optimizer(args, fun, metadata, st_float, minimize=True)
 
 
 def multi_minimize_float(
@@ -83,40 +74,19 @@ def multi_minimize_float(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects a single argument (the body of the definition).
-
-    It does not modify the original definition, but appends a new
-    definition to the program. This new definition has the name
-    "_fitness_function", prefixed by the original definition's name
-    """
+    """This decorator expects a single argument (the body of the definition)."""
     assert (
         len(
             args,
         )
         == 1
     ), "multi_minimize_float decorator expects a single argument"
-
-    n_decorators = len(
-        metadata.get(fun.name, {}).get("multi_minimize_float", []),
+    assert isinstance(args[1], SLiteral)
+    assert isinstance(args[1].value, int), "multi_minimize_float decorator expects an integer argument"
+    number_of_objectives = args[1].value
+    return make_optimizer(
+        args, fun, metadata, STypeConstructor(Name("List", 0)), minimize=True, length=number_of_objectives
     )
-    minimize_function_name = Name(f"__internal__multi_minimize_float_{fun.name}_{n_decorators}", fresh_counter.fresh())
-    minimize_function = Definition(
-        name=minimize_function_name,
-        foralls=[],
-        args=[],
-        type=STypeConstructor(Name("List", -1)),  # Maybe this does work on decorator-time?
-        body=args[0],
-    )
-    # List -1 should be Array 0?
-
-    metadata = metadata_update(
-        metadata,
-        fun,
-        {
-            "multi_minimize_float": metadata.get(fun.name, {}).get("multi_minimize_float", []) + [minimize_function],
-        },
-    )
-    return fun, [minimize_function], metadata
 
 
 def hide(
@@ -182,20 +152,6 @@ def error_fitness(
     assert len(args) == 1
 
     aux_dict = {"error_fitness": args[0]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
-
-
-def objective_number(
-    args: list[STerm], fun: Definition, metadata: Metadata
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects one argument .
-    It does not modify the original definition. It specifies the number of objective for multi objective problems
-    """
-    assert len(args) == 1
-
-    aux_dict = {"objective_number": args[0]}
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata

@@ -36,8 +36,7 @@ def calculate_vector_distance_errors : (train : TrainData) -> (f:(a: List) -> (b
             load_dataset,
             calculate_vector_distance_errors,
             train)
-@multi_minimize_float(calculate_vector_distance_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_vector_distance_errors train synth, 1)
 def synth  (vector1: List) (vector2: List) : Float {
     (?hole:Float)
  }
