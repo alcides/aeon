@@ -18,21 +18,21 @@ from pygls.server import LanguageServer
 from ..facade.driver import AeonDriver
 
 
-class AeonLanguageServer:
+class AeonLanguageServer(LanguageServer):
     def __init__(self, aeon_driver: AeonDriver):
-        self.server = LanguageServer("aeon.lsp.server", "0.1.0")
+        super().__init__("aeon.lsp.server", "0.1.0")
         self.aeon_driver = aeon_driver
         self.debounce_delay = 0.3
         self._setup_handlers()
 
     def start(self, tcp_server):
         if not tcp_server:
-            self.server.start_io()
+            self.start_io()
 
         host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
 
         print(f"Listening on {host}:{port}")
-        self.server.start_tcp(host, int(port))
+        self.start_tcp(host, int(port))
 
     async def parseAndSendDiagnostics(self, uri) -> None:
         from . import diagnostic
@@ -44,16 +44,16 @@ class AeonLanguageServer:
         self.server.publish_diagnostics(uri, diagnostics)
 
     def _setup_handlers(self):
-        @self.server.feature(TEXT_DOCUMENT_DID_OPEN)
+        @self.feature(TEXT_DOCUMENT_DID_OPEN)
         async def did_open(
-            ls: LanguageServer,
+            ls: AeonLanguageServer,
             params: DidOpenTextDocumentParams,
         ) -> None:
             await self.parseAndSendDiagnostics(params.text_document.uri)
 
-        @self.server.feature(TEXT_DOCUMENT_DID_CHANGE)
+        @self.feature(TEXT_DOCUMENT_DID_CHANGE)
         async def did_change(
-            ls: LanguageServer,
+            ls: AeonLanguageServer,
             params: DidChangeTextDocumentParams,
         ) -> None:
             from . import buildout
@@ -61,9 +61,9 @@ class AeonLanguageServer:
             buildout.clearCache(params.text_document.uri)
             await self.parseAndSendDiagnostics(params.text_document.uri)
 
-        @self.server.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
+        @self.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
         async def did_change_watched_file(
-            _: LanguageServer,
+            ls: AeonLanguageServer,
             params: DidChangeWatchedFilesParams,
         ) -> None:
             from . import buildout
@@ -71,9 +71,9 @@ class AeonLanguageServer:
             for change in params.changes:
                 buildout.clearCache(change.uri)
 
-        @self.server.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
+        @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
         async def lsp_completion(
-            ls: LanguageServer,
+            ls: AeonLanguageServer,
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
             await asyncio.sleep(self.debounce_delay)
