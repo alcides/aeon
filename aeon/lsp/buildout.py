@@ -33,8 +33,6 @@ from aeon.lsp.server import AeonLanguageServer
 logger = logging.getLogger(__name__)
 requests_session = requests.Session()
 
-server = LanguageServer(name="aeon.languageserver", version="1.0.0")
-
 # type definitions #
 URI = str  # type alias
 
@@ -47,14 +45,12 @@ class AST:
 
 
 # cache #
-
 # a cache of un-resolved buildouts by uri
 _parse_cache: Dict[URI, AST] = {}
 
 
 def clearCache(uri: URI) -> None:
     """Clear all caches for uri.
-
     This is to be called when the document is modified.
     """
     logger.debug("Clearing cache for %s", uri)
@@ -92,7 +88,7 @@ async def parse(
         except requests.exceptions.ConnectionError:
             fp = io.StringIO("")
     else:
-        document = aeon_lsp.server.workspace.get_text_document(uri)
+        document = aeon_lsp.workspace.get_text_document(uri)
         try:
             fp = io.StringIO(document.source)
         except IOError:
