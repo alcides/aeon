@@ -128,6 +128,8 @@ class GESynthesizer(Synthesizer):
                 return None
             case [ind, *_]:
                 # TODO: handle multiple answers
+                if not ind.get_fitness(problem).valid:
+                    return None
                 return ind.get_phenotype().get_core()
             case _:
                 return None
