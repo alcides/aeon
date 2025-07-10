@@ -64,7 +64,7 @@ class AeonDriver:
         self.core_ast = parse_term(aeon_code)
         self.metadata: Metadata = {}
 
-    def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[Any]:  # TODO Type
+    def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         if aeon_code is None:
             aeon_code = read_file(filename)
 
