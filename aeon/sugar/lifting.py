@@ -1,4 +1,3 @@
-from typing import TypeVar
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -22,7 +21,7 @@ from aeon.core.terms import (
     TypeAbstraction,
     TypeApplication,
 )
-from aeon.core.types import AbstractionType, RefinedType, Top, Type, TypeConstructor, TypePolymorphism
+from aeon.core.types import AbstractionType, RefinedType, Top, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.sugar.program import (
     STerm,
     SLiteral,
