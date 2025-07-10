@@ -118,8 +118,8 @@ async def _parse(
             error_message = str(error)
             error_position = error.position()
 
-            error_start_line, error_start_column = error_position.start()
-            error_end_line, error_end_column = error_position.end()
+            error_start_line, error_start_column = error_position.get_start()
+            error_end_line, error_end_column = error_position.get_end()
 
             error_range = Range(
                 start=Position(line=error_start_line, character=error_start_column),

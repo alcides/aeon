@@ -4,11 +4,11 @@ from dataclasses import dataclass
 
 class Location(ABC):
     @abstractmethod
-    def start(self) -> tuple[int, int]:
+    def get_start(self) -> tuple[int, int]:
         pass
 
     @abstractmethod
-    def end(self) -> tuple[int, int]:
+    def get_end(self) -> tuple[int, int]:
         pass
 
 
@@ -18,10 +18,10 @@ class FileLocation(Location):
     start: tuple[int, int]
     end: tuple[int, int]
 
-    def start(self) -> tuple[int, int]:
+    def get_start(self) -> tuple[int, int]:
         return self.start
 
-    def end(self) -> tuple[int, int]:
+    def get_end(self) -> tuple[int, int]:
         return self.end
 
 
@@ -29,8 +29,8 @@ class FileLocation(Location):
 class SynthesizedLocation(Location):
     reason: str
 
-    def start(self) -> tuple[int, int]:
+    def get_start(self) -> tuple[int, int]:
         return 0, 0
 
-    def end(self) -> tuple[int, int]:
+    def get_end(self) -> tuple[int, int]:
         return 0, 0
