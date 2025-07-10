@@ -73,6 +73,16 @@ def _parse_common_arguments(parser: ArgumentParser):
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
+    parser.add_argument(
+        "-s",
+        "--synthesizer",
+        type=str,
+        default="gp",
+        help="Select a synthesizer for synthesis(gp for Genetic programming(Defaut), synquid for Synquid, random_search for Random Search, enumerative for Enumerative Search, hc for Hill Climbing, and 1p1 for One Plus One)",
+    )
+
+    return parser.parse_args()
+
 
 def select_synthesis_ui() -> SynthesisUI:
     if os.environ.get("TERM", None):
@@ -106,7 +116,11 @@ def main() -> None:
         logger.add(sys.stderr, level="TIME")
 
     cfg = AeonConfig(
-        synthesis_ui=select_synthesis_ui(), synthesis_budget=args.budget, timings=args.timings, no_main=args.no_main
+        synthesizer=args.synthesizer,
+        synthesis_ui=select_synthesis_ui(),
+        synthesis_budget=args.budget,
+        timings=args.timings,
+        no_main=args.no_main,
     )
     driver = AeonDriver(cfg)
 

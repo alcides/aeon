@@ -16,7 +16,7 @@ from aeon.synthesis.grammar.grammar_generation import create_grammar
 
 from geneticengine.evaluation.budget import TimeBudget
 from geneticengine.problems import InvalidFitnessException
-from geneticengine.problems import MultiObjectiveProblem, Problem
+from geneticengine.problems import MultiObjectiveProblem, Problem, SingleObjectiveProblem
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 from geneticengine.random.sources import NativeRandomSource
 from geneticengine.representations.tree.initializations import MaxDepthDecider
@@ -41,16 +41,27 @@ def create_problem(
     used_decorators = [
         decorator for decorator in fitness_decorators if fun_name in metadata and decorator in metadata[fun_name].keys()
     ]
-    minimize_list = [True for _ in used_decorators]
+    if used_decorators:
+        minimize_list = [True for _ in used_decorators]
 
-    def fitness_fun(phenotype: Any) -> list[float]:
-        p = phenotype.get_core()
-        assert isinstance(p, Term)
-        if not validate(p):
-            raise InvalidFitnessException()
-        return evaluate(p)
+        def fitness_fun(phenotype: Any) -> list[float]:
+            p = phenotype.get_core()
+            assert isinstance(p, Term)
+            if not validate(p):
+                raise InvalidFitnessException()
+            return evaluate(p)
 
-    return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
+        return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
+    else:
+
+        def single_fitness_fun(phenotype: Any) -> float:
+            p = phenotype.get_core()
+            assert isinstance(p, Term)
+            if not validate(p):
+                raise InvalidFitnessException()
+            return 0.0
+
+        return SingleObjectiveProblem(fitness_function=single_fitness_fun, minimize=False, target=0.0)
 
 
 class GESynthesizer(Synthesizer):
@@ -90,54 +101,35 @@ class GESynthesizer(Synthesizer):
             grammar, decider=MaxDepthDecider(NativeRandomSource(self.seed), grammar, max_depth=5)
         )
 
+        common_args = {
+            "problem": problem,
+            "budget": TimeBudget(budget),
+            "tracker": tracker,
+        }
+
+        common_random_args = {"representation": representation, "random": NativeRandomSource(self.seed), **common_args}
+
         match self.method:
             case "random_search":
-                alg = RandomSearch(
-                    problem=problem,
-                    budget=TimeBudget(budget),
-                    representation=representation,
-                    random=NativeRandomSource(self.seed),
-                    tracker=tracker,
-                )
+                alg = RandomSearch(**common_random_args)
             case "enumerative":
-                alg = EnumerativeSearch(
-                    problem=problem,
-                    budget=TimeBudget(budget),
-                    grammar=grammar,
-                    tracker=tracker,
-                )
+                alg = EnumerativeSearch(grammar=grammar, **common_args)
             case "genetic_programming":
-                alg = GeneticProgramming(
-                    problem=problem,
-                    budget=TimeBudget(budget),
-                    representation=representation,
-                    random=NativeRandomSource(self.seed),
-                    tracker=tracker,
-                )
+                alg = GeneticProgramming(**common_random_args)
             case "hill_climbing":
-                alg = HC(
-                    problem=problem,
-                    budget=TimeBudget(budget),
-                    representation=representation,
-                    random=NativeRandomSource(self.seed),
-                    tracker=tracker,
-                )
+                alg = HC(**common_random_args)
             case "one_plus_one":
-                alg = OnePlusOne(
-                    problem=problem,
-                    budget=TimeBudget(budget),
-                    representation=representation,
-                    random=NativeRandomSource(self.seed),
-                    tracker=tracker,
-                )
+                alg = OnePlusOne(**common_random_args)
             case _:
                 assert False, f"Method {self.method} not available for synthesis."
         individuals = alg.search()
         match individuals:
-            case None:
+            case None | [None]:
                 return None
             case [ind, *_]:
                 # TODO: handle multiple answers
+                if not ind.get_fitness(problem).valid:
+                    return None
                 return ind.get_phenotype().get_core()
             case _:
                 return None
