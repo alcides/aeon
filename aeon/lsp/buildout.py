@@ -113,16 +113,23 @@ async def _parse(
     try:
         content = fp.read()
         errors = driver.parse(aeon_code=content)
+
         for error in errors:
             error_message = str(error)
+            error_position = error.position()
 
-            # needs to be fixed
-            range = Range(start=Position(line=0, character=0), end=Position(line=0, character=1))
+            error_start_line, error_start_column = error_position.start()
+            error_end_line, error_end_column = error_position.end()
+
+            error_range = Range(
+                start=Position(line=error_start_line, character=error_start_column),
+                end=Position(line=error_end_line, character=error_end_column),
+            )
 
             diagnostics.append(
                 Diagnostic(
                     message=error_message,
-                    range=range,
+                    range=error_range,
                     source="aeon",
                     severity=DiagnosticSeverity.Error,
                 )
@@ -142,7 +149,7 @@ async def _parse(
             f"Expected: {', '.join(e.expected)}"
         )
 
-        range = Range(
+        error_range = Range(
             start=Position(line=e.line - 1, character=e.column - 1),
             end=Position(line=e.line - 1, character=e.column - 1 + token_length),
         )
@@ -150,12 +157,11 @@ async def _parse(
         diagnostics.append(
             Diagnostic(
                 message=error_message,
-                range=range,
+                range=error_range,
                 source="aeon",
                 severity=DiagnosticSeverity.Error,
             )
         )
-
     except Exception as e:
         diagnostics.append(
             Diagnostic(
@@ -165,7 +171,6 @@ async def _parse(
                 severity=DiagnosticSeverity.Error,
             )
         )
-
     return AST(core_ast_anf, typing_ctx, diagnostics)
 
 
