@@ -27,8 +27,7 @@ def train: TrainData = extract_train_data (load_dataset "camel-case" 200 200);
             load_dataset,
             train,
             calculate_camel_case_errors)
-@multi_minimize_float(calculate_camel_case_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_camel_case_errors train synth, 1)
 def synth (s:String) : String {
     (?hole:String)
 }
