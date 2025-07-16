@@ -10,7 +10,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
-from aeon.synthesis.uis.api import SynthesisUI
+from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 
@@ -81,6 +81,14 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Select a synthesizer for synthesis(gp for Genetic programming(Defaut), synquid for Synquid, random_search for Random Search, enumerative for Enumerative Search, hc for Hill Climbing, and 1p1 for One Plus One)",
     )
 
+    parser.add_argument(
+        "--format",
+        type=str,
+        choices=["default", "json"],
+        default="default",
+        help="Select the synthesised holes format results: default or json",
+    )
+
     return parser.parse_args()
 
 
@@ -121,6 +129,7 @@ def main() -> None:
         synthesis_budget=args.budget,
         timings=args.timings,
         no_main=args.no_main,
+        synthesis_format=SynthesisFormat.from_string(args.format),
     )
     driver = AeonDriver(cfg)
 
