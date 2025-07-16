@@ -43,9 +43,9 @@ class AeonLanguageServer(LanguageServer):
         self.publish_diagnostics(uri, diagnostics)
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
-        from . import buildout
+        from . import aeon_adapter
 
-        ast = await buildout.parse(self, uri)
+        ast = await aeon_adapter.parse(self, uri)
         for diag in ast.diagnostics:
             yield diag
 
@@ -62,9 +62,9 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: DidChangeTextDocumentParams,
         ) -> None:
-            from . import buildout
+            from . import aeon_adapter
 
-            buildout.clearCache(params.text_document.uri)
+            aeon_adapter.clear_cache(params.text_document.uri)
             await ls._parse_and_send_diagnostics(params.text_document.uri)
 
         @self.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
@@ -72,10 +72,10 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: DidChangeWatchedFilesParams,
         ) -> None:
-            from . import buildout
+            from . import aeon_adapter
 
             for change in params.changes:
-                buildout.clearCache(change.uri)
+                aeon_adapter.clear_cache(change.uri)
 
         @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
         async def lsp_completion(

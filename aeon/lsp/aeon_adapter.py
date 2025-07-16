@@ -48,7 +48,7 @@ class AST:
 _parse_cache: Dict[URI, AST] = {}
 
 
-def clearCache(uri: URI) -> None:
+def clear_cache(uri: URI) -> None:
     """Clear all caches for uri.
     This is to be called when the document is modified.
     """
