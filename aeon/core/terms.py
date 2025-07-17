@@ -15,6 +15,9 @@ class Term:
     def __hash__(self) -> int:
         return str(self).__hash__()
 
+    def pretty(self):
+        pass
+
 
 @dataclass(frozen=True)
 class Literal(Term):
@@ -30,6 +33,11 @@ class Literal(Term):
     def __eq__(self, other):
         return isinstance(other, Literal) and self.value == other.value and self.type == other.type
 
+    def pretty(self):
+        if self.type == t_string:
+            return f'"{self.value}"'
+        return f"{self.value}".lower()
+
 
 @dataclass(frozen=True)
 class Var(Term):
@@ -44,6 +52,9 @@ class Var(Term):
 
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
+
+    def pretty(self):
+        return self.name.pretty()
 
 
 @dataclass(frozen=True)
@@ -61,6 +72,9 @@ class Annotation(Term):
     def __eq__(self, other):
         return isinstance(other, Annotation) and self.expr == other.expr
 
+    def pretty(self):
+        return f"({self.expr.pretty()} : {self.type})"
+
 
 @dataclass(frozen=True)
 class Hole(Term):
@@ -76,6 +90,9 @@ class Hole(Term):
     def __eq__(self, other):
         return isinstance(other, Hole) and self.name == other.name
 
+    def pretty(self):
+        return f"?{self.name.pretty()}"
+
 
 @dataclass(frozen=True)
 class Application(Term):
@@ -88,6 +105,9 @@ class Application(Term):
 
     def __eq__(self, other):
         return isinstance(other, Application) and self.fun == other.fun and self.arg == other.arg
+
+    def pretty(self):
+        return f"({self.fun.pretty()} {self.arg.pretty()})"
 
 
 @dataclass(frozen=True)
@@ -104,6 +124,9 @@ class Abstraction(Term):
 
     def __eq__(self, other):
         return isinstance(other, Abstraction) and self.var_name == other.var_name and self.body == other.body
+
+    def pretty(self):
+        return f"(\\{self.var_name.pretty()} -> {self.body.pretty()})"
 
 
 @dataclass(frozen=True)
@@ -123,6 +146,9 @@ class Let(Term):
             and self.var_value == other.var_value
             and self.body == other.body
         )
+
+    def pretty(self):
+        return f"(let {self.var_name.pretty()} = {self.var_value.pretty()} in\n\t{self.body.pretty()})"
 
 
 @dataclass(frozen=True)
@@ -153,6 +179,11 @@ class Rec(Term):
             and self.body == other.body
         )
 
+    def pretty(self):
+        return (
+            f"(let {self.var_name.pretty()} : {self.var_type} = {self.var_value.pretty()} in\n\t{self.body.pretty()})"
+        )
+
 
 @dataclass(frozen=True)
 class If(Term):
@@ -172,6 +203,9 @@ class If(Term):
             and self.otherwise == other.otherwise
         )
 
+    def pretty(self):
+        return f"(if {self.cond.pretty()} then {self.then.pretty()} else {self.otherwise.pretty()})"
+
 
 @dataclass(frozen=True)
 class TypeAbstraction(Term):
@@ -183,6 +217,9 @@ class TypeAbstraction(Term):
     def __str__(self):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
+    def pretty(self):
+        return f"ƛ{self.name.pretty()}:{self.kind}.({self.body.pretty()})"
+
 
 @dataclass(frozen=True)
 class TypeApplication(Term):
@@ -192,3 +229,6 @@ class TypeApplication(Term):
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
+
+    def pretty(self):
+        return f"({self.body.pretty()})[{self.type}]"
