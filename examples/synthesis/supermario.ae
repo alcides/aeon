@@ -1,0 +1,160 @@
+type Level;
+type Chunks;
+type Chunk;
+type Enemy;
+type Enemies;
+type Boxes;
+type Box;
+type Mob;
+type MobType;
+type BoxType;
+type List;
+
+# Define uninterpreted functions for size
+def size: (l: List) -> Int = uninterpreted;
+def sizeB: (b: Boxes) -> Int = uninterpreted;
+def sizeE: (e: Enemies) -> Int = uninterpreted;
+
+# Level functions
+def new_level (cs: Chunks) (e: Enemies) : Level {
+    native "(sum(cs, []), sum(e, []))"
+}
+
+# Chunks functions
+def empty_chunks : Chunks = native "[]";
+def append_chunk (cs: Chunks) (c: Chunk) : Chunks {
+    native "cs + [c]"
+}
+
+# Chunk constructors
+def new_gap_chunk (x: Int | x >= 5 && x <= 95)
+                  (y: Int | y >= 3 && y <= 5)
+                   (wg: Int | wg >= 2 && wg <= 5)
+                   (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+                   (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
+                   Chunk {
+    native "(' ', x, y, wg, wBefore, wAfter)"
+}
+
+def new_platform_chunk (x: Int | x >= 5 && x <= 95)
+                        (y: Int | y >= 3 && y <= 5)
+                        (w: Int | w >= 3 && w <= 15) :
+                        Chunk {
+    native "('P', x, y, w)"
+}
+
+def new_hill_chunk (x: Int | x >= 5 && x <= 95)
+                    (y: Int | y >= 3 && y <= 5)
+                    (w: Int | w >= 3 && w <= 15) :
+                    Chunk {
+    native "('H', x, y, w)"
+}
+
+def new_canon_hill_chunk (x: Int | x >= 5 && x <= 95)
+                         (y: Int | y >= 3 && y <= 5)
+                         (h: Int | h >= 2 && h <= 3)
+                         (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+                         (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
+                         Chunk {
+    native "('C', x, y, h, wBefore, wAfter)"
+}
+
+def new_tube_hill_chunk (x: Int | x >= 5 && x <= 95)
+                        (y: Int | y >= 3 && y <= 5)
+                        (h: Int | h >= 2 && h <= 3)
+                        (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+                        (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
+                        Chunk {
+    native "('T', x, y, h, wBefore, wAfter)"
+}
+
+def new_coin_chunk (x: Int | x >= 5 && x <= 95)
+                   (y: Int | y >= 3 && y <= 5)
+                   (wc: Int | wc >= 3 && wc <= 15) :
+                   Chunk {
+    native "('c', x, y, wc)"
+}
+
+def new_canon_chunk (x: Int | x >= 5 && x <= 95)
+                    (y: Int | y >= 3 && y <= 5)
+                    (h: Int | h >= 2 && h <= 3)
+                    (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+                    (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
+                    Chunk {
+    native "('C', x, y, h, wBefore, wAfter)"
+}
+
+def new_tube_chunk (x: Int | x >= 5 && x <= 95)
+                   (y: Int | y >= 3 && y <= 5)
+                   (h: Int | h >= 2 && h <= 3)
+                   (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+                   (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
+                   Chunk {
+    native "('T', x, y, h, wBefore, wAfter)"
+}
+
+# Boxes functions
+def empty_boxes: {x: Boxes | sizeB x == 0} = native "[]";
+def append_box (l: Boxes) (i: Box) : {l2: Boxes | sizeB l2 == sizeB l + 1} {
+    native "l + [i]"
+}
+
+def new_box (box: BoxType)
+            (x: Int | x >= 5 && x <= 95)
+            (y: Int | y >= 3 && y <= 5) :
+            Box {
+    native "(box, x, y)"
+}
+
+def new_boxes (boxes: Boxes | (sizeB boxes) >= 2 && (sizeB boxes) <= 7) :
+              Chunk {
+    native "boxes"
+}
+
+def new_block_coin: BoxType = native "lambda x: 'c'";
+def new_block_power_up: BoxType = native "lambda x: 'p'";
+def new_block_rock_coin: BoxType = native "lambda x: 'R'";
+def new_block_rock_empty: BoxType = native "lambda x: 'r'";
+
+# Enemies functions
+def empty_enemies: {x: Enemies | sizeE x == 0} = native "[]";
+def append_enemy (l: Enemies) (i: Enemy) : {l2: Enemies | sizeE l2 == sizeE l + 1} {
+    native "l + [i]"
+}
+
+def new_enemies (enemies: Enemies | (sizeE enemies) >= 2 && (sizeE enemies) <= 10) :
+                Enemies {
+    native "enemies"
+}
+
+# Mob functions
+def new_mob (m: MobType)
+            (x: Int | x >= 5 && x <= 95) :
+            Mob {
+    native "[(m, x)]"
+}
+
+def new_goompa: MobType = native "lambda x: 'G'";
+def new_koompa: MobType = native "lambda x: 'K'";
+
+# Fitness functions
+def numpy: Unit = native_import "numpy";
+
+def number_of_chunks (max_w: Int) (max_h: Int) (level: Level) : Float {
+    native "max_w * max_h - len(level[0])"
+}
+
+def conflicts (max_w: Int) (max_h: Int) (level: Level) : Float {
+    native "sum(numpy.add.reduce([chunk.place_in(numpy.zeros((max_w, max_h))) or 0 for chunk in level[0]] + [enemy.place_in(numpy.zeros((max_w, max_h))) or 0 for enemy in level[1]]))"
+}
+
+def fitness_function (number_of_chunks: Float) (conflicts: Float) : List {
+    native "[x, y]"
+}
+
+@hide(numpy,
+      number_of_chunks,
+      conflicts,
+      fitness_function)
+@multi_minimize_float(((fitness_function (number_of_chunks 110 10 new_map)) (conflicts 110 10 new_map)))
+def new_map : Level = ?hole;
