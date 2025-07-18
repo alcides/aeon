@@ -14,11 +14,11 @@
 #
 ##############################################################################
 
-import copy
 import io
 import logging
 import re
 import urllib.parse
+from dataclasses import dataclass
 from typing import Dict, List, TextIO
 
 import requests
@@ -29,35 +29,30 @@ from lsprotocol.types import Position, Range
 from aeon.facade.driver import AeonDriver
 from aeon.lsp.server import AeonLanguageServer
 
-logger = logging.getLogger(__name__)
 requests_session = requests.Session()
 
-# type definitions #
-URI = str  # type alias
+logger = logging.getLogger(__name__)
+
+URI = str
+HTTP_SCHEMES = {"http", "https"}
 
 
-class AST:
-    def __init__(self, core_ast_anf, typing_ctx, diagnostics):
-        self.core_ast_anf = core_ast_anf
-        self.typing_ctx = typing_ctx
-        self.diagnostics = diagnostics
+@dataclass(frozen=True)
+class ParseResult:
+    diagnostics: List[Diagnostic]
+    # Not needed for now but could be added on the future
+    # core_ast: Any = None
+    # typing_ctx: Any = None
 
 
-# cache #
-# a cache of un-resolved buildouts by uri
-_parse_cache: Dict[URI, AST] = {}
+_parse_result_cache: Dict[URI, ParseResult] = {}
 
 
-def clearCache(uri: URI) -> None:
-    """Clear all caches for uri.
-    This is to be called when the document is modified.
-    """
-    logger.debug("Clearing cache for %s", uri)
-    _parse_cache.pop(uri, None)
+def clear_cache(uri: URI) -> None:
+    logger.debug("Clearing parsed result cache for uri=%s", uri)
+    _parse_result_cache.pop(uri, None)
     logger.debug("DONE!")
 
-
-# buildout copied & modified functions #
 
 _isurl = re.compile("([a-zA-Z0-9+.-]+)://").match
 
@@ -66,25 +61,17 @@ async def parse(
     aeon_lsp: AeonLanguageServer,
     uri: URI,
     allow_errors: bool = True,
-) -> AST:
-    """
-    Parse a sectioned setup file and return a non-resolved buildout.
-
-    This is a wrapper over _parse which uses language server's workspace to access documents.
-    Returned value changed to a BuildoutProfile instance.
-
-    """
-    if uri in _parse_cache:
-        return copy.deepcopy(_parse_cache[uri])
+) -> ParseResult:
+    if uri in _parse_result_cache:
+        return _parse_result_cache[uri]
 
     parsed_uri = urllib.parse.urlparse(uri)
-    if parsed_uri.scheme in (
-        "http",
-        "https",
-    ):
+    if parsed_uri.scheme in HTTP_SCHEMES:
         try:
-            fp = io.StringIO(requests_session.get(uri).text)
-        except requests.exceptions.ConnectionError:
+            response = requests_session.get(uri)
+            response.raise_for_status()
+            fp = io.StringIO(response.text)
+        except requests.RequestException:
             fp = io.StringIO("")
     else:
         document = aeon_lsp.workspace.get_text_document(uri)
@@ -94,21 +81,17 @@ async def parse(
             if not allow_errors:
                 raise
             fp = io.StringIO("")
-    parsed = await _parse(fp, aeon_lsp.aeon_driver)
-    _parse_cache[uri] = copy.deepcopy(parsed)
-    return parsed
+
+    parse_result = await _parse(fp, aeon_lsp.aeon_driver)
+    _parse_result_cache[uri] = parse_result
+    return parse_result
 
 
 async def _parse(
     fp: TextIO,
     driver: AeonDriver,
-) -> AST:
-    """
-    Parse the code
-    """
+) -> ParseResult:
     diagnostics = []
-    core_ast_anf = None
-    typing_ctx = None
 
     try:
         content = fp.read()
@@ -118,12 +101,12 @@ async def _parse(
             error_message = str(error)
             error_position = error.position()
 
-            error_start_line, error_start_column = error_position.get_start()
-            error_end_line, error_end_column = error_position.get_end()
+            error_start_line, error_start_character = error_position.get_start()
+            error_end_line, error_end_character = error_position.get_end()
 
             error_range = Range(
-                start=Position(line=error_start_line, character=error_start_column),
-                end=Position(line=error_end_line, character=error_end_column),
+                start=Position(line=error_start_line, character=error_start_character),
+                end=Position(line=error_end_line, character=error_end_character),
             )
 
             diagnostics.append(
@@ -136,10 +119,11 @@ async def _parse(
             )
 
     except UnexpectedToken as e:
+        token_length = 1
         try:
             token_length = len(str(e.token.value))
         except Exception:
-            token_length = 1
+            pass
 
         token_type = e.token.type if e.token.type else "unknown"
         token_value = e.token.value if e.token.value else str(e.token)
@@ -163,34 +147,30 @@ async def _parse(
             )
         )
     except Exception as e:
+        logger.exception("Unhandled exception while parsing")
         diagnostics.append(
             Diagnostic(
-                message=f"Unknown exception {str(e)} occurred while parsing",
-                range=Range(start=Position(line=0, character=0), end=Position(line=0, character=0)),
+                message=f"Unknown exception '{e}' occurred while parsing",
+                range=Range(
+                    start=Position(line=0, character=0),
+                    end=Position(line=0, character=0),
+                ),
                 source="aeon",
                 severity=DiagnosticSeverity.Error,
             )
         )
-    return AST(core_ast_anf, typing_ctx, diagnostics)
+    return ParseResult(diagnostics)
 
 
 async def _open(
     aeon_lsp: AeonLanguageServer,
     base: str,
     uri: URI,
-    seen: List[str],
     allow_errors: bool,
-) -> AST:
-    """Open a configuration file and return the result as a dictionary,
-
-    Recursively open other files based on buildout options found.
-
-    This is equivalent of zc.buildout.buildout._open
-    """
-    logger.debug("_open %r %r", base, uri)
-
+) -> ParseResult:
+    logger.debug("Opening URI for parsing: base=%r, uri=%r", base, uri)
     if not _isurl(uri):
         assert base
         uri = urllib.parse.urljoin(base, uri)
-    result = await parse(aeon_lsp, uri, allow_errors=allow_errors)
-    return copy.deepcopy(result)
+    parse_result = await parse(aeon_lsp, uri, allow_errors=allow_errors)
+    return parse_result
