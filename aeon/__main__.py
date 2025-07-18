@@ -10,6 +10,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
+from aeon.sugar.program import sterm_pretty
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
@@ -149,7 +150,7 @@ def main() -> None:
     elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
-        print(term)
+        print(sterm_pretty(term))
     else:
         driver.run()
 

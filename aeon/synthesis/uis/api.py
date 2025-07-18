@@ -55,12 +55,14 @@ class SynthesisUI(abc.ABC):
         print("Synthesized holes:")
         match synthesis_format:
             case SynthesisFormat.JSON:
-                result = {f"?{name.pretty()}": terms[name].pretty() for name in terms}
+                result = {f"?{name.pretty()}": str(terms[name]) for name in terms}
                 print(json.dumps(result, indent=2))
 
             case _:
                 for name in terms:
-                    print(f"?{name.pretty()}: {terms[name].pretty()}")
+                    name_str = name.pretty()
+                    term_str = str(terms[name])
+                    print(f"?{name_str}: {term_str}")
         # print()
         # pretty_print_term(ensure_anf(synthesis_result, 200))
 

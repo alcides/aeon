@@ -12,7 +12,7 @@ from aeon.utils.name import Name
 
 
 if TYPE_CHECKING:
-    from aeon.sugar.program import STerm
+    from aeon.sugar.program import STerm, sterm_pretty
 
 
 class SType(ABC):
@@ -94,3 +94,27 @@ def get_type_vars(ty: SType) -> set[STypeVar]:
             return reduce(lambda acc, v: acc.union(get_type_vars(v)), args, set())
         case _:
             assert False, f"Unknown type ({ty}) ({type(ty)})"
+
+
+def stype_pretty(stype: SType) -> str:
+    match stype:
+        case STypeVar(name=name):
+            return f"'{name.pretty()}"
+        case SRefinedType(name=name, type=type, refinement=ref):
+            inner_pretty = stype_pretty(type)
+            ref_pretty = sterm_pretty(ref)
+            return f"{{{name.pretty()} : {inner_pretty} | {ref_pretty} }}"
+        case SAbstractionType(var_name=vn, var_type=vt, type=rt):
+            vt_pretty = stype_pretty(vt)
+            rt_pretty = stype_pretty(rt)
+            return f"({vn.pretty()} : {vt_pretty}) -> {rt_pretty}"
+        case STypePolymorphism(name=name, kind=kind, body=body):
+            body_pretty = stype_pretty(body)
+            return f"∀{name.pretty()}:{kind}. {body_pretty}"
+        case STypeConstructor(name=name, args=args):
+            if not args:
+                return name.pretty()
+            args_str = " ".join(stype_pretty(arg) for arg in args)
+            return f"{name.pretty()} {args_str}"
+        case _:
+            return str(stype)
