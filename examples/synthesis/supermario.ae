@@ -148,13 +148,9 @@ def conflicts (max_w: Int) (max_h: Int) (level: Level) : Float {
     native "sum(numpy.add.reduce([chunk.place_in(numpy.zeros((max_w, max_h))) or 0 for chunk in level[0]] + [enemy.place_in(numpy.zeros((max_w, max_h))) or 0 for enemy in level[1]]))"
 }
 
-def fitness_function (number_of_chunks: Float) (conflicts: Float) : List {
-    native "[x, y]"
-}
-
 @hide(numpy,
       number_of_chunks,
-      conflicts,
-      fitness_function)
-@multi_minimize_float(((fitness_function (number_of_chunks 110 10 new_map)) (conflicts 110 10 new_map)))
+      conflicts)
+@minimize_float(number_of_chunks 110 10 new_map)
+@minimize_float(conflicts 110 10 new_map)
 def new_map : Level = ?hole;
