@@ -16,7 +16,7 @@ from lsprotocol.types import (
 )
 from pygls.server import LanguageServer
 
-from ..facade.driver import AeonDriver
+from aeon.facade.driver import AeonDriver
 
 
 class AeonLanguageServer(LanguageServer):
