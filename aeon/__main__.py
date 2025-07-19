@@ -10,10 +10,10 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
-from aeon.sugar.program import sterm_pretty
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
+from aeon.utils.pprint_helpers import pretty_print
 
 sys.setrecursionlimit(10000)
 
@@ -150,7 +150,8 @@ def main() -> None:
     elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
-        print(sterm_pretty(term))
+        print(str(term))
+        print(pretty_print(term))
     else:
         driver.run()
 
