@@ -43,3 +43,6 @@ class Name:
 
     def __lt__(self, other):
         return self.id < other.id
+
+    def pretty(self):
+        return self.name

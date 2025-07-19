@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 
-
 if TYPE_CHECKING:
     from aeon.sugar.program import STerm
 
