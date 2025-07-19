@@ -2,6 +2,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 
+from aeon.sugar.program import SLiteral, SVar, STerm, SAnnotation, SApplication, SAbstraction, SLet, SRec, SIf, \
+    STypeAbstraction, STypeApplication, SHole
+from aeon.sugar.stypes import STypeConstructor, STypePolymorphism, SAbstractionType, SRefinedType, STypeVar, SType
+from aeon.utils.name import Name
+
+DEFAULT_NEW_LINE_CHAR = "\n"
+DEFAULT_SPACE_CHAR = " "
+DEFAULT_WIDTH = 80
+DEFAULT_TAB_SIZE = 4
+
 
 class Assoc(Enum):
     LEFT = "left"
