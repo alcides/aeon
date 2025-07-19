@@ -5,7 +5,7 @@ from dataclasses import field
 
 from aeon.utils.name import Name
 from aeon.core.types import Kind
-from aeon.sugar.stypes import SType, STypeConstructor, stype_pretty
+from aeon.sugar.stypes import SType, STypeConstructor
 
 from aeon.utils.location import Location, SynthesizedLocation
 
@@ -294,35 +294,3 @@ class Program(Node):
         inductives = "\n".join([str(td) for td in self.inductive_decls])
         defs = "\n".join([str(d) for d in self.definitions])
         return f"{imps}\n{decls}\n{inductives}\n{defs}"
-
-
-def sterm_pretty(sterm: STerm) -> str:
-    match sterm:
-        case SLiteral(value=value, type=type):
-            if type == STypeConstructor(Name("String", 0)):
-                return f'"{value}"'
-            return f"{value}"
-        case SVar(name=name):
-            return name.pretty()
-        case SAnnotation(expr=expr, type=type):
-            return f"({sterm_pretty(expr)} : {stype_pretty(type)})"
-        case SHole(name=name):
-            return f"?{name.pretty()}"
-        case SApplication(fun=fun, arg=arg):
-            return f"({sterm_pretty(fun)} {sterm_pretty(arg)})"
-        case SAbstraction(var_name=var_name, body=body):
-            return f"(\\{var_name.pretty()} -> {sterm_pretty(body)})"
-        case SLet(var_name=var_name, var_value=var_value, body=body):
-            return f"(let {var_name.pretty()} = {sterm_pretty(var_value)} in\n\t{sterm_pretty(body)})"
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
-            return "(let {} : {} = {} in\n\t{})".format(
-                var_name.pretty(), stype_pretty(var_type), sterm_pretty(var_value), sterm_pretty(body)
-            )
-        case SIf(cond=cond, then=then, otherwise=otherwise):
-            return f"(if {sterm_pretty(cond)} then {sterm_pretty(then)} else {sterm_pretty(otherwise)})"
-        case STypeAbstraction(name=name, kind=kind, body=body):
-            return f"ƛ{name.pretty()}:{kind}.({sterm_pretty(body)})"
-        case STypeApplication(body=body, type=type):
-            return f"({sterm_pretty(body)})[{stype_pretty(type)}]"
-        case _:
-            return str(sterm)
