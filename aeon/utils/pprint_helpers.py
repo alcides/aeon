@@ -132,8 +132,6 @@ class Concat(Doc):
         need_parentheses = False
         if self.precedence < context.parent_precedence:
             need_parentheses = True
-        elif self.precedence == parent_precedence:
-            if position == Position.LEFT and self.assoc != Assoc.LEFT:
         elif self.precedence == context.parent_precedence:
             if context.position == Position.LEFT and self.assoc != Assoc.LEFT:
                 need_parentheses = True
@@ -253,4 +251,206 @@ def nest(i: int, doc: Doc) -> Doc:
 
 
 def group(doc: Doc) -> Doc:
-    return Group(doc)
+    return MultiUnion((doc.flatten(), doc))
+
+
+def pretty_var_type_pair(name_doc: Doc, type_doc: Doc) -> Doc:
+    return concat([name_doc, text(" : "), type_doc], ANNOTATION_PRECEDENCE)
+
+
+def stype_pretty(stype: SType) -> Doc:
+    match stype:
+        case STypeVar(name=name):
+            return text(f"{name.pretty()}")
+
+        case SRefinedType(name=name, type=type_, refinement=refinement):
+            pretty_name = text(name.pretty())
+            pretty_type = stype_pretty(type_)
+            pretty_refinement = sterm_pretty(refinement)
+
+            flat = concat([
+                text("{ "),
+                pretty_var_type_pair(pretty_name, pretty_type),
+                text(" | "),
+                pretty_refinement,
+                text(" }"),
+            ], REFINED_TYPE_PRECEDENCE)
+
+            extended = concat([
+                text("{ "),
+                pretty_var_type_pair(pretty_name, pretty_type),
+                line(),
+                text("| "),
+                pretty_refinement,
+                line(),
+                text("}"),
+            ], REFINED_TYPE_PRECEDENCE)
+
+            return MultiUnion((flat, extended))
+
+        case SAbstractionType(var_name=var_name, var_type=var_type, type=type):
+            pretty_var_name = text(var_name.pretty())
+            pretty_var_type = stype_pretty(var_type)
+            left = pretty_var_type_pair(pretty_var_name, pretty_var_type)
+            right = stype_pretty(type)
+
+            flat = concat([left, text(" -> "), right], ARROW_PRECEDENCE, Assoc.RIGHT)
+            extended = concat([left, text(" -> ("), line(), nest(2, right), line(), text(")")], ARROW_PRECEDENCE,
+                              Assoc.NONE)
+            return MultiUnion((flat, extended))
+
+        case STypePolymorphism(name=name, kind=kind, body=body):
+            pretty_name = text(name.pretty())
+            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
+            pretty_body = stype_pretty(body)
+            left = concat([text("∀ "), pretty_var_type_pair(pretty_name, pretty_kind)], POLYMORPHISM_PRECEDENCE)
+            right = pretty_body
+
+            flat = concat([left, text(" . "), right], POLYMORPHISM_PRECEDENCE, Assoc.RIGHT)
+            # extended = ...
+            return flat
+        case STypeConstructor(name=name, args=args):
+            pretty_name = text(name.pretty())
+            if len(args) == 0:
+                return pretty_name
+
+            pretty_args = [stype_pretty(arg) for arg in args]
+
+            if len(args) == 1:
+                return concat([pretty_name, text(DEFAULT_SPACE_CHAR), pretty_args[0]], TYPE_CONSTRUCTOR_PRECEDENCE, Assoc.LEFT)
+            else:
+                pretty_arg_doc = insert_between(text(", "), pretty_args)
+                return concat([pretty_name, text(" ("), pretty_arg_doc, text(")")], TYPE_CONSTRUCTOR_PRECEDENCE)
+        case _:
+            return text(str(stype))
+
+
+def sterm_pretty(sterm: STerm) -> Doc:
+    match sterm:
+        case SLiteral(value=value, type=type):
+            if type == STypeConstructor(Name("String", 0)):
+                return text(f'"{value}"')
+            return text(str(value))
+        case SVar(name=name):
+            return text(name.pretty())
+        case SAnnotation(expr=expr, type=type):
+            pretty_expr = sterm_pretty(expr)
+            pretty_type = stype_pretty(type)
+            flat = pretty_var_type_pair(pretty_expr, pretty_type)
+            return flat
+        case SHole(name=name):
+            return text("?" + name.pretty())
+        case SIf(cond=cond, then=then, otherwise=otherwise):
+            pretty_cond = sterm_pretty(cond)
+            pretty_then = sterm_pretty(then)
+            pretty_otherwise = sterm_pretty(otherwise)
+
+            inline = concat([text("if "), pretty_cond, text(" then "), pretty_then, text(" else "), pretty_otherwise],
+                            IF_PRECEDENCE)
+            first_extended = concat(
+                [text("if "), pretty_cond, text(" then "), pretty_then, line(), text("else "), pretty_otherwise],
+                IF_PRECEDENCE)
+            second_extended = concat(
+                [text("if "), pretty_cond, line(), text("then "), pretty_then, line(), text("else "), pretty_otherwise],
+                IF_PRECEDENCE)
+            return MultiUnion((inline, first_extended, second_extended))
+        case SApplication(fun=fun, arg=arg):
+            pretty_fun = sterm_pretty(fun)
+            pretty_arg = sterm_pretty(arg)
+
+            flat = concat([pretty_fun, text(DEFAULT_SPACE_CHAR), pretty_arg], APPLICATION_PRECEDENCE, Assoc.LEFT)
+            # extended = ...
+            return flat
+
+        case SAbstraction(var_name=var_name, body=body):
+            pretty_var_name = text(var_name.pretty())
+            pretty_body = sterm_pretty(body)
+            left = concat([text("\\"), pretty_var_name], POLYMORPHISM_PRECEDENCE)
+            right = pretty_body
+
+            flat = concat([left, text(" -> "), right], LAMBDA_PRECEDENCE, Assoc.RIGHT)
+            extended = concat([left, text(" -> ("), line(), nest(DEFAULT_TAB_SIZE, right), line(), text(')')],
+                              LAMBDA_PRECEDENCE)
+
+            return MultiUnion((flat, extended))
+
+        case SLet(var_name=var_name, var_value=var_value, body=body):
+            pretty_var_name = text(var_name.pretty())
+            pretty_var_value = sterm_pretty(var_value)
+            pretty_body = sterm_pretty(body)
+
+            binding = concat([pretty_var_name, text(" = "), pretty_var_value], LET_PRECEDENCE, Assoc.RIGHT)
+
+            flat = concat([text("let "), binding, text(" in "), pretty_body], LAMBDA_PRECEDENCE)
+            extended = concat([text("let "), binding, line(), text("in "), pretty_body], LAMBDA_PRECEDENCE)
+
+            return MultiUnion((flat, extended))
+
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+            pretty_var_name = text(var_name.pretty())
+            pretty_var_type = stype_pretty(var_type)
+            pretty_var_value = sterm_pretty(var_value)
+            pretty_body = sterm_pretty(body)
+
+            pretty_type_def = pretty_var_type_pair(pretty_var_name, pretty_var_type)
+            pretty_binding = concat([pretty_type_def, text(" = "), pretty_var_value], LET_PRECEDENCE, Assoc.RIGHT)
+
+            flat = concat([text("let "), pretty_binding, text(" in "), pretty_body], LET_PRECEDENCE)
+            extended = concat([text("let "), pretty_binding, line(),text("in "), pretty_body], LET_PRECEDENCE)
+
+            return MultiUnion((flat, extended))
+
+        case STypeAbstraction(name=name, kind=kind, body=body):
+            pretty_name = text(name.pretty())
+            pretty_kind = text(str(kind)) # should be changed to skind pretty in the future
+            pretty_body = sterm_pretty(body)
+
+            pretty_kind_def = pretty_var_type_pair(pretty_name, pretty_kind)
+            pretty_binding = concat([pretty_kind_def,text("."),pretty_body], ARROW_PRECEDENCE, Assoc.RIGHT)
+            flat = concat([text("ƛ"),pretty_binding], ARROW_PRECEDENCE)
+            #extended...
+            return flat
+        case STypeApplication(body=body, type=type):
+            pretty_body = sterm_pretty(body)
+            pretty_type = stype_pretty(type)
+            pretty_type_app = concat([text("["),pretty_type,text("]")],TYPE_APPLICATION_PRECEDENCE)
+
+            flat = concat([pretty_body,nil(),pretty_type_app], TYPE_APPLICATION_PRECEDENCE)
+            #extended...
+            return flat
+        case _:
+            return text(str(sterm))
+
+def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
+    if not docs:
+        return nil()
+    result = docs[0]
+    for doc in docs[1:]:
+        result = concat([result, separator, doc], LITERAL_PRECEDENCE, Assoc.NONE)
+    return result
+
+#TODO
+def remove_anf(term: STerm) -> STerm:
+    match term:
+        case SLet(var_name=var_name, var_value=var_value, body=SVar(name=body_name)) if var_name == body_name:
+            return remove_anf(var_value)
+        case SLet(var_name=var_name, var_value=var_value, body=body):
+            return SLet(var_name, remove_anf(var_value), remove_anf(body))
+        case SAbstraction(var_name=var_name, body=body):
+            return SAbstraction(var_name, remove_anf(body))
+        case SApplication(fun=fun, arg=arg):
+            return SApplication(remove_anf(fun), remove_anf(arg))
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+            return SRec(var_name, var_type, remove_anf(var_value), remove_anf(body))
+        case SIf(cond=cond, then=then, otherwise=otherwise):
+            return SIf(remove_anf(cond), remove_anf(then), remove_anf(otherwise))
+        case _:
+            return term
+
+
+def pretty_print(term: STerm, width: int = DEFAULT_WIDTH) -> str:
+    return (
+        sterm_pretty(remove_anf(term))
+        .best(width, 0)
+        .layout(LayoutContext(indent=0, position=Position.NONE, parent_precedence=0))
+    )
