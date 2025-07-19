@@ -37,6 +37,14 @@ APPLICATION_PRECEDENCE = 40
 TYPE_APPLICATION_PRECEDENCE = 45
 LITERAL_PRECEDENCE = 100
 
+
+@dataclass(frozen=True)
+class LayoutContext:
+    parent_precedence: int
+    position: Position
+    indent: int = 0
+
+
 class Doc(ABC):
     @abstractmethod
     def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str: ...
