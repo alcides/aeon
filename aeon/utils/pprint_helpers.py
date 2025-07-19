@@ -47,7 +47,21 @@ class LayoutContext:
 
 class Doc(ABC):
     @abstractmethod
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str: ...
+    def layout(self, context: LayoutContext) -> str: ...
+
+    @abstractmethod
+    def fits(self, width: int, current_length: int) -> bool:
+        ...
+
+    @abstractmethod
+    def best(self, width: int, current_length: int) -> 'Doc':
+        ...
+
+    def flatten(self) -> 'Doc':
+        return self
+
+    def __str__(self):
+        return self.best(DEFAULT_WIDTH, 0).layout(LayoutContext(0, Position.NONE, 0))
 
 
 @dataclass(frozen=True)
