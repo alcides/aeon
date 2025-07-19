@@ -2,8 +2,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 
-from aeon.sugar.program import SLiteral, SVar, STerm, SAnnotation, SApplication, SAbstraction, SLet, SRec, SIf, \
-    STypeAbstraction, STypeApplication, SHole
+from aeon.sugar.program import (
+    SLiteral,
+    SVar,
+    STerm,
+    SAnnotation,
+    SApplication,
+    SAbstraction,
+    SLet,
+    SRec,
+    SIf,
+    STypeAbstraction,
+    STypeApplication,
+    SHole,
+)
 from aeon.sugar.stypes import STypeConstructor, STypePolymorphism, SAbstractionType, SRefinedType, STypeVar, SType
 from aeon.utils.name import Name
 
@@ -50,14 +62,12 @@ class Doc(ABC):
     def layout(self, context: LayoutContext) -> str: ...
 
     @abstractmethod
-    def fits(self, width: int, current_length: int) -> bool:
-        ...
+    def fits(self, width: int, current_length: int) -> bool: ...
 
     @abstractmethod
-    def best(self, width: int, current_length: int) -> 'Doc':
-        ...
+    def best(self, width: int, current_length: int) -> "Doc": ...
 
-    def flatten(self) -> 'Doc':
+    def flatten(self) -> "Doc":
         return self
 
     def __str__(self):
@@ -72,7 +82,7 @@ class Nil(Doc):
     def fits(self, width: int, current_length: int) -> bool:
         return True
 
-    def best(self, width: int, current_length: int) -> 'Doc':
+    def best(self, width: int, current_length: int) -> "Doc":
         return self
 
 
@@ -86,10 +96,10 @@ class Text(Doc):
     def fits(self, width: int, current_length: int) -> bool:
         return current_length + len(self.s) <= width
 
-    def best(self, width: int, current_length: int) -> 'Doc':
+    def best(self, width: int, current_length: int) -> "Doc":
         return self
 
-    def flatten(self) -> 'Doc':
+    def flatten(self) -> "Doc":
         return self
 
 
@@ -101,10 +111,10 @@ class Line(Doc):
     def fits(self, width: int, current_length: int) -> bool:
         return True
 
-    def best(self, width: int, current_length: int) -> 'Doc':
+    def best(self, width: int, current_length: int) -> "Doc":
         return self
 
-    def flatten(self) -> 'Doc':
+    def flatten(self) -> "Doc":
         return self
 
 
@@ -151,7 +161,7 @@ class Concat(Doc):
                 return False
         return True
 
-    def best(self, width: int, current_length: int) -> 'Doc':
+    def best(self, width: int, current_length: int) -> "Doc":
         flat = self.flatten()
         if flat.fits(width, current_length):
             return flat
@@ -164,7 +174,7 @@ class Concat(Doc):
             curr += len(best_child.flatten().layout(default_context))
         return Concat(tuple(best_children), self.precedence, self.assoc)
 
-    def flatten(self) -> 'Doc':
+    def flatten(self) -> "Doc":
         flattened_children = tuple(doc.flatten() for doc in self.docs)
         return Concat(flattened_children, self.precedence, self.assoc)
 
@@ -211,11 +221,11 @@ class Nest(Doc):
                 return False
         return True
 
-    def best(self, width: int, current_length: int) -> 'Doc':
+    def best(self, width: int, current_length: int) -> "Doc":
         best_doc = self.doc.best(width, current_length)
         return Nest(self.indent, best_doc, self.precedence)
 
-    def flatten(self) -> 'Doc':
+    def flatten(self) -> "Doc":
         return self.doc.flatten()
 
 
@@ -268,23 +278,29 @@ def stype_pretty(stype: SType) -> Doc:
             pretty_type = stype_pretty(type_)
             pretty_refinement = sterm_pretty(refinement)
 
-            flat = concat([
-                text("{ "),
-                pretty_var_type_pair(pretty_name, pretty_type),
-                text(" | "),
-                pretty_refinement,
-                text(" }"),
-            ], REFINED_TYPE_PRECEDENCE)
+            flat = concat(
+                [
+                    text("{ "),
+                    pretty_var_type_pair(pretty_name, pretty_type),
+                    text(" | "),
+                    pretty_refinement,
+                    text(" }"),
+                ],
+                REFINED_TYPE_PRECEDENCE,
+            )
 
-            extended = concat([
-                text("{ "),
-                pretty_var_type_pair(pretty_name, pretty_type),
-                line(),
-                text("| "),
-                pretty_refinement,
-                line(),
-                text("}"),
-            ], REFINED_TYPE_PRECEDENCE)
+            extended = concat(
+                [
+                    text("{ "),
+                    pretty_var_type_pair(pretty_name, pretty_type),
+                    line(),
+                    text("| "),
+                    pretty_refinement,
+                    line(),
+                    text("}"),
+                ],
+                REFINED_TYPE_PRECEDENCE,
+            )
 
             return MultiUnion((flat, extended))
 
@@ -295,8 +311,9 @@ def stype_pretty(stype: SType) -> Doc:
             right = stype_pretty(type)
 
             flat = concat([left, text(" -> "), right], ARROW_PRECEDENCE, Assoc.RIGHT)
-            extended = concat([left, text(" -> ("), line(), nest(2, right), line(), text(")")], ARROW_PRECEDENCE,
-                              Assoc.NONE)
+            extended = concat(
+                [left, text(" -> ("), line(), nest(2, right), line(), text(")")], ARROW_PRECEDENCE, Assoc.NONE
+            )
             return MultiUnion((flat, extended))
 
         case STypePolymorphism(name=name, kind=kind, body=body):
@@ -317,7 +334,9 @@ def stype_pretty(stype: SType) -> Doc:
             pretty_args = [stype_pretty(arg) for arg in args]
 
             if len(args) == 1:
-                return concat([pretty_name, text(DEFAULT_SPACE_CHAR), pretty_args[0]], TYPE_CONSTRUCTOR_PRECEDENCE, Assoc.LEFT)
+                return concat(
+                    [pretty_name, text(DEFAULT_SPACE_CHAR), pretty_args[0]], TYPE_CONSTRUCTOR_PRECEDENCE, Assoc.LEFT
+                )
             else:
                 pretty_arg_doc = insert_between(text(", "), pretty_args)
                 return concat([pretty_name, text(" ("), pretty_arg_doc, text(")")], TYPE_CONSTRUCTOR_PRECEDENCE)
@@ -345,14 +364,17 @@ def sterm_pretty(sterm: STerm) -> Doc:
             pretty_then = sterm_pretty(then)
             pretty_otherwise = sterm_pretty(otherwise)
 
-            inline = concat([text("if "), pretty_cond, text(" then "), pretty_then, text(" else "), pretty_otherwise],
-                            IF_PRECEDENCE)
+            inline = concat(
+                [text("if "), pretty_cond, text(" then "), pretty_then, text(" else "), pretty_otherwise], IF_PRECEDENCE
+            )
             first_extended = concat(
                 [text("if "), pretty_cond, text(" then "), pretty_then, line(), text("else "), pretty_otherwise],
-                IF_PRECEDENCE)
+                IF_PRECEDENCE,
+            )
             second_extended = concat(
                 [text("if "), pretty_cond, line(), text("then "), pretty_then, line(), text("else "), pretty_otherwise],
-                IF_PRECEDENCE)
+                IF_PRECEDENCE,
+            )
             return MultiUnion((inline, first_extended, second_extended))
         case SApplication(fun=fun, arg=arg):
             pretty_fun = sterm_pretty(fun)
@@ -369,8 +391,9 @@ def sterm_pretty(sterm: STerm) -> Doc:
             right = pretty_body
 
             flat = concat([left, text(" -> "), right], LAMBDA_PRECEDENCE, Assoc.RIGHT)
-            extended = concat([left, text(" -> ("), line(), nest(DEFAULT_TAB_SIZE, right), line(), text(')')],
-                              LAMBDA_PRECEDENCE)
+            extended = concat(
+                [left, text(" -> ("), line(), nest(DEFAULT_TAB_SIZE, right), line(), text(")")], LAMBDA_PRECEDENCE
+            )
 
             return MultiUnion((flat, extended))
 
@@ -396,30 +419,31 @@ def sterm_pretty(sterm: STerm) -> Doc:
             pretty_binding = concat([pretty_type_def, text(" = "), pretty_var_value], LET_PRECEDENCE, Assoc.RIGHT)
 
             flat = concat([text("let "), pretty_binding, text(" in "), pretty_body], LET_PRECEDENCE)
-            extended = concat([text("let "), pretty_binding, line(),text("in "), pretty_body], LET_PRECEDENCE)
+            extended = concat([text("let "), pretty_binding, line(), text("in "), pretty_body], LET_PRECEDENCE)
 
             return MultiUnion((flat, extended))
 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
-            pretty_kind = text(str(kind)) # should be changed to skind pretty in the future
+            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
             pretty_body = sterm_pretty(body)
 
             pretty_kind_def = pretty_var_type_pair(pretty_name, pretty_kind)
-            pretty_binding = concat([pretty_kind_def,text("."),pretty_body], ARROW_PRECEDENCE, Assoc.RIGHT)
-            flat = concat([text("ƛ"),pretty_binding], ARROW_PRECEDENCE)
-            #extended...
+            pretty_binding = concat([pretty_kind_def, text("."), pretty_body], ARROW_PRECEDENCE, Assoc.RIGHT)
+            flat = concat([text("ƛ"), pretty_binding], ARROW_PRECEDENCE)
+            # extended...
             return flat
         case STypeApplication(body=body, type=type):
             pretty_body = sterm_pretty(body)
             pretty_type = stype_pretty(type)
-            pretty_type_app = concat([text("["),pretty_type,text("]")],TYPE_APPLICATION_PRECEDENCE)
+            pretty_type_app = concat([text("["), pretty_type, text("]")], TYPE_APPLICATION_PRECEDENCE)
 
-            flat = concat([pretty_body,nil(),pretty_type_app], TYPE_APPLICATION_PRECEDENCE)
-            #extended...
+            flat = concat([pretty_body, nil(), pretty_type_app], TYPE_APPLICATION_PRECEDENCE)
+            # extended...
             return flat
         case _:
             return text(str(sterm))
+
 
 def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
     if not docs:
@@ -429,7 +453,8 @@ def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
         result = concat([result, separator, doc], LITERAL_PRECEDENCE, Assoc.NONE)
     return result
 
-#TODO
+
+# TODO
 def remove_anf(term: STerm) -> STerm:
     match term:
         case SLet(var_name=var_name, var_value=var_value, body=SVar(name=body_name)) if var_name == body_name:
