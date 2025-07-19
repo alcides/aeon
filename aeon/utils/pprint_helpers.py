@@ -66,23 +66,46 @@ class Doc(ABC):
 
 @dataclass(frozen=True)
 class Nil(Doc):
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
+    def layout(self, context: LayoutContext) -> str:
         return ""
+
+    def fits(self, width: int, current_length: int) -> bool:
+        return True
+
+    def best(self, width: int, current_length: int) -> 'Doc':
+        return self
 
 
 @dataclass(frozen=True)
 class Text(Doc):
     s: str
-    precedence: int = 0
 
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
+    def layout(self, context: LayoutContext) -> str:
         return self.s
+
+    def fits(self, width: int, current_length: int) -> bool:
+        return current_length + len(self.s) <= width
+
+    def best(self, width: int, current_length: int) -> 'Doc':
+        return self
+
+    def flatten(self) -> 'Doc':
+        return self
 
 
 @dataclass(frozen=True)
 class Line(Doc):
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
-        return "\n" + " " * indent
+    def layout(self, context: LayoutContext) -> str:
+        return DEFAULT_NEW_LINE_CHAR + DEFAULT_SPACE_CHAR * context.indent
+
+    def fits(self, width: int, current_length: int) -> bool:
+        return True
+
+    def best(self, width: int, current_length: int) -> 'Doc':
+        return self
+
+    def flatten(self) -> 'Doc':
+        return self
 
 
 @dataclass(frozen=True)
@@ -91,24 +114,81 @@ class Concat(Doc):
     precedence: int = 0
     assoc: Assoc = Assoc.NONE
 
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
+    def layout(self, context: LayoutContext) -> str:
         child_size = len(self.docs)
-        child_positions = (
-            [Position.LEFT, Position.NONE, Position.RIGHT] if child_size == 3 else [Position.NONE] * child_size
+        if child_size == 1:
+            child_positions = [Position.NONE]
+        elif child_size == 2:
+            child_positions = [Position.LEFT, Position.RIGHT]
+        elif child_size == 3:
+            child_positions = [Position.LEFT, Position.NONE, Position.RIGHT]
+        else:
+            child_positions = [Position.NONE] * child_size
+
+        layout_string = "".join(
+            doc.layout(LayoutContext(indent=context.indent, parent_precedence=self.precedence, position=pos))
+            for doc, pos in zip(self.docs, child_positions)
         )
-
-        s = "".join(doc.layout(indent, self.precedence, pos) for doc, pos in zip(self.docs, child_positions))
-
         need_parentheses = False
-        if self.precedence < parent_precedence:
+        if self.precedence < context.parent_precedence:
             need_parentheses = True
         elif self.precedence == parent_precedence:
             if position == Position.LEFT and self.assoc != Assoc.LEFT:
+        elif self.precedence == context.parent_precedence:
+            if context.position == Position.LEFT and self.assoc != Assoc.LEFT:
                 need_parentheses = True
-            elif position == Position.RIGHT and self.assoc != Assoc.RIGHT:
+            elif context.position == Position.RIGHT and self.assoc != Assoc.RIGHT:
                 need_parentheses = True
 
-        return "(" + s + ")" if need_parentheses else s
+        return "(" + layout_string + ")" if need_parentheses else layout_string
+
+    def fits(self, width: int, current_length: int) -> bool:
+        curr = current_length
+        for doc in self.docs:
+            if not doc.fits(width, curr):
+                return False
+            default_context = LayoutContext(indent=0, parent_precedence=0, position=Position.NONE)
+            curr += len(doc.flatten().layout(default_context))
+            if curr > width:
+                return False
+        return True
+
+    def best(self, width: int, current_length: int) -> 'Doc':
+        flat = self.flatten()
+        if flat.fits(width, current_length):
+            return flat
+        best_children = []
+        curr = current_length
+        for doc in self.docs:
+            best_child = doc.best(width, curr)
+            best_children.append(best_child)
+            default_context = LayoutContext(indent=0, parent_precedence=0, position=Position.NONE)
+            curr += len(best_child.flatten().layout(default_context))
+        return Concat(tuple(best_children), self.precedence, self.assoc)
+
+    def flatten(self) -> 'Doc':
+        flattened_children = tuple(doc.flatten() for doc in self.docs)
+        return Concat(flattened_children, self.precedence, self.assoc)
+
+
+@dataclass(frozen=True)
+class MultiUnion(Doc):
+    alternatives: tuple[Doc, ...]
+
+    def layout(self, context: LayoutContext) -> str:
+        return self.best(DEFAULT_WIDTH, context.indent).layout(context)
+
+    def fits(self, width: int, current_length: int) -> bool:
+        return any(doc.fits(width, current_length) for doc in self.alternatives)
+
+    def best(self, width: int, current_length: int) -> Doc:
+        for doc in self.alternatives:
+            if doc.fits(width, current_length):
+                return doc
+        return self.alternatives[-1]
+
+    def flatten(self):
+        return self.alternatives[0].flatten()
 
 
 @dataclass(frozen=True)
@@ -117,33 +197,46 @@ class Nest(Doc):
     doc: Doc
     precedence: int = 0
 
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
-        s = self.doc.layout(indent + self.indent, parent_precedence, position)
-        lines = s.split("\n")
-        indented_lines = [(" " * self.indent) + line for line in lines]
-        return "\n".join(indented_lines)
+    def layout(self, context: LayoutContext) -> str:
+        s = self.doc.layout(LayoutContext(context.parent_precedence, context.position, context.indent + self.indent))
+        lines = s.split(DEFAULT_NEW_LINE_CHAR)
+        if not lines:
+            return ""
+        lines = [(DEFAULT_SPACE_CHAR * self.indent) + line for line in lines]
+        return DEFAULT_NEW_LINE_CHAR.join(lines)
 
+    def fits(self, width: int, current_length: int) -> bool:
+        s = self.doc.layout(LayoutContext(self.precedence, Position.NONE, 0 + self.indent))
+        lines = s.split(DEFAULT_NEW_LINE_CHAR)
+        for i, line in enumerate(lines):
+            if self.indent + len(line) > width:
+                return False
+        return True
 
-@dataclass(frozen=True)
-class Group(Doc):
-    doc: Doc
+    def best(self, width: int, current_length: int) -> 'Doc':
+        best_doc = self.doc.best(width, current_length)
+        return Nest(self.indent, best_doc, self.precedence)
 
-    def layout(self, indent=0, parent_precedence=0, position: Position = Position.NONE) -> str:
-        return self.doc.layout(indent, parent_precedence, position)
+    def flatten(self) -> 'Doc':
+        return self.doc.flatten()
 
 
 def nil() -> Doc:
     return Nil()
 
 
-def text(s: str, precedence=0) -> Doc:
+def text(s: str) -> Doc:
     if s == "":
         return nil()
-    return Text(s, precedence)
+    return Text(s)
 
 
 def line() -> Doc:
     return Line()
+
+
+def softline() -> Doc:
+    return MultiUnion((text(" "), line()))
 
 
 def concat(docs: list[Doc], precedence: int, assoc: Assoc = Assoc.NONE) -> Doc:
