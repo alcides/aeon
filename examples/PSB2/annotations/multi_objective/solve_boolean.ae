@@ -25,8 +25,7 @@ def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bo
             load_dataset,
             train,
             calculate_solve_boolean_errors)
-@multi_minimize_float(calculate_solve_boolean_errors train synth )
-@objective_number(1)
+@multi_minimize_float(calculate_solve_boolean_errors train synth, 1)
 def synth ( s : String ) : Bool {
     (?hole:Bool)
 }

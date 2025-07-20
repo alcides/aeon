@@ -28,8 +28,7 @@ def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> In
             load_dataset,
             calculate_paired_digits_errors,
             train )
-@multi_minimize_float(calculate_paired_digits_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_paired_digits_errors train synth, 1)
 def synth (nums: String) : Int {
     (?hole:Int)
 }

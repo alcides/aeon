@@ -73,7 +73,9 @@ class TypingContext:
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
-            self.entries.insert(0, TypeConstructorBinder(bt.name, []))
+            temp = TypeConstructorBinder(bt.name, [])
+            if temp not in self.entries:
+                self.entries.insert(0, temp)
 
     def __repr__(self):
         fields = "; ".join(map(repr, self.entries))
