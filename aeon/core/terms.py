@@ -15,6 +15,9 @@ class Term:
     def __hash__(self) -> int:
         return str(self).__hash__()
 
+    def pretty(self):
+        pass
+
 
 @dataclass(frozen=True)
 class Literal(Term):
@@ -30,6 +33,11 @@ class Literal(Term):
     def __eq__(self, other):
         return isinstance(other, Literal) and self.value == other.value and self.type == other.type
 
+    def pretty(self):
+        if self.type == t_string:
+            return f'"{self.value}"'
+        return f"{self.value}".lower()
+
 
 @dataclass(frozen=True)
 class Var(Term):
@@ -44,6 +52,9 @@ class Var(Term):
 
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
+
+    def pretty(self):
+        return self.name.pretty()
 
 
 @dataclass(frozen=True)
@@ -181,7 +192,7 @@ class TypeAbstraction(Term):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"ƛ{self.name}:{self.kind}.({self.body})"
+        return f"ƛ{self.name}:{self.kind}.({self.body.pretty()})"
 
 
 @dataclass(frozen=True)

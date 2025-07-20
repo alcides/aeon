@@ -49,7 +49,10 @@ _parse_result_cache: Dict[URI, ParseResult] = {}
 
 
 def clear_cache(uri: URI) -> None:
-    logger.debug("Clearing parsed result cache for uri=%s", uri)
+    """Clear all caches for uri.
+    This is to be called when the document is modified.
+    """
+    logger.debug("Clearing cache for %s", uri)
     _parse_result_cache.pop(uri, None)
     logger.debug("DONE!")
 
