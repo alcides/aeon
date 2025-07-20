@@ -51,23 +51,6 @@ class Operation(Enum):
     LITERAL = "Literal"
 
 
-def get_operation_precedence(operation: Operation) -> int:
-    precedence_map = {
-        Operation.POLYMORPHISM: 1,
-        Operation.LET: 2,
-        Operation.IF: 2,
-        Operation.ARROW: 3,
-        Operation.LAMBDA: 4,
-        Operation.REFINED_TYPE: 5,
-        Operation.ANNOTATION: 6,
-        Operation.TYPE_CONSTRUCTOR: 7,
-        Operation.APPLICATION: 8,
-        Operation.TYPE_APPLICATION: 9,
-        Operation.LITERAL: 10,
-    }
-    return precedence_map[operation]
-
-
 def get_operation_associativity(operation: Operation) -> Associativity:
     match operation:
         case Operation.LAMBDA, Operation.ARROW:
@@ -122,14 +105,31 @@ class Precedence(IntEnum):
     POLYMORPHISM = 1
     LET = 2
     IF = 2
-    ARROW = 3
-    LAMBDA = 4
-    REFINED_TYPE = 5
-    ANNOTATION = 6
+    ANNOTATION = 3
+    ARROW = 4
+    LAMBDA = 5
+    REFINED_TYPE = 6
     TYPE_CONSTRUCTOR = 7
     APPLICATION = 8
     TYPE_APPLICATION = 9
     LITERAL = 10
+
+
+def get_operation_precedence(operation: Operation) -> Precedence:
+    precedence_map = {
+        Operation.POLYMORPHISM: Precedence.POLYMORPHISM,
+        Operation.LET: Precedence.LET,
+        Operation.IF: Precedence.IF,
+        Operation.ARROW: Precedence.ARROW,
+        Operation.LAMBDA: Precedence.LAMBDA,
+        Operation.REFINED_TYPE: Precedence.REFINED_TYPE,
+        Operation.ANNOTATION: Precedence.ANNOTATION,
+        Operation.TYPE_CONSTRUCTOR: Precedence.TYPE_CONSTRUCTOR,
+        Operation.APPLICATION: Precedence.APPLICATION,
+        Operation.TYPE_APPLICATION: Precedence.TYPE_APPLICATION,
+        Operation.LITERAL: Precedence.LITERAL,
+    }
+    return precedence_map[operation]
 
 
 @dataclass(frozen=True)
@@ -320,8 +320,10 @@ def group(doc: Doc) -> Doc:
 def parens(doc: Doc) -> Doc:
     return concat([text("("), doc, text(")")])
 
+
 def indented(indent: int, doc: Doc) -> Doc:
     return nest(indent, concat([line(), doc]))
+
 
 def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext):
     child_precedence = get_operation_precedence(child_operation)
@@ -357,14 +359,14 @@ class TypePrettyResult:
 
 
 def pretty_stype_with_parens(stype: SType, parent_ctx: ParenthesisContext) -> Doc:
-    child_pretty = stype_pretty(stype, parent_ctx)
     child_op = get_stype_operation(stype)
+    child_pretty = stype_pretty(stype, ParenthesisContext(get_operation_precedence(child_op), Side.NONE))
     return add_parens_if_needed(child_pretty, child_op, parent_ctx)
 
 
 def pretty_sterm_with_parens(sterm: STerm, parent_ctx: ParenthesisContext) -> Doc:
-    child_pretty = sterm_pretty(sterm, parent_ctx)
     child_op = get_sterm_operation(sterm)
+    child_pretty = sterm_pretty(sterm, ParenthesisContext(get_operation_precedence(child_op), Side.NONE))
     return add_parens_if_needed(child_pretty, child_op, parent_ctx)
 
 
@@ -413,12 +415,16 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
         case SAbstractionType(var_name=var_name, var_type=var_type, type=type):
             pretty_var_name = text(var_name.pretty())
             var_type_doc = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
+
             left_doc = concat([pretty_var_name, text(" : "), var_type_doc])
+            left_doc = add_parens_if_needed(
+                left_doc, Operation.ANNOTATION, ParenthesisContext(Precedence.ARROW, Side.LEFT)
+            )
 
             right_doc = pretty_stype_with_parens(type, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
 
             flat = concat([left_doc, text(" -> "), right_doc])
-            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE,right_doc), line(), text(")")])
+            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE, right_doc), line(), text(")")])
             return MultiUnion((flat, extended))
 
         case STypePolymorphism(name=name, kind=kind, body=body):
@@ -496,7 +502,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None) -> Doc:
             right_doc = pretty_body
 
             flat = concat([left_doc, text(" -> "), right_doc])
-            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE,right_doc), line(), text(")")])
+            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE, right_doc), line(), text(")")])
 
             return MultiUnion((flat, extended))
 
