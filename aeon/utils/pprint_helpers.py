@@ -320,6 +320,8 @@ def group(doc: Doc) -> Doc:
 def parens(doc: Doc) -> Doc:
     return concat([text("("), doc, text(")")])
 
+def indented(indent: int, doc: Doc) -> Doc:
+    return nest(indent, concat([line(), doc]))
 
 def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext):
     child_precedence = get_operation_precedence(child_operation)
@@ -416,7 +418,7 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
             right_doc = pretty_stype_with_parens(type, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
 
             flat = concat([left_doc, text(" -> "), right_doc])
-            extended = concat([left_doc, text(" -> ("), line(), nest(2, right_doc), line(), text(")")])
+            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE,right_doc), line(), text(")")])
             return MultiUnion((flat, extended))
 
         case STypePolymorphism(name=name, kind=kind, body=body):
@@ -490,11 +492,11 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None) -> Doc:
         case SAbstraction(var_name=var_name, body=body):
             pretty_var_name = text(var_name.pretty())
             pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
-            left = concat([text("\\"), pretty_var_name])
-            right = pretty_body
+            left_doc = concat([text("\\"), pretty_var_name])
+            right_doc = pretty_body
 
-            flat = concat([left, text(" -> "), right])
-            extended = concat([left, text(" -> ("), line(), nest(DEFAULT_TAB_SIZE, right), line(), text(")")])
+            flat = concat([left_doc, text(" -> "), right_doc])
+            extended = concat([left_doc, text(" -> ("), indented(DEFAULT_TAB_SIZE,right_doc), line(), text(")")])
 
             return MultiUnion((flat, extended))
 
