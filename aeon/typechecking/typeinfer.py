@@ -271,16 +271,19 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 # Type Application only works on bare types.
                 raise CoreTypeApplicationRequiresBareTypesError(t, ty)
             (c, tabs) = synth(ctx, body)
-            assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
             nty = fresh(ctx, ty)
-            s = type_substitution(tabs.body, tabs.name, nty)
             k = ctx.kind_of(nty)
             if isinstance(nty, RefinedType) and isinstance(nty.refinement, LiquidHornApplication):
                 nty = nty.type
                 k = ctx.kind_of(nty)
-            if k is None or not is_compatible(k, tabs.kind):
-                raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
-            return (c, s)
+            if isinstance(tabs, TypePolymorphism):
+                s = type_substitution(tabs.body, tabs.name, nty)
+                if k is None or not is_compatible(k, tabs.kind):
+                    raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
+                return (c, s)
+            else:
+                assert isinstance(tabs, AbstractionType)
+                return (c, tabs)
         case Hole(name):
             name_a = Name(name.name, fresh_counter.fresh())
             return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind

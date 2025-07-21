@@ -33,7 +33,7 @@ class VariableBinder(TypingContextEntry):
         return f"{self.name} : {self.type}"
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class UninterpretedBinder(TypingContextEntry):
     name: Name
     type: AbstractionType
@@ -42,7 +42,7 @@ class UninterpretedBinder(TypingContextEntry):
         return f"uninterpreted {self.name} : {self.type}"
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class TypeBinder(TypingContextEntry):
     type_name: Name
     type_kind: Kind = field(default_factory=StarKind)
