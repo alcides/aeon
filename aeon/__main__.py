@@ -150,7 +150,9 @@ def main() -> None:
     elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
+        print("#str")
         print(str(term))
+        print("#pprint")
         print(pretty_print(term))
     else:
         driver.run()
