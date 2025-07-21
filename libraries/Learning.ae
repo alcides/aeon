@@ -1,0 +1,54 @@
+import "Tuple.ae";
+
+type Dataset;
+type Model;
+
+def np : Unit = native_import "numpy";
+def skl : Unit = native_import "sklearn";
+def imblearn : Unit = native_import "imblearn";
+
+# Returns true if the dataset is balanced.
+def Learning_is_balanced: (ds: Dataset) -> Bool = uninterpreted;
+
+# Loads a dataset from a file.
+def Learning_load_dataset (filename: String) : Dataset { native "learning.load_dataset(filename)" }
+
+# Splits a dataset into two parts according to the given fraction.
+def Learning_split_dataset (ds: Dataset) (fraction: {f: Float | 0.0 <= f && f <= 1.0}) : Tuple {
+    native "learning.split_dataset(ds, fraction)"
+}
+
+# Trains a random forest model on a balanced dataset.
+def Learning_train_random_forest (dataset: {ds: Dataset | Learning_is_balanced (ds)}) : Model {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(dataset)"
+}
+
+# Applies SMOTE oversampling to balance the dataset.
+def Learning_smote_oversample (ds: Dataset) : Dataset {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_smote_oversample(ds)"
+}
+
+# Predicts labels for the given dataset using the trained model.
+def Learning_predict (model: Model) (ds: Dataset) : List {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_predict(model, ds)"
+}
+
+# Returns the accuracy score of the model on the given dataset.
+def Learning_score (model: Model) (ds: Dataset) : Float {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_score(model, ds)"
+}
+
+# Returns the confusion matrix for predictions on the dataset.
+def Learning_confusion_matrix (model: Model) (ds: Dataset) : List {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_confusion_matrix(model, ds)"
+}
+
+# Applies standard scaling (zero mean, unit variance) to the dataset features.
+def Learning_standard_scale (ds: Dataset) : Dataset {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_standard_scale(ds)"
+}
+
+# Applies min-max scaling to the dataset features.
+def Learning_minmax_scale (ds: Dataset) : Dataset {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_minmax_scale(ds)"
+}
