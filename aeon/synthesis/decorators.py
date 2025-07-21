@@ -31,7 +31,7 @@ def make_optimizer(
     """
     current_goals = metadata.get(fun.name, {}).get("goals", [])
     minimize_name = "minimize" if minimize else "maximize"
-    function_name = Name(f"__internal__{minimize_name}_{type}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
+    function_name = Name(f"__internal__{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
     function = Definition(
         name=function_name,
         foralls=[],

@@ -13,11 +13,6 @@ from aeon.core.types import t_string
 from aeon.core.types import Type
 from aeon.core.pprint import aeon_prelude_ops_to_text
 
-
-def fitness_function_name_for(fun_name: str) -> str:
-    return f"__internal__fitness_function_{fun_name}"
-
-
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
 internal_functions: list[str] = []
