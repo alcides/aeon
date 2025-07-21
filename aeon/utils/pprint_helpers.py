@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum
+from functools import reduce
+from typing import Callable, List
 
+from aeon.sugar.ast_helpers import true, false
 from aeon.sugar.program import (
     SLiteral,
     SVar,
@@ -339,6 +342,9 @@ def needs_parens_aux(child_associativity, child_precedence, child_side, parent_p
         return True
     if child_precedence > parent_precedence:
         return False
+    # quick and dirty fix for the parenthesis around fun application e.g. -> f (f y)
+    if child_precedence == parent_precedence == Precedence.APPLICATION and child_side == Side.RIGHT:
+        return True
     if child_associativity == Associativity.NONE:
         return False
     if child_associativity == Associativity.LEFT and child_side == Side.RIGHT:
@@ -543,8 +549,8 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None) -> Doc:
             # extended...
             return flat
         case STypeApplication(body=body, type=type):
-            pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.TYPE_APPLICATION, Side.LEFT))
-            pretty_type = pretty_stype_with_parens(type, ParenthesisContext(Precedence.TYPE_APPLICATION, Side.RIGHT))
+            pretty_body = sterm_pretty(body, ParenthesisContext(Precedence.APPLICATION, Side.LEFT))
+            pretty_type = stype_pretty(type, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT))
 
             pretty_type_app = concat([text("["), pretty_type, text("]")])
 
@@ -564,24 +570,92 @@ def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
     return result
 
 
-# TODO
-def remove_anf(term: STerm) -> STerm:
+def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Name] = None) -> STerm:
+    if context is None:
+        context = {}
+    if seen is None:  # seen is used as a fix to infinite recursion
+        seen = set()
+
     match term:
-        case SLet(var_name=var_name, var_value=var_value, body=SVar(name=body_name)) if var_name == body_name:
-            return remove_anf(var_value)
-        case SLet(var_name=var_name, var_value=var_value, body=body):
-            return SLet(var_name, remove_anf(var_value), remove_anf(body))
-        case SAbstraction(var_name=var_name, body=body):
-            return SAbstraction(var_name, remove_anf(body))
-        case SApplication(fun=fun, arg=arg):
-            return SApplication(remove_anf(fun), remove_anf(arg))
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
-            return SRec(var_name, var_type, remove_anf(var_value), remove_anf(body))
+        case SLiteral(value=value, type=type):
+            return SLiteral(value=value, type=type)
+        case SVar(name=name):
+            if name in seen or name not in context:
+                return SVar(name=name)
+            simplified_term = context[name]
+            new_seen = seen.copy()
+            new_seen.add(name)
+            return normalize_term(simplified_term, context, new_seen)
+        case SHole(name=name):
+            return SHole(name=name)
+        case SAnnotation(expr=expr, type=type):
+            simplified_expr = normalize_term(expr, context, seen)
+            return SAnnotation(expr=simplified_expr, type=type)
         case SIf(cond=cond, then=then, otherwise=otherwise):
-            return SIf(remove_anf(cond), remove_anf(then), remove_anf(otherwise))
+            simplified_cond = normalize_term(cond, context, seen)
+            if simplified_cond == true:
+                simplified_cond = normalize_term(cond, context, seen)
+                return simplified_cond
+            elif simplified_cond == false:
+                simplified_otherwise = normalize_term(otherwise, context, seen)
+                return normalize_term(simplified_otherwise, context, seen)
+            else:
+                simplified_then = normalize_term(then, context, seen)
+                simplified_otherwise = normalize_term(otherwise, context, seen)
+                return SIf(cond=simplified_cond, then=simplified_then, otherwise=simplified_otherwise)
+        case SApplication(fun=fun, arg=arg):
+            simplified_fun = normalize_term(fun, context, seen)
+            simplified_arg = normalize_term(arg, context, seen)
+
+            if isinstance(simplified_fun, SAbstraction):
+                new_context = context.copy()
+                new_context[simplified_fun.var_name] = simplified_arg
+                return normalize_term(simplified_fun.body, new_context, seen)
+            else:
+                return SApplication(fun=simplified_fun, arg=simplified_arg)
+        case SAbstraction(var_name=var_name, body=body):
+            simplified_body = normalize_term(body, context, seen)
+            return SAbstraction(var_name=var_name, body=simplified_body)
+        case SLet(var_name=var_name, var_value=var_value, body=body):
+            if var_name.pretty() == "anf":
+                context_copy = context.copy()
+                context_copy[var_name] = normalize_term(var_value, context, seen)
+                simplified_body = normalize_term(body, context_copy, seen)
+                return simplified_body
+            return SLet(
+                var_name=var_name,
+                var_value=normalize_term(var_value, context, seen),
+                body=normalize_term(body, context, seen),
+            )
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+            if var_name.pretty() == "anf":
+                context_copy = context.copy()
+                context_copy[var_name] = normalize_term(var_value, context, seen)
+                simplified_body = normalize_term(body, context_copy, seen)
+                return simplified_body
+            return SRec(
+                var_name=var_name,
+                var_type=var_type,
+                var_value=normalize_term(var_value, context, seen),
+                body=normalize_term(body, context, seen),
+            )
+        case STypeAbstraction(name=name, kind=kind, body=body):
+            simplified_body = normalize_term(body, context, seen)
+            return STypeAbstraction(name=name, kind=kind, body=simplified_body)
         case _:
             return term
 
 
-def pretty_print(term: STerm, width: int = DEFAULT_WIDTH) -> str:
-    return sterm_pretty(remove_anf(term), None).best(width, 0).layout(0)
+def rename_unused_variables(term: STerm):
+    # TODO
+    return term
+
+
+def pretty_print(term: STerm) -> str:
+    def apply_func(acc: STerm, func: Callable[[STerm], STerm]) -> STerm:
+        return func(acc)
+
+    functions: List[Callable[[STerm], STerm]] = [normalize_term, rename_unused_variables]
+
+    simplified_term = reduce(apply_func, functions, term)
+    return str(sterm_pretty(simplified_term))
