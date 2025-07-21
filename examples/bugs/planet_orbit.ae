@@ -1,0 +1,63 @@
+# Given starting and finishing values for the tru anomaly of a planet orbiting around a fixed starting
+# in an ellipse of given eccentricity e, find the minimum fraction of the orbital period that must have
+# passed between the two measurements of the tru anomaly.
+# input : float in [0.0, 360.0] (v1), float in [0.0, 360.0] (v2), float in [0.0, 1.0] (e)
+# output : float
+
+import "Math.ae";
+
+def degrees_to_radians (angle: {deg: Float | 0.0 <= deg && deg <= 360.0 })
+                        : {rad: Float | 0.0 <= rad && rad <= 2.0 * Math_PI} {
+   let HALF_TURN: {deg: Float | deg == 180.0 } = 180.0 in
+   Math_PI * angle / HALF_TURN
+}
+
+def cos_eccentric (tru_anomaly: {v: Float | 0.0 <= v && v <= 2.0 * Math_PI})
+                  (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
+                  : {cos: Float | -1.0 <= cos && cos <= 1.0} {
+   let cos_num = eccentricity + (Math_cos tru_anomaly) in
+   let cos_denom = 1.0 + eccentricity * (Math_cos tru_anomaly) in
+   cos_num / cos_denom
+}
+
+def sin_eccentric (tru_anomaly: {v: Float | 0.0 <= v && v <= 2.0 * Math_PI})
+                  (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
+                  : {sin: Float | -1.0 <= sin && sin <= 1.0} {
+   let sin_num = (Math_sqrtf (1.0 - eccentricity * eccentricity)) * (Math_sin tru_anomaly) in
+   let sin_denom = 1.0 + eccentricity * (Math_cos tru_anomaly) in
+   sin_num / sin_denom
+}
+
+def tru_to_eccentric_anomaly (tru_anomaly: {v: Float | 0.0 <= v && v <= 360.0})
+                              (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
+                              : {eccentric_anomaly: Float | 0.0 <= eccentric_anomaly && eccentric_anomaly <= 2.0 * Math_PI} {
+   let tru_anomaly_rad = degrees_to_radians tru_anomaly in
+   let cos = cos_eccentric tru_anomaly_rad eccentricity in
+   let sin = sin_eccentric tru_anomaly_rad eccentricity in
+   let raw_angle_E = Math_atan2 sin cos in
+   if raw_angle_E < 0.0 then
+      raw_angle_E + (2.0 * Math_PI)
+   else
+      raw_angle_E
+}
+
+def tru_to_mean_anomaly (tru_anomaly: {v: Float | 0.0 <= v && v <= 360.0})
+                        (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
+                        : {mean_anomaly: Float | 0.0 <= mean_anomaly && mean_anomaly <= 2.0 * Math_PI} {
+   let eccentric_anomaly = tru_to_eccentric_anomaly tru_anomaly eccentricity in
+   eccentric_anomaly - eccentricity * (Math_sin eccentric_anomaly)
+}
+
+def min_elapsed_period_fraction (starting_tru_anomaly: {v1: Float | 0.0 <= v1 && v1 <= 360.0})
+                                 (final_tru_anomaly: {v2: Float | 0.0 <= v2 && v2 <= 360.0})
+                                 (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
+                                 : {fraction: Float | 0.0 <= fraction && fraction <= 1.0} {
+   let starting_mean_anomaly = tru_to_mean_anomaly starting_tru_anomaly eccentricity in
+   let final_mean_anomaly = tru_to_mean_anomaly final_tru_anomaly eccentricity in
+   let delta_fraction = (Math_absf (final_mean_anomaly - starting_mean_anomaly)) / (2.0 * Math_PI) in
+   Math_minf delta_fraction (1.0 - delta_fraction)
+}
+
+def main (args:Int) : Unit {
+   print (min_elapsed_period_fraction 270.0 90.0 0.5)
+}
