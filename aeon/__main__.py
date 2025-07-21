@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from argparse import ArgumentParser
 
@@ -11,7 +10,6 @@ from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
-from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.utils.pprint_helpers import pretty_print
 
@@ -94,10 +92,7 @@ def _parse_common_arguments(parser: ArgumentParser):
 
 
 def select_synthesis_ui() -> SynthesisUI:
-    if os.environ.get("TERM", None):
-        return NCursesUI()
-    else:
-        return TerminalUI()
+    return TerminalUI()
 
 
 def handle_error(err: AeonError):
