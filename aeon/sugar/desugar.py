@@ -35,6 +35,7 @@ from aeon.utils.name import Name
 from aeon.sugar.ast_helpers import st_int, st_string
 
 from aeon.sugar.stypes import STypeVar
+from aeon.facade.api import ImportError
 
 
 class DesugaredProgram(NamedTuple):
@@ -132,7 +133,6 @@ def expand_inductive_decls(p: Program) -> Program:
                 rec_de = Definition(
                     name=Name(name.name + "_rec", -1), foralls=foralls, args=rec_args, type=return_type, body=rec_body
                 )
-                print(rec_de, "...")
                 defs.append(rec_de)
 
             case _:
@@ -178,7 +178,7 @@ def handle_imports(
     type_decls: list[TypeDecl],
 ) -> tuple[list[Definition], list[TypeDecl]]:
     for imp in imports[::-1]:
-        import_p = handle_import(imp.path)
+        import_p = handle_import(imp)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
         type_decls_recursive: list[TypeDecl] = []
@@ -288,9 +288,10 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             assert False, f"{d} is not a definition"
 
 
-def handle_import(path: str) -> Program:
+def handle_import(imp: ImportAe) -> Program:
     """Imports a given path, following the precedence rules of current folder,
     AEONPATH."""
+    path = imp.path
     possible_containers = (
         [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
     )
@@ -298,7 +299,6 @@ def handle_import(path: str) -> Program:
         file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
-            return mk_parser("program").parse(contents)
-    raise Exception(
-        f"Could not import {path} in any of the following paths: " + ";".join([str(p) for p in possible_containers]),
-    )
+            parse = mk_parser("program")
+            return parse(contents)
+    raise ImportError(importel=imp, possible_containers=possible_containers)

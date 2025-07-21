@@ -1,7 +1,7 @@
 from __future__ import annotations
+from typing import Iterable
 
 from loguru import logger
-from dataclasses import dataclass
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm
@@ -37,6 +37,17 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
+from aeon.facade.api import (
+    AeonError,
+    CoreInvalidApplicationError,
+    CoreSubtypingError,
+    CoreTypeApplicationRequiresBareTypesError,
+    CoreTypeCheckingError,
+    CoreTypingRelation,
+    CoreVariableNotInContext,
+    CoreWellformnessError,
+    CoreWrongKindInTypeApplicationError,
+)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.typechecking.well_formed import wellformed
@@ -50,74 +61,6 @@ from aeon.verification.vcs import LiquidConstraint
 from aeon.utils.name import Name, fresh_counter
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
-
-
-class TypeCheckingException(Exception):
-    pass
-
-
-class CouldNotGenerateConstraintException(TypeCheckingException):
-    pass
-
-
-@dataclass
-class FailedConstraintException(TypeCheckingException):
-    ctx: TypingContext
-    t: Term
-    ty: Type
-    ks: Constraint
-
-    def __str__(self):
-        return f"Constraint violated when checking if {self.t} : {self.ty}: \n {self.ks}"
-
-
-@dataclass
-class WrongKindException(TypeCheckingException):
-    expected: Kind
-    found: Kind
-    t: Term
-    ty: Type
-
-    def __str__(self):
-        return f"Expected kind {self.expected}, but found kind {self.found} in {self.t} of type {self.ty}."
-
-
-@dataclass
-class TypeApplicationOnlyWorksOnBareTypesException(TypeCheckingException):
-    t: Term
-    ty: Type
-
-    def __str__(self):
-        return f"Cannot use bare types in type applications (type {self.ty} in {self.t})."
-
-
-@dataclass
-class WrongKindInTypeApplication(TypeCheckingException):
-    t: Term
-    expected: Kind
-    actual: Kind | None
-
-    def __str__(self):
-        return f"Wrong kind in {self.t}. Expected {self.expected}, got {self.actual}."
-
-
-@dataclass
-class TypeNotWellformed(TypeCheckingException):
-    ty: Type
-
-    def __str__(self):
-        return f"Type {self.ty} is not wellformed."
-
-
-@dataclass
-class FailedSubtypingException(TypeCheckingException):
-    ctx: TypingContext
-    t: Term
-    s: Type
-    ty: Type
-
-    def __str__(self):
-        return f"Subtyping relationship of {self.t} failed. Inferred {self.s}, got {self.ty}"
 
 
 def is_compatible(a: Kind, b: Kind):
@@ -268,9 +211,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 return (ctrue, prim_op(name))
             ty = ctx.type_of(name)
             if not ty:
-                raise CouldNotGenerateConstraintException(
-                    f"Variable {name} not in context {ctx}",
-                )
+                raise CoreVariableNotInContext(ctx, t)
             if isinstance(ty, TypeConstructor) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
                 ty = ensure_refined(ty)
                 assert isinstance(ty, RefinedType)
@@ -305,9 +246,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     c0 = Conjunction(c, cp)
                     return (c0, t_subs)
                 case _:
-                    raise CouldNotGenerateConstraintException(
-                        f"Application {t} ({ty}) is not a function.",
-                    )
+                    raise CoreInvalidApplicationError(t, ty)
         case Let(var_name, var_value, body):
             (c1, t1) = synth(ctx, var_value)
             nctx: TypingContext = ctx.with_var(var_name, t1)
@@ -330,18 +269,21 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         case TypeApplication(body, ty):
             if not is_bare(ty):
                 # Type Application only works on bare types.
-                raise TypeApplicationOnlyWorksOnBareTypesException(t, ty)
+                raise CoreTypeApplicationRequiresBareTypesError(t, ty)
             (c, tabs) = synth(ctx, body)
-            assert isinstance(tabs, TypePolymorphism)  # TODO: Check this
             nty = fresh(ctx, ty)
-            s = type_substitution(tabs.body, tabs.name, nty)
             k = ctx.kind_of(nty)
             if isinstance(nty, RefinedType) and isinstance(nty.refinement, LiquidHornApplication):
                 nty = nty.type
                 k = ctx.kind_of(nty)
-            if k is None or not is_compatible(k, tabs.kind):
-                raise WrongKindInTypeApplication(t, expected=tabs.kind, actual=k)
-            return (c, s)
+            if isinstance(tabs, TypePolymorphism):
+                s = type_substitution(tabs.body, tabs.name, nty)
+                if k is None or not is_compatible(k, tabs.kind):
+                    raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
+                return (c, s)
+            else:
+                assert isinstance(tabs, AbstractionType)
+                return (c, tabs)
         case Hole(name):
             name_a = Name(name.name, fresh_counter.fresh())
             return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
@@ -355,7 +297,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     try:
         assert wellformed(ctx, ty)
     except AssertionError:
-        raise TypeNotWellformed(ty)
+        raise CoreWellformnessError(ty)
     match t, ty:
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
             ret = substitution_in_type(ret, Var(name), var_name)
@@ -379,7 +321,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             liq_cond = liquefy(cond)
             assert liq_cond is not None
             if not check_type(ctx, cond, t_bool):
-                raise CouldNotGenerateConstraintException("If condition not boolean")
+                raise CoreTypingRelation(ctx, cond, t_bool)
             c0 = check(ctx, cond, t_bool)
             name_pos = Name("branch_pos", fresh_counter.fresh())
             c1 = implication_constraint(
@@ -396,7 +338,12 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             return Conjunction(c0, Conjunction(c1, c2))
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
             if var_kind == BaseKind() and kind != var_kind:
-                raise WrongKindException(found=var_kind, expected=var_kind, t=t, ty=ty)
+                raise CoreWrongKindInTypeApplicationError(
+                    term=t,
+                    type=ty,
+                    actual_kind=var_kind,
+                    expected_kind=var_kind,
+                )
             itype = substitute_vartype(var_body, TypeVar(name), var_name)
             return check(ctx.with_typevar(name, var_kind), body, itype)
         case _:
@@ -404,7 +351,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             cp = sub(ctx, s, ty)
 
             if cp == LiquidConstraint(LiquidLiteralBool(False)):
-                raise FailedSubtypingException(ctx, t, s, ty)
+                raise CoreSubtypingError(ctx, t, s, ty)
             return Conjunction(c, cp)
 
 
@@ -418,9 +365,24 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
         # assert wellformed_constraint(ctx, constraint), f"Constraint {constraint} not wellformed."
         v = entailment(ctx, constraint)
         return v
-    except CouldNotGenerateConstraintException:
+    except CoreTypeCheckingError:
         return False
-    except FailedConstraintException:
-        return False
-    except TypeNotWellformed:
-        return False
+
+
+def check_type_errors(
+    ctx: TypingContext,
+    term: Term,
+    expected_type: Type,
+) -> Iterable[AeonError]:
+    if not wellformed(ctx, expected_type):
+        return [CoreWellformnessError(expected_type)]
+
+    try:
+        constraint = check(ctx, term, expected_type)
+        match entailment(ctx, constraint):
+            case True:
+                return []
+            case False:
+                return [CoreTypingRelation(ctx, term, expected_type)]
+    except CoreTypeCheckingError as e:
+        return [e]

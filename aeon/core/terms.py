@@ -1,22 +1,29 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.types import Kind
 from aeon.core.types import t_string
 from aeon.core.types import Type
+from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 
 
 class Term:
+    loc: Location
+
     def __hash__(self) -> int:
         return str(self).__hash__()
+
+    def pretty(self):
+        pass
 
 
 @dataclass(frozen=True)
 class Literal(Term):
     value: object
     type: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         if self.type == t_string:
@@ -26,10 +33,16 @@ class Literal(Term):
     def __eq__(self, other):
         return isinstance(other, Literal) and self.value == other.value and self.type == other.type
 
+    def pretty(self):
+        if self.type == t_string:
+            return f'"{self.value}"'
+        return f"{self.value}".lower()
+
 
 @dataclass(frozen=True)
 class Var(Term):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"{self.name}"
@@ -40,11 +53,15 @@ class Var(Term):
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
 
+    def pretty(self):
+        return self.name.pretty()
+
 
 @dataclass(frozen=True)
 class Annotation(Term):
     expr: Term
     type: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.expr} : {self.type})"
@@ -59,6 +76,7 @@ class Annotation(Term):
 @dataclass(frozen=True)
 class Hole(Term):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"?{self.name}"
@@ -74,6 +92,7 @@ class Hole(Term):
 class Application(Term):
     fun: Term
     arg: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return f"({self.fun} {self.arg})"
@@ -86,6 +105,7 @@ class Application(Term):
 class Abstraction(Term):
     var_name: Name
     body: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
         assert isinstance(self.var_name, Name)
@@ -102,6 +122,7 @@ class Let(Term):
     var_name: Name
     var_value: Term
     body: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
@@ -121,6 +142,7 @@ class Rec(Term):
     var_type: Type
     var_value: Term
     body: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
         return str(self)
@@ -148,6 +170,7 @@ class If(Term):
     cond: Term
     then: Term
     otherwise: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
@@ -166,15 +189,17 @@ class TypeAbstraction(Term):
     name: Name
     kind: Kind
     body: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"ƛ{self.name}:{self.kind}.({self.body})"
+        return f"ƛ{self.name}:{self.kind}.({self.body.pretty()})"
 
 
 @dataclass(frozen=True)
 class TypeApplication(Term):
     body: Term
     type: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.body})[{self.type}]"

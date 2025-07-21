@@ -31,7 +31,7 @@ def normalize(ty: SType) -> SType:
                 SVar(oname),
                 iname,
             )
-            new_ref = SApplication(SApplication(SVar(Name("&&")), a1), oref)
+            new_ref = SApplication(SApplication(SVar(Name("&&", 0)), a1), oref)
             return SRefinedType(oname, ity, new_ref)
         case _:
             return ty

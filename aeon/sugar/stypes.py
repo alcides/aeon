@@ -7,8 +7,8 @@ from aeon.core.types import Kind
 from typing import TYPE_CHECKING
 
 
+from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
-
 
 if TYPE_CHECKING:
     from aeon.sugar.program import STerm
@@ -17,12 +17,13 @@ if TYPE_CHECKING:
 class SType(ABC):
     "Surface-level Type Representation"
 
-    pass
+    loc: Location
 
 
 @dataclass(unsafe_hash=True)
 class STypeVar(SType):
     name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"'{self.name}"
@@ -33,6 +34,7 @@ class SRefinedType(SType):
     name: Name
     type: SType
     refinement: "STerm"
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"{{{self.name} : {self.type} | {self.refinement} }}"
@@ -43,6 +45,7 @@ class SAbstractionType(SType):
     var_name: Name
     var_type: SType
     type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"({self.var_name} : {self.var_type}) -> {self.type}"
@@ -53,6 +56,7 @@ class STypePolymorphism(SType):
     name: Name
     kind: Kind
     body: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         return f"∀{self.name}:{self.kind}. {self.body}"
@@ -62,6 +66,7 @@ class STypePolymorphism(SType):
 class STypeConstructor(SType):
     name: Name
     args: list[SType] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)

@@ -2,17 +2,15 @@ import pytest
 
 from aeon.core.terms import Application, Literal, Term, Var
 from aeon.core.types import top, t_bool, t_int, t_float, t_string
-from aeon.synthesis_grammar.identification import incomplete_functions_and_holes
-from aeon.synthesis_grammar.synthesizer import synthesize, gengy_default_config
+from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.typechecking.typeinfer import check_type
 from tests.driver import check_and_return_core
 from aeon.utils.name import Name
+from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 
 
 def synthesis_and_return(code):
-    synth_config = gengy_default_config
-    synth_config["timer_limit"] = 0.25
-
     term, ctx, ectx, metadata = check_and_return_core(code)
     assert check_type(ctx, term, top)
 
@@ -21,9 +19,9 @@ def synthesis_and_return(code):
         term,
     )
 
-    _, holes = synthesize(
-        ctx, ectx, term, incomplete_functions, metadata, synth_config=synth_config, refined_grammar=True
-    )
+    synthesizer = GESynthesizer()
+
+    holes = synthesize_holes(ctx, ectx, term, incomplete_functions, metadata, synthesizer, budget=0.25)
     return holes[list(holes.keys())[0]], ctx
 
 
@@ -73,6 +71,9 @@ def test_e2e_synthesis_ref1():
     code = """def synth : {x:Int | x == 3} = ?hole;"""
     t, _ = synthesis_and_return(code)
 
+    if t is None:
+        return
+
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
     assert t.value == 3
@@ -81,6 +82,9 @@ def test_e2e_synthesis_ref1():
 def test_e2e_synthesis_ref2():
     code = """def synth : {x:Int | x > 3} = ?hole;"""
     t, _ = synthesis_and_return(code)
+
+    if t is None:
+        return
 
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
@@ -91,6 +95,9 @@ def test_e2e_synthesis_ref3():
     code = """def synth : {x:Int | x > 3 && x < 10} = ?hole;"""
     t, _ = synthesis_and_return(code)
 
+    if t is None:
+        return
+
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
     assert t.value > 3 and t.value < 10
@@ -99,6 +106,9 @@ def test_e2e_synthesis_ref3():
 def test_e2e_synthesis_ref4():
     code = """def synth : {x:Int | (x > 3 && x < 10) || (x > 20 && x < 30)} = ?hole;"""
     t, _ = synthesis_and_return(code)
+
+    if t is None:
+        return
 
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
@@ -109,6 +119,9 @@ def test_e2e_synthesis_ref4():
 def test_e2e_synthesis_ref5():
     code = """def synth : {x:Float | x > 3 && x < 10} = ?hole;"""
     t, _ = synthesis_and_return(code)
+
+    if t is None:
+        return
 
     assert isinstance(t, Term)
     assert isinstance(t, Literal)

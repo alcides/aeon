@@ -42,8 +42,7 @@ def calculate_luhn_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List
             load_dataset,
             calculate_luhn_errors,
             train )
-@multi_minimize_float(calculate_luhn_errors train synth)
-@objective_number(1)
+@multi_minimize_float(calculate_luhn_errors train synth, 1)
 @disable_control_flow
 def synth (digits: List) : Int {
     (?hole: Int)

@@ -85,17 +85,14 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
 
     match fun:
         case SVar(name):
-            return LiquidApp(name, [arg])
+            return LiquidApp(name, [arg], loc=app.loc)
         case SApplication(_, _):
             liquid_pseudo_fun = liquefy_app(fun)
             if liquid_pseudo_fun:
-                return LiquidApp(
-                    liquid_pseudo_fun.fun,
-                    liquid_pseudo_fun.args + [arg],
-                )
+                return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg], loc=app.loc)
             return None
         case SLet(name, val, body):
-            app = SApplication(substitution_sterm_in_sterm(body, val, name), app.arg)
+            app = SApplication(substitution_sterm_in_sterm(body, val, name), app.arg, loc=app.loc)
             return liquefy_app(app)
         case _:
             raise LiquefactionException(f"{app} is not a valid predicate.")
@@ -106,28 +103,28 @@ def liquefy(
 ) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
-        case SLiteral(val, STypeConstructor(Name("Bool", _))):
+        case SLiteral(val, STypeConstructor(Name("Bool", _)), loc):
             assert isinstance(val, bool)
-            return LiquidLiteralBool(val)
-        case SLiteral(val, STypeConstructor(Name("Int", _))):
+            return LiquidLiteralBool(val, loc=loc)
+        case SLiteral(val, STypeConstructor(Name("Int", _)), loc):
             assert isinstance(val, int)
-            return LiquidLiteralInt(val)
-        case SLiteral(val, STypeConstructor(Name("Float", _))):
+            return LiquidLiteralInt(val, loc=loc)
+        case SLiteral(val, STypeConstructor(Name("Float", _)), loc):
             assert isinstance(val, float)
-            return LiquidLiteralFloat(val)
-        case SLiteral(val, STypeConstructor(Name("String", _))):
+            return LiquidLiteralFloat(val, loc=loc)
+        case SLiteral(val, STypeConstructor(Name("String", _)), loc):
             assert isinstance(val, str)
-            return LiquidLiteralString(val)
+            return LiquidLiteralString(val, loc=loc)
         case SLiteral(_, _):
             assert False, f"{t} is not convertable to liquid term."
-        case SVar(name):
-            return LiquidVar(name)
-        case SIf(cond, then, otherwise):
+        case SVar(name, loc):
+            return LiquidVar(name, loc=loc)
+        case SIf(cond, then, otherwise, loc):
             co = liquefy(cond, available_vars)
             th = liquefy(then, available_vars)
             ot = liquefy(otherwise, available_vars)
             if co is not None and th is not None and ot is not None:
-                return LiquidApp(Name("ite"), [co, th, ot])
+                return LiquidApp(Name("ite", 0), [co, th, ot], loc=loc)
             return None
         case SAnnotation(expr, _):
             return liquefy(expr, available_vars)
@@ -177,11 +174,11 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
         available_vars = []
 
     match normalize(ty):
-        case STypeConstructor(Name("Top", 0)):
-            return Top()
-        case STypeVar(name):
-            return TypeVar(name)
-        case SAbstractionType(name, vty, rty):
+        case STypeConstructor(Name("Top", 0), loc):
+            return Top()  # TODO: loc?
+        case STypeVar(name, loc):
+            return TypeVar(name, loc=loc)
+        case SAbstractionType(name, vty, rty, loc):
             nname = Name(name.name, fresh_counter.fresh())
             at = type_to_core(vty, available_vars)
             if isinstance(at, TypeConstructor) or isinstance(at, TypeVar) or isinstance(at, RefinedType):
@@ -189,10 +186,10 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
                 nrty = rty
-            return AbstractionType(nname, at, type_to_core(nrty, available_vars))
-        case STypePolymorphism(name, kind, rty):
-            return TypePolymorphism(name, kind, type_to_core(rty, available_vars))
-        case SRefinedType(oname, ity, ref):
+            return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
+        case STypePolymorphism(name, kind, rty, loc):
+            return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
+        case SRefinedType(oname, ity, ref, loc):
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())
                 ref = substitution_sterm_in_sterm(ref, SVar(name), oname)
@@ -204,9 +201,9 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
                 or isinstance(basety, TypeVar)
                 or isinstance(basety, TypeConstructor)
             )
-            return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]))
-        case STypeConstructor(name, args):
-            return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args])
+            return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]), loc=loc)
+        case STypeConstructor(name, args, loc):
+            return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args], loc=loc)
         case _:
             assert False, f"Unknown {ty} / {normalize(ty)}."
 
@@ -214,28 +211,28 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
 def lower_to_core(t: STerm) -> Term:
     """Converts Surface terms into Core terms."""
     match t:
-        case SHole(name):
-            return Hole(name)
-        case SLiteral(val, ty):
-            return Literal(val, type_to_core(ty))
-        case SVar(name):
-            return Var(name)
-        case SIf(cond, then, otherwise):
-            return If(lower_to_core(cond), lower_to_core(then), lower_to_core(otherwise))
-        case SApplication(fun, arg):
-            return Application(lower_to_core(fun), lower_to_core(arg))
-        case SLet(name, val, body):
-            return Let(name, lower_to_core(val), lower_to_core(body))
-        case SRec(name, ty, val, body):
-            return Rec(name, type_to_core(ty), lower_to_core(val), lower_to_core(body))
-        case SAnnotation(expr, ty):
-            return Annotation(lower_to_core(expr), type_to_core(ty))
-        case SAbstraction(name, body):
-            return Abstraction(name, lower_to_core(body))
-        case STypeApplication(expr, ty):
-            return TypeApplication(lower_to_core(expr), type_to_core(ty))
-        case STypeAbstraction(name, kind, body):
-            return TypeAbstraction(name, kind, lower_to_core(body))
+        case SHole(name, loc):
+            return Hole(name, loc=loc)
+        case SLiteral(val, ty, loc):
+            return Literal(val, type_to_core(ty), loc=loc)
+        case SVar(name, loc):
+            return Var(name, loc=loc)
+        case SIf(cond, then, otherwise, loc):
+            return If(lower_to_core(cond), lower_to_core(then), lower_to_core(otherwise), loc=loc)
+        case SApplication(fun, arg, loc):
+            return Application(lower_to_core(fun), lower_to_core(arg), loc=loc)
+        case SLet(name, val, body, loc):
+            return Let(name, lower_to_core(val), lower_to_core(body), loc=loc)
+        case SRec(name, ty, val, body, loc):
+            return Rec(name, type_to_core(ty), lower_to_core(val), lower_to_core(body), loc=loc)
+        case SAnnotation(expr, ty, loc):
+            return Annotation(lower_to_core(expr), type_to_core(ty), loc=loc)
+        case SAbstraction(name, body, loc):
+            return Abstraction(name, lower_to_core(body), loc=loc)
+        case STypeApplication(expr, ty, loc):
+            return TypeApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
+        case STypeAbstraction(name, kind, body, loc):
+            return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
         case _:
             assert False, f"{t} ({type(t)}) not supported"
 

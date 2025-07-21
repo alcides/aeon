@@ -1,0 +1,9 @@
+
+def main (args:Int) : Unit {
+    x: Int =  12 - 1 * 5;
+    y: Int = (12 - 1) * 5;
+    _ = print "x=";
+    _ = print x;
+    _ = print "y=";
+    print y
+}

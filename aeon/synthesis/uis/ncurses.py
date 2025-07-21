@@ -17,7 +17,7 @@ class NCursesUI(SynthesisUI):
         target_type: Type,
         budget: Any,
     ):
-        # self.stdscr = curses.initscr()
+        self.stdscr = curses.initscr()
         self.target_name = target_name
         self.target_type = target_type
         self.budget = budget

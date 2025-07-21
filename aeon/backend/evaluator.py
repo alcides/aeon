@@ -36,14 +36,8 @@ class EvaluationContext:
         return self.variables[name]
 
 
-def is_native_var(fun: Term):
-    match fun:
-        case TypeApplication(t, _):
-            return is_native_var(t)
-        case Var(Name("native", _)):
-            return True
-        case _:
-            return False
+def is_native_var(fun: Any):
+    return fun == real_eval
 
 
 def is_native_import(fun: Term):
@@ -68,7 +62,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Application(fun, arg):
             f = eval(fun, ctx)
             argv = eval(arg, ctx)
-            if is_native_var(fun):
+            if is_native_var(f):
                 assert isinstance(argv, str)
 
                 python_ctx = {str(name): v for name, v in globals().items()}
@@ -112,4 +106,5 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             return eval(body, ctx)
         case TypeApplication(body, _):
             return eval(body, ctx)
-    assert False
+        case _:
+            assert False, f"Unknown case {t}"

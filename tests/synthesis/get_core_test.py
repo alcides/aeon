@@ -4,7 +4,7 @@ import pytest
 
 from aeon.core.terms import Literal, Var
 from aeon.core.types import TypeConstructor, t_int, t_float, t_string, t_bool
-from aeon.synthesis_grammar.grammar import create_literals_nodes, create_var_node, extract_all_types
+from aeon.synthesis.grammar.grammar_generation import create_literals_nodes, create_var_node, extract_all_types
 from aeon.prelude.prelude import native_types
 from aeon.utils.name import Name
 

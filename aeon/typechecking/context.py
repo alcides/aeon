@@ -24,7 +24,7 @@ class TypingContextEntry(ABC):
     pass
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class VariableBinder(TypingContextEntry):
     name: Name
     type: Type
@@ -33,7 +33,7 @@ class VariableBinder(TypingContextEntry):
         return f"{self.name} : {self.type}"
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class UninterpretedBinder(TypingContextEntry):
     name: Name
     type: AbstractionType
@@ -42,7 +42,7 @@ class UninterpretedBinder(TypingContextEntry):
         return f"uninterpreted {self.name} : {self.type}"
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class TypeBinder(TypingContextEntry):
     type_name: Name
     type_kind: Kind = field(default_factory=StarKind)
@@ -54,7 +54,7 @@ class TypeBinder(TypingContextEntry):
 @dataclass
 class TypeConstructorBinder(TypingContextEntry):
     name: Name
-    args: list[Name]
+    args: list[Name]  # cant hash
 
     def __repr__(self):
         if self.args:
@@ -63,6 +63,9 @@ class TypeConstructorBinder(TypingContextEntry):
             argsf = ""
         return f"type {self.name}{argsf}"
 
+    def __hash__(self):
+        return hash(self.name) + hash(tuple(self.args))
+
 
 @dataclass
 class TypingContext:
@@ -70,7 +73,9 @@ class TypingContext:
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
-            self.entries.insert(0, TypeConstructorBinder(bt.name, []))
+            temp = TypeConstructorBinder(bt.name, [])
+            if temp not in self.entries:
+                self.entries.insert(0, temp)
 
     def __repr__(self):
         fields = "; ".join(map(repr, self.entries))
