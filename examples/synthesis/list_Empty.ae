@@ -1,7 +1,7 @@
 import "List.ae";
 
 @minimize_int( if (isEmpty(List_new)) then 0 else 1 )
-def isEmpty(xs: List) : Bool {
+def is_empty(xs: List a) : { j:Bool | (j == (i == 0)) } {
     let i : Int = List_length xs;
-    (?hole: { j:Bool | (j == (i == 0)) })
+    ?hole
 }
