@@ -211,7 +211,7 @@ class Nil(Doc):
     def layout(self, _) -> str:
         return ""
 
-    def fits(self, *_):
+    def fits(self, *_) -> bool:
         return True
 
     def best(self, *_) -> "Doc":
@@ -243,11 +243,29 @@ class Line(Doc):
     def layout(self, indent: int) -> str:
         return DEFAULT_NEW_LINE_CHAR + DEFAULT_SPACE_CHAR * indent
 
-    def fits(self, *_) -> bool:
-        return True
+    def fits(self, width: int, current_length: int) -> bool:
+        return current_length + 1 <= width
 
     def best(self, *_) -> "Doc":
         return self
+
+    def flatten(self) -> "Doc":
+        return Text(DEFAULT_SPACE_CHAR)
+
+
+@dataclass(frozen=True)
+class SoftLine(Line):
+    def fits(self, width: int, current_length: int) -> bool:
+        return current_length <= width
+
+    def flatten(self) -> "Doc":
+        return Text("")
+
+
+@dataclass(frozen=True)
+class HardLine(Line):
+    def fits(self, *_) -> bool:
+        return False
 
     def flatten(self) -> "Doc":
         return self
@@ -259,43 +277,48 @@ class Concat(Doc):
     right: Doc
 
     def layout(self, indent: int) -> str:
-        left_layout = self.left.layout(indent)
-        right_layout = self.right.layout(indent)
-        return left_layout + right_layout
+        return self.left.layout(indent) + self.right.layout(indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        return self.left.fits(width, current_length) and self.right.fits(
-            width, current_length + len(self.left.flatten().layout(0))
-        )
+        if not self.left.fits(width, current_length):
+            return False
+
+        new_length = self.left.calculate_new_length(current_length)
+
+        return self.right.fits(width, new_length)
 
     def best(self, width: int, current_length: int) -> "Doc":
         left_best = self.left.best(width, current_length)
-        right_best = self.right.best(width, current_length + len(left_best.flatten().layout(0)))
+
+        new_length = left_best.calculate_new_length(current_length)
+
+        right_best = self.right.best(width, new_length)
         return Concat(left_best, right_best)
 
     def flatten(self) -> "Doc":
-        return Concat(self.left.flatten(), self.right.flatten())
+        return self.left.flatten() + self.right.flatten()
 
 
 @dataclass(frozen=True)
 class MultiUnion(Doc):
-    alternatives: tuple[Doc, ...]
+    alternatives_fn: Callable[[], Iterable[Doc]]
 
     def layout(self, indent: int) -> str:
-        return self.best(DEFAULT_WIDTH, indent).layout(indent)
+        return self.best(DEFAULT_WIDTH, 0).layout(indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        return any(doc.fits(width, current_length) for doc in self.alternatives)
+        return any(doc.fits(width, current_length) for doc in self.alternatives_fn())
 
-    def best(self, width: int, current_length: int) -> Doc:
-        for doc in self.alternatives:
+    def best(self, width: int, current_length: int) -> "Doc":
+        default_document = None
+        for doc in self.alternatives_fn():
             if doc.fits(width, current_length):
-                return doc
-        denser_alternative = self.alternatives[-1]
-        return denser_alternative
+                return doc.best(width, current_length)
+            default_document = doc
+        return default_document.best(width, current_length)
 
-    def flatten(self):
-        return self.alternatives[0].flatten()
+    def flatten(self) -> "Doc":
+        return MultiUnion(lambda: (doc.flatten() for doc in self.alternatives_fn()))
 
 
 @dataclass(frozen=True)
@@ -307,16 +330,13 @@ class Nest(Doc):
         return self.doc.layout(indent + self.indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        doc_layout = self.doc.layout(self.indent)
-        lines = doc_layout.split(DEFAULT_NEW_LINE_CHAR)
-        return all(len(line) <= width for line in lines)
+        return self.doc.fits(width, current_length)
 
     def best(self, width: int, current_length: int) -> "Doc":
-        best_doc = self.doc.best(width, current_length)
-        return Nest(self.indent, best_doc)
+        return Nest(self.indent, self.doc.best(width, current_length + self.indent))
 
     def flatten(self) -> "Doc":
-        return self.doc.flatten()
+        return Nest(self.indent, self.doc.flatten())
 
 
 def nil() -> Doc:
@@ -324,28 +344,30 @@ def nil() -> Doc:
 
 
 def text(value: str) -> Doc:
-    if value == "":
-        return nil()
-    return Text(value)
+    return Text(value) if value != "" else nil()
 
 
 def line() -> Doc:
     return Line()
 
 
-def softline() -> Doc:
-    return MultiUnion((text(" "), line()))
+def soft_line() -> Doc:
+    return SoftLine()
+
+
+def hard_line() -> Doc:
+    return HardLine()
 
 
 def concat(docs: list[Doc]) -> Doc:
     filtered_docs = [doc for doc in docs if not isinstance(doc, Nil)]
 
     if not filtered_docs:
-        return text("")
+        return nil()
 
     result = filtered_docs[0]
     for doc in filtered_docs[1:]:
-        result = Concat(result, doc)
+        result += doc
 
     return result
 
@@ -355,7 +377,23 @@ def nest(indent: int, doc: Doc) -> Doc:
 
 
 def group(doc: Doc) -> Doc:
-    return MultiUnion((doc.flatten(), doc))
+    return MultiUnion(lambda: iter([doc.flatten(), doc]))
+
+
+def parens(doc: Doc, needs_spaces: bool = False) -> Doc:
+    line_func = line if needs_spaces else soft_line
+    return group(concat([text("("), nest(DEFAULT_TAB_SIZE, concat([line_func(), doc])), line_func(), text(")")]))
+
+
+def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
+    if not docs:
+        return nil()
+
+    result = docs[0]
+    for doc in docs[1:]:
+        result = concat([result, separator, doc])
+
+    return result
 
 
 def parens(doc: Doc) -> Doc:
