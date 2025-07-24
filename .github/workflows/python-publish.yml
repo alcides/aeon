@@ -9,13 +9,16 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [ published ]
+  push:
+    tags: ["*"]
+
 
 jobs:
-  deploy:
-
+  tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -27,9 +30,16 @@ jobs:
           cache-dependency-glob: |
             **/requirements*.txt
             **/pyproject.toml
+      - name: Create venv
+        run: |
+          uv venv
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then uv pip install -r requirements-dev.txt; fi
       - name: Lint with mypy
         run: |
-          uv run mypy --no-strict-optional --ignore-missing-imports --explicit-package-bases aeon
+          uv run mypy --no-strict-optional --ignore-missing-imports --explicit-package-bases geneticengine
       - name: Check install
         run: |
           uv pip install  -e .
