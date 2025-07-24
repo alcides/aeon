@@ -27,6 +27,27 @@ DEFAULT_SPACE_CHAR = " "
 DEFAULT_WIDTH = 80
 DEFAULT_TAB_SIZE = 4
 
+AEON_INFIX_OPERATORS = {
+    "%",
+    "/",
+    "*",
+    "-",
+    "+",
+    "%.",
+    "/.",
+    "*.",
+    "-.",
+    "+.",
+    ">=",
+    ">",
+    "<=",
+    "<",
+    "!=",
+    "==",
+    "&&",
+    "||",
+}
+
 
 class Associativity(Enum):
     LEFT = "left"
