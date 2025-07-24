@@ -188,6 +188,23 @@ class Doc(ABC):
     def __str__(self):
         return self.best(DEFAULT_WIDTH, 0).layout(0)
 
+    def __add__(self, other):
+        return Concat(self, other)
+
+    def calculate_new_length(self, current_length: int) -> int:
+        match self:
+            case Line():
+                return 0
+            case Text(value):
+                return current_length + len(value)
+            case _:
+                layout = self.layout(0)
+                if DEFAULT_NEW_LINE_CHAR in layout:
+                    last_line = layout.rsplit(DEFAULT_NEW_LINE_CHAR, 1)[-1]
+                    return len(last_line)
+                else:
+                    return current_length + len(layout)
+
 
 @dataclass(frozen=True)
 class Nil(Doc):
@@ -395,6 +412,60 @@ def pretty_sterm_with_parens(sterm: STerm, parent_ctx: ParenthesisContext) -> Do
     child_op = get_sterm_operation(sterm)
     child_pretty = sterm_pretty(sterm, ParenthesisContext(get_operation_precedence(child_op), Side.NONE))
     return add_parens_if_needed(child_pretty, child_op, parent_ctx)
+
+
+def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: int):
+    pretty_left = pretty_sterm_with_parens(left, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+    pretty_right = pretty_sterm_with_parens(right, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1)
+    return group(concat([pretty_left, line(), text(op_name.pretty()), line(), pretty_right]))
+
+
+def pretty_print_function_definition(pretty_var_name, named_vars, final_type):
+    first_var_name, first_var_type = named_vars[0]
+    first_arg_str = parens(concat([text(first_var_name.pretty()), text(" : "), stype_pretty(first_var_type)]))
+    header = concat([text("def "), pretty_var_name, text(" "), first_arg_str])
+
+    alignment = len("def ") + len(pretty_var_name.layout(0)) + 1
+
+    for var_name, var_type in named_vars[1:]:
+        pretty_arg = concat(
+            [
+                line(),
+                text(" " * alignment),
+                parens(concat([text(var_name.pretty()), text(" : "), stype_pretty(var_type)])),
+            ]
+        )
+        header = concat([header, pretty_arg])
+
+    header = concat(
+        [
+            header,
+            nest(alignment, concat([line(), text(": "), stype_pretty(final_type)])),
+        ]
+    )
+    return header, alignment
+
+
+def unwrap_abstraction_types(stype: SType):
+    named_vars = []
+    curr = stype
+    while True:
+        match curr:
+            case SAbstractionType(var_name=_var_name, var_type=_var_type, type=next_type):
+                named_vars.append((_var_name, _var_type))
+                curr = next_type
+            case other:
+                return named_vars, other
+
+
+def strip_matching_abstractions(value: STerm, named_vars):
+    for var_name, _ in named_vars:
+        match value:
+            case SAbstraction(var_name=vn, body=body) if vn.name == var_name.name:
+                value = body
+            case _:
+                break
+    return value
 
 
 def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
