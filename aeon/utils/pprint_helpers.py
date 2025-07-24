@@ -75,56 +75,6 @@ class Operation(Enum):
     LITERAL = "Literal"
 
 
-def get_operation_associativity(operation: Operation) -> Associativity:
-    match operation:
-        case Operation.LAMBDA, Operation.ARROW:
-            return Associativity.RIGHT
-        case Operation.APPLICATION, Operation.TYPE_APPLICATION:
-            return Associativity.LEFT
-        case _:
-            return Associativity.NONE
-
-
-def get_sterm_operation(sterm: STerm) -> Operation:
-    match sterm:
-        case SLet():
-            return Operation.LET
-        case SIf():
-            return Operation.IF
-        case SAbstraction():
-            return Operation.LAMBDA
-        case SApplication():
-            return Operation.APPLICATION
-        case SAnnotation():
-            return Operation.ANNOTATION
-        case SRec():
-            return Operation.LET
-        case STypeAbstraction():
-            return Operation.POLYMORPHISM
-        case STypeApplication():
-            return Operation.TYPE_APPLICATION
-        case SLiteral() | SVar() | SHole():
-            return Operation.LITERAL
-        case _:
-            return Operation.LITERAL
-
-
-def get_stype_operation(stype: SType) -> Operation:
-    match stype:
-        case STypeVar():
-            return Operation.LITERAL
-        case SRefinedType():
-            return Operation.REFINED_TYPE
-        case SAbstractionType():
-            return Operation.ARROW
-        case STypePolymorphism():
-            return Operation.POLYMORPHISM
-        case STypeConstructor():
-            return Operation.TYPE_CONSTRUCTOR
-        case _:
-            return Operation.LITERAL
-
-
 class Precedence(IntEnum):
     POLYMORPHISM = 1
     LET = 2
@@ -139,37 +89,10 @@ class Precedence(IntEnum):
     LITERAL = 10
 
 
-def get_operation_precedence(operation: Operation) -> Precedence:
-    precedence_map = {
-        Operation.POLYMORPHISM: Precedence.POLYMORPHISM,
-        Operation.LET: Precedence.LET,
-        Operation.IF: Precedence.IF,
-        Operation.ARROW: Precedence.ARROW,
-        Operation.LAMBDA: Precedence.LAMBDA,
-        Operation.REFINED_TYPE: Precedence.REFINED_TYPE,
-        Operation.ANNOTATION: Precedence.ANNOTATION,
-        Operation.TYPE_CONSTRUCTOR: Precedence.TYPE_CONSTRUCTOR,
-        Operation.APPLICATION: Precedence.APPLICATION,
-        Operation.TYPE_APPLICATION: Precedence.TYPE_APPLICATION,
-        Operation.LITERAL: Precedence.LITERAL,
-    }
-    return precedence_map[operation]
-
-
 @dataclass(frozen=True)
 class ParenthesisContext:
     parent_precedence: Precedence
     child_side: Side
-
-
-# "a -> b"
-# "a : b -> c"
-# "∀a:b -> c"
-# "let x in y = z"
-# "if x then y else z -> c"
-# \x -> \y -> z
-# (\x -> \y) -> z
-# "let rec x : Int -> Int = y in z"
 
 
 class Doc(ABC):
@@ -396,12 +319,71 @@ def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
     return result
 
 
-def parens(doc: Doc) -> Doc:
-    return concat([text("("), doc, text(")")])
+def get_operation_associativity(operation: Operation) -> Associativity:
+    match operation:
+        case Operation.LAMBDA, Operation.ARROW:
+            return Associativity.RIGHT
+        case Operation.APPLICATION, Operation.TYPE_APPLICATION:
+            return Associativity.LEFT
+        case _:
+            return Associativity.NONE
 
 
-def indented(indent: int, doc: Doc) -> Doc:
-    return nest(indent, concat([line(), doc]))
+def get_sterm_operation(sterm: STerm) -> Operation:
+    match sterm:
+        case SLet():
+            return Operation.LET
+        case SIf():
+            return Operation.IF
+        case SAbstraction():
+            return Operation.LAMBDA
+        case SApplication():
+            return Operation.APPLICATION
+        case SAnnotation():
+            return Operation.ANNOTATION
+        case SRec():
+            return Operation.LET
+        case STypeAbstraction():
+            return Operation.POLYMORPHISM
+        case STypeApplication():
+            return Operation.TYPE_APPLICATION
+        case SLiteral() | SVar() | SHole():
+            return Operation.LITERAL
+        case _:
+            return Operation.LITERAL
+
+
+def get_stype_operation(stype: SType) -> Operation:
+    match stype:
+        case STypeVar():
+            return Operation.LITERAL
+        case SRefinedType():
+            return Operation.REFINED_TYPE
+        case SAbstractionType():
+            return Operation.ARROW
+        case STypePolymorphism():
+            return Operation.POLYMORPHISM
+        case STypeConstructor():
+            return Operation.TYPE_CONSTRUCTOR
+        case _:
+            return Operation.LITERAL
+
+
+def get_operation_precedence(operation: Operation) -> Precedence:
+    precedence_map = {
+        Operation.POLYMORPHISM: Precedence.POLYMORPHISM,
+        Operation.LET: Precedence.LET,
+        Operation.IF: Precedence.IF,
+        Operation.ARROW: Precedence.ARROW,
+        Operation.LAMBDA: Precedence.LAMBDA,
+        Operation.REFINED_TYPE: Precedence.REFINED_TYPE,
+        Operation.ANNOTATION: Precedence.ANNOTATION,
+        Operation.TYPE_CONSTRUCTOR: Precedence.TYPE_CONSTRUCTOR,
+        Operation.APPLICATION: Precedence.APPLICATION,
+        Operation.TYPE_APPLICATION: Precedence.TYPE_APPLICATION,
+        Operation.LITERAL: Precedence.LITERAL,
+    }
+    return precedence_map[operation]
 
 
 def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext):
