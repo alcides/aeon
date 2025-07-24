@@ -400,9 +400,7 @@ def needs_parens_aux(child_associativity, child_precedence, child_side, parent_p
         return True
     if child_precedence > parent_precedence:
         return False
-    # quick and dirty fix for the parenthesis around fun application e.g. -> f (f y)
-    if child_precedence == parent_precedence == Precedence.APPLICATION and child_side == Side.RIGHT:
-        return True
+
     if child_associativity == Associativity.NONE:
         return False
     if child_associativity == Associativity.LEFT and child_side == Side.RIGHT:
