@@ -16,13 +16,13 @@ from aeon.utils.pprint_helpers import (
 def test_simple_pprint_1():
     expr = Mul(Add(Num(1), Num(2)), Div(Num(3), Num(4)))
     expected = "(1 + 2) * (3 / 4)"
-    assert expected == expr.to_doc().best(0, 0).layout(0)
+    assert expected == expr.to_doc().best(80, 0).layout(0)
 
 
 def test_simple_pprint_2():
     expr = Div(Add(Mul(Num(1), Num(2)), Num(2)), Div(Num(3), Num(4)))
     expected = "(1 * 2 + 2) / (3 / 4)"
-    assert expected == expr.to_doc().best(0, 0).layout(0)
+    assert expected == expr.to_doc().best(80, 0).layout(0)
 
 
 def test_complex_pretty_print():
@@ -30,7 +30,7 @@ def test_complex_pretty_print():
         Sub(Add(Num(1), Mul(Sub(Num(2), Num(3)), Num(4))), Div(Num(5), Num(6))), Add(Num(7), Mul(Num(8), Num(9)))
     )
     expected = "(1 + (2 - 3) * 4 - 5 / 6) / (7 + 8 * 9)"
-    assert expected == expr.to_doc().best(0, 0).layout(0)
+    assert expected == expr.to_doc().best(80, 0).layout(0)
 
 
 # Helper Classes
