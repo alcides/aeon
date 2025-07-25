@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntEnum
+from functools import reduce
+from typing import Callable, List, Iterable
 
+from aeon.sugar.ast_helpers import true, false
 from aeon.sugar.program import (
     SLiteral,
     SVar,
@@ -24,42 +27,77 @@ DEFAULT_SPACE_CHAR = " "
 DEFAULT_WIDTH = 80
 DEFAULT_TAB_SIZE = 4
 
+AEON_INFIX_OPERATORS = {
+    "%",
+    "/",
+    "*",
+    "-",
+    "+",
+    "%.",
+    "/.",
+    "*.",
+    "-.",
+    "+.",
+    ">=",
+    ">",
+    "<=",
+    "<",
+    "!=",
+    "==",
+    "&&",
+    "||",
+}
 
-class Assoc(Enum):
+
+class Associativity(Enum):
     LEFT = "left"
     RIGHT = "right"
     NONE = "none"
 
 
-class Position(Enum):
+class Side(Enum):
     LEFT = "left"
     RIGHT = "right"
     NONE = "none"
 
 
-POLYMORPHISM_PRECEDENCE = 5
-LET_PRECEDENCE = 10
-IF_PRECEDENCE = 10
-ARROW_PRECEDENCE = 15
-LAMBDA_PRECEDENCE = 20
-REFINED_TYPE_PRECEDENCE = 25
-ANNOTATION_PRECEDENCE = 30
-TYPE_CONSTRUCTOR_PRECEDENCE = 35
-APPLICATION_PRECEDENCE = 40
-TYPE_APPLICATION_PRECEDENCE = 45
-LITERAL_PRECEDENCE = 100
+class Operation(Enum):
+    POLYMORPHISM = "Polymorphism"
+    LET = "Let"
+    IF = "If"
+    ARROW = "Arrow"
+    LAMBDA = "Lambda"
+    REFINED_TYPE = "RefinedType"
+    ANNOTATION = "Annotation"
+    TYPE_CONSTRUCTOR = "TypeConstructor"
+    APPLICATION = "Application"
+    TYPE_APPLICATION = "TypeApplication"
+    LITERAL = "Literal"
+
+
+class Precedence(IntEnum):
+    POLYMORPHISM = 1
+    LET = 2
+    IF = 2
+    ANNOTATION = 3
+    ARROW = 4
+    LAMBDA = 5
+    REFINED_TYPE = 6
+    TYPE_CONSTRUCTOR = 7
+    APPLICATION = 8
+    TYPE_APPLICATION = 9
+    LITERAL = 10
 
 
 @dataclass(frozen=True)
-class LayoutContext:
-    parent_precedence: int
-    position: Position
-    indent: int = 0
+class ParenthesisContext:
+    parent_precedence: Precedence
+    child_side: Side
 
 
 class Doc(ABC):
     @abstractmethod
-    def layout(self, context: LayoutContext) -> str: ...
+    def layout(self, indent: int) -> str: ...
 
     @abstractmethod
     def fits(self, width: int, current_length: int) -> bool: ...
@@ -67,36 +105,56 @@ class Doc(ABC):
     @abstractmethod
     def best(self, width: int, current_length: int) -> "Doc": ...
 
-    def flatten(self) -> "Doc":
-        return self
+    @abstractmethod
+    def flatten(self) -> "Doc": ...
 
     def __str__(self):
-        return self.best(DEFAULT_WIDTH, 0).layout(LayoutContext(0, Position.NONE, 0))
+        return self.best(DEFAULT_WIDTH, 0).layout(0)
+
+    def __add__(self, other):
+        return Concat(self, other)
+
+    def calculate_new_length(self, current_length: int) -> int:
+        match self:
+            case Line():
+                return 0
+            case Text(value):
+                return current_length + len(value)
+            case _:
+                layout = self.layout(0)
+                if DEFAULT_NEW_LINE_CHAR in layout:
+                    last_line = layout.rsplit(DEFAULT_NEW_LINE_CHAR, 1)[-1]
+                    return len(last_line)
+                else:
+                    return current_length + len(layout)
 
 
 @dataclass(frozen=True)
 class Nil(Doc):
-    def layout(self, context: LayoutContext) -> str:
+    def layout(self, _) -> str:
         return ""
 
-    def fits(self, width: int, current_length: int) -> bool:
+    def fits(self, *_) -> bool:
         return True
 
-    def best(self, width: int, current_length: int) -> "Doc":
+    def best(self, *_) -> "Doc":
+        return self
+
+    def flatten(self) -> "Doc":
         return self
 
 
 @dataclass(frozen=True)
 class Text(Doc):
-    s: str
+    value: str
 
-    def layout(self, context: LayoutContext) -> str:
-        return self.s
+    def layout(self, _) -> str:
+        return self.value
 
     def fits(self, width: int, current_length: int) -> bool:
-        return current_length + len(self.s) <= width
+        return current_length + len(self.value) <= width
 
-    def best(self, width: int, current_length: int) -> "Doc":
+    def best(self, *_) -> "Doc":
         return self
 
     def flatten(self) -> "Doc":
@@ -105,14 +163,32 @@ class Text(Doc):
 
 @dataclass(frozen=True)
 class Line(Doc):
-    def layout(self, context: LayoutContext) -> str:
-        return DEFAULT_NEW_LINE_CHAR + DEFAULT_SPACE_CHAR * context.indent
+    def layout(self, indent: int) -> str:
+        return DEFAULT_NEW_LINE_CHAR + DEFAULT_SPACE_CHAR * indent
 
     def fits(self, width: int, current_length: int) -> bool:
-        return True
+        return current_length + 1 <= width
 
-    def best(self, width: int, current_length: int) -> "Doc":
+    def best(self, *_) -> "Doc":
         return self
+
+    def flatten(self) -> "Doc":
+        return Text(DEFAULT_SPACE_CHAR)
+
+
+@dataclass(frozen=True)
+class SoftLine(Line):
+    def fits(self, width: int, current_length: int) -> bool:
+        return current_length <= width
+
+    def flatten(self) -> "Doc":
+        return Text("")
+
+
+@dataclass(frozen=True)
+class HardLine(Line):
+    def fits(self, *_) -> bool:
+        return False
 
     def flatten(self) -> "Doc":
         return self
@@ -120,362 +196,633 @@ class Line(Doc):
 
 @dataclass(frozen=True)
 class Concat(Doc):
-    docs: tuple[Doc, ...]
-    precedence: int = 0
-    assoc: Assoc = Assoc.NONE
+    left: Doc
+    right: Doc
 
-    def layout(self, context: LayoutContext) -> str:
-        child_size = len(self.docs)
-        if child_size == 1:
-            child_positions = [Position.NONE]
-        elif child_size == 2:
-            child_positions = [Position.LEFT, Position.RIGHT]
-        elif child_size == 3:
-            child_positions = [Position.LEFT, Position.NONE, Position.RIGHT]
-        else:
-            child_positions = [Position.NONE] * child_size
-
-        layout_string = "".join(
-            doc.layout(LayoutContext(indent=context.indent, parent_precedence=self.precedence, position=pos))
-            for doc, pos in zip(self.docs, child_positions)
-        )
-        need_parentheses = False
-        if self.precedence < context.parent_precedence:
-            need_parentheses = True
-        elif self.precedence == context.parent_precedence:
-            if context.position == Position.LEFT and self.assoc != Assoc.LEFT:
-                need_parentheses = True
-            elif context.position == Position.RIGHT and self.assoc != Assoc.RIGHT:
-                need_parentheses = True
-
-        return "(" + layout_string + ")" if need_parentheses else layout_string
+    def layout(self, indent: int) -> str:
+        return self.left.layout(indent) + self.right.layout(indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        curr = current_length
-        for doc in self.docs:
-            if not doc.fits(width, curr):
-                return False
-            default_context = LayoutContext(indent=0, parent_precedence=0, position=Position.NONE)
-            curr += len(doc.flatten().layout(default_context))
-            if curr > width:
-                return False
-        return True
+        if not self.left.fits(width, current_length):
+            return False
+
+        new_length = self.left.calculate_new_length(current_length)
+
+        return self.right.fits(width, new_length)
 
     def best(self, width: int, current_length: int) -> "Doc":
-        flat = self.flatten()
-        if flat.fits(width, current_length):
-            return flat
-        best_children = []
-        curr = current_length
-        for doc in self.docs:
-            best_child = doc.best(width, curr)
-            best_children.append(best_child)
-            default_context = LayoutContext(indent=0, parent_precedence=0, position=Position.NONE)
-            curr += len(best_child.flatten().layout(default_context))
-        return Concat(tuple(best_children), self.precedence, self.assoc)
+        left_best = self.left.best(width, current_length)
+
+        new_length = left_best.calculate_new_length(current_length)
+
+        right_best = self.right.best(width, new_length)
+        return Concat(left_best, right_best)
 
     def flatten(self) -> "Doc":
-        flattened_children = tuple(doc.flatten() for doc in self.docs)
-        return Concat(flattened_children, self.precedence, self.assoc)
+        return self.left.flatten() + self.right.flatten()
 
 
 @dataclass(frozen=True)
 class MultiUnion(Doc):
-    alternatives: tuple[Doc, ...]
+    alternatives_fn: Callable[[], Iterable[Doc]]
 
-    def layout(self, context: LayoutContext) -> str:
-        return self.best(DEFAULT_WIDTH, context.indent).layout(context)
+    def layout(self, indent: int) -> str:
+        return self.best(DEFAULT_WIDTH, 0).layout(indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        return any(doc.fits(width, current_length) for doc in self.alternatives)
+        return any(doc.fits(width, current_length) for doc in self.alternatives_fn())
 
-    def best(self, width: int, current_length: int) -> Doc:
-        for doc in self.alternatives:
+    def best(self, width: int, current_length: int) -> "Doc":
+        default_document = None
+        for doc in self.alternatives_fn():
             if doc.fits(width, current_length):
-                return doc
-        return self.alternatives[-1]
+                return doc.best(width, current_length)
+            default_document = doc
+        return default_document.best(width, current_length)
 
-    def flatten(self):
-        return self.alternatives[0].flatten()
+    def flatten(self) -> "Doc":
+        return MultiUnion(lambda: (doc.flatten() for doc in self.alternatives_fn()))
 
 
 @dataclass(frozen=True)
 class Nest(Doc):
     indent: int
     doc: Doc
-    precedence: int = 0
 
-    def layout(self, context: LayoutContext) -> str:
-        s = self.doc.layout(LayoutContext(context.parent_precedence, context.position, context.indent + self.indent))
-        lines = s.split(DEFAULT_NEW_LINE_CHAR)
-        if not lines:
-            return ""
-        lines = [(DEFAULT_SPACE_CHAR * self.indent) + line for line in lines]
-        return DEFAULT_NEW_LINE_CHAR.join(lines)
+    def layout(self, indent: int) -> str:
+        return self.doc.layout(indent + self.indent)
 
     def fits(self, width: int, current_length: int) -> bool:
-        s = self.doc.layout(LayoutContext(self.precedence, Position.NONE, 0 + self.indent))
-        lines = s.split(DEFAULT_NEW_LINE_CHAR)
-        for i, line in enumerate(lines):
-            if self.indent + len(line) > width:
-                return False
-        return True
+        return self.doc.fits(width, current_length)
 
     def best(self, width: int, current_length: int) -> "Doc":
-        best_doc = self.doc.best(width, current_length)
-        return Nest(self.indent, best_doc, self.precedence)
+        return Nest(self.indent, self.doc.best(width, current_length + self.indent))
 
     def flatten(self) -> "Doc":
-        return self.doc.flatten()
+        return Nest(self.indent, self.doc.flatten())
 
 
 def nil() -> Doc:
     return Nil()
 
 
-def text(s: str) -> Doc:
-    if s == "":
-        return nil()
-    return Text(s)
+def text(value: str) -> Doc:
+    return Text(value) if value != "" else nil()
 
 
 def line() -> Doc:
     return Line()
 
 
-def softline() -> Doc:
-    return MultiUnion((text(" "), line()))
+def soft_line() -> Doc:
+    return SoftLine()
 
 
-def concat(docs: list[Doc], precedence: int, assoc: Assoc = Assoc.NONE) -> Doc:
-    filtered = [d for d in docs if not isinstance(d, Nil)]
-    if not filtered:
+def hard_line() -> Doc:
+    return HardLine()
+
+
+def concat(docs: list[Doc]) -> Doc:
+    filtered_docs = [doc for doc in docs if not isinstance(doc, Nil)]
+
+    if not filtered_docs:
         return nil()
-    if len(filtered) == 1:
-        return filtered[0]
-    return Concat(tuple(filtered), precedence, assoc)
+
+    result = filtered_docs[0]
+    for doc in filtered_docs[1:]:
+        result += doc
+
+    return result
 
 
-def nest(i: int, doc: Doc) -> Doc:
-    return Nest(i, doc)
+def nest(indent: int, doc: Doc) -> Doc:
+    return Nest(indent, doc)
 
 
 def group(doc: Doc) -> Doc:
-    return MultiUnion((doc.flatten(), doc))
+    return MultiUnion(lambda: iter([doc.flatten(), doc]))
 
 
-def pretty_var_type_pair(name_doc: Doc, type_doc: Doc) -> Doc:
-    return concat([name_doc, text(" : "), type_doc], ANNOTATION_PRECEDENCE)
+def parens(doc: Doc, needs_spaces: bool = False) -> Doc:
+    line_func = line if needs_spaces else soft_line
+    return group(concat([text("("), nest(DEFAULT_TAB_SIZE, concat([line_func(), doc])), line_func(), text(")")]))
 
 
-def stype_pretty(stype: SType) -> Doc:
+def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
+    if not docs:
+        return nil()
+
+    result = docs[0]
+    for doc in docs[1:]:
+        result = concat([result, separator, doc])
+
+    return result
+
+
+def get_operation_associativity(operation: Operation) -> Associativity:
+    match operation:
+        case Operation.LAMBDA, Operation.ARROW:
+            return Associativity.RIGHT
+        case Operation.APPLICATION, Operation.TYPE_APPLICATION:
+            return Associativity.LEFT
+        case _:
+            return Associativity.NONE
+
+
+def get_sterm_operation(sterm: STerm) -> Operation:
+    match sterm:
+        case SLet():
+            return Operation.LET
+        case SIf():
+            return Operation.IF
+        case SAbstraction():
+            return Operation.LAMBDA
+        case SApplication():
+            return Operation.APPLICATION
+        case SAnnotation():
+            return Operation.ANNOTATION
+        case SRec():
+            return Operation.LET
+        case STypeAbstraction():
+            return Operation.POLYMORPHISM
+        case STypeApplication():
+            return Operation.TYPE_APPLICATION
+        case SLiteral() | SVar() | SHole():
+            return Operation.LITERAL
+        case _:
+            return Operation.LITERAL
+
+
+def get_stype_operation(stype: SType) -> Operation:
+    match stype:
+        case STypeVar():
+            return Operation.LITERAL
+        case SRefinedType():
+            return Operation.REFINED_TYPE
+        case SAbstractionType():
+            return Operation.ARROW
+        case STypePolymorphism():
+            return Operation.POLYMORPHISM
+        case STypeConstructor():
+            return Operation.TYPE_CONSTRUCTOR
+        case _:
+            return Operation.LITERAL
+
+
+def get_operation_precedence(operation: Operation) -> Precedence:
+    precedence_map = {
+        Operation.POLYMORPHISM: Precedence.POLYMORPHISM,
+        Operation.LET: Precedence.LET,
+        Operation.IF: Precedence.IF,
+        Operation.ARROW: Precedence.ARROW,
+        Operation.LAMBDA: Precedence.LAMBDA,
+        Operation.REFINED_TYPE: Precedence.REFINED_TYPE,
+        Operation.ANNOTATION: Precedence.ANNOTATION,
+        Operation.TYPE_CONSTRUCTOR: Precedence.TYPE_CONSTRUCTOR,
+        Operation.APPLICATION: Precedence.APPLICATION,
+        Operation.TYPE_APPLICATION: Precedence.TYPE_APPLICATION,
+        Operation.LITERAL: Precedence.LITERAL,
+    }
+    return precedence_map[operation]
+
+
+def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext):
+    child_precedence = get_operation_precedence(child_operation)
+    parent_precedence = parenthesis_context.parent_precedence
+    child_side = parenthesis_context.child_side
+    child_associativity = get_operation_associativity(child_operation)
+
+    return needs_parens_aux(child_associativity, child_precedence, child_side, parent_precedence)
+
+
+def needs_parens_aux(child_associativity, child_precedence, child_side, parent_precedence):
+    if child_precedence < parent_precedence:
+        return True
+    if child_precedence > parent_precedence:
+        return False
+
+    if child_associativity == Associativity.NONE:
+        return False
+    if child_associativity == Associativity.LEFT and child_side == Side.RIGHT:
+        return True
+    if child_associativity == Associativity.RIGHT and child_side == Side.LEFT:
+        return True
+
+    return False
+
+
+def add_parens_if_needed(doc: Doc, child_operation: Operation, parenthesis_context: ParenthesisContext) -> Doc:
+    return parens(doc) if needs_parens(child_operation, parenthesis_context) else doc
+
+
+@dataclass(frozen=True)
+class TypePrettyResult:
+    doc: Doc
+    operation: Operation
+
+
+def pretty_stype_with_parens(stype: SType, parent_ctx: ParenthesisContext) -> Doc:
+    child_op = get_stype_operation(stype)
+    child_pretty = stype_pretty(stype, ParenthesisContext(get_operation_precedence(child_op), Side.NONE))
+    return add_parens_if_needed(child_pretty, child_op, parent_ctx)
+
+
+def pretty_sterm_with_parens(sterm: STerm, parent_ctx: ParenthesisContext, depth: int) -> Doc:
+    child_op = get_sterm_operation(sterm)
+    child_pretty = sterm_pretty(sterm, ParenthesisContext(get_operation_precedence(child_op), Side.NONE), depth)
+    return add_parens_if_needed(child_pretty, child_op, parent_ctx)
+
+
+def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: int):
+    pretty_left = pretty_sterm_with_parens(left, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+    pretty_right = pretty_sterm_with_parens(right, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1)
+    return group(concat([pretty_left, line(), text(op_name.pretty()), line(), pretty_right]))
+
+
+def pretty_print_function_definition(pretty_var_name, named_vars, final_type):
+    first_var_name, first_var_type = named_vars[0]
+    first_arg_str = parens(concat([text(first_var_name.pretty()), text(" : "), stype_pretty(first_var_type)]))
+    header = concat([text("def "), pretty_var_name, text(" "), first_arg_str])
+
+    alignment = len("def ") + len(pretty_var_name.layout(0)) + 1
+
+    for var_name, var_type in named_vars[1:]:
+        pretty_arg = concat(
+            [
+                line(),
+                text(" " * alignment),
+                parens(concat([text(var_name.pretty()), text(" : "), stype_pretty(var_type)])),
+            ]
+        )
+        header = concat([header, pretty_arg])
+
+    header = concat(
+        [
+            header,
+            nest(alignment, concat([line(), text(": "), stype_pretty(final_type)])),
+        ]
+    )
+    return header, alignment
+
+
+def unwrap_abstraction_types(stype: SType):
+    named_vars = []
+    curr = stype
+    while True:
+        match curr:
+            case SAbstractionType(var_name=_var_name, var_type=_var_type, type=next_type):
+                named_vars.append((_var_name, _var_type))
+                curr = next_type
+            case other:
+                return named_vars, other
+
+
+def strip_matching_abstractions(value: STerm, named_vars):
+    for var_name, _ in named_vars:
+        match value:
+            case SAbstraction(var_name=vn, body=body) if vn.name == var_name.name:
+                value = body
+            case _:
+                break
+    return value
+
+
+def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
+    if context is None:
+        context = ParenthesisContext(parent_precedence=Precedence.LITERAL, child_side=Side.NONE)
+
     match stype:
         case STypeVar(name=name):
             return text(f"{name.pretty()}")
 
         case SRefinedType(name=name, type=type_, refinement=refinement):
             pretty_name = text(name.pretty())
-            pretty_type = stype_pretty(type_)
-            pretty_refinement = sterm_pretty(refinement)
 
-            flat = concat(
-                [
-                    text("{ "),
-                    pretty_var_type_pair(pretty_name, pretty_type),
-                    text(" | "),
-                    pretty_refinement,
-                    text(" }"),
-                ],
-                REFINED_TYPE_PRECEDENCE,
+            type_doc = pretty_stype_with_parens(type_, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT))
+            refinement_doc = pretty_sterm_with_parens(
+                refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), 1
             )
 
-            extended = concat(
+            var_type_pair = concat([pretty_name, text(" : "), type_doc])
+
+            flexible_refinement_pretty = concat(
                 [
-                    text("{ "),
-                    pretty_var_type_pair(pretty_name, pretty_type),
-                    line(),
-                    text("| "),
-                    pretty_refinement,
-                    line(),
+                    text("{"),
+                    nest(DEFAULT_WIDTH, concat([soft_line(), var_type_pair, text(" | "), refinement_doc])),
+                    soft_line(),
                     text("}"),
-                ],
-                REFINED_TYPE_PRECEDENCE,
+                ]
             )
 
-            return MultiUnion((flat, extended))
+            return group(flexible_refinement_pretty)
 
         case SAbstractionType(var_name=var_name, var_type=var_type, type=type):
             pretty_var_name = text(var_name.pretty())
-            pretty_var_type = stype_pretty(var_type)
-            left = pretty_var_type_pair(pretty_var_name, pretty_var_type)
-            right = stype_pretty(type)
+            var_type_doc = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
 
-            flat = concat([left, text(" -> "), right], ARROW_PRECEDENCE, Assoc.RIGHT)
-            extended = concat(
-                [left, text(" -> ("), line(), nest(2, right), line(), text(")")], ARROW_PRECEDENCE, Assoc.NONE
+            left_doc = concat([pretty_var_name, text(" : "), var_type_doc])
+            left_doc = add_parens_if_needed(
+                left_doc, Operation.ANNOTATION, ParenthesisContext(Precedence.ARROW, Side.LEFT)
             )
-            return MultiUnion((flat, extended))
+
+            right_doc = pretty_stype_with_parens(type, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
+            flexible_abstract_pretty = concat([left_doc, text(" ->"), line(), right_doc])
+            return group(flexible_abstract_pretty)
 
         case STypePolymorphism(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
             pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
-            pretty_body = stype_pretty(body)
-            left = concat([text("∀ "), pretty_var_type_pair(pretty_name, pretty_kind)], POLYMORPHISM_PRECEDENCE)
-            right = pretty_body
 
-            flat = concat([left, text(" . "), right], POLYMORPHISM_PRECEDENCE, Assoc.RIGHT)
-            # extended = ...
-            return flat
+            pretty_body = pretty_stype_with_parens(body, ParenthesisContext(Precedence.POLYMORPHISM, Side.RIGHT))
+
+            left = concat([text("∀"), pretty_name, text(" : "), pretty_kind])
+            flexible_polymorphism = concat([left, text(" ."), nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body]))])
+            return group(flexible_polymorphism)
+
         case STypeConstructor(name=name, args=args):
             pretty_name = text(name.pretty())
-            if len(args) == 0:
+            if not args:
                 return pretty_name
 
-            pretty_args = [stype_pretty(arg) for arg in args]
+            pretty_args = [
+                pretty_stype_with_parens(arg, ParenthesisContext(Precedence.TYPE_CONSTRUCTOR, Side.RIGHT))
+                for arg in args
+            ]
 
-            if len(args) == 1:
-                return concat(
-                    [pretty_name, text(DEFAULT_SPACE_CHAR), pretty_args[0]], TYPE_CONSTRUCTOR_PRECEDENCE, Assoc.LEFT
-                )
-            else:
-                pretty_arg_doc = insert_between(text(", "), pretty_args)
-                return concat([pretty_name, text(" ("), pretty_arg_doc, text(")")], TYPE_CONSTRUCTOR_PRECEDENCE)
+            pretty_arg_doc = insert_between(text(" "), pretty_args)
+            return group(concat([pretty_name, text(" "), pretty_arg_doc]))
+
         case _:
             return text(str(stype))
 
 
-def sterm_pretty(sterm: STerm) -> Doc:
+def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 0) -> Doc:
+    if context is None:
+        context = ParenthesisContext(parent_precedence=Precedence.LITERAL, child_side=Side.NONE)
+
     match sterm:
         case SLiteral(value=value, type=type):
             if type == STypeConstructor(Name("String", 0)):
                 return text(f'"{value}"')
             return text(str(value))
+
         case SVar(name=name):
             return text(name.pretty())
-        case SAnnotation(expr=expr, type=type):
-            pretty_expr = sterm_pretty(expr)
-            pretty_type = stype_pretty(type)
-            flat = pretty_var_type_pair(pretty_expr, pretty_type)
-            return flat
+
         case SHole(name=name):
             return text("?" + name.pretty())
+
+        case SAnnotation(expr=expr, type=type):
+            expr_doc = pretty_sterm_with_parens(expr, ParenthesisContext(Precedence.ANNOTATION, Side.LEFT), depth + 1)
+            type_doc = stype_pretty(type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
+            return group(concat([expr_doc, text(" :"), nest(DEFAULT_TAB_SIZE, concat([line(), type_doc]))]))
+
         case SIf(cond=cond, then=then, otherwise=otherwise):
-            pretty_cond = sterm_pretty(cond)
-            pretty_then = sterm_pretty(then)
-            pretty_otherwise = sterm_pretty(otherwise)
+            pretty_cond = pretty_sterm_with_parens(cond, ParenthesisContext(Precedence.IF, Side.NONE), depth + 1)
+            pretty_then = pretty_sterm_with_parens(then, ParenthesisContext(Precedence.IF, Side.NONE), depth + 1)
+            pretty_otherwise = pretty_sterm_with_parens(
+                otherwise, ParenthesisContext(Precedence.IF, Side.NONE), depth + 1
+            )
 
-            inline = concat(
-                [text("if "), pretty_cond, text(" then "), pretty_then, text(" else "), pretty_otherwise], IF_PRECEDENCE
+            return group(
+                concat(
+                    [
+                        text("if "),
+                        pretty_cond,
+                        line(),
+                        text("then "),
+                        nest(DEFAULT_TAB_SIZE, pretty_then),
+                        line(),
+                        text("else "),
+                        nest(DEFAULT_TAB_SIZE, pretty_otherwise),
+                    ]
+                )
             )
-            first_extended = concat(
-                [text("if "), pretty_cond, text(" then "), pretty_then, line(), text("else "), pretty_otherwise],
-                IF_PRECEDENCE,
-            )
-            second_extended = concat(
-                [text("if "), pretty_cond, line(), text("then "), pretty_then, line(), text("else "), pretty_otherwise],
-                IF_PRECEDENCE,
-            )
-            return MultiUnion((inline, first_extended, second_extended))
-        case SApplication(fun=fun, arg=arg):
-            pretty_fun = sterm_pretty(fun)
-            pretty_arg = sterm_pretty(arg)
 
-            flat = concat([pretty_fun, text(DEFAULT_SPACE_CHAR), pretty_arg], APPLICATION_PRECEDENCE, Assoc.LEFT)
-            # extended = ...
-            return flat
+        case SApplication(fun=fun, arg=arg) as term:
+            match term:
+                case (
+                    SApplication(fun=SApplication(fun=SVar(name=op_name), arg=left, loc=_), arg=right, loc=_)
+                    | SApplication(
+                        fun=SApplication(fun=STypeApplication(body=SVar(name=op_name), type=_), arg=left, loc=_),
+                        arg=right,
+                        loc=_,
+                    )
+                ) if op_name.pretty() in AEON_INFIX_OPERATORS:
+                    return format_infix_application(left, right, op_name, depth)
+
+            pretty_fun = pretty_sterm_with_parens(fun, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+            pretty_arg = pretty_sterm_with_parens(
+                arg, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
+            )
+
+            return group(concat([pretty_fun, line(), pretty_arg]))
 
         case SAbstraction(var_name=var_name, body=body):
             pretty_var_name = text(var_name.pretty())
-            pretty_body = sterm_pretty(body)
-            left = concat([text("\\"), pretty_var_name], POLYMORPHISM_PRECEDENCE)
-            right = pretty_body
+            _left = concat([text("\\"), pretty_var_name, text(" ->")])
 
-            flat = concat([left, text(" -> "), right], LAMBDA_PRECEDENCE, Assoc.RIGHT)
-            extended = concat(
-                [left, text(" -> ("), line(), nest(DEFAULT_TAB_SIZE, right), line(), text(")")], LAMBDA_PRECEDENCE
-            )
+            _pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.ARROW, Side.RIGHT), depth + 1)
 
-            return MultiUnion((flat, extended))
+            return group(concat([_left, nest(DEFAULT_TAB_SIZE, concat([line(), _pretty_body]))]))
 
         case SLet(var_name=var_name, var_value=var_value, body=body):
             pretty_var_name = text(var_name.pretty())
-            pretty_var_value = sterm_pretty(var_value)
-            pretty_body = sterm_pretty(body)
+            pretty_var_value = pretty_sterm_with_parens(
+                var_value, ParenthesisContext(Precedence.LET, Side.NONE), depth + 1
+            )
+            pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.LET, Side.NONE), depth)
 
-            binding = concat([pretty_var_name, text(" = "), pretty_var_value], LET_PRECEDENCE, Assoc.RIGHT)
+            if depth == 0:
+                return group(
+                    concat(
+                        [
+                            text("def "),
+                            pretty_var_name,
+                            text(" ="),
+                            nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
+                            hard_line(),
+                            hard_line(),
+                            pretty_body,
+                        ]
+                    )
+                )
+            else:
+                binding = concat([pretty_var_name, text(" = "), pretty_var_value])
+                return group(concat([text("let "), binding, text(" in"), line(), pretty_body]))
 
-            flat = concat([text("let "), binding, text(" in "), pretty_body], LAMBDA_PRECEDENCE)
-            extended = concat([text("let "), binding, line(), text("in "), pretty_body], LAMBDA_PRECEDENCE)
-
-            return MultiUnion((flat, extended))
-
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):  # refazer rec
             pretty_var_name = text(var_name.pretty())
-            pretty_var_type = stype_pretty(var_type)
-            pretty_var_value = sterm_pretty(var_value)
-            pretty_body = sterm_pretty(body)
+            pretty_var_type = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
+            pretty_var_value = pretty_sterm_with_parens(
+                var_value, ParenthesisContext(Precedence.LET, Side.NONE), depth + 1
+            )
+            pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.LET, Side.NONE), depth)
 
-            pretty_type_def = pretty_var_type_pair(pretty_var_name, pretty_var_type)
-            pretty_binding = concat([pretty_type_def, text(" = "), pretty_var_value], LET_PRECEDENCE, Assoc.RIGHT)
+            if depth != 0:
+                pretty_binding = concat([pretty_var_name, text(" : "), pretty_var_type, text(" = "), pretty_var_value])
+                return group(concat([text("let "), pretty_binding, text(" in"), line(), pretty_body]))
 
-            flat = concat([text("let "), pretty_binding, text(" in "), pretty_body], LET_PRECEDENCE)
-            extended = concat([text("let "), pretty_binding, line(), text("in "), pretty_body], LET_PRECEDENCE)
+            match var_type:
+                case SAbstractionType() as _type:
+                    named_vars, final_type = unwrap_abstraction_types(_type)
 
-            return MultiUnion((flat, extended))
+                    pretty_func_definition, alignment = pretty_print_function_definition(
+                        pretty_var_name, named_vars, final_type
+                    )
+
+                    var_value = strip_matching_abstractions(var_value, named_vars)
+
+                    pretty_var_value = pretty_sterm_with_parens(
+                        var_value, ParenthesisContext(Precedence.LET, Side.NONE), depth + 1
+                    )
+
+                    full_type = group(
+                        concat(
+                            [
+                                pretty_func_definition,
+                                text(" {"),
+                                nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
+                                line(),
+                                text("}"),
+                            ]
+                        )
+                    )
+
+                case _:
+                    def_line = concat([text("def "), pretty_var_name, text(" : ")])
+                    full_type = group(
+                        concat(
+                            [
+                                def_line,
+                                nest(len("def ") + len(var_name.pretty()) + DEFAULT_TAB_SIZE, pretty_var_type),
+                                line(),
+                                text("= "),
+                                nest(DEFAULT_TAB_SIZE, pretty_var_value),
+                            ]
+                        )
+                    )
+
+            return group(concat([full_type, hard_line(), hard_line(), pretty_body]))
 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
             pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
-            pretty_body = sterm_pretty(body)
+            pretty_body = pretty_sterm_with_parens(
+                body, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
+            )
 
-            pretty_kind_def = pretty_var_type_pair(pretty_name, pretty_kind)
-            pretty_binding = concat([pretty_kind_def, text("."), pretty_body], ARROW_PRECEDENCE, Assoc.RIGHT)
-            flat = concat([text("ƛ"), pretty_binding], ARROW_PRECEDENCE)
-            # extended...
-            return flat
+            pretty_kind_def = concat([pretty_name, text(" : "), pretty_kind])
+            pretty_binding = concat([pretty_kind_def, text("."), pretty_body])
+            return group(concat([text("ƛ"), pretty_binding]))
+
         case STypeApplication(body=body, type=type):
-            pretty_body = sterm_pretty(body)
-            pretty_type = stype_pretty(type)
-            pretty_type_app = concat([text("["), pretty_type, text("]")], TYPE_APPLICATION_PRECEDENCE)
+            pretty_body = sterm_pretty(body, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+            return group(pretty_body)
 
-            flat = concat([pretty_body, nil(), pretty_type_app], TYPE_APPLICATION_PRECEDENCE)
-            # extended...
-            return flat
         case _:
             return text(str(sterm))
 
 
-def insert_between(separator: Doc, docs: list[Doc]) -> Doc:
-    if not docs:
-        return nil()
-    result = docs[0]
-    for doc in docs[1:]:
-        result = concat([result, separator, doc], LITERAL_PRECEDENCE, Assoc.NONE)
-    return result
+def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Name] = None) -> STerm:
+    if context is None:
+        context = {}
+    if seen is None:  # seen is used as a fix to infinite recursion
+        seen = set()
 
-
-# TODO
-def remove_anf(term: STerm) -> STerm:
     match term:
-        case SLet(var_name=var_name, var_value=var_value, body=SVar(name=body_name)) if var_name == body_name:
-            return remove_anf(var_value)
-        case SLet(var_name=var_name, var_value=var_value, body=body):
-            return SLet(var_name, remove_anf(var_value), remove_anf(body))
-        case SAbstraction(var_name=var_name, body=body):
-            return SAbstraction(var_name, remove_anf(body))
-        case SApplication(fun=fun, arg=arg):
-            return SApplication(remove_anf(fun), remove_anf(arg))
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
-            return SRec(var_name, var_type, remove_anf(var_value), remove_anf(body))
+        case SLiteral(value=value, type=type):
+            return SLiteral(value=value, type=type)
+        case SVar(name=name):
+            if name in seen or name not in context:
+                return SVar(name=name)
+            simplified_term = context[name]
+            new_seen = seen.copy()
+            new_seen.add(name)
+            return normalize_term(simplified_term, context, new_seen)
+        case SHole(name=name):
+            return SHole(name=name)
+        case SAnnotation(expr=expr, type=type):
+            simplified_expr = normalize_term(expr, context, seen)
+            return SAnnotation(expr=simplified_expr, type=type)
         case SIf(cond=cond, then=then, otherwise=otherwise):
-            return SIf(remove_anf(cond), remove_anf(then), remove_anf(otherwise))
+            simplified_cond = normalize_term(cond, context, seen)
+            if simplified_cond == true:
+                simplified_then = normalize_term(then, context, seen)
+                return simplified_then
+            elif simplified_cond == false:
+                simplified_otherwise = normalize_term(otherwise, context, seen)
+                return simplified_otherwise
+            else:
+                simplified_then = normalize_term(then, context, seen)
+                simplified_otherwise = normalize_term(otherwise, context, seen)
+                return SIf(cond=simplified_cond, then=simplified_then, otherwise=simplified_otherwise)
+        case SApplication(fun=fun, arg=arg):
+            simplified_fun = normalize_term(fun, context, seen)
+            simplified_arg = normalize_term(arg, context, seen)
+
+            if isinstance(simplified_fun, SAbstraction):
+                new_context = context.copy()
+                new_context[simplified_fun.var_name] = simplified_arg
+                return normalize_term(simplified_fun.body, new_context, seen)
+            else:
+                return SApplication(fun=simplified_fun, arg=simplified_arg)
+        case SAbstraction(var_name=var_name, body=body):
+            simplified_body = normalize_term(body, context, seen)
+            return SAbstraction(var_name=var_name, body=simplified_body)
+        case SLet(var_name=var_name, var_value=var_value, body=body):
+            if var_name.pretty() == "anf":
+                context_copy = context.copy()
+                context_copy[var_name] = normalize_term(var_value, context, seen)
+                simplified_body = normalize_term(body, context_copy, seen)
+                return simplified_body
+            match body:
+                case SHole(name=name):
+                    return SLet(var_name=name, var_value=normalize_term(var_value, context, seen), body=SVar(name=name))
+                case _:
+                    return SLet(
+                        var_name=var_name,
+                        var_value=normalize_term(var_value, context, seen),
+                        body=normalize_term(body, context, seen),
+                    )
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+            if var_name.pretty() == "anf":
+                context_copy = context.copy()
+                context_copy[var_name] = normalize_term(var_value, context, seen)
+                simplified_body = normalize_term(body, context_copy, seen)
+                return simplified_body
+            match body:
+                case SHole(name=name):
+                    return SRec(
+                        var_name=name,
+                        var_type=var_type,
+                        var_value=normalize_term(var_value, context, seen),
+                        body=SVar(name=name),
+                    )
+                case _:
+                    return SRec(
+                        var_name=var_name,
+                        var_type=var_type,
+                        var_value=normalize_term(var_value, context, seen),
+                        body=normalize_term(body, context, seen),
+                    )
+        case STypeAbstraction(name=name, kind=kind, body=body):
+            simplified_body = normalize_term(body, context, seen)
+            return STypeAbstraction(name=name, kind=kind, body=simplified_body)
         case _:
             return term
 
 
-def pretty_print(term: STerm, width: int = DEFAULT_WIDTH) -> str:
-    return (
-        sterm_pretty(remove_anf(term))
-        .best(width, 0)
-        .layout(LayoutContext(indent=0, position=Position.NONE, parent_precedence=0))
-    )
+def rename_unused_variables(term: STerm):
+    # TODO
+    return term
+
+
+def pretty_print(term: STerm) -> str:
+    def apply_func(acc: STerm, func: Callable[[STerm], STerm]) -> STerm:
+        return func(acc)
+
+    functions: List[Callable[[STerm], STerm]] = [normalize_term, rename_unused_variables]
+
+    simplified_term = reduce(apply_func, functions, term)
+    return str(sterm_pretty(simplified_term))

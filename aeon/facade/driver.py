@@ -5,7 +5,6 @@ from typing import Any, Iterable
 from aeon.sugar.lifting import lift
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
-from aeon.utils.pprint_helpers import sterm_pretty
 from aeon.utils.time_utils import RecordTime
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -89,7 +88,6 @@ class AeonDriver:
         try:
             with RecordTime("Elaboration"):
                 sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
-                sterm_pretty(sterm)
         except AeonError as e:
             return [e]  # TODO: Support multiple errors
 
