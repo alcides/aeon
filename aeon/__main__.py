@@ -83,7 +83,7 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
-        "--format",
+        "--synthesis-format",
         type=str,
         choices=["default", "json"],
         default="default",
