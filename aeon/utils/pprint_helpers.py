@@ -615,6 +615,12 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             pretty_arg = pretty_sterm_with_parens(
                 arg, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )
+            pretty_arg = pretty_sterm_with_parens(arg, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+            match arg:
+                case SApplication():
+                    pretty_arg = parens(pretty_arg, False)
+                case _:
+                    pass
 
             return group(concat([pretty_fun, line(), pretty_arg]))
 
