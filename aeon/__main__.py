@@ -10,6 +10,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
+from aeon.sugar.lifting import lift
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
@@ -90,6 +91,18 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Select the synthesised holes format results: default or json",
     )
 
+    parser.add_argument(
+        "--format",
+        action="store_true",
+        help="Prints a pretty print version of the code to the stdout",
+    )
+
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Uses a pretty print version of the code to reformat it",
+    )
+
     return parser.parse_args()
 
 
@@ -147,6 +160,19 @@ def main() -> None:
     if errors:
         for err in errors:
             handle_error(err)
+    elif args.format:
+        sterm = lift(driver.core)
+        pretty_code = pretty_print(sterm)
+        print(pretty_code)
+        print()
+        if args.fix:
+            try:
+                with open(args.filename, "w") as f:
+                    f.write(pretty_code)
+                print(f"successfully reformatted {args.filename}")
+            except IOError as _:
+                print(f"error formatting file {args.filename}", file=sys.stderr)
+
     elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
