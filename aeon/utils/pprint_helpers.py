@@ -611,9 +611,12 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                 ) if op_name.pretty() in AEON_INFIX_OPERATORS:
                     return format_infix_application(left, right, op_name, depth)
 
-            pretty_fun = pretty_sterm_with_parens(fun, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
-            pretty_arg = pretty_sterm_with_parens(
-                arg, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
+            if depth == 0:
+                if isinstance(fun, SVar) and fun.name.pretty() == "main":
+                    return nil()
+
+            pretty_fun = pretty_sterm_with_parens(
+                fun, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )
             pretty_arg = pretty_sterm_with_parens(arg, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
             match arg:
