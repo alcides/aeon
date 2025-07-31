@@ -11,7 +11,7 @@ def tv(name: str) -> TypeVar:
     return TypeVar(Name(name))
 
 
-liquid_prelude: dict[Name, list[TypeConstructor | TypeVar | TypeConstructor]] = {
+liquid_prelude: dict[Name, list[TypeConstructor | TypeVar]] = {
     Name("==", 0): [tv("a"), tv("a"), t_bool],
     Name("!=", 0): [tv("a"), tv("a"), t_bool],
     Name("<", 0): [tv("a"), tv("a"), t_bool],  # TODO typeclasses: order

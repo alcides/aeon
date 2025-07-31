@@ -101,7 +101,7 @@ class AbstractionType(Type):
 @dataclass
 class RefinedType(Type):
     name: Name
-    type: TypeConstructor | TypeVar | TypeConstructor
+    type: TypeConstructor | TypeVar
     refinement: LiquidTerm
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
@@ -171,7 +171,7 @@ top = Top()
 @dataclass
 class LiquidHornApplication(LiquidTerm):
     name: Name
-    argtypes: list[tuple[LiquidTerm, TypeConstructor | TypeVar | TypeConstructor]]
+    argtypes: list[tuple[LiquidTerm, TypeConstructor | TypeVar]]
 
     def __post_init__(self):
         assert isinstance(self.name, Name)
@@ -200,7 +200,7 @@ class LiquidHornApplication(LiquidTerm):
 liq_true = LiquidLiteralBool(True)
 
 
-def extract_parts(t: Type) -> tuple[Name, TypeConstructor | TypeVar | TypeConstructor, LiquidTerm]:
+def extract_parts(t: Type) -> tuple[Name, TypeConstructor | TypeVar, LiquidTerm]:
     assert (
         isinstance(t, TypeConstructor)
         or isinstance(t, RefinedType)

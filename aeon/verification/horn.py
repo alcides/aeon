@@ -168,7 +168,7 @@ def mk_arg(i: int) -> Name:
     return Name(f"arg_{i}", 0)
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar | TypeConstructor]], arity: int):
+def get_possible_args(vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar]], arity: int):
     if arity == 0:
         yield []
     else:

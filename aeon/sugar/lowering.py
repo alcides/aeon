@@ -98,9 +98,7 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
             raise LiquefactionException(f"{app} is not a valid predicate.")
 
 
-def liquefy(
-    t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar | TypeConstructor]] | None = None
-) -> LiquidTerm:
+def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None) -> LiquidTerm:
     """Converts Surface Terms into Liquid Terms"""
     match t:
         case SLiteral(val, STypeConstructor(Name("Bool", _)), loc):
