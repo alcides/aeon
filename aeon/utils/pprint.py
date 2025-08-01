@@ -203,7 +203,7 @@ class ParenthesisContext:
     child_side: Side
 
 
-def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext):
+def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisContext) -> bool:
     child_precedence = get_operation_precedence(child_operation)
     parent_precedence = parenthesis_context.parent_precedence
     child_side = parenthesis_context.child_side
@@ -214,7 +214,7 @@ def needs_parens(child_operation: Operation, parenthesis_context: ParenthesisCon
 
 def needs_parens_aux(
     child_associativity: Associativity, child_precedence: Precedence, child_side: Side, parent_precedence: Precedence
-):
+) -> bool:
     if child_precedence < parent_precedence:
         return True
     if child_precedence > parent_precedence:
@@ -246,7 +246,7 @@ def pretty_sterm_with_parens(sterm: STerm, parenthesis_context: ParenthesisConte
     return add_parens_if_needed(child_pretty, child_op, parenthesis_context)
 
 
-def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: int):
+def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: int) -> Doc:
     infix_op = get_infix_op(op_name)
     infix_precedence = get_operation_precedence(infix_op)
     pretty_left = pretty_sterm_with_parens(left, ParenthesisContext(infix_precedence, Side.LEFT), depth + 1)
@@ -254,9 +254,37 @@ def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: in
     return group(concat([pretty_left, line(), text(op_name.pretty()), line(), pretty_right]))
 
 
-def pretty_print_function_definition(func_name_doc: Doc, params: list[tuple], return_type):
+def pretty_param_doc(param_name: Name, param_type: SType) -> Doc:
+    match param_type:
+        case SRefinedType(name=ref_name, type=ref_type, refinement=refinement):
+            if ref_name.pretty() == param_name.pretty():
+                return parens(
+                    concat(
+                        [
+                            text(ref_name.pretty()),
+                            text(" : "),
+                            stype_pretty(ref_type),
+                            text(" | "),
+                            sterm_pretty(refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), depth=1),
+                        ]
+                    )
+                )
+    return parens(
+        concat(
+            [
+                text(param_name.pretty()),
+                text(" : "),
+                stype_pretty(param_type),
+            ]
+        )
+    )
+
+
+def pretty_print_function_definition(
+    func_name_doc: Doc, params: List[Tuple[Name, SType]], return_type: SType
+) -> Tuple[Doc, int]:
     first_param_name, first_param_type = params[0]
-    first_param_doc = parens(concat([text(first_param_name.pretty()), text(" : "), stype_pretty(first_param_type)]))
+    first_param_doc = pretty_param_doc(first_param_name, first_param_type)
     func_header = concat([text("def "), func_name_doc, text(" "), first_param_doc])
 
     indent_after_first_param = len("def ") + len(func_name_doc.layout(0)) + 1
@@ -266,10 +294,9 @@ def pretty_print_function_definition(func_name_doc: Doc, params: list[tuple], re
             [
                 additional_params,
                 line(),
-                parens(concat([text(param_name.pretty()), text(" : "), stype_pretty(param_type)])),
+                pretty_param_doc(param_name, param_type),
             ]
         )
-
     full_func_def = concat(
         [
             func_header,
@@ -279,7 +306,7 @@ def pretty_print_function_definition(func_name_doc: Doc, params: list[tuple], re
     return full_func_def, indent_after_first_param
 
 
-def unwrap_abstraction_types(stype: SType):
+def unwrap_abstraction_types(stype: SType) -> Tuple[List[Tuple[Name, SType]], SType]:
     named_vars = []
     curr = stype
     while True:
@@ -291,7 +318,7 @@ def unwrap_abstraction_types(stype: SType):
                 return named_vars, other
 
 
-def strip_matching_abstractions(abstraction: STerm, arguments: List[Tuple[Name, SType]]):
+def strip_matching_abstractions(abstraction: STerm, arguments: List[Tuple[Name, SType]]) -> STerm:
     stripped_abstraction = abstraction
     for argument_name, _ in arguments:
         match stripped_abstraction:
