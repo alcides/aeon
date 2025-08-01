@@ -10,11 +10,10 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
-from aeon.sugar.lifting import lift
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.ncurses import NCursesUI
 from aeon.synthesis.uis.terminal import TerminalUI
-from aeon.utils.pprint_helpers import pretty_print
+from aeon.utils.pprint import pretty_print_sterm
 
 sys.setrecursionlimit(10000)
 
@@ -161,17 +160,7 @@ def main() -> None:
         for err in errors:
             handle_error(err)
     elif args.format:
-        sterm = lift(driver.core)
-        pretty_code = pretty_print(sterm)
-        print(pretty_code)
-        print()
-        if args.fix:
-            try:
-                with open(args.filename, "w") as f:
-                    f.write(pretty_code)
-                print(f"successfully reformatted {args.filename}")
-            except IOError as _:
-                print(f"error formatting file {args.filename}", file=sys.stderr)
+        driver.pretty_print(args.filename, args.fix)
 
     elif driver.has_synth():
         term = driver.synth()
@@ -179,7 +168,7 @@ def main() -> None:
         print("#str")
         print(str(term))
         print("#pprint")
-        print(pretty_print(term))
+        print(pretty_print_sterm(term))
     else:
         driver.run()
 
