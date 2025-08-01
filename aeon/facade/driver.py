@@ -1,36 +1,37 @@
+import sys
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Iterable
 
-from aeon.sugar.lifting import lift
-from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
-from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
-from aeon.utils.time_utils import RecordTime
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
-from aeon.core.types import top
-from aeon.core.terms import Term
 from aeon.core.bind import bind_ids
 from aeon.core.substitutions import substitution
-from aeon.sugar.bind import bind, bind_program
+from aeon.core.terms import Term
+from aeon.core.types import top
 from aeon.decorators import Metadata
+from aeon.elaboration import elaborate
+from aeon.facade.api import AeonError
 from aeon.frontend.anf_converter import ensure_anf
 from aeon.frontend.parser import parse_term
 from aeon.prelude.prelude import evaluation_vars
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.ast_helpers import st_top
+from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
+from aeon.sugar.lifting import lift
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
-from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.entrypoint import synthesize_holes
-from aeon.elaboration import elaborate
-from aeon.utils.ctx_helpers import build_context
+from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
+from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.typechecking.typeinfer import check_type_errors
+from aeon.utils.ctx_helpers import build_context
 from aeon.utils.name import Name
-
-from aeon.facade.api import AeonError
+from aeon.utils.pprint import pretty_print_node
+from aeon.utils.time_utils import RecordTime
 
 
 def read_file(filename: str) -> str:
@@ -155,3 +156,18 @@ class AeonDriver:
             self.cfg.synthesis_ui.display_results(core_ast_anf, sterm_mapping, self.cfg.synthesis_format)
 
             return lift(core_ast_anf)
+
+    def pretty_print(self, filename: str = None, should_be_fixed: bool = False) -> None:
+        aeon_code = read_file(filename)
+        prog: Program = parse_main_program(aeon_code, filename=filename)
+        prog = bind_program(prog, [])
+        pretty_prog = pretty_print_node(prog)
+        print(pretty_prog)
+        print()
+        if should_be_fixed:
+            try:
+                with open(filename, "w") as f:
+                    f.write(pretty_prog)
+                print(f"successfully reformatted {filename}")
+            except IOError as _:
+                print(f"error formatting file {filename}", file=sys.stderr)
