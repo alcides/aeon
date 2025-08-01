@@ -42,12 +42,12 @@ class LiquidTypeCheckException(Exception):
 @dataclass
 class LiquidTypeCheckingContext:
     known_types: list[TypeConstructor]
-    variables: dict[Name, TypeConstructor | TypeVar | TypeConstructor]
-    functions: dict[Name, list[TypeConstructor | TypeVar | TypeConstructor]]
+    variables: dict[Name, TypeConstructor | TypeVar]
+    functions: dict[Name, list[TypeConstructor | TypeVar]]
 
 
-def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar | TypeConstructor]:
-    args: list[TypeConstructor | TypeVar | TypeConstructor] = []
+def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
+    args: list[TypeConstructor | TypeVar] = []
     while True:
         match ty:
             # TODO: Should these be removed?
@@ -89,7 +89,7 @@ def flatten(xs: list[list[T]]) -> list[T]:
 
 def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
     known_types: list[Name] = native_types + []
-    variables: dict[Name, TypeConstructor | TypeVar | TypeConstructor] = {}
+    variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
 
     for entry in ctx.entries[::-1]:

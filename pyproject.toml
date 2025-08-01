@@ -1,6 +1,6 @@
 [project]
-name = "Aeon"
-version = "4.0.0a"
+name = "AeonLang"
+version = "4.0.0b"
 description = "Language with Refinement Types"
 authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
@@ -25,13 +25,13 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine@https://github.com/alcides/GeneticEngine/archive/df21b91ac061566985bac183cd8232edb94656ff.zip',
+    'geneticengine==0.8.7',
     'multiprocess',
     'numpy',
     'pathos',
     'pillow',
     'psb2',
-    'pydantic==1.8.2',
+    'pydantic==2.11.7',
     'pygls==1.3.1',
     'pytest',
     'requests',

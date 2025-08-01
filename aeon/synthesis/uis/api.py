@@ -44,10 +44,6 @@ class SynthesisUI(abc.ABC):
 
     def end(self, solution: Term, quality: Any): ...
 
-    def wrapper(self, f):
-        """This wrapper is necessary for the NCurses version of the API"""
-        return f()
-
     def display_results(
         self,
         program: Term,

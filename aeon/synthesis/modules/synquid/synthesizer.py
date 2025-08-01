@@ -58,6 +58,7 @@ class SynquidSynthesizer(Synthesizer):
         level = 0
         best: tuple[list[float], Any] = ([], None)
         mem: dict = {}
+        ui.register(None, None, 0, True)
         while done:
             for result in synthes_memory(ctx, level, type, skip, mem):
                 if validate(result):
@@ -67,6 +68,8 @@ class SynquidSynthesizer(Synthesizer):
                         ui.register(result, score, get_elapsed_time(start_time), True)
                     else:
                         ui.register(result, score, get_elapsed_time(start_time), False)
+                else:
+                    ui.register(result, "Invalid", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
                     done = False
                     break
