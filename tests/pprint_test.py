@@ -1,15 +1,12 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
-from enum import IntEnum
 
+from aeon.utils.pprint import Associativity, Side, needs_parens_aux, ParenthesisContext, Precedence
 from aeon.utils.pprint_helpers import (
     Doc,
     text,
     concat,
-    Associativity,
-    Side,
     parens,
-    needs_parens_aux,
 )
 
 
@@ -36,26 +33,12 @@ def test_complex_pretty_print():
 # Helper Classes
 
 
-class Precedence(IntEnum):
-    ADD = 1
-    SUB = 1
-    MUL = 2
-    DIV = 2
-    NUM = 3
-
-
-@dataclass(frozen=True)
-class ParenthesisContext:
-    parent_precedence: Precedence
-    child_side: Side
-
-
 class Expr(ABC):
     @abstractmethod
     def to_doc(self, parenthesis_context: ParenthesisContext = None) -> Doc: ...
 
     def precedence(self) -> Precedence:
-        return Precedence.NUM
+        return Precedence.LITERAL
 
     def associativity(self) -> Associativity:
         return Associativity.NONE
@@ -67,7 +50,7 @@ class Num(Expr):
 
     def to_doc(self, parenthesis_context: ParenthesisContext = None) -> Doc:
         if parenthesis_context is None:
-            parenthesis_context = ParenthesisContext(parent_precedence=Precedence.ADD, child_side=Side.NONE)
+            parenthesis_context = ParenthesisContext(parent_precedence=Precedence.LITERAL, child_side=Side.NONE)
         return text(str(self.val))
 
 
@@ -92,7 +75,7 @@ class BinOp(Expr, ABC):
 
     def to_doc(self, parenthesis_context: ParenthesisContext = None) -> Doc:
         if parenthesis_context is None:
-            parenthesis_context = ParenthesisContext(parent_precedence=Precedence.ADD, child_side=Side.NONE)
+            parenthesis_context = ParenthesisContext(parent_precedence=Precedence.LITERAL, child_side=Side.NONE)
         left_doc = self.left.to_doc(ParenthesisContext(self.precedence(), Side.LEFT))
         if needs_parens_aux(self.left.associativity(), self.left.precedence(), Side.LEFT, self._precedence):
             left_doc = parens(left_doc)
@@ -105,22 +88,22 @@ class BinOp(Expr, ABC):
 @dataclass(frozen=True)
 class Add(BinOp):
     symbol = "+"
-    _precedence = Precedence.ADD
+    _precedence = Precedence.INFIX_ADDITIVE
 
 
 @dataclass(frozen=True)
 class Sub(BinOp):
     symbol = "-"
-    _precedence = Precedence.SUB
+    _precedence = Precedence.INFIX_ADDITIVE
 
 
 @dataclass(frozen=True)
 class Mul(BinOp):
     symbol = "*"
-    _precedence = Precedence.MUL
+    _precedence = Precedence.INFIX_MULTIPLICATIVE
 
 
 @dataclass(frozen=True)
 class Div(BinOp):
     symbol = "/"
-    _precedence = Precedence.DIV
+    _precedence = Precedence.INFIX_MULTIPLICATIVE
