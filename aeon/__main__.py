@@ -11,7 +11,7 @@ from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.terminal import TerminalUI
-from aeon.utils.pprint_helpers import pretty_print
+from aeon.utils.pprint import pretty_print_sterm
 
 sys.setrecursionlimit(10000)
 
@@ -81,11 +81,23 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
-        "--format",
+        "--synthesis-format",
         type=str,
         choices=["default", "json"],
         default="default",
         help="Select the synthesised holes format results: default or json",
+    )
+
+    parser.add_argument(
+        "--format",
+        action="store_true",
+        help="Prints a pretty print version of the code to the stdout",
+    )
+
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Uses a pretty print version of the code to reformat it",
     )
 
     return parser.parse_args()
@@ -142,11 +154,16 @@ def main() -> None:
     if errors:
         for err in errors:
             handle_error(err)
+    elif args.format:
+        driver.pretty_print(args.filename, args.fix)
+
     elif driver.has_synth():
         term = driver.synth()
         print("Synthesized:")
+        print("#str")
         print(str(term))
-        print(pretty_print(term))
+        print("#pprint")
+        print(pretty_print_sterm(term))
     else:
         driver.run()
 

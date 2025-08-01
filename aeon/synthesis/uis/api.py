@@ -9,7 +9,7 @@ from aeon.core.types import Type
 from aeon.sugar.program import STerm
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
-from aeon.utils.pprint_helpers import pretty_print
+from aeon.utils.pprint import pretty_print_sterm
 
 
 class SynthesisFormat(Enum):
@@ -53,13 +53,15 @@ class SynthesisUI(abc.ABC):
         print("Synthesized holes:")
         match synthesis_format:
             case SynthesisFormat.JSON:
-                result = {f"?{name.pretty()}": pretty_print(terms[name]) if name in terms else "None" for name in terms}
+                result = {
+                    f"?{name.pretty()}": pretty_print_sterm(terms[name]) if name in terms else "None" for name in terms
+                }
                 print(json.dumps(result, indent=2))
 
             case _:
                 for name in terms:
                     name_str = name.pretty()
-                    term_str = pretty_print(terms[name]) if name in terms else "None"
+                    term_str = pretty_print_sterm(terms[name]) if name in terms else "None"
                     print(f"?{name_str}: {term_str}")
         # print()
         # pretty_print_term(ensure_anf(synthesis_result, 200))
