@@ -13,7 +13,9 @@ This is a list of questions (and responses) that may come up while developing fo
 
 #### Installation:
 
-After cloning the project run `uv pip install -e` and `uvx pre-commit install`
+After cloning the project run 
+  * `uv pip install -e ".[dev]"`
+  * `uvx pre-commit install`
 
 #### Running the project and test
 
