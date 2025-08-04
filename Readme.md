@@ -11,9 +11,9 @@ Aeon is in development, so assume all your programs to break. This 4th version i
 
 - [Uv](https://github.com/astral-sh/uv)
 
-### Installation
+### Usage
 
-aeon is avaliable in the PyPI and can be installed using
+aeon can be executed directly from pypy using [uvx](https://github.com/astral-sh/uv):
 
 ```
 uvx --from aeonlang aeon [file.ae]
