@@ -4,6 +4,23 @@ Aeon is a programming languages that features Liquid Types, developed at the Uni
 
 Aeon is in development, so assume all your programs to break. This 4th version is implemented as a Python interpreter, giving you access to any code written in Python.
 
+
+## Installation
+
+### Requirements:
+
+- [Uv](https://github.com/astral-sh/uv)
+
+### Installation
+
+aeon is avaliable in the PyPI and can be installed using
+
+```
+uvx --from aeonlang aeon [file.ae]
+```
+
+
+
 ## Examples
 
 
