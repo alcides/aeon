@@ -19,6 +19,7 @@ def setup_logger():
     logger.level("CONSTRAINT", no=37, color="<cyan>", icon="🔒")
     logger.level("SYNTHESIZER", no=38, color="<red>")
     logger.level("TIME", no=39, color="<green>")
+    logger.level("AST_INFO", no=40, color="<blue>", icon="📜")
 
     # Setup the logger
     logger.remove()

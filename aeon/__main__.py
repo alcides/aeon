@@ -47,7 +47,7 @@ def _parse_common_arguments(parser: ArgumentParser):
         "--log",
         nargs="+",
         default="",
-        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER
+        help="""set log level: \nTRACE \nDEBUG \nINFO \nWARNINGS \nCONSTRAINT \nTYPECHECKER \nSYNTH_TYPE \nCONSTRAINT \nSYNTHESIZER \nAST_INFO
                         \nERROR \nCRITICAL\n TIME""",
     )
     parser.add_argument(
