@@ -548,11 +548,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                             ]
                         )
                     )
-
-            if depth == 0 and isinstance(body, SHole) and body.name.pretty() == var_name.pretty():
-                return full_type
-            else:
-                return group(concat([full_type, hard_line(), hard_line(), pretty_body]))
+            return group(concat([full_type, hard_line(), hard_line(), pretty_body]))
 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
@@ -578,7 +574,6 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
         context = {}
     if seen is None:  # seen is used as a fix to infinite recursion
         seen = set()
-
     match term:
         case SLiteral(value=value, type=type):
             return SLiteral(value=value, type=type)
@@ -731,7 +726,7 @@ def node_pretty(node: Node) -> Doc:
                     stripped_body = strip_matching_abstractions(body, named_vars)
 
                     pretty_body = pretty_sterm_with_parens(
-                        stripped_body, ParenthesisContext(Precedence.LET, Side.NONE), depth=0
+                        stripped_body, ParenthesisContext(Precedence.LET, Side.NONE), depth=1
                     )
 
                     definition_doc = group(
@@ -749,7 +744,7 @@ def node_pretty(node: Node) -> Doc:
                 case _:
                     pretty_var_name = name.pretty()
                     pretty_var_type = stype_pretty(type_)
-                    pretty_body = sterm_pretty(body, depth=0)
+                    pretty_body = sterm_pretty(body, depth=1)
 
                     def_line = concat([text("def "), text(pretty_var_name), text(" : ")])
 
