@@ -154,7 +154,9 @@ class MultiUnion(Doc):
         return default_document.best(width, current_length)
 
     def flatten(self) -> "Doc":
-        return MultiUnion(lambda: (doc.flatten() for doc in self.alternatives_fn()))
+        for doc in self.alternatives_fn():
+            return doc.flatten()
+        return nil()
 
 
 @dataclass(frozen=True)
