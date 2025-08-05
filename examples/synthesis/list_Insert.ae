@@ -1,5 +1,5 @@
 import "List.ae";
 
-def insertEnd(n: Int) (xs: List) : List {
-    (?hole: { j:List | ((List_size xs) + 1) == (List_size j) })
+def insert_end (n: Int) (xs:(List Int)) : { j:(List Int)| ((List_size xs) + 1) == (List_size j) } {
+    ?hole
 }
