@@ -457,10 +457,10 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                 if isinstance(fun, SVar) and fun.name.pretty() == "main":
                     return nil()
 
-            pretty_fun = pretty_sterm_with_parens(
-                fun, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
+            pretty_fun = pretty_sterm_with_parens(fun, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
+            pretty_arg = pretty_sterm_with_parens(
+                arg, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )
-            pretty_arg = pretty_sterm_with_parens(arg, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
 
             return group(concat([pretty_fun, line(), pretty_arg]))
 
