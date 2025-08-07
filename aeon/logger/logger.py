@@ -19,6 +19,7 @@ def setup_logger():
     logger.level("CONSTRAINT", no=37, color="<cyan>", icon="🔒")
     logger.level("SYNTHESIZER", no=38, color="<red>")
     logger.level("TIME", no=39, color="<green>")
+    logger.level("AST_INFO", no=40, color="<blue>", icon="📜")
 
     # Setup the logger
     logger.remove()
@@ -28,7 +29,7 @@ def setup_logger():
 
 def export_log(logs: list, export_file: bool = False, logfile_name: str = ""):
     if export_file:
-        logfile = f"logs/{logfile_name}_{datetime.datetime.now()}.log"
+        logfile = f"logs/{logfile_name}_{datetime.datetime.now().strftime('%Y_%m_%d %H_%M_%S')}.log"
         return logger.add(logfile, filter=levels_filter(logs))
     else:
         return logger.add(sys.stderr, filter=levels_filter(logs))

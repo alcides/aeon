@@ -2,6 +2,7 @@ import sys
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Iterable
+from loguru import logger
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -75,16 +76,22 @@ class AeonDriver:
             prog: Program = parse_main_program(aeon_code, filename=filename)
             prog = bind_program(prog, [])
 
+        logger.log("AST_INFO", f"Parsed program: {prog}")
+
         with RecordTime("Desugar"):
             try:
                 desugared: DesugaredProgram = desugar(prog, is_main_hole=not self.cfg.no_main)
             except AeonError as e:
                 return [e]
 
+        logger.log("AST_INFO", f"Desugared program: {desugared}")
+
         with RecordTime("Bind"):
             ctx, progt = bind(desugared.elabcontext, desugared.program)
             desugared = DesugaredProgram(progt, ctx, desugared.metadata)
             metadata: Metadata = desugared.metadata
+
+        logger.log("AST_INFO", f"Bound program: {desugared}")
 
         try:
             with RecordTime("Elaboration"):
@@ -92,19 +99,27 @@ class AeonDriver:
         except AeonError as e:
             return [e]  # TODO: Support multiple errors
 
+        logger.log("AST_INFO", f"Elaborated program: {sterm}")
+
         with RecordTime("Core generation"):
             typing_ctx = lower_to_core_context(desugared.elabcontext)
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
+        logger.log("AST_INFO", f"Core AST: {core_ast}")
+
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
+
+        logger.log("AST_INFO", f"Core AST ANF: {core_ast_anf}")
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
             # TODO
             if type_errors:
                 return type_errors
+
+        logger.log("AST_INFO", f"Type checked AST: {core_ast_anf}")
 
         with RecordTime("Preparing execution env"):
             evaluation_ctx = EvaluationContext(evaluation_vars)
