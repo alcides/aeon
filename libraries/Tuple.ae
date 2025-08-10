@@ -1,5 +1,30 @@
+import "List.ae";
+
 type Tuple;
 
-def Tuple_new (x:a) (y:b) : Tuple { native "(x,y)" }
-def Tuple_fst (t:Tuple) : a { native "x[0]" }
-def Tuple_snd (t:Tuple) : b { native "x[1]" }
+# Creates a new tuple from two values.
+def Tuple_new(x: a) (y: b): Tuple { native "(x, y)" }
+
+# Returns the first element of the tuple.
+def Tuple_fst(t: Tuple): a { native "t[0]" }
+
+# Returns the second element of the tuple.
+def Tuple_snd(t: Tuple): b { native "t[1]" }
+
+# Swaps the elements of the tuple.
+def Tuple_swap(t: Tuple): Tuple { native "(t[1], t[0])" }
+
+# Maps a function over the first element of the tuple.
+def Tuple_map_fst(f: (a: t) -> c) (t: Tuple): Tuple { native "(f(t[0]), t[1])" }
+
+# Maps a function over the second element of the tuple.
+def Tuple_map_snd(f: (b: t) -> c) (t: Tuple): Tuple { native "(t[0], f(t[1]))" }
+
+# Converts a tuple to a list.
+def Tuple_to_list(t: Tuple): (List a) { native "list(t)" }
+
+# Checks if two tuples are equal.
+def Tuple_eq(t1: Tuple) (t2: Tuple): Bool { native "t1 == t2" }
+
+# Returns the length of the tuple.
+def Tuple_length(t: Tuple): Int { native "len(t)" }
