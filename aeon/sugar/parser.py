@@ -268,23 +268,23 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_ind_cons(self, meta, args):
-        return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
+        return Definition(Name(args[0]), [], [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
 
     @v_args(meta=True)
     def def_cons(self, meta, args):
         if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
+            return Definition(Name(args[0]), [], [], [], args[1], args[2], loc=self._loc(meta))
         else:
             decorators = args[0]
-            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
+            return Definition(Name(args[1]), [], [], [], args[2], args[3], decorators, loc=self._loc(meta))
 
     @v_args(meta=True)
     def def_fun(self, meta, args):
         if len(args) == 4:
-            return Definition(Name(args[0]), [], args[1], args[2], args[3], loc=self._loc(meta))
+            return Definition(Name(args[0]), [], [], 9, args[1], args[2], args[3], loc=self._loc(meta))
         else:
             decorators = args[0]
-            return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
+            return Definition(Name(args[1]), [], [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
 
     def macros(self, args):
         return args

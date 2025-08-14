@@ -35,6 +35,7 @@ def make_optimizer(
     function = Definition(
         name=function_name,
         foralls=[],
+        rforalls=[],
         args=[],
         type=typ,
         body=args[0],

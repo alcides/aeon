@@ -77,6 +77,7 @@ def generate_definition(
         return Definition(
             name=Name("fitness", fresh_counter.fresh()),
             foralls=[],
+            rforalls=[],
             args=[],
             type=fitness_return_type,
             body=fitness_terms[0],

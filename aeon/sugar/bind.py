@@ -23,7 +23,9 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
+    SRefinementAbstraction,
     STypeApplication,
+    SRefinementApplication,
     SVar,
     TypeDecl,
 )
@@ -33,6 +35,7 @@ from aeon.sugar.stypes import (
     SType,
     STypeConstructor,
     STypePolymorphism,
+    SRefinementPolymorphism,
     STypeVar,
 )
 from aeon.utils.name import Name, fresh_counter
@@ -109,6 +112,9 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
         case STypePolymorphism(name, kind, body):
             name, subs = check_name(name, subs)
             return STypePolymorphism(name, kind, bind_stype(body, subs))
+        case SRefinementPolymorphism(name, kind, body):
+            name, subs = check_name(name, subs)
+            return SRefinementPolymorphism(name, kind, bind_stype(body, subs))
         case _:
             assert False, f"Unique not supported for {ty} ({type(ty)})"
 
@@ -144,9 +150,17 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             body = bind_sterm(body, subs)
             # logger.log("AST_INFO", f"Bound type application {body} with type {ty}")
             return STypeApplication(body, ty)
+        case SRefinementApplication(body, ty):
+            ty = bind_stype(ty, subs)
+            body = bind_sterm(body, subs)
+            return SRefinementApplication(body, ty)
         case STypeAbstraction(name, kind, body):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs))
+        case SRefinementAbstraction(name, kind, body):
+            name, subs = check_name(name, subs)
+            nbody = bind_sterm(body, subs)
+            return SRefinementAbstraction(name, kind, nbody)
         case SIf(cond, then, otherwise):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs))
         case SLet(name, body, cont):
@@ -177,6 +191,12 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             nname, nsubs = check_name(name, nsubs)
             # logger.log("AST_INFO",f"Bound forall {nname} : {kind}")
             foralls.append((nname, kind))
+        rforalls = []
+        for name, kind in df.rforalls:
+            # logger.log("AST_INFO", f"Binding rforall {name} : {ty}")
+            nname, nsubs = check_name(name, nsubs)
+            # logger.log("AST_INFO", f"Bound rforall {nname} : {nty}")
+            rforalls.append((nname, kind))
         args = []
         for aname, ty in df.args:
             # logger.log("AST_INFO",f"Binding arg {aname} : {ty}")
@@ -194,7 +214,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
                 dargs.append(bind_sterm(da, subs))
             # logger.log("AST_INFO", f"Bound decorator {dec.name} with args {dargs}")
             decorators.append(Decorator(dec.name, dargs))
-        d = Definition(name, foralls, args, ntype, body, decorators)
+        d = Definition(name, foralls, rforalls, args, ntype, body, decorators)
         # logger.log("AST_INFO", f"Bound definition {d}")
         definitions.append(d)
     return Program(p.imports, type_decls, [], definitions)

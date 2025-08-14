@@ -190,6 +190,17 @@ class STypeAbstraction(STerm):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
+@dataclass(frozen=True)
+class SRefinementAbstraction(STerm):
+    name: Name
+    kind: Kind
+    body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"ƛ{self.name}:{self.kind}.({self.body})"
+
+
 @dataclass()  # frozen=True
 class STypeApplication(STerm):
     body: STerm
@@ -198,6 +209,16 @@ class STypeApplication(STerm):
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
+
+
+@dataclass(frozen=True)
+class SRefinementApplication(STerm):
+    body: STerm
+    type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"({self.body}){{{self.type}}}"
 
 
 class Node:
@@ -263,6 +284,7 @@ class Decorator(Node):
 class Definition(Node):
     name: Name
     foralls: list[tuple[Name, Kind]]
+    rforalls: list[tuple[Name, Kind]]
     args: list[tuple[Name, SType]]
     type: SType
     body: STerm
@@ -278,7 +300,8 @@ class Definition(Node):
         else:
             args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
             foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
-            return f"def {self.name} {foralls} {args} : {self.type} {{\n {self.body} \n}}"
+            rforalls = " ".join([f"∀{n}:{k}" for (n, k) in self.rforalls])
+            return f"def {self.name} {rforalls} {foralls} {args} : {self.type} {{\n {self.body} \n}}"
 
 
 @dataclass
@@ -294,3 +317,32 @@ class Program(Node):
         inductives = "\n".join([str(td) for td in self.inductive_decls])
         defs = "\n".join([str(d) for d in self.definitions])
         return f"{imps}\n{decls}\n{inductives}\n{defs}"
+
+
+def get_term_vars(term: STerm) -> set[Name]:
+    """Returns the set of variable names in the term."""
+    match term:
+        case SVar(name, _):
+            return {name}
+        case SLiteral(_, _):
+            return set()
+        case SAnnotation(expr, _):
+            return get_term_vars(expr)
+        case SHole(name, _):
+            return {name}
+        case SApplication(fun, arg, _):
+            return get_term_vars(fun) | get_term_vars(arg)
+        case SAbstraction(var_name, body, _):
+            return {var_name} | get_term_vars(body)
+        case SLet(var_name, var_value, body, _):
+            return {var_name} | get_term_vars(var_value) | get_term_vars(body)
+        case SRec(var_name, _, var_value, body, _):
+            return {var_name} | get_term_vars(var_value) | get_term_vars(body)
+        case SIf(cond, then, otherwise, _):
+            return get_term_vars(cond) | get_term_vars(then) | get_term_vars(otherwise)
+        case STypeAbstraction(name, _, body, _):
+            return get_term_vars(body)
+        case STypeApplication(body, _, _):
+            return get_term_vars(body)
+        case _:
+            raise ValueError(f"Unknown term type: {type(term)}")

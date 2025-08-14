@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import NamedTuple
 # from loguru import logger
 
-from aeon.core.types import BaseKind, Kind
+from aeon.core.types import BaseKind, Kind, StarKind
 from aeon.decorators import apply_decorators, Metadata
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
@@ -25,12 +25,23 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
+    SRefinementAbstraction,
     SVar,
+    get_term_vars,
 )
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl, InductiveDecl
-from aeon.sugar.stypes import SAbstractionType, SType, STypePolymorphism, builtin_types, get_type_vars, STypeConstructor
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SType,
+    STypePolymorphism,
+    SRefinementPolymorphism,
+    builtin_types,
+    get_type_vars,
+    STypeConstructor,
+    SRefinedType,
+)
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name
 from aeon.sugar.ast_helpers import st_int, st_string
@@ -64,6 +75,10 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs = introduce_forall_in_types(defs, type_decls)
 
     etctx = build_typing_context(vs, type_decls)
+
+    defs = introduce_forall_in_refinemts(defs, etctx)
+    # logger.log("AST_INFO", f"Definitions after introducing foralls: {defs}")
+
     etctx, prog = update_program_and_context(prog, defs, etctx)
     # logger.log("AST_INFO", f"Program after updating context: {prog}")
     prog, etctx = replace_concrete_types(
@@ -86,8 +101,8 @@ def expand_inductive_decls(p: Program) -> Program:
 
                 for measure in measures:
                     match measure:
-                        case Definition(mname, mforalls, margs, mrtype, _, _):
-                            de = Definition(mname, mforalls, margs, mrtype, uninterpreted_lit)
+                        case Definition(mname, mforalls, mrforalls, margs, mrtype, _, _):
+                            de = Definition(mname, mforalls, mrforalls, margs, mrtype, uninterpreted_lit)
                             defs.append(de)
 
                 def key_for(tyname: Name, constructor_name: Name) -> str:
@@ -95,12 +110,12 @@ def expand_inductive_decls(p: Program) -> Program:
 
                 for constructor in constructors:
                     match constructor:
-                        case Definition(cname, cforalls, cargs, crtype, _, _):
+                        case Definition(cname, cforalls, crforalls, cargs, crtype, _, _):
                             arg_s = ", ".join(str(arg.name) for (arg, _) in cargs)
                             mk_tuple = SApplication(
                                 SVar(Name("native", 0)), SLiteral(f"('{key_for(name, cname)}', {arg_s})", st_string)
                             )
-                            de = Definition(cname, cforalls, cargs, crtype, mk_tuple)
+                            de = Definition(cname, cforalls, crforalls, cargs, crtype, mk_tuple)
                             defs.append(de)
 
                 def curry(args: list[tuple[Name, SType]], rty: SType) -> SType:
@@ -120,6 +135,7 @@ def expand_inductive_decls(p: Program) -> Program:
                 )
 
                 foralls: list[tuple[Name, Kind]] = []
+                rforalls: list[tuple[Name, Kind]] = []
                 rec_args: list[tuple[Name, SType]] = []
 
                 # Return Type
@@ -137,7 +153,12 @@ def expand_inductive_decls(p: Program) -> Program:
                     rec_args.append((Name(f"case_{cons.name.name}", -1), curry(cons.args, return_type)))
 
                 rec_de = Definition(
-                    name=Name(name.name + "_rec", -1), foralls=foralls, args=rec_args, type=return_type, body=rec_body
+                    name=Name(name.name + "_rec", -1),
+                    foralls=foralls,
+                    rforalls=rforalls,
+                    args=rec_args,
+                    type=return_type,
+                    body=rec_body,
                 )
                 defs.append(rec_de)
 
@@ -154,18 +175,56 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
     ndefs = []
     for d in defs:
         match d:
-            case Definition(name, foralls, args, rtype, body, decorators):
+            case Definition(name, foralls, rforalls, args, rtype, body, decorators):
+                # logger.log("AST_INFO", f"Processing definition {name} with args {[f"{name} : {_type}" for name, _type in args]} and type {rtype}")
+
                 new_foralls: list[tuple[Name, Kind]] = []
 
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
                 for ty in tlst:
+                    # logger.log("AST_INFO", f"Processing type {ty}")
                     for t in get_type_vars(ty):
                         tname = t.name
+                        # logger.log("AST_INFO", f"Processing type variable {tname}")
                         if tname not in types:
+                            # logger.log("AST_INFO", f"Adding type variable {tname} to foralls")
                             entry = (tname, BaseKind())
                             if entry not in new_foralls:
+                                # logger.log("AST_INFO", f"Added {entry} to foralls")
                                 new_foralls.append(entry)
-                ndefs.append(Definition(name, foralls + new_foralls, args, rtype, body, decorators))
+                # logger.log("AST_INFO", f"New foralls: {new_foralls}")
+                ndefs.append(Definition(name, foralls + new_foralls, rforalls, args, rtype, body, decorators))
+    # for td in ndefs:
+    # logger.log("AST_INFO", f"New definition: {td}")
+    return ndefs
+
+
+def introduce_forall_in_refinemts(defs: list[Definition], etctx: ElaborationTypingContext) -> list[Definition]:
+    # logger.log("AST_INFO", "Introducing forall in refinements")
+    ndefs = []
+    for d in defs:
+        match d:
+            case Definition(name, foralls, rforalls, args, rtype, body, decorators):
+                # logger.log("AST_INFO", f"Processing definition {name} with args {[f'{name} : {_type}' for name, _type in args]} and type {rtype}")
+
+                new_foralls: list[tuple[Name, Kind]] = []
+                rlst: list[SType] = [ty for _, ty in args] + [rtype]
+                for ty in rlst:
+                    # logger.log("AST_INFO", f"Processing refinement type {ty}")
+                    match ty:
+                        case SRefinedType(rname, _, ref):
+                            for rvar in get_term_vars(ref):
+                                # logger.log("AST_INFO", f"Processing refinement variable {rvar}")
+                                if rvar in [e.name.name for e in etctx.entries if isinstance(e, ElabVariableBinder)]:
+                                    continue
+                                if rvar.name == rname.name:
+                                    continue
+                                if rvar.name not in [n.name for n, _ in new_foralls]:
+                                    # logger.log("AST_INFO", f"Adding refinement variable {rvar.name} to foralls")
+                                    new_foralls.append((rvar, StarKind()))
+                # logger.log("AST_INFO", f"New foralls: {new_foralls}")
+                ndefs.append(Definition(name, foralls, rforalls + new_foralls, args, rtype, body, decorators))
+
     return ndefs
 
 
@@ -269,11 +328,13 @@ def replace_concrete_types(
 
 def type_of_definition(d: Definition) -> SType:
     match d:
-        case Definition(_, foralls, args, rtype, _, _):
+        case Definition(_, foralls, rforalls, args, rtype, _, _):
             ntype = rtype
             for name, atype in reversed(args):
                 ntype = SAbstractionType(name, atype, ntype)
             for name, kind in reversed(foralls):
+                ntype = STypePolymorphism(name, kind, ntype)
+            for name, kind in reversed(rforalls):
                 ntype = STypePolymorphism(name, kind, ntype)
             return ntype
         case _:
@@ -281,8 +342,10 @@ def type_of_definition(d: Definition) -> SType:
 
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
+    # logger.log("AST_INFO", f"Converting definition {d.name} to SRec")
     match d:
-        case Definition(dname, foralls, args, rtype, body, _):
+        case Definition(dname, foralls, rforalls, args, rtype, body, _):
+            # logger.log("AST_INFO", f"Processing definition {dname} with args {[f'{name} : {_type}' for name, _type in args]} and type {rtype}")
             ntype = rtype
             nbody = body
             for name, atype in reversed(args):
@@ -291,6 +354,11 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             for name, kind in reversed(foralls):
                 ntype = STypePolymorphism(name, kind, ntype)
                 nbody = STypeAbstraction(name, kind, nbody)
+            # logger.log("AST_INFO", f"Refinement foralls: {rforalls}")
+            for name, kind in reversed(rforalls):
+                ntype = SRefinementPolymorphism(name, kind, ntype)
+                nbody = SRefinementAbstraction(name, kind, nbody)
+            # logger.log("AST_INFO", f"Converted definition {dname} to SRec with type {ntype} and body {nbody}")
             return SRec(dname, ntype, nbody, prog)
         case _:
             assert False, f"{d} is not a definition"

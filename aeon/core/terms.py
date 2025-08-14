@@ -203,3 +203,13 @@ class TypeApplication(Term):
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
+
+
+@dataclass(frozen=True)
+class RefinementApplication(Term):
+    body: Term
+    refinement: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"{{ {self.body} }}({self.refinement})"

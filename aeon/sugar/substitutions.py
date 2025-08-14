@@ -6,6 +6,7 @@ from aeon.sugar.stypes import (
     SRefinedType,
     SType,
     STypePolymorphism,
+    SRefinementPolymorphism,
 )
 from aeon.sugar.program import (
     SAbstraction,
@@ -18,7 +19,9 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
+    SRefinementAbstraction,
     STypeApplication,
+    SRefinementApplication,
     SVar,
 )
 
@@ -59,6 +62,11 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
                 return ty
             else:
                 return STypePolymorphism(tname, kind, rec(body))
+        case SRefinementPolymorphism(tname, kind, body):
+            if tname == alpha:
+                return ty
+            else:
+                return SRefinementPolymorphism(tname, kind, rec(body))
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
@@ -122,8 +130,12 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
             return SIf(rec(cond), rec(then), rec(otherwise))
         case STypeApplication(body, ty):
             return STypeApplication(rec(body), rect(ty))
+        case SRefinementApplication(body, ty):
+            return SRefinementApplication(rec(body), rect(ty))
         case STypeAbstraction(aname, kind, body):
             return STypeAbstraction(aname, kind, rec(body))
+        case SRefinementAbstraction(aname, kind, body):
+            return SRefinementAbstraction(aname, kind, rec(body))
         case _:
             assert False
 
@@ -151,10 +163,17 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
             return SIf(rec(cond), rec(then), rec(otherwise))
         case STypeApplication(body, ty):
             return STypeApplication(rec(body), substitute_svartype_in_stype(ty, rep, name))
+        case SRefinementApplication(body, ty):
+            return SRefinementApplication(rec(body), substitute_svartype_in_stype(ty, rep, name))
         case STypeAbstraction(aname, kind, body):
             if aname == name:
                 return t
             else:
                 return STypeAbstraction(aname, kind, rec(body))
+        case SRefinementAbstraction(aname, kind, body):
+            if aname == name:
+                return t
+            else:
+                return SRefinementAbstraction(aname, kind, rec(body))
         case _:
             assert False
