@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import NamedTuple
+# from loguru import logger
 
 from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, Metadata
@@ -43,6 +44,9 @@ class DesugaredProgram(NamedTuple):
     elabcontext: ElaborationTypingContext
     metadata: Metadata
 
+    def __str__(self):
+        return f"DesugaredProgram(\nprogram={self.program}, \nelabcontext={self.elabcontext} metadata={self.metadata})"
+
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
@@ -61,9 +65,11 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 
     etctx = build_typing_context(vs, type_decls)
     etctx, prog = update_program_and_context(prog, defs, etctx)
+    # logger.log("AST_INFO", f"Program after updating context: {prog}")
     prog, etctx = replace_concrete_types(
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
     )
+    # logger.log("AST_INFO", f"Program after replacing concrete types: {prog}")
     return DesugaredProgram(prog, etctx, metadata)
 
 
@@ -142,7 +148,9 @@ def expand_inductive_decls(p: Program) -> Program:
 
 
 def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
+    # logger.log("AST_INFO", "Introducing forall in types")
     types = [td.name for td in type_decls]
+    # logger.log("AST_INFO", f"Types in program: {types}")
     ndefs = []
     for d in defs:
         match d:

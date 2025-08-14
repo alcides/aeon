@@ -63,6 +63,20 @@ class ElaborationTypingContext:
         """Returns a type variable that does not exist in context."""
         return Name("tv", fresh_counter.fresh())
 
+    def __str__(self):
+        res = "ElaborationTypingContext:\n"
+        for entry in self.entries:
+            match entry:
+                case ElabVariableBinder(name, ty):
+                    res += f"  Variable: {name} : {ty}\n"
+                case ElabUninterpretedBinder(name, ty):
+                    res += f"  Uninterpreted: {name} : {ty}\n"
+                case ElabTypeVarBinder(name, kind):
+                    res += f"  TypeVar: {name} : {kind}\n"
+                case ElabTypeDecl(name, args):
+                    res += f"  TypeDecl: {name} with args {args}\n"
+        return res
+
 
 def build_typing_context(ls: dict[Name, SType], tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
     if tdecl is None:
