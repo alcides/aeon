@@ -6,6 +6,7 @@ from aeon.sugar.stypes import (
     SType,
     STypeConstructor,
     STypePolymorphism,
+    SRefinementPolymorphism,
     STypeVar,
 )
 from aeon.sugar.substitutions import normalize
@@ -36,6 +37,12 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
                 return ty
             else:
                 return STypePolymorphism(name, kind, rec(body))
+        case SRefinementPolymorphism(name, kind, body):
+            # TODO: Double-check alpha_renaming in substitution
+            if name == alpha:
+                return ty
+            else:
+                return SRefinementPolymorphism(name, kind, rec(body))
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
@@ -66,6 +73,11 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
                 return ty
             else:
                 return STypePolymorphism(name, kind, rec(body))
+        case SRefinementPolymorphism(name, kind, body):
+            if name == alpha:
+                return ty
+            else:
+                return SRefinementPolymorphism(name, kind, rec(body))
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
