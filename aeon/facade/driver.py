@@ -106,7 +106,7 @@ class AeonDriver:
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
-        # logger.log("AST_INFO", f"Core AST: {core_ast}")
+        logger.log("AST_INFO", f"Core AST: {core_ast}")
 
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)

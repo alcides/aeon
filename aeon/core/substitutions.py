@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication, TypeConstructor, TypePolymorphism
+from aeon.core.types import LiquidHornApplication, TypeConstructor, TypePolymorphism, RefinimentPolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
+from aeon.core.terms import Abstraction, TypeAbstraction, RefinementAbstraction, TypeApplication, RefinementApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -48,6 +48,11 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
                 return t
             else:
                 return TypePolymorphism(pname, kind, rec(body))
+        case RefinimentPolymorphism(pname, kind, body):
+            if name == pname:
+                return t
+            else:
+                return RefinimentPolymorphism(pname, kind, rec(body))
         case TypeConstructor(cname, args):
             return TypeConstructor(cname, [rec(arg) for arg in args])
         case _:
@@ -144,6 +149,8 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
                 )
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, rec(body))
+        case RefinimentPolymorphism(name, kind, body):
+            return RefinimentPolymorphism(name, kind, rec(body))
         case TypeConstructor(name, args):
             return TypeConstructor(name, [rec(arg) for arg in args])
         case _:
@@ -178,6 +185,8 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
                 )
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, rec(body))
+        case RefinimentPolymorphism(name, kind, body):
+            return RefinimentPolymorphism(name, kind, rec(body))
         case TypeConstructor(name, args):
             return TypeConstructor(name, [rec(arg) for arg in args])
         case _:
@@ -227,8 +236,12 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
             return If(rec(cond), rec(then), rec(otherwise))
         case TypeApplication(expr, ty):
             return TypeApplication(rec(expr), ty)
+        case RefinementApplication(body, refinement):
+            return RefinementApplication(rec(body), refinement)
         case TypeAbstraction(pname, kind, body):
             return TypeAbstraction(pname, kind, rec(body))
+        case RefinementAbstraction(pname, kind, body):
+            return RefinementAbstraction(pname, kind, rec(body))
         case _:
             assert False, f"{t} not supported."
 
@@ -254,6 +267,10 @@ def inline_lets(t: Term) -> Term:
             return inline_lets(substitute_vartype_in_term(body, ty, name))
         case TypeApplication(expr, ty):
             return TypeApplication(inline_lets(expr), ty)
+        case RefinementApplication(RefinementAbstraction(name, _, body), ty):
+            return inline_lets(substitute_vartype_in_term(body, ty, name))
+        case RefinementApplication(body, refinement):
+            return RefinementApplication(inline_lets(body), refinement)
         case _:
             return t
 
@@ -262,6 +279,8 @@ def uncurry(t: Term, args: list[LiquidTerm]) -> LiquidTerm | None:
     """Uncurries the term t."""
     match t:
         case TypeApplication(body, _):
+            return uncurry(body, args)
+        case RefinementApplication(body, _):
             return uncurry(body, args)
         case Application(fun, arg):
             liquid_arg = liquefy(arg)

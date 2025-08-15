@@ -218,7 +218,7 @@ class SRefinementApplication(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"({self.body}){{{self.type}}}"
+        return f"({self.body})[{self.type}]"
 
 
 class Node:
