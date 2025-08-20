@@ -148,6 +148,18 @@ class CoreTypeApplicationRequiresBareTypesError(CoreTypeCheckingError):
 
 
 @dataclass
+class CoreRefinemetnApplicationRequiresBareTypesError(CoreTypeCheckingError):
+    term: Term
+    type: Type
+
+    def __str__(self) -> str:
+        return f"Refinement application requires that {self.term} of type {self.type} has a bare kind."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class CoreWrongKindInTypeApplicationError(CoreTypeCheckingError):
     term: Term
     type: Type
@@ -156,6 +168,20 @@ class CoreWrongKindInTypeApplicationError(CoreTypeCheckingError):
 
     def __str__(self) -> str:
         return f"Type application requires that {self.term} of type {self.type} has kind {self.expected_kind}, but {self.actual_kind} was found."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
+class CoreWrongKindInRefinementApplicationError(CoreTypeCheckingError):
+    term: Term
+    type: Type
+    expected_kind: Kind
+    actual_kind: Kind
+
+    def __str__(self) -> str:
+        return f"Refinement application requires that {self.term} of type {self.type} has kind {self.expected_kind}, but {self.actual_kind} was found."
 
     def position(self) -> Location:
         return self.term.loc

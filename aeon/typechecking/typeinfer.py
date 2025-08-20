@@ -3,6 +3,8 @@ from typing import Iterable
 
 from loguru import logger
 
+from aeon.utils.indented_logger import IndentedLogger
+
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm
 from aeon.core.types import LiquidHornApplication, StarKind
@@ -24,6 +26,7 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
+from aeon.core.terms import RefinementApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import BaseKind
@@ -284,6 +287,27 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             else:
                 assert isinstance(tabs, AbstractionType)
                 return (c, tabs)
+        case RefinementApplication(body, ty):
+            return (ctrue, ty)
+            # if not is_bare(ty):
+            #     # Refinement Application only works on bare types.
+            #     raise CoreRefinemetnApplicationRequiresBareTypesError(t, ty)
+            # (c, tabs) = synth(ctx, body)
+            # nty = fresh(ctx, ty)
+            # k = ctx.kind_of(nty)
+            # if isinstance(nty, RefinedType) and isinstance(nty.refinement, LiquidHornApplication):
+            #     nty = nty.type
+            #     k = ctx.kind_of(nty)
+            # if isinstance(tabs, RefinimentPolymorphism):
+            #     s = type_substitution(tabs.body, tabs.name, nty)
+            #     if k is None or not is_compatible(k, tabs.kind):
+            #         raise CoreWrongKindInRefinementApplicationError(
+            #             term=t,
+            #             type=nty,
+            #             expected_kind=tabs.kind,
+            #             actual_kind=k,
+            #         )
+            #     return (c, s)
         case Hole(name):
             name_a = Name(name.name, fresh_counter.fresh())
             return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
@@ -293,50 +317,83 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             assert False, f"Unhandled term {t} in synth. Type: {type(t)}"
 
 
-def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
+def check(ctx: TypingContext, t: Term, ty: Type, indentedlogger: IndentedLogger = IndentedLogger()) -> Constraint:
     try:
         assert wellformed(ctx, ty)
     except AssertionError:
+        indentedlogger.write(f"Type {ty} is not wellformed")
+        logger.log("AST_INFO", f"Type {ty} is not wellformed")
         raise CoreWellformnessError(ty)
+    # indentedlogger.write(f"Checking {t} against type {ty}").indent("  ")
+    logger.log("AST_INFO", f"Checking {t} against type {ty}")
     match t, ty:
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
+            indentedlogger.write(f"Checking Abstraction {name} with body {body} against type {ty}").indent("  ")
+            logger.log("AST_INFO", f"Checking Abstraction {name} with body {body} against type {ty}")
             ret = substitution_in_type(ret, Var(name), var_name)
-            c = check(ctx.with_var(name, var_type), body, ret)
+            c = check(ctx.with_var(name, var_type), body, ret, indentedlogger=indentedlogger)
+            indentedlogger.dedent().write(f"Abstraction {name} with body {body} against type {ty} is wellformed")
             return implication_constraint(name, var_type, c)
         case Let(name, val, body), _:
+            logger.log("AST_INFO", f"Checking Let {name} with value {val} and body {body} against type {ty}")
+            indentedlogger.write(f"Checking Let {name} with value {val} and body {body} against type {ty}").indent("  ")
             (c1, t1) = synth(ctx, val)
             nctx: TypingContext = ctx.with_var(name, t1)
-            c2 = check(nctx, body, ty)
+            c2 = check(nctx, body, ty, indentedlogger=indentedlogger)
+            indentedlogger.dedent().write(
+                f"Let {name} with value {val} and body {body} against type {ty} is wellformed"
+            )
             return Conjunction(c1, implication_constraint(name, t1, c2))
         case Rec(var_name, var_type, var_value, body), _:
+            logger.log("AST_INFO", f"Checking Rec {var_name} with value {var_value} and body {body} against type {ty}")
+            indentedlogger.write(
+                f"Checking Rec {var_name} with value {var_value} and body {body} against type {ty}"
+            ).indent("  ")
             t1 = fresh(ctx, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
-            c1 = check(nrctx, var_value, var_type)
-            c2 = check(nrctx, body, ty)
+            c1 = check(nrctx, var_value, var_type, indentedlogger=indentedlogger.indent("var "))
+            c2 = check(nrctx, body, ty, indentedlogger=indentedlogger.dedent().indent("body "))
             c1 = implication_constraint(var_name, t1, c1)
             c2 = implication_constraint(var_name, t1, c2)
+            indentedlogger.dedent().write(
+                f"Rec {var_name} with value {var_value} and body {body} against type {ty} is wellformed"
+            )
+            indentedlogger.dedent()
             return Conjunction(c1, c2)
         case If(cond, then, otherwise), _:
+            logger.log(
+                "AST_INFO", f"Checking If with condition {cond}, then {then}, otherwise {otherwise} against type {ty}"
+            )
+            indentedlogger.write(
+                f"Checking If with condition {cond}, then {then}, otherwise {otherwise} against type {ty}"
+            ).indent("  ")
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
             assert liq_cond is not None
             if not check_type(ctx, cond, t_bool):
                 raise CoreTypingRelation(ctx, cond, t_bool)
-            c0 = check(ctx, cond, t_bool)
+            c0 = check(ctx, cond, t_bool, indentedlogger=indentedlogger.indent("cond "))
             name_pos = Name("branch_pos", fresh_counter.fresh())
+            indentedlogger.dedent()
             c1 = implication_constraint(
                 y,
                 RefinedType(name_pos, t_int, liq_cond),
-                check(ctx, then, ty),
+                check(ctx, then, ty, indentedlogger=indentedlogger.indent("then ")),
             )
             name_neg = Name("branch_neg", fresh_counter.fresh())
+            indentedlogger.dedent()
             c2 = implication_constraint(
                 y,
                 RefinedType(name_neg, t_int, LiquidApp(Name("!", 0), [liq_cond])),
-                check(ctx, otherwise, ty),
+                check(ctx, otherwise, ty, indentedlogger=indentedlogger.indent("otherwise ")),
+            )
+            indentedlogger.dedent().write(
+                f"If with condition {cond}, then {then}, otherwise {otherwise} against type {ty} is wellformed"
             )
             return Conjunction(c0, Conjunction(c1, c2))
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
+            logger.log("AST_INFO", f"Checking TypeAbstraction {name} with body {body} against type {ty}")
+            indentedlogger.write(f"Checking TypeAbstraction {name} with body {body} against type {ty}").indent("  ")
             if var_kind == BaseKind() and kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(
                     term=t,
@@ -345,13 +402,18 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                     expected_kind=var_kind,
                 )
             itype = substitute_vartype(var_body, TypeVar(name), var_name)
-            return check(ctx.with_typevar(name, var_kind), body, itype)
+            c = check(ctx.with_typevar(name, var_kind), body, itype, indentedlogger=indentedlogger)
+            indentedlogger.dedent().write(f"TypeAbstraction {name} with body {body} against type {ty} is wellformed")
+            return c
         case _:
+            logger.log("AST_INFO", f"Checking {t} against type {ty}")
+            indentedlogger.write(f"Checking {t} against type {ty}").indent("  ")
             (c, s) = synth(ctx, t)
             cp = sub(ctx, s, ty)
 
             if cp == LiquidConstraint(LiquidLiteralBool(False)):
                 raise CoreSubtypingError(ctx, t, s, ty)
+            indentedlogger.dedent().write(f"Checking {t} against type {ty} is wellformed")
             return Conjunction(c, cp)
 
 
@@ -374,15 +436,22 @@ def check_type_errors(
     term: Term,
     expected_type: Type,
 ) -> Iterable[AeonError]:
-    if not wellformed(ctx, expected_type):
+    logger.log("AST_INFO", f"Checking type of {term} against {expected_type}")
+    indentlogger = IndentedLogger(file="logs/typechecking.log")
+    if not wellformed(ctx, expected_type, indentedlogger=indentlogger):
         return [CoreWellformnessError(expected_type)]
-
     try:
-        constraint = check(ctx, term, expected_type)
+        logger.log("AST_INFO", f"Checking {term}")
+        indentlogger.write(f"Checking {term} against type {expected_type}").indent("  ")
+        constraint = check(ctx, term, expected_type, indentedlogger=indentlogger)
+        logger.log("AST_INFO", f"Constraint: {constraint}")
+        indentlogger.dedent().write(f"Constraint: {constraint}")
         match entailment(ctx, constraint):
             case True:
+                logger.log("AST_INFO", f"Entailment succeeded for {term}")
                 return []
             case False:
+                logger.log("AST_INFO", f"Entailment failed for {term}")
                 return [CoreTypingRelation(ctx, term, expected_type)]
     except CoreTypeCheckingError as e:
         return [e]

@@ -19,7 +19,7 @@ from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import Top
 from aeon.core.types import Type
-from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypePolymorphism, RefinimentPolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
@@ -76,6 +76,8 @@ def fresh(context: TypingContext, ty: Type) -> Type:
             return AbstractionType(name, sp, tp)
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, fresh(context, body))
+        case RefinimentPolymorphism(name, kind, body):
+            return RefinimentPolymorphism(name, kind, fresh(context, body))
         case TypeConstructor(name, args):
             return TypeConstructor(name, [fresh(context, c) for c in args])
         case _:

@@ -11,7 +11,7 @@ from aeon.core.types import AbstractionType, TypeConstructor, TypeVar
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
-from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypePolymorphism, RefinimentPolymorphism
 from aeon.core.types import t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
@@ -93,6 +93,8 @@ def implication_constraint(name: Name, ty: Type, c: Constraint) -> Constraint:
                 return c
         case TypePolymorphism(_, _, _):
             return c
+        case RefinimentPolymorphism(_, _, _):
+            return c
         case _:
             assert False
 
@@ -118,6 +120,8 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
 
             return rconstraint
         case TypePolymorphism(_, _, _), _:
+            return ctrue
+        case RefinimentPolymorphism(_, _, _), _:
             return ctrue
         case AbstractionType(a1, t1, rt1), AbstractionType(a2, t2, rt2):
             new_name_a: Name = Name(a1.name + a2.name, fresh_counter.fresh())

@@ -9,6 +9,7 @@ from aeon.core.terms import (
     Term,
     TypeAbstraction,
     TypeApplication,
+    RefinementApplication,
     Var,
 )
 
@@ -97,6 +98,9 @@ class ANFConverter:
             case TypeApplication(body=body, type=type):
                 body = self.convert(body)
                 return TypeApplication(body, type)
+            case RefinementApplication(body, refinement):
+                body = self.convert(body)
+                return RefinementApplication(body, refinement)
             case _:
                 return t
 

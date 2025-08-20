@@ -89,6 +89,10 @@ class TypingContext:
         nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
         return TypingContext(nentries)
 
+    def with_refinementvar(self, name: Name, type: Type) -> TypingContext:
+        nentries = [e for e in self.entries] + [VariableBinder(name, type)]
+        return TypingContext(nentries)
+
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:

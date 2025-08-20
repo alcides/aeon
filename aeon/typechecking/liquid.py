@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import typing
-
+from loguru import logger
+from aeon.utils.indented_logger import IndentedLogger
 from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
@@ -16,6 +17,7 @@ from aeon.core.types import (
     Type,
     TypeConstructor,
     TypePolymorphism,
+    RefinimentPolymorphism,
     TypeVar,
     t_bool,
 )
@@ -72,6 +74,8 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
+            case RefinimentPolymorphism(_, _, body):
+                return lower_abstraction_type(body)
             case TypeConstructor(_, _):
                 return args + [ty]
             case RefinedType(_, bt, _):
@@ -87,12 +91,14 @@ def flatten(xs: list[list[T]]) -> list[T]:
     return [x for y in xs for x in y]
 
 
-def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
+def lower_context(ctx: TypingContext, indentedlogger: IndentedLogger = IndentedLogger()) -> LiquidTypeCheckingContext:
     known_types: list[Name] = native_types + []
     variables: dict[Name, TypeConstructor | TypeVar] = {}
-    functions = {}
+    functions: dict[Name, list[TypeConstructor | TypeVar]] = {}
 
+    indentedlogger.write("Lowering context for liquid type checking").indent("  ")
     for entry in ctx.entries[::-1]:
+        # logger.log("AST_INFO", f"Lowering context entry: {entry}| {type(entry)}")
         match entry:
             case VariableBinder(name, TypeConstructor(_) as bt):
                 variables[name] = bt
@@ -103,6 +109,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 variables[name] = TypeVar(tvname)
             case VariableBinder(name, TypePolymorphism(_, _, _) as ty):
                 functions[name] = lower_abstraction_type(ty)
+            case VariableBinder(name, RefinimentPolymorphism(_, _, _) as ty):
+                functions[name] = lower_abstraction_type(ty)
             case TypeBinder(name, _):
                 known_types.append(name)
             case UninterpretedBinder(name, AbstractionType(_, _, _) as ty) | VariableBinder(
@@ -111,14 +119,37 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 functions[name] = lower_abstraction_type(ty)
             case UninterpretedBinder(name, TypePolymorphism(_, _, AbstractionType(_, _, _)) as ty):
                 functions[name] = lower_abstraction_type(ty)
+            case UninterpretedBinder(name, RefinimentPolymorphism(_, _, AbstractionType(_, _, _)) as ty):
+                functions[name] = lower_abstraction_type(ty)
             case VariableBinder(name, RefinedType(_, TypeConstructor(_) as bt, _)):
                 variables[name] = bt
             case VariableBinder(name, RefinedType(_, TypeConstructor(_, _) as bt, _)):
                 variables[name] = bt
+            case VariableBinder(name, RefinedType(_, TypeVar(tvname) as ty, _)):
+                known_types.append(tvname)
+
             case TypeConstructorBinder(_, _):
                 pass
             case _:
+                indentedlogger.write(f"Unknown context type {entry} ({type(entry)})")
+                logger.log("AST_INFO", f"Unknown context type {entry} ({type(entry)})")
                 assert False, f"Unknown context type {entry} ({type(entry)})"
+
+    indentedlogger.dedent().write("Lowered context for liquid type checking:").indent("  ")
+    indentedlogger.write("Known types:").indent("  ")
+    for name in known_types:
+        indentedlogger.write(f"{name}")
+    indentedlogger.dedent().write("Variables:").indent("  ")
+    for name, var in variables.items():
+        indentedlogger.write(f"{name}: {var}")
+    indentedlogger.dedent().write("Functions:").indent("  ")
+    for name, funs in functions.items():
+        indentedlogger.write(f"{name}: {funs}")
+    indentedlogger.dedent()
+
+    logger.log("AST_INFO", f"Known types: {known_types}")
+    logger.log("AST_INFO", f"Variables: {variables}")
+    logger.log("AST_INFO", f"Functions: {functions}")
 
     return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
 
@@ -126,7 +157,9 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
 def type_infer_liquid(
     ctx: LiquidTypeCheckingContext,
     liq: LiquidTerm,
+    indentedlogger: IndentedLogger = IndentedLogger(),
 ) -> TypeConstructor | TypeVar:
+    # logger.log("AST_INFO", f"Type inferring liquid term {liq}")
     match liq:
         case LiquidLiteralBool(_):
             return t_bool
@@ -137,6 +170,8 @@ def type_infer_liquid(
         case LiquidLiteralString(_):
             return t_string
         case LiquidVar(name):
+            indentedlogger.write(f"Type inferring liquid variable {name}")
+            logger.log("AST_INFO", f"Looking up variable {name} in context {ctx.variables}")
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")
 
@@ -150,21 +185,33 @@ def type_infer_liquid(
                 case _:
                     raise LiquidTypeCheckException("Could not find type for {liq} ({ctx.variables[name]})")
         case LiquidApp(fun, args):
+            indentedlogger.write(f"Type inferring liquid application {liq} with function {fun} and args {args}")
+            logger.log("AST_INFO", f"Type inferring liquid application {liq} with function {fun} and args {args}")
+            # logger.log("AST_INFO", f"Context: \n{ "\n".join([f"{fname}: {body}" for fname, body in ctx.functions.items()])}")
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
+            logger.log("AST_INFO", f"Function type: {ftype}")
             equalities: dict[Name, TypeConstructor | TypeVar] = {}
 
             def resolve_type(ty: Type) -> TypeConstructor | TypeVar:
                 match ty:
                     case TypeConstructor(_, _):
+                        logger.log("AST_INFO", f"Resolving type {ty} as TypeConstructor")
                         return ty
                     case TypeVar(tv):
                         if tv in equalities:
+                            eq = equalities[tv]
+                            if tv == eq.name:
+                                logger.log("AST_INFO", f"Resolving type {ty} as TypeVar with equality {eq}")
+                                return eq
+                            logger.log("AST_INFO", f"Resolving type {ty} as TypeVar with equality {equalities[tv]}")
                             return resolve_type(equalities[tv])
                         else:
+                            logger.log("AST_INFO", f"Resolving type {ty} as TypeVar")
                             return ty
                     case _:
+                        logger.log("AST_ERROR", f"Unknown type {ty} in resolve_type")
                         assert False, "unknown stuff"
 
             if len(ftype) != len(args) + 1:
@@ -223,10 +270,16 @@ def type_infer_liquid(
                     elif fun_name in ["+", "-", "*", "/"] and not isinstance(first_argument, TypeVar):
                         if not is_base_type_in(first_argument, ["Float", "Int"]):
                             raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
+            indentedlogger.write(f"Function {fun} applied to {args} has type {ftype[-1]}.")
+            logger.log("AST_INFO", f"Function {fun} applied to {args} has type {ftype[-1]}.")
+            logger.log(
+                "AST_INFO", f"Equalities: \n{'\n'.join([f'{ename}: {body}' for ename, body in equalities.items()])}"
+            )
             return resolve_type(ftype[-1])
         case LiquidHornApplication(_, _):
             return t_bool
         case _:
+            logger.log("AST_INFO", f"Constructed {liq} ({type(liq)}) not supported.")
             assert False, f"Constructed {liq} ({type(liq)}) not supported."
 
 
@@ -239,13 +292,22 @@ def check_liquid(
         t = type_infer_liquid(ctx, liq)
         return t == exp
     except LiquidTypeCheckException:
+        logger.log("AST_ERROR", f"Liquid type check failed for {liq} with expected type {exp}.")
         return False
 
 
 def typecheck_liquid(
     ctx: TypingContext,
     liq: LiquidTerm,
+    indentedlogger: IndentedLogger = IndentedLogger(),
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
-    v = type_infer_liquid(lower_context(ctx), liq)
+    # logger.log("AST_INFO", f"Lowering context for liquid type checking")
+    indentedlogger.write("Lowering context for liquid type checking").indent("  ")
+    lctx = lower_context(ctx, indentedlogger=indentedlogger)
+    indentedlogger.dedent().write(f"Lowered context for liquid type checking: {lctx}")
+    # logger.log("AST_INFO", f"Typechecking liquid term {liq}")
+    v = type_infer_liquid(lctx, liq, indentedlogger=indentedlogger.indent("  "))
+    indentedlogger.dedent().write(f"Typechecked liquid term {liq} as {v}")
+    logger.log("AST_INFO", f"Typechecked liquid term {liq} as {v}")
     return v
