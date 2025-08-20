@@ -106,12 +106,12 @@ class AeonDriver:
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
-        logger.log("AST_INFO", f"Core AST: {core_ast}")
+        logger.log("AST_INFO", f"Core AST: \n{core_ast}")
 
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
 
-        # logger.log("AST_INFO", f"Core AST ANF: {core_ast_anf}")
+        logger.log("AST_INFO", f"Core AST ANF: \n{core_ast_anf}")
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
@@ -119,7 +119,7 @@ class AeonDriver:
             if type_errors:
                 return type_errors
 
-        # logger.log("AST_INFO", f"Type checked AST: {core_ast_anf}")
+        logger.log("AST_INFO", f"Type checked AST: \n{core_ast_anf}")
 
         with RecordTime("Preparing execution env"):
             evaluation_ctx = EvaluationContext(evaluation_vars)

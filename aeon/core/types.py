@@ -137,15 +137,15 @@ class TypePolymorphism(Type):
 @dataclass
 class RefinimentPolymorphism(Type):
     name: Name  # ro
-    kind: Kind
+    type: Type
     body: Type
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"forallR {self.name}:{self.kind} -> bool, {self.body}"
+        return f"forallR {self.name}:{self.type}, {self.body}"
 
     def __hash__(self) -> int:
-        return hash(self.name) + hash(self.kind) + hash(self.body)
+        return hash(self.name) + hash(self.type) + hash(self.body)
 
 
 @dataclass

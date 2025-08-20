@@ -8,7 +8,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.terms import Abstraction, TypeAbstraction, RefinementAbstraction, TypeApplication, RefinementApplication
+from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication, RefinementApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -240,8 +240,6 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
             return RefinementApplication(rec(body), refinement)
         case TypeAbstraction(pname, kind, body):
             return TypeAbstraction(pname, kind, rec(body))
-        case RefinementAbstraction(pname, kind, body):
-            return RefinementAbstraction(pname, kind, rec(body))
         case _:
             assert False, f"{t} not supported."
 
@@ -267,8 +265,6 @@ def inline_lets(t: Term) -> Term:
             return inline_lets(substitute_vartype_in_term(body, ty, name))
         case TypeApplication(expr, ty):
             return TypeApplication(inline_lets(expr), ty)
-        case RefinementApplication(RefinementAbstraction(name, _, body), ty):
-            return inline_lets(substitute_vartype_in_term(body, ty, name))
         case RefinementApplication(body, refinement):
             return RefinementApplication(inline_lets(body), refinement)
         case _:

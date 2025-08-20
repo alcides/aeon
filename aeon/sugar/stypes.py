@@ -65,12 +65,43 @@ class STypePolymorphism(SType):
 @dataclass(unsafe_hash=True)
 class SRefinementPolymorphism(SType):
     name: Name
-    kind: Kind
+    type: SType
     body: SType
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"∀{self.name}:{self.kind}. {self.body}"
+        return f"∀{self.name}:{self.type}. {self.body}"
+
+    # TODO: Post-initialization to ensure that the body is well-formed
+    def __post_init__(self):
+        # Ensures type, is a function of basic types, that returns a boolean
+        valid = True
+        done = False
+        curr = self.type
+        while valid and not done:
+            match curr:
+                case STypeVar(_):
+                    done = True
+                case SAbstractionType(_, vtype, rtype):
+                    valid = is_basic_type(vtype)
+                    curr = rtype
+                case STypeConstructor(name, _):
+                    valid = name.name == "Bool"
+                    done = True
+                case _:
+                    valid = False
+        assert valid, f"Invalid refinement type {self.type} in {self.name}:{self.type}. {self.body}"
+
+
+def is_basic_type(ty: SType) -> bool:
+    """Check if the type is a basic type (e.g., Int, Bool, Float, String, Unit)"""
+    match ty:
+        case STypeVar(_):
+            return True
+        case STypeConstructor(_, _):
+            return True
+        case _:
+            return False
 
 
 @dataclass

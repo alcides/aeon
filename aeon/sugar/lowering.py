@@ -19,7 +19,6 @@ from aeon.core.terms import (
     Rec,
     Term,
     TypeAbstraction,
-    RefinementAbstraction,
     TypeApplication,
     RefinementApplication,
     Var,
@@ -53,7 +52,6 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
-    SRefinementAbstraction,
     STypeApplication,
     SRefinementApplication,
     SVar,
@@ -148,8 +146,6 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             return liquefy(expr, available_vars)
         case STypeAbstraction(name, _, body):
             return liquefy(body, available_vars)
-        case SRefinementAbstraction(name, _, body):
-            return liquefy(body, available_vars)
         case SApplication(_, _):
             return liquefy_app(t)
         case SLet(name, val, body):
@@ -205,8 +201,10 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
             return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
         case STypePolymorphism(name, kind, rty, loc):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
-        case SRefinementPolymorphism(name, kind, ref, loc):
-            return RefinimentPolymorphism(name, kind, type_to_core(ref, available_vars), loc=loc)
+        case SRefinementPolymorphism(name, type, ref, loc):
+            return RefinimentPolymorphism(
+                name, type_to_core(type, available_vars), type_to_core(ref, available_vars), loc=loc
+            )
         case SRefinedType(oname, ity, ref, loc):
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())
@@ -253,8 +251,6 @@ def lower_to_core(t: STerm) -> Term:
             return RefinementApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
-        case SRefinementAbstraction(name, kind, body, loc):
-            return RefinementAbstraction(name, kind, lower_to_core(body), loc=loc)
         case _:
             assert False, f"{t} ({type(t)}) not supported"
 

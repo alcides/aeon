@@ -22,7 +22,6 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
-    SRefinementAbstraction,
     STypeApplication,
     SRefinementApplication,
     SVar,
@@ -362,14 +361,14 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
             return STypeAbstraction(name, kind, nbody)
-        case (SRefinementAbstraction(name, kind, body), SRefinementPolymorphism(tname, tkind, tbody)):
-            # logger.log("AST_INFO", f"is refinement abstraction")
-            if kind != tkind:
-                assert UnificationKindError(t, ty, kind, tkind)
-            nctx = ctx.with_typevar(name, kind)
-            nty = type_substitution(tbody, tname, STypeVar(name))
-            nbody = elaborate_check(nctx, body, nty)
-            return SRefinementAbstraction(name, kind, nbody)
+        # case (SRefinementAbstraction(name, kind, body), SRefinementPolymorphism(tname, tkind, tbody)):
+        #     # logger.log("AST_INFO", f"is refinement abstraction")
+        #     if kind != tkind:
+        #         assert UnificationKindError(t, ty, kind, tkind)
+        #     nctx = ctx.with_typevar(name, kind)
+        #     nty = type_substitution(tbody, tname, STypeVar(name))
+        #     nbody = elaborate_check(nctx, body, nty)
+        #     return SRefinementAbstraction(name, kind, nbody)
         case (SApplication(fun, arg), _):
             # logger.log("AST_INFO", f"is application")
             u = UnificationVar(ctx.fresh_typevar())
@@ -569,11 +568,6 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             # logger.log("AST_INFO", f"Removing Unification of type abstraction {name} with kind {kind} and body {body}")
             nctx = ctx.with_typevar(name, kind)
             return STypeAbstraction(name, kind, elaborate_remove_unification(nctx, body))
-
-        case SRefinementAbstraction(name, kind, body):
-            # logger.log("AST_INFO", f"Removing Unification of refinement abstraction {name} with kind {kind} and body {body}")
-            nctx = ctx.with_typevar(name, kind)
-            return SRefinementAbstraction(name, kind, elaborate_remove_unification(nctx, body))
 
         case STypeApplication(body, ty):
             # logger.log("AST_INFO", f"Removing Unification of type application with body {body} and type {ty}")

@@ -190,15 +190,15 @@ class STypeAbstraction(STerm):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
-@dataclass(frozen=True)
-class SRefinementAbstraction(STerm):
-    name: Name
-    kind: Kind
-    body: STerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+# @dataclass(frozen=True)
+# class SRefinementAbstraction(STerm):
+#     name: Name
+#     kind: Kind
+#     body: STerm
+#     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-    def __str__(self):
-        return f"ƛ{self.name}:{self.kind}.({self.body})"
+#     def __str__(self):
+#         return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
 @dataclass()  # frozen=True
@@ -284,7 +284,7 @@ class Decorator(Node):
 class Definition(Node):
     name: Name
     foralls: list[tuple[Name, Kind]]
-    rforalls: list[tuple[Name, Kind]]
+    rforalls: list[tuple[Name, SType]]
     args: list[tuple[Name, SType]]
     type: SType
     body: STerm

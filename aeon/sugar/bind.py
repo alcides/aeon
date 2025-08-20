@@ -23,7 +23,6 @@ from aeon.sugar.program import (
     SRec,
     STerm,
     STypeAbstraction,
-    SRefinementAbstraction,
     STypeApplication,
     SRefinementApplication,
     SVar,
@@ -157,10 +156,6 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case STypeAbstraction(name, kind, body):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs))
-        case SRefinementAbstraction(name, kind, body):
-            name, subs = check_name(name, subs)
-            nbody = bind_sterm(body, subs)
-            return SRefinementAbstraction(name, kind, nbody)
         case SIf(cond, then, otherwise):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs))
         case SLet(name, body, cont):
@@ -192,11 +187,11 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             # logger.log("AST_INFO",f"Bound forall {nname} : {kind}")
             foralls.append((nname, kind))
         rforalls = []
-        for name, kind in df.rforalls:
+        for name, type in df.rforalls:
             # logger.log("AST_INFO", f"Binding rforall {name} : {ty}")
             nname, nsubs = check_name(name, nsubs)
             # logger.log("AST_INFO", f"Bound rforall {nname} : {nty}")
-            rforalls.append((nname, kind))
+            rforalls.append((nname, type))
         args = []
         for aname, ty in df.args:
             # logger.log("AST_INFO",f"Binding arg {aname} : {ty}")

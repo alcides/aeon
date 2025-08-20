@@ -18,7 +18,6 @@ from aeon.core.terms import (
     Rec,
     Term,
     TypeAbstraction,
-    RefinementAbstraction,
     TypeApplication,
     RefinementApplication,
     Var,
@@ -166,9 +165,6 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
         case TypeAbstraction(name, kind, body):
             name, subs = check_name(name, subs)
             return TypeAbstraction(name, kind, bind_term(body, subs))
-        case RefinementAbstraction(name, kind, body):
-            name, subs = check_name(name, subs)
-            return RefinementAbstraction(name, kind, bind_term(body, subs))
         case If(cond, then, otherwise):
             return If(bind_term(cond, subs), bind_term(then, subs), bind_term(otherwise, subs))
         case Let(name, body, cont):

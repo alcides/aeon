@@ -196,17 +196,6 @@ class TypeAbstraction(Term):
 
 
 @dataclass(frozen=True)
-class RefinementAbstraction(Term):
-    name: Name
-    kind: Kind
-    body: Term
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __str__(self):
-        return f"{{ƛ{self.name}:{self.kind}.({self.body.pretty()})}}"
-
-
-@dataclass(frozen=True)
 class TypeApplication(Term):
     body: Term
     type: Type
