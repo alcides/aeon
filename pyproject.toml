@@ -6,7 +6,7 @@ authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
 ]
 readme = "Readme.md"
-requires-python = "~=3.10"
+requires-python = ">3.10, <4"
 
 keywords = ["programming language, liquid types"]
 
@@ -25,7 +25,7 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine==0.8.7',
+    'geneticengine==0.8.8',
     'multiprocess',
     'numpy',
     'pathos',
