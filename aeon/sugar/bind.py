@@ -1,6 +1,5 @@
 from typing import MutableSequence
 
-# from loguru import logger
 from aeon.elaboration.context import (
     ElabTypingContextEntry,
     ElabVariableBinder,
@@ -125,7 +124,7 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return t
         case SVar(name):
             # logger.log("AST_INFO", f"Binding variable {name}")
-            name, _ = check_name(name, subs)
+            name, _ = check_name(apply_subs_name(subs, name), subs)
             # logger.log("AST_INFO", f"Bound variable {name}")
             return SVar(name)
         case SHole(name):

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import NamedTuple
-from loguru import logger
 
 from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, Metadata
@@ -211,15 +210,15 @@ def introduce_forall_in_refinements(defs: list[Definition], type_decls: Elaborat
                     # logger.log("AST_INFO", f"Processing refinement type {ty}")
                     match ty:
                         case SRefinedType(rname, reftype, ref):
-                            logger.log("AST_INFO", f"Processing refinement {rname} in {ty} with ref {ref}")
+                            # logger.log("AST_INFO", f"Processing refinement {rname} in {ty} with ref {ref}")
                             curr = ref
                             argtype: SType = STypeConstructor(Name("Bool", 0))
                             while isinstance(curr, SApplication):
                                 match curr:
                                     case SApplication(a, b):
-                                        logger.log(
-                                            "AST_INFO", f"Refinement is an application {a}|{type(a)} {b}|{type(b)}"
-                                        )
+                                        # logger.log(
+                                        #     "AST_INFO", f"Refinement is an application {a}|{type(a)} {b}|{type(b)}"
+                                        # )
                                         match b:
                                             case SVar(vname):
                                                 if vname.name == rname.name:
@@ -239,12 +238,12 @@ def introduce_forall_in_refinements(defs: list[Definition], type_decls: Elaborat
                                         curr = a
                                     case _:
                                         assert False, f"Unexpected refinement type {curr} in {ty}"
-                            logger.log("AST_INFO", f"Refinement parameter {curr}|{type(curr)} with arg type {argtype}")
+                            # logger.log("AST_INFO", f"Refinement parameter {curr}|{type(curr)} with arg type {argtype}")
                             match curr:
                                 case SVar(vname):
                                     if not any(vname.name == rname.name for rname, _ in new_foralls):
-                                        new_foralls.append((vname, argtype))
-                logger.log("AST_INFO", f"New foralls: {new_foralls}")
+                                        new_foralls.append((Name(vname.name), argtype))
+                # logger.log("AST_INFO", f"New foralls: {new_foralls}")
                 ndefs.append(Definition(name, foralls, rforalls + new_foralls, args, rtype, body, decorators))
     return ndefs
 
