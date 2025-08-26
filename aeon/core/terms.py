@@ -192,7 +192,7 @@ class TypeAbstraction(Term):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"ƛ{self.name}:{self.kind}.({self.body.pretty()})"
+        return f"ƛ{self.name}:{self.kind}.({self.body})"
 
 
 @dataclass(frozen=True)

@@ -322,20 +322,20 @@ def check(ctx: TypingContext, t: Term, ty: Type, indentedlogger: IndentedLogger 
         assert wellformed(ctx, ty)
     except AssertionError:
         indentedlogger.write(f"Type {ty} is not wellformed")
-        logger.log("AST_INFO", f"Type {ty} is not wellformed")
+        # logger.log("AST_INFO", f"Type {ty} is not wellformed")
         raise CoreWellformnessError(ty)
     # indentedlogger.write(f"Checking {t} against type {ty}").indent("  ")
-    logger.log("AST_INFO", f"Checking {t} against type {ty}")
+    # logger.log("AST_INFO", f"Checking {t} against type {ty}")
     match t, ty:
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
             indentedlogger.write(f"Checking Abstraction {name} with body {body} against type {ty}").indent("  ")
-            logger.log("AST_INFO", f"Checking Abstraction {name} with body {body} against type {ty}")
+            # logger.log("AST_INFO", f"Checking Abstraction {name} with body {body} against type {ty}")
             ret = substitution_in_type(ret, Var(name), var_name)
             c = check(ctx.with_var(name, var_type), body, ret, indentedlogger=indentedlogger)
             indentedlogger.dedent().write(f"Abstraction {name} with body {body} against type {ty} is wellformed")
             return implication_constraint(name, var_type, c)
         case Let(name, val, body), _:
-            logger.log("AST_INFO", f"Checking Let {name} with value {val} and body {body} against type {ty}")
+            # logger.log("AST_INFO", f"Checking Let {name} with value {val} and body {body} against type {ty}")
             indentedlogger.write(f"Checking Let {name} with value {val} and body {body} against type {ty}").indent("  ")
             (c1, t1) = synth(ctx, val)
             nctx: TypingContext = ctx.with_var(name, t1)
@@ -345,7 +345,7 @@ def check(ctx: TypingContext, t: Term, ty: Type, indentedlogger: IndentedLogger 
             )
             return Conjunction(c1, implication_constraint(name, t1, c2))
         case Rec(var_name, var_type, var_value, body), _:
-            logger.log("AST_INFO", f"Checking Rec {var_name} with value {var_value} and body {body} against type {ty}")
+            # logger.log("AST_INFO", f"Checking Rec {var_name} with value {var_value} and body {body} against type {ty}")
             indentedlogger.write(
                 f"Checking Rec {var_name} with value {var_value} and body {body} against type {ty}"
             ).indent("  ")
@@ -392,7 +392,7 @@ def check(ctx: TypingContext, t: Term, ty: Type, indentedlogger: IndentedLogger 
             )
             return Conjunction(c0, Conjunction(c1, c2))
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
-            logger.log("AST_INFO", f"Checking TypeAbstraction {name} with body {body} against type {ty}")
+            # logger.log("AST_INFO", f"Checking TypeAbstraction {name} with body {body} against type {ty}")
             indentedlogger.write(f"Checking TypeAbstraction {name} with body {body} against type {ty}").indent("  ")
             if var_kind == BaseKind() and kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(
@@ -406,7 +406,7 @@ def check(ctx: TypingContext, t: Term, ty: Type, indentedlogger: IndentedLogger 
             indentedlogger.dedent().write(f"TypeAbstraction {name} with body {body} against type {ty} is wellformed")
             return c
         case _:
-            logger.log("AST_INFO", f"Checking {t} against type {ty}")
+            # logger.log("AST_INFO", f"Checking {t} against type {ty}")
             indentedlogger.write(f"Checking {t} against type {ty}").indent("  ")
             (c, s) = synth(ctx, t)
             cp = sub(ctx, s, ty)
@@ -436,22 +436,22 @@ def check_type_errors(
     term: Term,
     expected_type: Type,
 ) -> Iterable[AeonError]:
-    logger.log("AST_INFO", f"Checking type of {term} against {expected_type}")
+    # logger.log("AST_INFO", f"Checking type of {term} against {expected_type}")
     indentlogger = IndentedLogger(file="logs/typechecking.log")
     if not wellformed(ctx, expected_type, indentedlogger=indentlogger):
         return [CoreWellformnessError(expected_type)]
     try:
-        logger.log("AST_INFO", f"Checking {term}")
+        # logger.log("AST_INFO", f"Checking {term}")
         indentlogger.write(f"Checking {term} against type {expected_type}").indent("  ")
         constraint = check(ctx, term, expected_type, indentedlogger=indentlogger)
-        logger.log("AST_INFO", f"Constraint: {constraint}")
+        # logger.log("AST_INFO", f"Constraint: {constraint}")
         indentlogger.dedent().write(f"Constraint: {constraint}")
         match entailment(ctx, constraint):
             case True:
-                logger.log("AST_INFO", f"Entailment succeeded for {term}")
+                # logger.log("AST_INFO", f"Entailment succeeded for {term}")
                 return []
             case False:
-                logger.log("AST_INFO", f"Entailment failed for {term}")
+                # logger.log("AST_INFO", f"Entailment failed for {term}")
                 return [CoreTypingRelation(ctx, term, expected_type)]
     except CoreTypeCheckingError as e:
         return [e]

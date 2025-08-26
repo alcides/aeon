@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from itertools import combinations
 
-from loguru import logger
 from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
@@ -623,7 +622,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                             return t  # for the pre-commit hook to pass
 
         case SRefinementApplication(body, ty):
-            logger.log("AST_INFO", f"Removing Unification of refinement application with body {body} and type {ty}")
+            # logger.log("AST_INFO", f"Removing Unification of refinement application with body {body} and type {ty}")
             # Recursively apply itself.
             assert False
 
@@ -633,11 +632,11 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
 
 
 def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = st_top) -> STerm:
-    logger.log("AST_INFO", f"Elaborating \n {e} \n with expected type {expected_type}")
+    # logger.log("AST_INFO", f"Elaborating \n {e} \n with expected type {expected_type}")
     e2 = elaborate_foralls(e)
-    logger.log("AST_INFO", f"Elaborated foralls: \n {e2}")
+    # logger.log("AST_INFO", f"Elaborated foralls: \n {e2}")
     e3 = elaborate_check(ctx, e2, expected_type)
-    logger.log("AST_INFO", f"Elaborated check: \n {e3}")
+    # logger.log("AST_INFO", f"Elaborated check: \n {e3}")
     e4 = elaborate_remove_unification(ctx, e3)
-    logger.log("AST_INFO", f"Elaborated remove unification: \n {e4}")
+    # logger.log("AST_INFO", f"Elaborated remove unification: \n {e4}")
     return e4

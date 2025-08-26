@@ -1,3 +1,6 @@
+import os
+
+
 class IndentedLogger:
     indents: list[str]
     file = ""
@@ -5,6 +8,10 @@ class IndentedLogger:
     def __init__(self, indents=[], file: str = "logs/default.log"):
         self.indents = indents
         self.file = file
+        dir = os.path.dirname(file)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        os.remove(file) if os.path.exists(file) else None
 
     def indent(self, i="  "):
         self.indents = self.indents + [i]

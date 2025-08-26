@@ -3,6 +3,8 @@ from functools import reduce
 from typing import Any, Iterable
 from loguru import logger
 
+from aeon.utils.indented_logger import IndentedLogger
+
 from aeon.sugar.lifting import lift
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
@@ -103,7 +105,8 @@ class AeonDriver:
 
         with RecordTime("Core generation"):
             typing_ctx = lower_to_core_context(desugared.elabcontext)
-            core_ast = lower_to_core(sterm)
+            indlog = IndentedLogger(file="logs/lowering.log")
+            core_ast = lower_to_core(sterm, indlog)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
         logger.log("AST_INFO", f"Core AST: \n{core_ast}")

@@ -1,3 +1,7 @@
+from loguru import logger
+
+from aeon.utils.indented_logger import IndentedLogger
+
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -93,6 +97,7 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
     while isinstance(fun, STypeApplication):
         fun = fun.body
     if not arg:
+        logger.log("AST_INFO", f"Cannot liquefy application {app}.")
         return None
 
     match fun:
@@ -135,10 +140,12 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             ot = liquefy(otherwise, available_vars)
             if co is not None and th is not None and ot is not None:
                 return LiquidApp(Name("ite", 0), [co, th, ot], loc=loc)
+            logger.log("AST_INFO", f"Cannot liquefy if {t}.")
             return None
         case SAnnotation(expr, _):
             return liquefy(expr, available_vars)
         case SAbstraction(name, body):
+            logger.log("AST_INFO", f"Cannot liquefy abstraction {t}.")
             return None
         case STypeApplication(expr, _):
             return liquefy(expr, available_vars)
@@ -153,12 +160,14 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             lbody = liquefy(body, available_vars)
             if lval and lbody:
                 return substitution_in_liquid(lbody, lval, name)
+            logger.log("AST_INFO", f"Cannot liquefy let {t}.")
             return None
         case SRec(name, _, val, body):
             lval = liquefy(val, available_vars)  # TODO: induction?
             lbody = liquefy(body, available_vars)
             if lval and lbody:
                 return substitution_in_liquid(lbody, lval, name)
+            logger.log("AST_INFO", f"Cannot liquefy rec {t}.")
             return None
         case SHole(name):
             avars = available_vars or []
@@ -179,7 +188,11 @@ def basic_type(ty: Type) -> TypeConstructor | TypeVar:
             assert False, f"Unknown base type {ty} ({type(ty)})"
 
 
-def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None) -> Type:
+def type_to_core(
+    ty: SType,
+    indlog: IndentedLogger = IndentedLogger(),
+    available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None,
+) -> Type:
     """Converts Surface Types into Core Types"""
 
     if available_vars is None:
@@ -187,31 +200,49 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
 
     match normalize(ty):
         case STypeConstructor(Name("Top", 0), loc):
+            indlog.write("Lowering Top type")
             return Top()  # TODO: loc?
         case STypeVar(name, loc):
+            indlog.write(f"Lowering type var {name}")
             return TypeVar(name, loc=loc)
         case SAbstractionType(name, vty, rty, loc):
+            indlog.write(f"Lowering abstraction type {name}: {vty} -> {rty}").write(f"├─ Var type: {vty}").indent("│  ")
             nname = Name(name.name, fresh_counter.fresh())
-            at = type_to_core(vty, available_vars)
+            at = type_to_core(vty, indlog, available_vars)
             if isinstance(at, TypeConstructor) or isinstance(at, TypeVar) or isinstance(at, RefinedType):
                 available_vars = available_vars + [(nname, basic_type(at))]
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
                 nrty = rty
-            return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
+            indlog.dedent().write(f"└─ Return type {rty}").indent("   ")
+            lnrty = type_to_core(nrty, indlog, available_vars)
+            indlog.dedent()
+            return AbstractionType(nname, at, lnrty, loc=loc)
         case STypePolymorphism(name, kind, rty, loc):
-            return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
-        case SRefinementPolymorphism(name, type, ref, loc):
-            return RefinimentPolymorphism(
-                name, type_to_core(type, available_vars), type_to_core(ref, available_vars), loc=loc
+            indlog.write(f"Lowering type polymorphism ∀{name}:{kind}. {rty}").write(f"└─ Return type {rty}").indent(
+                "   "
             )
+            lrty = type_to_core(rty, indlog, available_vars)
+            indlog.dedent()
+            return TypePolymorphism(name, kind, lrty, loc=loc)
+        case SRefinementPolymorphism(name, type, ref, loc):
+            indlog.write(f"Lowering refinement polymorphism ∀{name}:{type}. {ref}").write(
+                f"├─ Base type {type}"
+            ).indent("│  ")
+            ltype = type_to_core(type, indlog, available_vars)
+            indlog.dedent().write(f"└─ Refinement {ref}").indent("   ")
+            lref = type_to_core(ref, indlog, available_vars)
+            indlog.dedent()
+            return RefinimentPolymorphism(name, ltype, lref, loc=loc)
         case SRefinedType(oname, ity, ref, loc):
+            indlog.write(f"Lowering refined type {{{oname}: {ity} | {ref}}}").write(f"└─ Base type {ity}").indent("   ")
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())
                 ref = substitution_sterm_in_sterm(ref, SVar(name), oname)
             else:
                 name = oname
-            basety = type_to_core(ity, available_vars)
+            basety = type_to_core(ity, indlog, available_vars)
+            indlog.dedent()
             assert (
                 isinstance(basety, TypeConstructor)
                 or isinstance(basety, TypeVar)
@@ -219,38 +250,96 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
             )
             return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]), loc=loc)
         case STypeConstructor(name, args, loc):
-            return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args], loc=loc)
+            indlog.write(f"Lowering type constructor {name}")
+
+            def internal(ity: SType, isLast: bool) -> Type:
+                indlog.write(f"{'└─ Argument' if isLast else '├─ Argument'} {ity}").indent("  " if isLast else "│ ")
+                ity_core = type_to_core(ity, indlog, available_vars)
+                indlog.dedent()
+                return ity_core
+
+            return TypeConstructor(name, [internal(ity, i + 1 == len(args)) for i, ity in enumerate(args)], loc=loc)
         case _:
             assert False, f"Unknown {ty} / {normalize(ty)}."
 
 
-def lower_to_core(t: STerm) -> Term:
+def lower_to_core(t: STerm, indlog: IndentedLogger) -> Term:
     """Converts Surface terms into Core terms."""
     match t:
         case SHole(name, loc):
+            indlog.write(f"Lowering hole {name}")
             return Hole(name, loc=loc)
         case SLiteral(val, ty, loc):
-            return Literal(val, type_to_core(ty), loc=loc)
+            indlog.write(f"Lowering literal {val}").indent("")
+            v = Literal(val, type_to_core(ty, indlog), loc=loc)
+            indlog.dedent()
+            return v
         case SVar(name, loc):
+            indlog.write(f"Lowering var {name}")  # └ ├ ─ │
             return Var(name, loc=loc)
         case SIf(cond, then, otherwise, loc):
-            return If(lower_to_core(cond), lower_to_core(then), lower_to_core(otherwise), loc=loc)
+            indlog.write("Lowering if").write("├─ Condition").indent("│  ")
+            lcond = lower_to_core(cond, indlog)
+            indlog.dedent().write("├─ Then").indent("│  ")
+            lthen = lower_to_core(then, indlog)
+            indlog.dedent().write("└─ Otherwise").indent("   ")
+            lotherwise = lower_to_core(otherwise, indlog)
+            indlog.dedent()
+            return If(lcond, lthen, lotherwise, loc=loc)
         case SApplication(fun, arg, loc):
-            return Application(lower_to_core(fun), lower_to_core(arg), loc=loc)
+            indlog.write("Lowering application").write("├─ Function").indent("│  ")
+            lfun = lower_to_core(fun, indlog)
+            indlog.dedent().write("└─ Argument").indent("   ")
+            larg = lower_to_core(arg, indlog)
+            indlog.dedent()
+            return Application((lfun), (larg), loc=loc)
         case SLet(name, val, body, loc):
-            return Let(name, lower_to_core(val), lower_to_core(body), loc=loc)
+            indlog.write(f"Lowering let {name}").write("├─ Value").indent("│  ")
+            lval = lower_to_core(val, indlog)
+            indlog.dedent().write("└─ Body").indent("   ")
+            lbody = lower_to_core(body, indlog)
+            indlog.dedent()
+            return Let(name, (lval), (lbody), loc=loc)
         case SRec(name, ty, val, body, loc):
-            return Rec(name, type_to_core(ty), lower_to_core(val), lower_to_core(body), loc=loc)
+            indlog.write(f"Lowering rec {name}").write("├─ Type").indent("│  ")
+            lty = type_to_core(ty, indlog)
+            indlog.dedent().write(f"├─ Value {val}").indent("│  ")
+            lval = lower_to_core(val, indlog)
+            indlog.dedent().write("└─ Body").indent("   ")
+            lbody = lower_to_core(body, indlog)
+            indlog.dedent()
+            return Rec(name, (lty), (lval), (lbody), loc=loc)
         case SAnnotation(expr, ty, loc):
-            return Annotation(lower_to_core(expr), type_to_core(ty), loc=loc)
+            indlog.write("Lowering annotation").write("├─ Expression").indent("│  ")
+            lexpr = lower_to_core(expr, indlog)
+            indlog.dedent().write("└─ Type").indent("   ")
+            lty = type_to_core(ty, indlog)
+            indlog.dedent()
+            return Annotation((lexpr), (lty), loc=loc)
         case SAbstraction(name, body, loc):
-            return Abstraction(name, lower_to_core(body), loc=loc)
+            indlog.write(f"Lowering abstraction {name} -> {body}").write(f"└─ Body {body}").indent("   ")
+            lbody = lower_to_core(body, indlog)
+            indlog.dedent()
+            return Abstraction(name, (lbody), loc=loc)
         case STypeApplication(expr, ty, loc):
-            return TypeApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
+            indlog.write("Lowering type application").write("├─ Expression").indent("│  ")
+            lexpr = lower_to_core(expr, indlog)
+            indlog.dedent().write("└─ Type").indent("   ")
+            lty = type_to_core(ty, indlog)
+            indlog.dedent()
+            return TypeApplication((lexpr), (lty), loc=loc)
         case SRefinementApplication(expr, ty, loc):
-            return RefinementApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
+            indlog.write("Lowering refinement application").write("├─ Expression").indent("│  ")
+            lexpr = lower_to_core(expr, indlog)
+            indlog.dedent().write("└─ Type").indent("   ")
+            lty = type_to_core(ty, indlog)
+            indlog.dedent()
+            return RefinementApplication((lexpr), (lty), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
-            return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
+            indlog.write(f"Lowering type abstraction ∀{name}:{kind} -> {body}").write(f"└─ Body {body}").indent("   ")
+            lbody = lower_to_core(body, indlog)
+            indlog.dedent()
+            return TypeAbstraction(name, kind, (lbody), loc=loc)
         case _:
             assert False, f"{t} ({type(t)}) not supported"
 
