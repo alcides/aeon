@@ -54,6 +54,9 @@ def List_map (f: (v:a) -> b) (l:(List a)) : (List b) { native "list(map(f, l))" 
 # returns: reversed list
 def List_reversed (l: (List a)) : (List a) { native "l[::-1]" }
 
+def List_empty (l: (List a)) : {x:Bool | x == ((List_size l) == 0)} { (List_length l) == 0 }
+
+
 # def List_tail:(l:{x:(List a) | List_size x > 0 }) -> {l2:(List a) | List_size l2 ==  (List_size l) - 1 }  = \xs -> native "xs[1:]";
 
 # def List_last: (l:{x:(List a) | List_size x > 0 }) -> a = \xs -> native "xs[-1]";
