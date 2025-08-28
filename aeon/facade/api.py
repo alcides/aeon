@@ -9,6 +9,7 @@ from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
+from aeon.utils.pprint import stype_pretty
 
 
 class AeonError(ABC, BaseException):
@@ -37,9 +38,7 @@ class UnificationSubtypingError(AeonError):
     msg: str = field(default_factory=lambda: "")
 
     def __str__(self) -> str:
-        return (
-            f"Expression {self.expr} has type {self.subtype}, but is expected to have type {self.suptype} ({self.msg})."
-        )
+        return f"Expression {self.expr} has type {stype_pretty(self.subtype)}, but is expected to have type {stype_pretty(self.suptype)} ({self.msg})."
 
     def position(self) -> Location:
         return self.expr.loc
