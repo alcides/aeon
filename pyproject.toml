@@ -40,7 +40,7 @@ dependencies = [
     'sympy',
     'textdistance',
     'z3-solver >= 4',
-    'zstandard==0.24.0',
+    'zstandard==0.25.0',
     'zss'
 ]
 
