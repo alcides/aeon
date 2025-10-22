@@ -108,7 +108,7 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     vc: Constraint
 
     def __str__(self) -> str:
-        return f"Term {self.term} is not of expected type {self.type} ({pretty_print_constraint(self.vc)})."
+        return f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
 
     def position(self) -> Location:
         return self.term.loc

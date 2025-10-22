@@ -21,6 +21,7 @@ from aeon.synthesis.decorators import (
     allow_recursion,
     error_fitness,
     disable_control_flow,
+    prompt,
 )
 
 decorators_environment: dict[str, DecoratorType] = {
@@ -32,6 +33,7 @@ decorators_environment: dict[str, DecoratorType] = {
     "allow_recursion": allow_recursion,
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
+    "prompt": prompt,
 }
 
 

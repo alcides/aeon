@@ -50,7 +50,7 @@ from aeon.facade.api import (
     LiquidTypeCheckingFailedRelation,
 )
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.entailment import entailment
+from aeon.typechecking.entailment import entailment, entailment_context
 from aeon.typechecking.well_formed import wellformed
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -59,7 +59,14 @@ from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.horn import solve
 from aeon.utils.name import Name, fresh_counter
+from aeon.verification.helpers import (
+    remove_unrelated_context,
+    simplify_constraint,
+    conjunctive_normal_form,
+    is_implication_true,
+)
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
 
@@ -380,14 +387,12 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
 
 def constraint_to_parts(c: Constraint) -> Iterable[Constraint]:
     """Prepares a constraint into a list of sub-problems for error messages"""
-    # top_level = reduce_to_useful_constraint(c)
-    yield c
-    # for cons in conjunctive_normal_form(c):
-    #    yield cons
-    # if not is_implication_true(cons):
-    # cons_simp = simplify_constraint(cons)
-    # cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
-    # yield cons_clean
+    for cons in conjunctive_normal_form(c):
+        if not is_implication_true(cons):
+            if not solve(cons):
+                cons_simp = simplify_constraint(cons)
+                cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+                yield cons_clean
 
 
 def check_type_errors(
@@ -404,9 +409,10 @@ def check_type_errors(
             case True:
                 return []
             case False:
+                full_constraint = entailment_context(ctx, constraint)
                 return [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, v)
-                    for v in constraint_to_parts(constraint)
+                    for v in constraint_to_parts(full_constraint)
                 ]
     except CoreTypeCheckingError as e:
         return [e]

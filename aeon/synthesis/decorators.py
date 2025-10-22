@@ -189,3 +189,17 @@ def allow_recursion(
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
+
+
+def prompt(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    "Keeps track of the prompt that should be used in LLM-based synthesis"
+    assert len(args) == 1
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str)
+    val = args[0].value
+    metadata = metadata_update(metadata, fun, {"prompt": val})
+
+    return fun, [], metadata

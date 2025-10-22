@@ -49,6 +49,7 @@ tests = [
     "pytest",
     "pytest-beartype"
 ]
+llm = ["ollama"]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"

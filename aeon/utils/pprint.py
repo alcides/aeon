@@ -667,7 +667,7 @@ def pretty_print_sterm(term: STerm) -> str:
     return str(sterm_pretty(simplified_term))
 
 
-def simplify_sterm(term):
+def simplify_sterm(term: STerm) -> STerm:
     def apply_func(acc: STerm, func: Callable[[STerm], STerm]) -> STerm:
         return func(acc)
 

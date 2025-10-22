@@ -22,7 +22,7 @@ from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.core.liquid_ops import ops
 
 
-def entailment(ctx: TypingContext, c: Constraint) -> bool:
+def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
     for entry in ctx.entries[::-1]:
         match entry:
             case VariableBinder(name, AbstractionType(vname, vtype, rtype)):
@@ -59,4 +59,9 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                 pass
             case _:
                 assert False, f"Untreated {ctx}."
+    return c
+
+
+def entailment(ctx: TypingContext, c: Constraint) -> bool:
+    c = entailment_context(ctx, c)
     return solve(c)

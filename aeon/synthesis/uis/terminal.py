@@ -1,12 +1,17 @@
 from typing import Any
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
+from aeon.core.terms import Hole
 from aeon.core.types import Type
+from aeon.utils.name import Name
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 
 
 class TerminalUI(SynthesisUI):
+    best_solution: Term
+    best_quality: list[float] | None
+
     def start(
         self,
         typing_ctx: TypingContext,
@@ -18,6 +23,8 @@ class TerminalUI(SynthesisUI):
         self.target_name = target_name
         self.target_type = target_type
         self.budget = budget
+        self.best_solution = Hole(Name("sorry", -1))
+        self.best_quality = None
 
     def register(
         self,

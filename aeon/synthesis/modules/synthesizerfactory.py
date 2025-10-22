@@ -1,6 +1,7 @@
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
+from aeon.synthesis.modules.llm import LLMSynthesizer
 
 
 def make_synthesizer(module: str) -> Synthesizer:
@@ -17,5 +18,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return GESynthesizer(method="hill_climbing")
         case "synquid":
             return SynquidSynthesizer()
+        case "llm":
+            return LLMSynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"
