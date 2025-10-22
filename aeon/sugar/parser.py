@@ -341,7 +341,7 @@ def mk_parser(rule="start", start_counter: int = 0, filename: str = ""):
 
 parse_expression: Callable[[str], STerm] = mk_parser("expression")
 parse_program: Callable[[str], Program] = mk_parser("program")
-parse_type: Callable[[str], SType] = mk_parser("type")
+parse_type: Callable[[str], SType] = mk_parser("type", filename="<prelude>")
 
 
 def parse_main_program(source: str, filename: str) -> Program:

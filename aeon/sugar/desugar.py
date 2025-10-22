@@ -304,6 +304,6 @@ def handle_import(imp: ImportAe) -> Program:
         file = container / f"{path}"
         if file.exists():
             contents = open(file).read()
-            parse = mk_parser("program")
+            parse = mk_parser("program", filename=str(file))
             return parse(contents)
     raise ImportError(importel=imp, possible_containers=possible_containers)
