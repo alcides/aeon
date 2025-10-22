@@ -28,6 +28,7 @@ dependencies = [
     'geneticengine==0.8.8',
     'multiprocess',
     'numpy',
+    'ollama',
     'pathos',
     'pillow',
     'psb2',
@@ -49,7 +50,6 @@ tests = [
     "pytest",
     "pytest-beartype"
 ]
-llm = ["ollama"]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"

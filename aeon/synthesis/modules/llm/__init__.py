@@ -90,6 +90,8 @@ class LLMSynthesizer(Synthesizer):
 
                 if validate(core_tterm):
                     quality = evaluate(core_tterm)
+                    if len(quality) == 0:
+                        return core_tterm
                     time = get_elapsed_time(start_time)
                     is_best = is_better(quality, best_quality, minimize_list)
                     ui.register(core_tterm, quality, time, is_best)
@@ -98,9 +100,8 @@ class LLMSynthesizer(Synthesizer):
                         best_quality = quality
                 else:
                     time = get_elapsed_time(start_time)
-                    ui.register(core_tterm, 0, time, False)
+                    ui.register(core_tterm, None, time, False)
 
-            except Exception as e:
-                print("Q", r, e)
+            except Exception:
                 temperature += 0.1
         return core_term
