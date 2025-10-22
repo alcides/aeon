@@ -24,25 +24,25 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
                 return beta
             else:
                 return t
-        case RefinedType(name, ity, ref):
+        case RefinedType(name, ity, ref, loc):
             match rec(ity):
                 case RefinedType(iname, iity, iref) as city:
                     return RefinedType(
-                        name, iity, mk_liquid_and(ref, substitution_in_liquid(iref, LiquidVar(name), iname))
+                        name, iity, mk_liquid_and(ref, substitution_in_liquid(iref, LiquidVar(name), iname)), loc=loc
                     )
                 case AbstractionType(_, _, _):
                     assert False, f"Abstraction types cannot be refined: {t} to {ity} to {rec(ity)}"
                 case city:
-                    return RefinedType(name, city, ref)
-        case AbstractionType(aname, aty, rty):
-            return AbstractionType(aname, rec(aty), rec(rty))
-        case TypePolymorphism(name, kind, body):
+                    return RefinedType(name, city, ref, loc=loc)
+        case AbstractionType(aname, aty, rty, loc):
+            return AbstractionType(aname, rec(aty), rec(rty), loc=loc)
+        case TypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return t
             else:
-                return TypePolymorphism(name, kind, rec(body))
-        case TypeConstructor(name, args):
-            return TypeConstructor(name, [rec(arg) for arg in args])
+                return TypePolymorphism(name, kind, rec(body), loc=loc)
+        case TypeConstructor(name, args, loc):
+            return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
         case _:
             assert False, f"Not considered: {t} ({type(t)})"
 
@@ -72,12 +72,13 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
                 t.refinement,
                 substitution_in_liquid(beta.refinement, LiquidVar(t.name), beta.name),
             ),
+            t.loc,
         )
     elif isinstance(t, RefinedType):
-        return RefinedType(t.name, rec(t.type), t.refinement)
+        return RefinedType(t.name, rec(t.type), t.refinement, t.loc)
     elif isinstance(t, AbstractionType):
-        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type))
+        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type), t.loc)
     elif isinstance(t, TypePolymorphism):
-        return TypePolymorphism(t.name, t.kind, rec(t.body))
+        return TypePolymorphism(t.name, t.kind, rec(t.body), t.loc)
     else:
         assert False

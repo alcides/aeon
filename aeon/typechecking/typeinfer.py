@@ -409,6 +409,7 @@ def check_type_errors(
             case True:
                 return []
             case False:
+                print("term.loc:", term)
                 full_constraint = entailment_context(ctx, constraint)
                 return [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, v)

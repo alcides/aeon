@@ -75,7 +75,7 @@ def expand_inductive_decls(p: Program) -> Program:
 
     for decl in p.inductive_decls:
         match decl:
-            case InductiveDecl(name, args, constructors, measures):
+            case InductiveDecl(name, args, constructors, measures, loc):
                 tds.append(TypeDecl(name, args))
 
                 for measure in measures:
@@ -131,7 +131,12 @@ def expand_inductive_decls(p: Program) -> Program:
                     rec_args.append((Name(f"case_{cons.name.name}", -1), curry(cons.args, return_type)))
 
                 rec_de = Definition(
-                    name=Name(name.name + "_rec", -1), foralls=foralls, args=rec_args, type=return_type, body=rec_body
+                    name=Name(name.name + "_rec", -1),
+                    foralls=foralls,
+                    args=rec_args,
+                    type=return_type,
+                    body=rec_body,
+                    loc=loc,
                 )
                 defs.append(rec_de)
 
@@ -146,7 +151,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
     ndefs = []
     for d in defs:
         match d:
-            case Definition(name, foralls, args, rtype, body, decorators):
+            case Definition(name, foralls, args, rtype, body, decorators, loc):
                 new_foralls: list[tuple[Name, Kind]] = []
 
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
@@ -157,7 +162,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                             entry = (tname, BaseKind())
                             if entry not in new_foralls:
                                 new_foralls.append(entry)
-                ndefs.append(Definition(name, foralls + new_foralls, args, rtype, body, decorators))
+                ndefs.append(Definition(name, foralls + new_foralls, args, rtype, body, decorators, loc))
     return ndefs
 
 
@@ -261,12 +266,12 @@ def replace_concrete_types(
 
 def type_of_definition(d: Definition) -> SType:
     match d:
-        case Definition(_, foralls, args, rtype, _, _):
+        case Definition(_, foralls, args, rtype, _, _, loc):
             ntype = rtype
             for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype)
+                ntype = SAbstractionType(name, atype, ntype, loc)
             for name, kind in reversed(foralls):
-                ntype = STypePolymorphism(name, kind, ntype)
+                ntype = STypePolymorphism(name, kind, ntype, loc)
             return ntype
         case _:
             assert False, f"{d} is not a definition"
@@ -274,16 +279,16 @@ def type_of_definition(d: Definition) -> SType:
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
     match d:
-        case Definition(dname, foralls, args, rtype, body, _):
+        case Definition(dname, foralls, args, rtype, body, _, loc):
             ntype = rtype
             nbody = body
             for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype)
-                nbody = SAbstraction(name, nbody)
+                ntype = SAbstractionType(name, atype, ntype, loc=loc)
+                nbody = SAbstraction(name, nbody, loc=loc)
             for name, kind in reversed(foralls):
-                ntype = STypePolymorphism(name, kind, ntype)
-                nbody = STypeAbstraction(name, kind, nbody)
-            return SRec(dname, ntype, nbody, prog)
+                ntype = STypePolymorphism(name, kind, ntype, loc=loc)
+                nbody = STypeAbstraction(name, kind, nbody, loc=loc)
+            return SRec(dname, ntype, nbody, prog, loc=loc)
         case _:
             assert False, f"{d} is not a definition"
 

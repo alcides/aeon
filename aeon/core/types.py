@@ -172,6 +172,7 @@ top = Top()
 class LiquidHornApplication(LiquidTerm):
     name: Name
     argtypes: list[tuple[LiquidTerm, TypeConstructor | TypeVar]]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
         assert isinstance(self.name, Name)

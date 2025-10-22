@@ -26,18 +26,18 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
                 return beta
             else:
                 return ty
-        case SRefinedType(name, ity, ref):
-            return normalize(SRefinedType(name, rec(ity), ref))
-        case SAbstractionType(name, vty, rty):
-            return SAbstractionType(name, rec(vty), rec(rty))
-        case STypePolymorphism(name, kind, body):
+        case SRefinedType(name, ity, ref, loc):
+            return normalize(SRefinedType(name, rec(ity), ref, loc=loc))
+        case SAbstractionType(name, vty, rty, loc):
+            return SAbstractionType(name, rec(vty), rec(rty), loc=loc)
+        case STypePolymorphism(name, kind, body, loc):
             # TODO: Double-check alpha_renaming in substitution
             if name == alpha:
                 return ty
             else:
-                return STypePolymorphism(name, kind, rec(body))
-        case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+                return STypePolymorphism(name, kind, rec(body), loc=loc)
+        case STypeConstructor(name, args, loc):
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
         case _:
             return ty
 
@@ -57,16 +57,16 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
                 return beta
             else:
                 return ty
-        case SRefinedType(name, ity, ref):
-            return normalize(SRefinedType(name, rec(ity), ref))
-        case SAbstractionType(var_name, var_type, ret_type):
-            return SAbstractionType(var_name, rec(var_type), rec(ret_type))
-        case STypePolymorphism(name, kind, body):
+        case SRefinedType(name, ity, ref, loc):
+            return normalize(SRefinedType(name, rec(ity), ref, loc=loc))
+        case SAbstractionType(var_name, var_type, ret_type, loc):
+            return SAbstractionType(var_name, rec(var_type), rec(ret_type), loc=loc)
+        case STypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return ty
             else:
-                return STypePolymorphism(name, kind, rec(body))
-        case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+                return STypePolymorphism(name, kind, rec(body), loc=loc)
+        case STypeConstructor(name, args, loc):
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
         case _:
             assert False

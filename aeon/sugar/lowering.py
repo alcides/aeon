@@ -146,9 +146,9 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             if lval and lbody:
                 return substitution_in_liquid(lbody, lval, name)
             return None
-        case SHole(name):
+        case SHole(name, loc):
             avars = available_vars or []
-            return LiquidHornApplication(name=name, argtypes=[(LiquidVar(x), ty) for (x, ty) in avars])
+            return LiquidHornApplication(name=name, argtypes=[(LiquidVar(x), ty) for (x, ty) in avars], loc=loc)
         case _:
             assert False
 

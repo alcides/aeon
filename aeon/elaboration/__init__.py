@@ -80,7 +80,7 @@ def elaborate_foralls(e: STerm) -> STerm:
             | STypeAbstraction(_, _, _)
         ):
             return e
-        case SRec(_, _, _, _):
+        case SRec(_, _, _, _, loc):
             e1: SRec = e
             if len(get_type_vars(e.var_type)) > 0:
                 nt = e.var_type
@@ -97,7 +97,7 @@ def elaborate_foralls(e: STerm) -> STerm:
                         body=nv,
                     )
 
-                e1 = SRec(e.var_name, nt, nv, e.body)
+                e1 = SRec(e.var_name, nt, nv, e.body, loc=loc)
             return e1
         case _:
             assert False, f"Could not elaborate {e} ({type(e)})"
@@ -188,13 +188,14 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
             return unify_single("?", united)
         case Intersection(intersected):
             return unify_single("?", intersected)
-        case SAbstractionType(name, vtype, rtype):
+        case SAbstractionType(name, vtype, rtype, loc):
             return SAbstractionType(
                 var_name=name,
                 var_type=remove_unions_and_intersections(ctx, vtype),
                 type=remove_unions_and_intersections(ctx, rtype),
+                loc=loc,
             )
-        case STypePolymorphism(name, kind, body):
+        case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(
                 name=name,
                 kind=kind,
@@ -202,12 +203,13 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                     ctx,
                     body,
                 ),
+                loc=loc,
             )
-        case STypeConstructor(name, args):
-            return STypeConstructor(name, [remove_unions_and_intersections(ctx, arg) for arg in args])
-        case SRefinedType(name, ity, ref):
+        case STypeConstructor(name, args, loc):
+            return STypeConstructor(name, [remove_unions_and_intersections(ctx, arg) for arg in args], loc=loc)
+        case SRefinedType(name, ity, ref, loc):
             innert = remove_unions_and_intersections(ctx, ity)
-            return SRefinedType(name=name, type=innert, refinement=ref)
+            return SRefinedType(name=name, type=innert, refinement=ref, loc=loc)
         case _:
             return ty
 
@@ -279,14 +281,14 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
 
             match nfun_type:
-                case SAbstractionType(_, arg_type, return_type):
+                case SAbstractionType(_, arg_type, return_type, loc):
                     narg = elaborate_check(ctx, arg, arg_type)
                     match narg:
                         case SLiteral(_) | SVar(_):
                             return SApplication(nfun, narg), return_type
                         case _:
                             nname = Name("_anf", fresh_counter.fresh())
-                            return SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname))), return_type
+                            return SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname)), loc=loc), return_type
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:

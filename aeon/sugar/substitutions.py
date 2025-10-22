@@ -99,31 +99,31 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                 return beta
             else:
                 return t
-        case SApplication(fun, arg):
-            return SApplication(rec(fun), rec(arg))
-        case SAbstraction(aname, body):
+        case SApplication(fun, arg, loc):
+            return SApplication(rec(fun), rec(arg), loc=loc)
+        case SAbstraction(aname, body, loc):
             if aname == alpha:
                 return t
             else:
-                return SAbstraction(aname, rec(body))
-        case SLet(vname, vvalue, body):
+                return SAbstraction(aname, rec(body), loc=loc)
+        case SLet(vname, vvalue, body, loc):
             if vname == alpha:
-                return SLet(vname, rec(vvalue), body)
+                return SLet(vname, rec(vvalue), body, loc=loc)
             else:
-                return SLet(vname, rec(vvalue), rec(body))
-        case SRec(vname, vty, vvalue, body):
+                return SLet(vname, rec(vvalue), rec(body), loc=loc)
+        case SRec(vname, vty, vvalue, body, loc):
             if vname == alpha:
-                return SRec(vname, rect(vty), rec(vvalue), body)
+                return SRec(vname, rect(vty), rec(vvalue), body, loc=loc)
             else:
-                return SRec(vname, rect(vty), rec(vvalue), rec(body))
-        case SAnnotation(expr, ty):
-            return SAnnotation(rec(expr), rect(ty))
-        case SIf(cond, then, otherwise):
-            return SIf(rec(cond), rec(then), rec(otherwise))
-        case STypeApplication(body, ty):
-            return STypeApplication(rec(body), rect(ty))
-        case STypeAbstraction(aname, kind, body):
-            return STypeAbstraction(aname, kind, rec(body))
+                return SRec(vname, rect(vty), rec(vvalue), rec(body), loc=loc)
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(rec(expr), rect(ty), loc=loc)
+        case SIf(cond, then, otherwise, loc):
+            return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case STypeApplication(body, ty, loc):
+            return STypeApplication(rec(body), rect(ty), loc=loc)
+        case STypeAbstraction(aname, kind, body, loc):
+            return STypeAbstraction(aname, kind, rec(body), loc=loc)
         case _:
             assert False
 
@@ -135,26 +135,26 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
     match t:
         case SVar(_) | SHole(_):
             return t
-        case SLiteral(v, ty):
-            return SLiteral(v, substitute_svartype_in_stype(ty, rep, name))
-        case SApplication(fun, arg):
-            return SApplication(rec(fun), rec(arg))
-        case SAbstraction(aname, body):
-            return SAbstraction(aname, rec(body))
-        case SLet(vname, vvalue, body):
-            return SLet(vname, rec(vvalue), rec(body))
-        case SRec(vname, vtype, vvalue, body):
-            return SRec(vname, substitute_svartype_in_stype(vtype, rep, name), rec(vvalue), rec(body))
-        case SAnnotation(expr, ty):
-            return SAnnotation(rec(expr), substitute_svartype_in_stype(ty, rep, name))
-        case SIf(cond, then, otherwise):
-            return SIf(rec(cond), rec(then), rec(otherwise))
-        case STypeApplication(body, ty):
-            return STypeApplication(rec(body), substitute_svartype_in_stype(ty, rep, name))
-        case STypeAbstraction(aname, kind, body):
+        case SLiteral(v, ty, loc):
+            return SLiteral(v, substitute_svartype_in_stype(ty, rep, name), loc=loc)
+        case SApplication(fun, arg, loc):
+            return SApplication(rec(fun), rec(arg), loc=loc)
+        case SAbstraction(aname, body, loc):
+            return SAbstraction(aname, rec(body), loc=loc)
+        case SLet(vname, vvalue, body, loc):
+            return SLet(vname, rec(vvalue), rec(body), loc=loc)
+        case SRec(vname, vtype, vvalue, body, loc):
+            return SRec(vname, substitute_svartype_in_stype(vtype, rep, name), rec(vvalue), rec(body), loc=loc)
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(rec(expr), substitute_svartype_in_stype(ty, rep, name), loc=loc)
+        case SIf(cond, then, otherwise, loc):
+            return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case STypeApplication(body, ty, loc):
+            return STypeApplication(rec(body), substitute_svartype_in_stype(ty, rep, name), loc=loc)
+        case STypeAbstraction(aname, kind, body, loc):
             if aname == name:
                 return t
             else:
-                return STypeAbstraction(aname, kind, rec(body))
+                return STypeAbstraction(aname, kind, rec(body), loc=loc)
         case _:
             assert False
