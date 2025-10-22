@@ -4,21 +4,18 @@
 import "Learning.ae";
 import "Tuple.ae";
 
-# Load a dataset, balance it using SMOTE oversampling, split it into training and test sets,
+
 def generate_model_1 (filename: String) : Model {
-    let df = Learning_load_dataset filename in # Load the dataset from the given filename
+    let df = Learning_load_dataset filename in
     let balanced_df = Learning_smote_oversample df in # Balance the dataset using SMOTE oversampling
-    let split = Learning_split_dataset balanced_df 0.7 in # Split the balanced dataset into training and testing sets
-    let train_set = Tuple_fst split in
-    let test_set = Tuple_snd split in
+    let train_set = Learning_split_dataset_training balanced_df 0.7 in
+    let test_set = Learning_split_dataset_testing balanced_df 0.7 in
     Learning_train_random_forest train_set # Train a random forest model on the training set
 }
 
-# Throws static error because dataset is not necessarily balanced
 def generate_model_2 (filename: String) : Model {
-    let df = Learning_load_dataset filename in # Load the dataset from the given filename
-    let split = Learning_split_dataset df 0.7 in # Split the dataset into training and testing sets without balancing
-    let train_set = Tuple_fst split in
-    let test_set = Tuple_snd split in
+    let df = Learning_load_dataset filename in
+    let train_set = Learning_split_dataset_training df 0.7 in
+    let test_set = Learning_split_dataset_testing df 0.7 in
     Learning_train_random_forest train_set # Train a random forest model on the training set
 }
