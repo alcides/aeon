@@ -9,6 +9,8 @@ from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
+from aeon.verification.vcs import Constraint
+from aeon.verification.helpers import pretty_print_constraint
 
 
 class AeonError(ABC, BaseException):
@@ -96,6 +98,20 @@ class CoreWellformnessError(CoreTypeCheckingError):
 
     def position(self) -> Location:
         return self.type.loc
+
+
+@dataclass
+class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
+    ctx: TypingContext
+    term: Term
+    type: Type
+    vc: Constraint
+
+    def __str__(self) -> str:
+        return f"Term {self.term} is not of expected type {self.type} ({pretty_print_constraint(self.vc)})."
+
+    def position(self) -> Location:
+        return self.term.loc
 
 
 @dataclass

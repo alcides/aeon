@@ -8,7 +8,7 @@ def List_size: (l:(List a)) -> Int = uninterpreted;
 # Returns the length of the list.
 # l: list
 # returns: number of elements in the list
-def List_length (l:(List a)) : Int { native "len(l)" }
+def List_length (l:(List a)) : {x:Int | x == List_size l} { native "len(l)" }
 
 # Creates a new empty list.
 # returns: an empty list

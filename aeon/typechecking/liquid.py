@@ -45,6 +45,12 @@ class LiquidTypeCheckingContext:
     variables: dict[Name, TypeConstructor | TypeVar]
     functions: dict[Name, list[TypeConstructor | TypeVar]]
 
+    def __repr__(self):
+        kt = "; ".join([str(t) for t in self.known_types])
+        vars = "; ".join([str(t) + ":" + str(self.variables[t]) for t in self.variables])
+        fns = "; ".join([str(t) for t in self.functions])
+        return f"(LiquidGamma {kt} | {vars} | {fns} )"
+
 
 def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
     args: list[TypeConstructor | TypeVar] = []
@@ -143,8 +149,8 @@ def type_infer_liquid(
             match ctx.variables[name]:
                 case TypeConstructor(_, []) as ty:
                     return ty
-                case TypeConstructor(_, _):
-                    return t_int
+                case TypeConstructor(_, _) as ty:
+                    return ty
                 case TypeVar(_) as ty:
                     return ty
                 case _:

@@ -47,6 +47,7 @@ from aeon.facade.api import (
     CoreVariableNotInContext,
     CoreWellformnessError,
     CoreWrongKindInTypeApplicationError,
+    LiquidTypeCheckingFailedRelation,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
@@ -244,6 +245,15 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     cp = check(ctx, arg, atype)
                     t_subs = substitution_in_type(rtype, arg, aname)
                     c0 = Conjunction(c, cp)
+                    # if ctx.has_uninterpreted_fun(aname):
+                    #     selfification = LiquidConstraint(LiquidApp(
+                    #             Name("==", 0),
+                    #             [
+                    #                 LiquidVar(aname),
+                    #                 LiquidApp(fun, []),
+                    #             ],
+                    #     ))
+                    #     c0 = Conjunction(c0, selfification)
                     return (c0, t_subs)
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
@@ -349,7 +359,6 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         case _:
             (c, s) = synth(ctx, t)
             cp = sub(ctx, s, ty)
-
             if cp == LiquidConstraint(LiquidLiteralBool(False)):
                 raise CoreSubtypingError(ctx, t, s, ty)
             return Conjunction(c, cp)
@@ -369,6 +378,18 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
         return False
 
 
+def constraint_to_parts(c: Constraint) -> Iterable[Constraint]:
+    """Prepares a constraint into a list of sub-problems for error messages"""
+    # top_level = reduce_to_useful_constraint(c)
+    yield c
+    # for cons in conjunctive_normal_form(c):
+    #    yield cons
+    # if not is_implication_true(cons):
+    # cons_simp = simplify_constraint(cons)
+    # cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+    # yield cons_clean
+
+
 def check_type_errors(
     ctx: TypingContext,
     term: Term,
@@ -383,6 +404,9 @@ def check_type_errors(
             case True:
                 return []
             case False:
-                return [CoreTypingRelation(ctx, term, expected_type)]
+                return [
+                    LiquidTypeCheckingFailedRelation(ctx, term, expected_type, v)
+                    for v in constraint_to_parts(constraint)
+                ]
     except CoreTypeCheckingError as e:
         return [e]

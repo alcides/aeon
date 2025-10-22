@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from aeon.utils.name import Name
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -44,6 +45,9 @@ def entailment(ctx: TypingContext, c: Constraint) -> bool:
                     case TypeConstructor(_, []) | TypeVar(_):
                         ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                         c = Implication(name, base, ncond, c)
+                    case TypeConstructor(_, _):
+                        ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
+                        c = Implication(name, TypeConstructor(Name("Int", 0), []), ncond, c)
                     case _:
                         assert False, f"Unknown base: {base}"
             case TypeBinder(name, _):

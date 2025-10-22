@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aeon.sugar.parser import parse_type
 from aeon.sugar.ast_helpers import st_top
-from tests.driver import check_compile_expr
+from tests.driver import check_compile_expr, check_compile
 
 
 def test_anf():
@@ -48,3 +48,14 @@ def test_annotation_anf2():
 def test_annotation_anf3():
     source = r"""3 % 2"""
     assert check_compile_expr(source, parse_type("{x:Int | x == 1}"), 1)
+
+
+def test_empty():
+    source = r"""
+    type List a;
+    def List_size: (l:(List a)) -> Int = uninterpreted;
+    def List_new : {x:(List a) | (List_size x) == 0} = native "[]" ;
+    def List_empty (l: (List a)) : {x:Bool | x == ((List_size l) == 0)} { (List_length l) == 0 }
+    def main : Unit = 1;
+    """
+    assert check_compile(source, st_top, 1)

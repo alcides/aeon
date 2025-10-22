@@ -130,6 +130,9 @@ class TypingContext:
     def concrete_vars(self) -> list[tuple[Name, Type]]:
         return [(e.name, e.type) for e in self.entries if isinstance(e, VariableBinder)]
 
+    def has_uninterpreted_fun(self, name) -> bool:
+        return name in [e.name for e in self.entries if isinstance(e, UninterpretedBinder)]
+
     def get_type_constructor(self, name: Name) -> list[Name] | None:
         for entry in self.entries[::-1]:
             match entry:

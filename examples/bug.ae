@@ -1,0 +1,5 @@
+    type List a;
+    def List_size: (l:(List a)) -> Int = uninterpreted;
+    def List_length (l:(List a)) : {x:Int | x == List_size l} { native "len(l)" }
+    def List_new : {x:(List a) | (List_size x) == 0} = native "[]" ;
+    def List_empty (l: (List a)) : {x:Bool | x == ((List_size l) == 0)} { (List_length l) == 0 }
