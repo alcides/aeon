@@ -31,7 +31,7 @@ dependencies = [
     'pathos',
     'pillow',
     'psb2',
-    'pydantic==2.12.0',
+    'pydantic==2.12.3',
     'pygls==2.0.0',
     'pytest',
     'requests',
