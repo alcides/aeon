@@ -297,38 +297,38 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
     match (t, ty):
-        case (SAbstraction(name, body), SAbstractionType(aname, aty, rty)):
+        case (SAbstraction(name, body, loc=loc), SAbstractionType(aname, aty, rty)):
             nctx = ctx.with_var(name, aty)
             nbody = elaborate_check(nctx, body, substitution_sterm_in_stype(rty, SVar(name), aname))
-            return SAbstraction(name, nbody)
-        case (SLet(name, val, body), _):
+            return SAbstraction(name, nbody, loc=loc)
+        case (SLet(name, val, body, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nval = elaborate_check(ctx, val, u)
             nctx = ctx.with_var(name, u)
             nbody = elaborate_check(nctx, body, ty)
-            return SLet(name, nval, nbody)
-        case (SRec(name, vty, val, body), _):
+            return SLet(name, nval, nbody, loc=loc)
+        case (SRec(name, vty, val, body, loc=loc), _):
             nctx = ctx.with_var(name, vty)
             nval = elaborate_check(nctx, val, vty)
             nbody = elaborate_check(nctx, body, ty)
-            return SRec(name, vty, nval, nbody)
-        case (SIf(cond, then, otherwise), _):
+            return SRec(name, vty, nval, nbody, loc=loc)
+        case (SIf(cond, then, otherwise, loc=loc), _):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
             nelse = elaborate_check(ctx, otherwise, ty)
-            return SIf(ncond, nthen, nelse)
-        case (STypeAbstraction(name, kind, body), STypePolymorphism(tname, tkind, tbody)):
+            return SIf(ncond, nthen, nelse, loc=loc)
+        case (STypeAbstraction(name, kind, body, loc=loc), STypePolymorphism(tname, tkind, tbody)):
             if kind != tkind:
                 assert UnificationKindError(t, ty, kind, tkind)
             nctx = ctx.with_typevar(name, kind)
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
-            return STypeAbstraction(name, kind, nbody)
-        case (SApplication(fun, arg), _):
+            return STypeAbstraction(name, kind, nbody, loc=loc)
+        case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
             narg = elaborate_check(ctx, arg, u)
-            return SApplication(nfun, narg)
+            return SApplication(nfun, narg, loc=loc)
         case _:
             (c, s) = elaborate_synth(ctx, t)
             (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
@@ -372,23 +372,15 @@ def replace_unification_variables(
         match ty:
             case STypeVar(_):
                 return ty
-            case SAbstractionType(name, vty, rty):
-                return SAbstractionType(
-                    name,
-                    go(ctx, vty, not polarity),
-                    go(ctx, rty, polarity),
-                )
-            case SRefinedType(name, ity, ref):
+            case SAbstractionType(name, vty, rty, loc=loc):
+                return SAbstractionType(name, go(ctx, vty, not polarity), go(ctx, rty, polarity), loc=loc)
+            case SRefinedType(name, ity, ref, loc=loc):
                 nt = go(ctx, ity, polarity)
-                return SRefinedType(name, nt, ref)
-            case STypePolymorphism(name, kind, body):
-                return STypePolymorphism(
-                    name,
-                    kind,
-                    go(ctx, body, polarity),
-                )
-            case STypeConstructor(name, args):
-                return STypeConstructor(name, [go(ctx, arg, polarity) for arg in args])
+                return SRefinedType(name, nt, ref, loc=loc)
+            case STypePolymorphism(name, kind, body, loc=loc):
+                return STypePolymorphism(name, kind, go(ctx, body, polarity), loc=loc)
+            case STypeConstructor(name, args, loc=loc):
+                return STypeConstructor(name, [go(ctx, arg, polarity) for arg in args], loc=loc)
 
             case UnificationVar(_, _, _):
                 return Union(list(extract_direction(ty)))
@@ -468,38 +460,38 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
     match t:
         case SLiteral() | SVar() | SHole():
             return t
-        case SAnnotation(expr, ty):
-            return SAnnotation(elaborate_remove_unification(ctx, expr), ty)
+        case SAnnotation(expr, ty, loc=loc):
+            return SAnnotation(elaborate_remove_unification(ctx, expr), ty, loc=loc)
             # TODO NOW: what about ty?
-        case SAbstraction(name, body):
-            return SAbstraction(name, elaborate_remove_unification(ctx, body))
-        case SLet(name, val, body):
+        case SAbstraction(name, body, loc=loc):
+            return SAbstraction(name, elaborate_remove_unification(ctx, body), loc=loc)
+        case SLet(name, val, body, loc=loc):
             nctx = ctx.with_var(t.var_name, st_unit)  # TODO poly: Unit??
-            return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body))
-        case SRec(name, ty, val, body):
+            return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body), loc=loc)
+        case SRec(name, ty, val, body, loc=loc):
             nty = handle_unification_in_type(ctx, ty)
             nt = remove_unions_and_intersections(ctx, ty)
             nctx = ctx.with_var(t.var_name, t.var_type)
-            return SRec(name, nty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body))
+            return SRec(
+                name, nty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body), loc=loc
+            )
 
-        case SIf(cond, then, otherwise):
+        case SIf(cond, then, otherwise, loc=loc):
             return SIf(
                 elaborate_remove_unification(ctx, cond),
                 elaborate_remove_unification(ctx, then),
                 elaborate_remove_unification(ctx, otherwise),
+                loc=loc,
             )
 
-        case SApplication(fun, arg):
-            return SApplication(
-                elaborate_remove_unification(ctx, fun),
-                elaborate_remove_unification(ctx, arg),
-            )
+        case SApplication(fun, arg, loc=loc):
+            return SApplication(elaborate_remove_unification(ctx, fun), elaborate_remove_unification(ctx, arg), loc=loc)
 
-        case STypeAbstraction(name, kind, body):
+        case STypeAbstraction(name, kind, body, loc=loc):
             nctx = ctx.with_typevar(name, kind)
-            return STypeAbstraction(name, kind, elaborate_remove_unification(nctx, body))
+            return STypeAbstraction(name, kind, elaborate_remove_unification(nctx, body), loc=loc)
 
-        case STypeApplication(body, ty):
+        case STypeApplication(body, ty, loc=loc):
             # Recursively apply itself.
             body = elaborate_remove_unification(ctx, body)
 
@@ -507,7 +499,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
 
             match nt:
                 case STypeConstructor(Name("Top", _)):
-                    return STypeApplication(body, nt)
+                    return STypeApplication(body, nt, loc=loc)
                 case _:
                     should_be_refined = True
                     match body:
@@ -526,17 +518,17 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                                 new_type = SRefinedType(nv, nt, SHole(nh))
                             else:
                                 new_type = nt
-                            return STypeApplication(body, new_type)
+                            return STypeApplication(body, new_type, loc=loc)
                         case SRefinedType(name, ity, ref):
                             # TODO NOW: liquidhornapp
                             # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
                             nh = Name("k", fresh_counter.fresh())
                             ref = SHole(nh)
                             new_type = SRefinedType(name, ity, ref)
-                            return STypeApplication(body, new_type)
+                            return STypeApplication(body, new_type, loc=loc)
                         case SAbstractionType(_, _, _):
                             # AbstractionTypes are not refined
-                            return STypeApplication(body, nt)
+                            return STypeApplication(body, nt, loc=loc)
                         # case TypePolymorphism(name, kind, body_):
 
                         case _:

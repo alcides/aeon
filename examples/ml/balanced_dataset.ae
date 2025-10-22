@@ -2,7 +2,6 @@
 # and train a random forest model on it.
 
 import "Learning.ae";
-import "Tuple.ae";
 
 
 def generate_model_1 (filename: String) : Model {

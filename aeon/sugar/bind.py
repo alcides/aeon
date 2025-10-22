@@ -112,32 +112,32 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
     match t:
         case SLiteral(_, _):
             return t
-        case SVar(name):
-            return SVar(apply_subs_name(subs, name))
-        case SHole(name):
+        case SVar(name, loc=loc):
+            return SVar(apply_subs_name(subs, name), loc=loc)
+        case SHole(name, loc=loc):
             name, _ = check_name(name, subs)
-            return SHole(name)
-        case SAnnotation(e, ty):
-            return SAnnotation(bind_sterm(e, subs), bind_stype(ty, subs))
-        case SApplication(e1, e2):
-            return SApplication(bind_sterm(e1, subs), bind_sterm(e2, subs))
-        case SAbstraction(name, body):
+            return SHole(name, loc=loc)
+        case SAnnotation(e, ty, loc=loc):
+            return SAnnotation(bind_sterm(e, subs), bind_stype(ty, subs), loc=loc)
+        case SApplication(e1, e2, loc=loc):
+            return SApplication(bind_sterm(e1, subs), bind_sterm(e2, subs), loc=loc)
+        case SAbstraction(name, body, loc=loc):
             name, subs = check_name(name, subs)
             nbody = bind_sterm(body, subs)
-            return SAbstraction(name, nbody)
-        case STypeApplication(body, ty):
-            return STypeApplication(bind_sterm(body, subs), bind_stype(ty, subs))
-        case STypeAbstraction(name, kind, body):
+            return SAbstraction(name, nbody, loc=loc)
+        case STypeApplication(body, ty, loc=loc):
+            return STypeApplication(bind_sterm(body, subs), bind_stype(ty, subs), loc=loc)
+        case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
-            return STypeAbstraction(name, kind, bind_sterm(body, subs))
-        case SIf(cond, then, otherwise):
-            return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs))
-        case SLet(name, body, cont):
+            return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)
+        case SIf(cond, then, otherwise, loc=loc):
+            return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs), loc=loc)
+        case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
-            return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs))
-        case SRec(name, ty, body, cont):
+            return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
+        case SRec(name, ty, body, cont, loc=loc):
             name, subs = check_name(name, subs)
-            return SRec(name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs))
+            return SRec(name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), loc=loc)
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
@@ -148,7 +148,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     nsubs = list(subs)
     for td in p.type_decls:
         name, nsubs = check_name(td.name, nsubs)
-        type_decls.append(TypeDecl(name, td.args))
+        type_decls.append(TypeDecl(name, td.args, loc=td.loc))
     for df in p.definitions:
         name, nsubs = check_name(df.name, nsubs)
         foralls = []
@@ -168,7 +168,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             for da in dec.macro_args:
                 dargs.append(bind_sterm(da, subs))
             decorators.append(Decorator(dec.name, dargs))
-        d = Definition(name, foralls, args, ntype, body, decorators)
+        d = Definition(name, foralls, args, ntype, body, decorators, loc=df.loc)
         definitions.append(d)
     return Program(p.imports, type_decls, [], definitions)
 
