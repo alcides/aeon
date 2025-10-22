@@ -1,11 +1,11 @@
 import "PropTesting.ae";
 
-def reverse (xs: List) : List {
+def reverse (xs: (List Int)) : (List Int) {
     List_reversed(xs)
 }
 
 
-def prop_reversed_lists_same_size (xs:List) : Bool {
+def prop_reversed_lists_same_size (xs:(List Int)) : Bool {
     (List_length xs) == (List_length (reverse xs))
 }
 

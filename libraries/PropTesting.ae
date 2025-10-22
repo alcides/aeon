@@ -7,21 +7,21 @@ def random : Random = native_import "random";
 
 # Generators
 
-def generateInt (r:Random) : Float { native "r.randint(-1000, 1000)" }
+def generateInt (r:Random) : Int { native "r.randint(-1000, 1000)" }
 
 def generateFloat (r:Random) : Float { native "r.uniform(0, 100)" }
 
-def generateList (r:Random) : List { native "[[r.randint(0, 100) for _ in range(r.randint(0, 10))] for _ in range(100)]" }
+def generateList (r:Random) : (List Int) { native "[[r.randint(0, 100) for _ in range(r.randint(0, 10))] for _ in range(100)]" }
 
 
 # Property Wrappers
 
 
-def countTrues (l:List) : Int {
+def countTrues (l:(List Bool)) : Int {
     native "sum(1 for x in l if x)"
 }
 
-def repeat (v:a) (n:Int) : List { native "[v for _ in range(n)]" }
+def repeat (v:a) (n:Int) : (List a) { native "[v for _ in range(n)]" }
 
 def ratio (a:Int) (b:Int) : Float { native "a/b" }
 

@@ -99,7 +99,6 @@ class AeonDriver:
 
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
-            print(core_ast_anf, "...")
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
