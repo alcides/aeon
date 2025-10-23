@@ -25,7 +25,7 @@ dependencies = [
     'configparser',
     'lark',
     'loguru',
-    'geneticengine==0.8.8',
+    'geneticengine==0.8.10',
     'multiprocess',
     'numpy',
     'ollama',
