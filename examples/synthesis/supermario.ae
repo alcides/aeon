@@ -151,6 +151,6 @@ def conflicts (max_w: Int) (max_h: Int) (level: Level) : Float {
 @hide(numpy,
       number_of_chunks,
       conflicts)
-@minimize_float(number_of_chunks 110 10 new_map)
 @minimize_float(conflicts 110 10 new_map)
+@minimize_float(number_of_chunks 110 10 new_map)
 def new_map : Level = ?hole;

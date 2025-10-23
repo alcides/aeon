@@ -1,2 +1,2 @@
 @prompt("HTTP Error code for not found.")
-def not_found : {v:Int | v >= 100 && v <= 599} = 999;
+def not_found : {v:Int | v >= 100 && v <= 599} = ?hole;
