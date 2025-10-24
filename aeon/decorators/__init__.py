@@ -14,7 +14,9 @@ from aeon.decorators.api import Metadata
 from aeon.sugar.program import Definition
 from aeon.synthesis.decorators import (
     minimize_int,
+    maximize_int,
     minimize_float,
+    maximize_float,
     multi_minimize_float,
     hide,
     hide_types,
@@ -26,7 +28,9 @@ from aeon.synthesis.decorators import (
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
+    "maximize_int": maximize_int,
     "minimize_float": minimize_float,
+    "maximize_float": maximize_float,
     "multi_minimize_float": multi_minimize_float,
     "hide": hide,
     "hide_types": hide_types,

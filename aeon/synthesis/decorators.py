@@ -60,6 +60,15 @@ def minimize_int(
     return make_optimizer(args, fun, metadata, st_int, minimize=True)
 
 
+def maximize_int(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    assert len(args) == 1, "maximize_int decorator expects a single argument"
+    return make_optimizer(args, fun, metadata, st_int, minimize=False)
+
+
 def minimize_float(
     args: list[STerm],
     fun: Definition,
@@ -67,6 +76,15 @@ def minimize_float(
 ) -> tuple[Definition, list[Definition], Metadata]:
     assert len(args) == 1, "minimize_float decorator expects a single argument"
     return make_optimizer(args, fun, metadata, st_float, minimize=True)
+
+
+def maximize_float(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    assert len(args) == 1, "maximize_float decorator expects a single argument"
+    return make_optimizer(args, fun, metadata, st_float, minimize=False)
 
 
 def multi_minimize_float(
