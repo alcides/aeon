@@ -41,9 +41,7 @@ class AeonLanguageServer(LanguageServer):
         diagnostics = []
         async for diag in self._get_diagnostics(uri):
             diagnostics.append(diag)
-        self.text_document_publish_diagnostics(
-            PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics)
-        )
+        self.text_document_publish_diagnostics(PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics))
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
         from . import aeon_adapter
