@@ -13,8 +13,9 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
+    PublishDiagnosticsParams,
 )
-from pygls.server import LanguageServer
+from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
@@ -40,7 +41,9 @@ class AeonLanguageServer(LanguageServer):
         diagnostics = []
         async for diag in self._get_diagnostics(uri):
             diagnostics.append(diag)
-        self.publish_diagnostics(uri, diagnostics)
+        self.text_document_publish_diagnostics(
+            PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics)
+        )
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
         from . import aeon_adapter
