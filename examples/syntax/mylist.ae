@@ -1,7 +1,9 @@
-# inductive MList a
-# | empty : {e:(MList a) | len e == 0}
-# | cons (x:a) (y:(MList a)) : {z:(MList a) | len z == (len y + 1)}
-# + len (m:(MList a)) : Int
+
+
+inductive MList a
+| empty : {e:(MList a) | len e == 0}
+| cons (x:a) (y:(MList a)) : {z:(MList a) | len z == (len y + 1)}
++ len (m:(MList a)) : Int
 
 #def size (l:(MList a)) : {n:Int | n == len l} {
 #    match l with
