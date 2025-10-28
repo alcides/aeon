@@ -5,17 +5,16 @@ name: Python application
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10", "3.11", "3.12" ]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4.1.1
@@ -26,20 +25,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system flake8 pytest mypy pre-commit-uv
-          if [ -f requirements.pip ]; then uv pip install --system -r requirements.pip; fi
+          uv pip install --system pytest mypy pre-commit-uv
       - name: Lint with pre-commit
         run: |
           pre-commit run --all-files
       - name: Lint with mypy
         run: |
           mypy aeon --no-strict-optional --ignore-missing-imports
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 --extend-exclude .venv . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 --extend-exclude .venv . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Check install
         run: |
           uv pip install --system -e .
