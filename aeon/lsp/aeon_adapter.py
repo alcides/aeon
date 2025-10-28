@@ -85,7 +85,7 @@ async def parse(
                 raise
             fp = io.StringIO("")
 
-    parse_result = await _parse(fp, aeon_lsp.aeon_driver)
+    parse_result = await _parse(fp, aeon_lsp.aeon_driver, uri)
     _parse_result_cache[uri] = parse_result
     return parse_result
 
@@ -93,12 +93,13 @@ async def parse(
 async def _parse(
     fp: TextIO,
     driver: AeonDriver,
+    uri: URI,
 ) -> ParseResult:
     diagnostics = []
 
     try:
         content = fp.read()
-        errors = driver.parse(aeon_code=content)
+        errors = driver.parse(filename=uri, aeon_code=content)
 
         for error in errors:
             error_message = str(error)
