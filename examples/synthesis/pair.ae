@@ -1,0 +1,6 @@
+
+inductive P
+| cons (x:Int) (y:Int | y > x) : P
+
+
+def sol : P = ?hole;
