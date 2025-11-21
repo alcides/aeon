@@ -3,4 +3,4 @@ def abs (n:Int) : Int {
 }
 
 @minimize_int(abs(2024 - n))
-def n : Int = ?hole;
+def n : {v:Int | v > 10} = ?hole;
