@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -67,7 +67,7 @@ class AeonDriver:
         self.core_ast = parse_term(aeon_code)
         self.metadata: Metadata = {}
 
-    def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
+    def parse(self, filename: str, aeon_code: str | None = None) -> Iterable[AeonError]:
         if aeon_code is None:
             aeon_code = read_file(filename)
 
@@ -135,7 +135,7 @@ class AeonDriver:
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
             synthesizer = make_synthesizer(self.cfg.synthesizer)
-            mapping: dict[Name, Term] = synthesize_holes(
+            mapping: dict[Name, Optional[Term]] = synthesize_holes(
                 self.typing_ctx,
                 self.evaluation_ctx,
                 self.core,
@@ -157,7 +157,7 @@ class AeonDriver:
 
             return lift(core_ast_anf)
 
-    def pretty_print(self, filename: str = None, should_be_fixed: bool = False) -> None:
+    def pretty_print(self, filename: str, should_be_fixed: bool = False) -> None:
         aeon_code = read_file(filename)
         prog: Program = parse_main_program(aeon_code, filename=filename)
         prog = bind_program(prog, [])
