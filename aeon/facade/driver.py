@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -132,48 +132,29 @@ class AeonDriver:
             )
             return bool(self.incomplete_functions)
 
-    def synthesize_targets(
-        self,
-        targets: list[tuple[Name, list[Name]]] | None = None,
-        *,
-        synthesis_ui: SynthesisUI | None = None,
-        display_results: bool = False,
-    ) -> tuple[Term, dict[Name, STerm]]:
-        if targets is None:
-            assert hasattr(self, "incomplete_functions"), "Call has_synth() before requesting synthesis targets"
-            targets = self.incomplete_functions
-
-        synthesizer = make_synthesizer(self.cfg.synthesizer)
-        ui = synthesis_ui or self.cfg.synthesis_ui
-
-        mapping: dict[Name, Optional[Term]] = synthesize_holes(
-            self.typing_ctx,
-            self.evaluation_ctx,
-            self.core,
-            targets,
-            self.metadata,
-            synthesizer,
-            self.cfg.synthesis_budget,
-            ui,
-        )
-
-        core_ast_anf: Term = self.core
-        for hole_name, candidate in mapping.items():
-            if candidate is not None:
-                core_ast_anf = substitution(core_ast_anf, candidate, hole_name)
-
-        sterm_mapping: dict[Name, STerm] = {name: lift(term) for name, term in mapping.items() if term is not None}
-
-        if display_results:
-            (synthesis_ui or self.cfg.synthesis_ui).display_results(
-                core_ast_anf, sterm_mapping, self.cfg.synthesis_format
-            )
-
-        return core_ast_anf, sterm_mapping
-
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
-            core_ast_anf, _ = self.synthesize_targets(display_results=True)
+            synthesizer = make_synthesizer(self.cfg.synthesizer)
+            mapping: dict[Name, Term] = synthesize_holes(
+                self.typing_ctx,
+                self.evaluation_ctx,
+                self.core,
+                self.incomplete_functions,
+                self.metadata,
+                synthesizer,
+                self.cfg.synthesis_budget,
+                self.cfg.synthesis_ui,
+            )
+
+            core_ast_anf: Term = self.core
+            for k, v in mapping.items():
+                if v is not None:
+                    core_ast_anf = substitution(core_ast_anf, v, k)
+
+            sterm_mapping: dict[Name, STerm] = {k: lift(v) for k, v in mapping.items() if v is not None}
+
+            self.cfg.synthesis_ui.display_results(core_ast_anf, sterm_mapping, self.cfg.synthesis_format)
+
             return lift(core_ast_anf)
 
     def pretty_print(self, filename: str = None, should_be_fixed: bool = False) -> None:
