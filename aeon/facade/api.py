@@ -106,12 +106,13 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     term: Term
     type: Type
     vc: Constraint
+    loc: Location | None = None
 
     def __str__(self) -> str:
         return f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
 
     def position(self) -> Location:
-        return self.term.loc
+        return self.loc if self.loc is not None else self.term.loc
 
 
 @dataclass

@@ -19,7 +19,21 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
+
+
+def constraint_location(c: Constraint) -> Location | None:
+    """Recursively extracts the first non-None location from a constraint."""
+    if isinstance(c, LiquidConstraint):
+        return c.loc
+    elif isinstance(c, Implication):
+        return c.loc or constraint_location(c.seq)
+    elif isinstance(c, Conjunction):
+        return c.loc or constraint_location(c.c1) or constraint_location(c.c2)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        return constraint_location(c.seq)
+    return None
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -133,17 +147,17 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
     """Substitues a LiquidVar by another expression within a constraint."""
     match c:
         case LiquidConstraint(expr):
-            return LiquidConstraint(substitution_in_liquid(expr, rep, name))
+            return LiquidConstraint(substitution_in_liquid(expr, rep, name), loc=c.loc)
         case Conjunction(c1, c2):
             left = substitution_in_constraint(c1, rep, name)
             right = substitution_in_constraint(c2, rep, name)
-            return Conjunction(left, right)
+            return Conjunction(left, right, loc=c.loc)
         case Implication(name, base, pred, seq):
             if c.name == name:
                 return c
             else:
                 nseq = substitution_in_constraint(seq, rep, name)
-                return Implication(name, base, substitution_in_liquid(pred, rep, name), nseq)
+                return Implication(name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
         case UninterpretedFunctionDeclaration(name, type, seq):
             nseq = substitution_in_constraint(seq, rep, name)
             return UninterpretedFunctionDeclaration(name, type, nseq)
@@ -185,7 +199,9 @@ def simplify_constraint(c: Constraint) -> Constraint:
             rep = c.pred.args[1].args[1]
             subs_pred = substitution_in_liquid(c.pred.args[0], rep, c.name)
             subs_seq = substitution_in_constraint(c.seq, rep, c.name)
-            rc = simplify_constraint(Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq))
+            rc = simplify_constraint(
+                Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq, loc=c.loc)
+            )
             return rc
 
         cont = simplify_constraint(c.seq)
@@ -195,7 +211,7 @@ def simplify_constraint(c: Constraint) -> Constraint:
         if not is_used(c.name, cont) and not other_used_vars:
             return c.seq
 
-        return Implication(c.name, c.base, s, cont)
+        return Implication(c.name, c.base, s, cont, loc=c.loc)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         cont = simplify_constraint(c.seq)
         return UninterpretedFunctionDeclaration(c.name, c.type, cont)
@@ -211,7 +227,7 @@ def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
         yield from conjunctive_normal_form(c.c2)
     elif isinstance(c, Implication):
         for inner in conjunctive_normal_form(c.seq):
-            yield Implication(c.name, c.base, c.pred, inner)
+            yield Implication(c.name, c.base, c.pred, inner, loc=c.loc)
 
     elif isinstance(c, UninterpretedFunctionDeclaration):
         for inner in conjunctive_normal_form(c.seq):
@@ -277,7 +293,7 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[Name]) -> tuple[Con
     elif isinstance(c, Conjunction):
         (p1, vs1) = remove_unrelated_context(c.c1, ignore_vars)
         (p2, vs2) = remove_unrelated_context(c.c2, ignore_vars)
-        return (c, vs1.union(vs2))
+        return (Conjunction(p1, p2, loc=c.loc), vs1.union(vs2))
     else:
         assert False
 
