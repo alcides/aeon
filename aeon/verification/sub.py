@@ -14,6 +14,7 @@ from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import t_unit
 from aeon.typechecking.context import TypingContext
+from aeon.utils.location import Location
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -72,17 +73,17 @@ def lower_constraint_type(ttype: Type) -> Type:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
 
-def implication_constraint(name: Name, ty: Type, c: Constraint) -> Constraint:
+def implication_constraint(name: Name, ty: Type, c: Constraint, loc: Location | None = None) -> Constraint:
     match ty:
         case Top() | TypeVar(_) | TypeConstructor(_, _):
             basety = lower_constraint_type(ty)
             assert isinstance(basety, TypeConstructor)
-            return Implication(name, basety, LiquidLiteralBool(True), c)
+            return Implication(name, basety, LiquidLiteralBool(True), c, loc=loc)
         case RefinedType(tname, ttype, tref):
             ref_subs = substitution_in_liquid(tref, LiquidVar(name), tname)
             ltype = lower_constraint_type(ttype)
             assert isinstance(ltype, TypeConstructor) or isinstance(ltype, TypeVar)
-            return Implication(name, ltype, ref_subs, c)
+            return Implication(name, ltype, ref_subs, c, loc=loc)
         case AbstractionType(_, _, _):
             # TODO Poly Refl: instead of true, reflect the implementation of the function?
             if is_first_order_function(ty):
@@ -97,7 +98,7 @@ def implication_constraint(name: Name, ty: Type, c: Constraint) -> Constraint:
             assert False
 
 
-def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
+def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> Constraint:
     if t2 == Top():
         return ctrue
     match (ensure_refined(t1), ensure_refined(t2)):
@@ -114,7 +115,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
             r1_ = substitution_in_liquid(r1, LiquidVar(new_name), n1)
             lowert = lower_constraint_type(ty1)
             assert isinstance(lowert, TypeConstructor)
-            rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_))
+            rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_, loc=loc), loc=loc)
 
             return rconstraint
         case TypePolymorphism(_, _, _), _:
@@ -122,11 +123,11 @@ def sub(ctx: TypingContext, t1: Type, t2: Type) -> Constraint:
         case AbstractionType(a1, t1, rt1), AbstractionType(a2, t2, rt2):
             new_name_a: Name = Name(a1.name + a2.name, fresh_counter.fresh())
 
-            c0 = sub(ctx, t2, t1)
+            c0 = sub(ctx, t2, t1, loc)
             rt1_ = substitution_in_type(rt1, Var(new_name_a), a1)
             rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
-            c1 = sub(ctx, rt1_, rt2_)
-            return Conjunction(c0, implication_constraint(new_name_a, t2, c1))
+            c1 = sub(ctx, rt1_, rt2_, loc)
+            return Conjunction(c0, implication_constraint(new_name_a, t2, c1, loc))
         case TypeConstructor(name1, args1), TypeConstructor(name2, args2):
             if name1 != name2:
                 return cfalse

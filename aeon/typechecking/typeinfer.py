@@ -60,12 +60,15 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.horn import solve
+from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import (
+    constraint_location,
     remove_unrelated_context,
     simplify_constraint,
     conjunctive_normal_form,
     is_implication_true,
+    split_or_in_conclusion,
 )
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
@@ -270,14 +273,14 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c2, t2) = synth(nctx, body)
             term_vars = type_free_term_vars(t1)
             assert t.var_name not in term_vars
-            r = (Conjunction(c1, implication_constraint(var_name, t1, c2)), t2)
+            r = (Conjunction(c1, implication_constraint(var_name, t1, c2, body.loc)), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
             c1 = check(nrctx, var_value, var_type)
             (c2, t2) = synth(nrctx, body)
-            c1 = implication_constraint(var_name, var_type, c1)
-            c2 = implication_constraint(var_name, var_type, c2)
+            c1 = implication_constraint(var_name, var_type, c1, var_value.loc)
+            c2 = implication_constraint(var_name, var_type, c2, body.loc)
             return Conjunction(c1, c2), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
@@ -319,19 +322,19 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
             ret = substitution_in_type(ret, Var(name), var_name)
             c = check(ctx.with_var(name, var_type), body, ret)
-            return implication_constraint(name, var_type, c)
+            return implication_constraint(name, var_type, c, body.loc)
         case Let(name, val, body), _:
             (c1, t1) = synth(ctx, val)
             nctx: TypingContext = ctx.with_var(name, t1)
             c2 = check(nctx, body, ty)
-            return Conjunction(c1, implication_constraint(name, t1, c2))
+            return Conjunction(c1, implication_constraint(name, t1, c2, body.loc))
         case Rec(var_name, var_type, var_value, body), _:
             t1 = fresh(ctx, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
             c1 = check(nrctx, var_value, var_type)
             c2 = check(nrctx, body, ty)
-            c1 = implication_constraint(var_name, t1, c1)
-            c2 = implication_constraint(var_name, t1, c2)
+            c1 = implication_constraint(var_name, t1, c1, var_value.loc)
+            c2 = implication_constraint(var_name, t1, c2, body.loc)
             return Conjunction(c1, c2)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
@@ -345,12 +348,14 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 y,
                 RefinedType(name_pos, t_int, liq_cond),
                 check(ctx, then, ty),
+                then.loc,
             )
             name_neg = Name("branch_neg", fresh_counter.fresh())
             c2 = implication_constraint(
                 y,
                 RefinedType(name_neg, t_int, LiquidApp(Name("!", 0), [liq_cond])),
                 check(ctx, otherwise, ty),
+                otherwise.loc,
             )
             return Conjunction(c0, Conjunction(c1, c2))
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
@@ -365,7 +370,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             return check(ctx.with_typevar(name, var_kind), body, itype)
         case _:
             (c, s) = synth(ctx, t)
-            cp = sub(ctx, s, ty)
+            cp = sub(ctx, s, ty, t.loc)
             if cp == LiquidConstraint(LiquidLiteralBool(False)):
                 raise CoreSubtypingError(ctx, t, s, ty)
             return Conjunction(c, cp)
@@ -385,14 +390,21 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
         return False
 
 
-def constraint_to_parts(c: Constraint) -> Iterable[Constraint]:
-    """Prepares a constraint into a list of sub-problems for error messages"""
+def constraint_to_parts(c: Constraint) -> Iterable[tuple[Constraint, Location | None]]:
+    """Prepares a constraint into a list of sub-problems for error messages.
+    Yields (constraint, location) pairs where location is the AST location
+    associated with the failing constraint part."""
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             if not solve(cons):
-                cons_simp = simplify_constraint(cons)
-                cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
-                yield cons_clean
+                vcs = split_or_in_conclusion(cons)
+                for vc in vcs:
+                    if not solve(vc):
+                        cons_simp = simplify_constraint(vc)
+                        cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+                        loc = constraint_location(cons_clean)
+                        yield cons_clean, loc
+                        break
 
 
 def check_type_errors(
@@ -411,8 +423,8 @@ def check_type_errors(
             case False:
                 full_constraint = entailment_context(ctx, constraint)
                 return [
-                    LiquidTypeCheckingFailedRelation(ctx, term, expected_type, v)
-                    for v in constraint_to_parts(full_constraint)
+                    LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
+                    for vc, loc in constraint_to_parts(full_constraint)
                 ]
     except CoreTypeCheckingError as e:
         return [e]

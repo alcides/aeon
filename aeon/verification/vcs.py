@@ -11,6 +11,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import AbstractionType, Top, TypeVar
 from aeon.core.types import TypeConstructor
+from aeon.utils.location import Location
 from aeon.utils.name import Name
 
 
@@ -21,6 +22,7 @@ class Constraint:
 @dataclass
 class LiquidConstraint(Constraint):
     expr: LiquidTerm
+    loc: Location | None = None
 
     def __repr__(self):
         return repr(self.expr)
@@ -30,6 +32,7 @@ class LiquidConstraint(Constraint):
 class Conjunction(Constraint):
     c1: Constraint
     c2: Constraint
+    loc: Location | None = None
 
     def __repr__(self):
         return f"({self.c1}) ∧ ({self.c2})"
@@ -51,6 +54,7 @@ class Implication(Constraint):
     base: TypeConstructor | TypeVar | Top
     pred: LiquidTerm
     seq: Constraint
+    loc: Location | None = None
 
     def __post_init__(self):
         assert isinstance(self.name, Name)

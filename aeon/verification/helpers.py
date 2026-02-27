@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Generator
+from typing import Generator, cast
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -19,7 +19,21 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
+from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
+
+
+def constraint_location(c: Constraint) -> Location | None:
+    """Recursively extracts the first non-None location from a constraint."""
+    if isinstance(c, LiquidConstraint):
+        return c.loc
+    elif isinstance(c, Implication):
+        return c.loc or constraint_location(c.seq)
+    elif isinstance(c, Conjunction):
+        return c.loc or constraint_location(c.c1) or constraint_location(c.c2)
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        return constraint_location(c.seq)
+    return None
 
 
 def parse_liquid(t: str) -> LiquidTerm | None:
@@ -133,20 +147,20 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
     """Substitues a LiquidVar by another expression within a constraint."""
     match c:
         case LiquidConstraint(expr):
-            return LiquidConstraint(substitution_in_liquid(expr, rep, name))
+            return LiquidConstraint(substitution_in_liquid(expr, rep, name), loc=c.loc)
         case Conjunction(c1, c2):
             left = substitution_in_constraint(c1, rep, name)
             right = substitution_in_constraint(c2, rep, name)
-            return Conjunction(left, right)
-        case Implication(name, base, pred, seq):
-            if c.name == name:
+            return Conjunction(left, right, loc=c.loc)
+        case Implication(impl_name, base, pred, seq):
+            if name == impl_name:
                 return c
             else:
                 nseq = substitution_in_constraint(seq, rep, name)
-                return Implication(name, base, substitution_in_liquid(pred, rep, name), nseq)
-        case UninterpretedFunctionDeclaration(name, type, seq):
+                return Implication(impl_name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
+        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
             nseq = substitution_in_constraint(seq, rep, name)
-            return UninterpretedFunctionDeclaration(name, type, nseq)
+            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
         case _:
             assert False
 
@@ -154,6 +168,11 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
 def used_variables(c: LiquidTerm) -> set[Name]:
     """Returns all non-function variables used in an expression."""
     return {x for x in liquid_free_vars(c) if x.name not in base_functions}
+
+
+def is_synthesized_name(name: Name) -> bool:
+    """Returns True if the variable is ANF/synthesized (anf, _anf)."""
+    return name.name in ("anf", "_anf")
 
 
 def simplify_constraint(c: Constraint) -> Constraint:
@@ -174,6 +193,18 @@ def simplify_constraint(c: Constraint) -> Constraint:
         if c.pred == LiquidLiteralBool(True) and c.seq == LiquidConstraint(LiquidLiteralBool(True)):
             return c.seq
 
+        # Remove synthesized (ANF) variables that only have equality: forall v: v == expr => seq
+        if is_synthesized_name(c.name) and isinstance(c.pred, LiquidApp) and c.pred.fun == Name("==", 0):
+            if c.pred.args[0] == LiquidVar(c.name):
+                rep = c.pred.args[1]
+            elif c.pred.args[1] == LiquidVar(c.name):
+                rep = c.pred.args[0]
+            else:
+                rep = None
+            if rep is not None:
+                subs_seq = substitution_in_constraint(c.seq, rep, c.name)
+                return simplify_constraint(subs_seq)
+
         # Preds are usually built as in (cond) && ( this = other)
         if (
             isinstance(c.pred, LiquidApp)
@@ -185,7 +216,9 @@ def simplify_constraint(c: Constraint) -> Constraint:
             rep = c.pred.args[1].args[1]
             subs_pred = substitution_in_liquid(c.pred.args[0], rep, c.name)
             subs_seq = substitution_in_constraint(c.seq, rep, c.name)
-            rc = simplify_constraint(Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq))
+            rc = simplify_constraint(
+                Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq, loc=c.loc)
+            )
             return rc
 
         cont = simplify_constraint(c.seq)
@@ -195,7 +228,7 @@ def simplify_constraint(c: Constraint) -> Constraint:
         if not is_used(c.name, cont) and not other_used_vars:
             return c.seq
 
-        return Implication(c.name, c.base, s, cont)
+        return Implication(c.name, c.base, s, cont, loc=c.loc)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         cont = simplify_constraint(c.seq)
         return UninterpretedFunctionDeclaration(c.name, c.type, cont)
@@ -211,13 +244,33 @@ def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
         yield from conjunctive_normal_form(c.c2)
     elif isinstance(c, Implication):
         for inner in conjunctive_normal_form(c.seq):
-            yield Implication(c.name, c.base, c.pred, inner)
+            yield Implication(c.name, c.base, c.pred, inner, loc=c.loc)
 
     elif isinstance(c, UninterpretedFunctionDeclaration):
         for inner in conjunctive_normal_form(c.seq):
             yield UninterpretedFunctionDeclaration(c.name, c.type, inner)
     else:
         assert False
+
+
+def split_or_disjuncts(expr: LiquidTerm) -> list[LiquidConstraint]:
+    """Flattens OR in the conclusion into a list of disjuncts."""
+    if isinstance(expr, LiquidApp) and expr.fun == Name("||", 0):
+        left = split_or_disjuncts(expr.args[0])
+        right = split_or_disjuncts(expr.args[1])
+        return left + right
+    return [LiquidConstraint(expr)]
+
+
+def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
+    """Splits OR in the conclusion (innermost LiquidConstraint) into separate VCs."""
+    if isinstance(c, LiquidConstraint):
+        return cast(list[Constraint], split_or_disjuncts(c.expr))
+    elif isinstance(c, Implication):
+        return [Implication(c.name, c.base, c.pred, s, loc=c.loc) for s in split_or_in_conclusion(c.seq)]
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        return [UninterpretedFunctionDeclaration(c.name, c.type, s) for s in split_or_in_conclusion(c.seq)]
+    return [c]
 
 
 def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, None]:
@@ -277,7 +330,7 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[Name]) -> tuple[Con
     elif isinstance(c, Conjunction):
         (p1, vs1) = remove_unrelated_context(c.c1, ignore_vars)
         (p2, vs2) = remove_unrelated_context(c.c2, ignore_vars)
-        return (c, vs1.union(vs2))
+        return (Conjunction(p1, p2, loc=c.loc), vs1.union(vs2))
     else:
         assert False
 
