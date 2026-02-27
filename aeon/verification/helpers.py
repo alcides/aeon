@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Generator
+from typing import Generator, cast
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -152,15 +152,15 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
             left = substitution_in_constraint(c1, rep, name)
             right = substitution_in_constraint(c2, rep, name)
             return Conjunction(left, right, loc=c.loc)
-        case Implication(name, base, pred, seq):
-            if c.name == name:
+        case Implication(impl_name, base, pred, seq):
+            if name == impl_name:
                 return c
             else:
                 nseq = substitution_in_constraint(seq, rep, name)
-                return Implication(name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
-        case UninterpretedFunctionDeclaration(name, type, seq):
+                return Implication(impl_name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
+        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
             nseq = substitution_in_constraint(seq, rep, name)
-            return UninterpretedFunctionDeclaration(name, type, nseq)
+            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
         case _:
             assert False
 
@@ -168,6 +168,11 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
 def used_variables(c: LiquidTerm) -> set[Name]:
     """Returns all non-function variables used in an expression."""
     return {x for x in liquid_free_vars(c) if x.name not in base_functions}
+
+
+def is_synthesized_name(name: Name) -> bool:
+    """Returns True if the variable is ANF/synthesized (anf, _anf)."""
+    return name.name in ("anf", "_anf")
 
 
 def simplify_constraint(c: Constraint) -> Constraint:
@@ -187,6 +192,18 @@ def simplify_constraint(c: Constraint) -> Constraint:
     elif isinstance(c, Implication):
         if c.pred == LiquidLiteralBool(True) and c.seq == LiquidConstraint(LiquidLiteralBool(True)):
             return c.seq
+
+        # Remove synthesized (ANF) variables that only have equality: forall v: v == expr => seq
+        if is_synthesized_name(c.name) and isinstance(c.pred, LiquidApp) and c.pred.fun == Name("==", 0):
+            if c.pred.args[0] == LiquidVar(c.name):
+                rep = c.pred.args[1]
+            elif c.pred.args[1] == LiquidVar(c.name):
+                rep = c.pred.args[0]
+            else:
+                rep = None
+            if rep is not None:
+                subs_seq = substitution_in_constraint(c.seq, rep, c.name)
+                return simplify_constraint(subs_seq)
 
         # Preds are usually built as in (cond) && ( this = other)
         if (
@@ -234,6 +251,26 @@ def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
             yield UninterpretedFunctionDeclaration(c.name, c.type, inner)
     else:
         assert False
+
+
+def split_or_disjuncts(expr: LiquidTerm) -> list[LiquidConstraint]:
+    """Flattens OR in the conclusion into a list of disjuncts."""
+    if isinstance(expr, LiquidApp) and expr.fun == Name("||", 0):
+        left = split_or_disjuncts(expr.args[0])
+        right = split_or_disjuncts(expr.args[1])
+        return left + right
+    return [LiquidConstraint(expr)]
+
+
+def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
+    """Splits OR in the conclusion (innermost LiquidConstraint) into separate VCs."""
+    if isinstance(c, LiquidConstraint):
+        return cast(list[Constraint], split_or_disjuncts(c.expr))
+    elif isinstance(c, Implication):
+        return [Implication(c.name, c.base, c.pred, s, loc=c.loc) for s in split_or_in_conclusion(c.seq)]
+    elif isinstance(c, UninterpretedFunctionDeclaration):
+        return [UninterpretedFunctionDeclaration(c.name, c.type, s) for s in split_or_in_conclusion(c.seq)]
+    return [c]
 
 
 def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, None]:

@@ -68,6 +68,7 @@ from aeon.verification.helpers import (
     simplify_constraint,
     conjunctive_normal_form,
     is_implication_true,
+    split_or_in_conclusion,
 )
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
@@ -396,10 +397,14 @@ def constraint_to_parts(c: Constraint) -> Iterable[tuple[Constraint, Location | 
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             if not solve(cons):
-                cons_simp = simplify_constraint(cons)
-                cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
-                loc = constraint_location(cons_clean)
-                yield cons_clean, loc
+                vcs = split_or_in_conclusion(cons)
+                for vc in vcs:
+                    if not solve(vc):
+                        cons_simp = simplify_constraint(vc)
+                        cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+                        loc = constraint_location(cons_clean)
+                        yield cons_clean, loc
+                        break
 
 
 def check_type_errors(
