@@ -12,9 +12,9 @@ def generate_model_1 (filename: String) : Model {
     Learning_train_random_forest train_set # Train a random forest model on the training set
 }
 
-def generate_model_2 (filename: String) : Model {
-    let df = Learning_load_dataset filename in
-    let train_set = Learning_split_dataset_training df 0.7 in
-    let test_set = Learning_split_dataset_testing df 0.7 in
-    Learning_train_random_forest train_set # Train a random forest model on the training set
-}
+# def generate_model_2 (filename: String) : Model {
+#     let df = Learning_load_dataset filename in
+#     let train_set = Learning_split_dataset_training df 0.7 in
+#     let test_set = Learning_split_dataset_testing df 0.7 in
+#     Learning_train_random_forest train_set # Train a random forest model on the training set
+# }
