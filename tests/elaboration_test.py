@@ -36,6 +36,18 @@ def test_elaboration_foralls2():
     assert elab_t.var_type == parse_type("Int")
 
 
+def test_rec_refined_sugar():
+    verbose = parse_expression("let x : {x:Int | x > 0} = 5; x")
+    short = parse_expression("let x : Int | x > 0 = 5; x")
+    assert term_equality(verbose, short)
+
+
+def test_rec_refined_sugar_no_let():
+    verbose = parse_expression("x : {x:Int | x > 0} = 5; x")
+    short = parse_expression("x : Int | x > 0 = 5; x")
+    assert term_equality(verbose, short)
+
+
 def test_elaboration_unification():
     t = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
     ectx = ElaborationTypingContext()

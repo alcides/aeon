@@ -57,6 +57,8 @@ expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
           | ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type "=" expression  ("in"|";") expression     -> rec_e
           | ID ":" type "=" expression  ("in"|";") expression     -> rec_e
+          | "let" ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
+          | ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | "if" expression "then" expression "else" expression    -> if_e
           | expression_un                                          -> same
 
