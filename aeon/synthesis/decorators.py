@@ -297,6 +297,8 @@ def csv_data(
 
     rows = _parse_csv_rows(args[0].value)
     body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
     return make_optimizer([body], fun, metadata, st_float, minimize=True)
 
 
@@ -324,4 +326,6 @@ def csv_file(
 
     rows = _parse_csv_rows(text)
     body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
     return make_optimizer([body], fun, metadata, st_float, minimize=True)
