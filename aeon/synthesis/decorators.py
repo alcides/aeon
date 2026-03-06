@@ -291,8 +291,9 @@ def csv_data(
     Usage: @csv_data("1.0,2.0,3.0\\n4.0,5.0,12.0")
     """
     assert len(args) == 1, "csv_data decorator expects a single string argument"
-    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), \
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
         "csv_data decorator expects a string literal"
+    )
 
     rows = _parse_csv_rows(args[0].value)
     body = _build_csv_fitness_body(rows, fun.name)
@@ -313,8 +314,9 @@ def csv_file(
     Usage: @csv_file("data.csv")
     """
     assert len(args) == 1, "csv_file decorator expects a single string argument"
-    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), \
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
         "csv_file decorator expects a string literal"
+    )
 
     filename = args[0].value
     with open(filename) as f:

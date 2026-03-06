@@ -65,7 +65,6 @@ def test_csv_data_synthesis():
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
     mapping = synthesize_holes(
-        ctx, ectx, core_ast_anf, incomplete_functions, metadata,
-        synthesizer=GESynthesizer(), budget=0.5
+        ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GESynthesizer(), budget=0.5
     )
     assert len(mapping) > 0
