@@ -329,3 +329,92 @@ def csv_file(
     current_data = metadata.get(fun.name, {}).get("training_data", [])
     metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
     return make_optimizer([body], fun, metadata, st_float, minimize=True)
+
+
+def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
+    """Try to extract a training data point from a minimize expression.
+
+    Looks for pattern: (fun_name(lit1)(lit2)...(litN)) - expected_lit
+    Returns [lit1, ..., litN, expected_lit] or None if pattern doesn't match.
+    """
+    # Check for (- lhs rhs) pattern
+    if not isinstance(expr, SApplication):
+        return None
+    if not isinstance(expr.fun, SApplication):
+        return None
+    minus_op = expr.fun.fun
+    if not isinstance(minus_op, SVar) or minus_op.name.name != "-":
+        return None
+
+    lhs = expr.fun.arg  # f(x1)(x2)...(xn)
+    rhs = expr.arg  # expected
+
+    # Extract expected value
+    if not isinstance(rhs, SLiteral) or not isinstance(rhs.value, (int, float)):
+        return None
+    expected = float(rhs.value)
+
+    # Extract function call arguments (built right-to-left via currying)
+    args: list[float] = []
+    current = lhs
+    while isinstance(current, SApplication):
+        arg = current.arg
+        if not isinstance(arg, SLiteral) or not isinstance(arg.value, (int, float)):
+            return None
+        args.append(float(arg.value))
+        current = current.fun
+
+    # Verify it's calling the right function
+    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+        return None
+
+    args.reverse()
+    return args + [expected]
+
+
+def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:
+    """If the expression matches f(args) - expected, store as training data."""
+    point = _extract_training_point(expr, fun.name)
+    if point is not None:
+        current_data = metadata.get(fun.name, {}).get("training_data", [])
+        metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
+    return metadata
+
+
+def minimize(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Minimize decorator that also extracts training data when possible.
+
+    Usage: @minimize(f(1.0, 2.0) - 3.0)
+
+    Creates a fitness goal (like minimize_float) and, if the expression matches
+    the pattern f(literal_args) - expected_literal, also stores a training data
+    point for the decision tree synthesizer.
+    """
+    assert len(args) == 1, "minimize decorator expects a single argument"
+    metadata = _store_training_point(args[0], fun, metadata)
+    return make_optimizer(args, fun, metadata, st_float, minimize=True)
+
+
+def maximize(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Maximize decorator converted to minimize, also extracts training data.
+
+    Usage: @maximize(3.0 - f(1.0, 2.0))
+
+    Internally converts to minimizing the negated expression (0 - expr).
+    If the original expression matches the pattern f(literal_args) - expected_literal,
+    stores a training data point for the decision tree synthesizer.
+    """
+    assert len(args) == 1, "maximize decorator expects a single argument"
+    # Extract training data from the original expression
+    metadata = _store_training_point(args[0], fun, metadata)
+    # Convert maximize(expr) to minimize(0 - expr)
+    negated = _binop("-", SLiteral(0.0, st_float), args[0])
+    return make_optimizer([negated], fun, metadata, st_float, minimize=True)
