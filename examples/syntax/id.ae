@@ -1,0 +1,5 @@
+def id : forall <p : Int -> Bool>, (x:Int) -> Int = \x -> x;
+
+def main (args:Int) : Unit {
+    print "Testing parametric refinements"
+}
