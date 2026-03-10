@@ -33,6 +33,7 @@ from aeon.sugar.stypes import (
     STypeVar,
     SRefinedType,
     STypePolymorphism,
+    SRefinementPolymorphism,
 )
 
 from aeon.sugar.ast_helpers import i0
@@ -80,6 +81,9 @@ class TreeToSugar(Transformer):
 
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
+    
+    def refinement_polymorphism_t(self, args):
+        return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
 
     def simple_t(self, args):
         name_str = str(args[0])

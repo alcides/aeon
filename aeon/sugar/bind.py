@@ -28,6 +28,7 @@ from aeon.sugar.program import (
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -104,6 +105,10 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
         case STypePolymorphism(name, kind, body):
             name, subs = check_name(name, subs)
             return STypePolymorphism(name, kind, bind_stype(body, subs))
+        case SRefinementPolymorphism(name, sort, body):
+            bound_sort = bind_stype(sort, subs)
+            nname, nsubs = check_name(name, subs)
+            return SRefinementPolymorphism(nname, bound_sort, bind_stype(body, nsubs))
         case _:
             assert False, f"Unique not supported for {ty} ({type(ty)})"
 
