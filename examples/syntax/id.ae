@@ -1,5 +1,7 @@
-def id : forall <p : Int -> Bool>, (x:Int) -> Int = \x -> x;
+def id : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} = Λ t : B => \x -> x;
 
 def main (args:Int) : Unit {
-    print "Testing parametric refinements"
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = id x;
+    print (y)
 }
