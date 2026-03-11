@@ -2,6 +2,6 @@ def id : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} = 
 
 def main (args:Int) : Unit {
     x : Int | x > 0 = 3;
-    y : Int | y > 0 = id x;
+    y : Int | y > 0 = id[Int]{\n -> n > 0} x;
     print (y)
 }

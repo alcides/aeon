@@ -19,6 +19,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -132,6 +133,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SAbstraction(name, nbody, loc=loc)
         case STypeApplication(body, ty, loc=loc):
             return STypeApplication(bind_sterm(body, subs), bind_stype(ty, subs), loc=loc)
+        case SRefinementApplication(body, refinement, loc=loc):
+            return SRefinementApplication(bind_sterm(body, subs), bind_sterm(refinement, subs), loc=loc)
         case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)

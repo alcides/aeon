@@ -11,6 +11,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SRefinementApplication,
     SHole,
     SIf,
     SLet,
@@ -209,6 +210,10 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def type_application_e(self, meta, args):
         return STypeApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def refinement_application_e(self, meta, args):
+        return SRefinementApplication(args[0], args[1], loc=self._loc(meta))
 
     @v_args(meta=True)
     def var(self, meta, args):

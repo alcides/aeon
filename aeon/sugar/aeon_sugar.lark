@@ -94,6 +94,7 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
 application_t : application_t "[" type "]"                    -> type_application_e
+              | application_t "{" expression "}"              -> refinement_application_e
               | expression_simple                             -> same
 
 application : application expression_simple                  -> application_e

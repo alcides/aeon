@@ -199,6 +199,14 @@ class STypeApplication(STerm):
     def __str__(self):
         return f"({self.body})[{self.type}]"
 
+@dataclass(frozen=True)
+class SRefinementApplication(STerm):
+    body: STerm
+    refinement: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"({self.body})[{self.refinement}]"
 
 class Node:
     pass
