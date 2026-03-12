@@ -114,6 +114,12 @@ class TreeToSugar(Transformer):
         return SRec(Name(args[0]), args[1], args[2], args[3], loc=self._loc(meta))
 
     @v_args(meta=True)
+    def rec_refined_e(self, meta, args):
+        name = Name(args[0])
+        refined_type = SRefinedType(name, args[1], args[2])
+        return SRec(name, refined_type, args[3], args[4], loc=self._loc(meta))
+
+    @v_args(meta=True)
     def if_e(self, meta, args):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))
 

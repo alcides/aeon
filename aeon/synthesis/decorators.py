@@ -1,8 +1,10 @@
 """Meta-programming code for optimization-related decorators."""
 
+import csv
+import io
 from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Definition, STerm, SVar
+from aeon.sugar.program import Definition, SApplication, STerm, SVar
 from aeon.sugar.stypes import STypeConstructor
 from aeon.sugar.ast_helpers import st_int, st_float
 from aeon.utils.name import Name, fresh_counter
@@ -221,3 +223,109 @@ def prompt(
     metadata = metadata_update(metadata, fun, {"prompt": val})
 
     return fun, [], metadata
+
+
+def _binop(op: str, left: STerm, right: STerm) -> STerm:
+    """Build a binary operation AST node: (op left right)."""
+    return SApplication(SApplication(SVar(Name(op, 0)), left), right)
+
+
+def _squared(expr: STerm) -> STerm:
+    """Build expr * expr (squared error)."""
+    return _binop("*", expr, expr)
+
+
+def _parse_csv_rows(text: str) -> list[list[float]]:
+    """Parse CSV text into a list of rows of floats."""
+    # Handle escaped newlines from string literals
+    text = text.replace("\\n", "\n")
+    reader = csv.reader(io.StringIO(text.strip()))
+    rows = []
+    for row in reader:
+        if not row or all(cell.strip() == "" for cell in row):
+            continue
+        rows.append([float(cell.strip()) for cell in row])
+    return rows
+
+
+def _build_csv_fitness_body(rows: list[list[float]], fun_name: Name) -> STerm:
+    """Build the fitness body: sum of abs(f(x1,...,xn) - expected) for each row."""
+    assert len(rows) > 0, "CSV data must contain at least one row"
+    n_cols = len(rows[0])
+    assert n_cols >= 2, "CSV data must have at least 2 columns (inputs + expected output)"
+    for i, row in enumerate(rows):
+        assert len(row) == n_cols, f"CSV row {i} has {len(row)} columns, expected {n_cols}"
+
+    error_terms = []
+    for row in rows:
+        inputs = row[:-1]
+        expected = row[-1]
+
+        # Build f(x1)(x2)...(xn)
+        call: STerm = SVar(fun_name)
+        for val in inputs:
+            call = SApplication(call, SLiteral(val, st_float))
+
+        # (call - expected)^2
+        diff = _binop("-", call, SLiteral(expected, st_float))
+        error_terms.append(_squared(diff))
+
+    # Sum all error terms
+    total = error_terms[0]
+    for term in error_terms[1:]:
+        total = _binop("+", total, term)
+
+    return total
+
+
+def csv_data(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Decorator that accepts inline CSV data as a string.
+
+    Each row is a data point where the last column is the expected output
+    and preceding columns are function arguments. Minimizes sum of absolute errors.
+
+    Usage: @csv_data("1.0,2.0,3.0\\n4.0,5.0,12.0")
+    """
+    assert len(args) == 1, "csv_data decorator expects a single string argument"
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
+        "csv_data decorator expects a string literal"
+    )
+
+    rows = _parse_csv_rows(args[0].value)
+    body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
+    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+
+
+def csv_file(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Decorator that accepts a CSV filename.
+
+    Reads the file and behaves like csv_data: each row is a data point where
+    the last column is the expected output and preceding columns are function arguments.
+    Minimizes sum of absolute errors.
+
+    Usage: @csv_file("data.csv")
+    """
+    assert len(args) == 1, "csv_file decorator expects a single string argument"
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
+        "csv_file decorator expects a string literal"
+    )
+
+    filename = args[0].value
+    with open(filename) as f:
+        text = f.read()
+
+    rows = _parse_csv_rows(text)
+    body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
+    return make_optimizer([body], fun, metadata, st_float, minimize=True)

@@ -24,6 +24,8 @@ from aeon.synthesis.decorators import (
     error_fitness,
     disable_control_flow,
     prompt,
+    csv_data,
+    csv_file,
 )
 from aeon.gpu.decorators.gpu import gpu
 
@@ -40,6 +42,8 @@ decorators_environment: dict[str, DecoratorType] = {
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
     "gpu": gpu,
+    "csv_data": csv_data,
+    "csv_file": csv_file,
 }
 
 
