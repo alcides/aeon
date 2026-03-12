@@ -1,0 +1,17 @@
+def GpuConfig_of (blocks : Int) (threads : Int) : GpuConfig {
+    native "(blocks,threads)"
+}
+
+def Tensor_new : Tensor = native "[]" ;
+
+def Tensor_append (t:Tensor) (i:a) : Tensor {
+    native "t + [i]"
+}
+
+def Tensor_length (t:Tensor) : Int {
+    native "len(t)"
+}
+
+def Tensor_pprint (t:Tensor) : Unit {
+    native "print(f'Tensor({t})')"
+}
