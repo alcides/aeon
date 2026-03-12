@@ -53,6 +53,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
+    "gpu": gpu,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
