@@ -25,6 +25,7 @@ from aeon.synthesis.decorators import (
     disable_control_flow,
     prompt,
 )
+from aeon.gpu.decorators.gpu import gpu
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
@@ -38,6 +39,7 @@ decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "gpu": gpu,
 }
 
 
@@ -49,7 +51,7 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
     for decorator in fun.decorators:
         dname = decorator.name.name
         if dname not in decorators_environment:
-            raise Exception(f"Unknown decorator named {dname}, in function {fun.name}.")
+            raise Exception(f"Unknown decorator named {dname}, in function {fun.name.pretty()}.")
         decorator_processor = decorators_environment[dname]
         (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
         total_extra.extend(extra)
