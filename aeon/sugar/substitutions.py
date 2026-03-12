@@ -1,6 +1,7 @@
 from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
+    SRefinementPolymorphism,
     STypeConstructor,
     STypeVar,
     SRefinedType,
@@ -16,6 +17,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -59,6 +61,8 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
                 return ty
             else:
                 return STypePolymorphism(tname, kind, rec(body))
+        case SRefinementPolymorphism(name, sort, body):
+            return SRefinementPolymorphism(name, rec(sort), rec(body))
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
@@ -78,6 +82,11 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
             return SAbstractionType(var_name, rec(var_type), rec(return_type))
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
+        case SRefinementPolymorphism(name, sort, body):
+            if name == alpha:
+                return SRefinementPolymorphism(name, rec(sort), body)
+            else:
+                return SRefinementPolymorphism(name, rec(sort), rec(body))
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
@@ -122,6 +131,8 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case STypeApplication(body, ty, loc):
             return STypeApplication(rec(body), rect(ty), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(rec(body), rec(refinement), loc=loc)
         case STypeAbstraction(aname, kind, body, loc):
             return STypeAbstraction(aname, kind, rec(body), loc=loc)
         case _:
@@ -151,6 +162,8 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case STypeApplication(body, ty, loc):
             return STypeApplication(rec(body), substitute_svartype_in_stype(ty, rep, name), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(rec(body), rec(refinement), loc=loc)
         case STypeAbstraction(aname, kind, body, loc):
             if aname == name:
                 return t

@@ -100,7 +100,7 @@ def get_type_vars(ty: SType) -> set[STypeVar]:
         case STypePolymorphism(name, _, body):
             return {t1 for t1 in get_type_vars(body) if t1.name != name}
         case SRefinementPolymorphism(name, _, body):
-            return {t1 for t1 in get_type_vars(body) if t1.name != name}
+            return get_type_vars(body)
         case STypeConstructor(name, args):
             return reduce(lambda acc, v: acc.union(get_type_vars(v)), args, set())
         case _:
