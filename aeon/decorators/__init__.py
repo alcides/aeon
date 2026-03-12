@@ -39,6 +39,7 @@ from aeon.synthesis.decorators import (
     prompt,
     property_test,
 )
+from aeon.gpu.decorators.gpu import gpu
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -59,9 +60,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
-    "minimize_cputime": minimize_cputime,
-    "minimize_energy": minimize_energy,
-    "cluster": cluster,
+    "gpu": gpu,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
