@@ -34,6 +34,7 @@ from aeon.synthesis.decorators import (
     multi_minimize_float,
     prompt,
 )
+from aeon.gpu.decorators.gpu import gpu
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -53,6 +54,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
+    "gpu": gpu,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
