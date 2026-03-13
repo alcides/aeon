@@ -13,35 +13,69 @@ from aeon.core.terms import (
     TypeAbstraction,
     Annotation,
 )
-from aeon.utils.name import Name
+from aeon.core.types import TypeConstructor, RefinedType, AbstractionType
 
 
-def validate_gpu_subset(t: Term, used_functions: set[Name] = None):
-    if used_functions is None:
-        used_functions = set()
-    match t:
-        case Literal(_, _):
-            pass
-        case Rec(var_name, _, var_value, body):
-            used_functions = used_functions | {var_name}
-            validate_gpu_subset(var_value, used_functions)
-            validate_gpu_subset(body, used_functions)
-        case Application(f, arg):
-            validate_gpu_subset(f, used_functions)
-            validate_gpu_subset(arg, used_functions)
-        case If(cond, then_t, else_t):
-            validate_gpu_subset(cond, used_functions)
-            validate_gpu_subset(then_t, used_functions)
-            validate_gpu_subset(else_t, used_functions)
-        case Let(_, val, body):
-            validate_gpu_subset(val, used_functions)
-            validate_gpu_subset(body, used_functions)
-        case Abstraction(_, body) | TypeAbstraction(_, _, body):
-            validate_gpu_subset(body, used_functions)
-        case Annotation(expr, _) | TypeApplication(expr, _):
-            validate_gpu_subset(expr, used_functions)
-        case Var(name):
-            if name in used_functions:
-                raise Exception("GPU Kernels do not support recursion")
+SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char"}
+BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
+UNARY_OPS = {"!", "-"}
+
+
+def validate_ops(op: str):
+    if op not in BINARY_OPS and op not in UNARY_OPS:
+        raise Exception(f"GPU Kernels do not support operation {op}")
+
+
+def validate_type(ty):
+    match ty:
+        case RefinedType(inner, _):
+            validate_type(inner)
+        case AbstractionType(var_ty, _, ret_ty):
+            validate_type(var_ty)
+            validate_type(ret_ty)
+        case TypeConstructor(name):
+            if name.name not in SUPPORTED_TYPES:
+                raise Exception(f"GPU Kernels do not support type: {name.name}")
         case _:
-            raise Exception(f"{type(t).__name__} is not supported in the GPU subset.")
+            pass
+
+
+def validate_gpu_subset(
+    t: Term,
+    rec_scope: set[str] = None,
+):
+    if rec_scope is None:
+        rec_scope = set()
+
+    match t:
+        case Literal(_, ty):
+            validate_type(ty)
+        case Var(name):
+            name_str = name.name
+            if name_str in rec_scope:
+                raise Exception(f"Recursion detected in GPU kernel: {name_str}")
+            if name_str not in BINARY_OPS | UNARY_OPS:
+                pass
+        case Rec(var_name, var_type, var_value, body):
+            validate_type(var_type)
+            name_str = var_name.name
+            validate_gpu_subset(var_value, rec_scope | {name_str})
+            validate_gpu_subset(body, rec_scope)
+        case Application(f, arg):
+            if isinstance(f, Var):
+                validate_ops(f.name.name)
+            validate_gpu_subset(f, rec_scope)
+            validate_gpu_subset(arg, rec_scope)
+        case Let(var_name, val, body):
+            validate_gpu_subset(val, rec_scope)
+            validate_gpu_subset(body, rec_scope)
+        case Abstraction(var_name, body) | TypeAbstraction(var_name, _, body):
+            validate_gpu_subset(body, rec_scope)
+        case If(cond, then_t, else_t):
+            for branch in [cond, then_t, else_t]:
+                validate_gpu_subset(branch, rec_scope)
+        case Annotation(expr, ty) | TypeApplication(expr, ty):
+            validate_type(ty)
+            validate_gpu_subset(expr, rec_scope)
+        case _:
+            raise Exception(f"{type(t).__name__} is not supported in GPU subset.")
