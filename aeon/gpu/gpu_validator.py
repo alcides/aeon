@@ -14,7 +14,7 @@ from aeon.core.terms import (
     Annotation,
 )
 from aeon.core.types import TypeConstructor, RefinedType, AbstractionType
-
+from aeon.utils.name import Name
 
 SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char"}
 BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
