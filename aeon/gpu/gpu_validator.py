@@ -22,6 +22,8 @@ UNARY_OPS = {"!", "-"}
 
 
 def validate_ops(op: str):
+    if op.startswith("anf"):
+        return
     if op not in BINARY_OPS and op not in UNARY_OPS:
         raise Exception(f"GPU Kernels do not support operation {op}")
 
