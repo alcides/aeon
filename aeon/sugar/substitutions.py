@@ -90,7 +90,8 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args])
         case _:
-            assert False
+            # Changed from assert False to handle UnificationVar from elaboration
+            return ty
 
 
 def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
