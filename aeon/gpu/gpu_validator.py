@@ -44,7 +44,7 @@ def validate_type(ty):
 
 def validate_gpu_subset(
     t: Term,
-    rec_scope: set[str] = None,
+    rec_scope: set[Name] = None,
 ):
     if rec_scope is None:
         rec_scope = set()
@@ -53,22 +53,18 @@ def validate_gpu_subset(
         case Literal(_, ty):
             validate_type(ty)
         case Var(name):
-            name_str = name.name
-            if name_str in rec_scope:
-                raise Exception(f"Recursion detected in GPU kernel: {name_str}")
-            if name_str not in BINARY_OPS | UNARY_OPS:
-                pass
+            if name in rec_scope:
+                raise Exception(f"Recursion detected in GPU kernel: {name.name}")
         case Rec(var_name, var_type, var_value, body):
             validate_type(var_type)
-            name_str = var_name.name
-            validate_gpu_subset(var_value, rec_scope | {name_str})
+            validate_gpu_subset(var_value, rec_scope | {var_name})
             validate_gpu_subset(body, rec_scope)
         case Application(f, arg):
             if isinstance(f, Var):
                 validate_ops(f.name.name)
             validate_gpu_subset(f, rec_scope)
             validate_gpu_subset(arg, rec_scope)
-        case Let(var_name, val, body):
+        case Let(_, val, body):
             validate_gpu_subset(val, rec_scope)
             validate_gpu_subset(body, rec_scope)
         case Abstraction(var_name, body) | TypeAbstraction(var_name, _, body):
