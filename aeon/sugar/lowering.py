@@ -17,13 +17,14 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, RefinedType, Type, TypePolymorphism, Top, TypeVar, t_unit
+from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Type, TypePolymorphism, Top, TypeVar, t_unit
 from aeon.elaboration.context import (
     ElabTypeDecl,
     ElabTypeVarBinder,
@@ -40,6 +41,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -49,6 +51,7 @@ from aeon.sugar.program import (
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -130,6 +133,8 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             return None
         case STypeApplication(expr, _):
             return liquefy(expr, available_vars)
+        case SRefinementApplication(body, refinement):
+            return liquefy(body, available_vars)
         case STypeAbstraction(name, _, body):
             return liquefy(body, available_vars)
         case SApplication(_, _):
@@ -187,6 +192,8 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
             return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
         case STypePolymorphism(name, kind, rty, loc):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return RefinementPolymorphism(name, type_to_core(sort, available_vars), type_to_core(body, available_vars), loc=loc)
         case SRefinedType(oname, ity, ref, loc):
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())
@@ -229,6 +236,8 @@ def lower_to_core(t: STerm) -> Term:
             return Abstraction(name, lower_to_core(body), loc=loc)
         case STypeApplication(expr, ty, loc):
             return TypeApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return RefinementApplication(lower_to_core(body), lower_to_core(refinement), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
         case _:
