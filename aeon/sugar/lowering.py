@@ -133,7 +133,7 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             return None
         case STypeApplication(expr, _):
             return liquefy(expr, available_vars)
-        case SRefinementApplication(body, refinement):
+        case SRefinementApplication(body, _):
             return liquefy(body, available_vars)
         case STypeAbstraction(name, _, body):
             return liquefy(body, available_vars)
