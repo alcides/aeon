@@ -2,7 +2,7 @@ from time import monotonic_ns
 from typing import Any, Callable
 
 from aeon.core.terms import Term
-from aeon.core.types import Type, refined_to_unrefined_type
+from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.modules.synquid.build import synthes_memory
@@ -59,9 +59,8 @@ class SynquidSynthesizer(Synthesizer):
         best: tuple[list[float], Any] = ([], None)
         mem: dict = {}
         ui.register(None, None, 0, True)
-        unrefined_type = refined_to_unrefined_type(type)
         while done:
-            for result in synthes_memory(ctx, level, unrefined_type, skip, mem):
+            for result in synthes_memory(ctx, level, type, skip, mem):
                 if validate(result):
                     score = evaluate(result)
                     if is_better(score, best[0]):

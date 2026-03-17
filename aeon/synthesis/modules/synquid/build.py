@@ -4,6 +4,7 @@ from typing import Callable
 
 from aeon.core.terms import Annotation, Application, If, Literal, TypeApplication, Var
 from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
+from aeon.core.types import refined_to_unrefined_type
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -97,6 +98,7 @@ def match_type(t1: Type, t2: Type):
 
 
 def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
+    base_t = refined_to_unrefined_type(ret_t)
     if level == 0:
         if isinstance(ret_t, AbstractionType):
             for name, _ in [
@@ -104,18 +106,18 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             ]:
                 yield Var(name)
         else:
-            assert isinstance(ret_t, TypeConstructor)
+            assert isinstance(base_t, TypeConstructor)
             for name, _ in [
-                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and match_type(t, ret_t)
+                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and match_type(t, base_t)
             ]:
                 yield Var(name)
-        match ret_t:
+        match base_t:
             case TypeConstructor(Name("Bool", 0)):
-                yield from [Literal(True, ret_t), Literal(False, ret_t)]
+                yield from [Literal(True, base_t), Literal(False, base_t)]
             case TypeConstructor(Name("Int", 0)):
-                yield from [Literal(value, ret_t) for value in range(-100, 100)]
+                yield from [Literal(value, base_t) for value in range(-100, 100)]
             case TypeConstructor(Name("Float", 0)):
-                yield from [Literal(value, ret_t) for value in frange(-100.0, 100.0, 0.00001)]
+                yield from [Literal(value, base_t) for value in frange(-100.0, 100.0, 0.00001)]
             case TypeConstructor(Name("String", 0)):
                 raise NotImplementedError
             case _:
@@ -126,7 +128,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
         ]:
             for candidate in monomorfic(typ, ctx, {}) if isinstance(typ, TypePolymorphism) else [typ]:
                 params_t, t = uncurry(candidate)
-                if t != ret_t:
+                if t != base_t:
                     continue
                 params = [
                     synthes_memory(ctx, level - 1, i, skip, mem)
