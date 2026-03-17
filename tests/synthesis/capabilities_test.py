@@ -131,3 +131,25 @@ def test_e2e_synthesis_ref5():
 # TODO: tapps e tabs
 
 # alpha equivalence
+
+
+def test_enumerative_halts_within_budget():
+    """Regression test for issue #89: enumerative algorithm should reliably find
+    a valid solution for refined integer types within the search budget.
+    Budget is 0.25s; we set a hard timeout of 10s to guard against infinite loops."""
+    import signal
+
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Synthesis exceeded hard timeout of 10 seconds")
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(10)
+    try:
+        code = """def n : {y:Int | 0 < y && y < 100} = ?hole;"""
+        t, ctx = synthesis_and_return(code)
+    finally:
+        signal.alarm(0)
+
+    assert t is not None, "Enumerative algorithm should find a valid Int in range (0, 100)"
+    assert isinstance(t, Literal)
+    assert 0 < t.value < 100
