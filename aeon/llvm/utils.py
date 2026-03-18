@@ -11,6 +11,7 @@ from aeon.llvm.llvm_ast import (
     LLVMDouble,
     LLVMVoid,
     LLVMLong,
+    LLVMFunctionType,
 )
 
 SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit"}
@@ -27,25 +28,46 @@ def validate_ops(op: str):
 
 def validate_type(ty: Type):
     match ty:
-        case RefinedType(_, inner):
-            validate_type(inner)
-        case AbstractionType(_, var_ty, ret_ty):
-            validate_type(var_ty)
-            validate_type(ret_ty)
-        case TypeConstructor(name):
+        case RefinedType(_, inner_type, _):
+            validate_type(inner_type)
+        case AbstractionType(_, var_type, return_type):
+            validate_type(var_type)
+            validate_type(return_type)
+        case TypeConstructor(name, _):
             if name.name not in SUPPORTED_TYPES:
-                raise LLVMValidationError(f"LLVM Backend does not support type: {name.name}")
+                raise LLVMValidationError(f"LLVM Backend does not support type {name.name}")
         case _:
             pass
 
 
+def get_builtin_op_type(op: str) -> LLVMFunctionType:
+    if op in BINARY_OPS:
+        if op in {"==", "!=", "<", "<=", ">", ">="}:
+            return LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMBool)
+        elif op in {"&&", "||"}:
+            return LLVMFunctionType(arg_types=[LLVMBool, LLVMBool], return_type=LLVMBool)
+        else:
+            return LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMInt)
+    elif op in UNARY_OPS:
+        if op == "!":
+            return LLVMFunctionType(arg_types=[LLVMBool], return_type=LLVMBool)
+        else:
+            return LLVMFunctionType(arg_types=[LLVMInt], return_type=LLVMInt)
+    raise LLVMValidationError(f"Unknown operator {op}")
+
+
 def from_type_to_llvm_type(ty) -> LLVMType:
     match ty:
-        case RefinedType(inner_type, _):
+        case RefinedType(_, inner_type, _):
             return from_type_to_llvm_type(inner_type)
-        case AbstractionType(_, _, return_type):
-            return from_type_to_llvm_type(return_type)
-        case TypeConstructor(name):
+        case AbstractionType(_, var_type, return_type):
+            arg_types = [from_type_to_llvm_type(var_type)]
+            curr = return_type
+            while isinstance(curr, AbstractionType):
+                arg_types.append(from_type_to_llvm_type(curr.var_type))
+                curr = curr.type
+            return LLVMFunctionType(arg_types=arg_types, return_type=from_type_to_llvm_type(curr))
+        case TypeConstructor(name, _):
             match name.name:
                 case "Int":
                     return LLVMInt
