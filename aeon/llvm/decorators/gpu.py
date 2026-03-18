@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Definition, STerm, SLiteral
 
@@ -9,7 +11,7 @@ def gpu(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    gpu_info = {
+    gpu_info: dict[str, Any] = {
         "gpu": True,
         "gpu_device": "cuda",
         "gpu_debug": False,
