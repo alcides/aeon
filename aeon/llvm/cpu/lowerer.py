@@ -261,7 +261,7 @@ class CPUFullApplicationValidationStep(ValidationStep):
                     args.append(current_fun.arg)
                     current_fun = current_fun.fun
 
-                target_type = None
+                target_type: LLVMType | None = None
                 if isinstance(current_fun, Var):
                     name = current_fun.name.name
                     if name in BINARY_OPS or name in UNARY_OPS:
@@ -284,18 +284,18 @@ class CPUFullApplicationValidationStep(ValidationStep):
                 self.validate(current_fun, replace(ctx, is_top_level=False))
 
             case Let(var_name, var_value, body):
-                var_type = LLVMInt
+                llvm_var_type: LLVMType = LLVMInt
                 if isinstance(var_value, Annotation):
-                    var_type = from_type_to_llvm_type(var_value.type)
+                    llvm_var_type = from_type_to_llvm_type(var_value.type)
                 elif isinstance(var_value, Rec):
-                    var_type = from_type_to_llvm_type(var_value.var_type)
+                    llvm_var_type = from_type_to_llvm_type(var_value.var_type)
 
-                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: var_type}, is_top_level=False)
+                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False)
                 self.validate(var_value, replace(ctx, is_top_level=False))
                 self.validate(body, new_ctx)
 
-            case Rec(var_name, var_type, var_value, body):
-                llvm_ty = from_type_to_llvm_type(var_type)
+            case Rec(var_name, var_ty, var_value, body):
+                llvm_ty = from_type_to_llvm_type(var_ty)
                 new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_ty}, is_top_level=False)
                 self.validate(var_value, new_ctx)
                 self.validate(body, new_ctx)
