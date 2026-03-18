@@ -243,6 +243,73 @@ class CPUFullApplicationValidationStep(ValidationStep):
         return LLVMInt
 
 
+class CPUFullApplicationValidationStep(ValidationStep):
+    def validate(self, t: Term, ctx: ValidationContext) -> None:
+        assert isinstance(ctx, CPUValidationContext)
+        match t:
+            case Application(fun, arg):
+                args = [arg]
+                current_fun = fun
+                while isinstance(current_fun, Application):
+                    args.append(current_fun.arg)
+                    current_fun = current_fun.fun
+
+                target_type = None
+                if isinstance(current_fun, Var):
+                    name = current_fun.name.name
+                    if name in BINARY_OPS or name in UNARY_OPS:
+                        target_type = get_builtin_op_type(name)
+                    else:
+                        target_type = ctx.type_env.get(current_fun.name)
+                elif isinstance(current_fun, Annotation):
+                    target_type = from_type_to_llvm_type(current_fun.type)
+
+                if isinstance(target_type, LLVMFunctionType):
+                    if len(args) != len(target_type.arg_types):
+                        raise LLVMValidationError(
+                            f"Function application of {current_fun} is not fully applied. "
+                            f"Expected {len(target_type.arg_types)} arguments, got {len(args)}. "
+                            f"LLVM backend requires full application."
+                        )
+
+                for a in args:
+                    self.validate(a, replace(ctx, is_top_level=False))
+                self.validate(current_fun, replace(ctx, is_top_level=False))
+
+            case Let(var_name, var_value, body):
+                var_type = LLVMInt
+                if isinstance(var_value, Annotation):
+                    var_type = from_type_to_llvm_type(var_value.type)
+                elif isinstance(var_value, Rec):
+                    var_type = from_type_to_llvm_type(var_value.var_type)
+
+                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: var_type}, is_top_level=False)
+                self.validate(var_value, replace(ctx, is_top_level=False))
+                self.validate(body, new_ctx)
+
+            case Rec(var_name, var_type, var_value, body):
+                llvm_ty = from_type_to_llvm_type(var_type)
+                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_ty}, is_top_level=False)
+                self.validate(var_value, new_ctx)
+                self.validate(body, new_ctx)
+
+            case Abstraction(var_name, body):
+                self.validate(body, replace(ctx, is_top_level=False))
+
+            case If(cond, then_t, else_t):
+                self.validate(cond, replace(ctx, is_top_level=False))
+                self.validate(then_t, replace(ctx, is_top_level=False))
+                self.validate(else_t, replace(ctx, is_top_level=False))
+
+            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
+                self.validate(expr, ctx)
+
+            case Var(_) | Literal(_, _) | Hole(_):
+                pass
+            case _:
+                pass
+
+
 class CPULLVMLowerer(LLVMLowerer):
     def get_validation_steps(self) -> List[ValidationStep]:
         return [CPUTypeValidationStep(), CPUFunctionCallValidationStep(), CPUFullApplicationValidationStep()]
