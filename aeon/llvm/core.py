@@ -69,6 +69,14 @@ class ValidationStep(ABC):
         pass
 
 
+class LLVMBackendError(Exception):
+    pass
+
+
+class LLVMValidationError(LLVMBackendError):
+    pass
+
+
 class LLVMLowerer(ABC):
     def validate(self, t: Term, ctx: ValidationContext) -> None:
         for step in self.get_validation_steps():
