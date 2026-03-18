@@ -1,7 +1,7 @@
 import pytest
 
-from aeon.core.terms import Literal, Application, Var, Let, Abstraction
-from aeon.core.types import TypeConstructor
+from aeon.core.terms import Literal, Application, Var, Let, Abstraction, Annotation
+from aeon.core.types import TypeConstructor, AbstractionType
 from aeon.llvm.core import LLVMValidationError
 from aeon.llvm.cpu.lowerer import CPULLVMLowerer, CPUValidationContext
 from aeon.utils.name import Name
@@ -41,22 +41,22 @@ def test_validate_invalid_call_non_llvm():
         lowerer.validate(term, ctx)
 
 
-def test_validate_declared_but_not_allowed():
-    # let external_func = \x -> x in
-    # let f = \x -> external_func x in
-    # f
-    external_func_def = Abstraction(Name("x"), Var(Name("x")))
+def test_validate_partial_application():
+    # let f = \x -> \y -> x + y in f 1
+    t_int = TypeConstructor(Name("Int"))
+    t_f = AbstractionType(Name("x"), t_int, AbstractionType(Name("y"), t_int, t_int))
 
-    f_body = Application(Var(Name("external_func")), Var(Name("x")))
-    f_def = Abstraction(Name("x"), f_body)
+    f_def = Annotation(
+        Abstraction(
+            Name("x"), Abstraction(Name("y"), Application(Application(Var(Name("+")), Var(Name("x"))), Var(Name("y"))))
+        ),
+        t_f,
+    )
 
-    term = Let(Name("external_func"), external_func_def, Let(Name("f"), f_def, Var(Name("f"))))
+    call = Application(Var(Name("f")), Literal(1, t_int))  # f 1
+    term = Let(Name("f"), f_def, call)
 
     lowerer = CPULLVMLowerer()
-
     with pytest.raises(LLVMValidationError):
-        ctx = CPUValidationContext(allowed_func_calls={Name("f")})
+        ctx = CPUValidationContext(allowed_func_calls={Name("f"), Name("+")})
         lowerer.validate(term, ctx)
-
-    ctx_ok = CPUValidationContext(allowed_func_calls={Name("f"), Name("external_func")})
-    lowerer.validate(term, ctx_ok)
