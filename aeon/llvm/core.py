@@ -37,7 +37,13 @@ class LLVMLowerer(ABC):
         pass
 
     @abstractmethod
-    def lower(self, t: Term, type_env: Dict[Name, LLVMType] = None, env: Dict[Name, LLVMTerm] = None) -> LLVMTerm:
+    def lower(
+        self,
+        t: Term,
+        expected_type: LLVMType = None,
+        type_env: Dict[Name, LLVMType] = None,
+        env: Dict[Name, LLVMTerm] = None,
+    ) -> LLVMTerm:
         pass
 
 

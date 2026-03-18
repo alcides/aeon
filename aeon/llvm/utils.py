@@ -56,7 +56,7 @@ def get_builtin_op_type(op: str) -> LLVMFunctionType:
     raise LLVMValidationError(f"Unknown operator {op}")
 
 
-def from_type_to_llvm_type(ty) -> LLVMType:
+def from_type_to_llvm_type(ty: Type) -> LLVMType:
     match ty:
         case RefinedType(_, inner_type, _):
             return from_type_to_llvm_type(inner_type)
