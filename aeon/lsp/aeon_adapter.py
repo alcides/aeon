@@ -19,7 +19,7 @@ import logging
 import re
 import urllib.parse
 from dataclasses import dataclass
-from typing import Dict, List, TextIO
+from typing import Any, Dict, List, Optional, TextIO
 
 import requests
 from lark.exceptions import UnexpectedToken
@@ -40,9 +40,11 @@ HTTP_SCHEMES = {"http", "https"}
 @dataclass(frozen=True)
 class ParseResult:
     diagnostics: List[Diagnostic]
-    # Not needed for now but could be added on the future
-    # core_ast: Any = None
-    # typing_ctx: Any = None
+    # Added for code actions
+    core_ast: Optional[Any] = None
+    typing_ctx: Optional[Any] = None
+    evaluation_ctx: Optional[Any] = None
+    metadata: Optional[Any] = None
 
 
 _parse_result_cache: Dict[URI, ParseResult] = {}
@@ -163,7 +165,25 @@ async def _parse(
                 severity=DiagnosticSeverity.Error,
             )
         )
-    return ParseResult(diagnostics)
+
+    # If parsing succeeded without errors, include AST and context for code actions
+    core_ast = None
+    typing_ctx = None
+    evaluation_ctx = None
+    metadata = None
+    if not diagnostics and hasattr(driver, "core") and hasattr(driver, "typing_ctx"):
+        core_ast = driver.core
+        typing_ctx = driver.typing_ctx
+        evaluation_ctx = getattr(driver, "evaluation_ctx", None)
+        metadata = getattr(driver, "metadata", None)
+
+    return ParseResult(
+        diagnostics=diagnostics,
+        core_ast=core_ast,
+        typing_ctx=typing_ctx,
+        evaluation_ctx=evaluation_ctx,
+        metadata=metadata,
+    )
 
 
 async def _open(
