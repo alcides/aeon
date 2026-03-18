@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict
+from dataclasses import dataclass, field, replace
+from typing import Dict, List
 
 from aeon.core.terms import (
     Abstraction,
@@ -16,91 +17,100 @@ from aeon.core.terms import (
     Annotation,
     Hole,
 )
-from aeon.llvm.llvm_ast import LLVMType, LLVMTerm
+from aeon.llvm.core import LLVMLowerer, LLVMValidationError, ValidationStep, ValidationContext
+from aeon.llvm.llvm_ast import (
+    LLVMType,
+    LLVMTerm,
+)
+from aeon.llvm.utils import validate_type
 from aeon.utils.name import Name
 
-from aeon.llvm.core import LLVMLowerer, LLVMValidationError
 
-from aeon.llvm.utils import validate_type, UNARY_OPS, BINARY_OPS
+@dataclass(frozen=True)
+class CPUValidationContext(ValidationContext):
+    allowed_func_calls: set[Name] = field(default_factory=set)
+    env_names: set[str] = field(default_factory=set)
+    is_top_level: bool = True
 
 
-class CPULLVMLowerer(LLVMLowerer):
-    def validate(
-        self,
-        t: Term,
-        rec_scope: set[Name] = None,
-        env_names: set[str] = None,
-        allowed_func_calls: set[Name] = None,
-        is_top_level: bool = True,
-    ):
-        if rec_scope is None:
-            rec_scope = set()
-        if env_names is None:
-            env_names = set()
-        if allowed_func_calls is None:
-            allowed_func_calls = set()
-
+class CPUTypeValidationStep(ValidationStep):
+    def validate(self, t: Term, ctx: ValidationContext) -> None:
         match t:
             case Literal(_, ty):
                 validate_type(ty)
-            case Var(name):
-                is_op = name.name in BINARY_OPS or name.name in UNARY_OPS
-                is_bound = name in rec_scope or name.name in env_names
-                is_anf = name.name.startswith("anf")
-                is_allowed_global = name in allowed_func_calls
-
-                if not (is_op or is_bound or is_anf or is_allowed_global):
-                    raise LLVMValidationError(
-                        f"{name.name} is not in scope or not allowed in LLVM functions."
-                        f"LLVM functions can only call other @llvm functions or built-in operators."
-                    )
-
-            case Rec(var_name, var_type, var_value, body):
+            case Rec(_, var_type, var_value, body):
                 validate_type(var_type)
-                if is_top_level:
-                    self.validate(var_value, rec_scope | {var_name}, env_names, allowed_func_calls, is_top_level=False)
-                    self.validate(body, rec_scope, env_names, allowed_func_calls, is_top_level=True)
-                else:
-                    self.validate(
-                        var_value,
-                        rec_scope | {var_name},
-                        env_names | {var_name.name},
-                        allowed_func_calls,
-                        is_top_level=False,
-                    )
-                    self.validate(body, rec_scope, env_names | {var_name.name}, allowed_func_calls, is_top_level=False)
-
-            case Application(f, arg):
-                self.validate(f, rec_scope, env_names, allowed_func_calls, is_top_level=False)
-                self.validate(arg, rec_scope, env_names, allowed_func_calls, is_top_level=False)
-
-            case Let(var_name, val, body):
-                if is_top_level:
-                    self.validate(val, rec_scope, env_names, allowed_func_calls, is_top_level=False)
-                    self.validate(body, rec_scope, env_names, allowed_func_calls, is_top_level=True)
-                else:
-                    self.validate(val, rec_scope, env_names, allowed_func_calls, is_top_level=False)
-                    self.validate(body, rec_scope, env_names | {var_name.name}, allowed_func_calls, is_top_level=False)
-
-            case Abstraction(var_name, body):
-                self.validate(body, rec_scope, env_names | {var_name.name}, allowed_func_calls, is_top_level=False)
-
-            case If(cond, then_t, else_t):
-                for branch in [cond, then_t, else_t]:
-                    self.validate(branch, rec_scope, env_names, allowed_func_calls, is_top_level=False)
-
+                self.validate(var_value, ctx)
+                self.validate(body, ctx)
             case Annotation(expr, ty) | TypeApplication(expr, ty):
                 validate_type(ty)
-                self.validate(expr, rec_scope, env_names, allowed_func_calls, is_top_level)
-
-            case TypeAbstraction(_, _, body):
-                self.validate(body, rec_scope, env_names, allowed_func_calls, is_top_level)
-
-            case Hole(_):
+                self.validate(expr, ctx)
+            case Abstraction(_, body) | Let(_, _, body) | TypeAbstraction(_, _, body):
+                self.validate(body, ctx)
+                if isinstance(t, Let):
+                    self.validate(t.var_value, ctx)
+            case Application(f, arg):
+                self.validate(f, ctx)
+                self.validate(arg, ctx)
+            case If(cond, then_t, else_t):
+                self.validate(cond, ctx)
+                self.validate(then_t, ctx)
+                self.validate(else_t, ctx)
+            case Var(_) | Hole(_):
+                pass
+            case _:
                 pass
 
+
+class CPUFunctionCallValidationStep(ValidationStep):
+    def validate(self, t: Term, ctx: ValidationContext) -> None:
+        assert isinstance(ctx, CPUValidationContext)
+        match t:
+            case Var(name):
+                is_local = name.name in ctx.env_names
+                is_anf = name.name.startswith("anf")
+                is_allowed = name in ctx.allowed_func_calls
+
+                if not (is_local or is_anf or is_allowed):
+                    raise LLVMValidationError(
+                        f"Function or variable {name.name} is not allowed in CPU LLVM functions. "
+                        f"Only @llvm functions or built-in operators are permitted as global calls."
+                    )
+            case Rec(var_name, _, var_value, body):
+                if ctx.is_top_level:
+                    self.validate(var_value, replace(ctx, is_top_level=False))
+                    self.validate(body, replace(ctx, is_top_level=True))
+                else:
+                    new_ctx = replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False)
+                    self.validate(var_value, new_ctx)
+                    self.validate(body, new_ctx)
+            case Let(var_name, var_value, body):
+                if ctx.is_top_level:
+                    self.validate(var_value, replace(ctx, is_top_level=False))
+                    self.validate(body, replace(ctx, is_top_level=True))
+                else:
+                    self.validate(var_value, replace(ctx, is_top_level=False))
+                    self.validate(body, replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False))
+            case Abstraction(var_name, body):
+                self.validate(body, replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False))
+            case Application(f, arg):
+                self.validate(f, replace(ctx, is_top_level=False))
+                self.validate(arg, replace(ctx, is_top_level=False))
+            case If(cond, then_t, else_t):
+                self.validate(cond, replace(ctx, is_top_level=False))
+                self.validate(then_t, replace(ctx, is_top_level=False))
+                self.validate(else_t, replace(ctx, is_top_level=False))
+            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
+                self.validate(expr, ctx)
+            case Literal(_, _) | Hole(_):
+                pass
             case _:
-                raise LLVMValidationError(f"{type(t).__name__} not supported in CPU LLVM backend.")
+                pass
+
+
+class CPULLVMLowerer(LLVMLowerer):
+    def get_validation_steps(self) -> List[ValidationStep]:
+        return [CPUTypeValidationStep(), CPUFunctionCallValidationStep()]
 
     def lower(self, t: Term, type_env: Dict[Name, LLVMType] = None, env: Dict[Name, LLVMTerm] = None) -> LLVMTerm:
         pass

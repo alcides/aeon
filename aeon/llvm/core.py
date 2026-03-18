@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from aeon.core.terms import Term
@@ -15,16 +16,24 @@ class LLVMValidationError(LLVMBackendError):
     pass
 
 
-class LLVMLowerer(ABC):
+@dataclass(frozen=True)
+class ValidationContext:
+    pass
+
+
+class ValidationStep(ABC):
     @abstractmethod
-    def validate(
-        self,
-        t: Term,
-        rec_scope: set[Name] = None,
-        env_names: set[str] = None,
-        allowed_func_calls: set[Name] = None,
-        is_top_level: bool = True,
-    ) -> None:
+    def validate(self, t: Term, ctx: ValidationContext) -> None:
+        pass
+
+
+class LLVMLowerer(ABC):
+    def validate(self, t: Term, ctx: ValidationContext) -> None:
+        for step in self.get_validation_steps():
+            step.validate(t, ctx)
+
+    @abstractmethod
+    def get_validation_steps(self) -> List[ValidationStep]:
         pass
 
     @abstractmethod
