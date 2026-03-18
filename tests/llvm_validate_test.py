@@ -1,8 +1,9 @@
 import pytest
+
 from aeon.core.terms import Literal, Application, Var, Let, Abstraction
 from aeon.core.types import TypeConstructor
-from aeon.llvm.cpu.lowerer import CPULLVMLowerer
 from aeon.llvm.core import LLVMValidationError
+from aeon.llvm.cpu.lowerer import CPULLVMLowerer, CPUValidationContext
 from aeon.utils.name import Name
 
 
@@ -13,7 +14,8 @@ def test_validate_valid_cpu():
     term = Let(Name("f"), func, Var(Name("f")))
 
     lowerer = CPULLVMLowerer()
-    lowerer.validate(term, allowed_func_calls={Name("f")})
+    ctx = CPUValidationContext(allowed_func_calls={Name("f"), Name("+")})
+    lowerer.validate(term, ctx)
 
 
 def test_validate_invalid_type():
@@ -23,7 +25,7 @@ def test_validate_invalid_type():
 
     lowerer = CPULLVMLowerer()
     with pytest.raises(LLVMValidationError):
-        lowerer.validate(term)
+        lowerer.validate(term, CPUValidationContext())
 
 
 def test_validate_invalid_call_non_llvm():
@@ -35,7 +37,8 @@ def test_validate_invalid_call_non_llvm():
     lowerer = CPULLVMLowerer()
     with pytest.raises(LLVMValidationError):
         # 'f' is allowed, but 'external_func' (used in body) is not
-        lowerer.validate(term, allowed_func_calls={Name("f")})
+        ctx = CPUValidationContext(allowed_func_calls={Name("f")})
+        lowerer.validate(term, ctx)
 
 
 def test_validate_declared_but_not_allowed():
@@ -52,6 +55,8 @@ def test_validate_declared_but_not_allowed():
     lowerer = CPULLVMLowerer()
 
     with pytest.raises(LLVMValidationError):
-        lowerer.validate(term, allowed_func_calls={Name("f")})
+        ctx = CPUValidationContext(allowed_func_calls={Name("f")})
+        lowerer.validate(term, ctx)
 
-    lowerer.validate(term, allowed_func_calls={Name("f"), Name("external_func")})
+    ctx_ok = CPUValidationContext(allowed_func_calls={Name("f"), Name("external_func")})
+    lowerer.validate(term, ctx_ok)
