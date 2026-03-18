@@ -7,9 +7,24 @@ from aeon.utils.name import Name
 from aeon.llvm.llvm_ast import LLVMTerm, LLVMType
 
 
+class LLVMBackendError(Exception):
+    pass
+
+
+class LLVMValidationError(LLVMBackendError):
+    pass
+
+
 class LLVMLowerer(ABC):
     @abstractmethod
-    def validate(self, t: Term, rec_scope: set[Name] = None, env_names: set[str] = None) -> None:
+    def validate(
+        self,
+        t: Term,
+        rec_scope: set[Name] = None,
+        env_names: set[str] = None,
+        allowed_func_calls: set[Name] = None,
+        is_top_level: bool = True,
+    ) -> None:
         pass
 
     @abstractmethod
