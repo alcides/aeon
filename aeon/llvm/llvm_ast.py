@@ -120,6 +120,7 @@ class LLVMPartialBinOp(LLVMTerm):
 @dataclass
 class LLVMAbstraction(LLVMTerm):
     arg_name: Name
+    arg_type: LLVMType
     body: LLVMTerm
 
 
