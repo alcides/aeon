@@ -30,6 +30,9 @@ class LLVMIntType(LLVMType):
     def to_ir(self) -> ir.Type:
         return ir.IntType(self.bits)
 
+    def __str__(self):
+        return f"i{self.bits}"
+
 
 @dataclass(frozen=True)
 class LLVMFloatType(LLVMType):
@@ -82,6 +85,16 @@ class LLVMAddressSpace(IntEnum):
     SHARED = 3
     CONSTANT = 4
     LOCAL = 5
+
+
+@dataclass(frozen=True)
+class LLVMFunctionType(LLVMType):
+    arg_types: list[LLVMType]
+    return_type: LLVMType
+
+    def __str__(self):
+        args = ", ".join(map(str, self.arg_types))
+        return f"({args}) -> {self.return_type}"
 
 
 @dataclass(frozen=True)
@@ -216,6 +229,10 @@ class LLVMFunction(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)
+
+    def __str__(self):
+        args_formatted = ", ".join(f"%{n}: {t}" for n, t in zip(self.arg_names, self.arg_types))
+        return f"lambda({args_formatted}) -> {self.type} {{\n  {self.body}\n}}"
 
 
 @dataclass
