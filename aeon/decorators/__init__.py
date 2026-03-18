@@ -15,6 +15,8 @@ from dataclasses import replace
 
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
+from aeon.llvm.decorators.gpu import gpu
+from aeon.llvm.decorators.llvm import llvm
 from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
@@ -34,7 +36,6 @@ from aeon.synthesis.decorators import (
     multi_minimize_float,
     prompt,
 )
-from aeon.gpu.decorators.gpu import gpu
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -50,6 +51,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "llvm": llvm,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,
