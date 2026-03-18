@@ -11,6 +11,8 @@ eventual complementary definitions.
 
 from aeon.decorators.api import DecoratorType
 from aeon.decorators.api import Metadata
+from aeon.llvm.decorators.gpu import gpu
+from aeon.llvm.decorators.llvm import llvm
 from aeon.sugar.program import Definition
 from aeon.synthesis.decorators import (
     minimize_int,
@@ -29,7 +31,6 @@ from aeon.synthesis.decorators import (
     minimize,
     maximize,
 )
-from aeon.gpu.decorators.gpu import gpu
 
 decorators_environment: dict[str, DecoratorType] = {
     "minimize_int": minimize_int,
@@ -43,6 +44,7 @@ decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "llvm": llvm,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,
