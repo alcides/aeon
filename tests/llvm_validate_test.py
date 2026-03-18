@@ -1,7 +1,7 @@
 import pytest
 
-from aeon.core.terms import Literal, Application, Var, Let, Abstraction
-from aeon.core.types import TypeConstructor
+from aeon.core.terms import Literal, Application, Var, Let, Abstraction, Annotation
+from aeon.core.types import TypeConstructor, AbstractionType
 from aeon.llvm.core import LLVMValidationError
 from aeon.llvm.cpu.lowerer import CPULLVMLowerer, CPUValidationContext
 from aeon.utils.name import Name
