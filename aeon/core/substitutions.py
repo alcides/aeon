@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication, TypeConstructor, TypePolymorphism
+from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
-from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
+from aeon.core.terms import (
+    Abstraction,
+    RefinementApplication,
+    TypeAbstraction,
+    TypeApplication,
+)
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -48,6 +53,8 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
                 return t
             else:
                 return TypePolymorphism(pname, kind, rec(body), loc=loc)
+        case RefinementPolymorphism(rname, sort, body, loc):
+            return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
         case TypeConstructor(cname, args, loc):
             return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
         case _:
@@ -88,6 +95,83 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             return If(n_cond, n_then, n_otherwise, loc=loc)
         case _:
             assert False
+
+
+def instantiate_refinement_in_liquid(
+    t: LiquidTerm,
+    pred_name: Name,
+    refinement: Abstraction,
+) -> LiquidTerm:
+    """Replaces LiquidApp(pred_name, [arg]) with the inlined refinement body.
+    Implements tutorial fig 8.6: κ(x)[ρ := φ] = p[y := x] if ρ = κ:·, φ = λy.p"""
+    match t:
+        case LiquidApp(aname, args, loc):
+            # TODO: support multi-arg predicates
+            if aname == pred_name and len(args) == 1 and isinstance(args[0], LiquidVar):
+                arg = args[0]
+                body_subst = substitution(refinement.body, Var(arg.name, loc=arg.loc), refinement.var_name)
+                body_subst = inline_lets(body_subst)
+                liq = liquefy(body_subst)
+                if liq is not None:
+                    return liq
+            return LiquidApp(
+                aname,
+                [instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args],
+                loc=loc,
+            )
+        case LiquidVar(_, loc):
+            return t
+        case LiquidLiteralBool(_, loc) | LiquidLiteralInt(_, loc) | LiquidLiteralFloat(_, loc) | LiquidLiteralString(_, loc):
+            return t
+        case LiquidHornApplication(aname, argtypes, loc):
+            return LiquidHornApplication(
+                aname,
+                [(instantiate_refinement_in_liquid(a, pred_name, refinement), ty) for (a, ty) in argtypes],
+                loc=loc,
+            )
+        case _:
+            assert False, f"Unknown LiquidTerm {t} ({type(t)})"
+
+
+def instantiate_refinement_in_type(
+    t: Type,
+    pred_name: Name,
+    refinement: Abstraction,
+) -> Type:
+    """Inlines the refinement predicate in the type.
+    Implements s[ρ := φ] from tutorial fig 8.6.
+    TODO: support refinement as Var ( id[Int]{myPred} ) — currently requires Abstraction."""
+    match t:
+        case Top() | TypeConstructor(_) | TypeVar(_):
+            return t
+        case AbstractionType(aname, atype, rtype, loc):
+            return AbstractionType(
+                aname,
+                instantiate_refinement_in_type(atype, pred_name, refinement),
+                instantiate_refinement_in_type(rtype, pred_name, refinement),
+                loc=loc,
+            )
+        # b{ν:p}[ρ := φ] = b[ρ := φ]{ν:p[ρ := φ]} per tutorial fig 8.6
+        case RefinedType(vname, ity, ref, loc):
+            return RefinedType(
+                vname,
+                instantiate_refinement_in_type(ity, pred_name, refinement),
+                instantiate_refinement_in_liquid(ref, pred_name, refinement),
+                loc=loc,
+            )
+        case TypePolymorphism(pname, kind, body, loc):
+            return TypePolymorphism(pname, kind, instantiate_refinement_in_type(body, pred_name, refinement), loc=loc)
+        case RefinementPolymorphism(rname, rsort, rbody, loc):
+            return RefinementPolymorphism(
+                rname,
+                instantiate_refinement_in_type(rsort, pred_name, refinement),
+                instantiate_refinement_in_type(rbody, pred_name, refinement),
+                loc=loc,
+            )
+        case TypeConstructor(name, args, loc):
+            return TypeConstructor(name, [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args], loc=loc)
+        case _:
+            assert False, f"Unknown type {t} ({type(t)})"
 
 
 def substitution_in_liquid(
@@ -144,11 +228,50 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
                 return RefinedType(vname, ity, substitution_in_liquid(ref, rep, name), loc=loc)
         case TypePolymorphism(name, kind, body, loc):
             return TypePolymorphism(name, kind, rec(body), loc=loc)
+        case RefinementPolymorphism(rname, rsort, rbody, loc):
+            if rname == name:
+                return t
+            return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
         case TypeConstructor(name, args, loc):
             return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
         case _:
             assert False, f"{t} not allowed"
 
+
+def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
+    def rec(x: Term) -> Term:
+        return substitution_liquid_in_term(x, rep, name)
+
+    match t:
+        case Literal(val, ty, loc):
+            return Literal(val, substitution_liquid_in_type(ty, rep, name), loc=loc)
+        case Var():
+            return t
+        case Hole():
+            return t
+        case Application(fun, arg, loc):
+            return Application(fun=rec(fun), arg=rec(arg), loc=loc)
+        case Abstraction(var_name, body, loc):
+            return Abstraction(var_name, rec(body), loc=loc)
+        case Let(var_name, var_value, body, loc):
+            return Let(var_name, rec(var_value), rec(body), loc=loc)
+        case Rec(var_name, var_type, var_value, body, loc):
+            n_type = substitution_liquid_in_type(var_type, rep, name)
+            return Rec(var_name, n_type, rec(var_value), rec(body), loc=loc)
+        case Annotation(expr, ty, loc):
+            n_type = substitution_liquid_in_type(ty, rep, name)
+            return Annotation(rec(expr), n_type, loc=loc)
+        case If(cond, then, otherwise, loc):
+            return If(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case TypeAbstraction(pname, kind, body, loc):
+            return TypeAbstraction(pname, kind, rec(body), loc=loc)
+        case TypeApplication(body, ty, loc):
+            n_type = substitution_liquid_in_type(ty, rep, name)
+            return TypeApplication(rec(body), n_type, loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(rec(body), rec(refinement), loc=loc)
+        case _:
+            assert False, f"{t} not allowed"
 
 def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
     """Substitutes name in type t with the new replacement term rep."""

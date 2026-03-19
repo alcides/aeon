@@ -5,15 +5,21 @@ from loguru import logger
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm
-from aeon.core.types import LiquidHornApplication, StarKind
+from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarKind
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
-from aeon.core.substitutions import liquefy, substitute_vartype
+from aeon.core.substitutions import (
+    instantiate_refinement_in_type,
+    liquefy,
+    substitute_vartype,
+    substitution_liquid_in_term,
+    substitution_liquid_in_type,
+)
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction
+from aeon.core.terms import Abstraction, RefinementApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -56,7 +62,7 @@ from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
 from aeon.verification.sub import sub
-from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.horn import solve
@@ -304,6 +310,17 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             else:
                 assert isinstance(tabs, AbstractionType)
                 return (c, tabs)
+
+        case RefinementApplication(body, refinement, loc=loc):
+            # TODO handle implicit refinements
+            (c, rp) = synth(ctx, body)
+            if not isinstance(rp, RefinementPolymorphism):
+                raise CoreInvalidApplicationError(t, rp)
+            pred_type = AbstractionType(Name("_", fresh_counter.fresh()), rp.sort, t_bool)
+            c_ref = check(ctx, refinement, pred_type)
+            nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
+            return (Conjunction(c, c_ref), nty)
+
         case Hole(name):
             name_a = Name(name.name, fresh_counter.fresh())
             return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
@@ -368,6 +385,22 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 )
             itype = substitute_vartype(var_body, TypeVar(name), var_name)
             return check(ctx.with_typevar(name, var_kind), body, itype)
+
+        # per tutorial fig 8.4 Chk-RAbs
+        case _, RefinementPolymorphism(name, sort, body):
+            # ρ = κ : sort → bool; φ = λx.fκ(x)
+            fk_name = Name("_f" + name.name, fresh_counter.fresh())
+            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
+            # Γ' = Γ; fκ : sort → bool
+            ctx_ext = ctx.with_var(fk_name, fk_type)
+            # s[ρ := fκ] — substitute κ → fk in the body type
+            body_sub = substitution_liquid_in_type(body, LiquidVar(fk_name), name)
+            # e[ρ := fκ] — substitute κ in types embedded in the term
+            term_sub = substitution_liquid_in_term(t, LiquidVar(fk_name), name)
+            c = check(ctx_ext, term_sub, body_sub)
+            # Return (fκ :: sort → bool) ⇒ c
+            return UninterpretedFunctionDeclaration(fk_name, fk_type, c)
+
         case _:
             (c, s) = synth(ctx, t)
             cp = sub(ctx, s, ty, t.loc)

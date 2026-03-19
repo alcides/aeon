@@ -8,6 +8,7 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
@@ -140,6 +141,8 @@ def get_holes(term: Term) -> list[Name]:
             return get_holes(body)
         case TypeAbstraction(name=_, kind=_, body=body):
             return get_holes(body)
+        case RefinementApplication(body=body, refinement=refinement):
+            return get_holes(body) + get_holes(refinement)
         case _:
             assert False
 
