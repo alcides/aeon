@@ -142,6 +142,10 @@ def get_holes(term: Term) -> list[Name]:
         case TypeAbstraction(name=_, kind=_, body=body):
             return get_holes(body)
         case RefinementApplication(body=body, refinement=refinement):
+            # TODO better solution
+                # Implicit refinement placeholders (elaboration) are solved by Horn inference, not GP synthesis.
+            if isinstance(refinement, Hole) and refinement.name.name.startswith("_pred"):
+                return get_holes(body)
             return get_holes(body) + get_holes(refinement)
         case _:
             assert False

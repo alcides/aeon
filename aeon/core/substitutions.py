@@ -174,6 +174,71 @@ def instantiate_refinement_in_type(
             assert False, f"Unknown type {t} ({type(t)})"
 
 
+def instantiate_refinement_with_horn_in_liquid(
+    t: LiquidTerm,
+    pred_name: Name,
+    sort: Type,
+    horn_name: Name,
+) -> LiquidTerm:
+    """Replace LiquidApp(ρ, args) with LiquidHornApplication(horn_name, ...) for implicit Syn-RApp."""
+
+    def rec(lt: LiquidTerm) -> LiquidTerm:
+        return instantiate_refinement_with_horn_in_liquid(lt, pred_name, sort, horn_name)
+
+    match t:
+        case LiquidVar(_):
+            return t
+        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+            return t
+        case LiquidApp(aname, args, loc):
+            if aname == pred_name:
+                return LiquidHornApplication(horn_name, [(a, sort) for a in args], loc=loc)
+            return LiquidApp(aname, [rec(a) for a in args], loc=loc)
+        case LiquidHornApplication(aname, argtypes, loc):
+            return LiquidHornApplication(
+                aname,
+                [(rec(a), ty) for (a, ty) in argtypes],
+                loc=loc,
+            )
+        case _:
+            assert False, f"instantiate_refinement_with_horn_in_liquid: unknown liquid {t}"
+
+
+def instantiate_refinement_with_horn_in_type(
+    t: Type,
+    pred_name: Name,
+    sort: Type,
+    horn_name: Name,
+) -> Type:
+    """Walk types and apply instantiate_refinement_with_horn_in_liquid in refinements."""
+
+    def rec(ty: Type) -> Type:
+        return instantiate_refinement_with_horn_in_type(ty, pred_name, sort, horn_name)
+
+    match t:
+        case Top():
+            return t
+        case TypeVar(_):
+            return t
+        case TypeConstructor(name, args, loc):
+            return TypeConstructor(name, [rec(a) for a in args], loc=loc)
+        case AbstractionType(aname, atype, rtype, loc):
+            return AbstractionType(aname, rec(atype), rec(rtype), loc=loc)
+        case RefinedType(vname, ity, ref, loc):
+            return RefinedType(
+                vname,
+                rec(ity),
+                instantiate_refinement_with_horn_in_liquid(ref, pred_name, sort, horn_name),
+                loc=loc,
+            )
+        case TypePolymorphism(pname, kind, body, loc):
+            return TypePolymorphism(pname, kind, rec(body), loc=loc)
+        case RefinementPolymorphism(rname, rsort, rbody, loc):
+            return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
+        case _:
+            assert False, f"instantiate_refinement_with_horn_in_type: unknown type {t}"
+
+
 def substitution_in_liquid(
     t: LiquidTerm,
     rep: LiquidTerm,

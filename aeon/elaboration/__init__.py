@@ -375,6 +375,10 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
         u = UnificationVar(ctx.fresh_typevar())
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
+    while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
+        h = SHole(Name("_pred", fresh_counter.fresh()))
+        c = SRefinementApplication(c, h)
+        s = substitution_sterm_in_stype(s.body, h, s.name)
     return (c, s)
 
 

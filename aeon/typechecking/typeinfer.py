@@ -13,6 +13,7 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
     instantiate_refinement_in_type,
+    instantiate_refinement_with_horn_in_type,
     liquefy,
     substitute_vartype,
     substitution_liquid_in_term,
@@ -312,10 +313,13 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 return (c, tabs)
 
         case RefinementApplication(body, refinement, loc=loc):
-            # TODO handle implicit refinements
             (c, rp) = synth(ctx, body)
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
+            if isinstance(refinement, Hole):
+                horn_name = Name("kappa", fresh_counter.fresh())
+                nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
+                return (c, nty)
             pred_type = AbstractionType(Name("_", fresh_counter.fresh()), rp.sort, t_bool)
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)

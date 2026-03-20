@@ -78,8 +78,11 @@ class LiquefactionException(LoweringException):
 
 
 # TODO: NOW! detect built-in SMT functions
-def liquefy_app(app: SApplication) -> LiquidApp | None:
-    arg = liquefy(app.arg)
+def liquefy_app(
+    app: SApplication,
+    available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None,
+) -> LiquidApp | LiquidHornApplication | None:
+    arg = liquefy(app.arg, available_vars)
     fun = app.fun
     while isinstance(fun, STypeApplication):
         fun = fun.body
@@ -89,14 +92,18 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
     match fun:
         case SVar(name):
             return LiquidApp(name, [arg], loc=app.loc)
+        case SHole(name, loc):
+            avars = available_vars or []
+            argtypes = [(LiquidVar(n), t) for n, t in avars if isinstance(t, TypeConstructor)]
+            return LiquidHornApplication(name=name, argtypes=argtypes, loc=loc)
         case SApplication(_, _):
-            liquid_pseudo_fun = liquefy_app(fun)
+            liquid_pseudo_fun = liquefy_app(fun, available_vars)
             if liquid_pseudo_fun:
                 return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg], loc=app.loc)
             return None
         case SLet(name, val, body):
             app = SApplication(substitution_sterm_in_sterm(body, val, name), app.arg, loc=app.loc)
-            return liquefy_app(app)
+            return liquefy_app(app, available_vars)
         case _:
             raise LiquefactionException(f"{app} is not a valid predicate.")
 
@@ -138,7 +145,7 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
         case STypeAbstraction(name, _, body):
             return liquefy(body, available_vars)
         case SApplication(_, _):
-            return liquefy_app(t)
+            return liquefy_app(t, available_vars)
         case SLet(name, val, body):
             lval = liquefy(val, available_vars)
             lbody = liquefy(body, available_vars)
