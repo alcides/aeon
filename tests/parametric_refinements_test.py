@@ -249,3 +249,190 @@ def main (args:Int) : Unit {{
 """
     assert not check_compile(source, st_top)
 
+
+# ---------------------------------------------------------------------------
+# Implicit refinement inference (Syn-RApp)
+# ---------------------------------------------------------------------------
+
+
+def test_id_implicit_positive_int():
+    """id[Int] without explicit predicate; Horn infers compatible refinement."""
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = id[Int] x;
+    print (y)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_id_implicit_rejects_mismatched_predicate():
+    """Implicit refinement cannot justify a wrong output predicate."""
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 3;
+    y : Int | y < 0 = id[Int] x;
+    print (y)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_id_implicit_bool_predicate():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    b : Bool | b == true = true;
+    r : Bool | r == true = id[Bool] b;
+    print (r)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_id_implicit_bool_predicate_rejects_false():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    b : Bool | b == false = false;
+    r : Bool | r == true = id[Bool] b;
+    print (r)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_id_implicit_non_negative_predicate():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x >= 0 = 0;
+    y : Int | y >= 0 = id[Int] x;
+    print (y)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_const_implicit_positive():
+    source = f"""
+{CONST_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 5;
+    r : Int | r > 0 = const[Int] x 99;
+    print (r)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_const_implicit_rejects_wrong_predicate_on_result():
+    source = f"""
+{CONST_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 5;
+    r : Int | r < 0 = const[Int] x 99;
+    print (r)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_id_implicit_chained():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 7;
+    y : Int | y > 0 = id[Int] x;
+    z : Int | z > 0 = id[Int] y;
+    print (z)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_id_implicit_chained_predicate_weakening_rejects():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 7;
+    y : Int | y > 0 = id[Int] x;
+    z : Int | z > 10 = id[Int] y;
+    print (z)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_wrapper_around_id_implicit_positive():
+    source = f"""
+{ID_DEF}
+
+def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {{v : t | p v}} =
+    Λ t : B => \\x -> id[t]{{\\v -> v == x}} x;
+
+def main (args:Int) : Unit {{
+    a : Int | a > 0 = 4;
+    b : Int | b > 0 = wrap[Int] a;
+    print (b)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_wrapper_around_id_implicit_negative():
+    source = f"""
+{ID_DEF}
+
+def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {{v : t | p v}} =
+    Λ t : B => \\x -> id[t]{{\\v -> v == x}} x;
+
+def main (args:Int) : Unit {{
+    a : Int | a > 0 = 1;
+    b : Int | b > 10 = wrap[Int] a;
+    print (b)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_two_independent_predicates_implicit():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    a : Int | a > 0 = 1;
+    b : Int | b < 0 = 0 - 1;
+    ra : Int | ra > 0 = id[Int] a;
+    rb : Int | rb < 0 = id[Int] b;
+    print (ra)
+}}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_two_independent_predicates_implicit_negative():
+    source = f"""
+{ID_DEF}
+
+def main (args:Int) : Unit {{
+    a : Int | a > 0 = 1;
+    b : Int | b < 0 = 1;
+    ra : Int | ra > 0 = id[Int] a;
+    rb : Int | rb > 0 = id[Int] b;
+    print (ra)
+}}
+"""
+    assert not check_compile(source, st_top)
