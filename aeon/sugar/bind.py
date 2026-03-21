@@ -19,6 +19,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -28,6 +29,7 @@ from aeon.sugar.program import (
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -104,6 +106,10 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
         case STypePolymorphism(name, kind, body):
             name, subs = check_name(name, subs)
             return STypePolymorphism(name, kind, bind_stype(body, subs))
+        case SRefinementPolymorphism(name, sort, body):
+            bound_sort = bind_stype(sort, subs)
+            nname, nsubs = check_name(name, subs)
+            return SRefinementPolymorphism(nname, bound_sort, bind_stype(body, nsubs))
         case _:
             assert False, f"Unique not supported for {ty} ({type(ty)})"
 
@@ -127,6 +133,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SAbstraction(name, nbody, loc=loc)
         case STypeApplication(body, ty, loc=loc):
             return STypeApplication(bind_sterm(body, subs), bind_stype(ty, subs), loc=loc)
+        case SRefinementApplication(body, refinement, loc=loc):
+            return SRefinementApplication(bind_sterm(body, subs), bind_sterm(refinement, subs), loc=loc)
         case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)

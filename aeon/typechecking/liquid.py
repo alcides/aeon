@@ -12,6 +12,7 @@ from aeon.core.types import (
     AbstractionType,
     LiquidHornApplication,
     RefinedType,
+    RefinementPolymorphism,
     Top,
     Type,
     TypeConstructor,
@@ -78,6 +79,8 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 ty = rty
             case TypePolymorphism(_, _, body):
                 return lower_abstraction_type(body)
+            case RefinementPolymorphism(_, _, body):
+                return lower_abstraction_type(body)
             case TypeConstructor(_, _):
                 return args + [ty]
             case RefinedType(_, bt, _):
@@ -120,6 +123,9 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
             case VariableBinder(name, RefinedType(_, TypeConstructor(_) as bt, _)):
                 variables[name] = bt
             case VariableBinder(name, RefinedType(_, TypeConstructor(_, _) as bt, _)):
+                variables[name] = bt
+            case VariableBinder(name, RefinedType(_, TypeVar(tvname) as bt, _)):
+                known_types.append(tvname)
                 variables[name] = bt
             case TypeConstructorBinder(_, _):
                 pass
