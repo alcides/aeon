@@ -68,12 +68,12 @@ class AeonLanguageServer(LanguageServer):
             yield diag
 
     def _ranges_overlap(self, r1: Range, r2: Range) -> bool:
-        """Return True if two LSP ranges overlap."""
+        """Return True if two LSP ranges overlap (touching at a boundary counts)."""
         if r1.end.line < r2.start.line or r2.end.line < r1.start.line:
             return False
-        if r1.end.line == r2.start.line and r1.end.character <= r2.start.character:
+        if r1.end.line == r2.start.line and r1.end.character < r2.start.character:
             return False
-        if r2.end.line == r1.start.line and r2.end.character <= r1.start.character:
+        if r2.end.line == r1.start.line and r2.end.character < r1.start.character:
             return False
         return True
 
@@ -197,7 +197,11 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
     document = ls.workspace.get_text_document(uri)
     source = document.source
 
-    errors = list(driver.parse(filename=uri, aeon_code=source))
+    try:
+        errors = list(driver.parse(filename=uri, aeon_code=source))
+    except Exception as e:
+        ls.show_message(f"Cannot synthesize: parse failed ({e})", MessageType.Error)
+        return None
     if errors:
         ls.show_message(f"Cannot synthesize: file has {len(errors)} error(s)", MessageType.Error)
         return None
