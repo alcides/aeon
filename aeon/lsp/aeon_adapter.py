@@ -18,7 +18,7 @@ import io
 import logging
 import re
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, TextIO
 
 import requests
@@ -36,13 +36,32 @@ logger = logging.getLogger(__name__)
 URI = str
 HTTP_SCHEMES = {"http", "https"}
 
+_HOLE_PATTERN = re.compile(r"\?([a-zA-Z_][a-zA-Z0-9_]*)")
+
+
+@dataclass(frozen=True)
+class HolePosition:
+    name: str
+    range: Range
+
 
 @dataclass(frozen=True)
 class ParseResult:
     diagnostics: List[Diagnostic]
-    # Not needed for now but could be added on the future
-    # core_ast: Any = None
-    # typing_ctx: Any = None
+    holes: List[HolePosition] = field(default_factory=list)
+
+
+def find_holes_in_source(source: str) -> List[HolePosition]:
+    """Find all ?identifier holes in source text and return their LSP ranges (0-indexed)."""
+    holes = []
+    for line_idx, line in enumerate(source.splitlines()):
+        for match in _HOLE_PATTERN.finditer(line):
+            hole_range = Range(
+                start=Position(line=line_idx, character=match.start()),
+                end=Position(line=line_idx, character=match.end()),
+            )
+            holes.append(HolePosition(name=match.group(1), range=hole_range))
+    return holes
 
 
 _parse_result_cache: Dict[URI, ParseResult] = {}
@@ -101,6 +120,8 @@ async def _parse(
         content = fp.read()
         errors = driver.parse(filename=uri, aeon_code=content)
 
+        holes = find_holes_in_source(content)
+
         for error in errors:
             error_message = str(error)
             error_position = error.position()
@@ -121,6 +142,9 @@ async def _parse(
                     severity=DiagnosticSeverity.Error,
                 )
             )
+
+        if not errors:
+            return ParseResult(diagnostics, holes)
 
     except UnexpectedToken as e:
         token_length = 1
@@ -163,7 +187,7 @@ async def _parse(
                 severity=DiagnosticSeverity.Error,
             )
         )
-    return ParseResult(diagnostics)
+    return ParseResult(diagnostics, [])
 
 
 async def _open(
