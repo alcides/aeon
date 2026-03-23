@@ -312,7 +312,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 assert isinstance(tabs, AbstractionType)
                 return (c, tabs)
 
-        case RefinementApplication(body, refinement, loc=loc):
+        case RefinementApplication(body, refinement):
             (c, rp) = synth(ctx, body)
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
