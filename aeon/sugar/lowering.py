@@ -24,7 +24,16 @@ from aeon.core.terms import (
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Type, TypePolymorphism, Top, TypeVar, t_unit
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypePolymorphism,
+    Top,
+    TypeVar,
+    t_unit,
+)
 from aeon.elaboration.context import (
     ElabTypeDecl,
     ElabTypeVarBinder,
@@ -199,7 +208,9 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
         case STypePolymorphism(name, kind, rty, loc):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
-            return RefinementPolymorphism(name, type_to_core(sort, available_vars), type_to_core(body, available_vars), loc=loc)
+            return RefinementPolymorphism(
+                name, type_to_core(sort, available_vars), type_to_core(body, available_vars), loc=loc
+            )
         case SRefinedType(oname, ity, ref, loc):
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())

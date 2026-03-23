@@ -121,7 +121,12 @@ def instantiate_refinement_in_liquid(
             )
         case LiquidVar(_, loc):
             return t
-        case LiquidLiteralBool(_, loc) | LiquidLiteralInt(_, loc) | LiquidLiteralFloat(_, loc) | LiquidLiteralString(_, loc):
+        case (
+            LiquidLiteralBool(_, loc)
+            | LiquidLiteralInt(_, loc)
+            | LiquidLiteralFloat(_, loc)
+            | LiquidLiteralString(_, loc)
+        ):
             return t
         case LiquidHornApplication(aname, argtypes, loc):
             return LiquidHornApplication(
@@ -171,7 +176,9 @@ def instantiate_refinement_in_type(
                 loc=loc,
             )
         case TypeConstructor(name, args, loc):
-            return TypeConstructor(name, [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args], loc=loc)
+            return TypeConstructor(
+                name, [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args], loc=loc
+            )
         case _:
             assert False, f"Unknown type {t} ({type(t)})"
 
@@ -342,6 +349,7 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             return RefinementApplication(rec(body), rec(refinement), loc=loc)
         case _:
             assert False, f"{t} not allowed"
+
 
 def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
     """Substitutes name in type t with the new replacement term rep."""

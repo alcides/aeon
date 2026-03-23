@@ -61,6 +61,7 @@ class STypePolymorphism(SType):
     def __str__(self):
         return f"∀{self.name}:{self.kind}. {self.body}"
 
+
 @dataclass(unsafe_hash=True)
 class SRefinementPolymorphism(SType):
     name: Name

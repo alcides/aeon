@@ -289,7 +289,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
 
             nty = substitution_sterm_in_stype(innert.body, nrefinement, innert.name)
             return (SRefinementApplication(inner, nrefinement), nty)
-            
+
         case SLet(name, value, body):
             u = UnificationVar(ctx.fresh_typevar())
             nval = elaborate_check(ctx, value, u)

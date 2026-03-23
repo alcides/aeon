@@ -133,6 +133,7 @@ class TypePolymorphism(Type):
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.kind) + hash(self.body)
 
+
 @dataclass
 class RefinementPolymorphism(Type):
     name: Name
@@ -142,6 +143,7 @@ class RefinementPolymorphism(Type):
 
     def __str__(self):
         return f"forall <{self.name}:{self.sort} -> Bool>, {self.body}"
+
 
 @dataclass
 class TypeConstructor(Type):

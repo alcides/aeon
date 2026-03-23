@@ -7,10 +7,8 @@ from tests.driver import check_compile
 # id – explicit + implicit refinement application, mismatches, bool, equality
 # ---------------------------------------------------------------------------
 
-ID_DEF = (
-    "def id : forall t : B, forall <p : t -> Bool>,"
-    " (x : t<p>) -> t<p> = Λ t : B => \\x -> x;"
-)
+ID_DEF = "def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \\x -> x;"
+
 
 def test_id_explicit_and_implicit_int_predicate():
     """Explicit {\\n -> ...} and inferred predicate both propagate on Int."""
@@ -88,6 +86,7 @@ CONST_DEF = (
     " (x : t | p x) -> (y : t) -> {v : t | p v} = Λ t : B => \\x -> \\y -> x;"
 )
 
+
 def test_const_propagates_first_argument_predicate():
     source = f"""
 {CONST_DEF}
@@ -152,9 +151,9 @@ def main (args:Int) : Unit {{
 # ---------------------------------------------------------------------------
 
 WRAP_DEF = (
-    "def wrap : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = "
-    "Λ t : B => \\x -> id[t]{\\v -> v == x} x;"
+    "def wrap : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \\x -> id[t]{\\v -> v == x} x;"
 )
+
 
 def test_wrapper_around_id():
     source_ok = f"""
@@ -223,6 +222,7 @@ MAXI_DEF = (
     "\\x -> \\y -> if x < y then y else x;"
 )
 
+
 def test_maxI_implicit_predicate():
     """Inferred p; result must satisfy the same refinement as arguments."""
     source = f"""
@@ -236,6 +236,7 @@ def main (args:Int) : Unit {{
 }}
 """
     assert check_compile(source, st_top)
+
 
 def test_maxI_inferred_predicate_wider_than_args():
     """

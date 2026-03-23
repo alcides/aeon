@@ -82,7 +82,7 @@ class TreeToSugar(Transformer):
 
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
-    
+
     def refinement_polymorphism_t(self, args):
         return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
 
