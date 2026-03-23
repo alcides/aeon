@@ -1,4 +1,4 @@
-def maxI: forall <p : Int -> Bool>, (x : Int | p x) -> (y : Int | p y) -> { v : Int | p v } = 
+def maxI: forall <p : Int -> Bool>, (x : Int<p>) -> (y : Int<p>) -> Int<p> = 
     \x -> \y -> if x < y then y else x;
 
 

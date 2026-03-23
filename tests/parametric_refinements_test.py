@@ -9,7 +9,7 @@ from tests.driver import check_compile
 
 ID_DEF = (
     "def id : forall t : B, forall <p : t -> Bool>,"
-    " (x : t | p x) -> {v : t | p v} = Λ t : B => \\x -> x;"
+    " (x : t<p>) -> t<p> = Λ t : B => \\x -> x;"
 )
 
 def test_id_explicit_and_implicit_int_predicate():
@@ -152,7 +152,7 @@ def main (args:Int) : Unit {{
 # ---------------------------------------------------------------------------
 
 WRAP_DEF = (
-    "def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} = "
+    "def wrap : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = "
     "Λ t : B => \\x -> id[t]{\\v -> v == x} x;"
 )
 
@@ -219,7 +219,7 @@ def main (args:Int) : Unit {{
 
 MAXI_DEF = (
     "def maxI : forall <p : Int -> Bool>, "
-    "(x : Int | p x) -> (y : Int | p y) -> { v : Int | p v } = "
+    "(x : Int<p>) -> (y : Int<p>) -> Int<p> = "
     "\\x -> \\y -> if x < y then y else x;"
 )
 

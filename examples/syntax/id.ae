@@ -1,4 +1,4 @@
-def id : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} = Λ t : B => \x -> x;
+def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \x -> x;
 
 def main (args:Int) : Unit {
     x : Int | x > 0 = 3;
