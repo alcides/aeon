@@ -94,11 +94,10 @@ def liquefy_app(
             return LiquidApp(name, [arg], loc=app.loc)
         case SHole(name, loc):
             avars = available_vars or []
-            argtypes = [(LiquidVar(n), t) for n, t in avars if isinstance(t, TypeConstructor)]
-            return LiquidHornApplication(name=name, argtypes=argtypes, loc=loc)
+            return LiquidHornApplication(name=name, argtypes=[(LiquidVar(x), ty) for (x, ty) in avars], loc=loc)
         case SApplication(_, _):
             liquid_pseudo_fun = liquefy_app(fun, available_vars)
-            if liquid_pseudo_fun:
+            if isinstance(liquid_pseudo_fun, LiquidApp):
                 return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg], loc=app.loc)
             return None
         case SLet(name, val, body):

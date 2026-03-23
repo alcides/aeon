@@ -320,6 +320,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 horn_name = Name("kappa", fresh_counter.fresh())
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, nty)
+            assert isinstance(refinement, Abstraction)
             pred_type = AbstractionType(Name("_", fresh_counter.fresh()), rp.sort, t_bool)
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)

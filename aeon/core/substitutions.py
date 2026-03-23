@@ -153,9 +153,11 @@ def instantiate_refinement_in_type(
             )
         # b{ν:p}[ρ := φ] = b[ρ := φ]{ν:p[ρ := φ]} per tutorial fig 8.6
         case RefinedType(vname, ity, ref, loc):
+            ntype = instantiate_refinement_in_type(ity, pred_name, refinement)
+            assert isinstance(ntype, TypeConstructor) or isinstance(ntype, TypeVar)
             return RefinedType(
                 vname,
-                instantiate_refinement_in_type(ity, pred_name, refinement),
+                ntype,
                 instantiate_refinement_in_liquid(ref, pred_name, refinement),
                 loc=loc,
             )
@@ -192,6 +194,7 @@ def instantiate_refinement_with_horn_in_liquid(
             return t
         case LiquidApp(aname, args, loc):
             if aname == pred_name:
+                assert isinstance(sort, TypeConstructor) or isinstance(sort, TypeVar)
                 return LiquidHornApplication(horn_name, [(a, sort) for a in args], loc=loc)
             return LiquidApp(aname, [rec(a) for a in args], loc=loc)
         case LiquidHornApplication(aname, argtypes, loc):
@@ -225,9 +228,11 @@ def instantiate_refinement_with_horn_in_type(
         case AbstractionType(aname, atype, rtype, loc):
             return AbstractionType(aname, rec(atype), rec(rtype), loc=loc)
         case RefinedType(vname, ity, ref, loc):
+            nity = rec(ity)
+            assert isinstance(nity, TypeConstructor) or isinstance(nity, TypeVar)
             return RefinedType(
                 vname,
-                rec(ity),
+                nity,
                 instantiate_refinement_with_horn_in_liquid(ref, pred_name, sort, horn_name),
                 loc=loc,
             )
