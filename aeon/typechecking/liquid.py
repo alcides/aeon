@@ -112,6 +112,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 variables[name] = TypeVar(tvname)
             case VariableBinder(name, TypePolymorphism(_, _, _) as ty):
                 functions[name] = lower_abstraction_type(ty)
+            case VariableBinder(name, RefinementPolymorphism(_, _, _) as ty):
+                functions[name] = lower_abstraction_type(ty)
             case TypeBinder(name, _):
                 known_types.append(name)
             case UninterpretedBinder(name, AbstractionType(_, _, _) as ty) | VariableBinder(
