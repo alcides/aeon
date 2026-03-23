@@ -46,6 +46,7 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | "forall" "<" ID ":" type "->" "Bool" ">" "," type   -> refinement_polymorphism_t
+     | ID "<" ID ">"                                       -> base_angle_refined_t
      | ID                                                  -> simple_t
      | "(" ID type+ ")"                                            -> constructor_t
      | "(" type ")"                                        -> same

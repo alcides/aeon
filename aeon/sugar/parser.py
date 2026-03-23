@@ -86,6 +86,17 @@ class TreeToSugar(Transformer):
     def refinement_polymorphism_t(self, args):
         return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
 
+    def base_angle_refined_t(self, args):
+        base_str = str(args[0])
+        pred_str = str(args[1])
+        if base_str in builtin_types:
+            base_ty = STypeConstructor(Name(base_str, 0))
+        else:
+            base_ty = STypeVar(Name(base_str))
+        binder = Name(f"_r{fresh_counter.fresh()}")
+        refinement = SApplication(SVar(Name(pred_str)), SVar(binder))
+        return SRefinedType(binder, base_ty, refinement)
+
     def simple_t(self, args):
         name_str = str(args[0])
         if name_str in builtin_types:
