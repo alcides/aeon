@@ -268,3 +268,33 @@ def main (args:Int) : Unit {{
 }}
 """
     assert check_compile(source, st_top)
+
+
+def test_maxI_rejects_stricter_result_predicate():
+    """Annotated result stricter than what max of the given literals establishes."""
+    source = f"""
+{MAXI_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 10 = maxI x y;
+    print (z)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_maxI_rejects_wrong_predicate_on_result():
+    """Max of positives is non-negative; cannot assign a strictly negative refinement."""
+    source = f"""
+{MAXI_DEF}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z < 0 = maxI x y;
+    print (z)
+}}
+"""
+    assert not check_compile(source, st_top)
