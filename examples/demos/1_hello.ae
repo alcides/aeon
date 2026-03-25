@@ -8,5 +8,9 @@ def readIndex (i:Int | 0 <= i && i < length) : Unit {
 }
 
 def main (index:Int) : Unit {
-    readIndex index
+    pindex = Math_abs index;
+    if pindex < length then
+        readIndex pindex
+    else
+        print "error"
 }
