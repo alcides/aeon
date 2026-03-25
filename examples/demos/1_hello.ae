@@ -1,0 +1,12 @@
+import "Math.ae";
+
+def length : {n:Int | n == 10} = 10;
+
+def readIndex (i:Int | 0 <= i && i < length) : Unit {
+    # Dummy operation
+    print "okay"
+}
+
+def main (index:Int) : Unit {
+    readIndex index
+}

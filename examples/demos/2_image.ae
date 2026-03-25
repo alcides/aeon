@@ -1,0 +1,13 @@
+import "Image.ae";
+
+
+def generate_image (steps:Int) : Image {
+    white : Color = Color_mk 255 255 255;
+    green : Color = Color_mk 0 255 0;
+    image0 = Image_mk 64 64 white;
+    image1 = Image_draw_rectangle image0 0 0 32 32 white;
+    image2 = Image_draw_rectangle image1 0 32 32 32 green;
+    image3 = Image_draw_rectangle image2 32 0 32 32 green;
+    image4 = Image_draw_rectangle image3 32 32 32 33 white;
+    image4
+}

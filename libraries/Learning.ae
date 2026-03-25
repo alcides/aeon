@@ -28,6 +28,16 @@ def Learning_train_random_forest (dataset: {training_dataset: Dataset | Learning
     native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
 }
 
+# Trains a random forest model on a balanced dataset.
+def Learning_train_multinomial_nb (dataset: {training_dataset: Dataset | Learning_is_balanced training_dataset}) : Model {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
+} # TODO fix binding
+
+# Trains a random forest model on a balanced dataset.
+def Learning_train_complement_nb (dataset: {training_dataset: Dataset | Learning_is_balanced training_dataset == false}) : Model {
+    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
+} # TODO fix binding
+
 # Applies SMOTE oversampling to balance the dataset.
 def Learning_smote_oversample (ds: Dataset) : {ds2: Dataset | Learning_is_balanced ds2 } {
     native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_smote_oversample(ds)"
