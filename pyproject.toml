@@ -1,6 +1,6 @@
 [project]
 name = "AeonLang"
-version = "4.0.5b0"
+version = "4.0.5"
 description = "Language with Refinement Types"
 authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }

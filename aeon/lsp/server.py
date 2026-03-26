@@ -20,7 +20,6 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
-    ExecuteCommandParams,
     MessageType,
     PublishDiagnosticsParams,
     Range,
@@ -45,6 +44,7 @@ class AeonLanguageServer(LanguageServer):
     def start(self, tcp_server):
         if not tcp_server:
             self.start_io()
+            return
 
         host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
 
@@ -148,15 +148,10 @@ class AeonLanguageServer(LanguageServer):
         @self.command(SYNTHESIZE_COMMAND)
         async def execute_synthesize(
             ls: AeonLanguageServer,
-            params: ExecuteCommandParams,
+            uri: str,
+            hole_name_str: str,
+            synthesizer_name: str,
         ) -> None:
-            args = params.arguments or []
-            if len(args) < 3:
-                ls.show_message("aeon.synthesize requires [uri, hole_name, synthesizer]", MessageType.Error)
-                return
-
-            uri, hole_name_str, synthesizer_name = args[0], args[1], args[2]
-
             loop = asyncio.get_event_loop()
             try:
                 result = await loop.run_in_executor(
