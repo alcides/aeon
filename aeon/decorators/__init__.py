@@ -24,6 +24,10 @@ from aeon.synthesis.decorators import (
     error_fitness,
     disable_control_flow,
     prompt,
+    csv_data,
+    csv_file,
+    minimize,
+    maximize,
 )
 
 decorators_environment: dict[str, DecoratorType] = {
@@ -38,6 +42,10 @@ decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "csv_data": csv_data,
+    "csv_file": csv_file,
+    "minimize": minimize,
+    "maximize": maximize,
 }
 
 

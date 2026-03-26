@@ -11,6 +11,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SRefinementApplication,
     SHole,
     SIf,
     SLet,
@@ -33,6 +34,7 @@ from aeon.sugar.stypes import (
     STypeVar,
     SRefinedType,
     STypePolymorphism,
+    SRefinementPolymorphism,
 )
 
 from aeon.sugar.ast_helpers import i0
@@ -81,6 +83,20 @@ class TreeToSugar(Transformer):
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
 
+    def refinement_polymorphism_t(self, args):
+        return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
+
+    def base_angle_refined_t(self, args):
+        base_str = str(args[0])
+        pred_str = str(args[1])
+        if base_str in builtin_types:
+            base_ty = STypeConstructor(Name(base_str, 0))
+        else:
+            base_ty = STypeVar(Name(base_str))
+        binder = Name(f"_r{fresh_counter.fresh()}")
+        refinement = SApplication(SVar(Name(pred_str)), SVar(binder))
+        return SRefinedType(binder, base_ty, refinement)
+
     def simple_t(self, args):
         name_str = str(args[0])
         if name_str in builtin_types:
@@ -112,6 +128,12 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def rec_e(self, meta, args):
         return SRec(Name(args[0]), args[1], args[2], args[3], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def rec_refined_e(self, meta, args):
+        name = Name(args[0])
+        refined_type = SRefinedType(name, args[1], args[2])
+        return SRec(name, refined_type, args[3], args[4], loc=self._loc(meta))
 
     @v_args(meta=True)
     def if_e(self, meta, args):
@@ -199,6 +221,10 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def type_application_e(self, meta, args):
         return STypeApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def refinement_application_e(self, meta, args):
+        return SRefinementApplication(args[0], args[1], loc=self._loc(meta))
 
     @v_args(meta=True)
     def var(self, meta, args):

@@ -14,11 +14,17 @@ def levels_filter(levels):
 
 
 def setup_logger():
-    logger.level("TYPECHECKER", no=35, color="<magenta>", icon="🔍")
-    logger.level("SYNTH_TYPE", no=36, color="<magenta>")
-    logger.level("CONSTRAINT", no=37, color="<cyan>", icon="🔒")
-    logger.level("SYNTHESIZER", no=38, color="<red>")
-    logger.level("TIME", no=39, color="<green>")
+    for name, kwargs in [
+        ("TYPECHECKER", {"no": 35, "color": "<magenta>", "icon": "🔍"}),
+        ("SYNTH_TYPE", {"no": 36, "color": "<magenta>"}),
+        ("CONSTRAINT", {"no": 37, "color": "<cyan>", "icon": "🔒"}),
+        ("SYNTHESIZER", {"no": 38, "color": "<red>"}),
+        ("TIME", {"no": 39, "color": "<green>"}),
+    ]:
+        try:
+            logger.level(name, **kwargs)
+        except ValueError:
+            pass
 
     # Setup the logger
     logger.remove()

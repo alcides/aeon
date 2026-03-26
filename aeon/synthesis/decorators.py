@@ -1,8 +1,10 @@
 """Meta-programming code for optimization-related decorators."""
 
+import csv
+import io
 from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Definition, STerm, SVar
+from aeon.sugar.program import Definition, SApplication, STerm, SVar
 from aeon.sugar.stypes import STypeConstructor
 from aeon.sugar.ast_helpers import st_int, st_float
 from aeon.utils.name import Name, fresh_counter
@@ -221,3 +223,198 @@ def prompt(
     metadata = metadata_update(metadata, fun, {"prompt": val})
 
     return fun, [], metadata
+
+
+def _binop(op: str, left: STerm, right: STerm) -> STerm:
+    """Build a binary operation AST node: (op left right)."""
+    return SApplication(SApplication(SVar(Name(op, 0)), left), right)
+
+
+def _squared(expr: STerm) -> STerm:
+    """Build expr * expr (squared error)."""
+    return _binop("*", expr, expr)
+
+
+def _parse_csv_rows(text: str) -> list[list[float]]:
+    """Parse CSV text into a list of rows of floats."""
+    # Handle escaped newlines from string literals
+    text = text.replace("\\n", "\n")
+    reader = csv.reader(io.StringIO(text.strip()))
+    rows = []
+    for row in reader:
+        if not row or all(cell.strip() == "" for cell in row):
+            continue
+        rows.append([float(cell.strip()) for cell in row])
+    return rows
+
+
+def _build_csv_fitness_body(rows: list[list[float]], fun_name: Name) -> STerm:
+    """Build the fitness body: sum of abs(f(x1,...,xn) - expected) for each row."""
+    assert len(rows) > 0, "CSV data must contain at least one row"
+    n_cols = len(rows[0])
+    assert n_cols >= 2, "CSV data must have at least 2 columns (inputs + expected output)"
+    for i, row in enumerate(rows):
+        assert len(row) == n_cols, f"CSV row {i} has {len(row)} columns, expected {n_cols}"
+
+    error_terms = []
+    for row in rows:
+        inputs = row[:-1]
+        expected = row[-1]
+
+        # Build f(x1)(x2)...(xn)
+        call: STerm = SVar(fun_name)
+        for val in inputs:
+            call = SApplication(call, SLiteral(val, st_float))
+
+        # (call - expected)^2
+        diff = _binop("-", call, SLiteral(expected, st_float))
+        error_terms.append(_squared(diff))
+
+    # Sum all error terms
+    total = error_terms[0]
+    for term in error_terms[1:]:
+        total = _binop("+", total, term)
+
+    return total
+
+
+def csv_data(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Decorator that accepts inline CSV data as a string.
+
+    Each row is a data point where the last column is the expected output
+    and preceding columns are function arguments. Minimizes sum of absolute errors.
+
+    Usage: @csv_data("1.0,2.0,3.0\\n4.0,5.0,12.0")
+    """
+    assert len(args) == 1, "csv_data decorator expects a single string argument"
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
+        "csv_data decorator expects a string literal"
+    )
+
+    rows = _parse_csv_rows(args[0].value)
+    body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
+    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+
+
+def csv_file(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Decorator that accepts a CSV filename.
+
+    Reads the file and behaves like csv_data: each row is a data point where
+    the last column is the expected output and preceding columns are function arguments.
+    Minimizes sum of absolute errors.
+
+    Usage: @csv_file("data.csv")
+    """
+    assert len(args) == 1, "csv_file decorator expects a single string argument"
+    assert isinstance(args[0], SLiteral) and isinstance(args[0].value, str), (
+        "csv_file decorator expects a string literal"
+    )
+
+    filename = args[0].value
+    with open(filename) as f:
+        text = f.read()
+
+    rows = _parse_csv_rows(text)
+    body = _build_csv_fitness_body(rows, fun.name)
+    current_data = metadata.get(fun.name, {}).get("training_data", [])
+    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
+    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+
+
+def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
+    """Try to extract a training data point from a minimize expression.
+
+    Looks for pattern: (fun_name(lit1)(lit2)...(litN)) - expected_lit
+    Returns [lit1, ..., litN, expected_lit] or None if pattern doesn't match.
+    """
+    # Check for (- lhs rhs) pattern
+    if not isinstance(expr, SApplication):
+        return None
+    if not isinstance(expr.fun, SApplication):
+        return None
+    minus_op = expr.fun.fun
+    if not isinstance(minus_op, SVar) or minus_op.name.name != "-":
+        return None
+
+    lhs = expr.fun.arg  # f(x1)(x2)...(xn)
+    rhs = expr.arg  # expected
+
+    # Extract expected value
+    if not isinstance(rhs, SLiteral) or not isinstance(rhs.value, (int, float)):
+        return None
+    expected = float(rhs.value)
+
+    # Extract function call arguments (built right-to-left via currying)
+    args: list[float] = []
+    current = lhs
+    while isinstance(current, SApplication):
+        arg = current.arg
+        if not isinstance(arg, SLiteral) or not isinstance(arg.value, (int, float)):
+            return None
+        args.append(float(arg.value))
+        current = current.fun
+
+    # Verify it's calling the right function
+    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+        return None
+
+    args.reverse()
+    return args + [expected]
+
+
+def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:
+    """If the expression matches f(args) - expected, store as training data."""
+    point = _extract_training_point(expr, fun.name)
+    if point is not None:
+        current_data = metadata.get(fun.name, {}).get("training_data", [])
+        metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
+    return metadata
+
+
+def minimize(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Minimize decorator that also extracts training data when possible.
+
+    Usage: @minimize(f(1.0, 2.0) - 3.0)
+
+    Creates a fitness goal (like minimize_float) and, if the expression matches
+    the pattern f(literal_args) - expected_literal, also stores a training data
+    point for the decision tree synthesizer.
+    """
+    assert len(args) == 1, "minimize decorator expects a single argument"
+    metadata = _store_training_point(args[0], fun, metadata)
+    return make_optimizer(args, fun, metadata, st_float, minimize=True)
+
+
+def maximize(
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Maximize decorator converted to minimize, also extracts training data.
+
+    Usage: @maximize(3.0 - f(1.0, 2.0))
+
+    Internally converts to minimizing the negated expression (0 - expr).
+    If the original expression matches the pattern f(literal_args) - expected_literal,
+    stores a training data point for the decision tree synthesizer.
+    """
+    assert len(args) == 1, "maximize decorator expects a single argument"
+    # Extract training data from the original expression
+    metadata = _store_training_point(args[0], fun, metadata)
+    # Convert maximize(expr) to minimize(0 - expr)
+    negated = _binop("-", SLiteral(0.0, st_float), args[0])
+    return make_optimizer([negated], fun, metadata, st_float, minimize=True)

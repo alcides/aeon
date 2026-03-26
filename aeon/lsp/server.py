@@ -109,7 +109,7 @@ class AeonLanguageServer(LanguageServer):
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
             await asyncio.sleep(ls.debounce_delay)
-            return []  # TODO
+            return []
 
         @self.feature(
             TEXT_DOCUMENT_CODE_ACTION,

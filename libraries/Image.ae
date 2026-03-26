@@ -70,10 +70,10 @@ def Image_diff (img : Image) (img2 : Image) : Float { native "__import__('aeon.b
 # returns: new image with rectangle drawn
 def Image_draw_rectangle
     (im:Image)
-    (x:{p:Int | p > 0 && p < Image_width im })
-    (y:{p:Int | p > 0 && p < Image_height im})
-    (width:{p:Int | p > 0 && x + p < Image_width im })
-    (height:{p:Int | p > 0 && y + p < Image_height im })
+    (x:{p:Int | p >= 0 && p <= Image_width im })
+    (y:{p:Int | p >= 0 && p <= Image_height im})
+    (width:{p:Int | p > 0 && x + p <= Image_width im })
+    (height:{p:Int | p > 0 && y + p <= Image_height im })
     (color:Color) :
     {rim:Image | (Image_width rim == Image_width im) && (Image_height rim == Image_height im) } {
         native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle(im, x, y, width, height, color)"

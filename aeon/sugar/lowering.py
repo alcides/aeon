@@ -17,13 +17,23 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
     Var,
     Hole,
 )
-from aeon.core.types import AbstractionType, RefinedType, Type, TypePolymorphism, Top, TypeVar, t_unit
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypePolymorphism,
+    Top,
+    TypeVar,
+    t_unit,
+)
 from aeon.elaboration.context import (
     ElabTypeDecl,
     ElabTypeVarBinder,
@@ -40,6 +50,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -49,6 +60,7 @@ from aeon.sugar.program import (
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -75,8 +87,11 @@ class LiquefactionException(LoweringException):
 
 
 # TODO: NOW! detect built-in SMT functions
-def liquefy_app(app: SApplication) -> LiquidApp | None:
-    arg = liquefy(app.arg)
+def liquefy_app(
+    app: SApplication,
+    available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None,
+) -> LiquidApp | LiquidHornApplication | None:
+    arg = liquefy(app.arg, available_vars)
     fun = app.fun
     while isinstance(fun, STypeApplication):
         fun = fun.body
@@ -86,14 +101,17 @@ def liquefy_app(app: SApplication) -> LiquidApp | None:
     match fun:
         case SVar(name):
             return LiquidApp(name, [arg], loc=app.loc)
+        case SHole(name, loc):
+            avars = available_vars or []
+            return LiquidHornApplication(name=name, argtypes=[(LiquidVar(x), ty) for (x, ty) in avars], loc=loc)
         case SApplication(_, _):
-            liquid_pseudo_fun = liquefy_app(fun)
-            if liquid_pseudo_fun:
+            liquid_pseudo_fun = liquefy_app(fun, available_vars)
+            if isinstance(liquid_pseudo_fun, LiquidApp):
                 return LiquidApp(liquid_pseudo_fun.fun, liquid_pseudo_fun.args + [arg], loc=app.loc)
             return None
         case SLet(name, val, body):
             app = SApplication(substitution_sterm_in_sterm(body, val, name), app.arg, loc=app.loc)
-            return liquefy_app(app)
+            return liquefy_app(app, available_vars)
         case _:
             raise LiquefactionException(f"{app} is not a valid predicate.")
 
@@ -130,10 +148,12 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             return None
         case STypeApplication(expr, _):
             return liquefy(expr, available_vars)
+        case SRefinementApplication(body, _):
+            return liquefy(body, available_vars)
         case STypeAbstraction(name, _, body):
             return liquefy(body, available_vars)
         case SApplication(_, _):
-            return liquefy_app(t)
+            return liquefy_app(t, available_vars)
         case SLet(name, val, body):
             lval = liquefy(val, available_vars)
             lbody = liquefy(body, available_vars)
@@ -187,6 +207,10 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
             return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
         case STypePolymorphism(name, kind, rty, loc):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return RefinementPolymorphism(
+                name, type_to_core(sort, available_vars), type_to_core(body, available_vars), loc=loc
+            )
         case SRefinedType(oname, ity, ref, loc):
             if oname.id == -1:
                 name = Name(oname.name, fresh_counter.fresh())
@@ -229,6 +253,8 @@ def lower_to_core(t: STerm) -> Term:
             return Abstraction(name, lower_to_core(body), loc=loc)
         case STypeApplication(expr, ty, loc):
             return TypeApplication(lower_to_core(expr), type_to_core(ty), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return RefinementApplication(lower_to_core(body), lower_to_core(refinement), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
         case _:

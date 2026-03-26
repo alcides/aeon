@@ -45,6 +45,8 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
+     | "forall" "<" ID ":" type "->" "Bool" ">" "," type   -> refinement_polymorphism_t
+     | ID "<" ID ">"                                       -> base_angle_refined_t
      | ID                                                  -> simple_t
      | "(" ID type+ ")"                                            -> constructor_t
      | "(" type ")"                                        -> same
@@ -57,6 +59,8 @@ expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
           | ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type "=" expression  ("in"|";") expression     -> rec_e
           | ID ":" type "=" expression  ("in"|";") expression     -> rec_e
+          | "let" ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
+          | ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | "if" expression "then" expression "else" expression    -> if_e
           | expression_un                                          -> same
 
@@ -91,6 +95,7 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
 application_t : application_t "[" type "]"                    -> type_application_e
+              | application_t "{" expression "}"              -> refinement_application_e
               | expression_simple                             -> same
 
 application : application expression_simple                  -> application_e

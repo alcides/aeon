@@ -4,6 +4,7 @@ from aeon.utils.name import Name
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
+from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypeConstructor
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
@@ -38,6 +39,12 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 else:
                     # TODO: polymorphism
                     # Right now we are ignoring lifting functions with polymorphism
+                    pass
+            case VariableBinder(name, RefinementPolymorphism(_, _, _)):
+                if name in ops:
+                    pass
+                else:
+                    # TODO: refinement polymorphism in entailment (like TypePolymorphism above)
                     pass
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)

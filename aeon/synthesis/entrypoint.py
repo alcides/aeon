@@ -122,7 +122,7 @@ def synthesize_holes(
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
 
-    program_holes = get_holes_info(ctx, term, top, targets)
+    program_holes = get_holes_info(ctx, term, top, targets, refined_types=True)
 
     mapping = {}
 
