@@ -1,5 +1,5 @@
 import pytest
-from lsprotocol.types import CodeAction, CodeActionKind, Command, MessageType, Position, Range
+from lsprotocol.types import CodeAction, CodeActionKind, Command, MessageType, Position, Range, ShowMessageParams
 
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.lsp.aeon_adapter import HolePosition, ParseResult, find_holes_in_source
@@ -44,8 +44,8 @@ class MockLS:
         self.workspace = MockWorkspace(source)
         self.messages: list[tuple[str, MessageType]] = []
 
-    def window_show_message(self, msg: str, msg_type: MessageType) -> None:
-        self.messages.append((msg, msg_type))
+    def window_show_message(self, params: ShowMessageParams) -> None:
+        self.messages.append((params.message, params.type))
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ from lsprotocol.types import (
     Diagnostic,
     MessageType,
     PublishDiagnosticsParams,
+    ShowMessageParams,
     Range,
     TextEdit,
     WorkspaceEdit,
@@ -159,7 +160,7 @@ class AeonLanguageServer(LanguageServer):
                     lambda: _run_synthesis(ls.aeon_driver, ls, uri, hole_name_str, synthesizer_name),
                 )
             except Exception as e:
-                ls.window_show_message(f"Synthesis error: {e}", MessageType.Error)
+                ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis error: {e}"))
                 return
 
             if result is None:
@@ -169,7 +170,9 @@ class AeonLanguageServer(LanguageServer):
             edit = TextEdit(range=hole_range, new_text=synthesized_str)
             workspace_edit = WorkspaceEdit(changes={uri: [edit]})
             ls.workspace_apply_edit(ApplyWorkspaceEditParams(edit=workspace_edit))
-            ls.window_show_message(f"Synthesized ?{hole_name_str} = {synthesized_str}", MessageType.Info)
+            ls.window_show_message(
+                ShowMessageParams(type=MessageType.Info, message=f"Synthesized ?{hole_name_str} = {synthesized_str}")
+            )
 
 
 def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_name_str: str, synthesizer_name: str):
@@ -187,28 +190,38 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
     try:
         errors = list(driver.parse(filename=uri, aeon_code=source))
     except Exception as e:
-        ls.window_show_message(f"Cannot synthesize: parse failed ({e})", MessageType.Error)
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: parse failed ({e})")
+        )
         return None
     if errors:
-        ls.window_show_message(f"Cannot synthesize: file has {len(errors)} error(s)", MessageType.Error)
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: file has {len(errors)} error(s)")
+        )
         return None
 
     if not driver.has_synth():
-        ls.window_show_message("No holes found in file", MessageType.Info)
+        ls.window_show_message(ShowMessageParams(type=MessageType.Info, message="No holes found in file"))
         return None
 
     targets = [(fn, holes) for fn, holes in driver.incomplete_functions if any(h.name == hole_name_str for h in holes)]
 
     if not targets:
-        ls.window_show_message(f"Hole ?{hole_name_str} not found or not synthesizable", MessageType.Warning)
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Warning, message=f"Hole ?{hole_name_str} not found or not synthesizable")
+        )
         return None
 
-    ls.window_show_message(f"Synthesizing ?{hole_name_str} with {synthesizer_name}...", MessageType.Info)
+    ls.window_show_message(
+        ShowMessageParams(type=MessageType.Info, message=f"Synthesizing ?{hole_name_str} with {synthesizer_name}...")
+    )
 
     try:
         synthesizer = make_synthesizer(synthesizer_name)
     except AssertionError:
-        ls.window_show_message(f"Unknown synthesizer: {synthesizer_name}", MessageType.Error)
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Unknown synthesizer: {synthesizer_name}")
+        )
         return None
 
     ui = SilentSynthesisUI()
@@ -224,7 +237,7 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
             ui=ui,
         )
     except Exception as e:
-        ls.window_show_message(f"Synthesis failed: {e}", MessageType.Error)
+        ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis failed: {e}"))
         return None
 
     for hole_name, term in mapping.items():
@@ -238,10 +251,14 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
                 None,
             )
             if hole_range is None:
-                ls.window_show_message(f"Could not locate ?{hole_name_str} in source", MessageType.Error)
+                ls.window_show_message(
+                    ShowMessageParams(type=MessageType.Error, message=f"Could not locate ?{hole_name_str} in source")
+                )
                 return None
 
             return synthesized_str, hole_range
 
-    ls.window_show_message(f"No solution found for ?{hole_name_str}", MessageType.Warning)
+    ls.window_show_message(
+        ShowMessageParams(type=MessageType.Warning, message=f"No solution found for ?{hole_name_str}")
+    )
     return None
