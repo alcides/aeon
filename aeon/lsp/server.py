@@ -146,7 +146,7 @@ class AeonLanguageServer(LanguageServer):
             return actions
 
         @self.command(SYNTHESIZE_COMMAND)
-        async def execute_command(
+        async def execute_synthesize(
             ls: AeonLanguageServer,
             params: ExecuteCommandParams,
         ) -> None:
