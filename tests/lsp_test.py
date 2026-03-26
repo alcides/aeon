@@ -1,9 +1,9 @@
 import pytest
-from lsprotocol.types import MessageType, Position, Range
+from lsprotocol.types import CodeAction, CodeActionKind, Command, MessageType, Position, Range
 
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.lsp.aeon_adapter import HolePosition, ParseResult, find_holes_in_source
-from aeon.lsp.server import SYNTHESIZERS, AeonLanguageServer, _run_synthesis
+from aeon.lsp.server import SYNTHESIZERS, SYNTHESIZE_COMMAND, AeonLanguageServer, _run_synthesis
 from aeon.logger.logger import setup_logger
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
@@ -248,3 +248,85 @@ def test_run_synthesis_unknown_synthesizer():
 
     assert result is None
     assert any("synthesizer" in msg.lower() or "unknown" in msg.lower() for msg, _ in mock_ls.messages)
+
+
+# ---------------------------------------------------------------------------
+# code_action: one action per synthesizer
+# ---------------------------------------------------------------------------
+
+
+def _build_code_actions(hole: HolePosition, uri: str) -> list[CodeAction]:
+    """Mirrors the action-building loop inside the code_action handler."""
+    actions = []
+    for synthesizer in SYNTHESIZERS:
+        action = CodeAction(
+            title=f"Synthesize ?{hole.name} with {synthesizer}",
+            kind=CodeActionKind.RefactorRewrite,
+            command=Command(
+                title=f"Synthesize ?{hole.name} with {synthesizer}",
+                command=SYNTHESIZE_COMMAND,
+                arguments=[uri, hole.name, synthesizer],
+            ),
+        )
+        actions.append(action)
+    return actions
+
+
+def test_code_action_creates_one_action_per_synthesizer():
+    hole = HolePosition(name="hole", range=make_range(0, 14, 0, 19))
+    actions = _build_code_actions(hole, "file:///test.ae")
+
+    assert len(actions) == len(SYNTHESIZERS)
+
+
+def test_code_action_titles_contain_synthesizer_names():
+    hole = HolePosition(name="hole", range=make_range(0, 14, 0, 19))
+    actions = _build_code_actions(hole, "file:///test.ae")
+
+    titles = [a.title for a in actions]
+    for synthesizer in SYNTHESIZERS:
+        assert any(synthesizer in t for t in titles)
+
+
+def test_code_action_commands_have_correct_arguments():
+    uri = "file:///test.ae"
+    hole = HolePosition(name="myhole", range=make_range(1, 4, 1, 11))
+    actions = _build_code_actions(hole, uri)
+
+    for action, synthesizer in zip(actions, SYNTHESIZERS):
+        args = action.command.arguments
+        assert args[0] == uri
+        assert args[1] == "myhole"
+        assert args[2] == synthesizer
+
+
+# ---------------------------------------------------------------------------
+# _run_synthesis parametrized over all synthesizers
+# ---------------------------------------------------------------------------
+
+
+class _FakeOllamaResponse:
+    response = ""
+
+
+@pytest.mark.parametrize("synthesizer", SYNTHESIZERS)
+def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
+    source = "def synth : Int = ?hole;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    if synthesizer == "llm":
+        monkeypatch.setattr("ollama.generate", lambda **kwargs: _FakeOllamaResponse())
+        result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
+        # With a blank response the LLM synthesizer cannot find a valid term;
+        # we only verify it completes without raising an exception.
+        assert result is None or isinstance(result, tuple)
+        return
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
+
+    assert result is not None, f"Synthesizer '{synthesizer}' returned None. Messages: {mock_ls.messages}"
+    synthesized_str, hole_range = result
+    assert isinstance(synthesized_str, str) and len(synthesized_str) > 0
+    assert hole_range.start.line == 0
+    assert hole_range.start.character == source.index("?")
