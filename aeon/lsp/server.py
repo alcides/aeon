@@ -7,7 +7,6 @@ from lsprotocol.types import (
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
-    WORKSPACE_EXECUTE_COMMAND,
     ApplyWorkspaceEditParams,
     CodeAction,
     CodeActionKind,
@@ -21,7 +20,6 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
-    ExecuteCommandOptions,
     ExecuteCommandParams,
     MessageType,
     PublishDiagnosticsParams,
@@ -147,17 +145,11 @@ class AeonLanguageServer(LanguageServer):
                     actions.append(action)
             return actions
 
-        @self.feature(
-            WORKSPACE_EXECUTE_COMMAND,
-            ExecuteCommandOptions(commands=[SYNTHESIZE_COMMAND]),
-        )
+        @self.command(SYNTHESIZE_COMMAND)
         async def execute_command(
             ls: AeonLanguageServer,
             params: ExecuteCommandParams,
         ) -> None:
-            if params.command != SYNTHESIZE_COMMAND:
-                return
-
             args = params.arguments or []
             if len(args) < 3:
                 ls.show_message("aeon.synthesize requires [uri, hole_name, synthesizer]", MessageType.Error)
