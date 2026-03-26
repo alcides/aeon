@@ -62,6 +62,17 @@ class STypePolymorphism(SType):
         return f"∀{self.name}:{self.kind}. {self.body}"
 
 
+@dataclass(unsafe_hash=True)
+class SRefinementPolymorphism(SType):
+    name: Name
+    sort: SType
+    body: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"∀<{self.name}:{self.sort} -> Bool>. {self.body}"
+
+
 @dataclass
 class STypeConstructor(SType):
     name: Name
@@ -89,6 +100,8 @@ def get_type_vars(ty: SType) -> set[STypeVar]:
             return get_type_vars(rty)
         case STypePolymorphism(name, _, body):
             return {t1 for t1 in get_type_vars(body) if t1.name != name}
+        case SRefinementPolymorphism(name, _, body):
+            return get_type_vars(body)
         case STypeConstructor(name, args):
             return reduce(lambda acc, v: acc.union(get_type_vars(v)), args, set())
         case _:

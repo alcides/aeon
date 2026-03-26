@@ -6,6 +6,7 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
@@ -84,6 +85,10 @@ class ANFConverter:
             case TypeApplication(body=body, type=type, loc=loc):
                 body = self.convert(body)
                 return TypeApplication(body, type, loc=loc)
+            case RefinementApplication(body=body, refinement=refinement, loc=loc):
+                body = self.convert(body)
+                refinement = self.convert(refinement)
+                return RefinementApplication(body, refinement, loc=loc)
             case _:
                 return t
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -36,6 +37,8 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
                 return ty
             else:
                 return STypePolymorphism(name, kind, rec(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
             return STypeConstructor(name, [rec(a) for a in args], loc=loc)
         case _:
@@ -66,6 +69,8 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
                 return ty
             else:
                 return STypePolymorphism(name, kind, rec(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
             return STypeConstructor(name, [rec(a) for a in args], loc=loc)
         case _:
