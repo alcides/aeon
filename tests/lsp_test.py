@@ -44,7 +44,7 @@ class MockLS:
         self.workspace = MockWorkspace(source)
         self.messages: list[tuple[str, MessageType]] = []
 
-    def show_message(self, msg: str, msg_type: MessageType) -> None:
+    def window_show_message(self, msg: str, msg_type: MessageType) -> None:
         self.messages.append((msg, msg_type))
 
 
