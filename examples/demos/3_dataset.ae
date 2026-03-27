@@ -7,3 +7,5 @@ def training_multinomial_nb (filename: String) : Model {
     let test_set = Learning_split_dataset_testing balanced_df 0.7 in
     Learning_train_multinomial_nb train_set
 }
+
+# https://people.csail.mit.edu/jrennie/papers/icml03-nb.pdf

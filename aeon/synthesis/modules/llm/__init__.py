@@ -59,7 +59,7 @@ class LLMSynthesizer(Synthesizer):
 
         system_prompt = (
             "Please generate a candidate expression for the problem defined after the word PROBLEM."
-            f"The candidate expression should be an expression of type {type}, and"
+            f"The candidate expression should be an expression of type {type}, and "
             "be written in the aeon programming language."
             "Aeon is a functional programming language, with a syntax very similar to Haskell, but with colons like ML."
             "Aeon has first-class refinement types, but unlike LiquidHaskell, those are not presented as comments, but rather directly in types."
@@ -67,7 +67,8 @@ class LLMSynthesizer(Synthesizer):
             "Presente the expression as you would enter it in an interpreter, without top-level declarations or type annotations."
             f"In the expression, you can use the following variables: {var_description}"
             "\n"
-            "\nPROBLEM:"
+            "================"
+            "\nPROBLEM:```"
         )
         core_term: Term = Hole(Name("sorry", -1))
         best_quality = None
@@ -81,7 +82,7 @@ class LLMSynthesizer(Synthesizer):
         temperature = 0.0
         while get_elapsed_time(start_time) <= budget:
             result = generate(
-                model="qwen2.5:32b", prompt=f"{system_prompt}\n{prompt}```", options={"temperature": temperature}
+                model="qwen2.5:32b", prompt=f"{system_prompt}\n{prompt}", options={"temperature": temperature}
             )
             r = result.response
             try:
@@ -103,5 +104,5 @@ class LLMSynthesizer(Synthesizer):
                     ui.register(core_tterm, None, time, False)
 
             except Exception:
-                temperature += 0.1
+                temperature += 0.2
         return core_term

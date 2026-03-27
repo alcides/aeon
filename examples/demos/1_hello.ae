@@ -14,3 +14,42 @@ def main (index:Int) : Unit {
     else
         print "error"
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# pindex = Math_abs index;
+    # if pindex < length then
+    #     readIndex pindex
+    # else
+    #     print "error"
