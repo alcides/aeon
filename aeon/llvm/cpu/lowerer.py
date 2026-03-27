@@ -255,33 +255,15 @@ class CPUFullApplicationValidationStep(ValidationStep):
         assert isinstance(ctx, CPUValidationContext)
         match t:
             case Application(fun, arg):
-                args = [arg]
-                current_fun = fun
-                while isinstance(current_fun, Application):
-                    args.append(current_fun.arg)
-                    current_fun = current_fun.fun
+                arguments = [arg]
+                base_function = fun
+                while isinstance(base_function, Application):
+                    arguments.append(base_function.arg)
+                    base_function = base_function.fun
 
-                target_type: LLVMType | None = None
-                if isinstance(current_fun, Var):
-                    name = current_fun.name.name
-                    if name in BINARY_OPS or name in UNARY_OPS:
-                        target_type = get_builtin_op_type(name)
-                    else:
-                        target_type = ctx.type_env.get(current_fun.name)
-                elif isinstance(current_fun, Annotation):
-                    target_type = from_type_to_llvm_type(current_fun.type)
-
-                if isinstance(target_type, LLVMFunctionType):
-                    if len(args) != len(target_type.arg_types):
-                        raise LLVMValidationError(
-                            f"Function application of {current_fun} is not fully applied. "
-                            f"Expected {len(target_type.arg_types)} arguments, got {len(args)}. "
-                            f"LLVM backend requires full application."
-                        )
-
-                for a in args:
+                for a in arguments:
                     self.validate(a, replace(ctx, is_top_level=False))
-                self.validate(current_fun, replace(ctx, is_top_level=False))
+                self.validate(base_function, replace(ctx, is_top_level=False))
 
             case Let(var_name, var_value, body):
                 llvm_var_type: LLVMType = LLVMInt
@@ -289,6 +271,8 @@ class CPUFullApplicationValidationStep(ValidationStep):
                     llvm_var_type = from_type_to_llvm_type(var_value.type)
                 elif isinstance(var_value, Rec):
                     llvm_var_type = from_type_to_llvm_type(var_value.var_type)
+                elif isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
+                    llvm_var_type = get_builtin_op_type(var_value.name.name)
 
                 new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False)
                 self.validate(var_value, replace(ctx, is_top_level=False))
@@ -320,6 +304,33 @@ class CPUFullApplicationValidationStep(ValidationStep):
 class CPULLVMLowerer(LLVMLowerer):
     def get_validation_steps(self) -> List[ValidationStep]:
         return [CPUTypeValidationStep(), CPUFunctionCallValidationStep(), CPUFullApplicationValidationStep()]
+
+    def _uncurry_application(self, application: Application) -> tuple[Term, List[Term]]:
+        arguments = [application.arg]
+        base_function = application.fun
+        while isinstance(base_function, Application):
+            arguments.append(base_function.arg)
+            base_function = base_function.fun
+        arguments.reverse()
+        return base_function, arguments
+
+    def _get_operator_type(self, op_name: str, expected_type: LLVMType | None) -> LLVMFunctionType:
+        is_float = False
+        if expected_type:
+            if isinstance(expected_type, LLVMFunctionType):
+                is_float = any(isinstance(ty, LLVMFloatType) for ty in expected_type.arg_types)
+            elif isinstance(expected_type, LLVMFloatType):
+                is_float = True
+        return get_builtin_op_type(op_name, is_float)
+
+    def _is_inlinable_anf(self, var_name: Name, llvm_value: LLVMTerm) -> bool:
+        if not var_name.name.startswith("anf"):
+            return False
+        is_partial_call = isinstance(llvm_value, LLVMCall) and isinstance(llvm_value.type, LLVMFunctionType)
+        is_operator = isinstance(llvm_value, LLVMVar) and (
+            llvm_value.name.name in BINARY_OPS or llvm_value.name.name in UNARY_OPS
+        )
+        return is_partial_call or is_operator
 
     def lower(
         self,
