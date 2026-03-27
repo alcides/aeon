@@ -33,6 +33,7 @@ from aeon.sugar.stypes import SAbstractionType, SType, STypePolymorphism, builti
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name
 from aeon.sugar.ast_helpers import st_int, st_string
+from aeon.sugar.implicit_refinement_quant import add_implicit_refinement_polymorphism
 
 from aeon.sugar.stypes import STypeVar
 from aeon.facade.api import ImportError
@@ -265,6 +266,7 @@ def replace_concrete_types(
 
 
 def type_of_definition(d: Definition) -> SType:
+    """Curried argument types, definition-level type foralls, then implicit refinement foralls."""
     match d:
         case Definition(_, foralls, args, rtype, _, _, loc):
             ntype = rtype
@@ -272,21 +274,19 @@ def type_of_definition(d: Definition) -> SType:
                 ntype = SAbstractionType(name, atype, ntype, loc)
             for name, kind in reversed(foralls):
                 ntype = STypePolymorphism(name, kind, ntype, loc)
-            return ntype
+            return add_implicit_refinement_polymorphism(ntype)
         case _:
             assert False, f"{d} is not a definition"
 
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
     match d:
-        case Definition(dname, foralls, args, rtype, body, _, loc):
-            ntype = rtype
+        case Definition(dname, foralls, args, _, body, _, loc):
+            ntype = type_of_definition(d)
             nbody = body
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc=loc)
+            for name, _ in reversed(args):
                 nbody = SAbstraction(name, nbody, loc=loc)
             for name, kind in reversed(foralls):
-                ntype = STypePolymorphism(name, kind, ntype, loc=loc)
                 nbody = STypeAbstraction(name, kind, nbody, loc=loc)
             return SRec(dname, ntype, nbody, prog, loc=loc)
         case _:
