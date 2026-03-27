@@ -244,6 +244,7 @@ class CPULLVMLowerer(LLVMLowerer):
                     lowered_base_function.type, LLVMFunctionType
                 )
                 if is_partial_application:
+                    assert isinstance(lowered_base_function, LLVMCall)
                     function_target = lowered_base_function.target
                     previously_applied_args = lowered_base_function.args
                     full_function_type = function_target.type
@@ -252,7 +253,9 @@ class CPULLVMLowerer(LLVMLowerer):
                     previously_applied_args = []
                     full_function_type = lowered_base_function.type
 
+                assert isinstance(full_function_type, LLVMFunctionType)
                 all_lowered_args = previously_applied_args.copy()
+
                 for arg in application_args:
                     arg_index = len(all_lowered_args)
                     expected_arg_type = full_function_type.arg_types[arg_index]
