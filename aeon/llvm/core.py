@@ -49,7 +49,7 @@ class LLVMLowerer(ABC):
 
 class LLVMIRGenerator(ABC):
     @abstractmethod
-    def generate(self, backend_ast: LLVMTerm) -> str:
+    def generate_kernels(self, kernels: List[LLVMTerm]) -> str:
         pass
 
 
