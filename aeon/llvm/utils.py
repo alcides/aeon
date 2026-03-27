@@ -40,19 +40,26 @@ def validate_type(ty: Type):
             pass
 
 
-def get_builtin_op_type(op: str) -> LLVMFunctionType:
+def get_builtin_op_type(op: str, is_float: bool = False) -> LLVMFunctionType:
     if op in BINARY_OPS:
         if op in {"==", "!=", "<", "<=", ">", ">="}:
-            return LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMBool)
+            return LLVMFunctionType(
+                arg_types=[LLVMFloat if is_float else LLVMInt, LLVMFloat if is_float else LLVMInt], return_type=LLVMBool
+            )
         elif op in {"&&", "||"}:
             return LLVMFunctionType(arg_types=[LLVMBool, LLVMBool], return_type=LLVMBool)
         else:
-            return LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMInt)
+            return LLVMFunctionType(
+                arg_types=[LLVMFloat if is_float else LLVMInt, LLVMFloat if is_float else LLVMInt],
+                return_type=LLVMFloat if is_float else LLVMInt,
+            )
     elif op in UNARY_OPS:
         if op == "!":
             return LLVMFunctionType(arg_types=[LLVMBool], return_type=LLVMBool)
         else:
-            return LLVMFunctionType(arg_types=[LLVMInt], return_type=LLVMInt)
+            return LLVMFunctionType(
+                arg_types=[LLVMFloat if is_float else LLVMInt], return_type=LLVMFloat if is_float else LLVMInt
+            )
     raise LLVMValidationError(f"Unknown operator {op}")
 
 
