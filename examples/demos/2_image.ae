@@ -1,7 +1,7 @@
 import "Image.ae";
 
 
-def generate_image (steps:Int) : Image {
+def main (steps:Int) : Image {
     white : Color = Color_mk 255 255 255;
     green : Color = Color_mk 0 255 0;
     image0 = Image_mk 64 64 white;
