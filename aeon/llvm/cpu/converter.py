@@ -146,7 +146,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
                         self.env[str_arg_name] = func.args[i]
 
                     return_val = self._generate(val.body, False)
-
+                    assert isinstance(val.type, LLVMFunctionType)
                     if isinstance(val.type.return_type, LLVMVoidType):
                         self.builder.ret_void()
                     else:
