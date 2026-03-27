@@ -16,13 +16,9 @@ There are other languages with Liquid Types, such as [LiquidHaskell](https://ucs
 
 Aeon is implemented as an interpreter written in Python. Despite being slow, it allows us to design [FFI interfaces](#FFI) with Python, supporting the vast ecosystem that Python offers (from numpy to sklearn or tensorflow).
 
-To install aeon, you can just run
+Aeon can be executed directly from PyPI using [uvx](https://github.com/astral-sh/uv):
 
-`pipx install "aeon @ https://github.com/alcides/aeon/archive/master.zip"`
-
-To execute aeon, you can just pass it the name of the file you want to run (file.ae):
-
-`aeon file.ae`
+`uvx --from aeonlang aeon file.ae`
 
 ## Hello World
 
@@ -62,20 +58,18 @@ Aeon supports most operators that exist in mainstream languages.
 ```
 let a = 1;
 let b = a + (b * (c / d));
-let c = (a == 1) || ((b => 2) && (a > b));
+let c = (a == 1) || ((b >= 2) && (a > b));
 let d = if a == 1 then 2 else 2;
 let e = Math_max 2 5; # function application uses spaces.
-True
+true
 ```
 
-Operators for floats have their own syntax, like in OCam:
+Arithmetic operators work on both integers and floats:
 
 ```
 let a = 1.0 + 2.0;
 let a = 1.0 - 2.0;
 ```
-
-> Float-specific operators are temporary and will be removed once polymorphism support is complete.
 
 ## Functions
 
@@ -93,11 +87,12 @@ The above top-level definitions are equal to each-other. The first version defin
 
 ## Types
 
-Types in Aeon can be very expressive:
+Types in Aeon can be very expressive. In refined types, `where` can be used interchangeably with `|`:
 
 ```
 let x : Int = 1;
-let y : {z:Int | z > >} = 2; # 0 would raise a type error!
+let y : {z:Int | z > 0} = 2; # 0 would raise a type error!
+let w : {z:Int where z > 0} = 2; # equivalent to the above
 
 def plus (x:Int | x > 0) (y:Int | y > 0) : {z:Int | z > x && z > y} {
     x + y
@@ -115,9 +110,29 @@ Currently, Aeon allows to include other files in the current file, similarly to 
 import "otherfile.ae";
 ```
 
+You can also import a specific function from a file:
+
+```
+import myFunction from "otherfile.ae";
+```
+
 ## Polymorphism
 
-Polymorphism is under development. Stay tuned.
+Aeon supports parametric polymorphism using `forall`:
+
+```
+def id : forall t : B, (x : t) -> t = Λ t : B => \x -> x;
+```
+
+The kind `B` represents base types, and `*` represents all types. Type abstraction is introduced with `Λ` (capital lambda) and `=>`.
+
+Aeon also supports refinement polymorphism, allowing a refinement predicate to be abstracted over:
+
+```
+def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \x -> x;
+```
+
+Here, `<p : t -> Bool>` abstracts over a predicate on type `t`, and `t<p>` applies that predicate as a refinement.
 
 <a name="FFI"></a>
 
@@ -146,9 +161,18 @@ Using native allows you to convert any Python expression in a string to an Aeon 
 There are a few libraries available, but unstable as they are under development:
 
 - Image.ae
+- Learning.ae
 - List.ae
+- Map.ae
 - Math.ae
+- Plot.ae
+- PropTesting.ae
+- PSB2.ae
+- Random.ae
+- Set.ae
+- Statistics.ae
 - String.ae
+- Table.ae
 - Tuple.ae
 
 ## Command-line options
@@ -158,6 +182,16 @@ There are a few libraries available, but unstable as they are under development:
 |     -d | Prints debug information                                                      |
 |     -t | Prints timing information about the different steps of the compiler           |
 | --core | Parses the input file as being the Core language, instead of the surface aeon |
+| -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
+| -f, --logfile | Exports the log to a file                                              |
+| -n, --no-main | Disables introducing hole in main                                     |
+| -s, --synthesizer | Selects a synthesizer (gp, synquid, random_search, enumerative, hc, 1p1) |
+| --synthesis-format | Selects the output format for synthesized holes (default, json)      |
+| --budget | Time budget for synthesis in seconds (default: 60)                          |
+| --format | Prints a pretty-printed version of the code to stdout                       |
+| --fix | Reformats the source file in place using the pretty printer                    |
+| -lsp, --language-server-mode | Runs aeon in Language Server Protocol mode               |
+| --tcp | Specifies the TCP port or hostname:port for the LSP server                     |
 
 ## Synthesis
 
@@ -171,13 +205,35 @@ def fun (i:Int | i > 0) : (j:Int | j > i) {
 
 This function is incomplete: there is a hole in the program (`?todo`) name todo. If you run this program, the compiler will try to search for an expression to replace the hole with, that has the proper type.
 
-Because liquid types are limited, you can define your target function:
+Because liquid types are limited, you can define your target function using decorators. The following decorators are available for guiding synthesis:
+
+### Optimization decorators
 
 ```
-@minimize(fun 3 + fun 5)
-def fun (i:Int | i > 0) : (j:Int | j > i) {
-    (?todo : Int)
+@minimize(fun 3.0 - 5.0)
+def fun (i:Int | i > 0) : Float {
+    (?todo : Float)
 }
 ```
 
-The minimize decorator will define that the goal of this function is to minimize the sum of `fun 3` and `fun 5`. This allows developers to define targets for their functions, and let the compiler discover proper programs.
+- `@minimize(expr)` — minimize the given expression, also extracts training data when the expression matches `f(args) - expected`
+- `@maximize(expr)` — maximize the given expression (internally converted to minimization)
+- `@minimize_int(expr)` — minimize an integer expression
+- `@maximize_int(expr)` — maximize an integer expression
+- `@minimize_float(expr)` — minimize a float expression
+- `@maximize_float(expr)` — maximize a float expression
+- `@multi_minimize_float(expr)` — multi-objective float minimization
+
+### Data-driven decorators
+
+- `@csv_data("1.0,2.0,3.0\n4.0,5.0,12.0")` — provide inline CSV training data (last column is expected output)
+- `@csv_file("data.csv")` — load training data from a CSV file
+
+### Synthesis control decorators
+
+- `@allow_recursion` — allow recursion during synthesis
+- `@disable_control_flow` — disable control flow grammar nodes during synthesis
+- `@hide(var1, var2)` — exclude specific variables from the synthesis grammar
+- `@hide_types(type1, type2)` — exclude specific types from the synthesis grammar
+- `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
+- `@prompt("description")` — provide a prompt for LLM-based synthesis
