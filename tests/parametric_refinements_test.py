@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 
@@ -7,7 +8,7 @@ from tests.driver import check_compile
 # id – explicit + implicit refinement application, mismatches, bool, equality
 # ---------------------------------------------------------------------------
 
-ID_DEF = "def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \\x -> x;"
+ID_DEF = "def id : (x : t<p>) -> t<p> = \\x -> x;"
 
 
 def test_id_explicit_and_implicit_int_predicate():
@@ -81,10 +82,8 @@ def main (args:Int) : Unit {{
 # const
 # ---------------------------------------------------------------------------
 
-CONST_DEF = (
-    "def const : forall t : B, forall <p : t -> Bool>,"
-    " (x : t | p x) -> (y : t) -> {v : t | p v} = Λ t : B => \\x -> \\y -> x;"
-)
+
+CONST_DEF = "def const : (x : t | p x) -> (y : t) -> {v : t | p v} = \\x -> \\y -> x;"
 
 
 def test_const_propagates_first_argument_predicate():
@@ -216,11 +215,7 @@ def main (args:Int) : Unit {{
 # maxI – Int-only refinement polymorphism, max preserves predicate p
 # ---------------------------------------------------------------------------
 
-MAXI_DEF = (
-    "def maxI : forall <p : Int -> Bool>, "
-    "(x : Int<p>) -> (y : Int<p>) -> Int<p> = "
-    "\\x -> \\y -> if x < y then y else x;"
-)
+MAXI_DEF = "def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> = \\x -> \\y -> if x < y then y else x;"
 
 
 def test_maxI_implicit_predicate():
