@@ -1,0 +1,33 @@
+type Vector;
+
+def Vector_new : Vector = native "[]";
+
+def Vector_append (v:Vector) (x:a) : Vector { native "v + [x]" }
+
+def Vector_get (v:Vector) (i:Int) : a { native "v[i]" }
+
+def Vector_set (v:Vector) (i:Int) (x:a) : Vector { native "(v.__setitem__(i, x) or v)" }
+
+def Vector_map (f:(x:a) -> b) (v:Vector) (size:Int) : Vector {
+    native "list(map(f, v))"
+}
+
+def Vector_reduce (f:(acc:b) -> (x:a) -> b) (initial:b) (v:Vector) (size:Int) : b {
+    native "__import__('functools').reduce(lambda x, y: f(x)(y), v, initial)"
+}
+
+def Vector_imap (f:(i:Int) -> (x:a) -> b) (v:Vector) (size:Int) : Vector {
+    native "[f(i)(x) for i, x in enumerate(v)]"
+}
+
+def Vector_filter (f:(x:a) -> Bool) (v:Vector) (size:Int) : Vector {
+    native "list(filter(f, v))"
+}
+
+def Vector_zipWith (f:(x:a) -> (y:b) -> c) (v1:Vector) (v2:Vector) (size:Int) : Vector {
+    native "[f(x)(y) for x, y in zip(v1, v2)]"
+}
+
+def Vector_count (f:(x:a) -> Bool) (v:Vector) (size:Int) : Int {
+    native "len(list(filter(f, v)))"
+}
