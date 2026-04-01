@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type
+from aeon.utils.name import Name
 from aeon.llvm.core import LLVMValidationError
 from aeon.llvm.llvm_ast import (
     LLVMType,
@@ -12,6 +13,8 @@ from aeon.llvm.llvm_ast import (
     LLVMVoid,
     LLVMLong,
     LLVMFunctionType,
+    LLVMVectorInt,
+    LLVMPointerType,
 )
 
 SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit"}
@@ -24,6 +27,16 @@ def validate_ops(op: str):
         return
     if op not in BINARY_OPS and op not in UNARY_OPS:
         raise LLVMValidationError(f"LLVM Backend does not support operation {op}")
+
+
+def sanitize_name(name: Name | str) -> str:
+    if isinstance(name, Name):
+        name_str = name.name
+        if name.id != -1 and name.id != 0:
+            name_str = f"{name_str}_{name.id}"
+    else:
+        name_str = str(name)
+    return name_str.replace(".", "_").replace("-", "_").replace(" ", "_")
 
 
 def validate_type(ty: Type):
@@ -74,7 +87,7 @@ def from_type_to_llvm_type(ty: Type) -> LLVMType:
                 arg_types.append(from_type_to_llvm_type(curr.var_type))
                 curr = curr.type
             return LLVMFunctionType(arg_types=arg_types, return_type=from_type_to_llvm_type(curr))
-        case TypeConstructor(name, _):
+        case TypeConstructor(name, args):
             match name.name:
                 case "Int":
                     return LLVMInt
@@ -90,6 +103,11 @@ def from_type_to_llvm_type(ty: Type) -> LLVMType:
                     return LLVMChar
                 case "Unit":
                     return LLVMVoid
+                case "Vector":
+                    if args:
+                        element_type = from_type_to_llvm_type(args[0])
+                        return LLVMPointerType(element_type)
+                    return LLVMVectorInt
                 case _:
                     return LLVMInt
         case _:
