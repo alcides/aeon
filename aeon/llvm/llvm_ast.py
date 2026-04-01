@@ -88,6 +88,24 @@ class LLVMAddressSpace(IntEnum):
 
 
 @dataclass(frozen=True)
+class LLVMPointerType(LLVMType):
+    element_type: LLVMType
+    address_space: LLVMAddressSpace = LLVMAddressSpace.GENERIC
+
+    def __str__(self):
+        return f"{self.element_type}*"
+
+
+@dataclass(frozen=True)
+class LLVMArrayType(LLVMType):
+    element_type: LLVMType
+    size: int | None = None
+
+    def __str__(self):
+        return f"[{self.size if self.size is not None else 0} x {self.element_type}]"
+
+
+@dataclass(frozen=True)
 class LLVMFunctionType(LLVMType):
     arg_types: list[LLVMType]
     return_type: LLVMType
@@ -231,8 +249,8 @@ class LLVMFunction(LLVMTerm):
         return visitor.visit_function(self)
 
     def __str__(self):
-        args_formatted = ", ".join(f"%{n}: {t}" for n, t in zip(self.arg_names, self.arg_types))
-        return f"lambda({args_formatted}) -> {self.type} {{\n  {self.body}\n}}"
+        args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
+        return f"\\{args} -> {self.body}"
 
 
 @dataclass
