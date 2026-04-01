@@ -1,7 +1,7 @@
 from aeon.core.terms import Literal, Application, Var, Abstraction
 from aeon.core.types import t_int
 from aeon.llvm.cpu.lowerer import CPULLVMLowerer
-from aeon.llvm.llvm_ast import LLVMFunctionType, LLVMInt, LLVMCall, LLVMAbstraction, LLVMLiteral
+from aeon.llvm.llvm_ast import LLVMFunctionType, LLVMInt, LLVMCall, LLVMFunction, LLVMLiteral
 from aeon.utils.name import Name
 
 
@@ -45,7 +45,7 @@ def test_lower_abstraction_full():
     expected_type = LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt)
     llvm_abs = lowerer.lower(func, expected_type=expected_type)
 
-    assert isinstance(llvm_abs, LLVMAbstraction)
+    assert isinstance(llvm_abs, LLVMFunction)
     assert llvm_abs.arg_names == [Name("x"), Name("y")]
     assert llvm_abs.arg_types == [LLVMInt, LLVMInt]
     assert llvm_abs.type == expected_type
