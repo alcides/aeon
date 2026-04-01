@@ -253,84 +253,48 @@ class CPUFullApplicationValidationStep(ValidationStep):
 class CPUFullApplicationValidationStep(ValidationStep):
     def validate(self, t: Term, ctx: ValidationContext) -> None:
         assert isinstance(ctx, CPUValidationContext)
+        no_top = replace(ctx, is_top_level=False)
         match t:
             case Application(fun, arg):
                 arguments = [arg]
-                base_function = fun
-                while isinstance(base_function, Application):
-                    arguments.append(base_function.arg)
-                    base_function = base_function.fun
-
+                base = fun
+                while isinstance(base, Application):
+                    arguments.append(base.arg)
+                    base = base.fun
                 for a in arguments:
-                    self.validate(a, replace(ctx, is_top_level=False))
-                self.validate(base_function, replace(ctx, is_top_level=False))
-
+                    self.validate(a, no_top)
+                self.validate(base, no_top)
             case Let(var_name, var_value, body):
-                llvm_var_type: LLVMType = LLVMInt
-                if isinstance(var_value, Annotation):
-                    llvm_var_type = from_type_to_llvm_type(var_value.type)
-                elif isinstance(var_value, Rec):
-                    llvm_var_type = from_type_to_llvm_type(var_value.var_type)
-                elif isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
-                    llvm_var_type = get_builtin_op_type(var_value.name.name)
-
-                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False)
-                self.validate(var_value, replace(ctx, is_top_level=False))
-                self.validate(body, new_ctx)
-
+                llvm_var_type = self._infer_let_type(var_value)
+                self.validate(var_value, no_top)
+                self.validate(body, replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False))
             case Rec(var_name, var_ty, var_value, body):
-                llvm_ty = from_type_to_llvm_type(var_ty)
+                llvm_ty = to_llvm_type(var_ty)
                 new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_ty}, is_top_level=False)
                 self.validate(var_value, new_ctx)
                 self.validate(body, new_ctx)
-
-            case Abstraction(var_name, body):
-                self.validate(body, replace(ctx, is_top_level=False))
-
+            case Abstraction(_, body) | Annotation(body, _) | TypeApplication(body, _) | TypeAbstraction(_, _, body):
+                self.validate(body, no_top)
             case If(cond, then_t, else_t):
-                self.validate(cond, replace(ctx, is_top_level=False))
-                self.validate(then_t, replace(ctx, is_top_level=False))
-                self.validate(else_t, replace(ctx, is_top_level=False))
-
-            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
-                self.validate(expr, ctx)
-
-            case Var(_) | Literal(_, _) | Hole(_):
-                pass
+                for sub in (cond, then_t, else_t):
+                    self.validate(sub, no_top)
             case _:
                 pass
+
+    @staticmethod
+    def _infer_let_type(var_value: Term) -> LLVMType:
+        if isinstance(var_value, Annotation):
+            return to_llvm_type(var_value.type)
+        if isinstance(var_value, Rec):
+            return to_llvm_type(var_value.var_type)
+        if isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
+            return get_builtin_op_type(var_value.name.name)
+        return LLVMInt
 
 
 class CPULLVMLowerer(LLVMLowerer):
     def get_validation_steps(self) -> List[ValidationStep]:
         return [CPUTypeValidationStep(), CPUFunctionCallValidationStep(), CPUFullApplicationValidationStep()]
-
-    def _uncurry_application(self, application: Application) -> tuple[Term, List[Term]]:
-        arguments = [application.arg]
-        base_function = application.fun
-        while isinstance(base_function, Application):
-            arguments.append(base_function.arg)
-            base_function = base_function.fun
-        arguments.reverse()
-        return base_function, arguments
-
-    def _get_operator_type(self, op_name: str, expected_type: LLVMType | None) -> LLVMFunctionType:
-        is_float = False
-        if expected_type:
-            if isinstance(expected_type, LLVMFunctionType):
-                is_float = any(isinstance(ty, LLVMFloatType) for ty in expected_type.arg_types)
-            elif isinstance(expected_type, LLVMFloatType):
-                is_float = True
-        return get_builtin_op_type(op_name, is_float)
-
-    def _is_inlinable_anf(self, var_name: Name, llvm_value: LLVMTerm) -> bool:
-        if not var_name.name.startswith("anf"):
-            return False
-        is_partial_call = isinstance(llvm_value, LLVMCall) and isinstance(llvm_value.type, LLVMFunctionType)
-        is_operator = isinstance(llvm_value, LLVMVar) and (
-            llvm_value.name.name in BINARY_OPS or llvm_value.name.name in UNARY_OPS
-        )
-        return is_partial_call or is_operator
 
     def lower(
         self,
