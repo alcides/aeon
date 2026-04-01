@@ -91,23 +91,24 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
         return val
 
-    def _get_default_implementations(self) -> Dict[str, Any]:
-        def vector_get(ptr: ctypes.c_void_p, idx: int) -> int:
-            return ctypes.cast(ptr, ctypes.POINTER(ctypes.c_int32))[idx]
+    def _get_vector_impl(self, arg_types: List[LLVMType], ret_type: LLVMType) -> Dict[str, Any]:
+        def vector_get(ptr: ctypes.c_void_p, idx: int) -> Any:
+            el_ty = self._get_ctypes_type(ret_type)
+            return ctypes.cast(ptr, ctypes.POINTER(el_ty))[idx]
 
-        def vector_set(ptr: ctypes.c_void_p, idx: int, val: int) -> ctypes.c_void_p:
-            ctypes.cast(ptr, ctypes.POINTER(ctypes.c_int32))[idx] = val
+        def vector_set(ptr: ctypes.c_void_p, idx: int, val: Any) -> ctypes.c_void_p:
+            # val is already converted to the correct type by ctypes
+            el_ty = self._get_ctypes_type(arg_types[2]) if len(arg_types) > 2 else ctypes.c_int32
+            ctypes.cast(ptr, ctypes.POINTER(el_ty))[idx] = val
             return ptr
 
         def native_dummy(code: ctypes.c_char_p) -> ctypes.c_void_p:
             return ctypes.c_void_p(None)
 
         return {
-            "Vector_get": ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.c_void_p, ctypes.c_int32)(vector_get),
-            "Vector_set": ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int32, ctypes.c_int32)(
-                vector_set
-            ),
-            "native": ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p)(native_dummy),
+            "Vector_get": vector_get,
+            "Vector_set": vector_set,
+            "native": native_dummy,
         }
 
     def execute(
@@ -121,9 +122,21 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
     ) -> Any:
         self._keep_alive = []
 
-        default_implementations = self._get_default_implementations()
-        for name, func in default_implementations.items():
-            llvm.add_symbol(name, ctypes.cast(func, ctypes.c_void_p).value)
+        # We need the actual function type to register the correct callback types
+        # But we can also register them with a generic signature if needed.
+        # However, for Vector_get/set, we need the element type.
+        
+        vector_impls = self._get_vector_impl(arg_types, ret_type)
+        # We don't register them as global symbols if they are specialized per call? 
+        # Actually, the JIT needs to find them. If we have multiple calls with different types,
+        # we might need different names or a generic implementation that uses the type info.
+        # But here 'execute' is for a specific function.
+        
+        # For now, let's register them. If there are multiple Vector_gets, they will conflict.
+        # A better way would be to let the lowerer emit the implementation if it's not provided by a library.
+        
+        # For 'native', it's always the same.
+        llvm.add_symbol("native", ctypes.cast(ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p)(vector_impls["native"]), ctypes.c_void_p).value)
 
         backing_mod = llvm.parse_assembly(llvm_ir)
 

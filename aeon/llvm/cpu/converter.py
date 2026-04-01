@@ -32,7 +32,6 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
-    LLVMVectorSet,
     VECTOR_OPERATIONS,
 )
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
@@ -109,8 +108,6 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         if initial_env:
             self.env.update(initial_env)
 
-        self.define_runtime_functions()
-
         for kernel_ast in definitions:
             if isinstance(kernel_ast, LLVMFunction) and kernel_ast.name:
                 func_name = sanitize_name(kernel_ast.name)
@@ -153,6 +150,21 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
             case LLVMCall(type=_, target=target, args=args):
                 return self.to_ir_call(target, args)
 
+            case LLVMCast(type=ty, val=val):
+                v_val = self.to_ir(val, False)
+                target_ty = self.to_ir_type(ty)
+                if v_val.type == target_ty:
+                    return v_val
+                if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
+                    return self.builder.sitofp(v_val, target_ty)
+                if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
+                    return self.builder.fptosi(v_val, target_ty)
+                if isinstance(v_val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
+                    return self.builder.fpext(v_val, target_ty)
+                if isinstance(v_val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
+                    return self.builder.fptrunc(v_val, target_ty)
+                return self.builder.bitcast(v_val, target_ty)
+
             case LLVMGetElementPtr(ptr=ptr, indices=indices):
                 return self.builder.gep(self.to_ir(ptr, False), [self.to_ir(i, False) for i in indices])
 
@@ -185,11 +197,6 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
 
             case LLVMVectorCount(f=f, v=v, size=size):
                 return self.to_ir_vector_count(f, v, size)
-
-            case LLVMVectorSet(ptr=ptr, index=index, value=value):
-                p_val, i_val, v_val = self.to_ir(ptr, False), self.to_ir(index, False), self.to_ir(value, False)
-                self.builder.store(v_val, self.builder.gep(p_val, [i_val]))
-                return p_val
 
             case _:
                 raise LLVMIRGenerationError(f"unsupported LLVM node {type(llvm_ast)}")
@@ -230,7 +237,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         if base_name == "Math_PI":
             return ir.Constant(ir.DoubleType(), 3.141592653589793)
 
-        intrinsic_map = {
+        builtin_map = {
             "Math_pow": "pow",
             "Math_sqrt": "sqrt",
             "Math_sqrtf": "sqrt",
@@ -243,7 +250,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         name_parts = str_name.rsplit("_", 1)
         lookup_name = name_parts[0] if len(name_parts) > 1 and name_parts[1].isdigit() else str_name
 
-        actual_name = intrinsic_map.get(lookup_name, lookup_name)
+        actual_name = builtin_map.get(lookup_name, lookup_name)
 
         if (
             actual_name in {"pow", "sqrt", "sin", "cos", "exp", "log", "malloc", "free", "printf", "native"}
@@ -556,19 +563,3 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
 
         self.to_ir_loop(size_val, "count", body)
         return self.builder.load(count_ptr)
-
-    def define_runtime_functions(self):
-        if "Vector_get" not in self.module.globals:
-            get_ty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(32)), ir.IntType(32)])
-            func = ir.Function(self.module, get_ty, name="Vector_get")
-            builder = ir.IRBuilder(func.append_basic_block(name="entry"))
-            builder.ret(builder.load(builder.gep(func.args[0], [func.args[1]])))
-
-        if "Vector_set" not in self.module.globals:
-            set_ty = ir.FunctionType(
-                ir.PointerType(ir.IntType(32)), [ir.PointerType(ir.IntType(32)), ir.IntType(32), ir.IntType(32)]
-            )
-            func = ir.Function(self.module, set_ty, name="Vector_set")
-            builder = ir.IRBuilder(func.append_basic_block(name="entry"))
-            builder.store(func.args[2], builder.gep(func.args[0], [func.args[1]]))
-            builder.ret(func.args[0])
