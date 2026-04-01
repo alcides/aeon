@@ -167,7 +167,7 @@ def test_e2e_llvm_math_integration():
 
     @llvm
     def compute_circle_area(radius:Float) : Float {
-        Math_PI * Math_pow[Float] radius 2.0
+        Math_PI * Math_pow radius 2.0
     }
 
     def main (i:Int) : Float { compute_circle_area 5.0 }
