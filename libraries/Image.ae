@@ -38,7 +38,7 @@ def Image_mk
     (height:{p:Int | p > 0})
     (color:Color) :
     {i : Image | (Image_width i == width) && (Image_height i == height) } {
-native "__import__('aeon.bindings.image').bindings.image.Image_mk" }
+native "__import__('aeon.bindings.image').bindings.image.Image_mk(width, height, color)" }
 
 # Displays the image.
 # image: image to display
@@ -52,7 +52,7 @@ def Image_save (image:Image) (path:String) : Unit { native "im.save(path)" }
 # Opens an image from a file.
 # path: file path
 # returns: loaded image
-def Image_open (path:String) : Image { native "__import__('PIL.Image').Image.open" }
+def Image_open (path:String) : Image { native "__import__('PIL.Image').Image.open(path)" }
 
 # Computes the mean squared error (MSE) difference between two images.
 # img: first image
