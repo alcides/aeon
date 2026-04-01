@@ -9,8 +9,7 @@ Then the implementation should return a tuple of the (possibly modified) definit
 eventual complementary definitions.
 """
 
-from aeon.decorators.api import DecoratorType
-from aeon.decorators.api import Metadata
+from aeon.decorators.api import Metadata, DecoratorType
 from aeon.llvm.decorators.gpu import gpu
 from aeon.llvm.decorators.llvm import llvm
 from aeon.sugar.program import Definition
