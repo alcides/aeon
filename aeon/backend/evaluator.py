@@ -13,24 +13,35 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.utils.name import Name
+from aeon.decorators.api import Metadata
+from aeon.llvm.core import LLVMPipeline
 
 real_eval = eval
 
 
 class EvaluationContext:
     variables: dict[Name, Any]
+    metadata: Metadata | None
+    pipeline: LLVMPipeline | None
 
-    def __init__(self, prev: dict[Name, Any] | None = None):
+    def __init__(
+        self,
+        prev: dict[Name, Any] | None = None,
+        metadata: Metadata | None = None,
+        pipeline: LLVMPipeline | None = None,
+    ):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
         else:
             self.variables = {}
+        self.metadata = metadata
+        self.pipeline = pipeline
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
-        return EvaluationContext(v)
+        return EvaluationContext(v, metadata=self.metadata, pipeline=self.pipeline)
 
     def get(self, name: Name):
         return self.variables[name]
@@ -76,6 +87,23 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Let(var_name, var_value, body):
             return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
         case Rec(var_name, _, var_value, body):
+            found_llvm = False
+            if ctx.pipeline and ctx.metadata:
+                name_str = var_name.name
+                for k, v in ctx.metadata.items():
+                    k_name = k.name if isinstance(k, Name) else str(k)
+                    if k_name == name_str and v.get("llvm"):
+                        found_llvm = True
+                        break
+
+            if found_llvm:
+                try:
+                    v = ctx.pipeline.get_curried_function(var_name)
+                    if v is not None:
+                        return eval(body, ctx.with_var(var_name, v))
+                except Exception:
+                    pass
+
             if isinstance(var_value, Abstraction):
                 fun = var_value
 
@@ -87,7 +115,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
             else:
                 v = eval(var_value, ctx)
-            return eval(t.body, ctx.with_var(t.var_name, v))
+            return eval(body, ctx.with_var(var_name, v))
         case If(cond, then, otherwise):
             c = eval(cond, ctx)
             if c:
