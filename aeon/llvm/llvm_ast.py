@@ -278,6 +278,14 @@ class LLVMCast(LLVMTerm):
 
 
 @dataclass
+class LLVMCast(LLVMTerm):
+    val: LLVMTerm
+
+    def __str__(self):
+        return f"cast {self.val} to {self.type}"
+
+
+@dataclass
 class LLVMGetElementPtr(LLVMTerm):
     ptr: LLVMTerm
     indices: list[LLVMTerm]
