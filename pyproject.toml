@@ -33,7 +33,7 @@ dependencies = [
     'pillow',
     'psb2',
     'pydantic==2.12.5',
-    'pygls==2.1.0',
+    'pygls==2.1.1',
     'pytest',
     'requests',
     'types-requests',
