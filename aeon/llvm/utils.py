@@ -17,7 +17,7 @@ from aeon.llvm.llvm_ast import (
     LLVMPointerType,
 )
 
-SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit"}
+SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Vector", "String"}
 BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
 UNARY_OPS = {"!", "-"}
 

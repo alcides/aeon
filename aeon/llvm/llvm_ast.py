@@ -176,6 +176,14 @@ class LLVMCall(LLVMTerm):
 
 
 @dataclass
+class LLVMCast(LLVMTerm):
+    val: LLVMTerm
+
+    def __str__(self):
+        return f"cast {self.val} to {self.type}"
+
+
+@dataclass
 class LLVMGetElementPtr(LLVMTerm):
     ptr: LLVMTerm
     indices: list[LLVMTerm]
@@ -259,13 +267,3 @@ class LLVMVectorZipWith(LLVMTerm):
 class LLVMVectorCount(LLVMVectorOp):
     def __str__(self):
         return f"vector_count {self.f}, {self.v}, {self.size}"
-
-
-@dataclass
-class LLVMVectorSet(LLVMTerm):
-    ptr: LLVMTerm
-    index: LLVMTerm
-    value: LLVMTerm
-
-    def __str__(self):
-        return f"vector_set {self.ptr}, {self.index}, {self.value}"
