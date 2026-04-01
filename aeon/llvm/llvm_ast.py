@@ -6,13 +6,18 @@ from typing import Any
 from aeon.utils.name import Name
 
 
+@dataclass(frozen=True)
 class LLVMType:
-    pass
+    def is_pointer(self) -> bool:
+        return isinstance(self, LLVMPointerType)
+
+    def is_function(self) -> bool:
+        return isinstance(self, LLVMFunctionType)
 
 
 @dataclass(frozen=True)
 class LLVMIntType(LLVMType):
-    bits: int
+    bits: int = 32
 
     def __str__(self):
         return f"i{self.bits}"
@@ -57,31 +62,31 @@ class LLVMAddressSpace(IntEnum):
 
 
 @dataclass(frozen=True)
+class LLVMPointerType(LLVMType):
+    element_type: LLVMType
+    address_space: LLVMAddressSpace = LLVMAddressSpace.GENERIC
+
+    def __str__(self):
+        return f"{self.element_type}*"
+
+
+@dataclass(frozen=True)
+class LLVMArrayType(LLVMType):
+    element_type: LLVMType
+    size: int | None = None
+
+    def __str__(self):
+        return f"[{self.size if self.size is not None else 0} x {self.element_type}]"
+
+
+@dataclass(frozen=True)
 class LLVMFunctionType(LLVMType):
     arg_types: list[LLVMType]
     return_type: LLVMType
 
     def __str__(self):
-        args = ", ".join(map(str, self.arg_types))
-        return f"({args}) -> {self.return_type}"
-
-
-@dataclass(frozen=True)
-class LLVMPointerType(LLVMType):
-    base: LLVMType
-    address_space: LLVMAddressSpace = LLVMAddressSpace.GENERIC
-
-    def __str__(self):
-        return f"{self.base}*"
-
-
-@dataclass(frozen=True)
-class LLVMArrayType(LLVMType):
-    base: LLVMType
-    size: int | None = None
-
-    def __str__(self):
-        return f"[{self.size if self.size is not None else ''} x {self.base}]"
+        args = ", ".join(str(t) for t in self.arg_types)
+        return f"{self.return_type} ({args})"
 
 
 LLVMInt = LLVMIntType(32)
@@ -91,6 +96,20 @@ LLVMDouble = LLVMDoubleType()
 LLVMBool = LLVMBoolType()
 LLVMChar = LLVMCharType()
 LLVMVoid = LLVMVoidType()
+LLVMVectorInt = LLVMPointerType(LLVMInt)
+LLVMVectorFloat = LLVMPointerType(LLVMFloat)
+LLVMVectorDouble = LLVMPointerType(LLVMDouble)
+
+VECTOR_OPERATIONS: frozenset[str] = frozenset(
+    [
+        "Vector_map",
+        "Vector_reduce",
+        "Vector_imap",
+        "Vector_filter",
+        "Vector_zipWith",
+        "Vector_count",
+    ]
+)
 
 
 @dataclass
@@ -103,7 +122,7 @@ class LLVMLiteral(LLVMTerm):
     value: Any
 
     def __str__(self):
-        return f"{self.type} {self.value}"
+        return str(self.value)
 
 
 @dataclass
@@ -111,7 +130,7 @@ class LLVMVar(LLVMTerm):
     name: Name
 
     def __str__(self):
-        return f"%{self.name}"
+        return self.name.name
 
 
 @dataclass
@@ -121,7 +140,7 @@ class LLVMIf(LLVMTerm):
     else_t: LLVMTerm
 
     def __str__(self):
-        return f"if {self.cond} {{\n  {self.then_t}\n}} else {{\n  {self.else_t}\n}}"
+        return f"if {self.cond} then {self.then_t} else {self.else_t}"
 
 
 @dataclass
@@ -131,18 +150,19 @@ class LLVMLet(LLVMTerm):
     body: LLVMTerm
 
     def __str__(self):
-        return f"let %{self.var_name} = {self.var_value} in\n{self.body}"
+        return f"let {self.var_name.name} = {self.var_value} in {self.body}"
 
 
 @dataclass
-class LLVMAbstraction(LLVMTerm):
+class LLVMFunction(LLVMTerm):
     arg_names: list[Name]
     arg_types: list[LLVMType]
     body: LLVMTerm
+    name: Name | None = None
 
     def __str__(self):
-        args_formatted = ", ".join(f"%{n}: {t}" for n, t in zip(self.arg_names, self.arg_types))
-        return f"lambda({args_formatted}) -> {self.type} {{\n  {self.body}\n}}"
+        args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
+        return f"\\{args} -> {self.body}"
 
 
 @dataclass
@@ -151,5 +171,101 @@ class LLVMCall(LLVMTerm):
     args: list[LLVMTerm]
 
     def __str__(self):
-        args_formatted = ", ".join(str(arg) for arg in self.args)
-        return f"call {self.target}({args_formatted})"
+        args = ", ".join(str(a) for a in self.args)
+        return f"{self.target}({args})"
+
+
+@dataclass
+class LLVMGetElementPtr(LLVMTerm):
+    ptr: LLVMTerm
+    indices: list[LLVMTerm]
+
+    def __str__(self):
+        indices = ", ".join(str(i) for i in self.indices)
+        return f"gep {self.ptr}, {indices}"
+
+
+@dataclass
+class LLVMLoad(LLVMTerm):
+    ptr: LLVMTerm
+
+    def __str__(self):
+        return f"load {self.ptr}"
+
+
+@dataclass
+class LLVMStore(LLVMTerm):
+    value: LLVMTerm
+    ptr: LLVMTerm
+
+    def __str__(self):
+        return f"store {self.value}, {self.ptr}"
+
+
+@dataclass
+class LLVMAlloc(LLVMTerm):
+    def __str__(self):
+        return f"alloca {self.type}"
+
+
+@dataclass
+class LLVMVectorOp(LLVMTerm):
+    f: LLVMTerm
+    v: LLVMTerm
+    size: LLVMTerm
+
+
+@dataclass
+class LLVMVectorMap(LLVMVectorOp):
+    def __str__(self):
+        return f"vector_map {self.f}, {self.v}, {self.size}"
+
+
+@dataclass
+class LLVMVectorReduce(LLVMTerm):
+    f: LLVMTerm
+    initial: LLVMTerm
+    v: LLVMTerm
+    size: LLVMTerm
+
+    def __str__(self):
+        return f"vector_reduce {self.f}, {self.initial}, {self.v}, {self.size}"
+
+
+@dataclass
+class LLVMVectorIMap(LLVMVectorOp):
+    def __str__(self):
+        return f"vector_imap {self.f}, {self.v}, {self.size}"
+
+
+@dataclass
+class LLVMVectorFilter(LLVMVectorOp):
+    def __str__(self):
+        return f"vector_filter {self.f}, {self.v}, {self.size}"
+
+
+@dataclass
+class LLVMVectorZipWith(LLVMTerm):
+    f: LLVMTerm
+    v1: LLVMTerm
+    v2: LLVMTerm
+    size: LLVMTerm
+
+    def __str__(self):
+        return f"vector_zipWith {self.f}, {self.v1}, {self.v2}, {self.size}"
+
+
+@dataclass
+class LLVMVectorCount(LLVMVectorOp):
+    def __str__(self):
+        return f"vector_count {self.f}, {self.v}, {self.size}"
+
+
+@dataclass
+class LLVMVectorSet(LLVMTerm):
+    ptr: LLVMTerm
+    index: LLVMTerm
+    value: LLVMTerm
+
+    def __str__(self):
+        return f"vector_set {self.ptr}, {self.index}, {self.value}"
