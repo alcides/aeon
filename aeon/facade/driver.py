@@ -28,6 +28,10 @@ from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
 from aeon.utils.time_utils import RecordTime
+from aeon.llvm.cpu.pipeline import CPULLVMPipeline
+from aeon.llvm.cpu.executor import CPULLVMExecutionEngine
+from aeon.llvm.cpu.converter import CPULLVMIRGenerator
+from aeon.llvm.cpu.lowerer import CPULLVMLowerer
 
 
 def read_file(filename: str) -> str:
@@ -89,17 +93,25 @@ class AeonDriver:
                 return type_errors
 
         with RecordTime("Preparing execution env"):
-            evaluation_ctx = EvaluationContext(evaluation_vars)
+            executor = CPULLVMExecutionEngine()
+            generator = CPULLVMIRGenerator()
+            lowerer = CPULLVMLowerer()
+            pipeline = CPULLVMPipeline(executor, generator, lowerer, metadata=metadata)
+            evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
 
         self.metadata = metadata
         self.core = core_ast_anf
         self.typing_ctx = typing_ctx
         self.evaluation_ctx = evaluation_ctx
+
+        with RecordTime("LLVM compilation"):
+            pipeline.compile(self.core)
+
         return []
 
-    def run(self) -> None:
+    def run(self) -> Any:
         with RecordTime("Evaluation"):
-            eval(self.core, self.evaluation_ctx)
+            return eval(self.core, self.evaluation_ctx)
 
     def has_synth(self) -> bool:
         with RecordTime("DetectSynthesis"):
