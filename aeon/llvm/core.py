@@ -46,10 +46,14 @@ class LLVMLowerer(ABC):
     ) -> LLVMTerm:
         pass
 
+    @abstractmethod
+    def get_signature(self, ty: LLVMType) -> tuple[List[LLVMType], LLVMType]:
+        pass
+
 
 class LLVMIRGenerator(ABC):
     @abstractmethod
-    def generate_kernels(self, kernels: List[LLVMTerm]) -> str:
+    def generate_ir(self, definitions: List[LLVMTerm]) -> str:
         pass
 
 
@@ -64,4 +68,18 @@ class LLVMExecutionEngine(ABC):
     def execute(
         self, llvm_ir: str, func_name: str, args: List[Any], arg_types: List[LLVMType], ret_type: LLVMType
     ) -> Any:
+        pass
+
+
+class LLVMPipeline(ABC):
+    @abstractmethod
+    def compile(self, program: Term) -> None:
+        pass
+
+    @abstractmethod
+    def get_curried_function(self, name: Name) -> Any:
+        pass
+
+    @abstractmethod
+    def invoke(self, name_id: Name, arguments: List[Any]) -> Any:
         pass
