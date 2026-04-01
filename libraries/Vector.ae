@@ -1,33 +1,27 @@
-type Vector;
+type Vector a;
 
-def Vector_new : Vector = native "[]";
+def Vector_new : forall a:B, (Vector a) = native "[]";
 
-def Vector_append (v:Vector) (x:a) : Vector { native "v + [x]" }
+def Vector_append : forall a:B, (v:(Vector a)) -> (x:a) -> (Vector a) = \v -> \x -> native "v + [x]";
 
-def Vector_get (v:Vector) (i:Int) : a { native "v[i]" }
+def Vector_get : forall a:B, (v:(Vector a)) -> (i:Int) -> a = \v -> \i -> native "v[i]";
 
-def Vector_set (v:Vector) (i:Int) (x:a) : Vector { native "(v.__setitem__(i, x) or v)" }
+def Vector_set : forall a:B, (v:(Vector a)) -> (i:Int) -> (x:a) -> (Vector a) = \v -> \i -> \x -> native "v[:i] + [x] + v[i+1:]";
 
-def Vector_map (f:(x:a) -> b) (v:Vector) (size:Int) : Vector {
-    native "list(map(f, v))"
-}
+def Vector_map : forall a:B, forall b:B, (f:(x:a) -> b) -> (v:(Vector a)) -> (size:Int) -> (Vector b) = \f -> \v -> \size ->
+    native "[f(x) for x in v]";
 
-def Vector_reduce (f:(acc:b) -> (x:a) -> b) (initial:b) (v:Vector) (size:Int) : b {
-    native "__import__('functools').reduce(lambda x, y: f(x)(y), v, initial)"
-}
+def Vector_reduce : forall a:B, forall b:B, (f:(acc:a) -> (curr:b) -> a) -> (initial:a) -> (v:(Vector b)) -> (size:Int) -> a = \f -> \initial -> \v -> \size ->
+    native "__import__('functools').reduce(lambda acc, curr: f(acc)(curr), v, initial)";
 
-def Vector_imap (f:(i:Int) -> (x:a) -> b) (v:Vector) (size:Int) : Vector {
-    native "[f(i)(x) for i, x in enumerate(v)]"
-}
+def Vector_imap : forall a:B, forall b:B, (f:(i:Int) -> (x:a) -> b) -> (v:(Vector a)) -> (size:Int) -> (Vector b) = \f -> \v -> \size ->
+    native "[f(i)(x) for i, x in enumerate(v)]";
 
-def Vector_filter (f:(x:a) -> Bool) (v:Vector) (size:Int) : Vector {
-    native "list(filter(f, v))"
-}
+def Vector_filter : forall a:B, (f:(x:a) -> Bool) -> (v:(Vector a)) -> (size:Int) -> (Vector a) = \f -> \v -> \size ->
+    native "list(filter(f, v))";
 
-def Vector_zipWith (f:(x:a) -> (y:b) -> c) (v1:Vector) (v2:Vector) (size:Int) : Vector {
-    native "[f(x)(y) for x, y in zip(v1, v2)]"
-}
+def Vector_zipWith : forall a:B, forall b:B, forall c:B, (f:(x:a) -> (y:b) -> c) -> (v1:(Vector a)) -> (v2:(Vector b)) -> (size:Int) -> (Vector c) = \f -> \v1 -> \v2 -> \size ->
+    native "[f(x)(y) for x, y in zip(v1, v2)]";
 
-def Vector_count (f:(x:a) -> Bool) (v:Vector) (size:Int) : Int {
-    native "len(list(filter(f, v)))"
-}
+def Vector_count : forall a:B, (f:(x:a) -> Bool) -> (v:(Vector a)) -> (size:Int) -> Int = \f -> \v -> \size ->
+    native "len(list(filter(f, v)))";

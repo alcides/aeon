@@ -19,9 +19,8 @@ def test_validate_valid_cpu():
 
 
 def test_validate_invalid_type():
-    # 'String is not supported'
-    t_string = TypeConstructor(Name("String"))
-    term = Literal("hello", t_string)
+    t_unsupported = TypeConstructor(Name("UnsupportedType"))
+    term = Literal(1, t_unsupported)
 
     lowerer = CPULLVMLowerer()
     with pytest.raises(LLVMValidationError):
@@ -37,26 +36,5 @@ def test_validate_invalid_call_non_llvm():
     lowerer = CPULLVMLowerer()
     with pytest.raises(LLVMValidationError):
         # 'f' is allowed, but 'external_func' (used in body) is not
-        ctx = CPUValidationContext(allowed_func_calls={Name("f")})
+        ctx = CPUValidationContext(allowed_func_calls={Name("f")}, strict=True)
         lowerer.validate(term, ctx)
-
-
-# def test_validate_partial_application():
-#     # let f = \x -> \y -> x + y in f 1
-#     t_int = TypeConstructor(Name("Int"))
-#     t_f = AbstractionType(Name("x"), t_int, AbstractionType(Name("y"), t_int, t_int))
-#
-#     f_def = Annotation(
-#         Abstraction(
-#             Name("x"), Abstraction(Name("y"), Application(Application(Var(Name("+")), Var(Name("x"))), Var(Name("y"))))
-#         ),
-#         t_f,
-#     )
-#
-#     call = Application(Var(Name("f")), Literal(1, t_int))  # f 1
-#     term = Let(Name("f"), f_def, call)
-#
-#     lowerer = CPULLVMLowerer()
-#     with pytest.raises(LLVMValidationError):
-#         ctx = CPUValidationContext(allowed_func_calls={Name("f"), Name("+")})
-#         lowerer.validate(term, ctx)
