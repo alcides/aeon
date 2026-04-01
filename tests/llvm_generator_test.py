@@ -8,7 +8,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVar,
     LLVMIf,
     LLVMLet,
-    LLVMAbstraction,
+    LLVMFunction,
     LLVMCall,
     LLVMFunctionType,
 )
@@ -19,13 +19,13 @@ def test_generate_literal():
     generator = CPULLVMIRGenerator()
 
     func_type = LLVMFunctionType(arg_types=[], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(type=func_type, arg_names=[], arg_types=[], body=LLVMLiteral(type=LLVMInt, value=42))
+    func_ast = LLVMFunction(type=func_type, arg_names=[], arg_types=[], body=LLVMLiteral(type=LLVMInt, value=42))
 
     kernel_ast = LLVMLet(
         type=LLVMInt, var_name=Name("my_const"), var_value=func_ast, body=LLVMLiteral(type=LLVMInt, value=0)
     )
 
-    ir_code = generator.generate_kernels([kernel_ast])
+    ir_code = generator.generate_ir([kernel_ast])
     print(ir_code)
 
     assert 'define i32 @"my_const' in ir_code
@@ -41,12 +41,12 @@ def test_generate_if_else():
     if_ast = LLVMIf(type=LLVMInt, cond=cond, then_t=then_t, else_t=else_t)
 
     func_type = LLVMFunctionType(arg_types=[], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(type=func_type, arg_names=[], arg_types=[], body=if_ast)
+    func_ast = LLVMFunction(type=func_type, arg_names=[], arg_types=[], body=if_ast)
     kernel_ast = LLVMLet(
         type=LLVMInt, var_name=Name("my_branch"), var_value=func_ast, body=LLVMLiteral(type=LLVMInt, value=0)
     )
 
-    ir_code = generator.generate_kernels([kernel_ast])
+    ir_code = generator.generate_ir([kernel_ast])
     print(ir_code)
 
     assert 'define i32 @"my_branch' in ir_code
@@ -68,12 +68,12 @@ def test_generate_local_let_shadowing():
     outer_let = LLVMLet(type=LLVMInt, var_name=Name("x"), var_value=LLVMLiteral(type=LLVMInt, value=5), body=inner_let)
 
     func_type = LLVMFunctionType(arg_types=[], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(type=func_type, arg_names=[], arg_types=[], body=outer_let)
+    func_ast = LLVMFunction(type=func_type, arg_names=[], arg_types=[], body=outer_let)
     kernel_ast = LLVMLet(
         type=LLVMInt, var_name=Name("my_shadow"), var_value=func_ast, body=LLVMLiteral(type=LLVMInt, value=0)
     )
 
-    ir_code = generator.generate_kernels([kernel_ast])
+    ir_code = generator.generate_ir([kernel_ast])
     print(ir_code)
     assert "ret i32 10" in ir_code
 
@@ -82,7 +82,7 @@ def test_generate_abstraction_and_call():
     generator = CPULLVMIRGenerator()
 
     func_type = LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(
+    func_ast = LLVMFunction(
         type=func_type,
         arg_names=[Name("x"), Name("y")],
         arg_types=[LLVMInt, LLVMInt],
@@ -95,7 +95,7 @@ def test_generate_abstraction_and_call():
         target=LLVMVar(type=func_type, name=Name("my_func")),
         args=[LLVMLiteral(type=LLVMInt, value=42), LLVMLiteral(type=LLVMInt, value=10)],
     )
-    caller_ast = LLVMAbstraction(type=caller_type, arg_names=[], arg_types=[], body=call_ast)
+    caller_ast = LLVMFunction(type=caller_type, arg_names=[], arg_types=[], body=call_ast)
 
     program_ast = LLVMLet(
         type=LLVMInt,
@@ -106,7 +106,7 @@ def test_generate_abstraction_and_call():
         ),
     )
 
-    ir_code = generator.generate_kernels([program_ast])
+    ir_code = generator.generate_ir([program_ast])
     print(ir_code)
 
     assert 'define i32 @"my_func"(i32 %"x", i32 %"y")' in ir_code
@@ -118,7 +118,7 @@ def test_generate_sum_with_if():
     generator = CPULLVMIRGenerator()
 
     sum_type = LLVMFunctionType(arg_types=[LLVMInt, LLVMInt], return_type=LLVMInt)
-    sum_func = LLVMAbstraction(
+    sum_func = LLVMFunction(
         type=sum_type,
         arg_names=[Name("x"), Name("y")],
         arg_types=[LLVMInt, LLVMInt],
@@ -160,7 +160,7 @@ def test_generate_sum_with_if():
         ),
     )
 
-    main_func = LLVMAbstraction(type=main_type, arg_names=[], arg_types=[], body=body)
+    main_func = LLVMFunction(type=main_type, arg_names=[], arg_types=[], body=body)
 
     program_ast = LLVMLet(
         type=LLVMInt,
@@ -174,7 +174,7 @@ def test_generate_sum_with_if():
         ),
     )
 
-    ir_code = generator.generate_kernels([program_ast])
+    ir_code = generator.generate_ir([program_ast])
     print(ir_code)
 
     assert 'define i32 @"sum' in ir_code
@@ -187,7 +187,7 @@ def test_generate_unary_op():
     generator = CPULLVMIRGenerator()
 
     func_type = LLVMFunctionType(arg_types=[LLVMInt], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(
+    func_ast = LLVMFunction(
         type=func_type,
         arg_names=[Name("x")],
         arg_types=[LLVMInt],
@@ -205,7 +205,7 @@ def test_generate_unary_op():
         body=LLVMLiteral(type=LLVMInt, value=0),
     )
 
-    ir_code = generator.generate_kernels([kernel_ast])
+    ir_code = generator.generate_ir([kernel_ast])
     print(ir_code)
 
     assert 'define i32 @"my_neg' in ir_code
@@ -218,10 +218,10 @@ def test_undefined_variable_raises_error():
     bad_var = LLVMVar(type=LLVMInt, name=Name("not_found"))
 
     func_type = LLVMFunctionType(arg_types=[], return_type=LLVMInt)
-    func_ast = LLVMAbstraction(type=func_type, arg_names=[], arg_types=[], body=bad_var)
+    func_ast = LLVMFunction(type=func_type, arg_names=[], arg_types=[], body=bad_var)
     kernel_ast = LLVMLet(
         type=LLVMInt, var_name=Name("bad_kernel"), var_value=func_ast, body=LLVMLiteral(type=LLVMInt, value=0)
     )
 
     with pytest.raises(LLVMIRGenerationError):
-        generator.generate_kernels([kernel_ast])
+        generator.generate_ir([kernel_ast])
