@@ -17,26 +17,99 @@ from aeon.core.terms import (
     Annotation,
     Hole,
 )
+from aeon.core.types import Type
 from aeon.llvm.core import LLVMLowerer, LLVMValidationError, ValidationStep, ValidationContext, LLVMBackendError
 from aeon.llvm.llvm_ast import (
     LLVMType,
     LLVMTerm,
     LLVMLiteral,
     LLVMInt,
+    LLVMDouble,
     LLVMFloatType,
+    LLVMDoubleType,
+    LLVMBool,
     LLVMVar,
     LLVMIf,
     LLVMCall,
     LLVMFunctionType,
     LLVMLet,
-    LLVMAbstraction,
+    LLVMFunction,
+    LLVMGetElementPtr,
+    LLVMLoad,
+    LLVMStore,
+    LLVMPointerType,
+    LLVMVoid,
+    LLVMVoidType,
+    LLVMCharType,
+    LLVMVectorMap,
+    LLVMVectorReduce,
+    LLVMVectorIMap,
+    LLVMVectorFilter,
+    LLVMVectorZipWith,
+    LLVMVectorCount,
+    VECTOR_OPERATIONS,
 )
-from aeon.llvm.utils import validate_type, from_type_to_llvm_type, UNARY_OPS, BINARY_OPS, get_builtin_op_type
+from aeon.llvm.utils import (
+    validate_type,
+    to_llvm_type,
+    UNARY_OPS,
+    BINARY_OPS,
+    get_builtin_op_type,
+    sanitize_name,
+)
 from aeon.utils.name import Name
 
 
 class LLVMLoweringError(LLVMBackendError):
     pass
+
+
+_generic_ptr = LLVMPointerType(LLVMCharType())
+_func_i_i = LLVMFunctionType([LLVMInt], LLVMInt)
+_func_ii_i = LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt)
+_func_i_b = LLVMFunctionType([LLVMInt], LLVMBool)
+
+BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
+    "malloc": LLVMFunctionType([LLVMInt], _generic_ptr),
+    "free": LLVMFunctionType([_generic_ptr], LLVMVoid),
+    "printf": LLVMFunctionType([_generic_ptr], LLVMInt),
+    "Math_pow": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "Math_sqrt": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "Math_sqrtf": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "Math_sin": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "Math_cos": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "Math_exp": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "Math_log": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "Vector_new": LLVMFunctionType([], _generic_ptr),
+    "Vector_append": LLVMFunctionType([_generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
+    "Vector_set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
+    "Vector_map": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_reduce": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
+    "Vector_imap": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_filter": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_zipWith": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
+}
+
+POLYMORPHIC_FUNCTIONS: set[str] = {
+    "Math_pow",
+    "Math_exp",
+    "Math_sqrt",
+    "Math_sqrtf",
+    "Math_sin",
+    "Math_cos",
+    "Math_log",
+    "Vector_get",
+    "Vector_set",
+    "Vector_new",
+    "Vector_map",
+    "Vector_reduce",
+    "Vector_imap",
+    "Vector_filter",
+    "Vector_zipWith",
+    "Vector_count",
+}
 
 
 @dataclass(frozen=True)
@@ -45,6 +118,8 @@ class CPUValidationContext(ValidationContext):
     type_env: Dict[Name, LLVMType] = field(default_factory=dict)
     env_names: set[str] = field(default_factory=set)
     is_top_level: bool = True
+    strict: bool = False
+    in_vector_op: bool = False
 
 
 class CPUTypeValidationStep(ValidationStep):
@@ -59,20 +134,20 @@ class CPUTypeValidationStep(ValidationStep):
             case Annotation(expr, ty) | TypeApplication(expr, ty):
                 validate_type(ty)
                 self.validate(expr, ctx)
-            case Abstraction(_, body) | Let(_, _, body) | TypeAbstraction(_, _, body):
+            case Abstraction(_, body) | TypeAbstraction(_, _, body):
                 self.validate(body, ctx)
-                if isinstance(t, Let):
-                    self.validate(t.var_value, ctx)
+            case Let(_, var_value, body):
+                self.validate(var_value, ctx)
+                self.validate(body, ctx)
             case Application(f, arg):
                 self.validate(f, ctx)
                 self.validate(arg, ctx)
             case If(cond, then_t, else_t):
-                self.validate(cond, ctx)
-                self.validate(then_t, ctx)
-                self.validate(else_t, ctx)
+                for sub in (cond, then_t, else_t):
+                    self.validate(sub, ctx)
             case Hole(name):
-                raise LLVMValidationError(f"Unresolved hole {name}")
-            case Var(_) | _:
+                raise LLVMValidationError(f"unresolved hole {name}")
+            case _:
                 pass
 
 
@@ -81,254 +156,523 @@ class CPUFunctionCallValidationStep(ValidationStep):
         assert isinstance(ctx, CPUValidationContext)
         match t:
             case Var(name):
-                is_local = name.name in ctx.env_names
-                is_op = name.name in BINARY_OPS or name.name in UNARY_OPS
-                is_anf = name.name.startswith("anf")
-                is_allowed = name in ctx.allowed_func_calls
-
-                if not (is_local or is_op or is_anf or is_allowed):
-                    raise LLVMValidationError(
-                        f"Function or variable {name.name} is not allowed in CPU LLVM functions. "
-                        f"Only @llvm functions or built-in operators are permitted as global calls."
-                    )
+                self._validate_var(name, ctx)
             case Rec(var_name, _, var_value, body):
-                if ctx.is_top_level:
-                    self.validate(var_value, replace(ctx, is_top_level=False))
-                    self.validate(body, replace(ctx, is_top_level=True))
-                else:
-                    new_ctx = replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False)
-                    self.validate(var_value, new_ctx)
-                    self.validate(body, new_ctx)
+                self._validate_rec(var_name, var_value, body, ctx)
             case Let(var_name, var_value, body):
-                if ctx.is_top_level:
-                    self.validate(var_value, replace(ctx, is_top_level=False))
-                    self.validate(body, replace(ctx, is_top_level=True))
-                else:
-                    self.validate(var_value, replace(ctx, is_top_level=False))
-                    self.validate(body, replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False))
+                self._validate_let(var_name, var_value, body, ctx)
             case Abstraction(var_name, body):
-                self.validate(body, replace(ctx, env_names=ctx.env_names | {var_name.name}, is_top_level=False))
+                self.validate(
+                    body, replace(ctx, env_names=ctx.env_names | {sanitize_name(var_name)}, is_top_level=False)
+                )
             case Application(f, arg):
                 self.validate(f, replace(ctx, is_top_level=False))
                 self.validate(arg, replace(ctx, is_top_level=False))
             case If(cond, then_t, else_t):
-                self.validate(cond, replace(ctx, is_top_level=False))
-                self.validate(then_t, replace(ctx, is_top_level=False))
-                self.validate(else_t, replace(ctx, is_top_level=False))
+                for sub in (cond, then_t, else_t):
+                    self.validate(sub, replace(ctx, is_top_level=False))
             case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
                 self.validate(expr, ctx)
-            case Literal(_, _) | Hole(_):
-                pass
             case _:
                 pass
+
+    def _validate_var(self, name: Name, ctx: CPUValidationContext) -> None:
+        if not ctx.strict:
+            return
+        is_local = name in ctx.type_env or sanitize_name(name) in ctx.env_names
+        is_op = name.name in BINARY_OPS or name.name in UNARY_OPS
+        is_anf = name.name.startswith("anf")
+        is_allowed = any(name.name == allowed.name for allowed in ctx.allowed_func_calls)
+        is_builtin = name.name in BUILTIN_FUNCTION_TYPES or name.name in VECTOR_OPERATIONS
+        if not (is_local or is_op or is_anf or is_allowed or is_builtin):
+            raise LLVMValidationError(f"function or variable {name.name} is not allowed in CPU LLVM functions.")
+
+    def _validate_rec(self, var_name: Name, var_value: Term, body: Term, ctx: CPUValidationContext) -> None:
+        if ctx.is_top_level:
+            self.validate(var_value, replace(ctx, is_top_level=False))
+            self.validate(body, replace(ctx, is_top_level=True))
+        else:
+            new_ctx = replace(ctx, env_names=ctx.env_names | {sanitize_name(var_name)}, is_top_level=False)
+            self.validate(var_value, new_ctx)
+            self.validate(body, new_ctx)
+
+    def _validate_let(self, var_name: Name, var_value: Term, body: Term, ctx: CPUValidationContext) -> None:
+        if ctx.is_top_level:
+            self.validate(var_value, replace(ctx, is_top_level=False))
+            self.validate(body, replace(ctx, is_top_level=True))
+        else:
+            self.validate(var_value, replace(ctx, is_top_level=False))
+            self.validate(body, replace(ctx, env_names=ctx.env_names | {sanitize_name(var_name)}, is_top_level=False))
 
 
 class CPUFullApplicationValidationStep(ValidationStep):
     def validate(self, t: Term, ctx: ValidationContext) -> None:
         assert isinstance(ctx, CPUValidationContext)
+        no_top = replace(ctx, is_top_level=False)
         match t:
             case Application(fun, arg):
                 arguments = [arg]
-                base_function = fun
-                while isinstance(base_function, Application):
-                    arguments.append(base_function.arg)
-                    base_function = base_function.fun
-
+                base = fun
+                while isinstance(base, Application):
+                    arguments.append(base.arg)
+                    base = base.fun
                 for a in arguments:
-                    self.validate(a, replace(ctx, is_top_level=False))
-                self.validate(base_function, replace(ctx, is_top_level=False))
-
+                    self.validate(a, no_top)
+                self.validate(base, no_top)
             case Let(var_name, var_value, body):
-                llvm_var_type: LLVMType = LLVMInt
-                if isinstance(var_value, Annotation):
-                    llvm_var_type = from_type_to_llvm_type(var_value.type)
-                elif isinstance(var_value, Rec):
-                    llvm_var_type = from_type_to_llvm_type(var_value.var_type)
-                elif isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
-                    llvm_var_type = get_builtin_op_type(var_value.name.name)
-
-                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False)
-                self.validate(var_value, replace(ctx, is_top_level=False))
-                self.validate(body, new_ctx)
-
+                llvm_var_type = self._infer_let_type(var_value)
+                self.validate(var_value, no_top)
+                self.validate(body, replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False))
             case Rec(var_name, var_ty, var_value, body):
-                llvm_ty = from_type_to_llvm_type(var_ty)
+                llvm_ty = to_llvm_type(var_ty)
                 new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_ty}, is_top_level=False)
                 self.validate(var_value, new_ctx)
                 self.validate(body, new_ctx)
-
-            case Abstraction(var_name, body):
-                self.validate(body, replace(ctx, is_top_level=False))
-
+            case Abstraction(_, body) | Annotation(body, _) | TypeApplication(body, _) | TypeAbstraction(_, _, body):
+                self.validate(body, no_top)
             case If(cond, then_t, else_t):
-                self.validate(cond, replace(ctx, is_top_level=False))
-                self.validate(then_t, replace(ctx, is_top_level=False))
-                self.validate(else_t, replace(ctx, is_top_level=False))
-
-            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
-                self.validate(expr, ctx)
-
-            case Var(_) | Literal(_, _) | Hole(_):
-                pass
+                for sub in (cond, then_t, else_t):
+                    self.validate(sub, no_top)
             case _:
                 pass
+
+    @staticmethod
+    def _infer_let_type(var_value: Term) -> LLVMType:
+        if isinstance(var_value, Annotation):
+            return to_llvm_type(var_value.type)
+        if isinstance(var_value, Rec):
+            return to_llvm_type(var_value.var_type)
+        if isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
+            return get_builtin_op_type(var_value.name.name)
+        return LLVMInt
 
 
 class CPULLVMLowerer(LLVMLowerer):
     def get_validation_steps(self) -> List[ValidationStep]:
         return [CPUTypeValidationStep(), CPUFunctionCallValidationStep(), CPUFullApplicationValidationStep()]
 
-    def _uncurry_application(self, application: Application) -> tuple[Term, List[Term]]:
-        arguments = [application.arg]
-        base_function = application.fun
-        while isinstance(base_function, Application):
-            arguments.append(base_function.arg)
-            base_function = base_function.fun
-        arguments.reverse()
-        return base_function, arguments
-
-    def _get_operator_type(self, op_name: str, expected_type: LLVMType | None) -> LLVMFunctionType:
-        is_float = False
-        if expected_type:
-            if isinstance(expected_type, LLVMFunctionType):
-                is_float = any(isinstance(ty, LLVMFloatType) for ty in expected_type.arg_types)
-            elif isinstance(expected_type, LLVMFloatType):
-                is_float = True
-        return get_builtin_op_type(op_name, is_float)
-
-    def _is_inlinable_anf(self, var_name: Name, llvm_value: LLVMTerm) -> bool:
-        if not var_name.name.startswith("anf"):
-            return False
-        is_partial_call = isinstance(llvm_value, LLVMCall) and isinstance(llvm_value.type, LLVMFunctionType)
-        is_operator = isinstance(llvm_value, LLVMVar) and (
-            llvm_value.name.name in BINARY_OPS or llvm_value.name.name in UNARY_OPS
-        )
-        return is_partial_call or is_operator
-
     def lower(
         self,
-        t: Term,
-        expected_type: LLVMType = None,
+        term: Term,
+        expected_type: LLVMType | None = None,
+        type_env: Dict[Name, LLVMType] | None = None,
+        env: Dict[Name, LLVMTerm] | None = None,
+        allowed_func_calls: set[Name] | None = None,
+        strict: bool = False,
+        in_vector_op: bool = False,
+    ) -> LLVMTerm:
+        type_env = type_env or {}
+        env = env or {}
+        allowed_func_calls = allowed_func_calls or set()
+
+        validation_ctx = CPUValidationContext(
+            allowed_func_calls=allowed_func_calls,
+            type_env=type_env,
+            env_names={sanitize_name(n) for n in env.keys()},
+            is_top_level=True,
+            strict=strict,
+            in_vector_op=in_vector_op,
+        )
+        for step in self.get_validation_steps():
+            step.validate(term, validation_ctx)
+
+        return self._lower_term(term, expected_type, type_env, env, allowed_func_calls, in_vector_op=in_vector_op)
+
+    def get_signature(self, llvm_type: LLVMType) -> tuple[List[LLVMType], LLVMType]:
+        arg_types: list[LLVMType] = []
+        curr = llvm_type
+        while True:
+            if isinstance(curr, LLVMFunctionType):
+                arg_types.extend(curr.arg_types)
+                curr = curr.return_type
+            elif isinstance(curr, LLVMPointerType) and isinstance(curr.element_type, LLVMFunctionType):
+                curr = curr.element_type
+            else:
+                break
+        return arg_types, curr
+
+    def _get_vector_base_type(self, vector_type: LLVMType) -> LLVMType:
+        if isinstance(vector_type, LLVMPointerType):
+            element = vector_type.element_type
+            if not isinstance(element, (LLVMCharType, LLVMPointerType)):
+                return element
+            if isinstance(element, LLVMCharType):
+                return LLVMInt
+        return LLVMInt
+
+    def _get_operator_type(self, op: str, expected: LLVMType | None) -> LLVMFunctionType:
+        is_float = False
+        if expected:
+            if isinstance(expected, LLVMFunctionType):
+                is_float = any(isinstance(ty, (LLVMFloatType, LLVMDoubleType)) for ty in expected.arg_types)
+            elif isinstance(expected, (LLVMFloatType, LLVMDoubleType)):
+                is_float = True
+        return get_builtin_op_type(op, is_float)
+
+    def _cast_if_needed(self, val: LLVMTerm, target_ty: LLVMType) -> LLVMTerm:
+        if val.type == target_ty:
+            return val
+        from aeon.llvm.llvm_ast import LLVMCast
+
+        return LLVMCast(target_ty, val)
+
+    def _get_target_name(self, target: LLVMTerm) -> str:
+        if isinstance(target, LLVMVar):
+            return target.name.name
+        if isinstance(target, LLVMCall):
+            return self._get_target_name(target.target)
+        return ""
+
+    def _is_inlinable_anf(self, name: Name, val: LLVMTerm) -> bool:
+        if not name.name.startswith("anf"):
+            return False
+        is_partial = isinstance(val, LLVMCall) and isinstance(val.type, LLVMFunctionType)
+        target = self._get_target_name(val) if isinstance(val, LLVMVar) else ""
+        is_op = isinstance(val, LLVMVar) and (target in BINARY_OPS or target in UNARY_OPS)
+        is_vec = isinstance(val, LLVMVar) and target in (VECTOR_OPERATIONS | {"Vector_set", "Vector_get"})
+        return is_partial or is_op or is_vec
+
+    def _lower_as_standalone(
+        self,
+        term: Term | LLVMTerm,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool = False,
+    ) -> LLVMTerm:
+        if isinstance(term, LLVMTerm):
+            return term
+        if isinstance(term, Abstraction):
+            return self._lower_function(term, expected, type_env, env, allowed, in_vec)
+        lowered = self._lower_term(term, expected, type_env, env, allowed, in_vector_op=in_vec)
+        if isinstance(lowered, LLVMCall) and isinstance(lowered.type, LLVMFunctionType):
+            return self._create_wrapper_function(lowered)
+        return lowered
+
+    def _lower_function(
+        self,
+        abs_term: Abstraction,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMFunction:
+        arg_names: list[Name] = []
+        curr: Term = abs_term
+        while isinstance(curr, Abstraction):
+            arg_names.append(curr.var_name)
+            curr = curr.body
+
+        param_tys, ret_ty = self.get_signature(
+            expected.element_type
+            if isinstance(expected, LLVMPointerType) and isinstance(expected.element_type, LLVMFunctionType)
+            else expected or LLVMInt
+        )
+        param_tys = (param_tys + [LLVMInt] * len(arg_names))[: len(arg_names)]
+
+        new_type_env = type_env.copy()
+        resolved_tys = []
+        for name, p_ty in zip(arg_names, param_tys):
+            actual_ty = _generic_ptr if isinstance(p_ty, LLVMVoidType) else p_ty
+            new_type_env[name] = actual_ty
+            resolved_tys.append(actual_ty)
+
+        body = self._lower_term(curr, ret_ty, new_type_env, env, allowed, in_vector_op=in_vec)
+        return LLVMFunction(LLVMFunctionType(resolved_tys, ret_ty), arg_names, resolved_tys, body)
+
+    def _create_wrapper_function(self, call: LLVMCall) -> LLVMFunction:
+        params, ret = self.get_signature(call.type)
+        names = [Name(f"wrapper_arg_{i}") for i in range(len(params))]
+        args = call.args + [LLVMVar(ty, n) for n, ty in zip(names, params)]
+        return LLVMFunction(call.type, names, params, LLVMCall(ret, call.target, args))
+
+    def _uncurry(self, app: Application) -> tuple[Term, List[Term]]:
+        args: list[Term] = []
+        curr: Term = app
+        while isinstance(curr, Application):
+            args.append(curr.arg)
+            curr = curr.fun
+        args.reverse()
+        return curr, args
+
+    def _lower_args(
+        self,
+        args: list[Term],
+        expected_params: list[LLVMType],
+        offset: int,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> list[LLVMTerm]:
+        lowered_args = []
+        for i, arg in enumerate(args):
+            idx = offset + i
+            exp = expected_params[idx] if idx < len(expected_params) else None
+            if isinstance(arg, Annotation):
+                exp = to_llvm_type(arg.type)
+                arg = arg.expr
+            lowered_args.append(self._lower_term(arg, exp, type_env, env, allowed, in_vector_op=in_vec))
+        return lowered_args
+
+    def _lower_vector_op(
+        self,
+        op: str,
+        args: list[Term | LLVMTerm],
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+    ) -> LLVMTerm:
+        def low_term(term, exp=None):
+            return self._lower_term(term, exp, type_env, env, allowed, in_vector_op=True)
+
+        if op == "Vector_reduce":
+            kernel_term, init_term, vector_term, size_term = args
+            low_vec, low_init, low_size = low_term(vector_term), low_term(init_term), low_term(size_term, LLVMInt)
+            element_type = self._get_vector_base_type(low_vec.type)
+            vec_cast = self._cast_if_needed(low_vec, LLVMPointerType(element_type))
+            kernel = self._lower_as_standalone(
+                kernel_term, LLVMFunctionType([low_init.type, element_type], low_init.type), type_env, env, allowed, True
+            )
+            return LLVMVectorReduce(low_init.type, kernel, low_init, vec_cast, low_size)
+
+        if op == "Vector_zipWith":
+            kernel_term, v1_term, v2_term, size_term = args
+            v1_low, v2_low, sz_low = low_term(v1_term), low_term(v2_term), low_term(size_term, LLVMInt)
+            res_el = expected.element_type if expected and isinstance(expected, LLVMPointerType) else LLVMInt
+            el1, el2 = self._get_vector_base_type(v1_low.type), self._get_vector_base_type(v2_low.type)
+            v1_cast, v2_cast = self._cast_if_needed(v1_low, LLVMPointerType(el1)), self._cast_if_needed(v2_low, LLVMPointerType(el2))
+            kernel = self._lower_as_standalone(kernel_term, LLVMFunctionType([el1, el2], res_el), type_env, env, allowed, True)
+            assert isinstance(kernel.type, LLVMFunctionType)
+            return LLVMVectorZipWith(LLVMPointerType(kernel.type.return_type), kernel, v1_cast, v2_cast, sz_low)
+
+        kernel_term, vector_term, size_term = args
+        v_low, sz_low = low_term(vector_term), low_term(size_term, LLVMInt)
+        element_type = self._get_vector_base_type(v_low.type)
+        vec_cast = self._cast_if_needed(v_low, LLVMPointerType(element_type))
+
+        if op in ("Vector_filter", "Vector_count"):
+            res_el = LLVMBool
+        elif expected and isinstance(expected, LLVMPointerType):
+            res_el = expected.element_type
+        else:
+            k_lowered = self._lower_as_standalone(kernel_term, None, type_env, env, allowed, True)
+            res_el = k_lowered.type.return_type if isinstance(k_lowered.type, LLVMFunctionType) else LLVMInt
+
+        k_params = [LLVMInt, element_type] if op == "Vector_imap" else [element_type]
+        kernel = self._lower_as_standalone(kernel_term, LLVMFunctionType(k_params, res_el), type_env, env, allowed, True)
+
+        if op == "Vector_filter":
+            return LLVMVectorFilter(vec_cast.type, kernel, vec_cast, sz_low)
+        if op == "Vector_count":
+            return LLVMVectorCount(LLVMInt, kernel, vec_cast, sz_low)
+
+        assert isinstance(kernel.type, LLVMFunctionType)
+        res_vec_ty = LLVMPointerType(kernel.type.return_type)
+        return (
+            LLVMVectorMap(res_vec_ty, kernel, vec_cast, sz_low)
+            if op == "Vector_map"
+            else LLVMVectorIMap(res_vec_ty, kernel, vec_cast, sz_low)
+        )
+
+    def _lower_term(
+        self,
+        term: Term | LLVMTerm,
+        expected: LLVMType | None = None,
         type_env: Dict[Name, LLVMType] = None,
         env: Dict[Name, LLVMTerm] = None,
+        allowed: set[Name] = None,
+        in_vector_op: bool = False,
     ) -> LLVMTerm:
-        if type_env is None:
-            type_env = {}
-        if env is None:
-            env = {}
+        if isinstance(term, LLVMTerm):
+            return term
+        type_env, env, allowed = type_env or {}, env or {}, allowed or set()
 
-        match t:
-            case Literal(value, type):
-                llvm_type = from_type_to_llvm_type(type)
-                return LLVMLiteral(llvm_type, value)
+        def recurse(t, exp=None, vec=in_vector_op):
+            return self._lower_term(t, exp, type_env, env, allowed, in_vector_op=vec)
 
+        match term:
+            case Literal(val, ty):
+                return LLVMLiteral(to_llvm_type(ty), val)
             case Var(name):
-                if name.name in BINARY_OPS or name.name in UNARY_OPS:
-                    llvm_type = self._get_operator_type(name.name, expected_type)
-                    return LLVMVar(llvm_type, name)
-                elif name in env:
-                    return env[name]
-                else:
-                    llvm_type = type_env.get(name) or LLVMInt
-                    return LLVMVar(llvm_type, name)
-
-            case Annotation(expr, type) | TypeApplication(expr, type):
-                llvm_type = from_type_to_llvm_type(type)
-                return self.lower(expr, llvm_type, type_env, env)
-
-            case Application(_, _):
-                base_function, application_args = self._uncurry_application(t)
-                lowered_base_function = self.lower(base_function, None, type_env, env)
-
-                is_partial_application = isinstance(lowered_base_function, LLVMCall) and isinstance(
-                    lowered_base_function.type, LLVMFunctionType
-                )
-                if is_partial_application:
-                    assert isinstance(lowered_base_function, LLVMCall)
-                    function_target = lowered_base_function.target
-                    previously_applied_args = lowered_base_function.args
-                    full_function_type = function_target.type
-                else:
-                    function_target = lowered_base_function
-                    previously_applied_args = []
-                    full_function_type = lowered_base_function.type
-
-                assert isinstance(full_function_type, LLVMFunctionType)
-                all_lowered_args = previously_applied_args.copy()
-
-                for arg in application_args:
-                    arg_index = len(all_lowered_args)
-                    expected_arg_type = full_function_type.arg_types[arg_index]
-                    all_lowered_args.append(self.lower(arg, expected_arg_type, type_env, env))
-
-                is_still_partial = len(all_lowered_args) < len(full_function_type.arg_types)
-                if is_still_partial:
-                    unapplied_arg_types = full_function_type.arg_types[len(all_lowered_args) :]
-                    partial_return_type = LLVMFunctionType(
-                        arg_types=unapplied_arg_types, return_type=full_function_type.return_type
-                    )
-                    return LLVMCall(type=partial_return_type, target=function_target, args=all_lowered_args)
-                else:
-                    return LLVMCall(type=full_function_type.return_type, target=function_target, args=all_lowered_args)
-
-            case Abstraction(var_name, body):
-                names = [var_name]
-                current_body = body
-                while isinstance(current_body, Abstraction):
-                    names.append(current_body.var_name)
-                    current_body = current_body.body
-
-                assert expected_type is not None and isinstance(expected_type, LLVMFunctionType)
-                assert len(names) == len(expected_type.arg_types)
-
-                arg_types = expected_type.arg_types
-                res_type = expected_type.return_type
-
-                new_type_env = type_env.copy()
-                for n, ty in zip(names, arg_types):
-                    new_type_env[n] = ty
-
-                llvm_body = self.lower(current_body, res_type, new_type_env, env)
-                return LLVMAbstraction(type=expected_type, arg_names=names, arg_types=arg_types, body=llvm_body)
-
-            case Let(var_name, var_value, body):
-                llvm_value = self.lower(var_value, None, type_env, env)
-
-                new_type_env = type_env.copy()
-                new_type_env[var_name] = llvm_value.type
-
-                new_env = env.copy()
-
-                if self._is_inlinable_anf(var_name, llvm_value):
-                    new_env[var_name] = llvm_value
-                    return self.lower(body, expected_type, new_type_env, new_env)
-
-                new_env[var_name] = LLVMVar(llvm_value.type, var_name)
-                llvm_body = self.lower(body, expected_type, new_type_env, new_env)
-                return LLVMLet(type=llvm_body.type, var_name=var_name, var_value=llvm_value, body=llvm_body)
-
-            case Rec(var_name, var_type, var_value, body):
-                llvm_func_type = from_type_to_llvm_type(var_type)
-
-                new_type_env = type_env.copy()
-                new_type_env[var_name] = llvm_func_type
-
-                new_env = env.copy()
-                new_env[var_name] = LLVMVar(llvm_func_type, var_name)
-
-                llvm_func_value = self.lower(var_value, llvm_func_type, new_type_env, new_env)
-                llvm_body = self.lower(body, expected_type, new_type_env, new_env)
-
-                return LLVMLet(type=llvm_body.type, var_name=var_name, var_value=llvm_func_value, body=llvm_body)
-
-            case If(cond, then, otherwise):
-                llvm_cond = self.lower(cond, None, type_env, env)
-                llvm_then = self.lower(then, expected_type, type_env, env)
-                llvm_otherwise = self.lower(otherwise, expected_type, type_env, env)
-                return LLVMIf(llvm_then.type, llvm_cond, llvm_then, llvm_otherwise)
-
+                return self._lower_var(name, expected, type_env, env)
+            case Annotation(e, ty) | TypeApplication(e, ty):
+                return recurse(e, to_llvm_type(ty))
             case TypeAbstraction(_, _, body):
-                return self.lower(body, expected_type, type_env, env)
-
+                return recurse(body, expected)
+            case Abstraction(_, _):
+                return self._lower_as_standalone(term, expected, type_env, env, allowed, in_vector_op)
+            case Application(_, _):
+                return self._lower_app(term, expected, type_env, env, allowed, in_vector_op)
+            case Let(name, val, body):
+                return self._lower_let(name, val, body, expected, type_env, env, allowed, in_vector_op)
+            case Rec(name, ty, val, body):
+                return self._lower_rec(name, ty, val, body, expected, type_env, env, allowed, in_vector_op)
+            case If(cond, then_t, else_t):
+                low_cond, low_then, low_else = recurse(cond), recurse(then_t, expected), recurse(else_t, expected)
+                return LLVMIf(low_then.type, low_cond, low_then, low_else)
             case _:
-                raise LLVMLoweringError(f"Could not lower term {t}")
+                raise LLVMLoweringError(f"could not lower term {term}")
+
+    def _lower_var(
+        self, name: Name, expected: LLVMType | None, type_env: Dict[Name, LLVMType], env: Dict[Name, LLVMTerm]
+    ) -> LLVMTerm:
+        if name.name in BINARY_OPS or name.name in UNARY_OPS:
+            return LLVMVar(self._get_operator_type(name.name, expected), name)
+
+        if name.name in BUILTIN_FUNCTION_TYPES:
+            ty = BUILTIN_FUNCTION_TYPES[name.name]
+            if expected and isinstance(expected, LLVMFunctionType) and len(expected.arg_types) == len(ty.arg_types):
+                ty = expected
+            elif expected and name.name == "Vector_new" and isinstance(expected, LLVMPointerType):
+                ty = LLVMFunctionType([], expected)
+            return LLVMVar(ty, name)
+
+        if name in env:
+            return env[name]
+        for en, term in env.items():
+            if en.name == name.name:
+                return term
+
+        ty = type_env.get(name) or expected or LLVMInt
+        return LLVMVar(ty, name)
+
+    def _lower_app(
+        self,
+        t: Application,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMTerm:
+        base, args = self._uncurry(t)
+        lowered_base = self._lower_term(base, None, type_env, env, allowed, in_vector_op=in_vec)
+        if not lowered_base:
+            raise LLVMBackendError(f"could not lower base {base}")
+
+        target, prev_args, eff_ty = self._extract_call_info(lowered_base)
+        params, ret = self.get_signature(eff_ty)
+        lookup = self._get_lookup_name(target)
+
+        if lookup in BUILTIN_FUNCTION_TYPES or lookup in VECTOR_OPERATIONS:
+            return self._lower_builtin_call(lookup, target, prev_args, args, expected, type_env, env, allowed, in_vec)
+
+        all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
+        return self._create_call_or_partial(target, all_args, params, ret)
+
+    def _lower_builtin_call(
+        self,
+        name: str,
+        target: LLVMTerm,
+        prev_args: list[LLVMTerm],
+        args: list[Term],
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMTerm:
+        params, ret = self.get_signature(target.type)
+
+        is_full_v = self._is_full_vector_op(name, len(prev_args) + len(args))
+        if (in_vec or name in VECTOR_OPERATIONS) and is_full_v:
+            return self._lower_vector_op(name, list(prev_args) + list(args), expected, type_env, env, allowed)
+
+        all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
+
+        if name in POLYMORPHIC_FUNCTIONS:
+            if name.startswith("Math"):
+                all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
+                return LLVMCall(ret, target, all_args)
+
+            if name == "Vector_get" and len(all_args) == 2:
+                return self._lower_vector_get(all_args[0], all_args[1])
+
+            if name == "Vector_set" and len(all_args) == 3:
+                return self._lower_vector_set(all_args[0], all_args[1], all_args[2])
+
+        return self._create_call_or_partial(target, all_args, params, ret)
+
+    def _extract_call_info(self, lowered: LLVMTerm) -> tuple[LLVMTerm, list[LLVMTerm], LLVMType]:
+        if isinstance(lowered, LLVMCall) and isinstance(lowered.type, LLVMFunctionType):
+            return lowered.target, lowered.args, lowered.type
+        return lowered, [], lowered.type
+
+    def _get_lookup_name(self, target: LLVMTerm) -> str:
+        name = self._get_target_name(target)
+        return name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
+
+    def _is_full_vector_op(self, op: str, total_args: int) -> bool:
+        if op not in VECTOR_OPERATIONS:
+            return False
+        threshold = 4 if op in ("Vector_reduce", "Vector_zipWith") else 3
+        return total_args >= threshold
+
+    def _lower_vector_get(self, vec: LLVMTerm, idx: LLVMTerm) -> LLVMLoad:
+        el = self._get_vector_base_type(vec.type)
+        ptr_ty = LLVMPointerType(el)
+        vec_ptr = self._cast_if_needed(vec, ptr_ty)
+        return LLVMLoad(el, LLVMGetElementPtr(ptr_ty, vec_ptr, [idx]))
+
+    def _lower_vector_set(self, vec: LLVMTerm, idx: LLVMTerm, val: LLVMTerm) -> LLVMStore:
+        el = self._get_vector_base_type(vec.type)
+        ptr_ty = LLVMPointerType(el)
+        vec_ptr = self._cast_if_needed(vec, ptr_ty)
+        val_cast = self._cast_if_needed(val, el)
+        return LLVMStore(vec.type, val_cast, LLVMGetElementPtr(ptr_ty, vec_ptr, [idx]))
+
+    def _create_call_or_partial(
+        self, target: LLVMTerm, args: list[LLVMTerm], params: list[LLVMType], ret: LLVMType
+    ) -> LLVMCall:
+        if len(args) < len(params):
+            return LLVMCall(LLVMFunctionType(params[len(args) :], ret), target, args)
+        return LLVMCall(ret, target, args)
+
+    def _lower_let(
+        self,
+        name: Name,
+        val: Term,
+        body: Term,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMTerm:
+        lowered_val = self._lower_term(val, None, type_env, env, allowed, in_vector_op=in_vec)
+        if isinstance(lowered_val, LLVMFunction):
+            lowered_val.name = name
+        new_ty_env = {**type_env, name: lowered_val.type if lowered_val else LLVMInt}
+        new_env = env.copy()
+        if lowered_val and self._is_inlinable_anf(name, lowered_val):
+            new_env[name] = lowered_val
+        else:
+            new_env[name] = LLVMVar(new_ty_env[name], name)
+        lowered_body = self._lower_term(body, expected, new_ty_env, new_env, allowed, in_vector_op=in_vec)
+        return lowered_body if self._is_inlinable_anf(name, lowered_val) else LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
+
+    def _lower_rec(
+        self,
+        name: Name,
+        ty: Type,
+        val: Term,
+        body: Term,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMLet:
+        func_type = to_llvm_type(ty)
+        params, ret_ty = self.get_signature(func_type)
+        flat_func_type = LLVMFunctionType(params, ret_ty)
+        new_ty_env, new_env = {**type_env, name: flat_func_type}, {**env, name: LLVMVar(flat_func_type, name)}
+        lowered_val = self._lower_term(val, flat_func_type, new_ty_env, new_env, allowed, in_vector_op=in_vec)
+        if isinstance(lowered_val, LLVMFunction):
+            lowered_val.name = name
+        lowered_body = self._lower_term(body, expected, new_ty_env, new_env, allowed, in_vector_op=in_vec)
+        return LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
