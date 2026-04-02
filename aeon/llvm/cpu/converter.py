@@ -33,6 +33,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorZipWith,
     LLVMVectorCount,
     VECTOR_OPERATIONS,
+    LLVMCast,
 )
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
 from aeon.utils.name import Name

@@ -49,3 +49,44 @@ def test_lower_abstraction_full():
     assert llvm_abs.arg_names == [Name("x"), Name("y")]
     assert llvm_abs.arg_types == [LLVMInt, LLVMInt]
     assert llvm_abs.type == expected_type
+
+
+def test_lower_vector_get():
+    lowerer = CPULLVMLowerer()
+    # Vector_get vec 0
+    app = Application(Application(Var(Name("Vector_get")), Var(Name("vec"))), Literal(0, t_int))
+    from aeon.llvm.llvm_ast import LLVMPointerType
+
+    type_env = {Name("vec"): LLVMPointerType(LLVMInt)}
+    llvm_get = lowerer.lower(app, type_env=type_env)
+    assert llvm_get.type == LLVMInt
+
+
+def test_lower_vector_map():
+    lowerer = CPULLVMLowerer()
+    # Vector_map (\x -> x + 1) vec sz
+    kernel = Abstraction(Name("x"), Application(Application(Var(Name("+")), Var(Name("x"))), Literal(1, t_int)))
+    app = Application(Application(Application(Var(Name("Vector_map")), kernel), Var(Name("vec"))), Var(Name("sz")))
+    from aeon.llvm.llvm_ast import LLVMPointerType
+
+    type_env = {Name("vec"): LLVMPointerType(LLVMInt), Name("sz"): LLVMInt}
+    llvm_map = lowerer.lower(app, type_env=type_env)
+    assert isinstance(llvm_map.type, LLVMPointerType)
+    assert llvm_map.type.element_type == LLVMInt
+
+
+def test_lower_math_pow():
+    lowerer = CPULLVMLowerer()
+    # Math_pow 2 3.0
+    from aeon.core.types import t_float
+
+    app = Application(Application(Var(Name("Math_pow")), Literal(2, t_int)), Literal(3.0, t_float))
+    llvm_pow = lowerer.lower(app)
+    from aeon.llvm.llvm_ast import LLVMDouble
+
+    assert llvm_pow.type == LLVMDouble
+    # The first argument should be cast to double
+    from aeon.llvm.llvm_ast import LLVMCast
+
+    assert isinstance(llvm_pow.args[0], LLVMCast)
+    assert llvm_pow.args[0].type == LLVMDouble
