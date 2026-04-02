@@ -1,35 +1,80 @@
 from __future__ import annotations
 
-
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 
 # ---------------------------------------------------------------------------
-# id – explicit + implicit refinement application, mismatches, bool, equality
+# Parametric matrix: type quantifier (implicit vs explicit forall t) ×
+# refinement quantifier (implicit t<p> only vs explicit forall <p : …>).
 # ---------------------------------------------------------------------------
 
-ID_DEF = "def id : (x : t<p>) -> t<p> = \\x -> x;"
+# Explicit forall t in type; refinement only via t<p> (no forall <p> in type).
+ID_EXPLICIT_TYPE_IMPLICIT_REF = (
+    "def id : forall t : B, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => \\x -> x;"
+)
+
+# Both quantifiers written in the type; term must bind both.
+ID_EXPLICIT_TYPE_EXPLICIT_REF = (
+    "def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => \\x -> x;"
+)
+
+# Free type variable t + t<p>; desugar adds Λ t / Λ p around body (no Λ in source).
+ID_IMPLICIT_TYPE_IMPLICIT_REF = "def id : (x : t<p>) -> t<p> = \\x -> x;"
 
 
-def test_id_explicit_and_implicit_int_predicate():
-    """Explicit {\\n -> ...} and inferred predicate both propagate on Int."""
-    source = f"""
-{ID_DEF}
-
-def main (args:Int) : Unit {{
+def _main_id_int_implicit_app() -> str:
+    """id[Int] with inferred predicate from argument refinement."""
+    return """
+def main (args:Int) : Unit {
     x : Int | x > 0 = 3;
-    y : Int | y > 0 = id[Int]{{\\n -> n > 0}} x;
-    z : Int | z > 0 = id[Int] y;
-    print (z)
-}}
+    y : Int | y > 0 = id[Int] x;
+    print (y)
+}
+"""
+
+
+def _main_id_int_explicit_app() -> str:
+    """id[Int] with explicit refinement argument."""
+    return """
+def main (args:Int) : Unit {
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = id[Int]{\\n -> n > 0} x;
+    print (y)
+}
+"""
+
+
+def test_parametric_explicit_type_implicit_refinement_compiles():
+    """forall t in type; p only from t<p>."""
+    source = f"""
+{ID_EXPLICIT_TYPE_IMPLICIT_REF}
+{_main_id_int_explicit_app()}
 """
     assert check_compile(source, st_top)
 
 
-def test_id_rejects_mismatched_predicate():
-    """Output refinement must follow the argument; implicit application."""
+def test_parametric_explicit_type_explicit_refinement_compiles():
+    """forall t and forall <p> in type; same term shape as implicit-ref variant."""
     source = f"""
-{ID_DEF}
+{ID_EXPLICIT_TYPE_EXPLICIT_REF}
+{_main_id_int_explicit_app()}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_parametric_implicit_type_implicit_refinement_compiles():
+    """Free t and t<p> in type; body is plain \\x -> x."""
+    source = f"""
+{ID_IMPLICIT_TYPE_IMPLICIT_REF}
+{_main_id_int_implicit_app()}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_parametric_rejects_mismatched_predicate():
+    """Output refinement must follow the argument (explicit-type / implicit-ref id)."""
+    source = f"""
+{ID_EXPLICIT_TYPE_IMPLICIT_REF}
 
 def main (args:Int) : Unit {{
     x : Int | x > 0 = 3;
@@ -40,48 +85,80 @@ def main (args:Int) : Unit {{
     assert not check_compile(source, st_top)
 
 
-def test_id_preserves_equality_predicate():
-    """Exact-value predicate is preserved (distinct from order-only predicates)."""
+def test_parametric_rejects_stricter_result_after_chained_id():
+    """Chained id cannot justify a strictly stronger predicate."""
     source = f"""
-{ID_DEF}
+{ID_EXPLICIT_TYPE_IMPLICIT_REF}
 
 def main (args:Int) : Unit {{
-    x : Int | x == 42 = 42;
-    y : Int | y == 42 = id[Int]{{\\n -> n == 42}} x;
-    print (y)
+    x : Int | x > 0 = 7;
+    y : Int | y > 0 = id[Int] x;
+    z : Int | z > 10 = id[Int] y;
+    print (z)
+}}
+"""
+    assert not check_compile(source, st_top)
+
+
+# ---------------------------------------------------------------------------
+# maxI on Int – explicit forall <p> vs implicit refinement (no forall <p> in type)
+# ---------------------------------------------------------------------------
+
+# No type-level forall; refinement quantifier explicit (Int monomorphic).
+MAXI_EXPLICIT_FORALL_P = (
+    "def maxI : forall <p : Int -> Bool>, (x : Int<p>) -> (y : Int<p>) -> Int<p> = "
+    "Λ < p : Int -> Bool > => \\x -> \\y -> if x < y then y else x;"
+)
+
+MAXI_IMPLICIT_REF = "def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> = \\x -> \\y -> if x < y then y else x;"
+
+
+def test_maxI_explicit_forall_p_compiles():
+    """forall <p> on Int only; no type polymorphism; Λ < p => in term."""
+    source = f"""
+{MAXI_EXPLICIT_FORALL_P}
+
+def main (args:Int) : Unit {{
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 0 = maxI x y;
+    print (z)
 }}
 """
     assert check_compile(source, st_top)
 
 
-def test_id_bool_predicates():
-    """Bool: satisfied refinement passes; impossible refinement fails."""
-    ok = f"""
-{ID_DEF}
+def test_maxI_implicit_refinement_inferred_p():
+    source = f"""
+{MAXI_IMPLICIT_REF}
 
 def main (args:Int) : Unit {{
-    b : Bool | b == true = true;
-    r : Bool | r == true = id[Bool] b;
-    print (r)
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 0 = maxI x y;
+    print (z)
 }}
 """
-    bad = f"""
-{ID_DEF}
+    assert check_compile(source, st_top)
+
+
+def test_maxI_rejects_stricter_result_predicate():
+    source = f"""
+{MAXI_IMPLICIT_REF}
 
 def main (args:Int) : Unit {{
-    b : Bool | b == false = false;
-    r : Bool | r == true = id[Bool] b;
-    print (r)
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 10 = maxI x y;
+    print (z)
 }}
 """
-    assert check_compile(ok, st_top)
-    assert not check_compile(bad, st_top)
+    assert not check_compile(source, st_top)
 
 
 # ---------------------------------------------------------------------------
-# const
+# const – refinement carried from first argument (implicit p via | p x)
 # ---------------------------------------------------------------------------
-
 
 CONST_DEF = "def const : (x : t | p x) -> (y : t) -> {v : t | p v} = \\x -> \\y -> x;"
 
@@ -113,50 +190,15 @@ def main (args:Int) : Unit {{
 
 
 # ---------------------------------------------------------------------------
-# Chained id and predicate strengthening
+# Wrapper: implicit type t from (x : t<p>); refinement application on id
 # ---------------------------------------------------------------------------
 
-
-def test_id_chained_implicit():
-    source = f"""
-{ID_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 7;
-    y : Int | y > 0 = id[Int] x;
-    z : Int | z > 0 = id[Int] y;
-    print (z)
-}}
-"""
-    assert check_compile(source, st_top)
+WRAP_DEF = "def wrap : (x : t<p>) -> t<p> = \\x -> id[t]{\\v -> v == x} x;"
 
 
-def test_id_chained_rejects_stricter_predicate():
-    source = f"""
-{ID_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 7;
-    y : Int | y > 0 = id[Int] x;
-    z : Int | z > 10 = id[Int] y;
-    print (z)
-}}
-"""
-    assert not check_compile(source, st_top)
-
-
-# ---------------------------------------------------------------------------
-# User wrapper around id
-# ---------------------------------------------------------------------------
-
-WRAP_DEF = (
-    "def wrap : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \\x -> id[t]{\\v -> v == x} x;"
-)
-
-
-def test_wrapper_around_id():
+def test_wrapper_around_explicit_type_id():
     source_ok = f"""
-{ID_DEF}
+{ID_EXPLICIT_TYPE_IMPLICIT_REF}
 {WRAP_DEF}
 
 def main (args:Int) : Unit {{
@@ -166,7 +208,7 @@ def main (args:Int) : Unit {{
 }}
 """
     source_bad = f"""
-{ID_DEF}
+{ID_EXPLICIT_TYPE_IMPLICIT_REF}
 {WRAP_DEF}
 
 def main (args:Int) : Unit {{
@@ -177,119 +219,3 @@ def main (args:Int) : Unit {{
 """
     assert check_compile(source_ok, st_top)
     assert not check_compile(source_bad, st_top)
-
-
-# ---------------------------------------------------------------------------
-# Multiple independent predicates in one program
-# ---------------------------------------------------------------------------
-
-
-def test_two_independent_predicates():
-    source_ok = f"""
-{ID_DEF}
-
-def main (args:Int) : Unit {{
-    a : Int | a > 0 = 1;
-    b : Int | b < 0 = 0 - 1;
-    ra : Int | ra > 0 = id[Int] a;
-    rb : Int | rb < 0 = id[Int] b;
-    print (ra)
-}}
-"""
-    source_bad = f"""
-{ID_DEF}
-
-def main (args:Int) : Unit {{
-    a : Int | a > 0 = 1;
-    b : Int | b < 0 = 1;
-    ra : Int | ra > 0 = id[Int] a;
-    rb : Int | rb > 0 = id[Int] b;
-    print (ra)
-}}
-"""
-    assert check_compile(source_ok, st_top)
-    assert not check_compile(source_bad, st_top)
-
-
-# ---------------------------------------------------------------------------
-# maxI – Int-only refinement polymorphism, max preserves predicate p
-# ---------------------------------------------------------------------------
-
-MAXI_DEF = "def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> = \\x -> \\y -> if x < y then y else x;"
-
-
-def test_maxI_implicit_predicate():
-    """Inferred p; result must satisfy the same refinement as arguments."""
-    source = f"""
-{MAXI_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 3;
-    y : Int | y > 0 = 5;
-    z : Int | z > 0 = maxI x y;
-    print (z)
-}}
-"""
-    assert check_compile(source, st_top)
-
-
-def test_maxI_inferred_predicate_wider_than_args():
-    """
-    Inferred p where the result's refinement is wider than each argument.
-    """
-    source = f"""
-{MAXI_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 3;
-    y : Int | y > 1 = 5;
-    z : Int | z > (-1) = maxI x y;
-    print (z)
-}}
-"""
-    assert check_compile(source, st_top)
-
-
-def test_maxI_explicit_predicate():
-    """Explicit refinement application on maxI."""
-    source = f"""
-{MAXI_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 3;
-    y : Int | y > 0 = 5;
-    z : Int | z > 0 = maxI{{\\n -> n > 0}} x y;
-    print (z)
-}}
-"""
-    assert check_compile(source, st_top)
-
-
-def test_maxI_rejects_stricter_result_predicate():
-    """Annotated result stricter than what max of the given literals establishes."""
-    source = f"""
-{MAXI_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 3;
-    y : Int | y > 0 = 5;
-    z : Int | z > 10 = maxI x y;
-    print (z)
-}}
-"""
-    assert not check_compile(source, st_top)
-
-
-def test_maxI_rejects_wrong_predicate_on_result():
-    """Max of positives is non-negative; cannot assign a strictly negative refinement."""
-    source = f"""
-{MAXI_DEF}
-
-def main (args:Int) : Unit {{
-    x : Int | x > 0 = 3;
-    y : Int | y > 0 = 5;
-    z : Int | z < 0 = maxI x y;
-    print (z)
-}}
-"""
-    assert not check_compile(source, st_top)

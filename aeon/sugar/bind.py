@@ -19,6 +19,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
     SRefinementApplication,
     STerm,
     STypeAbstraction,
@@ -138,6 +139,9 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)
+        case SRefinementAbstraction(name, sort, body, loc=loc):
+            name, subs = check_name(name, subs)
+            return SRefinementAbstraction(name, bind_stype(sort, subs), bind_sterm(body, subs), loc=loc)
         case SIf(cond, then, otherwise, loc=loc):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs), loc=loc)
         case SLet(name, body, cont, loc=loc):
@@ -168,6 +172,10 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             nname, nsubs = check_name(aname, nsubs)
             ty = bind_stype(ty, nsubs)
             args.append((nname, ty))
+        rforalls = []
+        for pname, psort in df.rforalls:
+            nname, nsubs = check_name(pname, nsubs)
+            rforalls.append((nname, bind_stype(psort, nsubs)))
         ntype = bind_stype(df.type, nsubs)
         body = bind_sterm(df.body, nsubs)
         decorators = []
@@ -176,7 +184,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             for da in dec.macro_args:
                 dargs.append(bind_sterm(da, subs))
             decorators.append(Decorator(dec.name, dargs))
-        d = Definition(name, foralls, args, ntype, body, decorators, loc=df.loc)
+        d = Definition(name, foralls, args, ntype, body, decorators, rforalls, loc=df.loc)
         definitions.append(d)
     return Program(p.imports, type_decls, [], definitions)
 

@@ -91,6 +91,7 @@ expression_fact : expression_b                           -> same
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
              | "\\" ID ":" type "->" expression             -> abstraction_et
+             | "Λ" "<" ID ":" type "->" "Bool" ">" "=>" expression -> rabstraction_e
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 

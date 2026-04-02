@@ -17,6 +17,7 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
     RefinementApplication,
     Term,
     TypeAbstraction,
@@ -50,6 +51,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
     SRefinementApplication,
     STerm,
     STypeAbstraction,
@@ -151,6 +153,8 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
         case SRefinementApplication(body, _):
             return liquefy(body, available_vars)
         case STypeAbstraction(name, _, body):
+            return liquefy(body, available_vars)
+        case SRefinementAbstraction(name, _, body):
             return liquefy(body, available_vars)
         case SApplication(_, _):
             return liquefy_app(t, available_vars)
@@ -257,6 +261,8 @@ def lower_to_core(t: STerm) -> Term:
             return RefinementApplication(lower_to_core(body), lower_to_core(refinement), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return TypeAbstraction(name, kind, lower_to_core(body), loc=loc)
+        case SRefinementAbstraction(name, sort, body, loc):
+            return RefinementAbstraction(name, type_to_core(sort), lower_to_core(body), loc=loc)
         case _:
             assert False, f"{t} ({type(t)}) not supported"
 
