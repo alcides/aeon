@@ -88,7 +88,9 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "Vector_reduce": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
     "Vector_imap": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, LLVMInt], _generic_ptr),
     "Vector_filter": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
-    "Vector_zipWith": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
+    "Vector_zipWith": LLVMFunctionType(
+        [LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr
+    ),
     "Vector_count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
 }
 
@@ -435,7 +437,12 @@ class CPULLVMLowerer(LLVMLowerer):
             element_type = self._get_vector_base_type(low_vec.type)
             vec_cast = self._cast_if_needed(low_vec, LLVMPointerType(element_type))
             kernel = self._lower_as_standalone(
-                kernel_term, LLVMFunctionType([low_init.type, element_type], low_init.type), type_env, env, allowed, True
+                kernel_term,
+                LLVMFunctionType([low_init.type, element_type], low_init.type),
+                type_env,
+                env,
+                allowed,
+                True,
             )
             return LLVMVectorReduce(low_init.type, kernel, low_init, vec_cast, low_size)
 
@@ -444,8 +451,13 @@ class CPULLVMLowerer(LLVMLowerer):
             v1_low, v2_low, sz_low = low_term(v1_term), low_term(v2_term), low_term(size_term, LLVMInt)
             res_el = expected.element_type if expected and isinstance(expected, LLVMPointerType) else LLVMInt
             el1, el2 = self._get_vector_base_type(v1_low.type), self._get_vector_base_type(v2_low.type)
-            v1_cast, v2_cast = self._cast_if_needed(v1_low, LLVMPointerType(el1)), self._cast_if_needed(v2_low, LLVMPointerType(el2))
-            kernel = self._lower_as_standalone(kernel_term, LLVMFunctionType([el1, el2], res_el), type_env, env, allowed, True)
+            v1_cast, v2_cast = (
+                self._cast_if_needed(v1_low, LLVMPointerType(el1)),
+                self._cast_if_needed(v2_low, LLVMPointerType(el2)),
+            )
+            kernel = self._lower_as_standalone(
+                kernel_term, LLVMFunctionType([el1, el2], res_el), type_env, env, allowed, True
+            )
             assert isinstance(kernel.type, LLVMFunctionType)
             return LLVMVectorZipWith(LLVMPointerType(kernel.type.return_type), kernel, v1_cast, v2_cast, sz_low)
 
@@ -463,7 +475,9 @@ class CPULLVMLowerer(LLVMLowerer):
             res_el = k_lowered.type.return_type if isinstance(k_lowered.type, LLVMFunctionType) else LLVMInt
 
         k_params = [LLVMInt, element_type] if op == "Vector_imap" else [element_type]
-        kernel = self._lower_as_standalone(kernel_term, LLVMFunctionType(k_params, res_el), type_env, env, allowed, True)
+        kernel = self._lower_as_standalone(
+            kernel_term, LLVMFunctionType(k_params, res_el), type_env, env, allowed, True
+        )
 
         if op == "Vector_filter":
             return LLVMVectorFilter(vec_cast.type, kernel, vec_cast, sz_low)
@@ -537,8 +551,8 @@ class CPULLVMLowerer(LLVMLowerer):
             if en.name == name.name:
                 return term
 
-        ty = type_env.get(name) or expected or LLVMInt
-        return LLVMVar(ty, name)
+        var_ty = type_env.get(name) or expected or LLVMInt
+        return LLVMVar(var_ty, name)
 
     def _lower_app(
         self,
@@ -653,7 +667,11 @@ class CPULLVMLowerer(LLVMLowerer):
         else:
             new_env[name] = LLVMVar(new_ty_env[name], name)
         lowered_body = self._lower_term(body, expected, new_ty_env, new_env, allowed, in_vector_op=in_vec)
-        return lowered_body if self._is_inlinable_anf(name, lowered_val) else LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
+        return (
+            lowered_body
+            if self._is_inlinable_anf(name, lowered_val)
+            else LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
+        )
 
     def _lower_rec(
         self,

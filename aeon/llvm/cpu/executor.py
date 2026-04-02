@@ -125,18 +125,23 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         # We need the actual function type to register the correct callback types
         # But we can also register them with a generic signature if needed.
         # However, for Vector_get/set, we need the element type.
-        
+
         vector_impls = self._get_vector_impl(arg_types, ret_type)
-        # We don't register them as global symbols if they are specialized per call? 
+        # We don't register them as global symbols if they are specialized per call?
         # Actually, the JIT needs to find them. If we have multiple calls with different types,
         # we might need different names or a generic implementation that uses the type info.
         # But here 'execute' is for a specific function.
-        
+
         # For now, let's register them. If there are multiple Vector_gets, they will conflict.
         # A better way would be to let the lowerer emit the implementation if it's not provided by a library.
-        
+
         # For 'native', it's always the same.
-        llvm.add_symbol("native", ctypes.cast(ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p)(vector_impls["native"]), ctypes.c_void_p).value)
+        llvm.add_symbol(
+            "native",
+            ctypes.cast(
+                ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p)(vector_impls["native"]), ctypes.c_void_p
+            ).value,
+        )
 
         backing_mod = llvm.parse_assembly(llvm_ir)
 
