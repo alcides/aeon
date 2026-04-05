@@ -8,7 +8,7 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.well_formed import wellformed
 from aeon.utils.ctx_helpers import built_std_context

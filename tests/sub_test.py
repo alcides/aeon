@@ -1,5 +1,5 @@
 from aeon.utils.name import Name
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_type
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.typechecking.entailment import entailment
 from aeon.verification.sub import sub

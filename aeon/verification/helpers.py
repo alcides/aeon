@@ -12,7 +12,7 @@ from aeon.core.substitutions import liquefy
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, TypeConstructor, Top, TypeVar
 from aeon.core.types import t_bool
-from aeon.frontend.parser import parse_term
+from aeon.core.parser import parse_term
 from aeon.verification.smt import base_functions
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint

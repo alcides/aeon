@@ -181,7 +181,6 @@ There are a few libraries available, but unstable as they are under development:
 | -----: | :---------------------------------------------------------------------------- |
 |     -d | Prints debug information                                                      |
 |     -t | Prints timing information about the different steps of the compiler           |
-| --core | Parses the input file as being the Core language, instead of the surface aeon |
 | -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |

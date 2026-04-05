@@ -1,5 +1,5 @@
 from aeon.core.types import TypeConstructor
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_type
 
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
