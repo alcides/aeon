@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from aeon.core.substitutions import substitution
 from aeon.core.substitutions import substitution_in_type
-from aeon.frontend.parser import parse_term
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_term
+from aeon.core.parser import parse_type
 from aeon.utils.name import Name
 
 

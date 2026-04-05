@@ -40,7 +40,6 @@ def parse_arguments():
 
 
 def _parse_common_arguments(parser: ArgumentParser):
-    parser.add_argument("--core", action="store_true", help="synthesize a aeon core file")
     parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
         "-l",
@@ -146,10 +145,7 @@ def main() -> None:
         aeon_lsp.start(args.tcp)
         sys.exit(0)
 
-    if args.core:
-        errors = driver.parse_core(args.filename)
-    else:
-        errors = driver.parse(args.filename)
+    errors = driver.parse(args.filename)
 
     if errors:
         for err in errors:

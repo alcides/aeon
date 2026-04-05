@@ -20,8 +20,8 @@ from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.frontend.anf_converter import ensure_anf
-from aeon.frontend.parser import parse_term
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_term
+from aeon.core.parser import parse_type
 from aeon.utils.ast_helpers import false
 from aeon.utils.ast_helpers import i0
 from aeon.utils.ast_helpers import i1

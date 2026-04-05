@@ -7,7 +7,7 @@ from aeon.utils.name import Name
 from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Literal, Term, TypeAbstraction, TypeApplication
 from aeon.core.types import BaseKind, TypeConstructor
-from aeon.frontend.parser import parse_term
+from aeon.core.parser import parse_term
 
 
 def weval(t: Term, ctx: EvaluationContext = EvaluationContext()):
