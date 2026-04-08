@@ -21,7 +21,7 @@ def test_literal():
     assert weval(parse_term("1.0")) == 1.0
     assert weval(parse_term(""" "hello"  """)) == "hello"
 
-    assert weval(Literal(value=(2, 3), type=TypeConstructor("Tuple"))) == (2, 3)
+    assert weval(Literal(value=(2, 3), type=TypeConstructor(Name("Tuple")))) == (2, 3)
 
 
 def test_application():
@@ -74,5 +74,5 @@ def test_rec():
 
 def test_type_abs_app():
     tabs = TypeAbstraction(Name("t"), BaseKind(), parse_term("1"))
-    tapp = TypeApplication(tabs, TypeConstructor("Int"))
+    tapp = TypeApplication(tabs, TypeConstructor(Name("Int")))
     assert weval(tapp) == 1
