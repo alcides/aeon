@@ -130,8 +130,8 @@ async def _parse(
             error_end_line, error_end_character = error_position.get_end()
 
             error_range = Range(
-                start=Position(line=error_start_line, character=error_start_character),
-                end=Position(line=error_end_line, character=error_end_character),
+                start=Position(line=max(0, error_start_line - 1), character=max(0, error_start_character - 1)),
+                end=Position(line=max(0, error_end_line - 1), character=max(0, error_end_character - 1)),
             )
 
             diagnostics.append(
