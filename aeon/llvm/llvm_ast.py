@@ -95,6 +95,12 @@ class LLVMPointerType(LLVMType):
     def __str__(self):
         return f"{self.element_type}*"
 
+    def to_ir(self) -> ir.Type:
+        base = self.element_type.to_ir()
+        if isinstance(base, ir.VoidType):
+            base = ir.IntType(8)
+        return ir.PointerType(base, self.address_space.value)
+
 
 @dataclass(frozen=True)
 class LLVMArrayType(LLVMType):
@@ -103,6 +109,9 @@ class LLVMArrayType(LLVMType):
 
     def __str__(self):
         return f"[{self.size if self.size is not None else 0} x {self.element_type}]"
+
+    def to_ir(self) -> ir.Type:
+        return ir.ArrayType(self.element_type.to_ir(), self.size or 0)
 
 
 @dataclass(frozen=True)
@@ -283,6 +292,9 @@ class LLVMCast(LLVMTerm):
 
     def __str__(self):
         return f"cast {self.val} to {self.type}"
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_cast(self)
 
 
 @dataclass
