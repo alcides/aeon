@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from aeon.core.terms import (
     Abstraction,
