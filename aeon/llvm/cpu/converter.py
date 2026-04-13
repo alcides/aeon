@@ -3,7 +3,7 @@ from __future__ import annotations
 import llvmlite.binding as llvm
 import llvmlite.ir as ir
 
-from aeon.llvm.core import LLVMIRGenerator, LLVMBackendError
+from aeon.llvm.core import LLVMIRGenerator, LLVMBackendError, LLVMVisitor
 from aeon.llvm.llvm_ast import (
     LLVMTerm,
     LLVMType,
@@ -44,7 +44,7 @@ class LLVMIRGenerationError(LLVMBackendError):
     pass
 
 
-class CPULLVMIRGenerator(LLVMIRGenerator):
+class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
     def __init__(self):
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
@@ -59,40 +59,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.builder = None
         self.env = {}
         self.fn_count = 0
+        self._is_top_level = False
 
     def to_ir_type(self, ty: LLVMType) -> ir.Type:
-        match ty:
-            case LLVMIntType(bits):
-                return ir.IntType(bits)
-            case LLVMFloatType():
-                return ir.FloatType()
-            case LLVMDoubleType():
-                return ir.DoubleType()
-            case LLVMBoolType():
-                return ir.IntType(1)
-            case LLVMCharType():
-                return ir.IntType(8)
-            case LLVMVoidType():
-                return ir.IntType(32)
-            case LLVMFunctionType(arg_types, return_type):
-                ir_return_type = (
-                    ir.VoidType() if isinstance(return_type, LLVMVoidType) else self.to_ir_type(return_type)
-                )
-                ir_arg_types = [self.to_ir_type(arg) for arg in arg_types]
-                return ir.FunctionType(ir_return_type, ir_arg_types)
-            case LLVMPointerType(element_type, address_space):
-                ir_base = self.to_ir_type(element_type)
-                if isinstance(ir_base, ir.VoidType):
-                    ir_base = ir.IntType(8)
-                return ir.PointerType(ir_base, address_space.value)
-            case LLVMArrayType(element_type, size):
-                ir_base = self.to_ir_type(element_type)
-                return ir.ArrayType(ir_base, size if size is not None else 0)
-            case _:
-                raise LLVMIRGenerationError(f"unsupported LLVM type {ty}")
+        return ty.to_ir()
 
     def _heap_alloc(self, element_ty: ir.Type, count: ir.Value) -> ir.Value:
-        element_size = self.target_data.get_abi_size(element_ty)
+        element_size = element_ty.get_abi_size(self.target_data)
 
         count_i64 = self.builder.sext(count, ir.IntType(64)) if count.type.width < 64 else count
         total_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
@@ -118,7 +91,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
                     self.env[func_name] = func
 
         for kernel_ast in definitions:
-            self.to_ir(kernel_ast, is_top_level=True)
+            self._is_top_level = True
+            kernel_ast.accept(self)
         return str(self.module)
 
     def declare_external(self, name: Name, ty: LLVMType):
@@ -128,81 +102,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         ir_type = self.to_ir_type(ty)
         ir.Function(self.module, ir_type, name=str_name)
 
-    def to_ir(self, llvm_ast: LLVMTerm, is_top_level: bool) -> ir.Value | None:
-        if llvm_ast is None:
+    def visit(self, node: LLVMTerm) -> ir.Value | None:
+        if node is None:
             return None
+        return node.accept(self)
 
-        match llvm_ast:
-            case LLVMLiteral(type=ty, value=val):
-                return self.to_ir_literal(ty, val)
-
-            case LLVMVar(type=ty, name=name):
-                return self.to_ir_variable(ty, name)
-
-            case LLVMIf(type=ty, cond=cond, then_t=then_t, else_t=else_t):
-                return self.to_ir_if(ty, cond, then_t, else_t)
-
-            case LLVMLet(type=ty, var_name=name, var_value=val, body=body):
-                return self.to_ir_let(name, val, body, is_top_level)
-
-            case LLVMFunction(type=ty, arg_names=names, body=body, name=opt_name):
-                return self.to_ir_function(ty, names, body, opt_name)
-
-            case LLVMCall(type=_, target=target, args=args):
-                return self.to_ir_call(target, args)
-
-            case LLVMCast(type=ty, val=val):
-                v_val = self.to_ir(val, False)
-                target_ty = self.to_ir_type(ty)
-                if v_val.type == target_ty:
-                    return v_val
-                if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
-                    return self.builder.sitofp(v_val, target_ty)
-                if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
-                    return self.builder.fptosi(v_val, target_ty)
-                if isinstance(v_val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
-                    return self.builder.fpext(v_val, target_ty)
-                if isinstance(v_val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
-                    return self.builder.fptrunc(v_val, target_ty)
-                return self.builder.bitcast(v_val, target_ty)
-
-            case LLVMGetElementPtr(ptr=ptr, indices=indices):
-                return self.builder.gep(self.to_ir(ptr, False), [self.to_ir(i, False) for i in indices])
-
-            case LLVMLoad(ptr=ptr):
-                return self.builder.load(self.to_ir(ptr, False))
-
-            case LLVMStore(value=value, ptr=ptr):
-                v_val = self.to_ir(value, False)
-                p_val = self.to_ir(ptr, False)
-                return p_val if isinstance(v_val.type, ir.VoidType) else self.builder.store(v_val, p_val)
-
-            case LLVMAlloc(type=ty):
-                alloc_ty = self.to_ir_type(ty.element_type if isinstance(ty, LLVMPointerType) else ty)
-                return self.builder.alloca(alloc_ty)
-
-            case LLVMVectorMap(type=res_ty, f=f, v=v, size=size):
-                return self.to_ir_vector_map(res_ty, f, v, size)
-
-            case LLVMVectorReduce(type=ty, f=f, initial=initial, v=v, size=size):
-                return self.to_ir_vector_reduce(ty, f, initial, v, size)
-
-            case LLVMVectorIMap(type=res_ty, f=f, v=v, size=size):
-                return self.to_ir_vector_imap(res_ty, f, v, size)
-
-            case LLVMVectorFilter(type=res_ty, f=f, v=v, size=size):
-                return self.to_ir_vector_filter(res_ty, f, v, size)
-
-            case LLVMVectorZipWith(type=res_ty, f=f, v1=v1, v2=v2, size=size):
-                return self.to_ir_vector_zipwith(res_ty, f, v1, v2, size)
-
-            case LLVMVectorCount(f=f, v=v, size=size):
-                return self.to_ir_vector_count(f, v, size)
-
-            case _:
-                raise LLVMIRGenerationError(f"unsupported LLVM node {type(llvm_ast)}")
-
-    def to_ir_literal(self, result_type: LLVMType, value: Any) -> ir.Value:
+    def visit_literal(self, node: LLVMLiteral) -> ir.Value:
+        result_type, value = node.type, node.value
         ir_type = self.to_ir_type(result_type)
         match result_type:
             case LLVMBoolType():
@@ -227,7 +133,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
             case _:
                 raise LLVMIRGenerationError(f"unsupported literal type {result_type}")
 
-    def to_ir_variable(self, result_type: LLVMType, var_name: Name) -> ir.Value:
+    def visit_var(self, node: LLVMVar) -> ir.Value:
+        var_name, result_type = node.name, node.type
         str_name = sanitize_name(var_name)
         if str_name in self.env:
             return self.env[str_name]
@@ -240,6 +147,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
 
         builtin_map = {
             "Math_pow": "pow",
+            "Math_powf": "pow",
             "Math_sqrt": "sqrt",
             "Math_sqrtf": "sqrt",
             "Math_sin": "sin",
@@ -270,17 +178,20 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
 
         raise LLVMIRGenerationError(f"undefined variable {str_name}")
 
-    def to_ir_if(self, result_type: LLVMType, cond: LLVMTerm, then_t: LLVMTerm, else_t: LLVMTerm) -> ir.Value | None:
+    def visit_if(self, node: LLVMIf) -> ir.Value | None:
         if self.builder is None:
             return None
-        cond_val = self.to_ir(cond, False)
+        result_type, cond, then_t, else_t = node.type, node.cond, node.then_t, node.else_t
+        cond_val = cond.accept(self)
 
         with self.builder.if_else(cond_val) as (then_block, else_block):
             with then_block:
-                then_val = self.to_ir(then_t, False)
+                self._is_top_level = False
+                then_val = then_t.accept(self)
                 then_exit = self.builder.basic_block
             with else_block:
-                else_val = self.to_ir(else_t, False)
+                self._is_top_level = False
+                else_val = else_t.accept(self)
                 else_exit = self.builder.basic_block
 
         if isinstance(result_type, LLVMVoidType):
@@ -291,18 +202,23 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         phi.add_incoming(else_val if else_val is not None else ir.Constant(phi.type, 0), else_exit)
         return phi
 
-    def to_ir_let(self, var_name: Name, var_value: LLVMTerm, body: LLVMTerm, is_top_level: bool) -> ir.Value | None:
+    def visit_let(self, node: LLVMLet) -> ir.Value | None:
+        var_name, var_value, body, is_top_level = node.var_name, node.var_value, node.body, self._is_top_level
         str_name = sanitize_name(var_name)
         if isinstance(var_value, LLVMFunction):
             var_value.name = var_name
-            func = self.to_ir(var_value, False)
+            self._is_top_level = False
+            func = var_value.accept(self)
             self.env[str_name] = func
-            return self.to_ir(body, is_top_level)
+            self._is_top_level = is_top_level
+            return body.accept(self)
 
-        val_gen = self.to_ir(var_value, False)
+        self._is_top_level = False
+        val_gen = var_value.accept(self)
         old_val = self.env.get(str_name)
         self.env[str_name] = val_gen
-        res = self.to_ir(body, is_top_level)
+        self._is_top_level = is_top_level
+        res = body.accept(self)
 
         if old_val is not None:
             self.env[str_name] = old_val
@@ -310,9 +226,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
             del self.env[str_name]
         return res
 
-    def to_ir_function(
-        self, function_type: LLVMType, arg_names: list[Name], body: LLVMTerm, function_name: Name | None
-    ) -> ir.Function:
+    def visit_function(self, node: LLVMFunction) -> ir.Function:
+        function_type, arg_names, body, function_name = node.type, node.arg_names, node.body, node.name
         func_name = sanitize_name(function_name) if function_name else f"anon_func_{self.fn_count}"
         if not function_name:
             self.fn_count += 1
@@ -330,7 +245,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
             func.args[i].name = str_arg_name
             self.env[str_arg_name] = func.args[i]
 
-        ret_val = self.to_ir(body, False)
+        self._is_top_level = False
+        ret_val = body.accept(self)
         if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
             self.builder.ret_void()
         else:
@@ -339,19 +255,30 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.builder, self.env = old_builder, old_env
         return func
 
-    def to_ir_call(self, target: LLVMTerm, args: list[LLVMTerm]) -> ir.Value | None:
+    def visit_call(self, node: LLVMCall) -> ir.Value | None:
         if self.builder is None:
             return None
+        target, args = node.target, node.args
 
         if isinstance(target, LLVMVar) and (target.name.name in BINARY_OPS or target.name.name in UNARY_OPS):
             return self.to_ir_operator(target.name.name, args)
 
-        target_func = self.to_ir(target, False)
-        arg_vals = [self.to_ir(arg, False) for arg in args]
-        return self.builder.call(target_func, arg_vals) if target_func else None
+        self._is_top_level = False
+        target_func = target.accept(self)
+        arg_vals = [arg.accept(self) for arg in args]
+        if not target_func:
+            return None
+
+        if isinstance(target_func, ir.Function):
+            if len(arg_vals) < len(target_func.function_type.args):
+                return None
+        return self.builder.call(target_func, arg_vals)
 
     def to_ir_operator(self, op: str, args: list[LLVMTerm]) -> ir.Value | None:
-        vals = [self.to_ir(arg, False) for arg in args]
+        self._is_top_level = False
+        vals = [arg.accept(self) for arg in args]
+        if any(v is None for v in vals):
+            return None
         is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
 
         match op:
@@ -423,6 +350,44 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
                 return self.builder.not_(vals[0])
         return None
 
+    def visit_cast(self, node: LLVMCast) -> ir.Value:
+        val, ty = node.val, node.type
+        self._is_top_level = False
+        v_val = val.accept(self)
+        target_ty = self.to_ir_type(ty)
+        if v_val.type == target_ty:
+            return v_val
+        if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
+            return self.builder.sitofp(v_val, target_ty)
+        if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
+            return self.builder.fptosi(v_val, target_ty)
+        if isinstance(v_val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
+            return self.builder.fpext(v_val, target_ty)
+        if isinstance(v_val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
+            return self.builder.fptrunc(v_val, target_ty)
+        return self.builder.bitcast(v_val, target_ty)
+
+    def visit_gep(self, node: LLVMGetElementPtr) -> ir.Value:
+        ptr, indices = node.ptr, node.indices
+        self._is_top_level = False
+        return self.builder.gep(ptr.accept(self), [idx.accept(self) for idx in indices])
+
+    def visit_load(self, node: LLVMLoad) -> ir.Value:
+        self._is_top_level = False
+        return self.builder.load(node.ptr.accept(self))
+
+    def visit_store(self, node: LLVMStore) -> ir.Value:
+        value, ptr = node.value, node.ptr
+        self._is_top_level = False
+        v_val = value.accept(self)
+        p_val = ptr.accept(self)
+        return p_val if isinstance(v_val.type, ir.VoidType) else self.builder.store(v_val, p_val)
+
+    def visit_alloc(self, node: LLVMAlloc) -> ir.Value:
+        ty = node.type
+        alloc_ty = self.to_ir_type(ty.element_type if isinstance(ty, LLVMPointerType) else ty)
+        return self.builder.alloca(alloc_ty)
+
     def to_ir_loop(self, size: ir.Value, name: str, body_fn: Callable[[ir.Value], None]):
         idx_ptr = self.builder.alloca(ir.IntType(32), name=f"{name}_idx")
         self.builder.store(ir.Constant(ir.IntType(32), 0), idx_ptr)
@@ -445,8 +410,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.builder.branch(cond_bb)
         self.builder.position_at_end(end_bb)
 
-    def to_ir_vector_map(self, res_ty: LLVMType, f: LLVMTerm, v: LLVMTerm, size: LLVMTerm) -> ir.Value:
-        f_val, v_val, size_val = self.to_ir(f, False), self.to_ir(v, False), self.to_ir(size, False)
+    def visit_vector_map(self, node: LLVMVectorMap) -> ir.Value:
+        res_ty, f, v, size = node.type, node.f, node.v, node.size
+        self._is_top_level = False
+        f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -461,15 +428,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.to_ir_loop(size_val, "map", body)
         return new_v
 
-    def to_ir_vector_reduce(
-        self, ty: LLVMType, f: LLVMTerm, initial: LLVMTerm, v: LLVMTerm, size: LLVMTerm
-    ) -> ir.Value:
-        f_val, init_val, v_val, size_val = (
-            self.to_ir(f, False),
-            self.to_ir(initial, False),
-            self.to_ir(v, False),
-            self.to_ir(size, False),
-        )
+    def visit_vector_reduce(self, node: LLVMVectorReduce) -> ir.Value:
+        ty, f, initial, v, size = node.type, node.f, node.initial, node.v, node.size
+        self._is_top_level = False
+        f_val, init_val, v_val, size_val = f.accept(self), initial.accept(self), v.accept(self), size.accept(self)
         acc_ty = self.to_ir_type(ty)
         if isinstance(acc_ty, ir.VoidType):
             acc_ty = ir.IntType(32)
@@ -488,8 +450,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.to_ir_loop(size_val, "reduce", body)
         return self.builder.load(acc_ptr)
 
-    def to_ir_vector_imap(self, res_ty: LLVMType, f: LLVMTerm, v: LLVMTerm, size: LLVMTerm) -> ir.Value:
-        f_val, v_val, size_val = self.to_ir(f, False), self.to_ir(v, False), self.to_ir(size, False)
+    def visit_vector_imap(self, node: LLVMVectorIMap) -> ir.Value:
+        res_ty, f, v, size = node.type, node.f, node.v, node.size
+        self._is_top_level = False
+        f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -504,8 +468,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.to_ir_loop(size_val, "imap", body)
         return new_v
 
-    def to_ir_vector_filter(self, res_ty: LLVMType, f: LLVMTerm, v: LLVMTerm, size: LLVMTerm) -> ir.Value:
-        f_val, v_val, size_val = self.to_ir(f, False), self.to_ir(v, False), self.to_ir(size, False)
+    def visit_vector_filter(self, node: LLVMVectorFilter) -> ir.Value:
+        res_ty, f, v, size = node.type, node.f, node.v, node.size
+        self._is_top_level = False
+        f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -525,15 +491,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.to_ir_loop(size_val, "filter", body)
         return new_v
 
-    def to_ir_vector_zipwith(
-        self, res_ty: LLVMType, f: LLVMTerm, v1: LLVMTerm, v2: LLVMTerm, size: LLVMTerm
-    ) -> ir.Value:
-        f_val, v1_val, v2_val, size_val = (
-            self.to_ir(f, False),
-            self.to_ir(v1, False),
-            self.to_ir(v2, False),
-            self.to_ir(size, False),
-        )
+    def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
+        res_ty, f, v1, v2, size = node.type, node.f, node.v1, node.v2, node.size
+        self._is_top_level = False
+        f_val, v1_val, v2_val, size_val = f.accept(self), v1.accept(self), v2.accept(self), size.accept(self)
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -549,8 +510,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator):
         self.to_ir_loop(size_val, "zip", body)
         return new_v
 
-    def to_ir_vector_count(self, f: LLVMTerm, v: LLVMTerm, size: LLVMTerm) -> ir.Value:
-        f_val, v_val, size_val = self.to_ir(f, False), self.to_ir(v, False), self.to_ir(size, False)
+    def visit_vector_count(self, node: LLVMVectorCount) -> ir.Value:
+        f, v, size = node.f, node.v, node.size
+        self._is_top_level = False
+        f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
         count_ptr = self.builder.alloca(ir.IntType(32), name="count_res")
         self.builder.store(ir.Constant(ir.IntType(32), 0), count_ptr)
 
