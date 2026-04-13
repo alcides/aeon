@@ -309,7 +309,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
                 return (c, s)
             else:
-                assert isinstance(tabs, AbstractionType)
+                if not isinstance(tabs, AbstractionType):
+                    raise CoreInvalidApplicationError(t, tabs)
                 return (c, tabs)
 
         case RefinementApplication(body, refinement):

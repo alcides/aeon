@@ -61,14 +61,17 @@ class SynquidSynthesizer(Synthesizer):
         ui.register(None, None, 0, True)
         while done:
             for result in synthes_memory(ctx, level, type, skip, mem):
-                if validate(result):
-                    score = evaluate(result)
-                    if is_better(score, best[0]):
-                        best = (score, result)
-                        ui.register(result, score, get_elapsed_time(start_time), True)
+                try:
+                    if validate(result):
+                        score = evaluate(result)
+                        if is_better(score, best[0]):
+                            best = (score, result)
+                            ui.register(result, score, get_elapsed_time(start_time), True)
+                        else:
+                            ui.register(result, score, get_elapsed_time(start_time), False)
                     else:
-                        ui.register(result, score, get_elapsed_time(start_time), False)
-                else:
+                        ui.register(result, "Invalid", get_elapsed_time(start_time), False)
+                except Exception:
                     ui.register(result, "Invalid", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
                     done = False

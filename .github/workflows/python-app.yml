@@ -25,13 +25,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system pytest mypy pre-commit-uv
+          uv pip install --system pytest pre-commit-uv
       - name: Lint with pre-commit
         run: |
           pre-commit run --all-files
-      - name: Lint with mypy
+      - name: Type check with ty
         run: |
-          mypy aeon --no-strict-optional --ignore-missing-imports
+          uvx ty check
       - name: Check install
         run: |
           uv pip install --system -e .

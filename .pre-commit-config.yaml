@@ -15,18 +15,14 @@ repos:
     rev: v3.1.0
     hooks:
       - id: setup-cfg-fmt
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  - repo: local
     hooks:
-      - id: mypy
-        args:
-          [
-            --no-strict-optional,
-            --ignore-missing-imports,
-            --explicit-package-bases,
-          ]
-        additional_dependencies:
-          - types-requests
+      - id: ty
+        name: ty
+        entry: uvx ty check
+        language: system
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.14.2
     hooks:

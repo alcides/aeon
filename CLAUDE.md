@@ -32,7 +32,7 @@ bash run_examples.sh
 uvx pre-commit run --all-files
 
 # Type checking
-uv run mypy aeon
+uvx ty check
 ```
 
 **Synthesizer options:** `gp` (genetic programming, default), `synquid`, `random_search`, `enumerative`, `hc` (hill climbing), `1p1` (one plus one)
@@ -41,7 +41,7 @@ uv run mypy aeon
 
 - Line length: 120 (ruff + black)
 - Ruff rules: E and F codes (ignoring E741, E501)
-- Strict mypy with custom stubs in `/stubs`
+- Type checking with ty (Astral's type checker)
 - pytest-beartype enabled for `aeon.core` package
 - Python 3.10+ target
 

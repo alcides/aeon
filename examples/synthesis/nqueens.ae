@@ -4,12 +4,12 @@ type Board;
 def N : {n:Int | n == 9} = 9;
 
 def C_mk
-    (q1x:Int | 0 <= q1x && q1x < N )
-    (q1y:Int | 0 <= q1y && q1y < N ) :
-    Coordinate { native "(x, y)" }
+    (q1x:{v:Int | 0 <= v && v < N})
+    (q1y:{v:Int | 0 <= v && v < N}) :
+    Coordinate { native "(q1x, q1y)" }
 
-def C_x (s:Coordinate) : Int { native "s[0]" }
-def C_y (s:Coordinate) : Int { native "s[1]" }
+def C_x (s:Coordinate) : {v:Int | 0 <= v && v < N} { native "s[0]" }
+def C_y (s:Coordinate) : {v:Int | 0 <= v && v < N} { native "s[1]" }
 
 
 
@@ -53,7 +53,18 @@ def create_solution
    {b:Board | Board_size b == N} { native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]" }
 
 
-@minimize_int(1)
+def Board_quality (b:Board | Board_size b >= 0) : Int {
+    if Board_is_empty b
+    then 0
+    else
+        h : Coordinate = Board_head b;
+        tl = Board_tail b;
+        component1 : Int = conflicts h tl;
+        component2 : Int = Board_quality tl;
+        component1 + component2
+}
+
+@minimize_int(Board_quality nqueens)
 @hide(Board_head, Board_tail, conflicts, Board_quality, Board_is_empty, C_x, C_y)
 def nqueens : {b:Board | Board_size b == N} = ?hole;
 

@@ -3,6 +3,7 @@ from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
+from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 
 
 def make_synthesizer(module: str) -> Synthesizer:
@@ -23,5 +24,9 @@ def make_synthesizer(module: str) -> Synthesizer:
             return LLMSynthesizer()
         case "decision_tree":
             return DecisionTreeSynthesizer()
+        case "tdsyn":
+            return TDSynSynthesizer(mode="enumerative")
+        case "tdsyn_random":
+            return TDSynSynthesizer(mode="random")
         case _:
             assert False, f"Not supported synthesizer with name {module}"

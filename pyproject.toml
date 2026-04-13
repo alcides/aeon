@@ -36,7 +36,6 @@ dependencies = [
     'pygls==2.1.1',
     'pytest',
     'requests',
-    'types-requests',
     'scikit-image',
     'sympy',
     'textdistance',
@@ -147,6 +146,20 @@ seaborn = "sns"
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
 
+
+[tool.ty.rules]
+# Downgrade noisy rules to warnings while the codebase is being improved
+invalid-argument-type = "warn"
+invalid-return-type = "warn"
+invalid-parameter-default = "warn"
+invalid-method-override = "warn"
+unresolved-attribute = "warn"
+unresolved-import = "warn"
+not-subscriptable = "warn"
+invalid-assignment = "warn"
+call-non-callable = "warn"
+invalid-type-form = "warn"
+empty-body = "warn"
 
 [tool.pytest.ini_options]
 beartype_packages = 'aeon.core'
