@@ -83,3 +83,8 @@ class LLVMPipeline(ABC):
     @abstractmethod
     def invoke(self, name_id: Name, arguments: List[Any]) -> Any:
         pass
+
+class LLVMVisitor(ABC):
+    @abstractmethod
+    def visit(self, node: LLVMTerm) -> Any:
+        pass
