@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from aeon.core.terms import (
     Abstraction,
@@ -48,6 +48,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorZipWith,
     LLVMVectorCount,
     VECTOR_OPERATIONS,
+    LLVMCast,
 )
 from aeon.llvm.utils import (
     validate_type,
@@ -73,7 +74,8 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "malloc": LLVMFunctionType([LLVMInt], _generic_ptr),
     "free": LLVMFunctionType([_generic_ptr], LLVMVoid),
     "printf": LLVMFunctionType([_generic_ptr], LLVMInt),
-    "Math_pow": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "Math_pow": LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt),
+    "Math_powf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
     "Math_sqrt": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "Math_sqrtf": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "Math_sin": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
@@ -96,6 +98,7 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
 
 POLYMORPHIC_FUNCTIONS: set[str] = {
     "Math_pow",
+    "Math_powf",
     "Math_exp",
     "Math_sqrt",
     "Math_sqrtf",
@@ -148,55 +151,41 @@ class CPUTypeValidationStep(ValidationStep):
                 for sub in (cond, then_t, else_t):
                     self.validate(sub, ctx)
             case Hole(name):
-                raise LLVMValidationError(f"unresolved hole {name}")
-            case _:
                 pass
+            case Var(name):
+                pass
+            case _:
+                raise LLVMValidationError(f"Unsupported term in LLVM backend: {type(t)}")
 
 
 class CPUFunctionCallValidationStep(ValidationStep):
     def validate(self, t: Term, ctx: ValidationContext) -> None:
         assert isinstance(ctx, CPUValidationContext)
         match t:
-            case Var(name):
-                self._validate_var(name, ctx)
-            case Rec(var_name, _, var_value, body):
-                self._validate_rec(var_name, var_value, body, ctx)
+            case Var(name) if not name.name.startswith("anf"):
+                self._validate_var_call(name, ctx)
+            case Application(fun, arg):
+                self.validate(fun, ctx)
+                self.validate(arg, ctx)
             case Let(var_name, var_value, body):
                 self._validate_let(var_name, var_value, body, ctx)
-            case Abstraction(var_name, body):
-                self.validate(
-                    body, replace(ctx, env_names=ctx.env_names | {sanitize_name(var_name)}, is_top_level=False)
-                )
-            case Application(f, arg):
-                self.validate(f, replace(ctx, is_top_level=False))
-                self.validate(arg, replace(ctx, is_top_level=False))
+            case Rec(var_name, _, var_value, body):
+                self._validate_let(var_name, var_value, body, ctx)
+            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr) | Abstraction(_, expr):
+                self.validate(expr, ctx)
             case If(cond, then_t, else_t):
                 for sub in (cond, then_t, else_t):
-                    self.validate(sub, replace(ctx, is_top_level=False))
-            case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr):
-                self.validate(expr, ctx)
+                    self.validate(sub, ctx)
             case _:
                 pass
 
-    def _validate_var(self, name: Name, ctx: CPUValidationContext) -> None:
-        if not ctx.strict:
-            return
-        is_local = name in ctx.type_env or sanitize_name(name) in ctx.env_names
-        is_op = name.name in BINARY_OPS or name.name in UNARY_OPS
-        is_anf = name.name.startswith("anf")
-        is_allowed = any(name.name == allowed.name for allowed in ctx.allowed_func_calls)
-        is_builtin = name.name in BUILTIN_FUNCTION_TYPES or name.name in VECTOR_OPERATIONS
-        if not (is_local or is_op or is_anf or is_allowed or is_builtin):
-            raise LLVMValidationError(f"function or variable {name.name} is not allowed in CPU LLVM functions.")
-
-    def _validate_rec(self, var_name: Name, var_value: Term, body: Term, ctx: CPUValidationContext) -> None:
-        if ctx.is_top_level:
-            self.validate(var_value, replace(ctx, is_top_level=False))
-            self.validate(body, replace(ctx, is_top_level=True))
-        else:
-            new_ctx = replace(ctx, env_names=ctx.env_names | {sanitize_name(var_name)}, is_top_level=False)
-            self.validate(var_value, new_ctx)
-            self.validate(body, new_ctx)
+    def _validate_var_call(self, name: Name, ctx: CPUValidationContext) -> None:
+        str_name = sanitize_name(name)
+        is_builtin = name.name in BINARY_OPS or name.name in UNARY_OPS or name.name in BUILTIN_FUNCTION_TYPES
+        is_allowed = name in ctx.allowed_func_calls or str_name in ctx.env_names
+        if not (is_builtin or is_allowed or name.name == "native" or name.name == "Math_PI"):
+            if ctx.strict:
+                raise LLVMValidationError(f"Function {name.name} is not allowed in this LLVM context")
 
     def _validate_let(self, var_name: Name, var_value: Term, body: Term, ctx: CPUValidationContext) -> None:
         if ctx.is_top_level:
@@ -314,8 +303,6 @@ class CPULLVMLowerer(LLVMLowerer):
     def _cast_if_needed(self, val: LLVMTerm, target_ty: LLVMType) -> LLVMTerm:
         if val.type == target_ty:
             return val
-        from aeon.llvm.llvm_ast import LLVMCast
-
         return LLVMCast(target_ty, val)
 
     def _get_target_name(self, target: LLVMTerm) -> str:
@@ -330,9 +317,18 @@ class CPULLVMLowerer(LLVMLowerer):
             return False
         is_partial = isinstance(val, LLVMCall) and isinstance(val.type, LLVMFunctionType)
         target = self._get_target_name(val) if isinstance(val, LLVMVar) else ""
-        is_op = isinstance(val, LLVMVar) and (target in BINARY_OPS or target in UNARY_OPS)
-        is_vec = isinstance(val, LLVMVar) and target in (VECTOR_OPERATIONS | {"Vector_set", "Vector_get"})
-        return is_partial or is_op or is_vec
+        if isinstance(val, LLVMCall):
+            target = self._get_target_name(val.target)
+        is_op = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
+            target in BINARY_OPS or target in UNARY_OPS
+        )
+        is_vec = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target in (
+            VECTOR_OPERATIONS | {"Vector_set", "Vector_get"}
+        )
+        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target.startswith("Math_")
+        if is_math and is_partial:
+            return False
+        return is_partial or is_op or is_vec or is_math
 
     def _lower_as_standalone(
         self,
@@ -505,18 +501,15 @@ class CPULLVMLowerer(LLVMLowerer):
             return term
         type_env, env, allowed = type_env or {}, env or {}, allowed or set()
 
-        def recurse(t, exp=None, vec=in_vector_op):
-            return self._lower_term(t, exp, type_env, env, allowed, in_vector_op=vec)
-
         match term:
             case Literal(val, ty):
                 return LLVMLiteral(to_llvm_type(ty), val)
             case Var(name):
                 return self._lower_var(name, expected, type_env, env)
             case Annotation(e, ty) | TypeApplication(e, ty):
-                return recurse(e, to_llvm_type(ty))
+                return self._lower_term(e, to_llvm_type(ty), type_env, env, allowed, in_vector_op)
             case TypeAbstraction(_, _, body):
-                return recurse(body, expected)
+                return self._lower_term(body, expected, type_env, env, allowed, in_vector_op)
             case Abstraction(_, _):
                 return self._lower_as_standalone(term, expected, type_env, env, allowed, in_vector_op)
             case Application(_, _):
@@ -526,8 +519,7 @@ class CPULLVMLowerer(LLVMLowerer):
             case Rec(name, ty, val, body):
                 return self._lower_rec(name, ty, val, body, expected, type_env, env, allowed, in_vector_op)
             case If(cond, then_t, else_t):
-                low_cond, low_then, low_else = recurse(cond), recurse(then_t, expected), recurse(else_t, expected)
-                return LLVMIf(low_then.type, low_cond, low_then, low_else)
+                return self._lower_if(cond, then_t, else_t, expected, type_env, env, allowed, in_vector_op)
             case _:
                 raise LLVMLoweringError(f"could not lower term {term}")
 
@@ -553,6 +545,22 @@ class CPULLVMLowerer(LLVMLowerer):
 
         var_ty = type_env.get(name) or expected or LLVMInt
         return LLVMVar(var_ty, name)
+
+    def _lower_if(
+        self,
+        cond: Term,
+        then_t: Term,
+        else_t: Term,
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMIf:
+        low_cond = self._lower_term(cond, None, type_env, env, allowed, in_vec)
+        low_then = self._lower_term(then_t, expected, type_env, env, allowed, in_vec)
+        low_else = self._lower_term(else_t, expected, type_env, env, allowed, in_vec)
+        return LLVMIf(low_then.type, low_cond, low_then, low_else)
 
     def _lower_app(
         self,
