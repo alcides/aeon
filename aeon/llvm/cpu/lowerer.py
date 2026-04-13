@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from aeon.core.terms import (
     Abstraction,
@@ -150,9 +150,9 @@ class CPUTypeValidationStep(ValidationStep):
             case If(cond, then_t, else_t):
                 for sub in (cond, then_t, else_t):
                     self.validate(sub, ctx)
-            case Hole(name):
+            case Hole(_):
                 pass
-            case Var(name):
+            case Var(_):
                 pass
             case _:
                 raise LLVMValidationError(f"Unsupported term in LLVM backend: {type(t)}")
@@ -325,7 +325,9 @@ class CPULLVMLowerer(LLVMLowerer):
         is_vec = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target in (
             VECTOR_OPERATIONS | {"Vector_set", "Vector_get"}
         )
-        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target.startswith("Math_")
+        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target.startswith(
+            "Math_"
+        )
         if is_math and is_partial:
             return False
         return is_partial or is_op or is_vec or is_math
