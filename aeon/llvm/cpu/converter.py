@@ -14,7 +14,6 @@ from aeon.llvm.llvm_ast import (
     LLVMCharType,
     LLVMVoidType,
     LLVMPointerType,
-    LLVMArrayType,
     LLVMFunctionType,
     LLVMLiteral,
     LLVMVar,
