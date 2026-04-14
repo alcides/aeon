@@ -25,7 +25,9 @@ def coinchange_mk
         (coins_10 c == c10)
     } { native "[c1, c5, c10]" }
 
-@minimize_int(1)
+def total_coins (c:CoinChange) : Int { native "c[0] + c[1] + c[2]" }
+
+@minimize_int((total_coins coin_solution_hole))
 def coin_solution_hole : {c:CoinChange |
     (coins_1 c >= 0) &&
     (coins_5 c >= 0) &&
