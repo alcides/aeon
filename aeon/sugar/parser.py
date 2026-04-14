@@ -200,6 +200,10 @@ class TreeToSugar(Transformer):
     def binop_mod(self, meta, args):
         return self.binop(args, "%", meta)
 
+    @v_args(meta=True)
+    def binop_dollar(self, meta, args):
+        return self.binop(args, "$", meta)
+
     def binop(self, args, op: str, meta):
         return SApplication(
             SApplication(SVar(Name(op, 0), loc=self._loc(meta)), args[0], loc=self._loc(meta)),

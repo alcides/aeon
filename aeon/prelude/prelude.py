@@ -45,6 +45,12 @@ prelude = [
     ("&&", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x and y),
     ("||", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x or y),
     ("!", "(x:Bool) -> Bool", lambda x: not x),
+    (
+        "$",
+        "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>,"
+        " (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",
+        lambda f: lambda x: f(x),
+    ),
 ]
 
 typing_vars: dict[Name, SType] = {}
