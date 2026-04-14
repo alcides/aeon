@@ -298,3 +298,57 @@ def main (args:Int) : Unit {{
 }}
 """
     assert not check_compile(source, st_top)
+
+
+# ---------------------------------------------------------------------------
+# $ – Haskell-style function application, refinement-preserving
+# ---------------------------------------------------------------------------
+
+
+def test_dollar_preserves_output_refinement():
+    source = """
+def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+
+def main (args:Int) : Unit {
+    r : Int | r > 0 = inc $ 5;
+    print (r)
+}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_dollar_right_associative_chain():
+    source = """
+def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+def dbl : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + x else 1;
+
+def main (args:Int) : Unit {
+    r : Int | r > 0 = inc $ dbl $ 3;
+    print (r)
+}
+"""
+    assert check_compile(source, st_top)
+
+
+def test_dollar_rejects_stricter_refinement():
+    source = """
+def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+
+def main (args:Int) : Unit {
+    r : Int | r > 100 = inc $ 5;
+    print (r)
+}
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_dollar_lower_precedence_than_plus():
+    source = """
+def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+
+def main (args:Int) : Unit {
+    r : Int | r > 0 = inc $ 2 + 3;
+    print (r)
+}
+"""
+    assert check_compile(source, st_top)

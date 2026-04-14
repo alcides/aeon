@@ -62,7 +62,10 @@ expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | "if" expression "then" expression "else" expression    -> if_e
-          | expression_un                                          -> same
+          | expression_dollar                                      -> same
+
+expression_dollar : expression_un                                    -> same
+                  | expression_un "$" expression_i                  -> binop_dollar
 
 expression_un : expression_bool                                      -> same
            | "!" expression_un                                       -> nnot
@@ -120,7 +123,7 @@ INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 
 TYPENAME : /[a-zA-Z0-9]+/
-ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
+ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 
 _PIPE.10 : "where" | "|"
 _DOUBLEPIPE.11 : "||"

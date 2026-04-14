@@ -23,7 +23,7 @@ from aeon.core.liquid import (
 from aeon.core.substitutions import substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, TypeVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -388,6 +388,8 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
                 return RefinedType(name, type, ref_filtered)
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, remove_uninterpreted_functions_from_type(body))
+        case RefinementPolymorphism(_, _, body):
+            return remove_uninterpreted_functions_from_type(body)
         case _:
             assert False, f"Unsupported {ty}"
 
