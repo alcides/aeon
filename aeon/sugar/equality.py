@@ -2,6 +2,7 @@ from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -16,6 +17,8 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -39,6 +42,10 @@ def type_equality(a: SType, b: SType, rename_left: dict[Name, Name] | None = Non
             return aname == bname and all([type_equality(a, b, rename_left) for a, b in zip(a1, b1)])
         case STypePolymorphism(aname, akind, abody), STypePolymorphism(bname, bkind, bbody):
             return akind == bkind and type_equality(abody, bbody, rename_left | {aname: bname})
+        case SRefinementPolymorphism(aname, asort, abody), SRefinementPolymorphism(bname, bsort, bbody):
+            return type_equality(asort, bsort, rename_left) and type_equality(
+                abody, bbody, rename_left | {aname: bname}
+            )
         case STypeApplication(ab, at), STypeApplication(bb, bt):
             return term_equality(ab, bb, rename_left) and type_equality(at, bt, rename_left)
         case STypeAbstraction(aname, akind, abody), STypeAbstraction(bname, bkind, bbody):
@@ -82,5 +89,11 @@ def term_equality(a: STerm, b: STerm, rename_left: dict[Name, Name] | None = Non
             return term_equality(ab, bb, rename_left) and type_equality(at, bt, rename_left)
         case STypeAbstraction(aname, akind, abody), STypeAbstraction(bname, bkind, bbody):
             return akind == bkind and term_equality(abody, bbody, rename_left | {aname: bname})
+        case SRefinementAbstraction(aname, asort, abody), SRefinementAbstraction(bname, bsort, bbody):
+            return type_equality(asort, bsort, rename_left) and term_equality(
+                abody, bbody, rename_left | {aname: bname}
+            )
+        case SRefinementApplication(ab, ar), SRefinementApplication(bb, br):
+            return term_equality(ab, bb, rename_left) and term_equality(ar, br, rename_left)
         case _:
             return False

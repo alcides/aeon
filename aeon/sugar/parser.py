@@ -11,6 +11,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SRefinementAbstraction,
     SRefinementApplication,
     SMatch,
     SMatchBranch,
@@ -213,6 +214,11 @@ class TreeToSugar(Transformer):
     def binop_mod(self, meta, args):
         return self.binop(args, "%", meta)
 
+    @v_args(meta=True)
+    def binop_dollar(self, meta, args):
+        # `$` is syntactic sugar for function application (right-associative by grammar).
+        return SApplication(args[0], args[1], loc=self._loc(meta))
+
     def binop(self, args, op: str, meta):
         return SApplication(
             SApplication(SVar(Name(op, 0), loc=self._loc(meta)), args[0], loc=self._loc(meta)),
@@ -231,6 +237,10 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def tabstraction_e(self, meta, args):
         return STypeAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def rabstraction_e(self, meta, args):
+        return SRefinementAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
     def type_application_e(self, meta, args):
