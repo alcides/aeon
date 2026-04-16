@@ -180,6 +180,34 @@ class SIf(STerm):
 
 
 @dataclass(frozen=True)
+class SMatchBranch:
+    constructor: Name
+    binders: list[Name]
+    body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        binders = " ".join(str(b) for b in self.binders)
+        if binders:
+            return f"| {self.constructor} {binders} => {self.body}"
+        return f"| {self.constructor} => {self.body}"
+
+
+@dataclass(frozen=True)
+class SMatch(STerm):
+    scrutinee: STerm
+    branches: list[SMatchBranch]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        branches_str = "\n".join(str(b) for b in self.branches)
+        return f"(match {self.scrutinee} with\n{branches_str})"
+
+    def __repr__(self):
+        return str(self)
+
+
+@dataclass(frozen=True)
 class STypeAbstraction(STerm):
     name: Name
     kind: Kind

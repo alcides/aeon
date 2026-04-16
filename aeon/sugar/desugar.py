@@ -22,6 +22,8 @@ from aeon.sugar.program import (
     SHole,
     SLiteral,
     SRec,
+    SMatch,
+    SMatchBranch,
     STerm,
     STypeAbstraction,
     SVar,
@@ -48,6 +50,10 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
 
+    # We need inductive constructor info to lower `match` expressions.
+    # Note: `expand_inductive_decls` clears `p.inductive_decls`, so we snapshot it here.
+    inductive_decls_snapshot = list(p.inductive_decls)
+
     p = expand_inductive_decls(p)
 
     prog = determine_main_function(p, is_main_hole)
@@ -64,7 +70,114 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     prog, etctx = replace_concrete_types(
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
     )
+    # Lower match expressions (Lean syntax) into the generated inductive eliminators.
+    prog = lower_match_to_inductive_rec(prog, inductive_decls_snapshot)
     return DesugaredProgram(prog, etctx, metadata)
+
+
+def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDecl]) -> STerm:
+    """
+    Rewrite `match scrutinee with | C x y => e | ...` into:
+        <Inductive>_rec scrutinee (\\x -> \\y -> e) ...
+    using the generated `<Inductive>_rec` eliminator introduced by `expand_inductive_decls`.
+    """
+
+    # Build quick lookup: (inductive_name, constructor_name) -> constructor argument binders.
+    inductive_info: dict[Name, dict[Name, list[tuple[Name, SType]]]] = {}
+    for decl in inductive_decls:
+        cons_map: dict[Name, list[tuple[Name, SType]]] = {}
+        for cons in decl.constructors:
+            # Each constructor is represented as a Definition in sugar, where `args`
+            # already carries the types we need to place the bound variables.
+            match cons:
+                case Definition(cname, cforalls, cargs, crtype, _, _, _):
+                    cons_map[cname] = cargs
+        inductive_info[decl.name] = cons_map
+
+    def lower_term(t: STerm) -> STerm:
+        match t:
+            case SMatch(scrutinee, branches, loc=_):
+                lowered_scrut = lower_term(scrutinee)
+
+                # Determine which inductive we're matching on from the constructor list.
+                # We only support matching on values of an inductive type whose name can
+                # be inferred from the branch constructor names.
+                lowered_branches: list[SMatchBranch] = branches
+                cons_names = [b.constructor for b in lowered_branches]
+
+                # Find the first inductive that contains all branch constructors.
+                chosen: Name | None = None
+                chosen_cons_map: dict[Name, list[tuple[Name, SType]]] | None = None
+                for iname, cmap in inductive_info.items():
+                    if all(cn in cmap for cn in cons_names):
+                        chosen = iname
+                        chosen_cons_map = cmap
+                        break
+
+                if chosen is None or chosen_cons_map is None:
+                    # Fall back: this should typically be rejected by typechecking later.
+                    return SMatch(lowered_scrut, lowered_branches, loc=t.loc)
+
+                rec_name = Name(chosen.name + "_rec", -1)
+                rec_fun: STerm = SVar(rec_name, loc=t.loc)  # will be bound like any other var
+
+                # Constructor handlers must be passed to the eliminator in constructor order,
+                # so gather them in the same order as the inductive declaration.
+                handlers: list[STerm] = []
+                for decl in inductive_decls:
+                    if decl.name != chosen:
+                        continue
+                    for cons_def in decl.constructors:
+                        match cons_def:
+                            case Definition(cname, _, cargs, _, _, _, _):
+                                # Find the matching branch, if missing use a hole-like undefined.
+                                branch_expr = None
+                                for b in lowered_branches:
+                                    if b.constructor == cname:
+                                        branch_expr = b.expr
+                                        branch_binders = b.binders
+                                        break
+                                if branch_expr is None:
+                                    branch_expr = SHole(Name("todo", -1), loc=t.loc)
+                                    branch_binders = [arg.name for arg, _ in cargs]
+
+                                # Prefer binders from the pattern; if empty, use constructor arg names.
+                                binders = branch_binders if branch_binders else [arg for (arg, _) in cargs]
+
+                                body: STerm = lower_term(branch_expr)
+                                # Build nested abstractions for each binder.
+                                for bn in reversed(binders):
+                                    body = SAbstraction(bn, body, loc=t.loc)
+                                handlers.append(body)
+
+                # Apply: ((rec_fun scrut) handler1) handler2 ...
+                out: STerm = SApplication(rec_fun, lowered_scrut, loc=t.loc)
+                for h in handlers:
+                    out = SApplication(out, h, loc=t.loc)
+                return out
+
+            case SApplication(fun, arg, loc=loc):
+                return SApplication(lower_term(fun), lower_term(arg), loc=loc)
+            case SAbstraction(name, body, loc=loc):
+                return SAbstraction(name, lower_term(body), loc=loc)
+            case SLet(name, val, body, loc=loc):
+                return SLet(name, lower_term(val), lower_term(body), loc=loc)
+            case SRec(name, ty, val, body, loc=loc):
+                return SRec(name, ty, lower_term(val), lower_term(body), loc=loc)
+            case SIf(cond, then, otherwise, loc=loc):
+                return SIf(lower_term(cond), lower_term(then), lower_term(otherwise), loc=loc)
+            case SAnnotation(expr, ty, loc=loc):
+                return SAnnotation(lower_term(expr), ty, loc=loc)
+            case STypeApplication(body, ty, loc=loc):
+                return STypeApplication(lower_term(body), ty, loc=loc)
+            case STypeAbstraction(name, kind, body, loc=loc):
+                return STypeAbstraction(name, kind, lower_term(body), loc=loc)
+            case SRefinementApplication(body, refinement, loc=loc):
+                return SRefinementApplication(lower_term(body), lower_term(refinement), loc=loc)
+            case _:
+                return t
+
+    return lower_term(prog)
 
 
 def expand_inductive_decls(p: Program) -> Program:

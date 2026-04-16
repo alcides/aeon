@@ -16,6 +16,7 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SMatch,
     SLet,
     SLiteral,
     SRec,
@@ -140,6 +141,21 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)
         case SIf(cond, then, otherwise, loc=loc):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs), loc=loc)
+        case SMatch(scrutinee, branches, loc=loc):
+            n_scrutinee = bind_sterm(scrutinee, subs)
+            n_branches = []
+            # Pattern binders are scoped to each match branch.
+            for br in branches:
+                branch_subs = list(subs)
+                renamed_binders: list[Name] = []
+                for b in br.binders:
+                    nb, branch_subs = check_name(b, branch_subs)
+                    renamed_binders.append(nb)
+                n_body = bind_sterm(br.body, branch_subs)
+                n_branches.append(
+                    type(br)(constructor=br.constructor, binders=renamed_binders, body=n_body, loc=br.loc)
+                )
+            return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
