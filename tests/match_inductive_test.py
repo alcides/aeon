@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from tests.driver import check_compile_expr
-from aeon.sugar.parser import parse_expression
 from aeon.sugar.desugar import desugar
 from aeon.sugar.parser import parse_program
-from aeon.sugar.stypes import STypeConstructor
-from aeon.sugar.stypes import STypeVar
 
 
 def test_match_lowering_intlist():
@@ -34,4 +30,3 @@ def test_match_lowering_intlist():
     # Our surface AST pretty-print includes "match ... with" for SMatch.
     assert "SMatch" not in dumped
     assert "IntList_rec" in dumped
-

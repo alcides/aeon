@@ -95,7 +95,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
             # Each constructor is represented as a Definition in sugar, where `args`
             # already carries the types we need to place the bound variables.
             match cons:
-                case Definition(cname, cforalls, cargs, crtype, _, _, _):
+                case Definition(cname, _, cargs, _, _, _, _):
                     cons_map[cname] = cargs
         inductive_info[decl.name] = cons_map
 
@@ -144,7 +144,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                                         break
                                 if branch_expr is None:
                                     branch_expr = SHole(Name("todo", -1), loc=t.loc)
-                                    branch_binders = [arg.name for arg, _ in cargs]
+                                    branch_binders = [arg for arg, _ in cargs]
 
                                 # Prefer binders from the pattern; if empty, use constructor arg names.
                                 binders = branch_binders if branch_binders else [arg for (arg, _) in cargs]

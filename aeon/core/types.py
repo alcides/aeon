@@ -145,20 +145,26 @@ class RefinementPolymorphism(Type):
         return f"forall <{self.name}:{self.sort} -> Bool>, {self.body}"
 
 
-@dataclass
+@dataclass(init=False)
 class TypeConstructor(Type):
-    # NOTE: Some tests construct TypeConstructor with raw strings (e.g. "Int").
-    # We accept `str` here and coerce it to `Name` to keep runtime type
-    # checking (pytest-beartype) happy.
-    name: Name | str
+    name: Name
     args: list[Type] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
-    def __post_init__(self):
-        if isinstance(self.name, str):
+    def __init__(
+        self,
+        name: Name | str,
+        args: list[Type] | None = None,
+        loc: Location | None = None,
+    ):
+        # Backward compatibility for callers that still pass raw strings.
+        if isinstance(name, str):
             builtin = {"Top", "Unit", "Int", "Bool", "Float", "String"}
             # Builtins are consistently encoded with id=0 elsewhere (parser).
-            self.name = Name(self.name, 0 if self.name in builtin else -1)
+            name = Name(name, 0 if name in builtin else -1)
+        self.name = name
+        self.args = [] if args is None else args
+        self.loc = SynthesizedLocation("default") if loc is None else loc
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
