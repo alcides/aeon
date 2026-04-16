@@ -147,9 +147,18 @@ class RefinementPolymorphism(Type):
 
 @dataclass
 class TypeConstructor(Type):
-    name: Name
+    # NOTE: Some tests construct TypeConstructor with raw strings (e.g. "Int").
+    # We accept `str` here and coerce it to `Name` to keep runtime type
+    # checking (pytest-beartype) happy.
+    name: Name | str
     args: list[Type] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __post_init__(self):
+        if isinstance(self.name, str):
+            builtin = {"Top", "Unit", "Int", "Bool", "Float", "String"}
+            # Builtins are consistently encoded with id=0 elsewhere (parser).
+            self.name = Name(self.name, 0 if self.name in builtin else -1)
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)

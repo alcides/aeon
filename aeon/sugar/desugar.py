@@ -19,14 +19,19 @@ from aeon.sugar.program import (
     Definition,
     SAbstraction,
     SApplication,
+    SAnnotation,
     SHole,
     SLiteral,
+    SIf,
     SRec,
+    SLet,
     SMatch,
     SMatchBranch,
     STerm,
     STypeAbstraction,
+    STypeApplication,
     SVar,
+    SRefinementApplication,
 )
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
@@ -134,7 +139,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                                 branch_expr = None
                                 for b in lowered_branches:
                                     if b.constructor == cname:
-                                        branch_expr = b.expr
+                                        branch_expr = b.body
                                         branch_binders = b.binders
                                         break
                                 if branch_expr is None:
