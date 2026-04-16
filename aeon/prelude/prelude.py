@@ -47,8 +47,7 @@ prelude = [
     ("!", "(x:Bool) -> Bool", lambda x: not x),
     (
         "$",
-        "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>,"
-        " (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",
+        "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>, (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",
         lambda f: lambda x: f(x),
     ),
 ]
