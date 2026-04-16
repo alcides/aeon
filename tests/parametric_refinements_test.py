@@ -180,14 +180,27 @@ def main (args:Int) : Unit {{
 
 def test_dollar_preserves_output_refinement():
     source = """
-def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+def inc : (x : Int | x > 4) -> {y:Int | y > 0} = \\x -> x + 1;
 
 def main (args:Int) : Unit {
-    r : Int | r > 0 = inc $ 5;
+    n : Int | n > 4 = 5;
+    r : Int | r > 0 = inc $ n;
     print (r)
 }
 """
     assert check_compile(source, st_top)
+
+
+def test_dollar_propagates_argument_refinement_check():
+    source = """
+def inc : (x : Int | x > 4) -> {y:Int | y > 0} = \\x -> x + 1;
+
+def main (args:Int) : Unit {
+    r : Int | r > 0 = inc $ 3;
+    print (r)
+}
+"""
+    assert not check_compile(source, st_top)
 
 
 def test_dollar_right_associative_chain():
