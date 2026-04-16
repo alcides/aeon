@@ -14,6 +14,8 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SMatch,
+    SMatchBranch,
     SLet,
     SLiteral,
     SRec,
@@ -136,6 +138,25 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
             return SRefinementApplication(rec(body), rec(refinement), loc=loc)
         case STypeAbstraction(aname, kind, body, loc):
             return STypeAbstraction(aname, kind, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        # Avoid substituting into a branch body if `alpha`
+                        # is bound by that branch's binders.
+                        body=br.body if alpha in br.binders else rec(br.body),
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case SMatchBranch():
+            # Branches are only handled through SMatch; keep it explicit.
+            assert False
         case _:
             assert False
 
@@ -170,5 +191,21 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
                 return t
             else:
                 return STypeAbstraction(aname, kind, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        body=rec(br.body),
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case SMatchBranch():
+            assert False
         case _:
             assert False

@@ -62,7 +62,12 @@ expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | "if" expression "then" expression "else" expression    -> if_e
+          | "match" expression "with" match_branches              -> match_e
           | expression_un                                          -> same
+
+match_branches : match_branch+                                 -> list
+match_branch : _PIPE ID pat_binders "=>" expression            -> match_branch
+pat_binders : (ID)*                                           -> list
 
 expression_un : expression_bool                                      -> same
            | "!" expression_un                                       -> nnot

@@ -12,6 +12,8 @@ from aeon.sugar.program import (
     SAnnotation,
     SApplication,
     SRefinementApplication,
+    SMatch,
+    SMatchBranch,
     SHole,
     SIf,
     SLet,
@@ -138,6 +140,18 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def if_e(self, meta, args):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_e(self, meta, args):
+        # match <scrutinee> with <branches>
+        return SMatch(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_branch(self, meta, args):
+        # | <Constructor> <binders>* => <body>
+        constructor_name = Name(args[0])
+        binders = [Name(b) for b in args[1]]
+        return SMatchBranch(constructor=constructor_name, binders=binders, body=args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
     def nnot(self, meta, args):
