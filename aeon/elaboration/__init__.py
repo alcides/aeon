@@ -18,6 +18,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
     SRefinementApplication,
     STerm,
     STypeAbstraction,
@@ -34,7 +35,7 @@ from aeon.sugar.stypes import (
     SRefinementPolymorphism,
     get_type_vars,
 )
-from aeon.sugar.substitutions import substitution_sterm_in_stype
+from aeon.sugar.substitutions import substitute_refinement_param_in_stype, substitution_sterm_in_stype
 from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
@@ -80,6 +81,7 @@ def elaborate_foralls(e: STerm) -> STerm:
             | SIf(_, _, _)
             | STypeApplication(_, _)
             | STypeAbstraction(_, _, _)
+            | SRefinementAbstraction(_, _, _)
             | SRefinementApplication(_, _)
         ):
             return e
@@ -143,16 +145,6 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
         case (_, STypePolymorphism(name, _, body)):
             u = UnificationVar(ctx.fresh_typevar())
             unify(ctx, sub, type_substitution(body, name, u))
-            return []
-
-        case (SRefinementPolymorphism(name, _, body), _):
-            h = SHole(Name("_pred", fresh_counter.fresh()))
-            nty = substitution_sterm_in_stype(body, h, name)
-            return unify(ctx, nty, sup)
-        case (_, SRefinementPolymorphism(name, _, body)):
-            h = SHole(Name("_pred", fresh_counter.fresh()))
-            nty = substitution_sterm_in_stype(body, h, name)
-            unify(ctx, sub, nty)
             return []
 
         case (SAbstractionType(_, sub_vtype, sub_rtype), SAbstractionType(_, sup_vtype, sup_rtype)):
@@ -358,6 +350,11 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nty = type_substitution(tbody, tname, STypeVar(name))
             nbody = elaborate_check(nctx, body, nty)
             return STypeAbstraction(name, kind, nbody, loc=loc)
+        case (SRefinementAbstraction(pname, sort, body, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
+            unify(ctx, sort, rsort)
+            nty = substitute_refinement_param_in_stype(tbody, rname, pname)
+            nbody = elaborate_check(ctx, body, nty)
+            return SRefinementAbstraction(pname, sort, nbody, loc=loc)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
@@ -530,6 +527,10 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
         case STypeAbstraction(name, kind, body, loc=loc):
             nctx = ctx.with_typevar(name, kind)
             return STypeAbstraction(name, kind, elaborate_remove_unification(nctx, body), loc=loc)
+
+        case SRefinementAbstraction(name, sort, body, loc=loc):
+            nsort = remove_unions_and_intersections(ctx, sort)
+            return SRefinementAbstraction(name, nsort, elaborate_remove_unification(ctx, body), loc=loc)
 
         case STypeApplication(body, ty, loc=loc):
             # Recursively apply itself.

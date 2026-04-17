@@ -10,6 +10,8 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
@@ -137,9 +139,18 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
             body_str, counter = custom_preludes_ops_representation(body, counter)
             return f"""ƛ{name}:{kind}.({body_str})""", counter
 
+        case RefinementAbstraction(name=name, sort=sort, body=body):
+            body_str, counter = custom_preludes_ops_representation(body, counter)
+            return f"""Λρ{name}:({sort}).({body_str})""", counter
+
         case TypeApplication(body=body, type=type):
             body_str, counter = custom_preludes_ops_representation(body, counter)
             return f"""({body_str})[{type}]""", counter
+
+        case RefinementApplication(body=body, refinement=refinement):
+            body_str, counter = custom_preludes_ops_representation(body, counter)
+            ref_str, counter = custom_preludes_ops_representation(refinement, counter)
+            return f"""({body_str})[{{{ref_str}}}]""", counter
 
         case Literal(_, _) | Var(_) | Hole(_):
             return str(term), counter

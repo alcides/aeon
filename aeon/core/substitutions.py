@@ -10,6 +10,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.terms import (
     Abstraction,
+    RefinementAbstraction,
     RefinementApplication,
     TypeAbstraction,
     TypeApplication,
@@ -93,6 +94,14 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             n_then = rec(then)
             n_otherwise = rec(otherwise)
             return If(n_cond, n_then, n_otherwise, loc=loc)
+        case TypeAbstraction(pname, kind, body, loc):
+            return TypeAbstraction(pname, kind, rec(body), loc=loc)
+        case TypeApplication(body, ty, loc):
+            return TypeApplication(rec(body), substitute_vartype(ty, rep, name), loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(rec(body), rec(refinement), loc=loc)
+        case RefinementAbstraction(pname, sort, body, loc):
+            return RefinementAbstraction(pname, substitute_vartype(sort, rep, name), rec(body), loc=loc)
         case _:
             assert False
 
@@ -342,6 +351,8 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             return If(rec(cond), rec(then), rec(otherwise), loc=loc)
         case TypeAbstraction(pname, kind, body, loc):
             return TypeAbstraction(pname, kind, rec(body), loc=loc)
+        case RefinementAbstraction(pname, sort, body, loc):
+            return RefinementAbstraction(pname, substitution_liquid_in_type(sort, rep, name), rec(body), loc=loc)
         case TypeApplication(body, ty, loc):
             n_type = substitution_liquid_in_type(ty, rep, name)
             return TypeApplication(rec(body), n_type, loc=loc)
@@ -426,6 +437,10 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
             return TypeApplication(rec(expr), ty, loc=loc)
         case TypeAbstraction(pname, kind, body, loc):
             return TypeAbstraction(pname, kind, rec(body), loc=loc)
+        case RefinementAbstraction(pname, sort, body, loc):
+            return RefinementAbstraction(pname, sort, rec(body), loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(rec(body), rec(refinement), loc=loc)
         case _:
             assert False, f"{t} not supported."
 
@@ -459,6 +474,8 @@ def uncurry(t: Term, args: list[LiquidTerm]) -> LiquidTerm | None:
     """Uncurries the term t."""
     match t:
         case TypeApplication(body, _):
+            return uncurry(body, args)
+        case RefinementApplication(body, _):
             return uncurry(body, args)
         case Application(fun, arg):
             liquid_arg = liquefy(arg)
@@ -536,6 +553,8 @@ def liquefy(rep: Term) -> LiquidTerm | None:
         case Application(_, _):
             return liquefy_app(rep)
         case TypeAbstraction(_, _, body):
+            return liquefy(body)
+        case RefinementAbstraction(_, _, body):
             return liquefy(body)
         case Var(name, loc):
             return LiquidVar(name, loc=loc)
