@@ -10,6 +10,7 @@ from aeon.elaboration.context import (
 from aeon.sugar.program import (
     Decorator,
     Definition,
+    InductiveDecl,
     Program,
     SAbstraction,
     SAnnotation,
@@ -150,35 +151,60 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
 
+def _bind_definition(
+    df: Definition, nsubs: RenamingSubstitions, subs: RenamingSubstitions
+) -> tuple[Definition, RenamingSubstitions]:
+    name, nsubs = check_name(df.name, nsubs)
+    foralls = []
+    for fname, kind in df.foralls:
+        nname, nsubs = check_name(fname, nsubs)
+        foralls.append((nname, kind))
+    args = []
+    for aname, ty in df.args:
+        nname, nsubs = check_name(aname, nsubs)
+        ty = bind_stype(ty, nsubs)
+        args.append((nname, ty))
+    ntype = bind_stype(df.type, nsubs)
+    body = bind_sterm(df.body, nsubs)
+    decorators = []
+    for dec in df.decorators:
+        dargs = [bind_sterm(da, subs) for da in dec.macro_args]
+        decorators.append(Decorator(dec.name, dargs))
+    return Definition(name, foralls, args, ntype, body, decorators, loc=df.loc), nsubs
+
+
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     type_decls = []
+    inductive_decls = []
     definitions = []
     nsubs = list(subs)
+
+    # Register all declared type names first so they are treated as concrete
+    # types (not free type variables) throughout the rest of the program.
     for td in p.type_decls:
         name, nsubs = check_name(td.name, nsubs)
         type_decls.append(TypeDecl(name, td.args, loc=td.loc))
-    for df in p.definitions:
-        name, nsubs = check_name(df.name, nsubs)
-        foralls = []
-        for name, kind in df.foralls:
-            nname, nsubs = check_name(name, nsubs)
-            foralls.append((nname, kind))
-        args = []
-        for aname, ty in df.args:
+    for ind in p.inductive_decls:
+        name, nsubs = check_name(ind.name, nsubs)
+        iargs = []
+        for aname in ind.args:
             nname, nsubs = check_name(aname, nsubs)
-            ty = bind_stype(ty, nsubs)
-            args.append((nname, ty))
-        ntype = bind_stype(df.type, nsubs)
-        body = bind_sterm(df.body, nsubs)
-        decorators = []
-        for dec in df.decorators:
-            dargs = []
-            for da in dec.macro_args:
-                dargs.append(bind_sterm(da, subs))
-            decorators.append(Decorator(dec.name, dargs))
-        d = Definition(name, foralls, args, ntype, body, decorators, loc=df.loc)
-        definitions.append(d)
-    return Program(p.imports, type_decls, [], definitions)
+            iargs.append(nname)
+        constructors = []
+        for cons in ind.constructors:
+            bound_cons, nsubs = _bind_definition(cons, nsubs, subs)
+            constructors.append(bound_cons)
+        measures = []
+        for meas in ind.measures:
+            bound_meas, nsubs = _bind_definition(meas, nsubs, subs)
+            measures.append(bound_meas)
+        inductive_decls.append(InductiveDecl(name, iargs, constructors, measures, loc=ind.loc))
+
+    for df in p.definitions:
+        bound_df, nsubs = _bind_definition(df, nsubs, subs)
+        definitions.append(bound_df)
+
+    return Program(p.imports, type_decls, inductive_decls, definitions)
 
 
 def bind(ectx: ElaborationTypingContext, s: STerm) -> tuple[ElaborationTypingContext, STerm]:
