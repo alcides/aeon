@@ -1,6 +1,4 @@
-import Math_abs from "Math.ae";
+inductive P
+| mk (v:Int | 0 < v && v < 10 ) : P
 
-@minimize_int(Math_abs(2024 - fun(253)))
-def fun (i:Int) : Int  {
-    (?hole: Int) * i
-}
+def fun : P  = ?hole;
