@@ -9,8 +9,9 @@ Then the implementation should return a tuple of the (possibly modified) definit
 eventual complementary definitions.
 """
 
-from aeon.decorators.api import DecoratorType
-from aeon.decorators.api import Metadata
+from aeon.decorators.api import Metadata, DecoratorType
+from aeon.llvm.decorators.gpu import gpu
+from aeon.llvm.decorators.llvm import llvm
 from aeon.sugar.program import Definition
 from aeon.synthesis.decorators import (
     minimize_int,
@@ -42,10 +43,12 @@ decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "llvm": llvm,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
+    "gpu": gpu,
 }
 
 
@@ -57,7 +60,7 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
     for decorator in fun.decorators:
         dname = decorator.name.name
         if dname not in decorators_environment:
-            raise Exception(f"Unknown decorator named {dname}, in function {fun.name}.")
+            raise Exception(f"Unknown decorator named {dname}, in function {fun.name.pretty()}.")
         decorator_processor = decorators_environment[dname]
         (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
         total_extra.extend(extra)
