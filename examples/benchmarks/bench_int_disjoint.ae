@@ -1,0 +1,6 @@
+# Benchmark: synthesize an integer in [-20, -10] OR [10, 20].
+# Tests disjunctive (OR) interval constraints where the valid region
+# is split across the number line with a gap around zero.
+
+@minimize_int(0)
+def result : {v:Int | (v >= 0-20 && v <= 0-10) || (v >= 10 && v <= 20)} = ?hole;

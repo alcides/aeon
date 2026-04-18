@@ -136,7 +136,7 @@ def main() -> None:
         synthesis_budget=args.budget,
         timings=args.timings,
         no_main=args.no_main,
-        synthesis_format=SynthesisFormat.from_string(args.format),
+        synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
     )
     driver = AeonDriver(cfg)
 
