@@ -2,10 +2,17 @@ import asyncio
 from typing import List, Optional, AsyncIterable
 
 from lsprotocol.types import (
+    TEXT_DOCUMENT_CODE_ACTION,
     TEXT_DOCUMENT_COMPLETION,
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
+    ApplyWorkspaceEditParams,
+    CodeAction,
+    CodeActionKind,
+    CodeActionOptions,
+    CodeActionParams,
+    Command,
     CompletionItem,
     CompletionOptions,
     CompletionParams,
@@ -13,11 +20,19 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
+    MessageType,
     PublishDiagnosticsParams,
+    ShowMessageParams,
+    Range,
+    TextEdit,
+    WorkspaceEdit,
 )
 from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
+
+SYNTHESIZERS = ["gp", "enumerative", "random_search", "synquid", "llm"]
+SYNTHESIZE_COMMAND = "aeon.synthesize"
 
 
 class AeonLanguageServer(LanguageServer):
@@ -30,6 +45,7 @@ class AeonLanguageServer(LanguageServer):
     def start(self, tcp_server):
         if not tcp_server:
             self.start_io()
+            return
 
         host, port = tcp_server.split(":") if ":" in tcp_server else ("localhost", tcp_server)
 
@@ -49,6 +65,16 @@ class AeonLanguageServer(LanguageServer):
         ast = await aeon_adapter.parse(self, uri)
         for diag in ast.diagnostics:
             yield diag
+
+    def _ranges_overlap(self, r1: Range, r2: Range) -> bool:
+        """Return True if two LSP ranges overlap (touching at a boundary counts)."""
+        if r1.end.line < r2.start.line or r2.end.line < r1.start.line:
+            return False
+        if r1.end.line == r2.start.line and r1.end.character < r2.start.character:
+            return False
+        if r2.end.line == r1.start.line and r2.end.character < r1.start.character:
+            return False
+        return True
 
     def _setup_handlers(self):
         @self.feature(TEXT_DOCUMENT_DID_OPEN)
@@ -83,26 +109,156 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
-            await asyncio.sleep(self.debounce_delay)
-            return []  # TODO
-            # items: List[CompletionItem] = []
-            #
-            # ast = await buildout.parse(ls, params.text_document.uri, True)
-            # for line in ast.lines:
-            #   pos = params.position
-            #   (var_name, var_type, value) = line
-            #   ci = CompletionItem(
-            #       label=var_name,
-            #       text_edit=TextEdit(
-            #           range=Range(start=Position(line=pos.line, character=pos.character),
-            #                       end=Position(line=pos.line,
-            #                                    character=pos.character + len(var_name))),
-            #           new_text=var_name,
-            #       ),
-            #       kind=CompletionItemKind.Variable,
-            #       documentation=MarkupContent(
-            #           kind=MarkupKind.Markdown,
-            #           value=f"{var_name} : {var_type} = {value}",
-            #       ))
-            #   items.append(ci)
-            # return items
+            await asyncio.sleep(ls.debounce_delay)
+            return []
+
+        @self.feature(
+            TEXT_DOCUMENT_CODE_ACTION,
+            CodeActionOptions(code_action_kinds=[CodeActionKind.RefactorRewrite]),
+        )
+        async def code_action(
+            ls: AeonLanguageServer,
+            params: CodeActionParams,
+        ) -> Optional[List[CodeAction]]:
+            from . import aeon_adapter
+
+            uri = params.text_document.uri
+            cursor_range = params.range
+
+            parse_result = await aeon_adapter.parse(ls, uri)
+            if not parse_result.holes:
+                return []
+
+            actions = []
+            for hole in parse_result.holes:
+                if not ls._ranges_overlap(hole.range, cursor_range):
+                    continue
+                for synthesizer in SYNTHESIZERS:
+                    action = CodeAction(
+                        title=f"Synthesize ?{hole.name} with {synthesizer}",
+                        kind=CodeActionKind.RefactorRewrite,
+                        command=Command(
+                            title=f"Synthesize ?{hole.name} with {synthesizer}",
+                            command=SYNTHESIZE_COMMAND,
+                            arguments=[uri, hole.name, synthesizer],
+                        ),
+                    )
+                    actions.append(action)
+            return actions
+
+        @self.command(SYNTHESIZE_COMMAND)
+        async def execute_synthesize(
+            ls: AeonLanguageServer,
+            uri: str,
+            hole_name_str: str,
+            synthesizer_name: str,
+        ) -> None:
+            loop = asyncio.get_event_loop()
+            try:
+                result = await loop.run_in_executor(
+                    None,
+                    lambda: _run_synthesis(ls.aeon_driver, ls, uri, hole_name_str, synthesizer_name),
+                )
+            except Exception as e:
+                ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis error: {e}"))
+                return
+
+            if result is None:
+                return
+
+            synthesized_str, hole_range = result
+            edit = TextEdit(range=hole_range, new_text=synthesized_str)
+            workspace_edit = WorkspaceEdit(changes={uri: [edit]})
+            ls.workspace_apply_edit(ApplyWorkspaceEditParams(edit=workspace_edit))
+            ls.window_show_message(
+                ShowMessageParams(type=MessageType.Info, message=f"Synthesized ?{hole_name_str} = {synthesized_str}")
+            )
+
+
+def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_name_str: str, synthesizer_name: str):
+    """Blocking synthesis function, meant to run in a thread executor."""
+    from . import aeon_adapter
+    from aeon.synthesis.entrypoint import synthesize_holes
+    from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
+    from aeon.synthesis.uis.api import SilentSynthesisUI
+    from aeon.sugar.lifting import lift
+    from aeon.utils.pprint import pretty_print_sterm
+
+    document = ls.workspace.get_text_document(uri)
+    source = document.source
+
+    try:
+        errors = list(driver.parse(filename=uri, aeon_code=source))
+    except Exception as e:
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: parse failed ({e})")
+        )
+        return None
+    if errors:
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: file has {len(errors)} error(s)")
+        )
+        return None
+
+    if not driver.has_synth():
+        ls.window_show_message(ShowMessageParams(type=MessageType.Info, message="No holes found in file"))
+        return None
+
+    targets = [(fn, holes) for fn, holes in driver.incomplete_functions if any(h.name == hole_name_str for h in holes)]
+
+    if not targets:
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Warning, message=f"Hole ?{hole_name_str} not found or not synthesizable")
+        )
+        return None
+
+    ls.window_show_message(
+        ShowMessageParams(type=MessageType.Info, message=f"Synthesizing ?{hole_name_str} with {synthesizer_name}...")
+    )
+
+    try:
+        synthesizer = make_synthesizer(synthesizer_name)
+    except AssertionError:
+        ls.window_show_message(
+            ShowMessageParams(type=MessageType.Error, message=f"Unknown synthesizer: {synthesizer_name}")
+        )
+        return None
+
+    ui = SilentSynthesisUI()
+    try:
+        mapping = synthesize_holes(
+            driver.typing_ctx,
+            driver.evaluation_ctx,
+            driver.core,
+            targets,
+            driver.metadata,
+            synthesizer,
+            budget=5.0,
+            ui=ui,
+        )
+    except Exception as e:
+        ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis failed: {e}"))
+        return None
+
+    for hole_name, term in mapping.items():
+        if hole_name.name == hole_name_str and term is not None:
+            sterm = lift(term)
+            synthesized_str = pretty_print_sterm(sterm)
+
+            hole_positions = aeon_adapter.find_holes_in_source(source)
+            hole_range = next(
+                (h.range for h in hole_positions if h.name == hole_name_str),
+                None,
+            )
+            if hole_range is None:
+                ls.window_show_message(
+                    ShowMessageParams(type=MessageType.Error, message=f"Could not locate ?{hole_name_str} in source")
+                )
+                return None
+
+            return synthesized_str, hole_range
+
+    ls.window_show_message(
+        ShowMessageParams(type=MessageType.Warning, message=f"No solution found for ?{hole_name_str}")
+    )
+    return None

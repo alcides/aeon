@@ -1,10 +1,10 @@
 from typing import Any
 
-from sympy import And, Or, Not, Eq, Ne, Lt, Gt, Ge, Le, Symbol
+from sympy import And, Or, Not, Eq, Ne, Lt, Gt, Ge, Le, Symbol, oo
 from sympy.core.basic import Basic
 from sympy.core.expr import Expr
 from sympy.logic.boolalg import to_cnf
-from sympy.sets.sets import Set
+from sympy.sets.sets import Interval, Set
 from sympy.solvers.inequalities import reduce_rational_inequalities
 
 from aeon.core.liquid import (
@@ -113,8 +113,11 @@ def conditional_to_interval(cond: list, name: str) -> Set:
             Symbol(name),
             relational=False,
         )
-    except Exception as err:
-        raise Exception("Failed to do ranged analysis due to: {}".format(err))
+    except Exception:
+        # Sympy cannot solve non-linear or otherwise unsupported inequalities
+        # (e.g. i² - x < 0). Fall back to an unbounded interval so synthesis
+        # can continue without the tighter bound.
+        return Interval(-oo, oo)
 
 
 def sympy_exp_to_bounded_interval(exp: Expr | Basic) -> Any:

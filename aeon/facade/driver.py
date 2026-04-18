@@ -1,7 +1,6 @@
 import sys
 from dataclasses import dataclass
-from functools import reduce
-from typing import Any, Iterable
+from typing import Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -13,14 +12,12 @@ from aeon.decorators import Metadata
 from aeon.elaboration import elaborate
 from aeon.facade.api import AeonError
 from aeon.frontend.anf_converter import ensure_anf
-from aeon.frontend.parser import parse_term
 from aeon.prelude.prelude import evaluation_vars
-from aeon.prelude.prelude import typing_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lifting import lift
-from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
+from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.entrypoint import synthesize_holes
@@ -28,7 +25,6 @@ from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.typechecking.typeinfer import check_type_errors
-from aeon.utils.ctx_helpers import build_context
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
 from aeon.utils.time_utils import RecordTime
@@ -39,7 +35,7 @@ from aeon.llvm.cpu.lowerer import CPULLVMLowerer
 
 
 def read_file(filename: str) -> str:
-    with open(filename) as file:
+    with open(filename, encoding="utf-8") as file:
         return file.read()
 
 
@@ -56,20 +52,6 @@ class AeonConfig:
 class AeonDriver:
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
-
-    def parse_core(self, filename: str):
-        # TODO: deprecate core parsing
-        aeon_code = read_file(filename)
-
-        core_typing_vars: dict[Name, Any] = reduce(
-            lambda acc, el: acc | {el[0]: type_to_core(el[1], available_vars=[e for e in acc.items()])},
-            typing_vars.items(),
-            {},
-        )
-
-        self.typing_ctx = build_context(core_typing_vars)
-        self.core_ast = parse_term(aeon_code)
-        self.metadata: Metadata = {}
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         if aeon_code is None:

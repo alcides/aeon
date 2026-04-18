@@ -196,6 +196,17 @@ class TypeAbstraction(Term):
 
 
 @dataclass(frozen=True)
+class RefinementAbstraction(Term):
+    name: Name
+    sort: Type
+    body: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"Λρ{self.name}:({self.sort}).({self.body})"
+
+
+@dataclass(frozen=True)
 class TypeApplication(Term):
     body: Term
     type: Type
@@ -203,3 +214,13 @@ class TypeApplication(Term):
 
     def __str__(self):
         return f"({self.body})[{self.type}]"
+
+
+@dataclass(frozen=True)
+class RefinementApplication(Term):
+    body: Term
+    refinement: Term
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"({self.body})[{self.refinement}]"

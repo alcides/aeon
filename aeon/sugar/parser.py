@@ -11,6 +11,10 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SRefinementAbstraction,
+    SRefinementApplication,
+    SMatch,
+    SMatchBranch,
     SHole,
     SIf,
     SLet,
@@ -33,6 +37,7 @@ from aeon.sugar.stypes import (
     STypeVar,
     SRefinedType,
     STypePolymorphism,
+    SRefinementPolymorphism,
 )
 
 from aeon.sugar.ast_helpers import i0
@@ -81,6 +86,20 @@ class TreeToSugar(Transformer):
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
 
+    def refinement_polymorphism_t(self, args):
+        return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
+
+    def base_angle_refined_t(self, args):
+        base_str = str(args[0])
+        pred_str = str(args[1])
+        if base_str in builtin_types:
+            base_ty = STypeConstructor(Name(base_str, 0))
+        else:
+            base_ty = STypeVar(Name(base_str))
+        binder = Name(f"_r{fresh_counter.fresh()}")
+        refinement = SApplication(SVar(Name(pred_str)), SVar(binder))
+        return SRefinedType(binder, base_ty, refinement)
+
     def simple_t(self, args):
         name_str = str(args[0])
         if name_str in builtin_types:
@@ -122,6 +141,18 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def if_e(self, meta, args):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_e(self, meta, args):
+        # match <scrutinee> with <branches>
+        return SMatch(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_branch(self, meta, args):
+        # | <Constructor> <binders>* => <body>
+        constructor_name = Name(args[0])
+        binders = [Name(b) for b in args[1]]
+        return SMatchBranch(constructor=constructor_name, binders=binders, body=args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
     def nnot(self, meta, args):
@@ -183,6 +214,11 @@ class TreeToSugar(Transformer):
     def binop_mod(self, meta, args):
         return self.binop(args, "%", meta)
 
+    @v_args(meta=True)
+    def binop_dollar(self, meta, args):
+        # `$` is syntactic sugar for function application (right-associative by grammar).
+        return SApplication(args[0], args[1], loc=self._loc(meta))
+
     def binop(self, args, op: str, meta):
         return SApplication(
             SApplication(SVar(Name(op, 0), loc=self._loc(meta)), args[0], loc=self._loc(meta)),
@@ -203,8 +239,16 @@ class TreeToSugar(Transformer):
         return STypeAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
+    def rabstraction_e(self, meta, args):
+        return SRefinementAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
     def type_application_e(self, meta, args):
         return STypeApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def refinement_application_e(self, meta, args):
+        return SRefinementApplication(args[0], args[1], loc=self._loc(meta))
 
     @v_args(meta=True)
     def var(self, meta, args):
@@ -277,20 +321,16 @@ class TreeToSugar(Transformer):
         return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
 
     @v_args(meta=True)
-    def def_cons(self, meta, args):
-        if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
-        else:
-            decorators = args[0]
-            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
-
-    @v_args(meta=True)
     def def_fun(self, meta, args):
         if len(args) == 4:
             return Definition(Name(args[0]), [], args[1], args[2], args[3], loc=self._loc(meta))
         else:
             decorators = args[0]
             return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def def_fun_eq(self, meta, args):
+        return self.def_fun(meta, args)
 
     def macros(self, args):
         return args

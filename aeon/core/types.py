@@ -135,6 +135,20 @@ class TypePolymorphism(Type):
 
 
 @dataclass
+class RefinementPolymorphism(Type):
+    name: Name
+    sort: Type
+    body: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"forall <{self.name}:{self.sort} -> Bool>, {self.body}"
+
+    def __hash__(self) -> int:
+        return hash(self.name) + hash(self.sort) + hash(self.body)
+
+
+@dataclass
 class TypeConstructor(Type):
     name: Name
     args: list[Type] = field(default_factory=list)

@@ -10,15 +10,19 @@ from aeon.elaboration.context import (
 from aeon.sugar.program import (
     Decorator,
     Definition,
+    InductiveDecl,
     Program,
     SAbstraction,
     SAnnotation,
     SApplication,
     SHole,
     SIf,
+    SMatch,
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
+    SRefinementApplication,
     STerm,
     STypeAbstraction,
     STypeApplication,
@@ -28,6 +32,7 @@ from aeon.sugar.program import (
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
+    SRefinementPolymorphism,
     SType,
     STypeConstructor,
     STypePolymorphism,
@@ -104,6 +109,10 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
         case STypePolymorphism(name, kind, body):
             name, subs = check_name(name, subs)
             return STypePolymorphism(name, kind, bind_stype(body, subs))
+        case SRefinementPolymorphism(name, sort, body):
+            bound_sort = bind_stype(sort, subs)
+            nname, nsubs = check_name(name, subs)
+            return SRefinementPolymorphism(nname, bound_sort, bind_stype(body, nsubs))
         case _:
             assert False, f"Unique not supported for {ty} ({type(ty)})"
 
@@ -127,11 +136,31 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SAbstraction(name, nbody, loc=loc)
         case STypeApplication(body, ty, loc=loc):
             return STypeApplication(bind_sterm(body, subs), bind_stype(ty, subs), loc=loc)
+        case SRefinementApplication(body, refinement, loc=loc):
+            return SRefinementApplication(bind_sterm(body, subs), bind_sterm(refinement, subs), loc=loc)
         case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)
+        case SRefinementAbstraction(name, sort, body, loc=loc):
+            name, subs = check_name(name, subs)
+            return SRefinementAbstraction(name, bind_stype(sort, subs), bind_sterm(body, subs), loc=loc)
         case SIf(cond, then, otherwise, loc=loc):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs), loc=loc)
+        case SMatch(scrutinee, branches, loc=loc):
+            n_scrutinee = bind_sterm(scrutinee, subs)
+            n_branches = []
+            # Pattern binders are scoped to each match branch.
+            for br in branches:
+                branch_subs = list(subs)
+                renamed_binders: list[Name] = []
+                for b in br.binders:
+                    nb, branch_subs = check_name(b, branch_subs)
+                    renamed_binders.append(nb)
+                n_body = bind_sterm(br.body, branch_subs)
+                n_branches.append(
+                    type(br)(constructor=br.constructor, binders=renamed_binders, body=n_body, loc=br.loc)
+                )
+            return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
@@ -142,35 +171,64 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
 
+def _bind_definition(
+    df: Definition, nsubs: RenamingSubstitions, subs: RenamingSubstitions
+) -> tuple[Definition, RenamingSubstitions]:
+    name, nsubs = check_name(df.name, nsubs)
+    foralls = []
+    for fname, kind in df.foralls:
+        nname, nsubs = check_name(fname, nsubs)
+        foralls.append((nname, kind))
+    args = []
+    for aname, ty in df.args:
+        nname, nsubs = check_name(aname, nsubs)
+        ty = bind_stype(ty, nsubs)
+        args.append((nname, ty))
+    rforalls = []
+    for pname, psort in df.rforalls:
+        nname, nsubs = check_name(pname, nsubs)
+        rforalls.append((nname, bind_stype(psort, nsubs)))
+    ntype = bind_stype(df.type, nsubs)
+    body = bind_sterm(df.body, nsubs)
+    decorators = []
+    for dec in df.decorators:
+        dargs = [bind_sterm(da, subs) for da in dec.macro_args]
+        decorators.append(Decorator(dec.name, dargs))
+    return Definition(name, foralls, args, ntype, body, decorators, rforalls, loc=df.loc), nsubs
+
+
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     type_decls = []
+    inductive_decls = []
     definitions = []
     nsubs = list(subs)
+
+    # Register all declared type names first so they are treated as concrete
+    # types (not free type variables) throughout the rest of the program.
     for td in p.type_decls:
         name, nsubs = check_name(td.name, nsubs)
         type_decls.append(TypeDecl(name, td.args, loc=td.loc))
-    for df in p.definitions:
-        name, nsubs = check_name(df.name, nsubs)
-        foralls = []
-        for name, kind in df.foralls:
-            nname, nsubs = check_name(name, nsubs)
-            foralls.append((nname, kind))
-        args = []
-        for aname, ty in df.args:
+    for ind in p.inductive_decls:
+        name, nsubs = check_name(ind.name, nsubs)
+        iargs = []
+        for aname in ind.args:
             nname, nsubs = check_name(aname, nsubs)
-            ty = bind_stype(ty, nsubs)
-            args.append((nname, ty))
-        ntype = bind_stype(df.type, nsubs)
-        body = bind_sterm(df.body, nsubs)
-        decorators = []
-        for dec in df.decorators:
-            dargs = []
-            for da in dec.macro_args:
-                dargs.append(bind_sterm(da, subs))
-            decorators.append(Decorator(dec.name, dargs))
-        d = Definition(name, foralls, args, ntype, body, decorators, loc=df.loc)
-        definitions.append(d)
-    return Program(p.imports, type_decls, [], definitions)
+            iargs.append(nname)
+        constructors = []
+        for cons in ind.constructors:
+            bound_cons, nsubs = _bind_definition(cons, nsubs, subs)
+            constructors.append(bound_cons)
+        measures = []
+        for meas in ind.measures:
+            bound_meas, nsubs = _bind_definition(meas, nsubs, subs)
+            measures.append(bound_meas)
+        inductive_decls.append(InductiveDecl(name, iargs, constructors, measures, loc=ind.loc))
+
+    for df in p.definitions:
+        bound_df, nsubs = _bind_definition(df, nsubs, subs)
+        definitions.append(bound_df)
+
+    return Program(p.imports, type_decls, inductive_decls, definitions)
 
 
 def bind(ectx: ElaborationTypingContext, s: STerm) -> tuple[ElaborationTypingContext, STerm]:

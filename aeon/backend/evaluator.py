@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.core.terms import Abstraction, TypeAbstraction, TypeApplication
+from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplication, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -132,7 +132,11 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
         case TypeAbstraction(_, _, body):
             return eval(body, ctx)
+        case RefinementAbstraction(_, _, body):
+            return eval(body, ctx)
         case TypeApplication(body, _):
+            return eval(body, ctx)
+        case RefinementApplication(body, _):
             return eval(body, ctx)
         case _:
             assert False, f"Unknown case {t}"

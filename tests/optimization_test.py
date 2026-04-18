@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.optimization.normal_form import optimize
-from aeon.frontend.parser import parse_term
+from aeon.core.parser import parse_term
 
 
 def eq(source, expected):

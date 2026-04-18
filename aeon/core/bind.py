@@ -16,6 +16,8 @@ from aeon.core.terms import (
     If,
     Let,
     Rec,
+    RefinementAbstraction,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
@@ -26,6 +28,7 @@ from aeon.core.types import (
     AbstractionType,
     LiquidHornApplication,
     RefinedType,
+    RefinementPolymorphism,
     Top,
     Type,
     TypeConstructor,
@@ -132,6 +135,10 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
         case TypePolymorphism(name, kind, body, loc):
             name, subs = check_name(name, subs)
             return TypePolymorphism(name, kind, bind_type(body, subs), loc=loc)
+        case RefinementPolymorphism(name, sort, body, loc):
+            bound_sort = bind_type(sort, subs)
+            nname, nsubs = check_name(name, subs)
+            return RefinementPolymorphism(nname, bound_sort, bind_type(body, nsubs), loc=loc)
         case _:
             assert False, f"Unique not supported for {ty} ({type(ty)})"
 
@@ -155,9 +162,14 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
             return Abstraction(name, nbody, loc=loc)
         case TypeApplication(body, ty, loc):
             return TypeApplication(bind_term(body, subs), bind_type(ty, subs), loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(bind_term(body, subs), bind_term(refinement, subs), loc=loc)
         case TypeAbstraction(name, kind, body, loc):
             name, subs = check_name(name, subs)
             return TypeAbstraction(name, kind, bind_term(body, subs), loc=loc)
+        case RefinementAbstraction(name, sort, body, loc):
+            name, subs = check_name(name, subs)
+            return RefinementAbstraction(name, bind_type(sort, subs), bind_term(body, subs), loc=loc)
         case If(cond, then, otherwise, loc):
             return If(bind_term(cond, subs), bind_term(then, subs), bind_term(otherwise, subs), loc=loc)
         case Let(name, body, cont, loc):

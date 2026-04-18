@@ -27,6 +27,8 @@ from aeon.synthesis.decorators import (
     prompt,
     csv_data,
     csv_file,
+    minimize,
+    maximize,
 )
 
 decorators_environment: dict[str, DecoratorType] = {
@@ -42,9 +44,11 @@ decorators_environment: dict[str, DecoratorType] = {
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
     "llvm": llvm,
-    "gpu": gpu,
     "csv_data": csv_data,
     "csv_file": csv_file,
+    "minimize": minimize,
+    "maximize": maximize,
+    "gpu": gpu,
 }
 
 

@@ -1,0 +1,10 @@
+def maxI: (x : Int<p>) -> (y : Int<p>) -> Int<p> =
+    \x -> \y -> if x < y then y else x;
+
+
+def main (args:Int) : Unit {
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 0 = maxI x y;
+    print (z)
+}

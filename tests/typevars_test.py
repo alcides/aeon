@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aeon.core.types import get_type_vars
 from aeon.core.types import TypeVar
-from aeon.frontend.parser import parse_type
+from aeon.core.parser import parse_type
 from aeon.utils.name import Name
 
 

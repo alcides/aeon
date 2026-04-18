@@ -23,10 +23,11 @@ from aeon.core.liquid import (
 from aeon.core.substitutions import substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, Type, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, TypeVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
+from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -160,7 +161,12 @@ def create_literal_class(
 
 
 def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[list[Type]] = None) -> list[TypingType]:
-    """Creates all literal nodes for known types with literals (bool, int, float, string)"""
+    """Creates all literal nodes for known types with literals (bool, int, float, string).
+
+    For Int, the unlimited-range literal is replaced by a metahandler-based literal
+    (IntRange(-1, 256)) to avoid the enumerative search iterating over hundreds of
+    millions of values before finding valid ones.
+    """
     if types is None:
         types = [t_bool, t_int, t_float, t_string]
 
@@ -168,23 +174,46 @@ def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[lis
 
     gtm1 = LiquidApp(Name("<=", 0), [LiquidLiteralInt(-1), LiquidVar(xname)])
     lt256 = LiquidApp(Name("<=", 0), [LiquidVar(xname), LiquidLiteralInt(256)])
-    base_int = [
-        create_literal_class(
-            t_int,
-            type_info[t_int],
-            refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
-        )
-    ]
+    base_int = create_literal_class(
+        t_int,
+        type_info[t_int],
+        refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
+    )
 
-    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types] + base_int
+    # Exclude t_int from the unlimited-range list; use the metahandler-based base_int instead.
+    types_without_unlimited_int = [ty for ty in types if ty != t_int]
+    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types_without_unlimited_int] + [base_int]
 
 
 def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
-    """Creates all literal nodes for refined types, via metahandlers"""
+    """Creates literal nodes for refined types using metahandlers.
+
+    Each node:
+    - Uses a metahandler (e.g. IntRange(1, 99)) so the enumerative search only
+      iterates values that satisfy the refinement.
+    - Inherits from the BASE type's grammar class (e.g. æInt) so it is a direct
+      alternative for that class in the grammar — no refined abstract class needed.
+    - Returns a Literal with the base (unrefined) type from get_core() so the
+      type checker can handle it correctly.
+    """
     ref_types = [ty for ty in type_info if isinstance(ty, RefinedType) and ty.type in aeon_to_python]
-    return [
-        create_literal_class(aeon_ty, type_info[aeon_ty], refined_type_to_metahandler(aeon_ty)) for aeon_ty in ref_types
-    ]
+    result = []
+    for aeon_ty in ref_types:
+        base_type = aeon_ty.type
+        # Parent is the BASE type's class (e.g. æInt), not the refined abstract class.
+        parent_class = type_info[base_type]
+        metahandler = refined_type_to_metahandler(aeon_ty)
+        if metahandler is None:
+            continue
+        lit_class = create_literal_class(aeon_ty, parent_class, metahandler)
+
+        def get_core(self, bt=base_type):
+            value = getattr(self, "value", None)
+            return Literal(value, type=bt)
+
+        setattr(lit_class, "get_core", get_core)
+        result.append(lit_class)
+    return result
 
 
 def create_var_node(name: Name, ty: Type, python_ty: TypingType) -> TypingType:
@@ -359,6 +388,8 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
                 return RefinedType(name, type, ref_filtered)
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, remove_uninterpreted_functions_from_type(body))
+        case RefinementPolymorphism(_, _, body):
+            return remove_uninterpreted_functions_from_type(body)
         case _:
             assert False, f"Unsupported {ty}"
 
@@ -451,13 +482,17 @@ def gen_grammar_nodes(
             return False
 
     ctx_vars = [(var_name, ty) for (var_name, ty) in ctx.concrete_vars() if not skip(var_name)]
-    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars]) | set([ty])
+    # Strip refinements from context variable types to avoid issues with type_info lookups
+    # (refined return types in context functions use mangled variable names in type_info).
+    # The synthesis target type `ty` is kept as-is (may be refined) to generate the correct grammar.
+    ctx_vars_unrefined = [(var_name, refined_to_unrefined_type(var_ty)) for (var_name, var_ty) in ctx_vars]
+    types_to_consider = set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty])
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider))
     type_nodes = list(set(type_info.values()))
 
     literals = create_literals_nodes(type_info)
-    vars = create_var_nodes(ctx_vars, type_info)
+    vars = create_var_nodes(ctx_vars_unrefined, type_info)
     abstractions = create_abstraction_nodes(type_info)
     applications = create_application_nodes(type_info)
     literals_ref = create_literal_ref_nodes(type_info)
@@ -466,7 +501,10 @@ def gen_grammar_nodes(
     ret = type_nodes + literals + literals_ref + vars + applications + abstractions
     if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[synth_func_name]:
         ret = ret + ifs
-    return ret, type_info[ty]
+    # Use the unrefined base type as the grammar starting node.
+    # Refined type metahandler literals are direct alternatives for the base class,
+    # so no refined abstract class is needed as a starting symbol.
+    return ret, type_info[refined_to_unrefined_type(ty)]
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:

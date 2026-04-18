@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, TypeConstructor
+from aeon.core.types import AbstractionType, RefinementPolymorphism, TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -41,6 +41,8 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
                 return t
             else:
                 return TypePolymorphism(name, kind, rec(body), loc=loc)
+        case RefinementPolymorphism(rname, sort, body, loc):
+            return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
         case TypeConstructor(name, args, loc):
             return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
         case _:
@@ -80,5 +82,7 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
         return AbstractionType(t.var_name, rec(t.var_type), rec(t.type), t.loc)
     elif isinstance(t, TypePolymorphism):
         return TypePolymorphism(t.name, t.kind, rec(t.body), t.loc)
+    elif isinstance(t, RefinementPolymorphism):
+        return RefinementPolymorphism(t.name, rec(t.sort), rec(t.body), t.loc)
     else:
         assert False
