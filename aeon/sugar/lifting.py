@@ -18,10 +18,21 @@ from aeon.core.terms import (
     Let,
     Rec,
     If,
+    RefinementAbstraction,
+    RefinementApplication,
     TypeAbstraction,
     TypeApplication,
 )
-from aeon.core.types import AbstractionType, RefinedType, Top, Type, TypeConstructor, TypePolymorphism, TypeVar
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Top,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    TypeVar,
+)
 from aeon.sugar.program import (
     STerm,
     SLiteral,
@@ -33,10 +44,20 @@ from aeon.sugar.program import (
     SLet,
     SRec,
     SIf,
+    SRefinementAbstraction,
+    SRefinementApplication,
     STypeAbstraction,
     STypeApplication,
 )
-from aeon.sugar.stypes import SAbstractionType, SRefinedType, SType, STypeConstructor, STypePolymorphism, STypeVar
+from aeon.sugar.stypes import (
+    SAbstractionType,
+    SRefinedType,
+    SRefinementPolymorphism,
+    SType,
+    STypeConstructor,
+    STypePolymorphism,
+    STypeVar,
+)
 from aeon.sugar.ast_helpers import st_bool, st_int, st_float, st_string, st_top
 
 
@@ -75,6 +96,8 @@ def lift_type(ty: Type) -> SType:
             return SRefinedType(name, lift_type(typ), lift_liquid(ref), loc=loc)
         case TypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, lift_type(body), loc=loc)
+        case RefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(name, lift_type(sort), lift_type(body), loc=loc)
         case _:
             assert False, f"Don't know how to lift type {ty} ({type(ty)})"
 
@@ -102,7 +125,11 @@ def lift(t: Term) -> STerm:
             return SIf(lift(cond), lift(then), lift(otherwise), loc=loc)
         case TypeAbstraction(name, kind, body, loc):
             return STypeAbstraction(name, kind, lift(body), loc=loc)
+        case RefinementAbstraction(name, sort, body, loc):
+            return SRefinementAbstraction(name, lift_type(sort), lift(body), loc=loc)
         case TypeApplication(body, typ, loc):
             return STypeApplication(lift(body), lift_type(typ), loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return SRefinementApplication(lift(body), lift(refinement), loc=loc)
         case _:
             assert False, f"Don't know how to lift {t} ({type(t)})"

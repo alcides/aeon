@@ -181,11 +181,10 @@ There are a few libraries available, but unstable as they are under development:
 | -----: | :---------------------------------------------------------------------------- |
 |     -d | Prints debug information                                                      |
 |     -t | Prints timing information about the different steps of the compiler           |
-| --core | Parses the input file as being the Core language, instead of the surface aeon |
 | -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |
-| -s, --synthesizer | Selects a synthesizer (gp, synquid, random_search, enumerative, hc, 1p1) |
+| -s, --synthesizer | Selects a synthesizer — see [Synthesizers](synthesizers) for a full list and descriptions |
 | --synthesis-format | Selects the output format for synthesized holes (default, json)      |
 | --budget | Time budget for synthesis in seconds (default: 60)                          |
 | --format | Prints a pretty-printed version of the code to stdout                       |

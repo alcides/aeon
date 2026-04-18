@@ -323,6 +323,13 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
         assert result is None or isinstance(result, tuple)
         return
 
+    if synthesizer == "decision_tree":
+        result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
+        # decision_tree requires @csv_data training examples; without them it
+        # cannot synthesize a plain hole — just verify it doesn't raise.
+        assert result is None or isinstance(result, tuple)
+        return
+
     result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
 
     assert result is not None, f"Synthesizer '{synthesizer}' returned None. Messages: {mock_ls.messages}"

@@ -20,7 +20,7 @@ from aeon.core.substitutions import (
     substitution_liquid_in_type,
 )
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, RefinementApplication
+from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -390,6 +390,15 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 )
             itype = substitute_vartype(var_body, TypeVar(name), var_name)
             return check(ctx.with_typevar(name, var_kind), body, itype)
+
+        case RefinementAbstraction(pname, psort, inner), RefinementPolymorphism(rname, rsort, rbody):
+            c_sort = sub(ctx, psort, rsort, t.loc)
+            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), rsort, t_bool)
+            ctx_ext = ctx.with_var(pname, fk_type)
+            body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
+            inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
+            c_body = check(ctx_ext, inner_sub, body_open)
+            return Conjunction(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body))
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):

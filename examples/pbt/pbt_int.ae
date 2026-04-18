@@ -1,8 +1,6 @@
 import "PropTesting.ae";
 
-def negativeInt (x: Int) : Int {
-    -x
-}
+def negativeInt (x: Int) : Int = -x;
 
 def prop_int_plus_symmetric_is_zero (x: Int) : Bool {
     (x + (negativeInt x)) == 0

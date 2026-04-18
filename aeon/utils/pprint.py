@@ -11,6 +11,7 @@ from aeon.sugar.program import (
     SApplication,
     SAnnotation,
     SRec,
+    SRefinementAbstraction,
     STypeAbstraction,
     STypeApplication,
     SLiteral,
@@ -25,7 +26,15 @@ from aeon.sugar.program import (
     Definition,
     Program,
 )
-from aeon.sugar.stypes import SType, STypeVar, SRefinedType, SAbstractionType, STypePolymorphism, STypeConstructor
+from aeon.sugar.stypes import (
+    SType,
+    STypeVar,
+    SRefinedType,
+    SAbstractionType,
+    STypePolymorphism,
+    SRefinementPolymorphism,
+    STypeConstructor,
+)
 from aeon.utils.name import Name
 from aeon.utils.pprint_helpers import (
     Doc,
@@ -150,6 +159,8 @@ def get_sterm_operation(sterm: STerm) -> Operation:
         case SRec():
             return Operation.LET
         case STypeAbstraction():
+            return Operation.POLYMORPHISM
+        case SRefinementAbstraction():
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
@@ -560,6 +571,24 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             pretty_binding = concat([pretty_kind_def, text("."), pretty_body])
             return group(concat([text("ƛ"), pretty_binding]))
 
+        case SRefinementAbstraction(name=name, sort=sort, body=body):
+            pretty_body = pretty_sterm_with_parens(
+                body, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
+            )
+            pretty_sort = stype_pretty(sort)
+            return group(
+                concat(
+                    [
+                        text("Λ<"),
+                        text(name.pretty()),
+                        text(" : "),
+                        pretty_sort,
+                        text(" -> Bool>=> "),
+                        pretty_body,
+                    ]
+                )
+            )
+
         case STypeApplication(body=body, type=_type):
             pretty_body = sterm_pretty(body, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
             return group(pretty_body)
@@ -652,6 +681,9 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
         case STypeAbstraction(name=name, kind=kind, body=body):
             simplified_body = normalize_term(body, context, seen)
             return STypeAbstraction(name=name, kind=kind, body=simplified_body)
+        case SRefinementAbstraction(name=name, sort=sort, body=body):
+            simplified_body = normalize_term(body, context, seen)
+            return SRefinementAbstraction(name=name, sort=sort, body=simplified_body)
         case _:
             return term
 
@@ -702,12 +734,24 @@ def node_pretty(node: Node) -> Doc:
             )
 
             return group(insert_between(line(), [pretty_name, pretty_args, pretty_constructors, pretty_measures]))
-        case Definition(name=name, foralls=foralls, args=args, type=type_, body=body, decorators=decorators):
+        case Definition(
+            name=name,
+            foralls=foralls,
+            args=args,
+            type=type_,
+            body=body,
+            decorators=decorators,
+            rforalls=rforalls,
+        ):
             for var_name, _ in reversed(args):
                 body = SAbstraction(var_name=var_name, body=body)
 
             for var_name, var_type in reversed(args):
                 type_ = SAbstractionType(var_name=var_name, var_type=var_type, type=type_)
+
+            for rho_name, rho_sort in reversed(rforalls):
+                type_ = SRefinementPolymorphism(name=rho_name, sort=rho_sort, body=type_)
+                body = SRefinementAbstraction(name=rho_name, sort=rho_sort, body=body)
 
             for type_name, kind in reversed(foralls):
                 body = STypeAbstraction(name=type_name, kind=kind, body=body)

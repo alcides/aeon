@@ -180,6 +180,34 @@ class SIf(STerm):
 
 
 @dataclass(frozen=True)
+class SMatchBranch:
+    constructor: Name
+    binders: list[Name]
+    body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        binders = " ".join(str(b) for b in self.binders)
+        if binders:
+            return f"| {self.constructor} {binders} => {self.body}"
+        return f"| {self.constructor} => {self.body}"
+
+
+@dataclass(frozen=True)
+class SMatch(STerm):
+    scrutinee: STerm
+    branches: list[SMatchBranch]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        branches_str = "\n".join(str(b) for b in self.branches)
+        return f"(match {self.scrutinee} with\n{branches_str})"
+
+    def __repr__(self):
+        return str(self)
+
+
+@dataclass(frozen=True)
 class STypeAbstraction(STerm):
     name: Name
     kind: Kind
@@ -188,6 +216,19 @@ class STypeAbstraction(STerm):
 
     def __str__(self):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
+
+
+@dataclass(frozen=True)
+class SRefinementAbstraction(STerm):
+    """Binds a refinement parameter ρ with sort (domain type) ρ : sort -> Bool."""
+
+    name: Name
+    sort: SType
+    body: STerm
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"Λ<{self.name}:{self.sort} -> Bool>=> ({self.body})"
 
 
 @dataclass()  # frozen=True
@@ -277,6 +318,7 @@ class Definition(Node):
     type: SType
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)
+    rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):
@@ -288,7 +330,9 @@ class Definition(Node):
         else:
             args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
             foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
-            return f"def {self.name} {foralls} {args} : {self.type} {{\n {self.body} \n}}"
+            rforalls = " ".join([f"∀<{n}:{s} -> Bool>" for (n, s) in self.rforalls])
+            sep = " " if (foralls or rforalls) else ""
+            return f"def {self.name}{sep}{foralls}{sep}{rforalls} {args} : {self.type} {{\n {self.body} \n}}"
 
 
 @dataclass

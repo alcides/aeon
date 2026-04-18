@@ -14,9 +14,12 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SMatch,
+    SMatchBranch,
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
     SRefinementApplication,
     STerm,
     STypeAbstraction,
@@ -136,8 +139,55 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
             return SRefinementApplication(rec(body), rec(refinement), loc=loc)
         case STypeAbstraction(aname, kind, body, loc):
             return STypeAbstraction(aname, kind, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        # Avoid substituting into a branch body if `alpha`
+                        # is bound by that branch's binders.
+                        body=br.body if alpha in br.binders else rec(br.body),
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case SMatchBranch():
+            # Branches are only handled through SMatch; keep it explicit.
+            assert False
+        case SRefinementAbstraction(pname, sort, body, loc):
+            if pname == alpha:
+                return t
+            return SRefinementAbstraction(pname, rect(sort), rec(body), loc=loc)
         case _:
             assert False
+
+
+def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> SType:
+    def rec(k: SType) -> SType:
+        return substitute_refinement_param_in_stype(k, old, new)
+
+    ty = normalize(ty)
+    match ty:
+        case STypeVar(_):
+            return ty
+        case SRefinedType(name, ity, ref):
+            return SRefinedType(name, rec(ity), substitution_sterm_in_sterm(ref, SVar(new), old))
+        case SAbstractionType(var_name, var_type, return_type):
+            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+        case STypePolymorphism(tname, kind, body):
+            return STypePolymorphism(tname, kind, rec(body))
+        case SRefinementPolymorphism(rname, sort, body):
+            if rname == old:
+                return ty
+            return SRefinementPolymorphism(rname, rec(sort), rec(body))
+        case STypeConstructor(name, args):
+            return STypeConstructor(name, [rec(a) for a in args])
+        case _:
+            return ty
 
 
 def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
@@ -170,5 +220,23 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
                 return t
             else:
                 return STypeAbstraction(aname, kind, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        body=rec(br.body),
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case SMatchBranch():
+            assert False
+        case SRefinementAbstraction(pname, sort, body, loc):
+            return SRefinementAbstraction(pname, substitute_svartype_in_stype(sort, rep, name), rec(body), loc=loc)
         case _:
             assert False

@@ -19,7 +19,7 @@ from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.decorators import Metadata
 
-from aeon.frontend.parser import parse_term
+from aeon.core.parser import parse_term
 from aeon.core.types import top
 from aeon.utils.name import Name
 
