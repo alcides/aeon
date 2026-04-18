@@ -72,15 +72,15 @@ class CPULLVMPipeline(LLVMPipeline):
                 self.type_environment[target_id] = current_term.var_type
                 self.name_to_id_cache[target_name] = target_id
 
+                # Only compile functions explicitly marked @llvm. When metadata is
+                # empty (typical for programs without decorators), compiling every
+                # Rec would try to lower holes and non-LLVM code during parse.
                 should_compile = False
-                if not self.metadata:
-                    should_compile = True
-                else:
-                    for meta_key, meta_value in self.metadata.items():
-                        key_string = meta_key.name if isinstance(meta_key, Name) else str(meta_key)
-                        if key_string == target_name and meta_value.get("llvm"):
-                            should_compile = True
-                            break
+                for meta_key, meta_value in self.metadata.items():
+                    key_string = meta_key.name if isinstance(meta_key, Name) else str(meta_key)
+                    if key_string == target_name and meta_value.get("llvm"):
+                        should_compile = True
+                        break
 
                 if should_compile:
                     discovery_targets[target_id] = current_term.var_value
