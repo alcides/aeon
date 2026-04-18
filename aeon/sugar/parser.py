@@ -329,6 +329,14 @@ class TreeToSugar(Transformer):
             return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
 
     @v_args(meta=True)
+    def def_cons(self, meta, args):
+        if len(args) == 3:
+            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
+        else:
+            decorators = args[0]
+            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
+
+    @v_args(meta=True)
     def def_fun_eq(self, meta, args):
         return self.def_fun(meta, args)
 

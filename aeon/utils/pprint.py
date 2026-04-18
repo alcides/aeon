@@ -538,10 +538,9 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                         concat(
                             [
                                 pretty_func_definition,
-                                text(" {"),
+                                text(" ="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
-                                line(),
-                                text("}"),
+                                text(";"),
                             ]
                         )
                     )
@@ -777,10 +776,9 @@ def node_pretty(node: Node) -> Doc:
                         concat(
                             [
                                 pretty_func_definition,
-                                text(" {"),
+                                text(" ="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body])),
-                                line(),
-                                text("}"),
+                                text(";"),
                             ]
                         )
                     )
