@@ -6,6 +6,7 @@ from lsprotocol.types import (
     TEXT_DOCUMENT_COMPLETION,
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
+    TEXT_DOCUMENT_HOVER,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
     ApplyWorkspaceEditParams,
     CodeAction,
@@ -20,6 +21,10 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
+    Hover,
+    HoverParams,
+    MarkupContent,
+    MarkupKind,
     MessageType,
     PublishDiagnosticsParams,
     ShowMessageParams,
@@ -31,7 +36,7 @@ from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
-SYNTHESIZERS = ["gp", "enumerative", "random_search", "synquid", "llm"]
+SYNTHESIZERS = ["gp", "enumerative", "random_search", "synquid", "hc", "1p1", "smt", "decision_tree", "llm"]
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
 
@@ -104,6 +109,31 @@ class AeonLanguageServer(LanguageServer):
             for change in params.changes:
                 aeon_adapter.clear_cache(change.uri)
 
+        @self.feature(TEXT_DOCUMENT_HOVER)
+        async def hover(
+            ls: AeonLanguageServer,
+            params: HoverParams,
+        ) -> Optional[Hover]:
+            await asyncio.sleep(ls.debounce_delay)
+            document = ls.workspace.get_text_document(params.text_document.uri)
+            source = document.source
+            word = _get_word_at_position(source, params.position.line, params.position.character)
+            if not word:
+                return None
+            try:
+                typing_ctx = ls.aeon_driver.typing_ctx
+            except AttributeError:
+                return None
+            for name, type_ in typing_ctx.vars():
+                if name.pretty() == word:
+                    return Hover(
+                        contents=MarkupContent(
+                            kind=MarkupKind.Markdown,
+                            value=f"```\n{word} : {type_}\n```",
+                        )
+                    )
+            return None
+
         @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
         async def lsp_completion(
             ls: AeonLanguageServer,
@@ -173,6 +203,32 @@ class AeonLanguageServer(LanguageServer):
             ls.window_show_message(
                 ShowMessageParams(type=MessageType.Info, message=f"Synthesized ?{hole_name_str} = {synthesized_str}")
             )
+
+
+def _get_word_at_position(source: str, line: int, character: int) -> Optional[str]:
+    """Return the identifier token under the cursor, or None if none."""
+    lines = source.splitlines()
+    if line >= len(lines):
+        return None
+    line_text = lines[line]
+    col = character
+    # Step over a leading '?' so hovering on ?hole returns the hole name
+    if col < len(line_text) and line_text[col] == "?":
+        col += 1
+    if col >= len(line_text):
+        return None
+    start = col
+    while start > 0 and (line_text[start - 1].isalnum() or line_text[start - 1] == "_"):
+        start -= 1
+    end = col
+    while end < len(line_text) and (line_text[end].isalnum() or line_text[end] == "_"):
+        end += 1
+    if start == end:
+        return None
+    word = line_text[start:end]
+    if not word or not (word[0].isalpha() or word[0] == "_"):
+        return None
+    return word
 
 
 def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_name_str: str, synthesizer_name: str):
