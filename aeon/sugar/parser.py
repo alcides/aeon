@@ -11,7 +11,10 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SRefinementAbstraction,
     SRefinementApplication,
+    SMatch,
+    SMatchBranch,
     SHole,
     SIf,
     SLet,
@@ -140,6 +143,18 @@ class TreeToSugar(Transformer):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
+    def match_e(self, meta, args):
+        # match <scrutinee> with <branches>
+        return SMatch(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_branch(self, meta, args):
+        # | <Constructor> <binders>* => <body>
+        constructor_name = Name(args[0])
+        binders = [Name(b) for b in args[1]]
+        return SMatchBranch(constructor=constructor_name, binders=binders, body=args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
     def nnot(self, meta, args):
         return SApplication(SVar(Name("!", 0), loc=self._loc(meta)), args[0], loc=self._loc(meta))
 
@@ -199,6 +214,11 @@ class TreeToSugar(Transformer):
     def binop_mod(self, meta, args):
         return self.binop(args, "%", meta)
 
+    @v_args(meta=True)
+    def binop_dollar(self, meta, args):
+        # `$` is syntactic sugar for function application (right-associative by grammar).
+        return SApplication(args[0], args[1], loc=self._loc(meta))
+
     def binop(self, args, op: str, meta):
         return SApplication(
             SApplication(SVar(Name(op, 0), loc=self._loc(meta)), args[0], loc=self._loc(meta)),
@@ -217,6 +237,10 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def tabstraction_e(self, meta, args):
         return STypeAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def rabstraction_e(self, meta, args):
+        return SRefinementAbstraction(Name(args[0]), args[1], args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
     def type_application_e(self, meta, args):
@@ -297,20 +321,16 @@ class TreeToSugar(Transformer):
         return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
 
     @v_args(meta=True)
-    def def_cons(self, meta, args):
-        if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
-        else:
-            decorators = args[0]
-            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
-
-    @v_args(meta=True)
     def def_fun(self, meta, args):
         if len(args) == 4:
             return Definition(Name(args[0]), [], args[1], args[2], args[3], loc=self._loc(meta))
         else:
             decorators = args[0]
             return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def def_fun_eq(self, meta, args):
+        return self.def_fun(meta, args)
 
     def macros(self, args):
         return args

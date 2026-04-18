@@ -17,9 +17,11 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SMatch,
     SLet,
     SLiteral,
     SRec,
+    SRefinementAbstraction,
     SRefinementApplication,
     STerm,
     STypeAbstraction,
@@ -139,8 +141,26 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case STypeAbstraction(name, kind, body, loc=loc):
             name, subs = check_name(name, subs)
             return STypeAbstraction(name, kind, bind_sterm(body, subs), loc=loc)
+        case SRefinementAbstraction(name, sort, body, loc=loc):
+            name, subs = check_name(name, subs)
+            return SRefinementAbstraction(name, bind_stype(sort, subs), bind_sterm(body, subs), loc=loc)
         case SIf(cond, then, otherwise, loc=loc):
             return SIf(bind_sterm(cond, subs), bind_sterm(then, subs), bind_sterm(otherwise, subs), loc=loc)
+        case SMatch(scrutinee, branches, loc=loc):
+            n_scrutinee = bind_sterm(scrutinee, subs)
+            n_branches = []
+            # Pattern binders are scoped to each match branch.
+            for br in branches:
+                branch_subs = list(subs)
+                renamed_binders: list[Name] = []
+                for b in br.binders:
+                    nb, branch_subs = check_name(b, branch_subs)
+                    renamed_binders.append(nb)
+                n_body = bind_sterm(br.body, branch_subs)
+                n_branches.append(
+                    type(br)(constructor=br.constructor, binders=renamed_binders, body=n_body, loc=br.loc)
+                )
+            return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
@@ -164,13 +184,17 @@ def _bind_definition(
         nname, nsubs = check_name(aname, nsubs)
         ty = bind_stype(ty, nsubs)
         args.append((nname, ty))
+    rforalls = []
+    for pname, psort in df.rforalls:
+        nname, nsubs = check_name(pname, nsubs)
+        rforalls.append((nname, bind_stype(psort, nsubs)))
     ntype = bind_stype(df.type, nsubs)
     body = bind_sterm(df.body, nsubs)
     decorators = []
     for dec in df.decorators:
         dargs = [bind_sterm(da, subs) for da in dec.macro_args]
         decorators.append(Decorator(dec.name, dargs))
-    return Definition(name, foralls, args, ntype, body, decorators, loc=df.loc), nsubs
+    return Definition(name, foralls, args, ntype, body, decorators, rforalls, loc=df.loc), nsubs
 
 
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:

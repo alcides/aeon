@@ -8,13 +8,27 @@ from aeon.core.liquid import (
     LiquidVar,
 )
 from aeon.utils.name import Name
-from aeon.core.terms import Term, Literal, Var, Application, Abstraction, Let, Rec, If, TypeAbstraction, TypeApplication
+from aeon.core.terms import (
+    Term,
+    Literal,
+    Var,
+    Application,
+    Abstraction,
+    Let,
+    Rec,
+    If,
+    RefinementAbstraction,
+    RefinementApplication,
+    TypeAbstraction,
+    TypeApplication,
+)
 from aeon.core.types import (
     LiquidHornApplication,
     Type,
     TypeVar,
     AbstractionType,
     RefinedType,
+    RefinementPolymorphism,
     TypePolymorphism,
     TypeConstructor,
     Top,
@@ -59,6 +73,10 @@ def core_type_equality(type1: Type, type2: Type, rename_left: dict[Name, Name] |
             return aname == bname and all(core_type_equality(a, b, rename_left) for a, b in zip(a1, b1))
         case TypePolymorphism(aname, akind, abody), TypePolymorphism(bname, bkind, bbody):
             return akind == bkind and core_type_equality(abody, bbody, rename_left | {aname: bname})
+        case RefinementPolymorphism(aname, asort, abody), RefinementPolymorphism(bname, bsort, bbody):
+            return core_type_equality(asort, bsort, rename_left) and core_type_equality(
+                abody, bbody, rename_left | {aname: bname}
+            )
         case Top(), Top():
             return True
         case _:
@@ -98,5 +116,11 @@ def core_term_equality(term1: Term, term2: Term, rename_left: dict[Name, Name] |
             return core_term_equality(ab, bb, rename_left) and core_type_equality(at, bt, rename_left)
         case TypeAbstraction(aname, akind, abody), TypeAbstraction(bname, bkind, bbody):
             return akind == bkind and core_term_equality(abody, bbody, rename_left | {aname: bname})
+        case RefinementAbstraction(aname, asort, abody), RefinementAbstraction(bname, bsort, bbody):
+            return core_type_equality(asort, bsort, rename_left) and core_term_equality(
+                abody, bbody, rename_left | {aname: bname}
+            )
+        case RefinementApplication(ab, ar), RefinementApplication(bb, br):
+            return core_term_equality(ab, bb, rename_left) and core_term_equality(ar, br, rename_left)
         case _:
             return False

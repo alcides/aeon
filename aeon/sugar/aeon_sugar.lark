@@ -21,8 +21,8 @@ cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
 measures : measure_rule*                                  -> list
 measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
-def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
-    | soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun
+def : soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun
+    | soft_constraint "def" ID  args ":" type "=" expression ";"     -> def_fun_eq
 
 
 soft_constraint :                      -> empty_list
@@ -62,7 +62,15 @@ expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | ID ":" type _PIPE expression "=" expression  ("in"|";") expression     -> rec_refined_e
           | "if" expression "then" expression "else" expression    -> if_e
-          | expression_un                                          -> same
+          | "match" expression "with" match_branches              -> match_e
+          | expression_dollar                                      -> same
+
+expression_dollar : expression_un                                    -> same
+                  | expression_un "$" expression_i                  -> binop_dollar
+
+match_branches : match_branch+                                 -> list
+match_branch : _PIPE ID pat_binders "=>" expression            -> match_branch
+pat_binders : (ID)*                                           -> list
 
 expression_un : expression_bool                                      -> same
            | "!" expression_un                                       -> nnot
@@ -91,6 +99,7 @@ expression_fact : expression_b                           -> same
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
              | "\\" ID ":" type "->" expression             -> abstraction_et
+             | "Λ" "<" ID ":" type "->" "Bool" ">" "=>" expression -> rabstraction_e
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
@@ -120,7 +129,7 @@ INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 
 TYPENAME : /[a-zA-Z0-9]+/
-ID.0 : CNAME | /\([\+=\>\<!\*\-&\|]{1,3}\)/
+ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 
 _PIPE.10 : "where" | "|"
 _DOUBLEPIPE.11 : "||"
