@@ -76,6 +76,10 @@ def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
         arg0 = refined_to_sympy_expression(ref.args[0])
         arg1 = refined_to_sympy_expression(ref.args[1])
         return Ne(arg0, arg1)
+    elif ref_fun in sympy_context:
+        args = [refined_to_sympy_expression(arg) for arg in ref.args]
+        fn = sympy_context[ref_fun]
+        return fn(args[0])(args[1]) if len(args) == 2 else fn(args[0])
     else:
         raise ValueError(f"Unknown Liquid function {ref_fun}")
 
