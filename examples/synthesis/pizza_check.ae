@@ -1,0 +1,65 @@
+# Pizza Puzzle - Verification only (no synthesis hole)
+# emily=Margherita(1), owen=Peppers(4), yasmine=Hawaiian(3),
+# nathan=Pepperoni(0), wendy=Sausage(6), rachel=Cheese(5), kevin=BBQ(2)
+
+type Assignment;
+
+def Assignment_size   : (a:Assignment) -> Int = uninterpreted;
+def emily_pizza   : (a:Assignment) -> Int = uninterpreted;
+def owen_pizza    : (a:Assignment) -> Int = uninterpreted;
+def yasmine_pizza : (a:Assignment) -> Int = uninterpreted;
+def nathan_pizza  : (a:Assignment) -> Int = uninterpreted;
+def wendy_pizza   : (a:Assignment) -> Int = uninterpreted;
+def rachel_pizza  : (a:Assignment) -> Int = uninterpreted;
+def kevin_pizza   : (a:Assignment) -> Int = uninterpreted;
+
+def assignment_mk
+    (emily   : {n:Int | 0 <= n && n <= 6})
+    (owen    : {n:Int | 0 <= n && n <= 6})
+    (yasmine : {n:Int | 0 <= n && n <= 6})
+    (nathan  : {n:Int | 0 <= n && n <= 6})
+    (wendy   : {n:Int | 0 <= n && n <= 6})
+    (rachel  : {n:Int | 0 <= n && n <= 6})
+    (kevin   : {n:Int | 0 <= n && n <= 6}) :
+    {a:Assignment |
+        (Assignment_size a == 7) &&
+        (emily_pizza a == emily) &&
+        (owen_pizza a == owen) &&
+        (yasmine_pizza a == yasmine) &&
+        (nathan_pizza a == nathan) &&
+        (wendy_pizza a == wendy) &&
+        (rachel_pizza a == rachel) &&
+        (kevin_pizza a == kevin)
+    } { native "[emily, owen, yasmine, nathan, wendy, rachel, kevin]" }
+
+def pizza_solution : {a:Assignment |
+    (Assignment_size a == 7) &&
+    ((emily_pizza a == 1) || (emily_pizza a == 5)) &&
+    ((owen_pizza a == 1) || (owen_pizza a == 4) || (owen_pizza a == 5)) &&
+    (yasmine_pizza a != 5) &&
+    ((nathan_pizza a == 5) || (nathan_pizza a == 0) || (nathan_pizza a == 1)) &&
+    (wendy_pizza a != 3) &&
+    (rachel_pizza a == 5) &&
+    ((kevin_pizza a == 0) || (kevin_pizza a == 2) || (kevin_pizza a == 6) || (kevin_pizza a == 3)) &&
+    (emily_pizza a != owen_pizza a) &&
+    (emily_pizza a != yasmine_pizza a) &&
+    (emily_pizza a != nathan_pizza a) &&
+    (emily_pizza a != wendy_pizza a) &&
+    (emily_pizza a != rachel_pizza a) &&
+    (emily_pizza a != kevin_pizza a) &&
+    (owen_pizza a != yasmine_pizza a) &&
+    (owen_pizza a != nathan_pizza a) &&
+    (owen_pizza a != wendy_pizza a) &&
+    (owen_pizza a != rachel_pizza a) &&
+    (owen_pizza a != kevin_pizza a) &&
+    (yasmine_pizza a != nathan_pizza a) &&
+    (yasmine_pizza a != wendy_pizza a) &&
+    (yasmine_pizza a != rachel_pizza a) &&
+    (yasmine_pizza a != kevin_pizza a) &&
+    (nathan_pizza a != wendy_pizza a) &&
+    (nathan_pizza a != rachel_pizza a) &&
+    (nathan_pizza a != kevin_pizza a) &&
+    (wendy_pizza a != rachel_pizza a) &&
+    (wendy_pizza a != kevin_pizza a) &&
+    (rachel_pizza a != kevin_pizza a)
+} = assignment_mk 1 4 3 0 6 5 2;
