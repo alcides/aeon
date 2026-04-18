@@ -312,6 +312,8 @@ class TreeToSugar(Transformer):
             decorators = args[0]
             return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
 
+    def_fun_eq = def_fun
+
     def macros(self, args):
         return args
 

@@ -23,6 +23,7 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
 def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
     | soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun
+    | soft_constraint "def" ID  args ":" type "=" expression ";"     -> def_fun_eq
 
 
 soft_constraint :                      -> empty_list
