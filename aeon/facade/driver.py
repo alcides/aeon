@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
