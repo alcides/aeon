@@ -48,7 +48,7 @@ class Result:
     synthesizer: str
     success: bool
     elapsed: float
-    quality: Optional[str] = None   # best fitness string, e.g. "[0.0]"
+    quality: Optional[str] = None  # best fitness string, e.g. "[0.0]"
     solution: Optional[str] = None  # pretty-printed synthesised expression
     error: Optional[str] = None
 
@@ -99,11 +99,18 @@ def _extract_solution(stdout: str) -> Optional[str]:
 def run_one(example: Path, synthesizer: str, budget: int) -> Result:
     """Run synthesis for *example* with *synthesizer* and return a Result."""
     cmd = [
-        "uv", "run", "python", "-m", "aeon",
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "aeon",
         "--no-main",
-        "--budget", str(budget),
-        "-s", synthesizer,
-        "--synthesis-format", "json",
+        "--budget",
+        str(budget),
+        "-s",
+        synthesizer,
+        "--synthesis-format",
+        "json",
         str(example),
     ]
     t0 = time.monotonic()
@@ -155,6 +162,7 @@ def run_one(example: Path, synthesizer: str, budget: int) -> Result:
 
 # ── Pretty table ──────────────────────────────────────────────────────────────
 
+
 def _cell(r: Result) -> str:
     if r.success:
         q = f" q={r.quality}" if r.quality else ""
@@ -200,6 +208,7 @@ def _print_table(results: list[Result], synthesizers: list[str]) -> None:
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -266,30 +275,39 @@ def main() -> int:
         _print_table(results, args.synthesizers)
 
     elif args.output == "json":
-        print(json.dumps(
-            [
-                {
-                    "example": r.example,
-                    "synthesizer": r.synthesizer,
-                    "success": r.success,
-                    "elapsed_s": round(r.elapsed, 3),
-                    "quality": r.quality,
-                    "solution": r.solution,
-                    "error": r.error,
-                }
-                for r in results
-            ],
-            indent=2,
-        ))
+        print(
+            json.dumps(
+                [
+                    {
+                        "example": r.example,
+                        "synthesizer": r.synthesizer,
+                        "success": r.success,
+                        "elapsed_s": round(r.elapsed, 3),
+                        "quality": r.quality,
+                        "solution": r.solution,
+                        "error": r.error,
+                    }
+                    for r in results
+                ],
+                indent=2,
+            )
+        )
 
     elif args.output == "csv":
         writer = csv.writer(sys.stdout)
         writer.writerow(["example", "synthesizer", "success", "elapsed_s", "quality", "solution", "error"])
         for r in results:
-            writer.writerow([
-                r.example, r.synthesizer, r.success,
-                round(r.elapsed, 3), r.quality or "", r.solution or "", r.error or "",
-            ])
+            writer.writerow(
+                [
+                    r.example,
+                    r.synthesizer,
+                    r.success,
+                    round(r.elapsed, 3),
+                    r.quality or "",
+                    r.solution or "",
+                    r.error or "",
+                ]
+            )
 
     all_ok = all(r.success for r in results)
     return 0 if all_ok else 1
