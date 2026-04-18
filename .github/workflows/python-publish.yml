@@ -32,7 +32,9 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
       - name: Install and test
         run: |
-          uv pip install --system -e ".[tests]"
+          uv venv
+          . .venv/bin/activate
+          uv pip install -e ".[tests]"
           pytest
 
   publish:
