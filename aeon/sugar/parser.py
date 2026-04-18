@@ -340,10 +340,6 @@ class TreeToSugar(Transformer):
     def def_fun_eq(self, meta, args):
         return self.def_fun(meta, args)
 
-    @v_args(meta=True)
-    def def_fun_eq(self, meta, args):
-        return self.def_fun(meta, args)
-
     def macros(self, args):
         return args
 
