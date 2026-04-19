@@ -6,11 +6,15 @@ from itertools import chain, count, takewhile
 import itertools
 from typing import Callable
 
-from aeon.core.terms import Annotation, Application, If, Literal, TypeApplication, Var
+from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication, Var
 from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.core.types import refined_to_unrefined_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
-from aeon.synthesis.modules.synquid.guards import bool_pairwise_conjunctions, bool_terms_from_qualifier_atoms
+from aeon.synthesis.modules.synquid.guards import (
+    bool_pairwise_conjunctions,
+    bool_terms_from_qualifier_atoms,
+    bool_triple_conjunctions,
+)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
@@ -105,10 +109,17 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             case TypeConstructor(Name("Float", 0)):
                 yield from [Literal(value, base_t) for value in frange(-100.0, 100.0, 0.00001)]
             case TypeConstructor(Name("String", 0)):
-                raise NotImplementedError
+                yield from (
+                    Literal(s, base_t)
+                    for s in ("", " ", "a", "b", "0", "1", "x", "y", "\n", "\t", "true", "false", "[]", "{}", "nil")
+                )
             case _:
                 raise NotImplementedError
     elif level >= 1:
+        if isinstance(ret_t, AbstractionType):
+            ctx_l = ctx.with_var(ret_t.var_name, ret_t.var_type)
+            for bod in synthes_memory(ctx_l, level - 1, ret_t.type, skip, mem):
+                yield Abstraction(ret_t.var_name, bod)
         for name, typ in [
             (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, TypeConstructor) and not skip(n)
         ]:
@@ -133,9 +144,15 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                     yield a
         bool_t = TypeConstructor(Name("Bool", 0), [])
         atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
+        guard_triples = bool_triple_conjunctions(ctx, atoms_q)
         guard_pairs = bool_pairwise_conjunctions(ctx, atoms_q)
         guard_terms = bool_terms_from_qualifier_atoms(ctx, atoms_q)
-        cond = chain(iter(guard_pairs), iter(guard_terms), synthes_memory(ctx, level - 1, bool_t, skip, mem))
+        cond = chain(
+            iter(guard_triples),
+            iter(guard_pairs),
+            iter(guard_terms),
+            synthes_memory(ctx, level - 1, bool_t, skip, mem),
+        )
         then = synthes_memory(ctx, level - 1, ret_t, skip, mem)
         otherwise = synthes_memory(ctx, level - 1, ret_t, skip, mem)
         for cand in itertools.product(cond, then, otherwise):

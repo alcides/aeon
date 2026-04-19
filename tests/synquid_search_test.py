@@ -3,6 +3,7 @@ from unittest.mock import patch
 from aeon.core.terms import Application, Literal, Var
 from aeon.core.types import TypeConstructor
 from aeon.synthesis.modules.synquid import build as synquid_build
+from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term
 from aeon.synthesis.modules.synquid.search import (
     iter_candidates_size_then_level,
     sorted_level_candidates,
@@ -18,6 +19,8 @@ def test_build_reexports_search_helpers():
     assert synquid_build.term_size is term_size
     assert synquid_build.sorted_level_candidates is sorted_level_candidates
     assert synquid_build.iter_candidates_size_then_level is iter_candidates_size_then_level
+    assert synquid_build.application_subgoal_types is application_subgoal_types
+    assert synquid_build.check_hole_term is check_hole_term
 
 
 def test_term_size_counts_nodes():

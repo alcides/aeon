@@ -83,3 +83,31 @@ def bool_pairwise_conjunctions(
             inner = Application(Application(and_op, a), b)
             out.append(Annotation(inner, t_bool))
     return out
+
+
+def bool_triple_conjunctions(
+    ctx: TypingContext,
+    atoms: frozenset[LiquidTerm],
+    *,
+    max_singles: int = 12,
+    max_triples: int = 16,
+) -> list[Term]:
+    """Ternary ``a && b && c`` over relational singles from ``atoms`` (bounded abduction)."""
+    singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
+    if len(singles) < 3:
+        return []
+    and_op = Var(Name("&&", 0))
+    out: list[Term] = []
+    n = min(len(singles), 6)
+    for i in range(n):
+        for j in range(i + 1, n):
+            for k in range(j + 1, n):
+                if len(out) >= max_triples:
+                    return out
+                a = _strip_bool_ann(singles[i])
+                b = _strip_bool_ann(singles[j])
+                c = _strip_bool_ann(singles[k])
+                ab = Application(Application(and_op, a), b)
+                inner = Application(Application(and_op, ab), c)
+                out.append(Annotation(inner, t_bool))
+    return out

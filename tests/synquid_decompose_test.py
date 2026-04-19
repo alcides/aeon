@@ -1,7 +1,10 @@
 from aeon.core.parser import parse_type
-from aeon.core.types import RefinedType
+from aeon.core.terms import Literal
+from aeon.core.types import RefinedType, TypeConstructor
 from aeon.synthesis.modules.synquid.decompose import uncurry
-from aeon.synthesis.modules.synquid.modular import application_subgoal_types
+from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term
+from aeon.typechecking.context import TypingContext
+from aeon.utils.name import Name
 
 
 def test_uncurry_preserves_refined_domain():
@@ -19,3 +22,10 @@ def test_application_subgoal_types_with_refined_goal():
     assert args is not None
     assert len(args) == 1
     assert isinstance(args[0], RefinedType)
+
+
+def test_check_hole_term_int_literal():
+    ctx = TypingContext()
+    int_t = TypeConstructor(Name("Int", 0), [])
+    lit = Literal(42, int_t)
+    assert check_hole_term(ctx, lit, int_t)
