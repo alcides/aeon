@@ -25,6 +25,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import (
     AbstractionType,
+    LiquidHornApplication,
     RefinedType,
     RefinementPolymorphism,
     Top,
@@ -78,6 +79,8 @@ def lift_liquid(ref: LiquidTerm) -> STerm:
             for arg in args[::-1]:
                 v = SApplication(v, lift_liquid(arg), loc=loc)
             return v
+        case LiquidHornApplication(name, _, loc):
+            return SVar(name, loc=loc)
         case _:
             assert False, f"Don't know how to lift liquid term {ref} ({type(ref)})"
 

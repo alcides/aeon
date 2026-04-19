@@ -12,7 +12,15 @@ The `--budget` flag sets the time limit in seconds (default: 60).
 
 ## Available Synthesizers
 
-### `gp` — Genetic Programming *(default)*
+### `tdsyn` — Type-Directed Synthesis *(default)*
+
+Builds partial ASTs using backward and forward rules (functions whose return type matches the goal, or functions that consume variables in scope), SMT-based subtyping, and Z3 literal solving for base-type holes with refinements. Uses a worklist search (BFS in `enumerative` mode). Does **not** use GeneticEngine.
+
+Use `tdsyn_random` for the same pipeline with random queue ordering instead of BFS.
+
+---
+
+### `gp` — Genetic Programming
 
 Evolves a population of candidate programs using genetic programming, implemented via [GeneticEngine](https://github.com/alcides/GeneticEngine). Candidate programs are represented as syntax trees drawn from a grammar derived from the typing context. Selection, crossover, and mutation operators drive the search towards better fitness scores as defined by the synthesis decorators (`@minimize`, `@maximize`, etc.).
 
@@ -85,6 +93,8 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
+| `tdsyn`         | Type-directed + SMT | Polymorphic and refinement-heavy holes; default CLI |
+| `tdsyn_random`  | Type-directed + SMT (random order) | Same as `tdsyn`, different exploration |
 | `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
 | `random_search` | Random sampling  | Baselines, small search spaces |
 | `enumerative`   | Size-ordered enumeration | Small holes, tight type constraints |

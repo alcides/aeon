@@ -36,7 +36,19 @@ from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
-SYNTHESIZERS = ["gp", "enumerative", "random_search", "synquid", "hc", "1p1", "smt", "decision_tree", "llm"]
+SYNTHESIZERS = [
+    "tdsyn",
+    "tdsyn_random",
+    "gp",
+    "enumerative",
+    "random_search",
+    "synquid",
+    "hc",
+    "1p1",
+    "smt",
+    "decision_tree",
+    "llm",
+]
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
 

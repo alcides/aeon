@@ -57,8 +57,15 @@ def get_holes_info(
             ty = ty if refined_types else refined_to_unrefined_type(ty)
             return get_holes_info(ctx, expr, ty, targets, refined_types)
         case Application(fun=fun, arg=arg):
+            _, fty = synth(ctx, fun)
+            arg_ty = ty
+            match fty:
+                case AbstractionType(_, atype, _):
+                    arg_ty = atype
+                case _:
+                    pass
             hs1 = get_holes_info(ctx, fun, ty, targets, refined_types)
-            hs2 = get_holes_info(ctx, arg, ty, targets, refined_types)
+            hs2 = get_holes_info(ctx, arg, arg_ty, targets, refined_types)
             return hs1 | hs2
         case If(cond=cond, then=then, otherwise=otherwise):
             hs1 = get_holes_info(ctx, cond, ty, targets, refined_types)

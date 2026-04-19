@@ -1,0 +1,15 @@
+# Polymorphic Maybe: inductive with parameter *a* and read via Maybe_rec.
+# (Synthesis benchmarks that need GP may use a monomorphic copy; see
+# examples/benchmarks/bench_maybe.ae.)
+
+inductive Maybe a
+| nothing : (Maybe a)
+| some (x:a) : (Maybe a)
+
+def read (m:(Maybe a)) (d:a) : a {
+    Maybe_rec m d (\x -> x)
+}
+
+def main (x:Int) : Unit {
+    print "ok"
+}

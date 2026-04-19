@@ -48,7 +48,10 @@ class ANFConverter:
                     return self.convert(Let(v, fun, Application(Var(v), arg, loc=loc), loc=loc))
 
                 arg = self.convert(arg)
-                if isinstance(arg, Var) or isinstance(arg, Literal):
+                # Abstractions must stay syntactic function arguments: hoisting them into a
+                # Let would require synthesizing a type for the lambda, which the typechecker
+                # does not support (eliminator continuations are checked against known types).
+                if isinstance(arg, Var) or isinstance(arg, Literal) or isinstance(arg, Abstraction):
                     return Application(fun, arg, loc=loc)
                 else:
                     v = self.fresh()

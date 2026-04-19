@@ -22,8 +22,8 @@ uv run pytest tests/end_to_end_test.py::test_name -x
 # Run an .ae file
 uv run python -m aeon [file.ae]
 
-# Run with synthesis (genetic programming, 60s default budget)
-uv run python -m aeon --budget 10 -s gp examples/synthesis/example.ae
+# Run with synthesis (default: tdsyn, 60s budget)
+uv run python -m aeon --budget 10 examples/synthesis/example.ae
 
 # Run all examples (used in CI)
 bash run_examples.sh
@@ -35,7 +35,7 @@ uvx pre-commit run --all-files
 uv run mypy aeon
 ```
 
-**Synthesizer options:** `gp` (genetic programming, default), `synquid`, `random_search`, `enumerative`, `hc` (hill climbing), `1p1` (one plus one)
+**Synthesizer options:** `tdsyn` (type-directed, SMT-assisted; default), `tdsyn_random`, `gp`, `synquid`, `random_search`, `enumerative`, `hc`, `1p1`, `smt`, `decision_tree`, `llm`
 
 ## Code Style
 

@@ -23,9 +23,13 @@ from aeon.core.liquid import (
 from aeon.core.substitutions import substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, TypeVar
-from aeon.core.types import TypeConstructor
+from aeon.core.types import AbstractionType
+from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import RefinedType
+from aeon.core.types import Type
+from aeon.core.types import TypeConstructor
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.core.types import Top
 from aeon.core.types import refined_to_unrefined_type
 from aeon.core.types import t_bool
@@ -91,13 +95,35 @@ def is_valid_class_name(class_name: str) -> bool:
 ae_top = type("ae_top", (ABC,), {})
 
 
+def is_closed_for_synthesis(ty: Type) -> bool:
+    """True if *ty* has no free type or refinement parameters (synthesis-safe)."""
+
+    match ty:
+        case TypeVar():
+            return False
+        case TypePolymorphism() | RefinementPolymorphism():
+            return False
+        case TypeConstructor(_, args):
+            return all(is_closed_for_synthesis(a) for a in args)
+        case RefinedType(_, bt, _):
+            return is_closed_for_synthesis(bt)
+        case AbstractionType(_, vt, rt):
+            return is_closed_for_synthesis(vt) and is_closed_for_synthesis(rt)
+        case Top():
+            return True
+        case _:
+            assert False, f"is_closed_for_synthesis: unsupported {ty!r}"
+
+
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
     data: dict[Type, TypingType] = {Top(): ae_top}
     for ty in set(types):
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
-                    assert not args, "Polytypes in not supported in Synthesis"
+                    if args:
+                        assert is_closed_for_synthesis(ty), "Polytypes in not supported in Synthesis"
+                        data.update(extract_all_types(list(args)))
                     class_name = mangle_type(ty)
                     ty_abstract_class = type(
                         class_name,
@@ -283,7 +309,11 @@ def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
 
 def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
     match t:
-        case RefinedType(_, _, _) | TypeConstructor(_) | TypeVar() | Top():
+        case RefinedType(_, _, _) | TypeVar() | Top():
+            return
+        case TypeConstructor(_, args):
+            for a in args:
+                yield from collect_all_abstractions(a)
             return
         case AbstractionType(_, aty, rty):
             yield t

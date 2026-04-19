@@ -4,6 +4,7 @@ from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
+from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 
 
 def make_synthesizer(module: str) -> Synthesizer:
@@ -12,6 +13,10 @@ def make_synthesizer(module: str) -> Synthesizer:
             return GESynthesizer(method="random_search")
         case "enumerative":
             return GESynthesizer(method="enumerative")
+        case "tdsyn":
+            return TDSynSynthesizer(mode="enumerative")
+        case "tdsyn_random":
+            return TDSynSynthesizer(mode="random")
         case "gp":
             return GESynthesizer(method="genetic_programming")
         case "1p1":

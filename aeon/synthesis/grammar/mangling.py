@@ -35,8 +35,11 @@ def mangle_var(name: Name) -> str:
 def mangle_type(ty: Type) -> str:
     """Mangles the Aeon Type name, to be a valid Python name."""
     match ty:
-        case TypeConstructor(name, _):
-            return f"æ{mangle_name(name)}"
+        case TypeConstructor(name, args):
+            base = f"æ{mangle_name(name)}"
+            if not args:
+                return base
+            return base + "__" + "__".join(mangle_type(a) for a in args)
         case RefinedType(name, ty, ref):
             ref2 = substitution_in_liquid(ref, LiquidVar(Name("__self__", 0)), name)
             return f"_{mangle_type(ty)}_{mangle_liquid_term(ref2)}"
