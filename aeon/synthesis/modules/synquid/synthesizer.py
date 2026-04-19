@@ -13,6 +13,7 @@ from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 
@@ -66,9 +67,17 @@ class SynquidSynthesizer(Synthesizer):
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
         search_mode = current_metadata.get("synquid_search", "size_merge")
+        typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
+        max_level = max(0, int(current_metadata.get("synquid_max_level", 128)))
+        seed_levels = max(1, int(current_metadata.get("synquid_seed_levels", 2)))
 
         def consider(result: Term) -> bool:
             nonlocal best, done
+            if typecheck_candidate_first and not check_type(ctx, result, type):
+                ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
+                if get_elapsed_time(start_time) > budget:
+                    done = False
+                return False
             if validate(result):
                 score = evaluate(result)
                 if not goals:
@@ -86,7 +95,7 @@ class SynquidSynthesizer(Synthesizer):
             return False
 
         if search_mode == "iterative_deepening":
-            while done:
+            while done and level <= max_level:
                 for result in sorted_level_candidates(ctx, level, type, skip, mem):
                     if consider(result):
                         return result
@@ -95,7 +104,9 @@ class SynquidSynthesizer(Synthesizer):
                 level += 1
             return best[1]
 
-        for result in iter_candidates_size_then_level(ctx, type, skip, mem):
+        for result in iter_candidates_size_then_level(
+            ctx, type, skip, mem, max_level=max_level, seed_levels=seed_levels
+        ):
             if consider(result):
                 return result
             if not done:

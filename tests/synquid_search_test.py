@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from aeon.core.terms import Application, Literal, Var
 from aeon.core.types import TypeConstructor
+from aeon.synthesis.modules.synquid import build as synquid_build
 from aeon.synthesis.modules.synquid.search import (
     iter_candidates_size_then_level,
     sorted_level_candidates,
@@ -11,6 +12,12 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 _INT = TypeConstructor(Name("Int", 0), [])
+
+
+def test_build_reexports_search_helpers():
+    assert synquid_build.term_size is term_size
+    assert synquid_build.sorted_level_candidates is sorted_level_candidates
+    assert synquid_build.iter_candidates_size_then_level is iter_candidates_size_then_level
 
 
 def test_term_size_counts_nodes():
@@ -66,3 +73,18 @@ def test_iter_candidates_size_then_level_prefers_smaller_ast_across_levels():
         out = list(iter_candidates_size_then_level(ctx, _INT, skip, mem, max_level=4, seed_levels=2))
     assert out[0] is tiny
     assert huge in out
+
+
+def test_iter_candidates_max_level_zero_is_level_zero_only():
+    ctx = TypingContext()
+
+    def skip(_: Name) -> bool:
+        return False
+
+    mem: dict = {}
+    merged = list(
+        iter_candidates_size_then_level(ctx, _INT, skip, mem, max_level=0, seed_levels=1),
+    )
+    mem2: dict = {}
+    expected = list(sorted_level_candidates(ctx, 0, _INT, skip, mem2))
+    assert merged == expected
