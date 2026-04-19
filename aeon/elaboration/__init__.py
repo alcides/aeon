@@ -85,7 +85,7 @@ def elaborate_foralls(e: STerm) -> STerm:
             | SRefinementApplication(_, _)
         ):
             return e
-        case SRec(_, _, _, _, loc):
+        case SRec(_, _, _, _, _, loc):
             e1: SRec = e
             if len(get_type_vars(e.var_type)) > 0:
                 nt = e.var_type
@@ -102,7 +102,7 @@ def elaborate_foralls(e: STerm) -> STerm:
                         body=nv,
                     )
 
-                e1 = SRec(e.var_name, nt, nv, e.body, loc=loc)
+                e1 = SRec(e.var_name, nt, nv, e.body, decreasing_by=e.decreasing_by, loc=loc)
             return e1
         case _:
             assert False, f"Could not elaborate {e} ({type(e)})"
@@ -314,7 +314,10 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                             return SApplication(nfun, narg), return_type
                         case _:
                             nname = Name("_anf", fresh_counter.fresh())
-                            return SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname)), loc=loc), return_type
+                            return (
+                                SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname)), decreasing_by=(), loc=loc),
+                                return_type,
+                            )
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:
@@ -333,11 +336,11 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nctx = ctx.with_var(name, u)
             nbody = elaborate_check(nctx, body, ty)
             return SLet(name, nval, nbody, loc=loc)
-        case (SRec(name, vty, val, body, loc=loc), _):
+        case (SRec(name, vty, val, body, decreasing_by, loc=loc), _):
             nctx = ctx.with_var(name, vty)
             nval = elaborate_check(nctx, val, vty)
             nbody = elaborate_check(nctx, body, ty)
-            return SRec(name, vty, nval, nbody, loc=loc)
+            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc)
         case (SIf(cond, then, otherwise, loc=loc), _):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
@@ -505,12 +508,17 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
         case SLet(name, val, body, loc=loc):
             nctx = ctx.with_var(t.var_name, st_unit)  # TODO poly: Unit??
             return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body), loc=loc)
-        case SRec(name, ty, val, body, loc=loc):
+        case SRec(name, ty, val, body, decreasing_by, loc=loc):
             nty = handle_unification_in_type(ctx, ty)
             nt = remove_unions_and_intersections(ctx, ty)
             nctx = ctx.with_var(t.var_name, t.var_type)
             return SRec(
-                name, nty, elaborate_remove_unification(nctx, val), elaborate_remove_unification(nctx, body), loc=loc
+                name,
+                nty,
+                elaborate_remove_unification(nctx, val),
+                elaborate_remove_unification(nctx, body),
+                decreasing_by=decreasing_by,
+                loc=loc,
             )
 
         case SIf(cond, then, otherwise, loc=loc):

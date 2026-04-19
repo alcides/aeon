@@ -508,7 +508,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                 binding = concat([pretty_var_name, text(" = "), pretty_var_value])
                 return group(concat([text("let "), binding, text(" in"), line(), pretty_body]))
 
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):  # refazer rec
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=_):  # refazer rec
             pretty_var_name = text(var_name.pretty())
             pretty_var_type = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
             pretty_var_value = pretty_sterm_with_parens(
@@ -657,7 +657,7 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                         var_value=normalize_term(var_value, context, seen),
                         body=normalize_term(body, context, seen),
                     )
-        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body):
+        case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=db):
             if var_name.pretty() == "anf":
                 context_copy = context.copy()
                 context_copy[var_name] = normalize_term(var_value, context, seen)
@@ -670,6 +670,7 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                         var_type=var_type,
                         var_value=normalize_term(var_value, context, seen),
                         body=SVar(name=name),
+                        decreasing_by=tuple(normalize_term(m, context, seen) for m in db),
                     )
                 case _:
                     return SRec(
@@ -677,6 +678,7 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                         var_type=var_type,
                         var_value=normalize_term(var_value, context, seen),
                         body=normalize_term(body, context, seen),
+                        decreasing_by=tuple(normalize_term(m, context, seen) for m in db),
                     )
         case STypeAbstraction(name=name, kind=kind, body=body):
             simplified_body = normalize_term(body, context, seen)

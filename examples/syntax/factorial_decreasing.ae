@@ -1,0 +1,10 @@
+# Unary recursion with an explicit Liquid Haskell-style metric (single Int).
+# The checker emits ``m(call) < m(params)`` at self-calls when the metric at the
+# call site liquefies to variables drawn only from the function parameters (so
+# ANF temporaries in complex call expressions may skip the check until VC scope improves).
+
+def fact (n:Int) : Int decreasing_by [n] = if n == 0 then 1 else n * fact (n - 1);
+
+def main (_:Int) : Int {
+  fact 5
+}

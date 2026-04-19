@@ -75,7 +75,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             return e
         case Let(var_name, var_value, body):
             return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
-        case Rec(var_name, _, var_value, body):
+        case Rec(var_name, _, var_value, body, _, _):
             if isinstance(var_value, Abstraction):
                 fun = var_value
 

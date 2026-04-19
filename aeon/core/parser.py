@@ -85,7 +85,7 @@ class TreeToCore(Transformer):
         return Let(Name(args[0]), args[1], args[2])
 
     def rec_e(self, args):
-        return Rec(Name(args[0]), args[1], args[2], args[3])
+        return Rec(Name(args[0]), args[1], args[2], args[3], decreasing_by=())
 
     def if_e(self, args):
         return If(args[0], args[1], args[2])

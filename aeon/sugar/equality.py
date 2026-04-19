@@ -70,12 +70,14 @@ def term_equality(a: STerm, b: STerm, rename_left: dict[Name, Name] | None = Non
             return term_equality(abody, bbody, rename_left | {an: bn})
         case SLet(aname, aval, acont), SLet(bname, bval, bcont):
             return term_equality(aval, bval, rename_left) and term_equality(acont, bcont, rename_left | {aname: bname})
-        case SRec(aname, atype, aval, acont), SRec(bname, btype, bval, bcont):
+        case SRec(aname, atype, aval, acont, adecr), SRec(bname, btype, bval, bcont, bdecr):
             nrename = rename_left | {aname: bname}
             return (
                 term_equality(aval, bval, nrename)
                 and type_equality(atype, btype, rename_left)
                 and term_equality(acont, bcont, nrename)
+                and len(adecr) == len(bdecr)
+                and all(term_equality(x, y, nrename) for x, y in zip(adecr, bdecr, strict=True))
             )
         case SAnnotation(ae, at), SAnnotation(be, bt):
             return term_equality(ae, be, rename_left) and type_equality(at, bt, rename_left)

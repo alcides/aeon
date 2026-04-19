@@ -175,9 +175,16 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
         case Let(name, body, cont, loc):
             name, nsubs = check_name(name, subs)
             return Let(name, bind_term(body, subs), bind_term(cont, nsubs), loc)
-        case Rec(name, ty, body, cont, loc):
+        case Rec(name, ty, body, cont, decreasing_by, loc):
             name, subs = check_name(name, subs)
-            return Rec(name, bind_type(ty, subs), bind_term(body, subs), bind_term(cont, subs), loc)
+            return Rec(
+                name,
+                bind_type(ty, subs),
+                bind_term(body, subs),
+                bind_term(cont, subs),
+                decreasing_by=tuple(bind_term(m, subs) for m in decreasing_by),
+                loc=loc,
+            )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
