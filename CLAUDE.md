@@ -22,7 +22,7 @@ uv run pytest tests/end_to_end_test.py::test_name -x
 # Run an .ae file
 uv run python -m aeon [file.ae]
 
-# Run with synthesis (default: tdsyn_enumerative / type-directed BFS, 60s budget)
+# Run with synthesis (default: tdsyn_random / type-directed, 60s budget)
 uv run python -m aeon --budget 10 examples/synthesis/example.ae
 
 # Run all examples (used in CI)
@@ -35,7 +35,7 @@ uvx pre-commit run --all-files
 uv run mypy aeon
 ```
 
-**Synthesizer options:** `tdsyn_enumerative` (default; alias `tdsyn`), `tdsyn_random`, `gp`, `synquid`, `random_search`, `enumerative`, `hc`, `1p1`, `smt`, `decision_tree`, `llm`
+**Synthesizer options:** `tdsyn_random` (type-directed, default), `gp`, `synquid`, `random_search`, `enumerative`, `hc`, `1p1`, `smt`, `decision_tree`, `llm`
 
 ## Code Style
 

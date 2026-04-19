@@ -37,8 +37,6 @@ from pygls.lsp.server import LanguageServer
 from aeon.facade.driver import AeonDriver
 
 SYNTHESIZERS = [
-    "tdsyn_enumerative",
-    "tdsyn",
     "tdsyn_random",
     "gp",
     "enumerative",

@@ -27,9 +27,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()
-        case "tdsyn" | "tdsyn_enumerative":
-            return TDSynSynthesizer(mode="enumerative")
         case "tdsyn_random":
-            return TDSynSynthesizer(mode="random")
+            return TDSynSynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"

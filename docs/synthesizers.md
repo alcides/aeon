@@ -12,11 +12,9 @@ The `--budget` flag sets the time limit in seconds (default: 60).
 
 ## Available Synthesizers
 
-### `tdsyn_enumerative` / `tdsyn` — Type-Directed Synthesis *(default)*
+### `tdsyn_random` — Type-Directed Synthesis *(default)*
 
-The CLI default is **`tdsyn_enumerative`**; **`tdsyn`** is the same backend (BFS worklist). Builds partial ASTs using backward and forward rules, SMT-based subtyping, and Z3 literal solving for base-type holes with refinements. Does **not** use GeneticEngine.
-
-Use **`tdsyn_random`** for the same pipeline with random queue ordering instead of BFS.
+Random exploration over partial ASTs: backward and forward rules, SMT-based subtyping, and Z3 literal solving for base-type holes with refinements. Does **not** use GeneticEngine.
 
 ---
 
@@ -93,8 +91,7 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
-| `tdsyn_enumerative` / `tdsyn` | Type-directed + SMT (BFS) | Polymorphic and refinement-heavy holes; default CLI |
-| `tdsyn_random`  | Type-directed + SMT (random order) | Same backend, different exploration |
+| `tdsyn_random`  | Type-directed + SMT (random walk) | Polymorphic and refinement-heavy holes; default CLI |
 | `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
 | `random_search` | Random sampling  | Baselines, small search spaces |
 | `enumerative`   | Size-ordered enumeration | Small holes, tight type constraints |

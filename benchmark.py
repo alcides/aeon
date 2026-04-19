@@ -9,7 +9,7 @@ Usage
 -----
     uv run python benchmark.py                        # all synthesizers, 3-min budget
     uv run python benchmark.py --budget 60            # 60-second budget per run
-    uv run python benchmark.py --synthesizers tdsyn_enumerative gp   # pick synthesizers
+    uv run python benchmark.py --synthesizers tdsyn_random gp   # pick synthesizers
     uv run python benchmark.py --examples "examples/benchmarks/bench_int*.ae"
     uv run python benchmark.py --output json          # machine-readable output
     uv run python benchmark.py --output csv           # spreadsheet-friendly output
@@ -34,7 +34,7 @@ from typing import Optional
 ROOT = Path(__file__).parent
 EXAMPLES_DIR = ROOT / "examples" / "benchmarks"
 
-DEFAULT_SYNTHESIZERS = ["tdsyn_enumerative", "tdsyn", "gp", "random_search", "enumerative", "hc", "1p1"]
+DEFAULT_SYNTHESIZERS = ["tdsyn_random", "gp", "random_search", "enumerative", "hc", "1p1"]
 DEFAULT_BUDGET = 180  # seconds (3 minutes)
 
 # Matches the TerminalUI progress lines:
@@ -228,7 +228,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=DEFAULT_SYNTHESIZERS,
         metavar="NAME",
-        help="Synthesizers to compare (default: tdsyn_enumerative tdsyn gp random_search enumerative hc 1p1)",
+        help="Synthesizers to compare (default: tdsyn_random gp random_search enumerative hc 1p1)",
     )
     parser.add_argument(
         "--examples",

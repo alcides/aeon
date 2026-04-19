@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from collections import deque
 from time import monotonic_ns
 from typing import Callable
 
@@ -67,14 +66,7 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
 
 
 class TDSynSynthesizer(Synthesizer):
-    """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
-
-    Supports both enumerative (BFS) and random exploration modes.
-    """
-
-    def __init__(self, mode: str = "enumerative"):
-        assert mode in ("enumerative", "random")
-        self.mode = mode
+    """Type-directed synthesizer using backward/forward actions, SMT subtyping, and random exploration."""
 
     def synthesize(
         self,
@@ -100,10 +92,7 @@ class TDSynSynthesizer(Synthesizer):
 
         initial_partial = PartialAST(term=initial_term, holes=initial_holes, depth=0)
 
-        if self.mode == "enumerative":
-            best = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
-        else:
-            best = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+        best = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
 
         return best[1]
 
@@ -191,54 +180,6 @@ class TDSynSynthesizer(Synthesizer):
                     results.append(PartialAST(term=new_term, holes=remaining_holes, depth=new_depth))
 
         return results
-
-    def _enumerative_search(
-        self,
-        initial: PartialAST,
-        skip: Callable[[Name], bool],
-        validate: Callable[[Term], bool],
-        evaluate: Callable[[Term], list[float]],
-        start_time: int,
-        budget: float,
-        ui: SynthesisUI,
-        best: tuple[list[float], Term | None],
-    ) -> tuple[list[float], Term | None]:
-        """BFS-based enumerative search."""
-        worklist: deque[PartialAST] = deque([initial])
-
-        while worklist:
-            if _get_elapsed_time(start_time) > budget:
-                break
-
-            partial = worklist.popleft()
-
-            if partial.is_complete():
-                best = self._try_complete(partial, validate, evaluate, start_time, ui, best)
-                continue
-
-            # Try SMT completion if all holes are leaf-solvable
-            best_score, best_term, smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, best)
-            best = (best_score, best_term)
-
-            # Pick the first unfilled hole
-            hole = partial.holes[0]
-            expanded = self._expand_hole(partial, hole, skip)
-
-            for new_partial in expanded:
-                if _get_elapsed_time(start_time) > budget:
-                    break
-                if new_partial.is_complete():
-                    best = self._try_complete(new_partial, validate, evaluate, start_time, ui, best)
-                else:
-                    # Try SMT on newly expanded partials too
-                    best_score, best_term, smt_ok = self._try_smt_complete(
-                        new_partial, validate, evaluate, start_time, ui, best
-                    )
-                    best = (best_score, best_term)
-                    if not smt_ok:
-                        worklist.append(new_partial)
-
-        return best
 
     def _random_search(
         self,
