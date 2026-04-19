@@ -12,6 +12,11 @@ from aeon.core.types import refined_to_unrefined_type
 
 
 def uncurry(typ: Type) -> tuple[list[Type], Type]:
+    """Split a type into argument types and result type.
+
+    Argument entries preserve ``RefinedType`` domains so synthesis can use
+    liquid constraints on parameters (Synquid-style APP decomposition).
+    """
     match typ:
         case TypeConstructor():
             return [], typ
@@ -21,22 +26,21 @@ def uncurry(typ: Type) -> tuple[list[Type], Type]:
             t = typ
             params: list[Type] = []
             while isinstance(t, AbstractionType):
-                if isinstance(t.var_type, (TypeConstructor, AbstractionType)):
+                if isinstance(t.var_type, (TypeConstructor, AbstractionType, RefinedType)):
                     params.append(t.var_type)
                 else:
-                    assert isinstance(t.var_type, RefinedType)
-                    if isinstance(t.var_type.type, TypeConstructor):
-                        params.append(t.var_type.type)
+                    raise AssertionError(f"Bad domain in arrow type: {t.var_type}")
                 if not isinstance(t.type, AbstractionType):
                     break
                 t = t.type
 
             if isinstance(t.type, TypeConstructor):
                 return params, t.type
-            assert isinstance(t.type, RefinedType)
-            return params, t.type.type
-        case RefinedType():
-            return [], typ.type
+            if isinstance(t.type, RefinedType):
+                return params, t.type
+            raise AssertionError(f"Unsupported codomain {t.type}")
+        case RefinedType() as rt:
+            return [], rt
         case TypePolymorphism(_, _, body):
             return uncurry(body)
         case _:

@@ -58,9 +58,14 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                         c = Implication(name, TypeConstructor(Name("Int", 0), []), ncond, c)
                     case _:
                         assert False, f"Unknown base: {base}"
-            case TypeBinder(name, _):
+            case TypeBinder(_, _):
+                # Type-level binders do not introduce a value assumption into the
+                # liquid VC until we have a Horn story for kind-polymorphic binders
+                # (see TypePolymorphism / RefinementPolymorphism cases above). Keeping
+                # this a no-op is sound: constraints mentioning the bound type variable
+                # are resolved in ``check`` before entailment sees them, or remain
+                # ill-scoped if misused.
                 pass
-                # TODO: Consider passing as a concrete placeholder type for SMT
             case UninterpretedBinder(name, type):
                 c = UninterpretedFunctionDeclaration(name, type, c)
             case TypeConstructorBinder(name, _):

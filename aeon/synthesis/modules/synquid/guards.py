@@ -50,3 +50,95 @@ def bool_terms_from_qualifier_atoms(
         t = Application(Application(op, lhs), rhs)
         out.append(Annotation(t, t_bool))
     return out
+
+
+def _strip_bool_ann(t: Term) -> Term:
+    match t:
+        case Annotation(inner, _):
+            return inner
+        case _:
+            return t
+
+
+def bool_pairwise_conjunctions(
+    ctx: TypingContext,
+    atoms: frozenset[LiquidTerm],
+    *,
+    max_singles: int = 12,
+    max_pairs: int = 24,
+) -> list[Term]:
+    """Binary ``&&`` of two relational guards from ``atoms`` (bounded abduction step)."""
+    singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
+    if len(singles) < 2:
+        return []
+    and_op = Var(Name("&&", 0))
+    out: list[Term] = []
+    n = min(len(singles), 8)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if len(out) >= max_pairs:
+                return out
+            a = _strip_bool_ann(singles[i])
+            b = _strip_bool_ann(singles[j])
+            inner = Application(Application(and_op, a), b)
+            out.append(Annotation(inner, t_bool))
+    return out
+
+
+def bool_triple_conjunctions(
+    ctx: TypingContext,
+    atoms: frozenset[LiquidTerm],
+    *,
+    max_singles: int = 12,
+    max_triples: int = 16,
+) -> list[Term]:
+    """Ternary ``a && b && c`` over relational singles from ``atoms`` (bounded abduction)."""
+    singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
+    if len(singles) < 3:
+        return []
+    and_op = Var(Name("&&", 0))
+    out: list[Term] = []
+    n = min(len(singles), 6)
+    for i in range(n):
+        for j in range(i + 1, n):
+            for k in range(j + 1, n):
+                if len(out) >= max_triples:
+                    return out
+                a = _strip_bool_ann(singles[i])
+                b = _strip_bool_ann(singles[j])
+                c = _strip_bool_ann(singles[k])
+                ab = Application(Application(and_op, a), b)
+                inner = Application(Application(and_op, ab), c)
+                out.append(Annotation(inner, t_bool))
+    return out
+
+
+def bool_quad_conjunctions(
+    ctx: TypingContext,
+    atoms: frozenset[LiquidTerm],
+    *,
+    max_singles: int = 12,
+    max_quads: int = 12,
+) -> list[Term]:
+    """Quaternary ``a && b && c && d`` over relational singles (bounded abduction)."""
+    singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
+    if len(singles) < 4:
+        return []
+    and_op = Var(Name("&&", 0))
+    out: list[Term] = []
+    n = min(len(singles), 5)
+    for i in range(n):
+        for j in range(i + 1, n):
+            for k in range(j + 1, n):
+                for m in range(k + 1, n):
+                    if len(out) >= max_quads:
+                        return out
+                    a = _strip_bool_ann(singles[i])
+                    b = _strip_bool_ann(singles[j])
+                    c = _strip_bool_ann(singles[k])
+                    d = _strip_bool_ann(singles[m])
+                    ab = Application(Application(and_op, a), b)
+                    abc = Application(Application(and_op, ab), c)
+                    inner = Application(Application(and_op, abc), d)
+                    out.append(Annotation(inner, t_bool))
+    return out
