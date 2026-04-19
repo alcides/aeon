@@ -44,9 +44,9 @@ A minimal evolutionary strategy that maintains a single candidate, mutates it, a
 
 ---
 
-### `synquid` — Type-Directed Enumerative Synthesis
+### `synquid` — Type-Directed Synthesis
 
-Enumerates candidate expressions in order of increasing size, using the target type and liquid type constraints to prune the search space at each level. Inspired by [Synquid](https://www.cs.cmu.edu/~polikarp/pub/pldi16.pdf), it exploits the type system to avoid generating terms that cannot possibly typecheck, making it significantly more efficient than naive enumeration for type-rich problems.
+Enumerates candidates by increasing size, prunes function applications when the goal return type is incompatible with the callee’s result (spine decomposition), and **prioritises `if` guards** built from **qualifier atoms** `Q` extracted from the typing context (the same finite `Q` used by the Horn solver for predicate abstraction; see Jhala & Vazou, [Refinement Types: A Tutorial](https://arxiv.org/abs/2010.07763)). Remaining search is still bounded enumerative; full Synquid-style round-trip checking and abduction are incremental goals.
 
 ---
 

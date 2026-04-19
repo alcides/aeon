@@ -24,7 +24,8 @@ from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid
+from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid, lower_context
+from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.helpers import constraint_builder
 from aeon.verification.helpers import end
 from aeon.verification.helpers import imp
@@ -171,6 +172,76 @@ def mk_arg(i: int) -> Name:
     return Name(f"arg_{i}", 0)
 
 
+def _liquid_var_names_in_term(t: LiquidTerm) -> set[Name]:
+    match t:
+        case LiquidVar(n):
+            return {n}
+        case LiquidApp(_, args):
+            return {v for a in args for v in _liquid_var_names_in_term(a)}
+        case LiquidHornApplication():
+            return set()
+        case LiquidLiteralBool() | LiquidLiteralInt() | LiquidLiteralFloat() | LiquidLiteralString():
+            return set()
+        case _:
+            return set()
+
+
+def liquid_typechecking_ctx_for_hole(
+    typing_ctx: TypingContext | None,
+    hole: LiquidHornApplication,
+) -> LiquidTypeCheckingContext:
+    vars_h = {mk_arg(i): ty for i, (_, ty) in enumerate(hole.argtypes)}
+    if typing_ctx is None:
+        return LiquidTypeCheckingContext(
+            known_types=[TypeConstructor(Name(bn.name.name, 0)) for bn in builtin_core_types],
+            functions=dict(liquid_prelude),
+            variables=vars_h,
+        )
+    lc = lower_context(typing_ctx)
+    fn = dict(liquid_prelude)
+    for k, v in lc.functions.items():
+        if k not in fn:
+            fn[k] = v
+    return LiquidTypeCheckingContext(lc.known_types, vars_h, fn)
+
+
+def adapt_qualifier_to_hole(hole: LiquidHornApplication, q: LiquidTerm) -> LiquidTerm | None:
+    t: LiquidTerm = q
+    for i, (slot, _) in enumerate(hole.argtypes):
+        match slot:
+            case LiquidVar(nm):
+                t = substitution_in_liquid(t, LiquidVar(mk_arg(i)), nm)
+            case _:
+                return None
+    for n in _liquid_var_names_in_term(t):
+        if not n.name.startswith("arg_"):
+            return None
+    return t
+
+
+def build_qualifier_candidates(
+    typing_ctx: TypingContext | None,
+    hole: LiquidHornApplication,
+    atoms: frozenset[LiquidTerm],
+) -> list[LiquidTerm]:
+    if not atoms:
+        return []
+    liq_ctx = liquid_typechecking_ctx_for_hole(typing_ctx, hole)
+    seen: set[LiquidTerm] = set()
+    out: list[LiquidTerm] = []
+    for q in atoms:
+        adapted = adapt_qualifier_to_hole(hole, q)
+        if adapted is None:
+            continue
+        if not check_liquid(liq_ctx, adapted, t_bool):
+            continue
+        if adapted in seen:
+            continue
+        seen.add(adapted)
+        out.append(adapted)
+    return out
+
+
 def get_possible_args(vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar]], arity: int):
     if arity == 0:
         yield []
@@ -204,12 +275,20 @@ def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidAp
                 yield app
 
 
-def build_initial_assignment(c: Constraint) -> Assignment:
+def build_initial_assignment(
+    c: Constraint,
+    typing_ctx: TypingContext | None = None,
+    qualifier_atoms: frozenset[LiquidTerm] | None = None,
+) -> Assignment:
+    atoms = frozenset() if qualifier_atoms is None else qualifier_atoms
     holes = obtain_holes_constraint(c)
     assign: dict[Name, list[LiquidTerm]] = {}
     for h in holes:
         if h.name not in assign:
-            assign[h.name] = list(build_possible_assignment(h))
+            prelude = list(build_possible_assignment(h))
+            extra = build_qualifier_candidates(typing_ctx, h, atoms)
+            prelude_set = set(prelude)
+            assign[h.name] = prelude + [c for c in extra if c not in prelude_set]
     return assign
 
 
@@ -375,16 +454,24 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
 # TODO uninterpreted: We need to pass the context here, to use custom measures in the horn clause.
 
 
-def solve(c: Constraint) -> bool:
+def solve(
+    c: Constraint,
+    typing_ctx: TypingContext | None = None,
+    qualifier_atoms: frozenset[LiquidTerm] | None = None,
+) -> bool:
     # Performance improvement
     if not contains_horn_constraint(c):
         # TODO: Try to simplify the expression before sending to the SMT solver
         # v = reduce_to_useful_constraint(c)
         return smt_valid(c)
+    if qualifier_atoms is None:
+        atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
+    else:
+        atoms = qualifier_atoms
     cs = flat(c)
     csk = [c for c in cs if has_k_head(c)]
     csp = [c for c in cs if not has_k_head(c)]
-    assignment0: Assignment = build_initial_assignment(c)
+    assignment0: Assignment = build_initial_assignment(c, typing_ctx, atoms)
     subst = fixpoint(csk, assignment0)
 
     def merge(acc: Constraint, pi: Constraint) -> Constraint:

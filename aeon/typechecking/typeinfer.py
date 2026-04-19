@@ -58,6 +58,7 @@ from aeon.facade.api import (
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment, entailment_context
+from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.typechecking.well_formed import wellformed
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -437,16 +438,19 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
         return False
 
 
-def constraint_to_parts(c: Constraint) -> Iterable[tuple[Constraint, Location | None]]:
+def constraint_to_parts(
+    c: Constraint, typing_ctx: TypingContext | None = None
+) -> Iterable[tuple[Constraint, Location | None]]:
     """Prepares a constraint into a list of sub-problems for error messages.
     Yields (constraint, location) pairs where location is the AST location
     associated with the failing constraint part."""
+    atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
-            if not solve(cons):
+            if not solve(cons, typing_ctx=typing_ctx, qualifier_atoms=atoms):
                 vcs = split_or_in_conclusion(cons)
                 for vc in vcs:
-                    if not solve(vc):
+                    if not solve(vc, typing_ctx=typing_ctx, qualifier_atoms=atoms):
                         cons_simp = simplify_constraint(vc)
                         cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
                         loc = constraint_location(cons_clean)
@@ -471,7 +475,7 @@ def check_type_errors(
                 full_constraint = entailment_context(ctx, constraint)
                 return [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
-                    for vc, loc in constraint_to_parts(full_constraint)
+                    for vc, loc in constraint_to_parts(full_constraint, ctx)
                 ]
     except CoreTypeCheckingError as e:
         return [e]

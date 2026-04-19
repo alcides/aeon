@@ -1,3 +1,5 @@
+"""Synquid-style synthesizer: iterative deepening over ``engine`` (Q-aware guards, spine prune)."""
+
 from time import monotonic_ns
 from typing import Any, Callable
 
