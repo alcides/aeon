@@ -1,6 +1,12 @@
+from unittest.mock import patch
+
 from aeon.core.terms import Application, Literal, Var
 from aeon.core.types import TypeConstructor
-from aeon.synthesis.modules.synquid.search import sorted_level_candidates, term_size
+from aeon.synthesis.modules.synquid.search import (
+    iter_candidates_size_then_level,
+    sorted_level_candidates,
+    term_size,
+)
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -31,3 +37,32 @@ def test_sorted_level_candidates_orders_by_term_size():
     mem: dict = {(ctx, 0, _INT): [large, small]}
     ordered = list(sorted_level_candidates(ctx, 0, _INT, skip, mem))
     assert ordered == [small, large]
+
+
+def test_iter_candidates_size_then_level_prefers_smaller_ast_across_levels():
+    ctx = TypingContext()
+
+    def skip(_: Name) -> bool:
+        return False
+
+    mem: dict = {}
+    tiny = Literal(7, _INT)
+    huge = Application(
+        Application(
+            Application(Var(Name("+", 0)), Literal(1, _INT)),
+            Literal(2, _INT),
+        ),
+        Literal(3, _INT),
+    )
+    assert term_size(huge) > term_size(tiny)
+
+    def fake_sorted(ctx, level, ret_t, skip_arg, mem_arg):
+        if level == 0:
+            yield huge
+        elif level == 1:
+            yield tiny
+
+    with patch("aeon.synthesis.modules.synquid.search.sorted_level_candidates", side_effect=fake_sorted):
+        out = list(iter_candidates_size_then_level(ctx, _INT, skip, mem, max_level=4, seed_levels=2))
+    assert out[0] is tiny
+    assert huge in out

@@ -1,4 +1,7 @@
-"""Synquid-style synthesizer: iterative deepening over ``engine`` (Q-aware guards, spine prune)."""
+"""Synquid-style synthesizer: search over ``engine`` (Q-aware guards, spine prune).
+
+Default order is ``size_merge`` (heap by AST size, then level); optional ``iterative_deepening``.
+"""
 
 from time import monotonic_ns
 from typing import Any, Callable
@@ -7,7 +10,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
-from aeon.synthesis.modules.synquid.search import sorted_level_candidates
+from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -62,22 +65,39 @@ class SynquidSynthesizer(Synthesizer):
         mem: dict = {}
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
-        while done:
-            for result in sorted_level_candidates(ctx, level, type, skip, mem):
-                if validate(result):
-                    score = evaluate(result)
-                    if not goals:
-                        ui.register(result, score, get_elapsed_time(start_time), True)
-                        return result
-                    if is_better(score, best[0]):
-                        best = (score, result)
-                        ui.register(result, score, get_elapsed_time(start_time), True)
-                    else:
-                        ui.register(result, score, get_elapsed_time(start_time), False)
+        search_mode = current_metadata.get("synquid_search", "size_merge")
+
+        def consider(result: Term) -> bool:
+            nonlocal best, done
+            if validate(result):
+                score = evaluate(result)
+                if not goals:
+                    ui.register(result, score, get_elapsed_time(start_time), True)
+                    return True
+                if is_better(score, best[0]):
+                    best = (score, result)
+                    ui.register(result, score, get_elapsed_time(start_time), True)
                 else:
-                    ui.register(result, "Invalid", get_elapsed_time(start_time), False)
-                if get_elapsed_time(start_time) > budget:
-                    done = False
-                    break
-            level += 1
+                    ui.register(result, score, get_elapsed_time(start_time), False)
+            else:
+                ui.register(result, "Invalid", get_elapsed_time(start_time), False)
+            if get_elapsed_time(start_time) > budget:
+                done = False
+            return False
+
+        if search_mode == "iterative_deepening":
+            while done:
+                for result in sorted_level_candidates(ctx, level, type, skip, mem):
+                    if consider(result):
+                        return result
+                    if not done:
+                        break
+                level += 1
+            return best[1]
+
+        for result in iter_candidates_size_then_level(ctx, type, skip, mem):
+            if consider(result):
+                return result
+            if not done:
+                break
         return best[1]
