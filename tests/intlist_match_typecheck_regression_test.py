@@ -33,5 +33,9 @@ def test_intlist_len_match_typechecker_raises_unhandled_abstraction() -> None:
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
 
-    with pytest.raises(ValueError, match="SYNTH_TYPE"):
+    # Depending on whether the ``SYNTH_TYPE`` log level is registered, the failure
+    # surfaces as a loguru ``ValueError`` or as the subsequent ``AssertionError``.
+    with pytest.raises((ValueError, AssertionError)) as excinfo:
         list(check_type_errors(typing_ctx, core_ast_anf, top))
+    msg = str(excinfo.value)
+    assert "SYNTH_TYPE" in msg or "Unhandled term" in msg
