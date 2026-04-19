@@ -3,7 +3,15 @@ from unittest.mock import patch
 from aeon.core.terms import Application, Literal, Var
 from aeon.core.types import TypeConstructor
 from aeon.synthesis.modules.synquid import build as synquid_build
-from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term, qualifier_atoms
+from aeon.synthesis.modules.synquid.modular import (
+    ModularVC,
+    application_subgoal_types,
+    build_modular_vc,
+    check_hole_term,
+    qualifier_atoms,
+)
+from aeon.typechecking.partial_vc import ModularVC as ModularVC_direct
+from aeon.typechecking.partial_vc import build_modular_vc as build_modular_vc_direct
 from aeon.synthesis.modules.synquid.search import (
     iter_candidates_size_then_level,
     sorted_level_candidates,
@@ -22,6 +30,8 @@ def test_build_reexports_search_helpers():
     assert synquid_build.application_subgoal_types is application_subgoal_types
     assert synquid_build.check_hole_term is check_hole_term
     assert synquid_build.qualifier_atoms is qualifier_atoms
+    assert synquid_build.ModularVC is ModularVC is ModularVC_direct
+    assert synquid_build.build_modular_vc is build_modular_vc is build_modular_vc_direct
 
 
 def test_term_size_counts_nodes():

@@ -2,10 +2,12 @@
 
 These functions expose the same decomposition logic used by the Synquid
 enumerator so other backends or tests can query subgoals without running the
-full search. For a **whole** candidate at the hole, use ``check_hole_term``,
-which is the same ``check_type`` path used elsewhere (not a separate partial
-liquid calculus). Full program checking still substitutes the hole into the
-surrounding definition in the synthesis driver.
+full search. For a **whole** candidate at the hole, ``check_hole_term`` mirrors
+``check_type``. For the **verification condition** as a separate object (so
+you can inspect constraints, tune **Q**, or diagnose failures), use
+``build_modular_vc`` / ``ModularVC`` from ``aeon.typechecking.partial_vc``
+(also re-exported here). Full program checking still substitutes the hole into
+the surrounding definition in the synthesis driver.
 """
 
 from __future__ import annotations
@@ -15,11 +17,14 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.partial_vc import ModularVC, build_modular_vc
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
+from aeon.typechecking.typeinfer import check_type
 
 __all__ = [
+    "ModularVC",
     "application_subgoal_types",
+    "build_modular_vc",
     "check_hole_term",
     "qualifier_atoms",
     "uncurry",

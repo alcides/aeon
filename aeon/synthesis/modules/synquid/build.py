@@ -9,7 +9,13 @@ from aeon.synthesis.modules.synquid.engine import (
     synthes_memory,
     uncurry,
 )
-from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term, qualifier_atoms
+from aeon.synthesis.modules.synquid.modular import (
+    ModularVC,
+    application_subgoal_types,
+    build_modular_vc,
+    check_hole_term,
+    qualifier_atoms,
+)
 from aeon.synthesis.modules.synquid.search import (
     iter_candidates_size_then_level,
     sorted_level_candidates,
@@ -17,7 +23,9 @@ from aeon.synthesis.modules.synquid.search import (
 )
 
 __all__ = [
+    "ModularVC",
     "application_subgoal_types",
+    "build_modular_vc",
     "check_hole_term",
     "qualifier_atoms",
     "closing",
