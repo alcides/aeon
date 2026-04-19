@@ -157,9 +157,10 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
                     nb, branch_subs = check_name(b, branch_subs)
                     renamed_binders.append(nb)
                 n_body = bind_sterm(br.body, branch_subs)
-                n_branches.append(
-                    type(br)(constructor=br.constructor, binders=renamed_binders, body=n_body, loc=br.loc)
-                )
+                # Align pattern constructor names with the `Name` ids assigned while
+                # binding inductive constructor definitions (see `bind_program`).
+                ctor = apply_subs_name(subs, br.constructor)
+                n_branches.append(type(br)(constructor=ctor, binders=renamed_binders, body=n_body, loc=br.loc))
             return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
