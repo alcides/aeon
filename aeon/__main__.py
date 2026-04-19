@@ -78,8 +78,8 @@ def _parse_common_arguments(parser: ArgumentParser):
         default="tdsyn_enumerative",
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
-            "tdsyn_random (type-directed random walk), gp, synquid, random_search, enumerative (grammar enumeration), "
-            "hc, 1p1, smt, decision_tree, llm"
+            "tdsyn_random (type-directed random walk), tactics (random tactic search), gp, synquid, "
+            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, decision_tree, llm"
         ),
     )
 
