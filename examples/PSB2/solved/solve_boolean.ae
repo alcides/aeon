@@ -13,8 +13,7 @@ def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = \s -> \star
 def String_length: (s:String) -> Int = \s -> native "len(s)";
 def List_get: (l:List) -> (i:Int) -> String = \xs -> \i -> native "xs[i]";
 
-def solve_boolean ( s : String ) : Bool {
-    if (String_equal s "t") then
+def solve_boolean ( s : String ) : Bool = if (String_equal s "t") then
         true
     else
         if (String_equal s "f") then
@@ -27,12 +26,8 @@ def solve_boolean ( s : String ) : Bool {
              else
                 operand1: String = String_slice s 0 (-2);
                 operand2: String = String_slice s (-1) (String_length s);
-                solve_boolean operand1 || solve_boolean operand2
-
-        }
+                solve_boolean operand1 || solve_boolean operand2;
 
 
 
-def main (args:Int) : Unit {
-    print (solve_boolean "f&f|t")
-}
+def main (args:Int) : Unit = print (solve_boolean "f&f|t");

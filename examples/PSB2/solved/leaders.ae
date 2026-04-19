@@ -12,16 +12,11 @@ def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[
 def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
 def Map : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
 
-def cut_vector ( vector : List ) : List {
-    reversed_vector: List = List_reversed vector;
+def cut_vector ( vector : List ) : List = reversed_vector: List = List_reversed vector;
     scanl_max: List = Scanl_max reversed_vector;
     leaders_reverse: List = Filter ((\x -> List_get x 0 == List_get x 1) : (s:List) -> Bool) (Zip reversed_vector scanl_max);
     leaders = List_reversed (Map (\x -> List_get x 0 : (s:List) -> Int) leaders_reverse);
-    leaders
+    leaders;
 
-}
-
-def main (args:Int) : Unit {
-    vec: List = List_append (List_append (List_append (List_append List_new 47) 87) 43) 44;
-    print(cut_vector vec)
-}
+def main (args:Int) : Unit = vec: List = List_append (List_append (List_append (List_append List_new 47) 87) 43) 44;
+    print(cut_vector vec);
