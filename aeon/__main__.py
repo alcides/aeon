@@ -75,8 +75,12 @@ def _parse_common_arguments(parser: ArgumentParser):
         "-s",
         "--synthesizer",
         type=str,
-        default="tdsyn",
-        help="Select a synthesizer (default: tdsyn). Others: tdsyn_random, gp, synquid, random_search, enumerative, hc, 1p1, smt, decision_tree, llm.",
+        default="tdsyn_enumerative",
+        help=(
+            "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
+            "tdsyn_random (type-directed random walk), gp, synquid, random_search, enumerative (grammar enumeration), "
+            "hc, 1p1, smt, decision_tree, llm"
+        ),
     )
 
     parser.add_argument(

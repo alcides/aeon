@@ -193,6 +193,9 @@ def test_synthesizers_list_non_empty():
 
 
 def test_synthesizers_includes_defaults():
+    assert "tdsyn_enumerative" in SYNTHESIZERS
+    assert "tdsyn" in SYNTHESIZERS
+    assert "tdsyn_random" in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
 

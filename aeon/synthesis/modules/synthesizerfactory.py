@@ -13,10 +13,6 @@ def make_synthesizer(module: str) -> Synthesizer:
             return GESynthesizer(method="random_search")
         case "enumerative":
             return GESynthesizer(method="enumerative")
-        case "tdsyn":
-            return TDSynSynthesizer(mode="enumerative")
-        case "tdsyn_random":
-            return TDSynSynthesizer(mode="random")
         case "gp":
             return GESynthesizer(method="genetic_programming")
         case "1p1":
@@ -31,5 +27,9 @@ def make_synthesizer(module: str) -> Synthesizer:
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()
+        case "tdsyn" | "tdsyn_enumerative":
+            return TDSynSynthesizer(mode="enumerative")
+        case "tdsyn_random":
+            return TDSynSynthesizer(mode="random")
         case _:
             assert False, f"Not supported synthesizer with name {module}"
