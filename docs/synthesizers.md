@@ -46,7 +46,7 @@ A minimal evolutionary strategy that maintains a single candidate, mutates it, a
 
 ### `synquid` — Type-Directed Synthesis
 
-Enumerates candidates by increasing size, prunes function applications when the goal return type is incompatible with the callee’s result (spine decomposition), and **prioritises `if` guards** built from **qualifier atoms** `Q` extracted from the typing context (the same finite `Q` used by the Horn solver for predicate abstraction; see Jhala & Vazou, [Refinement Types: A Tutorial](https://arxiv.org/abs/2010.07763)). Remaining search is still bounded enumerative; full Synquid-style round-trip checking and abduction are incremental goals.
+Enumerates candidates by **iterative deepening**, and **within each depth** tries **smaller ASTs first** (``aeon.synthesis.modules.synquid.search.term_size``). It prunes function applications when the goal return type is incompatible with the callee’s result (spine decomposition), and **prioritises `if` guards** from **qualifier atoms** `Q` plus bounded **pairwise ``&&``** combinations (same `Q` as Horn; see Jhala & Vazou, [Refinement Types: A Tutorial](https://arxiv.org/abs/2010.07763)). Arrow types **preserve refined domains** on the spine so argument holes inherit those refinements. ``aeon.synthesis.modules.synquid.modular.application_subgoal_types`` exposes per-argument goals for tooling. If the hole has **no** fitness ``goals``, the synthesizer **returns the first fully type-correct candidate** and stops. Remaining gaps vs the paper include full round-trip liquid checking on partial terms, MUSFIX-class abduction, and a global priority-queue search with backtracking.
 
 ---
 

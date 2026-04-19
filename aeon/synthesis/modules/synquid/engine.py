@@ -7,10 +7,10 @@ import itertools
 from typing import Callable
 
 from aeon.core.terms import Annotation, Application, If, Literal, TypeApplication, Var
-from aeon.core.types import AbstractionType, Type, TypeConstructor, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.core.types import refined_to_unrefined_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
-from aeon.synthesis.modules.synquid.guards import bool_terms_from_qualifier_atoms
+from aeon.synthesis.modules.synquid.guards import bool_pairwise_conjunctions, bool_terms_from_qualifier_atoms
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
@@ -39,6 +39,17 @@ def monomorfic(t: Type, typing_ctx: TypingContext, t_l: dict[Name, Type]):
 
 def frange(start, stop, step):
     return takewhile(lambda x: x < stop, count(start, step))
+
+
+def _head_result_constructor(t: Type) -> TypeConstructor | None:
+    """Head datatype for ``closing`` when the spine ends in ``TypeConstructor`` or ``RefinedType`` over one."""
+    match t:
+        case TypeConstructor():
+            return t
+        case RefinedType(_, inner, _) if isinstance(inner, TypeConstructor):
+            return inner
+        case _:
+            return None
 
 
 def closing(elems: tuple, typ: TypeConstructor):
@@ -105,9 +116,10 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 if synquid_application_arg_types(candidate, ret_t) is None:
                     continue
                 params_t, t = uncurry(candidate)
-                if t != base_t:
+                if refined_to_unrefined_type(t) != base_t:
                     continue
-                if not isinstance(t, TypeConstructor):
+                head_tc = _head_result_constructor(t)
+                if head_tc is None:
                     continue
                 params = [
                     synthes_memory(ctx, level - 1, i, skip, mem)
@@ -117,12 +129,13 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 ]
                 params.insert(0, [Var(name)])
                 for i in itertools.product(*params):
-                    a = closing(i, t)
+                    a = closing(i, head_tc)
                     yield a
         bool_t = TypeConstructor(Name("Bool", 0), [])
         atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
+        guard_pairs = bool_pairwise_conjunctions(ctx, atoms_q)
         guard_terms = bool_terms_from_qualifier_atoms(ctx, atoms_q)
-        cond = chain(iter(guard_terms), synthes_memory(ctx, level - 1, bool_t, skip, mem))
+        cond = chain(iter(guard_pairs), iter(guard_terms), synthes_memory(ctx, level - 1, bool_t, skip, mem))
         then = synthes_memory(ctx, level - 1, ret_t, skip, mem)
         otherwise = synthes_memory(ctx, level - 1, ret_t, skip, mem)
         for cand in itertools.product(cond, then, otherwise):

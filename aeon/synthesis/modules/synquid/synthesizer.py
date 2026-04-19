@@ -7,7 +7,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
-from aeon.synthesis.modules.synquid.build import synthes_memory
+from aeon.synthesis.modules.synquid.search import sorted_level_candidates
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -61,10 +61,14 @@ class SynquidSynthesizer(Synthesizer):
         best: tuple[list[float], Any] = ([], None)
         mem: dict = {}
         ui.register(None, None, 0, True)
+        goals = current_metadata.get("goals", [])
         while done:
-            for result in synthes_memory(ctx, level, type, skip, mem):
+            for result in sorted_level_candidates(ctx, level, type, skip, mem):
                 if validate(result):
                     score = evaluate(result)
+                    if not goals:
+                        ui.register(result, score, get_elapsed_time(start_time), True)
+                        return result
                     if is_better(score, best[0]):
                         best = (score, result)
                         ui.register(result, score, get_elapsed_time(start_time), True)

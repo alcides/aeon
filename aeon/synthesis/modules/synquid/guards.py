@@ -50,3 +50,36 @@ def bool_terms_from_qualifier_atoms(
         t = Application(Application(op, lhs), rhs)
         out.append(Annotation(t, t_bool))
     return out
+
+
+def _strip_bool_ann(t: Term) -> Term:
+    match t:
+        case Annotation(inner, _):
+            return inner
+        case _:
+            return t
+
+
+def bool_pairwise_conjunctions(
+    ctx: TypingContext,
+    atoms: frozenset[LiquidTerm],
+    *,
+    max_singles: int = 12,
+    max_pairs: int = 24,
+) -> list[Term]:
+    """Binary ``&&`` of two relational guards from ``atoms`` (bounded abduction step)."""
+    singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
+    if len(singles) < 2:
+        return []
+    and_op = Var(Name("&&", 0))
+    out: list[Term] = []
+    n = min(len(singles), 8)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if len(out) >= max_pairs:
+                return out
+            a = _strip_bool_ann(singles[i])
+            b = _strip_bool_ann(singles[j])
+            inner = Application(Application(and_op, a), b)
+            out.append(Annotation(inner, t_bool))
+    return out
