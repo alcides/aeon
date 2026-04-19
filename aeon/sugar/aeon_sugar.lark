@@ -14,8 +14,11 @@ type_decl : "type" TYPENAME ";"                            -> type_decl
           | type_def                                           -> same
 
 
-type_def : "inductive" ID iargs constructors measures      -> inductive
+type_def : "inductive" ID iargs inductive_rforalls constructors measures      -> inductive
 iargs: (ID)*                                                -> list
+// Abstract refinements on the datatype (Liquid Haskell ``data T <p :: S -> Bool>``): zero or more ``forall <p : S -> Bool>`` binders shared by all constructors.
+inductive_rforalls: inductive_rforall*                     -> list
+inductive_rforall: "forall" "<" ID ":" type "->" "Bool" ">"   -> inductive_rforall_binding
 constructors : cons_rule*                                  -> list
 cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
 measures : measure_rule*                                  -> list
