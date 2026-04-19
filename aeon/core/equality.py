@@ -99,12 +99,14 @@ def core_term_equality(term1: Term, term2: Term, rename_left: dict[Name, Name] |
             return core_term_equality(aval, bval, rename_left) and core_term_equality(
                 acont, bcont, rename_left | {aname: bname}
             )
-        case Rec(aname, atype, aval, acont), Rec(bname, btype, bval, bcont):
+        case Rec(aname, atype, aval, acont, adecr), Rec(bname, btype, bval, bcont, bdecr):
             nrename = rename_left | {aname: bname}
             return (
                 core_term_equality(aval, bval, nrename)
                 and core_type_equality(atype, btype, rename_left)
                 and core_term_equality(acont, bcont, nrename)
+                and len(adecr) == len(bdecr)
+                and all(core_term_equality(x, y, nrename) for x, y in zip(adecr, bdecr, strict=True))
             )
         case If(ac, at, ao), If(bc, bt, bo):
             return (

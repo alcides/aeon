@@ -86,7 +86,7 @@ def _collect_from_term(t: Term, sink: set[LiquidTerm]) -> None:
         case Let(_, v, b):
             _collect_from_term(v, sink)
             _collect_from_term(b, sink)
-        case Rec(_, vty, vv, b):
+        case Rec(_, vty, vv, b, _, _):
             _collect_from_type(vty, sink)
             _collect_from_term(vv, sink)
             _collect_from_term(b, sink)

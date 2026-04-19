@@ -142,6 +142,7 @@ class Rec(Term):
     var_type: Type
     var_value: Term
     body: Term
+    decreasing_by: tuple[Term, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
@@ -162,6 +163,7 @@ class Rec(Term):
             and self.var_type == other.var_type
             and self.var_value == other.var_value
             and self.body == other.body
+            and self.decreasing_by == other.decreasing_by
         )
 
 

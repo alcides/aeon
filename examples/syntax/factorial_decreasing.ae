@@ -1,0 +1,9 @@
+# Unary recursion with an explicit Liquid Haskell-style metric (single Int).
+# Path-sensitive VCs: in the ``n != 0`` branch we prove ``(n-1) >= 0`` and decrease; use ``Nat``.
+# For lexicographic ``[m0, m1, …]``, see ``ackermann_decreasing.ae``.
+
+def fact (n:Int | n >= 0) : Int decreasing_by [n] = if n == 0 then 1 else n * fact (n - 1);
+
+def main (_:Int) : Int {
+  fact 5
+}

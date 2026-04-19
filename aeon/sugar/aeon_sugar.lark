@@ -22,8 +22,13 @@ measures : measure_rule*                                  -> list
 measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
 def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
-    | soft_constraint "def" ID  args ":" type "{" expression "}"     -> def_fun
-    | soft_constraint "def" ID  args ":" type "=" expression ";"     -> def_fun_eq
+    | soft_constraint "def" ID  args ":" type decreasing_by_opt "{" expression "}"     -> def_fun
+    | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"     -> def_fun_eq
+
+decreasing_by_opt: "decreasing_by" "[" decreasing_exprs "]" -> decreasing_by_list
+                 | -> decreasing_by_none
+
+decreasing_exprs: expression ("," expression)* -> decreasing_exprs
 
 
 soft_constraint :                      -> empty_list

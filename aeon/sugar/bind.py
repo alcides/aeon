@@ -165,9 +165,12 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
-        case SRec(name, ty, body, cont, loc=loc):
+        case SRec(name, ty, body, cont, decreasing_by, loc=loc):
             name, subs = check_name(name, subs)
-            return SRec(name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), loc=loc)
+            nd = tuple(bind_sterm(m, subs) for m in decreasing_by)
+            return SRec(
+                name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), decreasing_by=nd, loc=loc
+            )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
@@ -190,12 +193,15 @@ def _bind_definition(
         nname, nsubs = check_name(pname, nsubs)
         rforalls.append((nname, bind_stype(psort, nsubs)))
     ntype = bind_stype(df.type, nsubs)
+    decreasing = [bind_sterm(m, nsubs) for m in df.decreasing_by]
     body = bind_sterm(df.body, nsubs)
     decorators = []
     for dec in df.decorators:
         dargs = [bind_sterm(da, subs) for da in dec.macro_args]
         decorators.append(Decorator(dec.name, dargs))
-    return Definition(name, foralls, args, ntype, body, decorators, rforalls, loc=df.loc), nsubs
+    return Definition(
+        name, foralls, args, ntype, body, decorators, rforalls, decreasing_by=decreasing, loc=df.loc
+    ), nsubs
 
 
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:

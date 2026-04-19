@@ -81,11 +81,11 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             n_value = rec(var_value)
             n_body = rec(body)
             return Let(var_name, n_value, n_body, loc=loc)
-        case Rec(var_name, var_type, var_value, body, loc):
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
             n_value = rec(var_value)
             n_type = substitute_vartype(var_type, rep, name)
             n_body = rec(body)
-            return Rec(var_name, n_type, n_value, n_body, loc=loc)
+            return Rec(var_name, n_type, n_value, n_body, decreasing_by=decreasing_by, loc=loc)
         case Annotation(expr, type, loc):
             n_type = substitute_vartype(type, rep, name)
             return Annotation(rec(expr), n_type, loc=loc)
@@ -341,9 +341,9 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             return Abstraction(var_name, rec(body), loc=loc)
         case Let(var_name, var_value, body, loc):
             return Let(var_name, rec(var_value), rec(body), loc=loc)
-        case Rec(var_name, var_type, var_value, body, loc):
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
             n_type = substitution_liquid_in_type(var_type, rep, name)
-            return Rec(var_name, n_type, rec(var_value), rec(body), loc=loc)
+            return Rec(var_name, n_type, rec(var_value), rec(body), decreasing_by=decreasing_by, loc=loc)
         case Annotation(expr, ty, loc):
             n_type = substitution_liquid_in_type(ty, rep, name)
             return Annotation(rec(expr), n_type, loc=loc)
@@ -421,14 +421,14 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
                 n_value = rec(val)
                 n_body = rec(body)
             return Let(tname, n_value, n_body, loc=loc)
-        case Rec(tname, ty, val, body, loc):
+        case Rec(tname, ty, val, body, decreasing_by, loc):
             if tname == name:
                 n_value = val
                 n_body = body
             else:
                 n_value = rec(val)
                 n_body = rec(body)
-            return Rec(tname, ty, n_value, n_body, loc=loc)
+            return Rec(tname, ty, n_value, n_body, decreasing_by=decreasing_by, loc=loc)
         case Annotation(body, ty, loc):
             return Annotation(rec(body), ty, loc=loc)
         case If(cond, then, otherwise, loc):
@@ -450,7 +450,7 @@ def inline_lets(t: Term) -> Term:
     match t:
         case Let(var_name, var_value, body):
             return inline_lets(substitution(body, var_value, var_name))
-        case Rec(var_name, _, var_value, body):
+        case Rec(var_name, _, var_value, body, _, _):
             return inline_lets(substitution(body, var_value, var_name))
         case Application(Annotation(Abstraction(var_name, body), _), arg):
             return inline_lets(substitution(body, arg, var_name))
@@ -562,7 +562,7 @@ def liquefy(rep: Term) -> LiquidTerm | None:
             return LiquidHornApplication(name, argtypes=[], loc=loc)
         case Let(_, _, _):
             return liquefy_let(rep)
-        case Rec(_, _, _, _):
+        case Rec(_, _, _, _, _):
             return liquefy_rec(rep)
         case If(_, _, _):
             return liquefy_if(rep)

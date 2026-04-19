@@ -133,8 +133,8 @@ def nf(t: Term) -> Term:
             return Application(nf(fun), nf(arg))
         case Let(var_name, var_value, body):
             return substitution(body, nf(var_value), var_name)
-        case Rec(var_name, var_type, var_value, body):
-            return Rec(var_name, var_type, nf(var_value), nf(body))
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
+            return Rec(var_name, var_type, nf(var_value), nf(body), decreasing_by=decreasing_by, loc=loc)
 
         case If(cond, then, otherwise):
             return If(nf(cond), nf(then), nf(otherwise))

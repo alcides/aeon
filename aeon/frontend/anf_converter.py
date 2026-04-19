@@ -63,17 +63,24 @@ class ANFConverter:
                         vvalue = self.convert(vvalue)
                         vbody = self.convert(vbody)
                         return Let(vname, vvalue, self.convert(Let(name, vbody, body, loc=loc)), loc=iloc)
-                    case Rec(var_name=vname, var_type=vtype, var_value=vvalue, body=vbody, loc=loc):
+                    case Rec(var_name=vname, var_type=vtype, var_value=vvalue, body=vbody, decreasing_by=db, loc=loc):
                         assert name != vname
                         vvalue = self.convert(vvalue)
                         vbody = self.convert(vbody)
-                        return Rec(vname, vtype, vvalue, self.convert(Let(name, vbody, body, loc=loc)), loc=loc)
+                        return Rec(
+                            vname,
+                            vtype,
+                            vvalue,
+                            self.convert(Let(name, vbody, body, loc=loc)),
+                            decreasing_by=db,
+                            loc=loc,
+                        )
                     case _:
                         return Let(name, value, body, loc=loc)
-            case Rec(var_name=name, var_type=type, var_value=value, body=body, loc=loc):
+            case Rec(var_name=name, var_type=type, var_value=value, body=body, decreasing_by=db, loc=loc):
                 value = self.convert(value)
                 body = self.convert(body)
-                return Rec(name, type, value, body, loc=loc)
+                return Rec(name, type, value, body, decreasing_by=db, loc=loc)
             case Abstraction(var_name=name, body=body, loc=loc):
                 body = self.convert(body)
                 return Abstraction(var_name=name, body=body, loc=loc)

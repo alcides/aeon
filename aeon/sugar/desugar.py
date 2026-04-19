@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import NamedTuple
 
@@ -55,6 +56,59 @@ from aeon.sugar.ast_helpers import st_int, st_string
 from aeon.facade.api import ImportError
 
 
+def _stype_base_int(ty: SType) -> bool:
+    match ty:
+        case SRefinedType(_, inner, _):
+            return _stype_base_int(inner)
+        case STypeConstructor(Name("Int", _), _):
+            return True
+        case _:
+            return False
+
+
+def _sugar_contains_recursive_call(t: STerm, fname: Name) -> bool:
+    def is_call_tree(node: STerm) -> bool:
+        cur = node
+        while isinstance(cur, SApplication):
+            cur = cur.fun
+        return isinstance(cur, SVar) and cur == fname
+
+    def walk(node: STerm) -> bool:
+        if isinstance(node, SApplication) and is_call_tree(node):
+            return True
+        match node:
+            case SApplication(fun, arg, _):
+                return walk(fun) or walk(arg)
+            case SAbstraction(_, body, _):
+                return walk(body)
+            case SLet(_, val, body, _):
+                return walk(val) or walk(body)
+            case SRec(_, _, val, body, _, _):
+                return walk(val) or walk(body)
+            case SIf(c, th, el, _):
+                return walk(c) or walk(th) or walk(el)
+            case SAnnotation(e, _, _):
+                return walk(e)
+            case SMatch(s, brs, _):
+                return walk(s) or any(walk(b.body) for b in brs)
+            case _:
+                return False
+
+    return walk(t)
+
+
+def definition_with_inferred_decreasing(d: Definition) -> Definition:
+    """If omitted, use the sole ``Int`` parameter as the metric for unary self-recursion."""
+    if d.decreasing_by or len(d.args) != 1:
+        return d
+    pname, pty = d.args[0]
+    if not _stype_base_int(pty):
+        return d
+    if not _sugar_contains_recursive_call(d.body, d.name):
+        return d
+    return replace(d, decreasing_by=[SVar(pname)])
+
+
 class DesugaredProgram(NamedTuple):
     program: STerm
     elabcontext: ElaborationTypingContext
@@ -106,7 +160,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
             # Each constructor is represented as a Definition in sugar, where `args`
             # already carries the types we need to place the bound variables.
             match cons:
-                case Definition(cname, _, cargs, _, _, _, _):
+                case Definition(cname, _, cargs, _, _, _, _, _, _):
                     cons_map[cname] = cargs
         inductive_info[decl.name] = cons_map
 
@@ -145,7 +199,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                         continue
                     for cons_def in decl.constructors:
                         match cons_def:
-                            case Definition(cname, _, cargs, _, _, _, _):
+                            case Definition(cname, _, cargs, _, _, _, _, _, _):
                                 # Find the matching branch, if missing use a hole-like undefined.
                                 branch_expr = None
                                 for b in lowered_branches:
@@ -178,8 +232,9 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                 return SAbstraction(name, lower_term(body), loc=loc)
             case SLet(name, val, body, loc=loc):
                 return SLet(name, lower_term(val), lower_term(body), loc=loc)
-            case SRec(name, ty, val, body, loc=loc):
-                return SRec(name, ty, lower_term(val), lower_term(body), loc=loc)
+            case SRec(name, ty, val, body, decreasing_by, loc=loc):
+                nd = tuple(lower_term(m) for m in decreasing_by)
+                return SRec(name, ty, lower_term(val), lower_term(body), decreasing_by=nd, loc=loc)
             case SIf(cond, then, otherwise, loc=loc):
                 return SIf(lower_term(cond), lower_term(then), lower_term(otherwise), loc=loc)
             case SAnnotation(expr, ty, loc=loc):
@@ -211,7 +266,7 @@ def expand_inductive_decls(p: Program) -> Program:
 
                 for measure in measures:
                     match measure:
-                        case Definition(mname, mforalls, margs, mrtype, _, _, _, mloc):
+                        case Definition(mname, mforalls, margs, mrtype, _, _, _, _, mloc):
                             de = Definition(mname, mforalls, margs, mrtype, uninterpreted_lit, loc=mloc)
                             defs.append(de)
 
@@ -220,7 +275,7 @@ def expand_inductive_decls(p: Program) -> Program:
 
                 for constructor in constructors:
                     match constructor:
-                        case Definition(cname, cforalls, cargs, crtype, _, _, _, cloc):
+                        case Definition(cname, cforalls, cargs, crtype, _, _, _, _, cloc):
                             arg_s = ", ".join(str(arg.name) for (arg, _) in cargs)
                             mk_tuple = SApplication(
                                 SVar(Name("native", 0)), SLiteral(f"('{key_for(name, cname)}', {arg_s})", st_string)
@@ -268,6 +323,7 @@ def expand_inductive_decls(p: Program) -> Program:
                     type=return_type,
                     body=rec_body,
                     rforalls=[],
+                    decreasing_by=[],
                     loc=loc,
                 )
                 defs.append(rec_de)
@@ -283,7 +339,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
     ndefs = []
     for d in defs:
         match d:
-            case Definition(name, foralls, args, rtype, body, decorators, rforalls, loc):
+            case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
                 new_foralls: list[tuple[Name, Kind]] = []
 
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
@@ -303,6 +359,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                         body,
                         decorators,
                         rforalls,
+                        decreasing_by,
                         loc,
                     )
                 )
@@ -355,7 +412,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
     ndefs: list[Definition] = []
     for d in defs:
         match d:
-            case Definition(name, foralls, args, rtype, body, decorators, rforalls, loc):
+            case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
                 acc: dict[Name, SType] = {}
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
                 for ty in tlst:
@@ -386,6 +443,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
                         body,
                         decorators,
                         final_rforalls,
+                        decreasing_by,
                         loc,
                     )
                 )
@@ -492,7 +550,7 @@ def replace_concrete_types(
 
 def type_of_definition(d: Definition) -> SType:
     match d:
-        case Definition(_, foralls, args, rtype, _, _, rforalls, loc):
+        case Definition(_, foralls, args, rtype, _, _, rforalls, _, loc):
             ntype = rtype
             for name, atype in reversed(args):
                 ntype = SAbstractionType(name, atype, ntype, loc)
@@ -506,8 +564,9 @@ def type_of_definition(d: Definition) -> SType:
 
 
 def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
+    d = definition_with_inferred_decreasing(d)
     match d:
-        case Definition(dname, foralls, args, rtype, body, _, rforalls, loc):
+        case Definition(dname, foralls, args, rtype, body, _, rforalls, decreasing_by, loc):
             ntype = rtype
             nbody = body
             for name, atype in reversed(args):
@@ -519,7 +578,7 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             for name, kind in reversed(foralls):
                 ntype = STypePolymorphism(name, kind, ntype, loc=loc)
                 nbody = STypeAbstraction(name, kind, nbody, loc=loc)
-            return SRec(dname, ntype, nbody, prog, loc=loc)
+            return SRec(dname, ntype, nbody, prog, decreasing_by=tuple(decreasing_by), loc=loc)
         case _:
             assert False, f"{d} is not a definition"
 

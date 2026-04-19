@@ -97,6 +97,7 @@ def generate_term(
             var_type=fitness_return_type,
             var_value=fitness_terms[0],
             body=SVar(rec_name),
+            decreasing_by=(),
         )
     else:
         raise NotImplementedError("Not yet supported")
