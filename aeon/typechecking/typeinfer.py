@@ -328,9 +328,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (Conjunction(c, c_ref), nty)
 
-        case Hole(name):
-            name_a = Name(name.name, fresh_counter.fresh())
-            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
+        case Hole(hole_name):
+            name_a = Name(hole_name.name, fresh_counter.fresh())
+            # Conservative default: treat the hole as a *-kind type variable (surface
+            # holes are usually value-level; polymorphic holes need richer kinding).
+            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))
         case _:
             logger.log("SYNTH_TYPE", ("Unhandled:", t))
             logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))

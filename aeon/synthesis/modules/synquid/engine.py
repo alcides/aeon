@@ -12,6 +12,7 @@ from aeon.core.types import refined_to_unrefined_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
 from aeon.synthesis.modules.synquid.guards import (
     bool_pairwise_conjunctions,
+    bool_quad_conjunctions,
     bool_terms_from_qualifier_atoms,
     bool_triple_conjunctions,
 )
@@ -90,17 +91,25 @@ def match_type(t1: Type, t2: Type):
 def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
     base_t = refined_to_unrefined_type(ret_t)
     if level == 0:
-        if isinstance(ret_t, AbstractionType):
+        arrow_goal: AbstractionType | None = ret_t if isinstance(ret_t, AbstractionType) else None
+        if arrow_goal is None and isinstance(ret_t, RefinedType) and isinstance(ret_t.type, AbstractionType):
+            arrow_goal = ret_t.type
+        if arrow_goal is not None:
             for name, _ in [
-                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, AbstractionType) and match_type(t, ret_t)
+                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, AbstractionType) and match_type(t, arrow_goal)
             ]:
                 yield Var(name)
-        else:
-            assert isinstance(base_t, TypeConstructor)
-            for name, _ in [
-                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and match_type(t, base_t)
-            ]:
-                yield Var(name)
+            return
+        if isinstance(base_t, TypeVar):
+            for name, t in ctx.concrete_vars():
+                if t == base_t:
+                    yield Var(name)
+            return
+        assert isinstance(base_t, TypeConstructor)
+        for name, _ in [
+            (n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and match_type(t, base_t)
+        ]:
+            yield Var(name)
         match base_t:
             case TypeConstructor(Name("Bool", 0)):
                 yield from [Literal(True, base_t), Literal(False, base_t)]
@@ -113,13 +122,22 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                     Literal(s, base_t)
                     for s in ("", " ", "a", "b", "0", "1", "x", "y", "\n", "\t", "true", "false", "[]", "{}", "nil")
                 )
+            case TypeConstructor(Name("Unit", 0)):
+                yield Literal(None, base_t)
             case _:
                 raise NotImplementedError
     elif level >= 1:
-        if isinstance(ret_t, AbstractionType):
-            ctx_l = ctx.with_var(ret_t.var_name, ret_t.var_type)
-            for bod in synthes_memory(ctx_l, level - 1, ret_t.type, skip, mem):
-                yield Abstraction(ret_t.var_name, bod)
+        arrow_syn: AbstractionType | None = ret_t if isinstance(ret_t, AbstractionType) else None
+        if arrow_syn is None and isinstance(ret_t, RefinedType) and isinstance(ret_t.type, AbstractionType):
+            arrow_syn = ret_t.type
+        if arrow_syn is not None:
+            ctx_l = ctx.with_var(arrow_syn.var_name, arrow_syn.var_type)
+            for bod in synthes_memory(ctx_l, level - 1, arrow_syn.type, skip, mem):
+                lam = Abstraction(arrow_syn.var_name, bod)
+                if isinstance(ret_t, RefinedType):
+                    yield Annotation(lam, ret_t)
+                else:
+                    yield lam
         for name, typ in [
             (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, TypeConstructor) and not skip(n)
         ]:
@@ -144,10 +162,12 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                     yield a
         bool_t = TypeConstructor(Name("Bool", 0), [])
         atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
+        guard_quads = bool_quad_conjunctions(ctx, atoms_q)
         guard_triples = bool_triple_conjunctions(ctx, atoms_q)
         guard_pairs = bool_pairwise_conjunctions(ctx, atoms_q)
         guard_terms = bool_terms_from_qualifier_atoms(ctx, atoms_q)
         cond = chain(
+            iter(guard_quads),
             iter(guard_triples),
             iter(guard_pairs),
             iter(guard_terms),

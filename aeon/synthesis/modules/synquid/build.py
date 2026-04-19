@@ -9,7 +9,7 @@ from aeon.synthesis.modules.synquid.engine import (
     synthes_memory,
     uncurry,
 )
-from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term
+from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term, qualifier_atoms
 from aeon.synthesis.modules.synquid.search import (
     iter_candidates_size_then_level,
     sorted_level_candidates,
@@ -19,6 +19,7 @@ from aeon.synthesis.modules.synquid.search import (
 __all__ = [
     "application_subgoal_types",
     "check_hole_term",
+    "qualifier_atoms",
     "closing",
     "frange",
     "iter_candidates_size_then_level",

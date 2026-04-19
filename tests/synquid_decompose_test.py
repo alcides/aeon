@@ -2,7 +2,7 @@ from aeon.core.parser import parse_type
 from aeon.core.terms import Literal
 from aeon.core.types import RefinedType, TypeConstructor
 from aeon.synthesis.modules.synquid.decompose import uncurry
-from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term
+from aeon.synthesis.modules.synquid.modular import application_subgoal_types, check_hole_term, qualifier_atoms
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -29,3 +29,9 @@ def test_check_hole_term_int_literal():
     int_t = TypeConstructor(Name("Int", 0), [])
     lit = Literal(42, int_t)
     assert check_hole_term(ctx, lit, int_t)
+
+
+def test_qualifier_atoms_is_frozenset():
+    ctx = TypingContext()
+    q = qualifier_atoms(ctx, goal_type=parse_type("Int"))
+    assert isinstance(q, frozenset)

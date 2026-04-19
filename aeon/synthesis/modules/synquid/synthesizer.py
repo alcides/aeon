@@ -70,6 +70,9 @@ class SynquidSynthesizer(Synthesizer):
         typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
         max_level = max(0, int(current_metadata.get("synquid_max_level", 128)))
         seed_levels = max(1, int(current_metadata.get("synquid_seed_levels", 2)))
+        max_candidates_raw = current_metadata.get("synquid_max_candidates")
+        max_candidates = None if max_candidates_raw is None else max(0, int(max_candidates_raw))
+        n_candidates = 0
 
         def consider(result: Term) -> bool:
             nonlocal best, done
@@ -96,17 +99,28 @@ class SynquidSynthesizer(Synthesizer):
 
         if search_mode == "iterative_deepening":
             while done and level <= max_level:
+                cap_done = False
                 for result in sorted_level_candidates(ctx, level, type, skip, mem):
+                    if max_candidates is not None and n_candidates >= max_candidates:
+                        cap_done = True
+                        done = False
+                        break
+                    n_candidates += 1
                     if consider(result):
                         return result
                     if not done:
                         break
+                if cap_done:
+                    break
                 level += 1
             return best[1]
 
         for result in iter_candidates_size_then_level(
             ctx, type, skip, mem, max_level=max_level, seed_levels=seed_levels
         ):
+            if max_candidates is not None and n_candidates >= max_candidates:
+                break
+            n_candidates += 1
             if consider(result):
                 return result
             if not done:
