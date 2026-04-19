@@ -290,7 +290,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c2, t2) = synth(nrctx, body)
             c1 = implication_constraint(var_name, var_type, c1, var_value.loc)
             c2 = implication_constraint(var_name, var_type, c2, body.loc)
-            term_c = termination_metric_constraints(t)
+            term_c = termination_metric_constraints(t, nrctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc)
             return Conjunction(Conjunction(c1, c2), term_c), t2
         case Annotation(expr, ty):
@@ -364,7 +364,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             c2 = check(nrctx, body, ty)
             c1 = implication_constraint(var_name, t1, c1, var_value.loc)
             c2 = implication_constraint(var_name, t1, c2, body.loc)
-            term_c = termination_metric_constraints(t)
+            term_c = termination_metric_constraints(t, nrctx)
             term_c = implication_constraint(var_name, t1, term_c, var_value.loc)
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:

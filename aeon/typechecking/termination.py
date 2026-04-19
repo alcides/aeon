@@ -20,6 +20,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import AbstractionType, RefinedType, Type
+from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
 from aeon.utils.name import Name
 from aeon.verification.vcs import Conjunction, Constraint, LiquidConstraint
@@ -45,6 +46,17 @@ def peel_type_formal_names(ty: Type) -> list[Name]:
     return names
 
 
+def _opened_refinement_liquid(
+    var_type: Type, binder_name: Name, term_formals: list[Name], type_formals: list[Name]
+) -> LiquidTerm | None:
+    match var_type:
+        case RefinedType(bname, _bty, ref):
+            opened = substitution_in_liquid(ref, LiquidVar(binder_name), bname)
+            return align_liquid_to_type_formals(opened, term_formals, type_formals)
+        case _:
+            return None
+
+
 def entry_refinement_liquids(
     fn_arrow_type: Type, term_formals: list[Name], type_formals: list[Name]
 ) -> list[LiquidTerm]:
@@ -52,12 +64,9 @@ def entry_refinement_liquids(
     out: list[LiquidTerm] = []
     cur: Type = fn_arrow_type
     while isinstance(cur, AbstractionType):
-        match cur.var_type:
-            case RefinedType(bname, _bty, ref):
-                opened = substitution_in_liquid(ref, LiquidVar(cur.var_name), bname)
-                out.append(align_liquid_to_type_formals(opened, term_formals, type_formals))
-            case _:
-                pass
+        liq = _opened_refinement_liquid(cur.var_type, cur.var_name, term_formals, type_formals)
+        if liq is not None:
+            out.append(liq)
         cur = cur.type
     return out
 
@@ -87,61 +96,106 @@ def _term_bool_not(cond: Term) -> Term:
     return Application(Var(Name("!", 0), loc=cond.loc), cond, loc=cond.loc)
 
 
-def collect_recursive_calls_with_paths(
-    fn: Name, arity: int, t: Term
-) -> list[tuple[list[Term], Location | None, tuple[Term, ...]]]:
-    """Self-calls with ``arity`` args and a conjunction of branch conditions along ``If`` paths."""
-    found: list[tuple[list[Term], Location | None, tuple[Term, ...]]] = []
+def _synth_type(ctx: TypingContext, t: Term) -> Type | None:
+    """Lazy import: ``typeinfer`` imports this module at load time."""
+    try:
+        from aeon.typechecking.typeinfer import synth
 
-    def walk(tt: Term, path: tuple[Term, ...]) -> None:
+        return synth(ctx, t)[1]
+    except Exception:
+        return None
+
+
+def collect_recursive_calls_with_paths(
+    fn: Name,
+    arity: int,
+    t: Term,
+    typing_ctx: TypingContext | None,
+    inner_expect_ty: Type | None,
+    term_formals: list[Name],
+    type_formals: list[Name],
+) -> list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]]:
+    """Self-calls with ``arity`` args, ``If`` path guards, and nested binder refinements (e.g. match)."""
+    found: list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]] = []
+
+    def walk(
+        tt: Term,
+        path: tuple[Term, ...],
+        nested_refs: tuple[LiquidTerm, ...],
+        ctx: TypingContext | None,
+        expect_ty: Type | None,
+    ) -> None:
         match tt:
             case Application(_, _, _):
                 head, args = peel_application_chain(tt)
                 if isinstance(head, Var) and head.name == fn and len(args) == arity:
-                    found.append((args, tt.loc, path))
+                    found.append((args, tt.loc, path, nested_refs))
             case _:
                 pass
         match tt:
             case Application(fun, arg, _):
-                walk(fun, path)
-                walk(arg, path)
-            case Abstraction(_, body, _):
-                walk(body, path)
+                f_ty = _synth_type(ctx, fun) if ctx is not None else None
+                walk(fun, path, nested_refs, ctx, f_ty)
+                arg_ty: Type | None = None
+                match f_ty:
+                    case AbstractionType(_, vt, _):
+                        arg_ty = vt
+                walk(arg, path, nested_refs, ctx, arg_ty)
+            case Abstraction(name, body, _):
+                if isinstance(expect_ty, AbstractionType):
+                    vty = expect_ty.var_type
+                    new_ctx = ctx.with_var(name, vty) if ctx is not None else None
+                    ref_l = _opened_refinement_liquid(vty, name, term_formals, type_formals)
+                    nrefs = nested_refs + (ref_l,) if ref_l is not None else nested_refs
+                    walk(body, path, nrefs, new_ctx, expect_ty.type)
+                else:
+                    walk(body, path, nested_refs, ctx, None)
             case Let(_, val, body, _):
-                walk(val, path)
-                walk(body, path)
+                walk(val, path, nested_refs, ctx, None)
+                walk(body, path, nested_refs, ctx, None)
             case Rec(_, _, val, body, _, _):
-                walk(val, path)
-                walk(body, path)
+                walk(val, path, nested_refs, ctx, None)
+                walk(body, path, nested_refs, ctx, None)
             case Annotation(expr, _, _):
-                walk(expr, path)
+                walk(expr, path, nested_refs, ctx, expect_ty)
             case If(cond, then, otherwise, _):
-                walk(cond, path)
-                walk(then, path + (cond,))
-                walk(otherwise, path + (_term_bool_not(cond),))
+                walk(cond, path, nested_refs, ctx, None)
+                walk(then, path + (cond,), nested_refs, ctx, expect_ty)
+                walk(otherwise, path + (_term_bool_not(cond),), nested_refs, ctx, expect_ty)
             case TypeApplication(body, _, _):
-                walk(body, path)
+                walk(body, path, nested_refs, ctx, expect_ty)
             case TypeAbstraction(_, _, body, _):
-                walk(body, path)
+                walk(body, path, nested_refs, ctx, expect_ty)
             case RefinementApplication(body, refinement, _):
-                walk(body, path)
-                walk(refinement, path)
+                walk(body, path, nested_refs, ctx, expect_ty)
+                walk(refinement, path, nested_refs, ctx, None)
             case RefinementAbstraction(_, _, body, _):
-                walk(body, path)
+                walk(body, path, nested_refs, ctx, expect_ty)
             case _:
                 pass
 
-    walk(t, ())
+    walk(t, (), (), typing_ctx, inner_expect_ty)
     return found
+
+
+def _inner_ctx_and_expect_ty(nrctx: TypingContext, var_type: Type, formals: list[Name]) -> tuple[TypingContext, Type]:
+    ctx = nrctx
+    cur_ty = var_type
+    for nm in formals:
+        assert isinstance(cur_ty, AbstractionType)
+        ctx = ctx.with_var(nm, cur_ty.var_type)
+        cur_ty = cur_ty.type
+    return ctx, cur_ty
 
 
 def _full_path_guard_liquid(
     entry_refs: list[LiquidTerm],
+    nested_refs: tuple[LiquidTerm, ...],
     path: tuple[Term, ...],
     formals: list[Name],
     type_formals: list[Name],
 ) -> LiquidTerm | None:
-    parts: list[LiquidTerm] = list(entry_refs)
+    parts: list[LiquidTerm] = list(entry_refs) + list(nested_refs)
     if path:
         pl = _liquefy_path_conjuncts(path, formals, type_formals)
         if pl is None:
@@ -185,11 +239,12 @@ def _termination_obligation(
     formals: list[Name],
     type_formals: list[Name],
     entry_refs: list[LiquidTerm],
+    nested_refs: tuple[LiquidTerm, ...],
 ) -> Constraint:
-    r"""``(entry /\ branch) => (lex and metric(call) >= 0)`` when guarded; else ``lex`` only."""
-    needs_call_nonneg = bool(path) or bool(entry_refs)
+    r"""``(entry /\ nested /\ branch) => (lex and metric(call) >= 0)`` when guarded; else ``lex`` only."""
+    needs_call_nonneg = bool(path) or bool(entry_refs) or bool(nested_refs)
     oblig = mk_liquid_and(lex, _metric_call_non_negative(call_ms)) if needs_call_nonneg else lex
-    full = _full_path_guard_liquid(entry_refs, path, formals, type_formals)
+    full = _full_path_guard_liquid(entry_refs, nested_refs, path, formals, type_formals)
     if full is None:
         return LiquidConstraint(LiquidLiteralBool(False))
     if full == LiquidLiteralBool(True):
@@ -244,12 +299,12 @@ def _lexicographic_less(call_ms: list[LiquidTerm], entry_ms: list[LiquidTerm]) -
     return _fold_or(disjuncts)
 
 
-def termination_metric_constraints(rec: Rec) -> Constraint:
+def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = None) -> Constraint:
     r"""Lexicographic ``m(call) <* m(entry)`` (Liquid Haskell ``/ [m0, m1, …]``).
 
-    For self-calls under ``if`` branches, obligations are guarded:
-    ``branch => (lex and m(call) >= 0)``, e.g. ``fact (n-1)`` in the ``n != 0`` branch.
-    Entry refinements (``Nat``) stay as implication premises from typing.
+    With ``typing_ctx`` (the context used to check ``rec.var_value``), also accumulate
+    refinements from **nested** abstractions—typically pattern binders after ``match`` lowers
+    to an eliminator—so constructor argument refinements guard termination obligations.
     """
     if not rec.decreasing_by:
         return ctrue
@@ -263,12 +318,18 @@ def termination_metric_constraints(rec: Rec) -> Constraint:
     # arguments in terms of parameters so liquefy does not mention ANF temps.
     inner = inline_lets(inner)
     arity = len(formals)
-    calls = collect_recursive_calls_with_paths(rec.var_name, arity, inner)
+    inner_ctx: TypingContext | None = None
+    inner_expect: Type | None = None
+    if typing_ctx is not None:
+        inner_ctx, inner_expect = _inner_ctx_and_expect_ty(typing_ctx, rec.var_type, formals)
+    calls = collect_recursive_calls_with_paths(
+        rec.var_name, arity, inner, inner_ctx, inner_expect, formals, type_formals
+    )
     if not calls:
         return ctrue
 
     parts: list[Constraint] = []
-    for call_args, _loc, path in calls:
+    for call_args, _loc, path, nested_refs in calls:
         if len(call_args) != arity:
             parts.append(LiquidConstraint(LiquidLiteralBool(False)))
             continue
@@ -287,7 +348,7 @@ def termination_metric_constraints(rec: Rec) -> Constraint:
             parts.append(LiquidConstraint(LiquidLiteralBool(False)))
             continue
         lex = _lexicographic_less(call_ms, entry_ms)
-        parts.append(_termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs))
+        parts.append(_termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs))
 
     if not parts:
         return ctrue
