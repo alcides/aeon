@@ -24,6 +24,4 @@ def  expected_values : List =  get_output_list ( unpack_train_data train);
             calculate_list_errors)
 @minimize_float(  mean_absolute_error ( get_bb_synth_values  input_list synth) ( expected_values))
 def synth (a:Float) (b:Float) (c:Int) : Float
-    {
-        (?hole:Float)
-    }
+    = (?hole:Float);

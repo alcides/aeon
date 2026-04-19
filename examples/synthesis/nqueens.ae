@@ -6,23 +6,22 @@ def N : {n:Int | n == 9} = 9;
 def C_mk
     (q1x:Int | 0 <= q1x && q1x < N )
     (q1y:Int | 0 <= q1y && q1y < N ) :
-    Coordinate { native "(x, y)" }
+    Coordinate = native "(x, y)";
 
-def C_x (s:Coordinate) : Int { native "s[0]" }
-def C_y (s:Coordinate) : Int { native "s[1]" }
+def C_x (s:Coordinate) : Int = native "s[0]";
+def C_y (s:Coordinate) : Int = native "s[1]";
 
 
 
 def Board_size : (b:Board) -> Int = uninterpreted;
 
-def Board_is_empty (b:Board) : {t:Bool | t == (Board_size b == 0)  } { native "len(b) == 0" }
+def Board_is_empty (b:Board) : {t:Bool | t == (Board_size b == 0)  } = native "len(b) == 0";
 
-def Board_head (b:Board | Board_size b > 0) : Coordinate { native "b[0]" }
+def Board_head (b:Board | Board_size b > 0) : Coordinate = native "b[0]";
 
-def Board_tail (b:Board | Board_size b > 0) : {b2:Board | Board_size b2 == (Board_size b - 1)} { native "b[1:]" }
+def Board_tail (b:Board | Board_size b > 0) : {b2:Board | Board_size b2 == (Board_size b - 1)} = native "b[1:]";
 
-def conflicts (t:Coordinate) (b:Board | Board_size b >= 0) : Int {
-    if Board_is_empty b
+def conflicts (t:Coordinate) (b:Board | Board_size b >= 0) : Int = if Board_is_empty b
     then 0
     else
         h : Coordinate = Board_head b;
@@ -35,8 +34,7 @@ def conflicts (t:Coordinate) (b:Board | Board_size b >= 0) : Int {
 
         component1 : {c:Int | 0 <= c && c <= 3} = row + col + diag;
         component2 : Int = conflicts t tl;
-        component1 + component2
-}
+        component1 + component2;
 
 
 
@@ -50,7 +48,7 @@ def create_solution
     (q7 : Coordinate)
     (q8 : Coordinate)
     (q9 : Coordinate) :
-   {b:Board | Board_size b == N} { native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]" }
+   {b:Board | Board_size b == N} = native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]";
 
 
 @minimize_int(1)

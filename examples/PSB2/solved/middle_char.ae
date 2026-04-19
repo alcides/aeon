@@ -11,8 +11,7 @@ def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l ->
 
 def equal_int : (a: Int) -> (b: Int) -> Bool = \x -> \y -> native "x == y";
 
-def middle_char  (s: String) : String {
-    str_len : Int = String_len s;
+def middle_char  (s: String) : String = str_len : Int = String_len s;
     a : Int = (str_len % 2);
     b : Bool = equal_int a 0;
     if (b) then
@@ -27,11 +26,8 @@ def middle_char  (s: String) : String {
         y: Float = (x / 2.0);
         mid_char_index: Int = (Math_floor y);
         m_char = String_slice s mid_char_index (mid_char_index+1);
-        m_char
-}
+        m_char;
 
 
 
-def main (args:Int) : Unit {
-    print (middle_char "ola")
-}
+def main (args:Int) : Unit = print (middle_char "ola");

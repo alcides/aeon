@@ -3,6 +3,4 @@
 # A constant like 50 is the simplest valid solution.
 
 @minimize_int(0)
-def clamp (x:Int) : {y:Int | y >= 0 && y <= 100} {
-    ?hole
-}
+def clamp (x:Int) : {y:Int | y >= 0 && y <= 100} = ?hole;

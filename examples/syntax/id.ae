@@ -1,7 +1,6 @@
 def id : (x : t<p>) -> t<p> = \x -> x;
 
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     x : Int | x > 0 = 3;
     y : Int | y > 0 = id x;
-    print y
-}
+    print y;

@@ -21,8 +21,7 @@ def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = \c1 -> \c2 
 def Counter_values : (c:Counter) -> List = \c -> native "list(c.values())";
 def Tuple : (a:Int) -> (b:Int) -> List = \a -> \b -> native "[a,b]";
 
-def mastermind ( code : String) (guess: String ) : List {
-    items_eq : (x:List) -> Int = \x -> if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
+def mastermind ( code : String) (guess: String ) : List = items_eq : (x:List) -> Int = \x -> if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
     black_map : List = Map_bool items_eq (String_Zip code guess);
     black_pegs : Int = List_sum black_map;
 
@@ -35,10 +34,7 @@ def mastermind ( code : String) (guess: String ) : List {
     white_pegs_f : (x:List) -> (y:List) -> Int = \c -> \g -> List_sum (Counter_values (Counter_intersection (Counter c) (Counter g)));
     white_pegs :Int = white_pegs_f code_unmatched guess_unmatched;
 
-    Tuple white_pegs black_pegs
-}
+    Tuple white_pegs black_pegs;
 
 
-def main (args:Int) : Unit {
-    print(mastermind "GGGB" "BGGG")
-}
+def main (args:Int) : Unit = print(mastermind "GGGB" "BGGG");
