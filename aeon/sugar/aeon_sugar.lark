@@ -25,8 +25,10 @@ def : soft_constraint "def" ID ":" type "=" expression ";"                  -> d
     | soft_constraint "def" ID  args ":" type decreasing_by_opt "{" expression "}"     -> def_fun
     | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"     -> def_fun_eq
 
-decreasing_by_opt: "decreasing_by" "[" expression "]" -> decreasing_by_one
+decreasing_by_opt: "decreasing_by" "[" decreasing_exprs "]" -> decreasing_by_list
                  | -> decreasing_by_none
+
+decreasing_exprs: expression ("," expression)* -> decreasing_exprs
 
 
 soft_constraint :                      -> empty_list

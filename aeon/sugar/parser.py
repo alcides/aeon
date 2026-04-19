@@ -323,9 +323,12 @@ class TreeToSugar(Transformer):
     def decreasing_by_none(self, args):
         return []
 
+    def decreasing_exprs(self, args):
+        return list(args)
+
     @v_args(meta=True)
-    def decreasing_by_one(self, meta, args):
-        return [args[0]]
+    def decreasing_by_list(self, meta, args):
+        return args[0]
 
     @v_args(meta=True)
     def def_fun(self, meta, args):

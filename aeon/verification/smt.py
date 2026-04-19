@@ -41,6 +41,7 @@ from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
+from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -131,6 +132,28 @@ class SMTContext:
         return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
 
 
+def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTContext:
+    """Add Z3-scalar bindings for each curried parameter of ``fun_ty`` (for UFD / recursion VCs)."""
+    out = ctx
+    cur: Type = fun_ty
+    while isinstance(cur, AbstractionType):
+        base = lower_constraint_type(cur.var_type)
+        match base:
+            case TypeVar(iname):
+                base_tc = TypeConstructor(iname)
+            case TypeConstructor(iname, []):
+                base_tc = base
+            case TypeConstructor(iname, args):
+                mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
+                nname = Name(mangle_name, fresh_counter.fresh())
+                base_tc = TypeConstructor(nname)
+            case _:
+                assert False, f"{base} ({type(base)}) is not a base type for curried formal."
+        out = out.with_var(cur.var_name, base_tc)
+        cur = cur.type
+    return out
+
+
 @dataclass(init=False)
 class CanonicConstraint:
     """Represents SMT-valid constraints."""
@@ -199,7 +222,8 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
-            yield from flatten(seq, ctx.with_function(name, ty))
+            nctx = _ctx_with_curried_formals(ctx, ty)
+            yield from flatten(seq, nctx.with_function(name, ty))
         case _:
             assert False, f"Cannot flatten {c}."
 
