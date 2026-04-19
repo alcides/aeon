@@ -75,8 +75,12 @@ def _parse_common_arguments(parser: ArgumentParser):
         "-s",
         "--synthesizer",
         type=str,
-        default="gp",
-        help="Select a synthesizer for synthesis(gp for Genetic programming(Defaut), synquid for Synquid, random_search for Random Search, enumerative for Enumerative Search, hc for Hill Climbing, and 1p1 for One Plus One)",
+        default="tdsyn_enumerative",
+        help=(
+            "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
+            "tdsyn_random (type-directed random walk), gp, synquid, random_search, enumerative (grammar enumeration), "
+            "hc, 1p1, smt, decision_tree, llm"
+        ),
     )
 
     parser.add_argument(
