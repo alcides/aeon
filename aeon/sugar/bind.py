@@ -224,6 +224,10 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for aname in ind.args:
             nname, nsubs = check_name(aname, nsubs)
             iargs.append(nname)
+        drfs = []
+        for pname, psort in ind.rforalls:
+            nname, nsubs = check_name(pname, nsubs)
+            drfs.append((nname, bind_stype(psort, nsubs)))
         constructors = []
         for cons in ind.constructors:
             bound_cons, nsubs = _bind_definition(cons, nsubs, subs)
@@ -232,7 +236,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for meas in ind.measures:
             bound_meas, nsubs = _bind_definition(meas, nsubs, subs)
             measures.append(bound_meas)
-        inductive_decls.append(InductiveDecl(name, iargs, constructors, measures, loc=ind.loc))
+        inductive_decls.append(InductiveDecl(name, iargs, drfs, constructors, measures, loc=ind.loc))
 
     for df in p.definitions:
         bound_df, nsubs = _bind_definition(df, nsubs, subs)

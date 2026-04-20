@@ -329,10 +329,18 @@ class TreeToSugar(Transformer):
     def type_constructor_decl(self, meta, args):
         return TypeDecl(Name(args[0]), [Name(i) for i in args[1:]], loc=self._loc(meta))
 
+    def inductive_rforall_binding(self, args):
+        return (Name(args[0]), args[1])
+
     @v_args(meta=True)
     def inductive(self, meta, args):
         return InductiveDecl(
-            Name(args[0]), [Name(i) for i in args[1]], ensure_list(args[2]), ensure_list(args[3]), loc=self._loc(meta)
+            Name(args[0]),
+            [Name(i) for i in args[1]],
+            ensure_list(args[2]),
+            ensure_list(args[3]),
+            ensure_list(args[4]),
+            loc=self._loc(meta),
         )
 
     @v_args(meta=True)

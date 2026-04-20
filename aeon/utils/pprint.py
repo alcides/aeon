@@ -731,9 +731,27 @@ def node_pretty(node: Node) -> Doc:
             pretty_macro_args_doc = parens(insert_between(concat([text(","), line()]), pretty_macro_args))
 
             return concat([text("@"), text(name.pretty()), pretty_macro_args_doc])
-        case InductiveDecl(name=name, args=args, constructors=constructors, measures=measures):
+        case InductiveDecl(name=name, args=args, rforalls=rforalls, constructors=constructors, measures=measures):
             pretty_name = concat([text("inductive"), line(), text(name.pretty())])
             pretty_args = group(insert_between(line(), [text(arg.pretty()) for arg in args]))
+            pretty_rforalls = group(
+                insert_between(
+                    line(),
+                    [
+                        concat(
+                            [
+                                text("forall"),
+                                text(" <"),
+                                text(rho.pretty()),
+                                text(" : "),
+                                stype_pretty(sort),
+                                text(" -> Bool>"),
+                            ]
+                        )
+                        for rho, sort in rforalls
+                    ],
+                )
+            )
             pretty_constructors = group(
                 insert_between(line(), [concat([text("| "), node_pretty(cons)]) for cons in constructors])
             )
@@ -741,7 +759,11 @@ def node_pretty(node: Node) -> Doc:
                 insert_between(line(), [concat([text("+ "), node_pretty(meas)]) for meas in measures])
             )
 
-            return group(insert_between(line(), [pretty_name, pretty_args, pretty_constructors, pretty_measures]))
+            chunks = [pretty_name, pretty_args]
+            if rforalls:
+                chunks.append(pretty_rforalls)
+            chunks.extend([pretty_constructors, pretty_measures])
+            return group(insert_between(line(), chunks))
         case Definition(
             name=name,
             foralls=foralls,

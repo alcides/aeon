@@ -2,7 +2,6 @@ type List
 
 def length : (l:List) -> Int = uninterpreted
 
-def create(i:Int) : = l:List | length l == 0 { native "[]" }
+def create(i:Int) : {l:List | length l == 0} = native "[]"
 
-def main (args:Int) : Unit =
-    print "Hello World"
+def main (args:Int) : Unit = print "Hello World"

@@ -11,8 +11,8 @@ type Map
 
 def List_size: (l:List) -> Int = uninterpreted
 def List_length: (l:List) -> Int = \list -> native "len(list)"
-def List_new : = x:List | List_size x == 0 = native "[]"
-def List_append (l:List) (i: Int) : = l2:List | List_size l2 == List_size l + 1 { native "l + [i]" }
+def List_new : {x:List | List_size x == 0} = native "[]"
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]"
 
 def List_sum: (l:List) -> Int = \xs -> native "sum(xs)"
 def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)"
@@ -37,5 +37,4 @@ def calculate_shopping_errors : (train : TrainData) -> (f:(a: List) -> (b: List)
             calculate_shopping_errors,
             train)
 @multi_minimize_float(calculate_shopping_errors train synth, 1)
-def synth  (prices: List) (discounts: List) : Int =
-    (?hole:Int)
+def synth  (prices: List) (discounts: List) : Int = (?hole:Int)

@@ -1,0 +1,10 @@
+inductive IntList
+| empty : IntList
+| cons (hd:Int) (tl:IntList) : IntList
+
+def len (l:IntList) : Int =
+    match l with
+    | empty => 0
+    | cons hd tl => 1 + (len tl);
+
+def main (args:Int) : Int = 0;

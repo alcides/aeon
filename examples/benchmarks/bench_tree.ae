@@ -13,15 +13,11 @@ def tree_left (t:Tree) : Tree = native "t[0]"
 def tree_right (t:Tree) : Tree = native "t[2]"
 def tree_val (t:Tree) : Int = native "t[1]"
 
-def tree_sum (t:Tree) : Int =
-    if is_leaf t
+def tree_sum (t:Tree) : Int = if is_leaf t
     then 0
     else tree_val t + tree_sum (tree_left t) + tree_sum (tree_right t)
 
-
-def abs (n:Int) : Int =
-    if n < 0 then 0 - n else n
-
+def abs (n:Int) : Int = if n < 0 then 0 - n else n
 
 @minimize_int(abs(tree_sum result - 10))
 def result : Tree = ?hole

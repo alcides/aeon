@@ -11,9 +11,7 @@ def Just (x:Int) : Maybe = native "x"
 def is_nothing (m:Maybe) : Bool = native "m is None"
 def from_just (m:Maybe) : Int = native "m"
 
-def abs (n:Int) : Int =
-    if n < 0 then 0 - n else n
-
+def abs (n:Int) : Int = if n < 0 then 0 - n else n
 
 @minimize_int(if is_nothing result then 100 else abs(from_just result - 42))
 def result : Maybe = ?hole

@@ -1,19 +1,12 @@
 import "PropTesting.ae"
 
-def reverse (xs: (List Int)) : (List Int) =
-    List_reversed(xs)
+def reverse (xs: (List Int)) : (List Int) = List_reversed(xs)
 
 
+def prop_reversed_lists_same_size (xs:(List Int)) : Bool = (List_length xs) == (List_length (reverse xs))
 
-def prop_reversed_lists_same_size (xs:(List Int)) : Bool =
-    (List_length xs) == (List_length (reverse xs))
-
-
-def list_property_testing (y: Int) : Float =
-    forAllLists prop_reversed_lists_same_size
+def list_property_testing (y: Int) : Float = forAllLists prop_reversed_lists_same_size
 
 
-
-def main (x:Int) : Unit =
-    xs = list_property_testing(0);
+def main (x:Int) : Unit = xs = list_property_testing(0)
     print(xs)

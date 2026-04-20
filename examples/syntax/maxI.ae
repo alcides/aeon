@@ -3,7 +3,7 @@ def maxI: (x : Int<p>) -> (y : Int<p>) -> Int<p> =
 
 
 def main (args:Int) : Unit =
-    x : Int | x > 0 = 3;
-    y : Int | y > 0 = 5;
-    z : Int | z > 0 = maxI x y;
+    x : Int | x > 0 = 3
+    y : Int | y > 0 = 5
+    z : Int | z > 0 = maxI x y
     print (z)

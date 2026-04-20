@@ -8,9 +8,7 @@ def Zero : Nat = native "0"
 def Succ (n:Nat) : Nat = native "n + 1"
 def nat_val (n:Nat) : Int = native "n"
 
-def abs (n:Int) : Int =
-    if n < 0 then 0 - n else n
-
+def abs (n:Int) : Int = if n < 0 then 0 - n else n
 
 @minimize_int(abs(nat_val result - 5))
 def result : Nat = ?hole

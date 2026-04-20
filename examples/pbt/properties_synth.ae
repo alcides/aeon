@@ -1,5 +1,4 @@
 import "PropTesting.ae"
 
 # @assert_properties(forAllInts(\x-> (synth_double(x) == (2 * x))) , forAllInts(\x-> ((synth_double(x) % 2) == 0) ) )
-def synth_double (x: Int) : Int =
-    (?hole:Int)
+def synth_double (x: Int) : Int = (?hole:Int)

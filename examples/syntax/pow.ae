@@ -4,5 +4,4 @@ def pow (x:Int | ((x >= 1)  && (x <= 100)))
         : Int = native "math.pow(x, y)"
 
 
-def main (args:Int) : Unit =
-    print "Hello World"
+def main (args:Int) : Unit = print "Hello World"

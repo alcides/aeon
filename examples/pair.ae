@@ -14,9 +14,8 @@ def assert : (b:{b:Bool | b}) -> Unit = native "()"
 # def Pair_snd (p:Pair) : { y:Int | y == Pair_snd_logical p } { native "p[1]" }
 
 
-def main (args:Int) : Unit =
-    a = 1;
-    b = 3;
-    #x = Pair_mk a b;
-    #y = assert true;
+def main (args:Int) : Unit = a = 1
+    b = 3
+    #x = Pair_mk a b
+    #y = assert true
     print "hello"
