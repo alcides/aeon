@@ -39,6 +39,7 @@ from aeon.facade.driver import AeonDriver
 SYNTHESIZERS = [
     "tdsyn_enumerative",
     "tdsyn",
+    "tactics",
     "gp",
     "enumerative",
     "random_search",

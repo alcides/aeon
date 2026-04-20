@@ -5,6 +5,7 @@ from aeon.synthesis.modules.llm import LLMSynthesizer
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
 def make_synthesizer(module: str) -> Synthesizer:
@@ -31,5 +32,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return TDSynSynthesizer(mode="enumerative")
         case "tdsyn_random":
             return TDSynSynthesizer(mode="random")
+        case "tactics":
+            return TacticRandomSynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"
