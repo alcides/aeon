@@ -38,7 +38,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def _add_kernel_metadata(self, func: ir.Function) -> None:
         nvvm_annot = self.module.add_named_metadata("nvvm.annotations")
-        md_node = self.module.add_metadata([func, "kernel", ir.Constant(ir.IntType(32), 1)]) # func, "kernel", i32 1
+        md_node = self.module.add_metadata([func, "kernel", ir.Constant(ir.IntType(32), 1)])  # func, "kernel", i32 1
         nvvm_annot.add(md_node)
         if func not in self.kernels:
             self.kernels.append(func)
