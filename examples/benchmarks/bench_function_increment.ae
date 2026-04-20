@@ -2,7 +2,7 @@
 # The return type enforces j > i (any increment works), while the fitness
 # guides the search toward the identity shift f(x) = x + 1 via two examples.
 
-def abs (n:Int) : Int = if n < 0 then - n else n;
+def abs (n:Int) : Int = if n < 0 then - n else n
 
 @minimize_int(abs(fun 5 - 6) + abs(fun 10 - 11))
-def fun (i:Int) : {j:Int | j > i} = ?hole;
+def fun (i:Int) : {j:Int | j > i} = ?hole

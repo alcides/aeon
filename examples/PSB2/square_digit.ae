@@ -4,17 +4,17 @@
 # output : string
 # --working--
 
-import "String.ae";
-import "Math.ae";
-import "PSB2.ae";
+import "String.ae"
+import "Math.ae"
+import "PSB2.ae"
 
 #def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
 #    if n == 0 then
 #        ""
 #    else
-#        digit = n % 10;
-#        square = digit * digit;
-#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
+#        digit = n % 10
+#        square = digit * digit
+#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square))
 #        result
 #}
 
@@ -27,7 +27,7 @@ def square_digit_unsafe  ( n : Int) : String =
         result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
         result;
 
-def synth_sd ( n : Int) : String = (?hole:String);
+def synth_sd ( n : Int) : String = (?hole:String)
 
 def fitness : Float =
     ds = load_dataset "square-digits" 200 200;

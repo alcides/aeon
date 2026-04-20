@@ -1,17 +1,17 @@
-type List;
+type List
 
-def String_split : (s:String) -> (sep:String) -> List = \s -> \sep -> native "s.split(sep)";
-def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
+def String_split : (s:String) -> (sep:String) -> List = \s -> \sep -> native "s.split(sep)"
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j"
 
-def Map_string_string : (f: (s:String) -> String) -> (l:String) -> List = \f -> \xs -> native "list(map(f, xs))";
-def Map_string_list : (f: (s:String) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
-def Map_list_list : (f: (s:String) -> List) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
+def Map_string_string : (f: (s:String) -> String) -> (l:String) -> List = \f -> \xs -> native "list(map(f, xs))"
+def Map_string_list : (f: (s:String) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
+def Map_list_list : (f: (s:String) -> List) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
 
-def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native "s.join(l)";
-def String_tail:(l:String) -> String = \xs -> native "xs[1:]";
-def String_capitalize : (s:String) -> String = \s -> native "s.capitalize()";
-def String_get : (s:String) -> (i:Int) -> String = \s -> \i -> native "s[i]";
-def String_tail:(l:String) -> String = \xs -> native "xs[1:]";
+def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native "s.join(l)"
+def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
+def String_capitalize : (s:String) -> String = \s -> native "s.capitalize()"
+def String_get : (s:String) -> (i:Int) -> String = \s -> \i -> native "s[i]"
+def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
 
 
 def camel_case (s:String) : String = groups: List = String_split s " ";
@@ -31,4 +31,4 @@ def camel_case (s:String) : String = groups: List = String_split s " ";
     result;
 
 
-def main (args:Int) : Unit = print(camel_case "two-words");
+def main (args:Int) : Unit = print(camel_case "two-words")

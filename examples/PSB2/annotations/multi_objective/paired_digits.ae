@@ -1,27 +1,27 @@
-import extract_train_data from "PSB2.ae";
-import load_dataset from "PSB2.ae";
-type List;
+import extract_train_data from "PSB2.ae"
+import load_dataset from "PSB2.ae"
+type List
 
-def get_fst: (l:String) -> String = \xs -> native "xs[0]";
-def get_snd: (l:String) -> String = \xs -> native "xs[1]";
+def get_fst: (l:String) -> String = \xs -> native "xs[0]"
+def get_snd: (l:String) -> String = \xs -> native "xs[1]"
 
-def String_len : (i:String) -> Int = \i -> native "len(i)";
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]" ;
-def String_zip : (i:String) -> (j:String) -> String = \i -> \j -> native "zip(i,j)";
-def String_to_List : (i:String) -> List = \i -> native "list(i)";
-def String_to_Int : (i:String) -> Int = \i -> native "int(i)";
+def String_len : (i:String) -> Int = \i -> native "len(i)"
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = \i -> \j -> \l -> native "i[j:l]"
+def String_zip : (i:String) -> (j:String) -> String = \i -> \j -> native "zip(i,j)"
+def String_to_List : (i:String) -> List = \i -> native "list(i)"
+def String_to_Int : (i:String) -> Int = \i -> native "int(i)"
 
-def filter :  (f: (s:String) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
-# def filter2 :  (f: (s:String) -> Bool) -> (l:List) -> List = \f -> \xs -> native "filter(f, xs)";
+def filter :  (f: (s:String) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]"
+# def filter2 :  (f: (s:String) -> Bool) -> (l:List) -> List = \f -> \xs -> native "filter(f, xs)"
 
-def List_sum: (l:List) -> Int = \xs -> native "sum(xs)";
-def List_map_String_Int: (function:(a: String) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)";
-
-
-def train: TrainData = extract_train_data (load_dataset "paired-digits" 200 200);
+def List_sum: (l:List) -> Int = \xs -> native "sum(xs)"
+def List_map_String_Int: (function:(a: String) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
 
 
-def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]";
+def train: TrainData = extract_train_data (load_dataset "paired-digits" 200 200)
+
+
+def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
 @hide(extract_train_data,
@@ -29,4 +29,4 @@ def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> In
             calculate_paired_digits_errors,
             train )
 @multi_minimize_float(calculate_paired_digits_errors train synth, 1)
-def synth (nums: String) : Int = (?hole:Int);
+def synth (nums: String) : Int = (?hole:Int)

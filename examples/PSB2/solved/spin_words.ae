@@ -1,14 +1,14 @@
-type List;
+type List
 
-def String_len : (i:String) -> Int = \i -> native "len(i)";
-def String_list_to_String : (l:List) -> String = \l -> native "' '.join(l)";
-def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)";
-def String_split : (i:String) -> (j:String) -> List = \i -> \j -> native "i.split(j)" ;
-def String_reverse : (i:String) -> String = \i -> native "i[::-1]";
+def String_len : (i:String) -> Int = \i -> native "len(i)"
+def String_list_to_String : (l:List) -> String = \l -> native "' '.join(l)"
+def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
+def String_split : (i:String) -> (j:String) -> List = \i -> \j -> native "i.split(j)"
+def String_reverse : (i:String) -> String = \i -> native "i[::-1]"
 
 def spin_words (phrase: String) : String = words: List = String_split phrase " ";
     rev : (x:String) -> String = \x -> if String_len(x) >= 5 then String_reverse x else x;
     reversed_words : List = map_String_String_List rev words;
     String_list_to_String reversed_words;
 
-def main (args:Int) : Unit = print (spin_words "this is another test");
+def main (args:Int) : Unit = print (spin_words "this is another test")

@@ -16,6 +16,7 @@ from aeon.sugar.program import (
     SAnnotation,
     SApplication,
     SHole,
+    SBy,
     SIf,
     SMatch,
     SLet,
@@ -126,6 +127,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case SHole(name, loc=loc):
             name, _ = check_name(name, subs)
             return SHole(name, loc=loc)
+        case SBy(steps, loc=loc):
+            return SBy(steps, loc=loc)
         case SAnnotation(e, ty, loc=loc):
             return SAnnotation(bind_sterm(e, subs), bind_stype(ty, subs), loc=loc)
         case SApplication(e1, e2, loc=loc):

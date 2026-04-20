@@ -6,10 +6,9 @@ from tests.driver import check_and_return_core
 
 def test_synquid():
     source = """@minimize_int(fun(25))
-            def fun (i:Int) : Int  {
+            def fun (i:Int) : Int =
                 let a : Int = 10*i;
                 (?hole: {x:Int | x >= (-45)} ) * i - a
-            }
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(

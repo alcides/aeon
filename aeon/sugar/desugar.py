@@ -22,6 +22,7 @@ from aeon.sugar.program import (
     SApplication,
     SAnnotation,
     SHole,
+    SBy,
     SLiteral,
     SIf,
     SRec,
@@ -50,7 +51,7 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_int, st_string
 
 from aeon.facade.api import ImportError
@@ -116,6 +117,112 @@ class DesugaredProgram(NamedTuple):
     metadata: Metadata
 
 
+def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...]]]:
+    """Replace each ``SBy`` with a fresh ``SHole`` and record tactic scripts keyed by hole name."""
+
+    def merge(a: dict[Name, tuple[str, ...]], b: dict[Name, tuple[str, ...]]) -> dict[Name, tuple[str, ...]]:
+        out = dict(a)
+        for k, v in b.items():
+            if k in out and out[k] != v:
+                raise ValueError(f"Conflicting tactic scripts for hole {k}")
+            out[k] = v
+        return out
+
+    match t:
+        case SBy(steps, loc=loc):
+            h = Name("_by", fresh_counter.fresh())
+            return SHole(h, loc=loc), {h: tuple(steps)}
+        case SLiteral() | SVar() | SHole():
+            return t, {}
+        case SAnnotation(expr, ty, loc=loc):
+            ne, s1 = lower_by_blocks_in_sterm(expr)
+            return SAnnotation(ne, ty, loc=loc), s1
+        case SApplication(fun, arg, loc=loc):
+            nf, s1 = lower_by_blocks_in_sterm(fun)
+            na, s2 = lower_by_blocks_in_sterm(arg)
+            return SApplication(nf, na, loc=loc), merge(s1, s2)
+        case SAbstraction(name, body, loc=loc):
+            nb, s1 = lower_by_blocks_in_sterm(body)
+            return SAbstraction(name, nb, loc=loc), s1
+        case STypeApplication(body, ty, loc=loc):
+            nb, s1 = lower_by_blocks_in_sterm(body)
+            return STypeApplication(nb, ty, loc=loc), s1
+        case SRefinementApplication(body, refinement, loc=loc):
+            nb, s1 = lower_by_blocks_in_sterm(body)
+            nr, s2 = lower_by_blocks_in_sterm(refinement)
+            return SRefinementApplication(nb, nr, loc=loc), merge(s1, s2)
+        case STypeAbstraction(name, kind, body, loc=loc):
+            nb, s1 = lower_by_blocks_in_sterm(body)
+            return STypeAbstraction(name, kind, nb, loc=loc), s1
+        case SRefinementAbstraction(name, sort, body, loc=loc):
+            nb, s1 = lower_by_blocks_in_sterm(body)
+            return SRefinementAbstraction(name, sort, nb, loc=loc), s1
+        case SIf(cond, then, otherwise, loc=loc):
+            nc, s1 = lower_by_blocks_in_sterm(cond)
+            nt, s2 = lower_by_blocks_in_sterm(then)
+            no, s3 = lower_by_blocks_in_sterm(otherwise)
+            return SIf(nc, nt, no, loc=loc), merge(merge(s1, s2), s3)
+        case SMatch(scrutinee, branches, loc=loc):
+            ns, s0 = lower_by_blocks_in_sterm(scrutinee)
+            nbrs: list[SMatchBranch] = []
+            acc = s0
+            for br in branches:
+                nb, sb = lower_by_blocks_in_sterm(br.body)
+                acc = merge(acc, sb)
+                nbrs.append(SMatchBranch(constructor=br.constructor, binders=br.binders, body=nb, loc=br.loc))
+            return SMatch(ns, nbrs, loc=loc), acc
+        case SLet(name, val, body, loc=loc):
+            nv, s1 = lower_by_blocks_in_sterm(val)
+            nb, s2 = lower_by_blocks_in_sterm(body)
+            return SLet(name, nv, nb, loc=loc), merge(s1, s2)
+        case SRec(name, ty, val, body, decreasing_by, loc=loc):
+            nv, s1 = lower_by_blocks_in_sterm(val)
+            nb, s2 = lower_by_blocks_in_sterm(body)
+            decr_parts = [lower_by_blocks_in_sterm(m) for m in decreasing_by]
+            nd = tuple(p[0] for p in decr_parts)
+            s_decr: dict[Name, tuple[str, ...]] = {}
+            for _, sd in decr_parts:
+                s_decr = merge(s_decr, sd)
+            return SRec(name, ty, nv, nb, decreasing_by=nd, loc=loc), merge(merge(s1, s2), s_decr)
+        case _:
+            assert False, f"lower_by_blocks_in_sterm: unhandled {t} ({type(t)})"
+
+
+def lower_by_blocks_in_definitions(
+    definitions: list[Definition], metadata: Metadata
+) -> tuple[list[Definition], Metadata]:
+    new_definitions: list[Definition] = []
+    for d in definitions:
+        match d:
+            case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
+                nbody, scripts = lower_by_blocks_in_sterm(body)
+                if scripts:
+                    cur = dict(metadata.get(name, {}))
+                    ts = dict(cur.get("tactic_scripts", {}))
+                    for h, steps in scripts.items():
+                        if h in ts and ts[h] != steps:
+                            raise ValueError(f"Multiple conflicting `by` scripts for {name} hole {h}")
+                        ts[h] = steps
+                    cur["tactic_scripts"] = ts
+                    metadata[name] = cur
+                new_definitions.append(
+                    Definition(
+                        name,
+                        foralls,
+                        args,
+                        rtype,
+                        nbody,
+                        decorators,
+                        rforalls,
+                        decreasing_by,
+                        loc,
+                    )
+                )
+            case _:
+                assert False, f"lower_by_blocks_in_definitions: {d}"
+    return new_definitions, metadata
+
+
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
@@ -133,6 +240,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs, type_decls = handle_imports(p.imports, defs, type_decls)
 
     defs, metadata = apply_decorators_in_definitions(defs)
+    defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
 
     defs = introduce_forall_in_types(defs, type_decls)
     defs = introduce_rforall_in_types(defs)

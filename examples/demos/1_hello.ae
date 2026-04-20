@@ -1,4 +1,4 @@
-import "Math.ae";
+import "Math.ae"
 
 def length : {n:Int | n == 10} = 10;
 
@@ -44,7 +44,7 @@ def main (index:Int) : Unit = pindex = Math_abs index;
 
 
 
-# pindex = Math_abs index;
+# pindex = Math_abs index
     # if pindex < length then
     #     readIndex pindex
     # else

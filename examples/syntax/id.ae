@@ -1,4 +1,4 @@
-def id : (x : t<p>) -> t<p> = \x -> x;
+def id : (x : t<p>) -> t<p> = \x -> x
 
 def main (args:Int) : Unit =
     x : Int | x > 0 = 3;

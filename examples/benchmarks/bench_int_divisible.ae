@@ -3,7 +3,7 @@
 # so it is encoded purely via fitness: |result % 100| is minimised to 0,
 # which is satisfied exactly by 100, 200, ..., 1000 (10 out of 1000 candidates).
 
-def abs (n:Int) : Int = if n < 0 then 0 - n else n;
+def abs (n:Int) : Int = if n < 0 then 0 - n else n
 
 @minimize_int(abs(result % 100))
 def result : {v:Int | v > 0 && v <= 1000} = ?hole;
