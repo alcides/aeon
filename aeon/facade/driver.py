@@ -95,9 +95,14 @@ class AeonDriver:
             self.core = core
             self.typing_ctx = typing_ctx
 
-        if errors:
-            return errors
-        assert core is not None and typing_ctx is not None and metadata is not None
+        try:
+            if self.cfg.skip_elaboration:
+                sterm: STerm = desugared.program
+            else:
+                with RecordTime("Elaboration"):
+                    sterm = elaborate(desugared.elabcontext, desugared.program, st_top)
+        except AeonError as e:
+            return [e]  # TODO: Support multiple errors
 
         with RecordTime("DecidabilityScan"):
             from aeon.verification.decidability import collect_decidability_warnings
@@ -111,8 +116,18 @@ class AeonDriver:
 
         self.metadata = metadata
 
-        dep_units = dependency_units_for(unit)
-        self.constructor_names = collect_constructor_names(unit, dep_units)
+        with RecordTime("ANF conversion"):
+            core_ast_anf = ensure_anf(core_ast)
+
+        if not self.cfg.skip_elaboration:
+            with RecordTime("TypeChecking"):
+                type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+                # TODO
+                if type_errors:
+                    return type_errors
+
+        with RecordTime("CorePhaseDecorators"):
+            metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
 
         with RecordTime("Preparing execution env"):
             pipeline = MultiBackendPipeline(metadata=metadata)
