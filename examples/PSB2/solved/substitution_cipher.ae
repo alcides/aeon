@@ -10,9 +10,9 @@ def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = \d -> \
 
 def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = \f -> \xs -> native "map(f, xs)"
 
-def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String = cipher_dict: Dict = Dict_zip (Zip_String_String cipher_from cypher_to)
- mapper : (x:String) -> String = \x -> Dict_get cipher_dict x x
- deciphered_chars: List = Map_String_String mapper msg
- String_list_to_String deciphered_chars
+def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String = cipher_dict: Dict = Dict_zip (Zip_String_String cipher_from cypher_to);
+ mapper : (x:String) -> String = \x -> Dict_get cipher_dict x x;
+ deciphered_chars: List = Map_String_String mapper msg;
+ String_list_to_String deciphered_chars;
 
 def main (args:Int) : Unit = print (cipher "e" "l" "eeeeeeeeeeee")

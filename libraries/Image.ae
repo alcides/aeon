@@ -19,7 +19,7 @@ def Color_mk
     (r:{r:Int | r >= 0 && r < 256})
     (g:{r:Int | r >= 0 && r < 256})
     (b:{r:Int | r >= 0 && r < 256}) :
-    = c:Color | (Color_r c == r) && (Color_g c == g) && (Color_b c == b) { native "(r, g, b)" }
+    {c:Color | (Color_r c == r) && (Color_g c == g) && (Color_b c == b) } = native "(r, g, b)"
 
 
 # Returns the height of the image in pixels.
@@ -37,8 +37,8 @@ def Image_mk
     (width:{p:Int | p > 0})
     (height:{p:Int | p > 0})
     (color:Color) :
-    = i : Image | (Image_width i == width) && (Image_height i == height) {
-native "__import__('aeon.bindings.image').bindings.image.Image_mk(width, height, color)" }
+    {i : Image | (Image_width i == width) && (Image_height i == height) } =
+native "__import__('aeon.bindings.image').bindings.image.Image_mk(width, height, color)"
 
 # Displays the image.
 # image: image to display
@@ -75,6 +75,5 @@ def Image_draw_rectangle
     (width:{p:Int | p > 0 && x + p <= Image_width im })
     (height:{p:Int | p > 0 && y + p <= Image_height im })
     (color:Color) :
-    = rim:Image | (Image_width rim == Image_width im) && (Image_height rim == Image_height im) {
+    {rim:Image | (Image_width rim == Image_width im) && (Image_height rim == Image_height im) } =
         native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle(im, x, y, width, height, color)"
- }

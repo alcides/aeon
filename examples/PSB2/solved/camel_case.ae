@@ -14,7 +14,7 @@ def String_get : (s:String) -> (i:Int) -> String = \s -> \i -> native "s[i]"
 def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
 
 
-def camel_case (s:String) : String = groups: List = String_split s " "
+def camel_case (s:String) : String = groups: List = String_split s " ";
 
     camel_case_groups : List = (Map_string_list
         ((\group ->  (String_concat
@@ -26,9 +26,9 @@ def camel_case (s:String) : String = groups: List = String_split s " "
                      )
          ) : (s:String) -> String)
         (Map_list_list ((\g -> (String_split g "-")):(s:String) -> List) groups)
-    )
-    result : String = String_join camel_case_groups " "
-    result
+    );
+    result : String = String_join camel_case_groups " ";
+    result;
 
 
 def main (args:Int) : Unit = print(camel_case "two-words")

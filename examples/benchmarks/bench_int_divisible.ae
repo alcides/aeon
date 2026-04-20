@@ -6,4 +6,4 @@
 def abs (n:Int) : Int = if n < 0 then 0 - n else n
 
 @minimize_int(abs(result % 100))
-def result : {v:Int | v > 0 && v <= 1000} = ?hole
+def result : {v:Int | v > 0 && v <= 1000} = ?hole;

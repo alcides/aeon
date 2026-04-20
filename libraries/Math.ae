@@ -7,7 +7,7 @@ def Math_min (i: Int) (j: Int) : Int = native "min(i, j)"
 def Math_max (i: Int) (j: Int) : Int = native "max(i, j)"
 
 # Returns the absolute value of an integer.
-def Math_abs (i:Int) : = v:Int | v >= 0 { native "abs(i)" }
+def Math_abs (i:Int) : {v:Int | v >= 0} = native "abs(i)"
 
 # Returns the ceiling of a float as an integer.
 def Math_ceil (i:Float) : Int = native "math.ceil(i)"

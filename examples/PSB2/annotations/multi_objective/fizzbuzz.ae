@@ -3,9 +3,9 @@ import load_dataset from "PSB2.ae"
 
 type List
 
-def div3 (n:Int) : Bool = if ((n % 3) == 0) then true else false
-def div5 (n:Int) : Bool = if ((n % 5) == 0) then true else false
-def div15 (n:Int) : Bool = if ((n % 15) == 0) then true else false
+def div3 (n:Int) : Bool = if ((n % 3) == 0) then true else false;
+def div5 (n:Int) : Bool = if ((n % 5) == 0) then true else false;
+def div15 (n:Int) : Bool = if ((n % 15) == 0) then true else false;
 
 def toString : (n:Int) -> String = \n -> native "str(n)"
 

@@ -16,7 +16,7 @@ def String_intToString(i: Int): String = native "str(i)"
 # i: first string
 # j: second string
 # returns: true if strings are equal, false otherwise
-def String_equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == j"
+def String_equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == j";
 
 # Returns a substring (slice) of the string from index j to l (exclusive).
 # i: input string
@@ -24,7 +24,7 @@ def String_equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == 
 # l: end index (>= j, <= length of i)
 # returns: substring from j to l
 def String_slice: (i: String) -> (j: {x: Int | x >= 0 && x < String_len i}) -> (l: {y: Int | y >= j && y <= String_len i}) -> String =
-    \i -> \j -> \l -> native "i[j:l]"
+    \i -> \j -> \l -> native "i[j:l]";
 
 # Converts the string to uppercase.
 # i: input string

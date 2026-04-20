@@ -4,7 +4,7 @@ type Map k v
 def Map_size: (m: (Map k v)) -> Int = uninterpreted
 
 # Creates a new empty map.
-def Map_new : = m: (Map k v) | Map_size m == 0 = native "{}"
+def Map_new : {m: (Map k v) | Map_size m == 0} = native "{}";
 
 # Sets the value for a key in the map.
 # m: map

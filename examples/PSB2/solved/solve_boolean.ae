@@ -7,7 +7,7 @@ def Map_string : (f: (s:String) -> String) -> (l:String) -> String = \f -> \xs -
 def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native "s.join(l)"
 def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
 def String_contains:(s:String) -> (c:String) -> Bool = \s -> \c -> native "c in s"
-def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j"
+def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
 def String_get: (l:String) -> (i:Int) -> String = \xs -> \i -> native "xs[i]"
 def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = \s -> \start -> \end -> native "s[start:end]"
 def String_length: (s:String) -> Int = \s -> native "len(s)"
@@ -20,13 +20,13 @@ def solve_boolean ( s : String ) : Bool = if (String_equal s "t") then
             false
         else
              if (String_equal (String_get s (-2))  "&") then
-                operand1: String = String_slice s 0 (-2)
-                operand2: String = String_slice s (-1) (String_length s)
+                operand1: String = String_slice s 0 (-2);
+                operand2: String = String_slice s (-1) (String_length s);
                 solve_boolean operand1 && solve_boolean operand2
              else
-                operand1: String = String_slice s 0 (-2)
-                operand2: String = String_slice s (-1) (String_length s)
-                solve_boolean operand1 || solve_boolean operand2
+                operand1: String = String_slice s 0 (-2);
+                operand2: String = String_slice s (-1) (String_length s);
+                solve_boolean operand1 || solve_boolean operand2;
 
 
 

@@ -9,7 +9,7 @@ def Map_string : (f: (s:String) -> String) -> (l:String) -> String = \f -> \xs -
 def String_join : (l:List) -> (s:String) -> String = \l -> \s -> native "s.join(l)"
 def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
 def String_contains:(s:String) -> (c:String) -> Bool = \s -> \c -> native "c in s"
-def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j"
+def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
 def String_get: (l:String) -> (i:Int) -> String = \xs -> \i -> native "xs[i]"
 def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = \s -> \start -> \end -> native "s[start:end]"
 def String_length: (s:String) -> Int = \s -> native "len(s)"
@@ -19,7 +19,7 @@ def List_get: (l:List) -> (i:Int) -> String = \xs -> \i -> native "xs[i]"
 def train: TrainData = extract_train_data (load_dataset "solve-boolean" 200 200)
 
 
-def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> List  =  \data -> \func -> native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]"
+def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> List  =  \data -> \func -> native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
 
 @hide(extract_train_data,
             load_dataset,

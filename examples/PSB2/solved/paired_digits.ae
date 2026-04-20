@@ -15,11 +15,11 @@ def filter :  (f: (s:String) -> Bool) -> (l:List) -> List = \f -> \xs -> native 
 def List_sum: (l:List) -> Int = \xs -> native "sum(xs)"
 def List_map_String_Int: (function:(a: String) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
 
-def paired_digits (nums: String) : Int = pairs: List = String_to_List (String_zip (nums) (String_slice nums 1 (String_len nums)))
-    pred : (x:String) -> Bool = \x -> (get_fst x) == (get_snd x)
-    matching_pairs : List = filter pred pairs
-    mapper : (x: String) -> Int = \x -> String_to_Int (get_fst x)
-    total_sum : Int = List_sum (List_map_String_Int mapper matching_pairs)
-    total_sum
+def paired_digits (nums: String) : Int = pairs: List = String_to_List (String_zip (nums) (String_slice nums 1 (String_len nums)));
+    pred : (x:String) -> Bool = \x -> (get_fst x) == (get_snd x);
+    matching_pairs : List = filter pred pairs;
+    mapper : (x: String) -> Int = \x -> String_to_Int (get_fst x);
+    total_sum : Int = List_sum (List_map_String_Int mapper matching_pairs);
+    total_sum;
 
 def main (args:Int) : Unit = print (paired_digits "99")

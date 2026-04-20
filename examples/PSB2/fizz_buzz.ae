@@ -16,13 +16,13 @@ def constant_Buzz : String = "Buzz"
 def constant_Fizz : String = "Fizz"
 
 
-def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 3) == 0) then true else false
-def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 5) == 0) then true else false
-def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 15) == 0) then true else false
+def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 3) == 0) then true else false;
+def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 5) == 0) then true else false;
+def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool = if ((n % 15) == 0) then true else false;
 
 
 def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String =
-    if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"))
+    if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"));
 
 #def synth_fizz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
 def synth_fizz ( n :Int ) : String = (?hole:String)
@@ -33,8 +33,8 @@ def expected_values : List = get_output_list (unpack_train_data train)
 
 
 def fitness : Float =
-    actual_values : List = get_fb_synth_values input_list synth_fizz
-    expected_values_str = join_string_list expected_values
-    actual_values_str = join_string_list actual_values
-    str_distance = String_distance expected_values_str actual_values_str
-    str_distance
+    actual_values : List = get_fb_synth_values input_list synth_fizz;
+    expected_values_str = join_string_list expected_values;
+    actual_values_str = join_string_list actual_values;
+    str_distance = String_distance expected_values_str actual_values_str;
+    str_distance;

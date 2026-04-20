@@ -3,15 +3,15 @@ import "Image.ae"
 def target : Image = Image_open "examples/image/key_target.jpg"
 
 def key_example (steps:Int) : Image =
-    white : Color = Color_mk 255 255 255
-    key_color : Color = Color_mk 192 192 192
-    image0 = Image_mk 1024 768 white
-    image1 = Image_draw_rectangle image0 170 256 256 256 key_color
-    image2 = Image_draw_rectangle image1 255 341 85 83 white
-    image3 = Image_draw_rectangle image2 426 341 509 83 key_color
-    image4 = Image_draw_rectangle image3 836 424 100 68 key_color
-    image5 = Image_draw_rectangle image4 686 424 100 48 key_color
-    image5
+    white : Color = Color_mk 255 255 255;
+    key_color : Color = Color_mk 192 192 192;
+    image0 = Image_mk 1024 768 white;
+    image1 = Image_draw_rectangle image0 170 256 256 256 key_color;
+    image2 = Image_draw_rectangle image1 255 341 85 83 white;
+    image3 = Image_draw_rectangle image2 426 341 509 83 key_color;
+    image4 = Image_draw_rectangle image3 836 424 100 68 key_color;
+    image5 = Image_draw_rectangle image4 686 424 100 48 key_color;
+    image5;
 
 def k : Image = key_example 1
 

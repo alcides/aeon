@@ -38,7 +38,7 @@ def String_distance : (str1 : String) -> (str2 : String) -> Float = \s1 -> \s2 -
 def calculate_list_errors : (true_values : List) -> (expected_values : List) ->  List =  \t -> \e -> native "[abs(p - r) for p, r in zip(t, e)]"
 
 
-def calculate_list_difference : (true_values : List) -> (expected_values : List) ->  List =  \x -> \y -> native "[0 if a == b else 1 for a, b in zip(x, y)]"
+def calculate_list_difference : (true_values : List) -> (expected_values : List) ->  List =  \x -> \y -> native "[0 if a == b else 1 for a, b in zip(x, y)]";
 
 
 def calculate_str_list_errors : (true_values : List) -> (expected_values : List) ->  List =  \t -> \e -> native "[__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]"

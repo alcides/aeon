@@ -23,7 +23,7 @@ def Map : (f: (s:List) -> List) -> (l:List) -> List = \f -> \xs -> native "list(
 def Math_abs : (i:Int) -> Int = \i -> native "abs(i)"
 def Tuple : (i:Int) -> (j:Int) -> List = \i -> \j -> native "(i, j)"
 def Tuple_list : (i:List) -> (j:List) -> List = \i -> \j -> native "[i, j]"
-def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = \i -> \f -> native "min(i,key=f)"
+def min_list : (i:List) -> (key: (xs:List) -> Int) -> List = \i -> \f -> native "min(i,key=f)";
 
 def get_fst : (i:List) -> Int = \i -> native "i[0]"
 def get_snd : (i:List) -> Int = \i -> native "i[1] if len(i) > 1 else i[0]"

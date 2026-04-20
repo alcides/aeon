@@ -2,8 +2,8 @@ type List
 
 def List_size: (l:List) -> Int = uninterpreted
 def List_len (l:List) : Int  = native "len(l)"
-def List_new : {x:List | List_size x == 0} = native "[]"
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]"
+def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]";
 def List_get (l:List) (i: Int) : Int = native "l[i]"
 
 def fst_negative (l:List) (i:Int) (u:Int) : Int = if (i >= (List_len l)) then
@@ -11,7 +11,7 @@ def fst_negative (l:List) (i:Int) (u:Int) : Int = if (i >= (List_len l)) then
      else if (u < 0) then
         i
      else
-        fst_negative l (i + 1) (u + (List_get l (i + 1)))
+        fst_negative l (i + 1) (u + (List_get l (i + 1)));
 
 def basement (nums: List) : Int = fst_negative nums 0 (List_get nums 0)
 

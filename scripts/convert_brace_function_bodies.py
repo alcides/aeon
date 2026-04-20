@@ -65,6 +65,60 @@ def skip_balanced_parens(s: str, i: int) -> int:
     return _string_aware_scan(s, i, on_char)
 
 
+def _brace_opens_refined_type(s: str, brace_idx: int) -> bool:
+    """True if ``{`` starts a refinement type ``{ v : T | e }``, not ``{`` as a func body opener.
+
+    Body blocks often begin with ``{ name : T = ...`` (no ``|`` after the type). Refinements use
+    ``|`` after the type (Liquid-style).
+    """
+    j = brace_idx + 1
+    j = skip_ws(s, j)
+    if j >= len(s) or not (s[j].isalpha() or s[j] == "_"):
+        return False
+    while j < len(s) and (s[j].isalnum() or s[j] == "_"):
+        j += 1
+    j = skip_ws(s, j)
+    if j >= len(s) or s[j] != ":":
+        return False
+    j += 1
+    j = skip_ws(s, j)
+    p = b = 0
+    in_str = False
+    esc = False
+    while j < len(s):
+        c = s[j]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            j += 1
+            continue
+        if c == '"':
+            in_str = True
+            j += 1
+            continue
+        if c == "(":
+            p += 1
+        elif c == ")":
+            p -= 1
+        elif c == "{":
+            b += 1
+        elif c == "}":
+            if b == 0:
+                return False
+            b -= 1
+        elif p == 0 and b == 0:
+            if c == "|":
+                return True
+            if c == "=":
+                return False
+        j += 1
+    return False
+
+
 def skip_type_and_decreasing(s: str, i: int) -> int:
     """Return index at start of ``{`` (body), ``=`` (already eq-form), or error."""
     i = skip_ws(s, i)
@@ -109,8 +163,14 @@ def skip_type_and_decreasing(s: str, i: int) -> int:
                     i += 1
                 i = skip_ws(s, i)
                 continue
-            if rest.startswith("=") or rest.startswith("{"):
+            if rest.startswith("="):
                 return ri
+            if rest.startswith("{"):
+                # Body ``{`` vs refinement return type ``{ v : T | ... }``.
+                if _brace_opens_refined_type(s, ri):
+                    pass
+                else:
+                    return ri
         c = s[i]
         if in_str:
             if esc:

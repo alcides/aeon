@@ -1,3 +1,3 @@
-def gcd (n:Int) (z:Int) : Int = if z == 0 then n else gcd z (n % z)
+def gcd (n:Int) (z:Int) : Int = if z == 0 then n else gcd z (n % z);
 
 def main (args:Int) : Unit = print (gcd 15 5)

@@ -6,7 +6,7 @@ def other_soft_constraint (n: Int) : Int = n + 4
 
 @minimize_int(soft_constraint (fun 10))
 @minimize_int(other_soft_constraint (fun 21))
-def fun (i:Int | i >= 10) : {v:Int | v > 10 }  = ?hole
+def fun (i:Int | i >= 10) : {v:Int | v > 10 }  = ?hole;
 
 
 

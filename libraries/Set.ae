@@ -7,13 +7,13 @@ def Set_size: (s:(Set a)) -> Int = uninterpreted
 def Set_contains: (s:(Set a)) -> (x:a) -> Bool = uninterpreted
 
 # Creates a new empty set.
-def Set_new : = s:(Set a) | Set_size s == 0 = native "set()"
+def Set_new : {s:(Set a) | Set_size s == 0} = native "set()";
 
 # Adds an element to the set.
 # s: set
 # x: element to add
 # returns: new set with element added
-def Set_add: (s:(Set a)) -> (x:a) -> = s2:(Set a) | Set_size s2 >= Set_size s = native "set.add(x)"
+def Set_add: (s:(Set a)) -> (x:a) -> {s2:(Set a) | Set_size s2 >= Set_size s} = native "set.add(x)";
 
 # Checks if the set contains an element.
 # s: set
