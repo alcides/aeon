@@ -8,7 +8,7 @@ from aeon.core.bind import bind_ids
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
-from aeon.decorators import Metadata
+from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate
 from aeon.facade.api import AeonError
 from aeon.frontend.anf_converter import ensure_anf
@@ -87,6 +87,9 @@ class AeonDriver:
             # TODO
             if type_errors:
                 return type_errors
+
+        with RecordTime("CorePhaseDecorators"):
+            metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
 
         with RecordTime("Preparing execution env"):
             evaluation_ctx = EvaluationContext(evaluation_vars)

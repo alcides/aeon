@@ -17,7 +17,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
-from aeon.decorators import Metadata
+from aeon.decorators import Metadata, apply_core_decorators_phase
 
 from aeon.core.parser import parse_term
 from aeon.core.types import top
@@ -112,4 +112,5 @@ def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContex
     typing_ctx, core_ast = bind_ids(ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     assert check_type(typing_ctx, core_ast_anf, top)
-    return core_ast_anf, typing_ctx, ectx, desugared.metadata
+    metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+    return core_ast_anf, typing_ctx, ectx, metadata

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from aeon.core.types import BaseKind, Kind
-from aeon.decorators import apply_decorators, Metadata
+from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
     ElabVariableBinder,
@@ -244,6 +244,8 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 
     defs = introduce_forall_in_types(defs, type_decls)
     defs = introduce_rforall_in_types(defs)
+
+    defs, metadata = collect_core_decorator_queue(defs, metadata)
 
     etctx = build_typing_context(vs, type_decls)
     etctx, prog = update_program_and_context(prog, defs, etctx)
