@@ -157,16 +157,20 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
                     nb, branch_subs = check_name(b, branch_subs)
                     renamed_binders.append(nb)
                 n_body = bind_sterm(br.body, branch_subs)
-                n_branches.append(
-                    type(br)(constructor=br.constructor, binders=renamed_binders, body=n_body, loc=br.loc)
-                )
+                # Align pattern constructor names with the `Name` ids assigned while
+                # binding inductive constructor definitions (see `bind_program`).
+                ctor = apply_subs_name(subs, br.constructor)
+                n_branches.append(type(br)(constructor=ctor, binders=renamed_binders, body=n_body, loc=br.loc))
             return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
-        case SRec(name, ty, body, cont, loc=loc):
+        case SRec(name, ty, body, cont, decreasing_by, loc=loc):
             name, subs = check_name(name, subs)
-            return SRec(name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), loc=loc)
+            nd = tuple(bind_sterm(m, subs) for m in decreasing_by)
+            return SRec(
+                name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), decreasing_by=nd, loc=loc
+            )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
@@ -189,13 +193,17 @@ def _bind_definition(
         nname, nsubs = check_name(pname, nsubs)
         rforalls.append((nname, bind_stype(psort, nsubs)))
     ntype = bind_stype(df.type, nsubs)
+    decreasing = [bind_sterm(m, nsubs) for m in df.decreasing_by]
     body = bind_sterm(df.body, nsubs)
     decorators = []
     for dec in df.decorators:
         dargs = [bind_sterm(da, subs) for da in dec.macro_args]
         ndargs = {name: bind_sterm(da, subs) for name, da in dec.named_args.items()}
         decorators.append(Decorator(dec.name, dargs, ndargs))
-    return Definition(name, foralls, args, ntype, body, decorators, rforalls, loc=df.loc), nsubs
+    return Definition(
+        name, foralls, args, ntype, body, decorators, rforalls, decreasing_by=decreasing, loc=df.loc
+    ), nsubs
+
 
 
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
@@ -215,6 +223,10 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for aname in ind.args:
             nname, nsubs = check_name(aname, nsubs)
             iargs.append(nname)
+        drfs = []
+        for pname, psort in ind.rforalls:
+            nname, nsubs = check_name(pname, nsubs)
+            drfs.append((nname, bind_stype(psort, nsubs)))
         constructors = []
         for cons in ind.constructors:
             bound_cons, nsubs = _bind_definition(cons, nsubs, subs)
@@ -223,7 +235,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for meas in ind.measures:
             bound_meas, nsubs = _bind_definition(meas, nsubs, subs)
             measures.append(bound_meas)
-        inductive_decls.append(InductiveDecl(name, iargs, constructors, measures, loc=ind.loc))
+        inductive_decls.append(InductiveDecl(name, iargs, drfs, constructors, measures, loc=ind.loc))
 
     for df in p.definitions:
         bound_df, nsubs = _bind_definition(df, nsubs, subs)

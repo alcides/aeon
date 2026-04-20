@@ -2,19 +2,14 @@ type T;
 
 def propT : (t:T) -> Bool = uninterpreted;
 
-def mkT (i:Int) : {t:T | propT t} {
-    native "(0, i)"
-}
+def mkT (i:Int) : {t:T | propT t} = native "(0, i)";
 
-def getT (t:T | propT t) : Int {
-    native "t[1]"
-}
+def getT (t:T | propT t) : Int = native "t[1]";
 
 def failedT : T = native "0";
 
-def main (x:Int) : Int {
+def main (x:Int) : Int =
     a = mkT 42;
     _ = print (getT a);
     #_ = getT failedT;
-    0
-}
+    0;

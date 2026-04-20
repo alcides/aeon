@@ -11,7 +11,6 @@ def ffff : (a:{n:Int | 1 <= n && n <= 10000}) -> (b:{ m:Int | 0 <= m }) -> Int =
 #def ffff : (a:{n:Int | 0 <= n}) -> (b:{ m:Int | 0 <= m }) -> Int = \x -> \y -> x + y;
 #def ffff : (a:Int) -> (b:Int) -> Int = \x -> \y -> x + y;
 
-def main (i:Int) : Unit {
+def main (i:Int) : Unit =
     w: Int = fff 1 ffff;
-    print (w)
-}
+    print (w);

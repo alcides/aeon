@@ -1,0 +1,17 @@
+# Benchmark: synthesize a value of a custom Maybe type targeting Just 42.
+# Constructors Nothing and Just are introduced as native definitions.
+# The fitness penalises Nothing heavily and measures distance from 42 for Just values,
+# steering the synthesizer toward Just 42.
+
+type Maybe;
+
+def Nothing : Maybe = native "None";
+def Just (x:Int) : Maybe = native "x";
+
+def is_nothing (m:Maybe) : Bool = native "m is None";
+def from_just (m:Maybe) : Int = native "m";
+
+def abs (n:Int) : Int = if n < 0 then 0 - n else n;
+
+@minimize_int(if is_nothing result then 100 else abs(from_just result - 42))
+def result : Maybe = ?hole;

@@ -13,19 +13,13 @@ import "PSB2.ae";
 
 def bounciness_index_c (starting_height: {x:Float | 1.0 <= x && x <= 100.0} )
                      (bounce_height:{y:Float | 1.0 <= y && y <= 100.0} )
-                     : Float {
-   bounce_height / starting_height
-}
+                     : Float = bounce_height / starting_height;
 
-def calculate_distance_helper (bounciness_index: Float) (height: Float) (n: Int) (distance: Float) : Float {
-   if n == 0 then distance else calculate_distance_helper bounciness_index (bounciness_index * height) (n-1) (distance + height + (bounciness_index * height))
-}
+def calculate_distance_helper (bounciness_index: Float) (height: Float) (n: Int) (distance: Float) : Float = if n == 0 then distance else calculate_distance_helper bounciness_index (bounciness_index * height) (n-1) (distance + height + (bounciness_index * height));
 
 def bouncing_balls (starting_height: {x:Float | 1.0 <= x && x <= 100.0} )
                    (bounce_height : {y:Float | 1.0 <= y && y <= 100.0} )
-                   (bounces:{z:Int | 1 <= z && z <= 20}) : Float {
-   calculate_distance_helper (bounciness_index_c starting_height bounce_height) starting_height bounces 0.0
-}
+                   (bounces:{z:Int | 1 <= z && z <= 20}) : Float = calculate_distance_helper (bounciness_index_c starting_height bounce_height) starting_height bounces 0.0;
 
 
 #def synth  (a:{x:Float | 1.0 <= x && x <= 100.0} , b:{y:Float | 1.0 <= y && y <= 100.0} ,  c:{z:Int | 1 <= z && z <= 20}) : Float {
@@ -36,8 +30,6 @@ def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200
 def input_list : List = get_input_list (unpack_train_data train);
 def expected_values : List = get_output_list (unpack_train_data train);
 
-def synth (a:Float) (b:Float) (c:Int) : Float {
-   (?hole:Float)
-}
+def synth (a:Float) (b:Float) (c:Int) : Float = (?hole:Float);
 
 def fitness : Float = mean_absolute_error (get_bb_synth_values input_list synth) (expected_values);

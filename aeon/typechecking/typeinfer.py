@@ -58,6 +58,8 @@ from aeon.facade.api import (
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment, entailment_context
+from aeon.typechecking.termination import termination_metric_constraints
+from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.typechecking.well_formed import wellformed
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
@@ -288,7 +290,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c2, t2) = synth(nrctx, body)
             c1 = implication_constraint(var_name, var_type, c1, var_value.loc)
             c2 = implication_constraint(var_name, var_type, c2, body.loc)
-            return Conjunction(c1, c2), t2
+            term_c = termination_metric_constraints(t, nrctx)
+            term_c = implication_constraint(var_name, var_type, term_c, var_value.loc)
+            return Conjunction(Conjunction(c1, c2), term_c), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
             c = check(ctx, expr, nty)
@@ -309,7 +313,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
                 return (c, s)
             else:
-                assert isinstance(tabs, AbstractionType)
+                if not isinstance(tabs, AbstractionType):
+                    raise CoreInvalidApplicationError(t, tabs)
                 return (c, tabs)
 
         case RefinementApplication(body, refinement):
@@ -326,9 +331,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (Conjunction(c, c_ref), nty)
 
-        case Hole(name):
-            name_a = Name(name.name, fresh_counter.fresh())
-            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))  # TODO poly: check kind
+        case Hole(hole_name):
+            name_a = Name(hole_name.name, fresh_counter.fresh())
+            # Conservative default: treat the hole as a *-kind type variable (surface
+            # holes are usually value-level; polymorphic holes need richer kinding).
+            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))
         case _:
             logger.log("SYNTH_TYPE", ("Unhandled:", t))
             logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
@@ -357,7 +364,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             c2 = check(nrctx, body, ty)
             c1 = implication_constraint(var_name, t1, c1, var_value.loc)
             c2 = implication_constraint(var_name, t1, c2, body.loc)
-            return Conjunction(c1, c2)
+            term_c = termination_metric_constraints(t, nrctx)
+            term_c = implication_constraint(var_name, t1, term_c, var_value.loc)
+            return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
@@ -437,16 +446,19 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
         return False
 
 
-def constraint_to_parts(c: Constraint) -> Iterable[tuple[Constraint, Location | None]]:
+def constraint_to_parts(
+    c: Constraint, typing_ctx: TypingContext | None = None
+) -> Iterable[tuple[Constraint, Location | None]]:
     """Prepares a constraint into a list of sub-problems for error messages.
     Yields (constraint, location) pairs where location is the AST location
     associated with the failing constraint part."""
+    atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
-            if not solve(cons):
+            if not solve(cons, typing_ctx=typing_ctx, qualifier_atoms=atoms):
                 vcs = split_or_in_conclusion(cons)
                 for vc in vcs:
-                    if not solve(vc):
+                    if not solve(vc, typing_ctx=typing_ctx, qualifier_atoms=atoms):
                         cons_simp = simplify_constraint(vc)
                         cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
                         loc = constraint_location(cons_clean)
@@ -471,7 +483,7 @@ def check_type_errors(
                 full_constraint = entailment_context(ctx, constraint)
                 return [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
-                    for vc, loc in constraint_to_parts(full_constraint)
+                    for vc, loc in constraint_to_parts(full_constraint, ctx)
                 ]
     except CoreTypeCheckingError as e:
         return [e]

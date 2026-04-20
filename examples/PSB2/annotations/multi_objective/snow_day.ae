@@ -13,6 +13,4 @@ def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float)
             train,
             calculate_snow_day_errors)
 @multi_minimize_float(calculate_snow_day_errors train synth, 1)
-def synth ( n :Int) (m :Float) (t :Float) (p :Float) : Float {
-    (?hole:Float)
-}
+def synth ( n :Int) (m :Float) (t :Float) (p :Float) : Float = (?hole:Float);

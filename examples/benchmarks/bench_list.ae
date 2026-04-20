@@ -1,0 +1,12 @@
+# Benchmark: synthesize a list of exactly 3 integers using a custom List type.
+# Nil and Cons are the two constructors; list_len evaluates length at runtime.
+# The synthesizer must build a three-element list via three Cons applications.
+
+type MyList;
+
+def Nil : MyList = native "[]";
+def Cons (head:Int) (tail:MyList) : MyList = native "[head] + tail";
+def list_len (l:MyList) : Int = native "len(l)";
+
+@minimize_int(if list_len result == 3 then 0 else 1)
+def result : MyList = ?hole;

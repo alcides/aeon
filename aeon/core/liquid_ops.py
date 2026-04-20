@@ -43,3 +43,14 @@ def mk_liquid_and(e1: LiquidTerm, e2: LiquidTerm):
         return e2
     else:
         return LiquidApp(Name("&&", 0), [e1, e2])
+
+
+def mk_liquid_or(e1: LiquidTerm, e2: LiquidTerm) -> LiquidTerm:
+    if e1 == LiquidLiteralBool(True) or e2 == LiquidLiteralBool(True):
+        return LiquidLiteralBool(True)
+    elif e1 == LiquidLiteralBool(False):
+        return e2
+    elif e2 == LiquidLiteralBool(False):
+        return e1
+    else:
+        return LiquidApp(Name("||", 0), [e1, e2])

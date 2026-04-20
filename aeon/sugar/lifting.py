@@ -119,8 +119,15 @@ def lift(t: Term) -> STerm:
             return SAbstraction(var_name, lift(body), loc=loc)
         case Let(var_name, var_value, body, loc):
             return SLet(var_name, lift(var_value), lift(body), loc=loc)
-        case Rec(var_name, var_type, var_value, body, loc):
-            return SRec(var_name, lift_type(var_type), lift(var_value), lift(body), loc=loc)
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
+            return SRec(
+                var_name,
+                lift_type(var_type),
+                lift(var_value),
+                lift(body),
+                decreasing_by=tuple(lift(m) for m in decreasing_by),
+                loc=loc,
+            )
         case If(cond, then, otherwise, loc):
             return SIf(lift(cond), lift(then), lift(otherwise), loc=loc)
         case TypeAbstraction(name, kind, body, loc):

@@ -44,9 +44,17 @@ A minimal evolutionary strategy that maintains a single candidate, mutates it, a
 
 ---
 
-### `synquid` — Type-Directed Enumerative Synthesis
+### `synquid` — Type-Directed Synthesis
 
-Enumerates candidate expressions in order of increasing size, using the target type and liquid type constraints to prune the search space at each level. Inspired by [Synquid](https://www.cs.cmu.edu/~polikarp/pub/pldi16.pdf), it exploits the type system to avoid generating terms that cannot possibly typecheck, making it significantly more efficient than naive enumeration for type-rich problems.
+This backend implements a **Synquid-style** enumerator: type-directed decomposition, **Q**-aware conditional guards (same finite qualifier set as Horn predicate abstraction), and search ordering heuristics.
+
+**Search.** Default ``synquid_search: "size_merge"`` uses a **lazy min-heap** over synthesis levels (``term_size``, then shallower ``level``) via ``aeon.synthesis.modules.synquid.search.iter_candidates_size_then_level``. ``synquid_search: "iterative_deepening"`` restores strict “exhaust level *L* before *L+1*”. **Within** each level, candidates are sorted by ``term_size``. Tunables: ``synquid_max_level``, ``synquid_seed_levels``, ``synquid_max_candidates`` (hard cap on candidates tried per hole, both search modes); optional ``synquid_typecheck_candidate_first`` runs ``check_type`` on the candidate in the **hole** context before full-program validation.
+
+**Enumeration.** Level 0 supports **Bool**, **Int**, **Float**, **String**, **Unit** (small fixed literal sets where applicable), **variables** matching the goal, and **type variables** satisfied from the typing context. **Arrow** goals at level 0 only enumerate matching **functions in scope** (no ill-scoped literal fall-through). At level ≥ 1 the enumerator emits **λ-abstractions** (``Abstraction``), optionally **annotated** when the goal is a **refinement over an arrow**, plus applications from the typing context. ``if`` branches try **quaternary**, **ternary**, **binary**, then **unary** relational guards built from **Q**, then plain boolean enumeration. Function applications are **pruned** when the callee’s result type does not match the goal (spine decomposition); refined argument types are preserved on the spine. ``aeon.synthesis.modules.synquid.modular`` exposes ``application_subgoal_types``, ``check_hole_term``, ``qualifier_atoms``, and **modular VCs** via ``build_modular_vc`` / ``ModularVC`` (re-exported from ``aeon.typechecking.partial_vc``); ``aeon.synthesis.modules.synquid.build`` re-exports the same surface. A **modular VC** is the ``Constraint`` from ``check`` before entailment, so callers can inspect it, pass a custom **Q** to ``solve``, or use ``explain_failures`` — distinct from a single ``check_type`` boolean.
+
+**Fitness.** If the hole has **no** ``goals`` metadata, the first fully valid candidate is returned.
+
+**Not in scope (vs the PLDI Synquid paper or ideal liquid tooling):** **MUSFIX-style** weakest-guard abduction (only bounded ``&&``-products over **Q**); **no** core-level ``match`` / ``fix`` (those live in sugar + elaboration); **Horn** lifting still **skips** polymorphic and refinement-polymorphic value binders (see comments in ``aeon/typechecking/entailment.py``). Modular VCs still rely on ``check`` internally, which calls ``check_type`` in a few places (e.g. ``if`` conditions) rather than returning those as nested VC objects. For further background on **Q** and refinement Horn encodings, see Jhala & Vazou, [Refinement Types: A Tutorial](https://arxiv.org/abs/2010.07763).
 
 ---
 

@@ -40,44 +40,11 @@ sympy_context = {
 def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
     assert ref.fun.id == 0
     ref_fun = ref.fun.name
-    assert len(ref.args) == 2
-    # if ref_fun in sympy_context:
-    #    return sympy_context[ref_fun](*[refined_to_sympy_expression(arg) for arg in ref.args])
-    if ref_fun == ">":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Gt(arg0, arg1)
-    elif ref_fun == "&&":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return And(arg0, arg1)
-    elif ref_fun == "||":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Or(arg0, arg1)
-    elif ref_fun == "<":
-        assert len(ref.args) == 2
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Lt(arg0, arg1)
-    elif ref_fun == ">=":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Ge(arg0, arg1)
-    elif ref_fun == "<=":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Le(arg0, arg1)
-    elif ref_fun == "==":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Eq(arg0, arg1)
-    elif ref_fun == "!=":
-        arg0 = refined_to_sympy_expression(ref.args[0])
-        arg1 = refined_to_sympy_expression(ref.args[1])
-        return Ne(arg0, arg1)
-    else:
+    if ref_fun not in sympy_context:
         raise ValueError(f"Unknown Liquid function {ref_fun}")
+    fn = sympy_context[ref_fun]
+    args = [refined_to_sympy_expression(arg) for arg in ref.args]
+    return fn(args[0])(args[1]) if len(args) == 2 else fn(args[0])
 
 
 def refined_to_sympy_expression(ref: LiquidTerm) -> Any:

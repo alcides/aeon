@@ -84,7 +84,7 @@ def get_holes_info(
                 ctx = ctx.with_var(vname, t1)
                 hs2 = get_holes_info(ctx, t.body, ty, targets, refined_types)
             return hs1 | hs2
-        case Rec(var_name=vname, var_type=vtype, var_value=value, body=body):
+        case Rec(var_name=vname, var_type=vtype, var_value=value, body=body, decreasing_by=_):
             vtype = vtype if refined_types else refined_to_unrefined_type(vtype)
             if isinstance(vtype, AbstractionType) or isinstance(vtype, TypePolymorphism):
                 hs1 = get_holes_info(ctx.with_var(vname, vtype), value, vtype, targets, refined_types)
@@ -136,8 +136,9 @@ def get_holes(term: Term) -> list[Name]:
             return get_holes(body)
         case Let(var_name=_, var_value=value, body=body):
             return get_holes(value) + get_holes(body)
-        case Rec(var_name=_, var_type=_, var_value=value, body=body):
-            return get_holes(value) + get_holes(body)
+        case Rec(var_name=_, var_type=_, var_value=value, body=body, decreasing_by=decr):
+            nested = [h for m in decr for h in get_holes(m)]
+            return get_holes(value) + get_holes(body) + nested
         case TypeApplication(body=body, type=_):
             return get_holes(body)
         case TypeAbstraction(name=_, kind=_, body=body):

@@ -14,6 +14,7 @@ from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.horn import solve
 from aeon.verification.sub import is_first_order_function
 from aeon.verification.vcs import Constraint
@@ -37,14 +38,14 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 if name in ops:
                     pass
                 else:
-                    # TODO: polymorphism
-                    # Right now we are ignoring lifting functions with polymorphism
+                    # Polymorphic binders are skipped here: entailment_context does not yet
+                    # lift them into Horn declarations (see Synquid roadmap / issue tracker).
                     pass
             case VariableBinder(name, RefinementPolymorphism(_, _, _)):
                 if name in ops:
                     pass
                 else:
-                    # TODO: refinement polymorphism in entailment (like TypePolymorphism above)
+                    # Refinement-polymorphic binders are skipped (same limitation as above).
                     pass
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)
@@ -57,9 +58,14 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                         c = Implication(name, TypeConstructor(Name("Int", 0), []), ncond, c)
                     case _:
                         assert False, f"Unknown base: {base}"
-            case TypeBinder(name, _):
+            case TypeBinder(_, _):
+                # Type-level binders do not introduce a value assumption into the
+                # liquid VC until we have a Horn story for kind-polymorphic binders
+                # (see TypePolymorphism / RefinementPolymorphism cases above). Keeping
+                # this a no-op is sound: constraints mentioning the bound type variable
+                # are resolved in ``check`` before entailment sees them, or remain
+                # ill-scoped if misused.
                 pass
-                # TODO: Consider passing as a concrete placeholder type for SMT
             case UninterpretedBinder(name, type):
                 c = UninterpretedFunctionDeclaration(name, type, c)
             case TypeConstructorBinder(name, _):
@@ -71,4 +77,5 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
 
 def entailment(ctx: TypingContext, c: Constraint) -> bool:
     c = entailment_context(ctx, c)
-    return solve(c)
+    atoms = extract_qualifier_atoms(ctx)
+    return solve(c, typing_ctx=ctx, qualifier_atoms=atoms)

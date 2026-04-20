@@ -137,6 +137,7 @@ class SRec(STerm):
     var_type: SType
     var_value: STerm
     body: STerm
+    decreasing_by: tuple[STerm, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
@@ -157,6 +158,7 @@ class SRec(STerm):
             and self.var_type == other.var_type
             and self.var_value == other.var_value
             and self.body == other.body
+            and self.decreasing_by == other.decreasing_by
         )
 
 
@@ -280,8 +282,11 @@ class TypeDecl(Node):
 
 @dataclass
 class InductiveDecl(Node):
+    """Datatype declaration. ``rforalls`` are abstract refinement parameters (Liquid Haskell ``data T a <p :: a -> Bool>``)."""
+
     name: Name
     args: list[Name] = field(default_factory=list)
+    rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     constructors: list[Definition] = field(default_factory=list)
     measures: list[Definition] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
@@ -294,9 +299,15 @@ class InductiveDecl(Node):
 
     def __str__(self):
         args = " ".join(str(arg) for arg in self.args)
+        rfs = " ".join(f"forall <{n}:{s} -> Bool>" for (n, s) in self.rforalls)
         constructors = " ".join(f"| {cons}" for (cons) in self.constructors)
         measures = " ".join(f"+ {dec}" for dec in self.measures)
-        return f"inductive {self.name} {args} {constructors} {measures}"
+        head = f"inductive {self.name}"
+        if args:
+            head += f" {args}"
+        if rfs:
+            head += f" {rfs}"
+        return f"{head} {constructors} {measures}"
 
 
 @dataclass
@@ -322,6 +333,7 @@ class Definition(Node):
     body: STerm
     decorators: list[Decorator] = field(default_factory=list)
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
+    decreasing_by: list[STerm] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __post_init__(self):

@@ -23,7 +23,6 @@ inductive IntList
 #}
 
 
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     #a : {x:(IntList) | len x > 0} = cons 3 empty;
-    print "Hello World"
-}
+    print "Hello World";

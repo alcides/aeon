@@ -193,6 +193,8 @@ def test_synthesizers_list_non_empty():
 
 
 def test_synthesizers_includes_defaults():
+    assert "tdsyn_enumerative" in SYNTHESIZERS
+    assert "tdsyn" in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
 
@@ -320,6 +322,13 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
         # With a blank response the LLM synthesizer cannot find a valid term;
         # we only verify it completes without raising an exception.
+        assert result is None or isinstance(result, tuple)
+        return
+
+    if synthesizer == "decision_tree":
+        result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
+        # decision_tree requires @csv_data training examples; without them it
+        # cannot synthesize a plain hole — just verify it doesn't raise.
         assert result is None or isinstance(result, tuple)
         return
 

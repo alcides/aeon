@@ -130,13 +130,13 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def rec_e(self, meta, args):
-        return SRec(Name(args[0]), args[1], args[2], args[3], loc=self._loc(meta))
+        return SRec(Name(args[0]), args[1], args[2], args[3], decreasing_by=(), loc=self._loc(meta))
 
     @v_args(meta=True)
     def rec_refined_e(self, meta, args):
         name = Name(args[0])
         refined_type = SRefinedType(name, args[1], args[2])
-        return SRec(name, refined_type, args[3], args[4], loc=self._loc(meta))
+        return SRec(name, refined_type, args[3], args[4], decreasing_by=(), loc=self._loc(meta))
 
     @v_args(meta=True)
     def if_e(self, meta, args):
@@ -310,23 +310,69 @@ class TreeToSugar(Transformer):
     def type_constructor_decl(self, meta, args):
         return TypeDecl(Name(args[0]), [Name(i) for i in args[1:]], loc=self._loc(meta))
 
+    def inductive_rforall_binding(self, args):
+        return (Name(args[0]), args[1])
+
     @v_args(meta=True)
     def inductive(self, meta, args):
         return InductiveDecl(
-            Name(args[0]), [Name(i) for i in args[1]], ensure_list(args[2]), ensure_list(args[3]), loc=self._loc(meta)
+            Name(args[0]),
+            [Name(i) for i in args[1]],
+            ensure_list(args[2]),
+            ensure_list(args[3]),
+            ensure_list(args[4]),
+            loc=self._loc(meta),
         )
 
     @v_args(meta=True)
     def def_ind_cons(self, meta, args):
         return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
 
+    def decreasing_by_none(self, args):
+        return []
+
+    def decreasing_exprs(self, args):
+        return list(args)
+
+    @v_args(meta=True)
+    def decreasing_by_list(self, meta, args):
+        return args[0]
+
     @v_args(meta=True)
     def def_fun(self, meta, args):
-        if len(args) == 4:
-            return Definition(Name(args[0]), [], args[1], args[2], args[3], loc=self._loc(meta))
+        if len(args) == 5:
+            name, fn_args, rtype, decr, body = args
+            return Definition(
+                Name(name),
+                [],
+                fn_args,
+                rtype,
+                body,
+                decreasing_by=ensure_list(decr),
+                loc=self._loc(meta),
+            )
+        if len(args) == 6:
+            decorators, name, fn_args, rtype, decr, body = args
+            return Definition(
+                Name(name),
+                [],
+                fn_args,
+                rtype,
+                body,
+                decorators,
+                [],
+                decreasing_by=ensure_list(decr),
+                loc=self._loc(meta),
+            )
+        raise AssertionError(f"def_fun: unexpected args {args!r}")
+
+    @v_args(meta=True)
+    def def_cons(self, meta, args):
+        if len(args) == 3:
+            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
         else:
             decorators = args[0]
-            return Definition(Name(args[1]), [], args[2], args[3], args[4], decorators, loc=self._loc(meta))
+            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
 
     @v_args(meta=True)
     def def_fun_eq(self, meta, args):

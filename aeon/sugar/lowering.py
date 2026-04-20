@@ -164,7 +164,7 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             if lval and lbody:
                 return substitution_in_liquid(lbody, lval, name)
             return None
-        case SRec(name, _, val, body):
+        case SRec(name, _, val, body, _, _):
             lval = liquefy(val, available_vars)  # TODO: induction?
             lbody = liquefy(body, available_vars)
             if lval and lbody:
@@ -249,8 +249,15 @@ def lower_to_core(t: STerm) -> Term:
             return Application(lower_to_core(fun), lower_to_core(arg), loc=loc)
         case SLet(name, val, body, loc):
             return Let(name, lower_to_core(val), lower_to_core(body), loc=loc)
-        case SRec(name, ty, val, body, loc):
-            return Rec(name, type_to_core(ty), lower_to_core(val), lower_to_core(body), loc=loc)
+        case SRec(name, ty, val, body, decreasing_by, loc):
+            return Rec(
+                name,
+                type_to_core(ty),
+                lower_to_core(val),
+                lower_to_core(body),
+                decreasing_by=tuple(lower_to_core(m) for m in decreasing_by),
+                loc=loc,
+            )
         case SAnnotation(expr, ty, loc):
             return Annotation(lower_to_core(expr), type_to_core(ty), loc=loc)
         case SAbstraction(name, body, loc):
