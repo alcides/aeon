@@ -1,9 +1,13 @@
 from aeon.core.parser import parse_type
-from aeon.core.terms import Annotation, Hole, Term, Var
+from aeon.core.terms import Annotation, Hole, Literal, Term, Var
 from aeon.core.types import t_int
+from aeon.elaboration.context import build_typing_context
+from aeon.prelude.prelude import typing_vars
+from aeon.sugar.lowering import lower_to_core_context
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
+from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
 from aeon.synthesis.tactics.holes import collect_hole_judgments, list_hole_infos
 from aeon.synthesis.tactics.random_synth import TacticRandomSynthesizer
 from aeon.synthesis.tactics.state import TacticState
@@ -14,6 +18,10 @@ from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
 _loc = SynthesizedLocation("test")
+
+
+def _prelude_ctx() -> TypingContext:
+    return lower_to_core_context(build_typing_context(typing_vars))
 
 
 def test_fits_int_refines_to_int():
@@ -80,6 +88,44 @@ def test_collect_hole_judgments_finds_arg_hole_type():
     assert len(mp) == 1
     arg_ty, _ = next(iter(mp.values()))
     assert arg_ty == t_int
+
+
+def test_choose_literal_plain_int_defaults():
+    ctx = TypingContext()
+    h = Name("h", 0)
+    term = Annotation(Hole(h), t_int, loc=_loc)
+    st = TacticState(ctx, term, t_int)
+    out = tactic_choose_literal(st, h)
+    assert out is not None
+    assert not get_holes(out.term)
+    e = _strip_trivial_ascription(out.term)
+    assert isinstance(e, Literal)
+    assert e.value == 0
+    assert check_type(ctx, out.term, t_int)
+
+
+def test_choose_literal_refined_int_satisfies_predicate():
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    gty = parse_type(r"{z:Int | z > 2}")
+    term = Annotation(Hole(h), gty, loc=_loc)
+    st = TacticState(ctx, term, gty)
+    out = tactic_choose_literal(st, h)
+    assert out is not None
+    e = _strip_trivial_ascription(out.term)
+    assert isinstance(e, Literal)
+    assert isinstance(e.value, int)
+    assert e.value > 2
+    assert check_type(ctx, out.term, gty)
+
+
+def test_choose_literal_unsat_refinement_returns_none():
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    gty = parse_type(r"{z:Int | z > 0 && z < 0}")
+    term = Annotation(Hole(h), gty, loc=_loc)
+    st = TacticState(ctx, term, gty)
+    assert tactic_choose_literal(st, h) is None
 
 
 def test_list_hole_infos_includes_refinement_metadata():
