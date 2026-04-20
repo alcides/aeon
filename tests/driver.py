@@ -14,7 +14,7 @@ from aeon.sugar.program import STerm
 from aeon.sugar.stypes import SType
 from aeon.elaboration import elaborate
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type, check_type_errors
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.decorators import Metadata, apply_core_decorators_phase
@@ -41,6 +41,8 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     ty_core = type_to_core(ty)
     if not check_type(typing_ctx, core_ast_anf, ty_core):
         return False
+
+    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
 
     if val:
         r = eval(core_ast_anf, ectx)
@@ -97,8 +99,11 @@ def extract_core(source: str) -> Term:
     desugared = desugar(prog)
     sterm = elaborate(desugared.elabcontext, desugared.program)
     core_ast = lower_to_core(sterm)
-    typing_ctx, core_ast = bind_ids(TypingContext(), core_ast)
+    typing_ctx = lower_to_core_context(desugared.elabcontext)
+    typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
+    if not list(check_type_errors(typing_ctx, core_ast_anf, top)):
+        apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
     return core_ast_anf
 
 

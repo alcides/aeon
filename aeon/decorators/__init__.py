@@ -126,12 +126,11 @@ def apply_core_decorators_phase(
     metadata: Metadata,
 ) -> Metadata:
     """Run decorators registered in ``core_decorators_environment`` (after typechecking)."""
-    queue_obj = metadata.get(CORE_DECORATOR_QUEUE_META_KEY)
+    queue_obj = metadata.pop(CORE_DECORATOR_QUEUE_META_KEY, None)
     queue: list[tuple[Name, Decorator]] = list(queue_obj or [])
-    md = dict(metadata)
-    md.pop(CORE_DECORATOR_QUEUE_META_KEY, None)
     if not queue:
-        return md
+        return metadata
+    md: Metadata = metadata
     for fname, dec in queue:
         dname = dec.name.name
         proc = core_decorators_environment[dname]
