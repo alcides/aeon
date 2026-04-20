@@ -113,6 +113,13 @@ class LLVMExecutionEngine(ABC):
         pass
 
 
+@dataclass
+class Backend:
+    executor: LLVMExecutionEngine
+    generator: LLVMIRGenerator
+    lowerer: LLVMLowerer
+
+
 class LLVMPipeline(ABC):
     @abstractmethod
     def compile(self, program: Term) -> None:
