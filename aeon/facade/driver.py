@@ -44,6 +44,7 @@ class AeonConfig:
     timings: bool = False
     no_main: bool = False
     synthesis_format: SynthesisFormat = SynthesisFormat.DEFAULT
+    skip_elaboration: bool = False
 
 
 class AeonDriver:
@@ -72,8 +73,11 @@ class AeonDriver:
             metadata: Metadata = desugared.metadata
 
         try:
-            with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
+            if self.cfg.skip_elaboration:
+                sterm: STerm = desugared.program
+            else:
+                with RecordTime("Elaboration"):
+                    sterm = elaborate(desugared.elabcontext, desugared.program, st_top)
         except AeonError as e:
             return [e]  # TODO: Support multiple errors
 
@@ -85,11 +89,12 @@ class AeonDriver:
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
 
-        with RecordTime("TypeChecking"):
-            type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
-            # TODO
-            if type_errors:
-                return type_errors
+        if not self.cfg.skip_elaboration:
+            with RecordTime("TypeChecking"):
+                type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+                # TODO
+                if type_errors:
+                    return type_errors
 
         with RecordTime("CorePhaseDecorators"):
             metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
