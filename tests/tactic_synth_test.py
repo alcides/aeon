@@ -8,6 +8,7 @@ from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
 from aeon.synthesis.tactics.by_cases import tactic_by_cases
+from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
 from aeon.synthesis.tactics.holes import collect_hole_judgments, list_hole_infos
 from aeon.synthesis.tactics.random_synth import TacticRandomSynthesizer
@@ -118,6 +119,28 @@ def test_choose_literal_refined_int_satisfies_predicate():
     assert isinstance(e.value, int)
     assert e.value > 2
     assert check_type(ctx, out.term, gty)
+
+
+def test_split_peels_conjunction_refinement():
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    full_ty = parse_type(r"{z:Int | z > 0 && z < 10}")
+    term = Annotation(Hole(h), full_ty, loc=_loc)
+    st = TacticState(ctx, term, full_ty)
+    out = tactic_split(st, h)
+    assert out is not None
+    assert out.goal == full_ty
+    mp = collect_hole_judgments(out.ctx, out.term, full_ty, refined_types=True)
+    inner_ty, _ = mp[h]
+    assert "&&" not in str(inner_ty)
+
+
+def test_split_noop_without_conjunction():
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    term = Annotation(Hole(h), t_int, loc=_loc)
+    st = TacticState(ctx, term, t_int)
+    assert tactic_split(st, h) is None
 
 
 def test_by_cases_splits_on_bool_hypothesis():
