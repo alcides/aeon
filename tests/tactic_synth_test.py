@@ -1,12 +1,13 @@
 from aeon.core.parser import parse_type
-from aeon.core.terms import Annotation, Hole, Literal, Term, Var
-from aeon.core.types import t_int
+from aeon.core.terms import Annotation, Hole, If, Literal, Term, Var
+from aeon.core.types import t_bool, t_int
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.lowering import lower_to_core_context
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
+from aeon.synthesis.tactics.by_cases import tactic_by_cases
 from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
 from aeon.synthesis.tactics.holes import collect_hole_judgments, list_hole_infos
 from aeon.synthesis.tactics.random_synth import TacticRandomSynthesizer
@@ -117,6 +118,34 @@ def test_choose_literal_refined_int_satisfies_predicate():
     assert isinstance(e.value, int)
     assert e.value > 2
     assert check_type(ctx, out.term, gty)
+
+
+def test_by_cases_splits_on_bool_hypothesis():
+    b = Name("b", 0)
+    ctx = _prelude_ctx().with_var(b, t_bool)
+    h = Name("h", 0)
+    term = Annotation(Hole(h), t_int, loc=_loc)
+    st = TacticState(ctx, term, t_int)
+    out = tactic_by_cases(st, h)
+    assert out is not None
+    assert len(get_holes(out.term)) == 2
+
+
+def test_collect_hole_judgments_if_branches_share_goal():
+    b = Name("b", 0)
+    ctx = _prelude_ctx().with_var(b, t_bool)
+    ht = Name("t", 0)
+    he = Name("e", 0)
+    term = If(
+        Var(b, _loc),
+        Annotation(Hole(ht), t_int, loc=_loc),
+        Annotation(Hole(he), t_int, loc=_loc),
+        loc=_loc,
+    )
+    mp = collect_hole_judgments(ctx, term, t_int, refined_types=True)
+    assert set(mp.keys()) == {ht, he}
+    for _n, (ety, _c) in mp.items():
+        assert ety == t_int
 
 
 def test_choose_literal_unsat_refinement_returns_none():

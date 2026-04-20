@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.substitutions import substitution, substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, Hole, Literal, Term, Var
-from aeon.core.types import AbstractionType, RefinedType, Type, refined_to_unrefined_type
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, Term, Var
+from aeon.core.types import AbstractionType, RefinedType, Type, refined_to_unrefined_type, t_bool
 from aeon.synthesis.identification import get_holes
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
@@ -72,6 +72,12 @@ def collect_hole_judgments(
                     return collect_hole_judgments(ctx, fun, expected, refined_types) | collect_hole_judgments(
                         ctx, arg, expected, refined_types
                     )
+        case If(cond=cond, then=then, otherwise=otherwise):
+            return (
+                collect_hole_judgments(ctx, cond, t_bool, refined_types)
+                | collect_hole_judgments(ctx, then, expected, refined_types)
+                | collect_hole_judgments(ctx, otherwise, expected, refined_types)
+            )
         case Var(_) | Literal(_, _):
             return {}
         case _:
