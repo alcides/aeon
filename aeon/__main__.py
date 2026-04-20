@@ -72,6 +72,12 @@ def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     parser.add_argument(
+        "--skip-elaboration",
+        action="store_true",
+        help="Skip the elaboration step",
+    )
+
+    parser.add_argument(
         "-s",
         "--synthesizer",
         type=str,
@@ -137,6 +143,7 @@ def main() -> None:
         timings=args.timings,
         no_main=args.no_main,
         synthesis_format=SynthesisFormat.from_string(args.format),
+        skip_elaboration=args.skip_elaboration,
     )
     driver = AeonDriver(cfg)
 
