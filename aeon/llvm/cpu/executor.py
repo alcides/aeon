@@ -97,7 +97,6 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             return ctypes.cast(ptr, ctypes.POINTER(el_ty))[idx]
 
         def vector_set(ptr: ctypes.c_void_p, idx: int, val: Any) -> ctypes.c_void_p:
-            # val is already converted to the correct type by ctypes
             el_ty = self._get_ctypes_type(arg_types[2]) if len(arg_types) > 2 else ctypes.c_int32
             ctypes.cast(ptr, ctypes.POINTER(el_ty))[idx] = val
             return ptr
@@ -118,24 +117,9 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         args: List[Any],
         arg_types: List[LLVMType],
         ret_type: LLVMType,
-        debug: bool = False,
     ) -> Any:
         self._keep_alive = []
-
-        # We need the actual function type to register the correct callback types
-        # But we can also register them with a generic signature if needed.
-        # However, for Vector_get/set, we need the element type.
-
         vector_impls = self._get_vector_impl(arg_types, ret_type)
-        # We don't register them as global symbols if they are specialized per call?
-        # Actually, the JIT needs to find them. If we have multiple calls with different types,
-        # we might need different names or a generic implementation that uses the type info.
-        # But here 'execute' is for a specific function.
-
-        # For now, let's register them. If there are multiple Vector_gets, they will conflict.
-        # A better way would be to let the lowerer emit the implementation if it's not provided by a library.
-
-        # For 'native', it's always the same.
         llvm.add_symbol(
             "native",
             ctypes.cast(
