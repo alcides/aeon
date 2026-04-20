@@ -16,6 +16,8 @@ from aeon.core.terms import (
     TypeAbstraction,
     Annotation,
     Hole,
+    RefinementApplication,
+    RefinementAbstraction,
 )
 from aeon.core.types import Type
 from aeon.llvm.core import LLVMLowerer, LLVMValidationError, ValidationStep, ValidationContext, LLVMBackendError
@@ -139,7 +141,10 @@ class CPUTypeValidationStep(ValidationStep):
             case Annotation(expr, ty) | TypeApplication(expr, ty):
                 validate_type(ty)
                 self.validate(expr, ctx)
-            case Abstraction(_, body) | TypeAbstraction(_, _, body):
+            case RefinementApplication(expr, refinement):
+                self.validate(expr, ctx)
+                self.validate(refinement, ctx)
+            case Abstraction(_, body) | TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
                 self.validate(body, ctx)
             case Let(_, var_value, body):
                 self.validate(var_value, ctx)
@@ -510,7 +515,9 @@ class CPULLVMLowerer(LLVMLowerer):
                 return self._lower_var(name, expected, type_env, env)
             case Annotation(e, ty) | TypeApplication(e, ty):
                 return self._lower_term(e, to_llvm_type(ty), type_env, env, allowed, in_vector_op)
-            case TypeAbstraction(_, _, body):
+            case RefinementApplication(e, _):
+                return self._lower_term(e, expected, type_env, env, allowed, in_vector_op)
+            case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
                 return self._lower_term(body, expected, type_env, env, allowed, in_vector_op)
             case Abstraction(_, _):
                 return self._lower_as_standalone(term, expected, type_env, env, allowed, in_vector_op)
