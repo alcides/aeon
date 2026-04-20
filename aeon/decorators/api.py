@@ -1,10 +1,10 @@
 from typing import Any, Callable
 
 from aeon.utils.name import Name
-from aeon.sugar.program import Definition, STerm
+from aeon.sugar.program import Definition, Decorator
 
 Metadata = dict[Name, Any]
-DecoratorType = Callable[[list[STerm], Definition, Metadata], tuple[Definition, list[Definition], Metadata]]
+DecoratorType = Callable[[Decorator, Definition, Metadata], tuple[Definition, list[Definition], Metadata]]
 
 
 def metadata_update(metadata: Metadata, fun: Definition, aux_dict: dict[str, Any] = None) -> Metadata:

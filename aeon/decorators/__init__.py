@@ -62,6 +62,6 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
         if dname not in decorators_environment:
             raise Exception(f"Unknown decorator named {dname}, in function {fun.name.pretty()}.")
         decorator_processor = decorators_environment[dname]
-        (fun, extra, metadata) = decorator_processor(decorator.macro_args, fun, metadata)
+        (fun, extra, metadata) = decorator_processor(decorator, fun, metadata)
         total_extra.extend(extra)
     return fun, total_extra, metadata

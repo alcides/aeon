@@ -56,9 +56,28 @@ def test_llvm_decorator_defaults():
     assert max_meta["llvm_cache"] is False
 
 
-def test_llvm_decorator_with_args():
+def test_gpu_decorator_with_named_args():
     source = """
-    @llvm(true, true)
+    @gpu(target="cuda", debug=true, cache=true, block_size=256, thread_count=128)
+    def max(a:Int) (b:Int) : Int { if a > b then a else b }
+    """
+    prog = parse_program(source)
+    desugared = desugar(prog)
+
+    gpu_funcs = [k for k, v in desugared.metadata.items() if v.get("gpu")]
+    assert len(gpu_funcs) == 1
+
+    max_meta = desugared.metadata[gpu_funcs[0]]
+    assert max_meta["gpu_device"] == "cuda"
+    assert max_meta["gpu_debug"] is True
+    assert max_meta["gpu_cache"] is True
+    assert max_meta["gpu_block_size"] == 256
+    assert max_meta["gpu_thread_count"] == 128
+
+
+def test_llvm_decorator_with_named_args():
+    source = """
+    @llvm(cache=true, debug=true)
     def max(a:Int) (b:Int) : Int { if a > b then a else b }
     """
     prog = parse_program(source)
