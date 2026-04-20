@@ -7,6 +7,8 @@ from aeon.sugar.lowering import lower_to_core_context
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
+from aeon.synthesis.tactics.assumption import tactic_assumption
+from aeon.synthesis.tactics.inst import tactic_inst
 from aeon.synthesis.tactics.by_cases import tactic_by_cases
 from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
@@ -30,6 +32,55 @@ def test_fits_int_refines_to_int():
     ctx = TypingContext()
     subt = parse_type(r"{k:Int | k > 0}")
     assert fits(ctx, subt, t_int)
+
+
+def test_inst_specializes_forall_base_kind():
+    poly = parse_type("forall a:B, a")
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    term = Annotation(Hole(h), poly, loc=_loc)
+    st = TacticState(ctx, term, poly)
+    out = tactic_inst(st, h)
+    assert out is not None
+    assert out.goal == t_int
+    hs = get_holes(out.term)
+    assert len(hs) == 1
+    mp = collect_hole_judgments(out.ctx, out.term, out.goal, refined_types=True)
+    assert len(mp) == 1
+
+
+def test_inst_noop_on_non_polymorphic_goal():
+    ctx = _prelude_ctx()
+    h = Name("h", 0)
+    term = Annotation(Hole(h), t_int, loc=_loc)
+    st = TacticState(ctx, term, t_int)
+    assert tactic_inst(st, h) is None
+
+
+def test_assumption_succeeds_when_types_are_bidirectionally_subtyping():
+    x = Name("x", 0)
+    ty = parse_type(r"{v:Int | v > 0}")
+    ctx = _prelude_ctx().with_var(x, ty)
+    h = Name("h", 0)
+    term = Annotation(Hole(h), ty, loc=_loc)
+    st = TacticState(ctx, term, ty)
+    out = tactic_assumption(st, h)
+    assert out is not None
+    assert not get_holes(out.term)
+    assert check_type(ctx, out.term, ty)
+
+
+def test_assumption_fails_when_only_forward_subtyping():
+    """``apply?`` can use a stronger hypothesis at a looser goal; ``assumption`` cannot."""
+    x = Name("x", 0)
+    xty = parse_type(r"{v:Int | v > 5}")
+    goal_ty = parse_type(r"{w:Int | w > 0}")
+    ctx = _prelude_ctx().with_var(x, xty)
+    h = Name("h", 0)
+    term = Annotation(Hole(h), goal_ty, loc=_loc)
+    st = TacticState(ctx, term, goal_ty)
+    assert tactic_assumption(st, h) is None
+    assert tactic_apply_question(st, h) is not None
 
 
 def test_apply_question_uses_subtyping():

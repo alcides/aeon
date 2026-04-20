@@ -4,12 +4,44 @@ from dataclasses import dataclass
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.substitutions import substitution, substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, Term, Var
-from aeon.core.types import AbstractionType, RefinedType, Type, refined_to_unrefined_type, t_bool
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, Term, TypeApplication, Var
+from aeon.core.types import AbstractionType, RefinedType, Type, TypePolymorphism, refined_to_unrefined_type, t_bool
 from aeon.synthesis.identification import get_holes
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.utils.name import Name
+
+
+def replace_focal_hole(term: Term, hole_name: Name, replacement: Term) -> Term:
+    """Replace the focal ``Hole`` (or its sole ``Annotation`` wrapper) by ``replacement``."""
+    match term:
+        case Hole(name=n) if n == hole_name:
+            return replacement
+        case Annotation(expr=Hole(name=n), type=_, loc=aloc) if n == hole_name:
+            return replacement
+        case Annotation(expr=e, type=ty, loc=aloc):
+            return Annotation(replace_focal_hole(e, hole_name, replacement), ty, loc=aloc)
+        case Application(fun, arg, loc):
+            return Application(
+                replace_focal_hole(fun, hole_name, replacement),
+                replace_focal_hole(arg, hole_name, replacement),
+                loc=loc,
+            )
+        case Abstraction(v, body, loc):
+            return Abstraction(v, replace_focal_hole(body, hole_name, replacement), loc=loc)
+        case If(cond, then, otherwise, loc):
+            return If(
+                replace_focal_hole(cond, hole_name, replacement),
+                replace_focal_hole(then, hole_name, replacement),
+                replace_focal_hole(otherwise, hole_name, replacement),
+                loc=loc,
+            )
+        case TypeApplication(body, ty, loc):
+            return TypeApplication(replace_focal_hole(body, hole_name, replacement), ty, loc=loc)
+        case Var(_) | Literal(_, _) | Hole(_):
+            return term
+        case _:
+            raise AssertionError(f"tactics: unsupported term shape in replace_focal_hole: {term}")
 
 
 def replace_hole_expected_annotation(term: Term, hole_name: Name, new_ty: Type) -> Term:
@@ -36,6 +68,8 @@ def replace_hole_expected_annotation(term: Term, hole_name: Name, new_ty: Type) 
                 replace_hole_expected_annotation(otherwise, hole_name, new_ty),
                 loc=loc,
             )
+        case TypeApplication(body, ty, loc):
+            return TypeApplication(replace_hole_expected_annotation(body, hole_name, new_ty), ty, loc=loc)
         case Var(_) | Literal(_, _) | Hole(_):
             return term
         case _:
@@ -108,6 +142,13 @@ def collect_hole_judgments(
                 | collect_hole_judgments(ctx, then, expected, refined_types)
                 | collect_hole_judgments(ctx, otherwise, expected, refined_types)
             )
+        case TypeApplication(body=body, type=_):
+            _, ty_body = synth(ctx, body)
+            match ty_body:
+                case TypePolymorphism(_, _, _):
+                    return collect_hole_judgments(ctx, body, ty_body, refined_types)
+                case _:
+                    return collect_hole_judgments(ctx, body, expected, refined_types)
         case Var(_) | Literal(_, _):
             return {}
         case _:
