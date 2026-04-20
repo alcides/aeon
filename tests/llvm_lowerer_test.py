@@ -77,16 +77,17 @@ def test_lower_vector_map():
 
 def test_lower_math_pow():
     lowerer = CPULLVMLowerer()
-    # Math_pow 2 3.0
-    from aeon.core.types import t_float
-
-    app = Application(Application(Var(Name("Math_pow")), Literal(2, t_int)), Literal(3.0, t_float))
+    # Math_pow is (Int, Int) -> Int; mixed float literal is cast to Int.
+    app = Application(Application(Var(Name("Math_pow")), Literal(2, t_int)), Literal(3, t_int))
     llvm_pow = lowerer.lower(app)
+    from aeon.llvm.llvm_ast import LLVMInt
+
+    assert llvm_pow.type == LLVMInt
+
+    # Float exponentiation uses Math_powf : (Double, Double) -> Double
+    from aeon.core.types import t_float
     from aeon.llvm.llvm_ast import LLVMDouble
 
-    assert llvm_pow.type == LLVMDouble
-    # The first argument should be cast to double
-    from aeon.llvm.llvm_ast import LLVMCast
-
-    assert isinstance(llvm_pow.args[0], LLVMCast)
-    assert llvm_pow.args[0].type == LLVMDouble
+    appf = Application(Application(Var(Name("Math_powf")), Literal(2.0, t_float)), Literal(3.0, t_float))
+    llvm_powf = lowerer.lower(appf)
+    assert llvm_powf.type == LLVMDouble
