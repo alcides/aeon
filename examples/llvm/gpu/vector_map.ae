@@ -1,0 +1,15 @@
+import "libraries/Vector.ae";
+
+@gpu(target="cuda", block_size=256)
+def multiply_by_ten (v:(Vector Int)) (size:Int) : (Vector Int) {
+    Vector_map[Int][Int] (\x:Int -> x * 10) v size
+}
+
+def main (args:Int) : Unit {
+    let v : (Vector Int) = Vector_new[Int];
+    let v1 : (Vector Int) = Vector_append[Int] v 1;
+    let v2 : (Vector Int) = Vector_append[Int] v1 2;
+    let v3 : (Vector Int) = Vector_append[Int] v2 3;
+    let res : (Vector Int) = multiply_by_ten v3 3;
+    print(Vector_get[Int] res 1)
+}
