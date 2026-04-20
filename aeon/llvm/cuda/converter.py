@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
+import llvmlite.binding as llvm
 import llvmlite.ir as ir
 
 from aeon.llvm.cpu.converter import CPULLVMIRGenerator
@@ -24,7 +25,16 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-"
             "f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n32:64"
         )
+        llvm.initialize_all_targets()
+        target = llvm.Target.from_triple(self.module.triple)
+        self.target_data = target.create_target_machine().target_data
         self.kernels: List[ir.Function] = []
+
+    def _get_type_size(self, ir_type: ir.Type) -> int:
+        return ir_type.get_abi_size(self.target_data)
+
+    def _get_type_alignment(self, ir_type: ir.Type) -> int:
+        return ir_type.get_abi_alignment(self.target_data)
 
     def _add_kernel_metadata(self, func: ir.Function) -> None:
         nvvm_annot = self.module.add_named_metadata("nvvm.annotations")
@@ -70,26 +80,19 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             return ir.PointerType(base, ty.address_space.value)
         return super().to_ir_type(ty)
 
-    def _get_type_size(self, ir_type: ir.Type) -> int:
-        if isinstance(ir_type, ir.PointerType):
-            return 8
-        if isinstance(ir_type, ir.IntType):
-            return ir_type.width // 8
-        if isinstance(ir_type, ir.FloatType):
-            return 4
-        if isinstance(ir_type, ir.DoubleType):
-            return 8
-        return 8
-
     def _emit_cuda_launch(self, func: ir.Function, args: List[ir.Value], size: ir.Value) -> None:
         block_size = ir.Constant(ir.IntType(32), 256)
         size_32 = self.builder.trunc(size, ir.IntType(32)) if size.type.width > 32 else size
         grid_size = self.builder.sdiv(self.builder.add(size_32, ir.Constant(ir.IntType(32), 255)), block_size)
 
         arg_types = func.function_type.args
-        total_size = sum(self._get_type_size(t) for t in arg_types)
-        alignment = 8
+        total_size = 0
+        for t in arg_types:
+            align = self._get_type_alignment(t)
+            total_size = (total_size + align - 1) & ~(align - 1)
+            total_size += self._get_type_size(t)
 
+        alignment = 8
         get_buffer_ty = ir.FunctionType(ir.PointerType(ir.IntType(8)), [ir.IntType(64), ir.IntType(64)])
         get_buffer = self.module.globals.get("cudaGetParameterBuffer")
         if not get_buffer:
@@ -101,6 +104,8 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
         offset = 0
         for arg in args:
+            align = self._get_type_alignment(arg.type)
+            offset = (offset + align - 1) & ~(align - 1)
             arg_ptr = self.builder.gep(buffer, [ir.Constant(ir.IntType(32), offset)])
             cast_ptr = self.builder.bitcast(arg_ptr, ir.PointerType(arg.type))
             self.builder.store(arg, cast_ptr)
