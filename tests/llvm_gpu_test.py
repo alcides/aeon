@@ -1,4 +1,3 @@
-import pytest
 from aeon.facade.driver import AeonDriver, AeonConfig
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.logger.logger import setup_logger
@@ -6,11 +5,12 @@ from aeon.logger.logger import setup_logger
 setup_logger()
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_gpu_fallback():
     aeon_code = """
+        import "Vector.ae";
+
         @gpu(target="cuda", debug=false, cache=false, block_size=32, thread_count=1024)
-        def multiply_by_two (v : Vector Int) (size:Int) : (Vector Int) {
+        def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) {
             Vector_map[Int][Int] (\\x:Int -> x * 2) v size
         }
 
@@ -22,7 +22,7 @@ def test_gpu_fallback():
             Vector_get[Int] res 0
         }
     """
-    config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0)
+    config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0, skip_elaboration=True)
     driver = AeonDriver(config)
     errors = driver.parse(aeon_code=aeon_code)
     assert not errors

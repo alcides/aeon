@@ -205,7 +205,6 @@ def _bind_definition(
     ), nsubs
 
 
-
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     type_decls = []
     inductive_decls = []

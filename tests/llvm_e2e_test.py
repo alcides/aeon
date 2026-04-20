@@ -1,17 +1,22 @@
 import sys
 
-import pytest
 from loguru import logger
 from aeon.facade.driver import AeonDriver, AeonConfig
 from aeon.logger.logger import setup_logger
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 
-def compile_and_run(source: str):
+def compile_and_run(source: str, skip_elaboration: bool = False):
     setup_logger()
     logger.add(sys.stderr, level="DEBUG")
 
-    cfg = AeonConfig(synthesizer="random_search", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=True)
+    cfg = AeonConfig(
+        synthesizer="random_search",
+        synthesis_ui=SilentSynthesisUI(),
+        synthesis_budget=0,
+        no_main=True,
+        skip_elaboration=skip_elaboration,
+    )
     driver = AeonDriver(cfg)
     errors = driver.parse(aeon_code=source)
     assert not errors
@@ -66,7 +71,6 @@ def test_e2e_llvm_fibonacci():
     assert res == 55
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_e2e_llvm_matrix_sum():
     source = r"""
     import "Vector.ae";
@@ -81,11 +85,10 @@ def test_e2e_llvm_matrix_sum():
 
     def main (i:Int) : Int { sum_matrix (native "[1, 2, 3, 4]") 4 }
     """
-    res = compile_and_run(source)
+    res = compile_and_run(source, skip_elaboration=True)
     assert res == 10
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_e2e_llvm_matrix_filter():
     source = r"""
     import "Vector.ae";
@@ -102,11 +105,10 @@ def test_e2e_llvm_matrix_filter():
         Vector_get[Int] filtered 0
     }
     """
-    res = compile_and_run(source)
+    res = compile_and_run(source, skip_elaboration=True)
     assert res == 2
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_e2e_llvm_matrix_zip_with():
     source = r"""
     import "Vector.ae";
@@ -124,11 +126,10 @@ def test_e2e_llvm_matrix_zip_with():
         Vector_get[Int] v3 1
     }
     """
-    res = compile_and_run(source)
+    res = compile_and_run(source, skip_elaboration=True)
     assert res == 22
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_e2e_llvm_matrix_count():
     source = r"""
     import "Vector.ae";
@@ -143,11 +144,10 @@ def test_e2e_llvm_matrix_count():
         count_gt_10 v 5
     }
     """
-    res = compile_and_run(source)
+    res = compile_and_run(source, skip_elaboration=True)
     assert res == 2
 
 
-@pytest.mark.skip(reason="Parametric Vector.ae + elaboration (unification/hash) not yet aligned with master")
 def test_e2e_llvm_matrix_map():
     source = r"""
     import "Vector.ae";
@@ -164,7 +164,7 @@ def test_e2e_llvm_matrix_map():
         Vector_get[Int] v2 2
     }
     """
-    res = compile_and_run(source)
+    res = compile_and_run(source, skip_elaboration=True)
     assert res == 4
 
 
