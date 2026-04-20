@@ -1,7 +1,6 @@
-type A;
+type A
 
-type B;
+type B
 
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     print "Hello World"
-}

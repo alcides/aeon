@@ -1,34 +1,34 @@
-import extract_train_data from "PSB2.ae";
-import psb2_aeon from "PSB2.ae";
-import get_input_list from "PSB2.ae";
-import get_output_list from "PSB2.ae";
-import calculate_list_errors from "PSB2.ae";
-import get_fc_synth_values from "PSB2.ae";
-import unpack_train_data from "PSB2.ae";
-import load_dataset from "PSB2.ae";
+import extract_train_data from "PSB2.ae"
+import psb2_aeon from "PSB2.ae"
+import get_input_list from "PSB2.ae"
+import get_output_list from "PSB2.ae"
+import calculate_list_errors from "PSB2.ae"
+import get_fc_synth_values from "PSB2.ae"
+import unpack_train_data from "PSB2.ae"
+import load_dataset from "PSB2.ae"
 
-type List;
+type List
 
-def List_size: (l:List) -> Int = uninterpreted;
-def List_length: (l:List) -> Int = \list -> native "len(list)";
-def List_new : {x:List | List_size x == 0} = native "[]" ;
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} { native "l + [i]" }
+def List_size: (l:List) -> Int = uninterpreted
+def List_length: (l:List) -> Int = \list -> native "len(list)"
+def List_new : = x:List | List_size x == 0 = native "[]"
+def List_append (l:List) (i: Int) : = l2:List | List_size l2 == List_size l + 1 { native "l + [i]" }
 
-def sum: (l:List) -> Int = \xs -> native "sum(xs)";
-def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)" ;
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
+def sum: (l:List) -> Int = \xs -> native "sum(xs)"
+def Math_max : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "max(i,j)"
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j"
 
-def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)";
+def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
 
-def train: TrainData = extract_train_data (load_dataset "fuel-cost" 200 200);
+def train: TrainData = extract_train_data (load_dataset "fuel-cost" 200 200)
 
-def input_list : List = get_input_list (unpack_train_data train);
+def input_list : List = get_input_list (unpack_train_data train)
 
-def expected_values : List = get_output_list (unpack_train_data train);
-def flatten_list : (t:List) -> List = \l -> native "__import__('functools').reduce(lambda x, y: x + y, l)";
+def expected_values : List = get_output_list (unpack_train_data train)
+def flatten_list : (t:List) -> List = \l -> native "__import__('functools').reduce(lambda x, y: x + y, l)"
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]";
+def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
 
@@ -37,6 +37,5 @@ def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: List) -> Int)  ->
             calculate_fuel_cost_errors,
             train)
 @multi_minimize_float(calculate_fuel_cost_errors train synth, 1)
-def synth  (xs: List) : Int {
+def synth  (xs: List) : Int =
     (?hole: Int)
- }

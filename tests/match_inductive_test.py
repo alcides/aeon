@@ -14,14 +14,12 @@ def test_match_lowering_intlist():
         inductive IntList
         | empty : IntList
         | cons (hd:Int) (tl:IntList) : IntList
-        def mk (l:IntList) : IntList {
+        def mk (l:IntList) : IntList =
             match l with
             | empty => l
             | cons hd tl => l
-        }
-        def main (args:Int) : Int {
+        def main (args:Int) : Int =
             0
-        }
     """
 
     prog = parse_program(src)
@@ -39,14 +37,12 @@ def test_match_lowering_intlist_after_bind_program():
         inductive IntList
         | empty : IntList
         | cons (hd:Int) (tl:IntList) : IntList
-        def mk (l:IntList) : IntList {
+        def mk (l:IntList) : IntList =
             match l with
             | empty => l
             | cons hd tl => l
-        }
-        def main (args:Int) : Int {
+        def main (args:Int) : Int =
             0
-        }
     """
 
     prog = parse_main_program(src, filename="<test>")

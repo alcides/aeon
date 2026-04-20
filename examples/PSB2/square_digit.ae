@@ -4,21 +4,21 @@
 # output : string
 # --working--
 
-import "String.ae";
-import "Math.ae";
-import "PSB2.ae";
+import "String.ae"
+import "Math.ae"
+import "PSB2.ae"
 
 #def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
 #    if n == 0 then
 #        ""
 #    else
-#        digit = n % 10;
-#        square = digit * digit;
-#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square));
+#        digit = n % 10
+#        square = digit * digit
+#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square))
 #        result
 #}
 
-def square_digit_unsafe  ( n : Int) : String {
+def square_digit_unsafe  ( n : Int) : String =
     if n == 0 then
         ""
     else
@@ -26,11 +26,11 @@ def square_digit_unsafe  ( n : Int) : String {
         square = digit * digit;
         result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
         result
-}
 
-def synth_sd ( n : Int) : String {(?hole:String)}
 
-def fitness(): Float {
+def synth_sd ( n : Int) : String = (?hole:String)
+
+def fitness(): Float =
     ds = load_dataset "square-digits" 200 200;
     train = extract_train_data ds;
     unpacked_data = unpack_train_data train;
@@ -41,4 +41,3 @@ def fitness(): Float {
     actual_values_str = join_string_list actual_values;
     str_distance = String_distance expected_values_str actual_values_str;
     str_distance
-}

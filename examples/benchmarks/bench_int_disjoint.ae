@@ -3,4 +3,4 @@
 # is split across the number line with a gap around zero.
 
 @minimize_int(0)
-def result : {v:Int | (v >= 0-20 && v <= 0-10) || (v >= 10 && v <= 20)} = ?hole;
+def result : = v:Int | (v >= 0-20 && v <= 0-10) || (v >= 10 && v <= 20) = ?hole

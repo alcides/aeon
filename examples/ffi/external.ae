@@ -1,13 +1,12 @@
-type Path;
+type Path
 
-def pathlib : Unit = native_import "pathlib";
-def cwd : Path = native "pathlib.Path()";
-def append (p:Path) (e:String) : Path { native "p / e" }
-def mkPath (s:String) : Path { native "pathlib.Path(x)" }
+def pathlib : Unit = native_import "pathlib"
+def cwd : Path = native "pathlib.Path()"
+def append (p:Path) (e:String) : Path = native "p / e"
+def mkPath (s:String) : Path = native "pathlib.Path(x)"
 
-def example_ola : Path = append cwd "ola";
+def example_ola : Path = append cwd "ola"
 
 
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     print "hello"
-}

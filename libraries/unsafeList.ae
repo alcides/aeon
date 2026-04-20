@@ -1,12 +1,12 @@
-type unsafeList;
-type Tuple;
+type unsafeList
+type Tuple
 
-def Lnew : List = native "[]" ;
+def Lnew : List = native "[]"
 
-def cons (xs:List) (t: Top) : List { native "[t] + xs" }
+def cons (xs:List) (t: Top) : List = native "[t] + xs"
 
-def car (xs:List) : a {native "xs[0]"}
+def car (xs:List) : a = native "xs[0]"
 
-def cdr (xs:List) : List  {native "xs[1:]"}
+def cdr (xs:List) : List  = native "xs[1:]"
 
-def list_to_tuple (xs:List) : Tuple { native "tuple(xs)"}
+def list_to_tuple (xs:List) : Tuple = native "tuple(xs)"

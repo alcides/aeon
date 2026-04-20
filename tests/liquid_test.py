@@ -40,12 +40,10 @@ def test_simple_eq():
 
 def test_liquid_types_syntax():
     source = r"""
-        def test (n:Int | n > 0) (z:Int) : Int {
+        def test (n:Int | n > 0) (z:Int) : Int =
             n + z
-        }
 
-        def main (x:Int) : Unit {
+        def main (x:Int) : Unit =
             print(test 5 5)
-        }
 """
     check_compile(source, st_top, 0)

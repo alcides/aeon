@@ -84,6 +84,27 @@ class SHole(STerm):
 
 
 @dataclass(frozen=True)
+class SBy(STerm):
+    """Lean-style ``by`` tactic script (no ``end``).
+
+    Single tactic: ``by TACTIC``. Several tactics use parentheses so ``;`` does not
+    clash with ``def ... = ... ;``: ``by (TACTIC; TACTIC; ...)``.
+    """
+
+    steps: tuple[str, ...]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return "by " + "; ".join(self.steps)
+
+    def __repr__(self):
+        return f"SBy({self.steps!r})"
+
+    def __eq__(self, other):
+        return isinstance(other, SBy) and self.steps == other.steps
+
+
+@dataclass(frozen=True)
 class SApplication(STerm):
     fun: STerm
     arg: STerm

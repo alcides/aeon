@@ -1,27 +1,27 @@
-type List;
-type Counter;
+type List
+type Counter
 
-def itertools : Unit = native_import "itertools";
-def collections : Unit = native_import "collections";
+def itertools : Unit = native_import "itertools"
+def collections : Unit = native_import "collections"
 
-def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))";
-def Map : (f: (s:List) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
-def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))";
+def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))"
+def Map : (f: (s:List) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
+def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
 
-def String_eq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
-def List_sum : (l:List) -> Int = \xs -> native "sum(xs)";
-def String_toList : (s:String) -> List = \s -> native "list(s)";
-def String_Zip : (xs:String) -> (ys:String) -> List = \xs -> \ys -> native "(zip(xs, ys))";
-def List_get_fst : (s: List) -> String = \s -> native "s[0]";
-def List_get_snd : (s: List) -> String = \s -> native "s[1]";
-def String_neq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i != j";
-def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]";
-def Counter : (l:List) -> Counter = \xs -> native "collections.Counter(xs)";
-def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = \c1 -> \c2 -> native "c1 & c2";
-def Counter_values : (c:Counter) -> List = \c -> native "list(c.values())";
-def Tuple : (a:Int) -> (b:Int) -> List = \a -> \b -> native "[a,b]";
+def String_eq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j"
+def List_sum : (l:List) -> Int = \xs -> native "sum(xs)"
+def String_toList : (s:String) -> List = \s -> native "list(s)"
+def String_Zip : (xs:String) -> (ys:String) -> List = \xs -> \ys -> native "(zip(xs, ys))"
+def List_get_fst : (s: List) -> String = \s -> native "s[0]"
+def List_get_snd : (s: List) -> String = \s -> native "s[1]"
+def String_neq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i != j"
+def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]"
+def Counter : (l:List) -> Counter = \xs -> native "collections.Counter(xs)"
+def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = \c1 -> \c2 -> native "c1 & c2"
+def Counter_values : (c:Counter) -> List = \c -> native "list(c.values())"
+def Tuple : (a:Int) -> (b:Int) -> List = \a -> \b -> native "[a,b]"
 
-def mastermind ( code : String) (guess: String ) : List {
+def mastermind ( code : String) (guess: String ) : List =
     items_eq : (x:List) -> Int = \x -> if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
     black_map : List = Map_bool items_eq (String_Zip code guess);
     black_pegs : Int = List_sum black_map;
@@ -36,9 +36,8 @@ def mastermind ( code : String) (guess: String ) : List {
     white_pegs :Int = white_pegs_f code_unmatched guess_unmatched;
 
     Tuple white_pegs black_pegs
-}
 
 
-def main (args:Int) : Unit {
+
+def main (args:Int) : Unit =
     print(mastermind "GGGB" "BGGG")
-}

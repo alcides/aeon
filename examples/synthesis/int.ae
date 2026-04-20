@@ -1,1 +1,1 @@
-def n : {x:Int | x == 35} = ?hole;
+def n : = x:Int | x == 35 = ?hole

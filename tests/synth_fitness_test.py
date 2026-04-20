@@ -15,7 +15,7 @@ setup_logger()
 def test_fitness():
     source = """def year : Int = 2023;
             @minimize_int( year - synth(7) )
-            def synth (i:Int) : Int {(?hole: Int) * i}
+            def synth (i:Int) : Int = (?hole: Int) * i
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(

@@ -13,6 +13,7 @@ from aeon.sugar.program import (
     SAnnotation,
     SApplication,
     SHole,
+    SBy,
     SIf,
     SLet,
     SLiteral,
@@ -62,6 +63,8 @@ def term_equality(a: STerm, b: STerm, rename_left: dict[Name, Name] | None = Non
             return rename_left.get(an, an) == bn
         case SHole(an), SHole(bn):
             return rename_left.get(an, an) == bn
+        case SBy(asteps), SBy(bsteps):
+            return asteps == bsteps
         case SLiteral(av, at), SLiteral(bv, bt):
             return av == bv and at == bt
         case SApplication(a1, a2), SApplication(b1, b2):

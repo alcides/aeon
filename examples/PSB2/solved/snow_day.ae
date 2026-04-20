@@ -1,6 +1,6 @@
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def isZero : (n: Int) -> Bool = \n -> n == 0
 
-def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float {
+def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float =
     if isZero n then
         m
     else
@@ -11,8 +11,7 @@ def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float {
 
         snow_day n1 c t p
 
-}
 
-def main(n: Int) : Unit{
+
+def main(n: Int) : Unit=
     print (snow_day 10 0.0 1.0 0.0)
-}

@@ -2,4 +2,4 @@
 # Tests constraint satisfaction when the valid region is entirely negative.
 
 @minimize_int(0)
-def result : {v:Int | v >= 0-50 && v <= 0-10} = ?hole;
+def result : = v:Int | v >= 0-50 && v <= 0-10 = ?hole

@@ -1,24 +1,24 @@
-type List;
+type List
 
 
-def List_sum (l:List) : Int { native "sum(l)" }
+def List_sum (l:List) : Int = native "sum(l)"
 
 def List_map (f: (a: Int) -> Int)
              (xs: List) :
-              List {
+              List =
     native "list(map(f, xs))"
-}
 
 
-def String_replace (s:String) (t:String) (rep:String) : String { native "s.replace(t, rep)" }
-def String_length (list:String) : Int { native "len(list)" }
-def String_get (l:String) (i:Int) : String { native "l[i]" }
-def String_to_int (s:String) : Int { native "int(s)" }
-def String_eq (s:String) (s2:String) : Bool { native "s == s2" }
 
-def List_range_step (start:Int) (end:Int) (step:Int) : List { native "list(range(start, end, step))" }
+def String_replace (s:String) (t:String) (rep:String) : String = native "s.replace(t, rep)"
+def String_length (list:String) : Int = native "len(list)"
+def String_get (l:String) (i:Int) : String = native "l[i]"
+def String_to_int (s:String) : Int = native "int(s)"
+def String_eq (s:String) (s2:String) : Bool = native "s == s2"
 
- def convert_bowling(score: String) : Int {
+def List_range_step (start:Int) (end:Int) (step:Int) : List = native "list(range(start, end, step))"
+
+ def convert_bowling(score: String) : Int =
  if String_eq score "X" then
     10
  else
@@ -26,10 +26,10 @@ def List_range_step (start:Int) (end:Int) (step:Int) : List { native "list(range
         10
     else
         String_to_int score
- }
 
 
-def create_mapper (scores:String) (i:Int) : Int {
+
+def create_mapper (scores:String) (i:Int) : Int =
     current : String = String_get scores i;
     next : String = String_get scores (i+1);
     if String_eq current "X" then
@@ -49,19 +49,19 @@ def create_mapper (scores:String) (i:Int) : Int {
         10 + (convert_bowling next_next)
     else
         String_to_int current + convert_bowling next
-}
 
 
-def bowling_score (scores: String) : Int {
+
+def bowling_score (scores: String) : Int =
     scores_right_size = String_replace scores "X" "X_";
     scores_zero = String_replace scores_right_size "-" "0";
     r : List = List_range_step 0 20 2;
     mapper : (i:Int) -> Int = create_mapper scores_zero;
     components : List = List_map mapper r;
     List_sum components
- }
 
-def main (args:Int) : Unit {
+
+def main (args:Int) : Unit =
     example : String = "23232323232323232323"; # 50
     example : String = "2/232323232323232323"; # 57
     example : String = "X232323232323232323"; # 60
@@ -70,4 +70,3 @@ def main (args:Int) : Unit {
     example : String = "XXXXXXXXXXXX"; # 300
     example : String = "2323232323232323232/1"; # 55
     print (bowling_score example)
-}

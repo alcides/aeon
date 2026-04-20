@@ -2,15 +2,15 @@ program :  aeimport type_decls defs                     -> program
 
 aeimport : import*                                      -> list
 
-import: "import" ESCAPED_STRING ";"                     -> regular_imp
-      | "import" CNAME "from" ESCAPED_STRING ";"        -> function_imp
+import: "import" ESCAPED_STRING ";"?                     -> regular_imp
+      | "import" CNAME "from" ESCAPED_STRING ";"?        -> function_imp
 
 type_decls : type_decl*                              -> list
 
 defs : def*                                          -> list
 
-type_decl : "type" TYPENAME ";"                            -> type_decl
-          | "type" TYPENAME ID+ ";"                            -> type_constructor_decl
+type_decl : "type" TYPENAME ";"?                            -> type_decl
+          | "type" TYPENAME ID+ ";"?                            -> type_constructor_decl
           | type_def                                           -> same
 
 
@@ -21,9 +21,8 @@ cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
 measures : measure_rule*                                  -> list
 measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
-def : soft_constraint "def" ID ":" type "=" expression ";"                  -> def_cons
-    | soft_constraint "def" ID  args ":" type decreasing_by_opt "{" expression "}"     -> def_fun
-    | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"     -> def_fun_eq
+def : soft_constraint "def" ID ":" type "=" expression ";"?                  -> def_cons
+    | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"?     -> def_fun_eq
 
 decreasing_by_opt: "decreasing_by" "[" decreasing_exprs "]" -> decreasing_by_list
                  | -> decreasing_by_none
@@ -61,7 +60,8 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
 expression : "-" expression_i                           -> minus
            | expression_i                               -> same
 
-expression_i : "let" ID "=" expression  ("in"|";") expression           -> let_e
+expression_i : "by" by_body                                  -> by_e
+          | "let" ID "=" expression  ("in"|";") expression           -> let_e
           | ID "=" expression  ("in"|";") expression           -> let_e
           | "let" ID ":" type "=" expression  ("in"|";") expression     -> rec_e
           | ID ":" type "=" expression  ("in"|";") expression     -> rec_e
@@ -77,6 +77,12 @@ expression_dollar : expression_un                                    -> same
 match_branches : match_branch+                                 -> list
 match_branch : _PIPE ID pat_binders "=>" expression            -> match_branch
 pat_binders : (ID)*                                           -> list
+
+by_body : TACTIC_CMD                                         -> by_body_atomic
+        | "(" tactic_steps ")"                              -> by_body_paren
+
+tactic_steps : TACTIC_CMD (";" TACTIC_CMD)*                -> tactic_steps
+TACTIC_CMD : "apply?" | "assumption" | "constructor" | "choose_literal" | "by_cases" | "split" | "inst"
 
 expression_un : expression_bool                                      -> same
            | "!" expression_un                                       -> nnot

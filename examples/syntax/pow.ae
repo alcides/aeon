@@ -1,9 +1,8 @@
-def math : Unit = native_import "math";
+def math : Unit = native_import "math"
 def pow (x:Int | ((x >= 1)  && (x <= 100)))
         (y:Int | ((y >= 1)  && (y <= 100)))
-        : Int { native "math.pow(x, y)" }
+        : Int = native "math.pow(x, y)"
 
 
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     print "Hello World"
-}

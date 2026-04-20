@@ -2,11 +2,10 @@
 # No type-level constraint on the output; fitness examples at x=3, 5, 10
 # drive the synthesizer to discover negation via optimization alone.
 
-def abs (n:Int) : Int {
+def abs (n:Int) : Int =
     if n < 0 then - n else n
-}
+
 
 @minimize_int(abs(fun 5 + 5) + abs(fun 3 + 3) + abs(fun 10 + 10))
-def fun (x:Int) : Int {
+def fun (x:Int) : Int =
     ?hole
-}

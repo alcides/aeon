@@ -2,4 +2,4 @@
 # Tests basic integer constraint satisfaction over a small contiguous interval.
 
 @minimize_int(0)
-def result : {v:Int | v >= 10 && v <= 20} = ?hole;
+def result : = v:Int | v >= 10 && v <= 20 = ?hole

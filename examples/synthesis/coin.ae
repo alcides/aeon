@@ -9,37 +9,34 @@
 #
 # Expected solution: 2 coins of 1, 1 coin of 5, 3 coins of 10 (6 coins total)
 
-type CoinChange;
+type CoinChange
 
-def coins_1  : (c:CoinChange) -> Int = uninterpreted;
-def coins_5  : (c:CoinChange) -> Int = uninterpreted;
-def coins_10 : (c:CoinChange) -> Int = uninterpreted;
+def coins_1  : (c:CoinChange) -> Int = uninterpreted
+def coins_5  : (c:CoinChange) -> Int = uninterpreted
+def coins_10 : (c:CoinChange) -> Int = uninterpreted
 
 def coinchange_mk
     (c1  : {n:Int | n >= 0})
     (c5  : {n:Int | n >= 0})
     (c10 : {n:Int | n >= 0}) :
-    {c:CoinChange |
+    = c:CoinChange |
         (coins_1 c == c1) &&
         (coins_5 c == c5) &&
-        (coins_10 c == c10)
-    } { native "[c1, c5, c10]" }
+        (coins_10 c == c10) { native "[c1, c5, c10]" }
 
-def total_coins (c:CoinChange) : Int { native "c[0] + c[1] + c[2]" }
+def total_coins (c:CoinChange) : Int = native "c[0] + c[1] + c[2]"
 
 @minimize_int((total_coins coin_solution_hole))
-def coin_solution_hole : {c:CoinChange |
+def coin_solution_hole : = c:CoinChange |
     (coins_1 c >= 0) &&
     (coins_5 c >= 0) &&
     (coins_10 c >= 0) &&
-    (coins_1 c + coins_5 c * 5 + coins_10 c * 10 == 37)
-} = ?hole;
+    (coins_1 c + coins_5 c * 5 + coins_10 c * 10 == 37) = ?hole;
 
 # Verification: the known optimal solution should type-check
 # 2 coins of 1 + 1 coin of 5 + 3 coins of 10 = 2 + 5 + 30 = 37
-def coin_solution : {c:CoinChange |
+def coin_solution : = c:CoinChange |
     (coins_1 c >= 0) &&
     (coins_5 c >= 0) &&
     (coins_10 c >= 0) &&
-    (coins_1 c + coins_5 c * 5 + coins_10 c * 10 == 37)
-} = coinchange_mk 2 1 3;
+    (coins_1 c + coins_5 c * 5 + coins_10 c * 10 == 37) = coinchange_mk 2 1 3;

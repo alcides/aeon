@@ -1,7 +1,7 @@
-import "Image.ae";
+import "Image.ae"
 
 
-def main (steps:Int) : Image {
+def main (steps:Int) : Image =
     white : Color = Color_mk 255 255 255;
     green : Color = Color_mk 0 255 0;
     image0 = Image_mk 64 64 white;
@@ -10,4 +10,3 @@ def main (steps:Int) : Image {
     image3 = Image_draw_rectangle image2 32 0 32 32 green;
     image4 = Image_draw_rectangle image3 32 32 32 32 white;
     image4
-}

@@ -13,7 +13,12 @@ from aeon.synthesis.tactics.by_cases import tactic_by_cases
 from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
 from aeon.synthesis.tactics.holes import collect_hole_judgments, list_hole_infos
+from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer, TACTIC_REGISTRY
 from aeon.synthesis.tactics.random_synth import TacticRandomSynthesizer
+from aeon.sugar.bind import bind_program
+from aeon.sugar.desugar import desugar
+from aeon.sugar.program import SBy
+from aeon.sugar.parser import parse_expression, parse_main_program
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.tactics.subtyping import fits
 from aeon.typechecking.context import TypingContext, VariableBinder
@@ -268,3 +273,67 @@ def test_tactic_random_synthesizer_smoke():
 def test_make_synthesizer_tactics():
     s = make_synthesizer("tactics")
     assert isinstance(s, TacticRandomSynthesizer)
+
+
+def test_parse_by_block():
+    t = parse_expression("by choose_literal")
+    assert isinstance(t, SBy)
+    assert t.steps == ("choose_literal",)
+    t2 = parse_expression("by (apply?; constructor)")
+    assert isinstance(t2, SBy)
+    assert t2.steps == ("apply?", "constructor")
+
+
+def test_desugar_by_records_tactic_scripts():
+    src = "def main : Int = by choose_literal\n"
+    p = bind_program(parse_main_program(src, "<t>"), [])
+    d = desugar(p)
+    meta_main = next(iter(d.metadata.keys()))
+    scripts = d.metadata[meta_main]["tactic_scripts"]
+    assert len(scripts) == 1
+    assert next(iter(scripts.values())) == ("choose_literal",)
+
+
+def test_optional_def_semicolon_backward_compatible():
+    with_semi = "def main : Int = 42;\n"
+    without = "def main : Int = 42\n"
+    assert (
+        bind_program(parse_main_program(with_semi, "a"), []).definitions[0].body
+        == bind_program(parse_main_program(without, "b"), []).definitions[0].body
+    )
+
+
+def test_explicit_tactic_synthesizer_runs_script():
+    ctx = TypingContext([VariableBinder(Name("x", 0), t_int)])
+    syn = ExplicitTacticSynthesizer(("apply?",))
+
+    def validate(t) -> bool:
+        return check_type(ctx, t, t_int)
+
+    def evaluate(t):
+        return [0.0]
+
+    got = syn.synthesize(
+        ctx=ctx,
+        type=t_int,
+        validate=validate,
+        evaluate=evaluate,
+        fun_name=Name("main", 0),
+        metadata={},
+        budget=1.0,
+    )
+    assert got is not None
+    assert check_type(ctx, got, t_int)
+
+
+def test_tactic_registry_covers_surface_tactic_names():
+    for name in (
+        "apply?",
+        "assumption",
+        "constructor",
+        "choose_literal",
+        "by_cases",
+        "split",
+        "inst",
+    ):
+        assert name in TACTIC_REGISTRY

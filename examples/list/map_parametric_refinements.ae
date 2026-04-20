@@ -1,17 +1,17 @@
-# import "List.ae";
+# import "List.ae"
 
 # def map :
 #     (f : (x : t) -> t<p>) ->
 #     (l1 : (List t)) ->
 #     {l2 : (List t<p>) | List_size l1 == List_size l2} =
-#     \f -> \l -> native "list(map(f, l))";
+#     \f -> \l -> native "list(map(f, l))"
 
-# def pos : (n: Int) -> {v : Int | v >= 0} = \n -> n * n;
+# def pos : (n: Int) -> {v : Int | v >= 0} = \n -> n * n
 
 # def main (args : Int) : Unit {
-#     empty = List_new[Int];
-#     xs = List_append (List_append empty (-2)) (-3);
-#     pos_xs = map pos xs;
-#     head : Int = List_head pos_xs;
+#     empty = List_new[Int]
+#     xs = List_append (List_append empty (-2)) (-3)
+#     pos_xs = map pos xs
+#     head : Int = List_head pos_xs
 #     print head
 # }
