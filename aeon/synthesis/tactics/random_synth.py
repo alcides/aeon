@@ -9,7 +9,9 @@ from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
+from aeon.synthesis.tactics.by_cases import tactic_by_cases
 from aeon.synthesis.tactics.choose_literal import tactic_choose_literal
+from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.holes import collect_hole_judgments
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.uis.api import SynthesisUI
@@ -21,7 +23,7 @@ _loc = SynthesizedLocation("tactics")
 
 
 class TacticRandomSynthesizer(Synthesizer):
-    """Random tactic search using ``apply?``, ``constructor``, and ``choose_literal``."""
+    """Random tactic search using ``apply?``, ``constructor``, ``choose_literal``, ``by_cases``, and ``split``."""
 
     def __init__(self, seed: int = 0):
         self.seed = seed
@@ -44,7 +46,13 @@ class TacticRandomSynthesizer(Synthesizer):
         root = Name("_root", fresh_counter.fresh())
         term = Hole(root, loc=_loc)
         state = TacticState(ctx, term, type)
-        tactics = [tactic_apply_question, tactic_constructor, tactic_choose_literal]
+        tactics = [
+            tactic_apply_question,
+            tactic_constructor,
+            tactic_choose_literal,
+            tactic_by_cases,
+            tactic_split,
+        ]
 
         start = time.time()
         ui.register(None, None, 0.0, True)

@@ -4,12 +4,42 @@ from dataclasses import dataclass
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.substitutions import substitution, substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, Hole, Literal, Term, Var
-from aeon.core.types import AbstractionType, RefinedType, Type, refined_to_unrefined_type
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, Term, Var
+from aeon.core.types import AbstractionType, RefinedType, Type, refined_to_unrefined_type, t_bool
 from aeon.synthesis.identification import get_holes
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.utils.name import Name
+
+
+def replace_hole_expected_annotation(term: Term, hole_name: Name, new_ty: Type) -> Term:
+    """Rewrite the focused hole to use ``new_ty`` in its nearest ``Annotation`` (or add one)."""
+    match term:
+        case Hole(name=n) if n == hole_name:
+            return Annotation(Hole(n, term.loc), new_ty, loc=term.loc)
+        case Annotation(expr=Hole(name=n, loc=hloc), type=_, loc=aloc) if n == hole_name:
+            return Annotation(Hole(n, hloc), new_ty, loc=aloc)
+        case Annotation(expr=e, type=ty, loc=aloc):
+            return Annotation(replace_hole_expected_annotation(e, hole_name, new_ty), ty, loc=aloc)
+        case Application(fun, arg, loc):
+            return Application(
+                replace_hole_expected_annotation(fun, hole_name, new_ty),
+                replace_hole_expected_annotation(arg, hole_name, new_ty),
+                loc=loc,
+            )
+        case Abstraction(v, body, loc):
+            return Abstraction(v, replace_hole_expected_annotation(body, hole_name, new_ty), loc=loc)
+        case If(cond, then, otherwise, loc):
+            return If(
+                replace_hole_expected_annotation(cond, hole_name, new_ty),
+                replace_hole_expected_annotation(then, hole_name, new_ty),
+                replace_hole_expected_annotation(otherwise, hole_name, new_ty),
+                loc=loc,
+            )
+        case Var(_) | Literal(_, _) | Hole(_):
+            return term
+        case _:
+            raise AssertionError(f"tactics: unsupported term shape in replace_hole_expected_annotation: {term}")
 
 
 def _norm_ty(ty: Type, refined_types: bool) -> Type:
@@ -72,6 +102,12 @@ def collect_hole_judgments(
                     return collect_hole_judgments(ctx, fun, expected, refined_types) | collect_hole_judgments(
                         ctx, arg, expected, refined_types
                     )
+        case If(cond=cond, then=then, otherwise=otherwise):
+            return (
+                collect_hole_judgments(ctx, cond, t_bool, refined_types)
+                | collect_hole_judgments(ctx, then, expected, refined_types)
+                | collect_hole_judgments(ctx, otherwise, expected, refined_types)
+            )
         case Var(_) | Literal(_, _):
             return {}
         case _:
