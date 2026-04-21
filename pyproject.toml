@@ -42,7 +42,8 @@ dependencies = [
     'textdistance',
     'z3-solver >= 4',
     'zstandard==0.25.0',
-    'zss'
+    'zss',
+    "llvmlite",
 ]
 
 [project.optional-dependencies]

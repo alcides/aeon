@@ -402,10 +402,20 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def macro(self, meta, args):
-        return Decorator(Name(args[0]), args[1], loc=self._loc(meta))
+        name = Name(args[0])
+        macro_args_raw = args[1]
+        positional = [a for a in macro_args_raw if not isinstance(a, tuple)]
+        named = {a[0]: a[1] for a in macro_args_raw if isinstance(a, tuple)}
+        return Decorator(name, positional, named, loc=self._loc(meta))
 
     def macro_args(self, args):
         return args
+
+    def named_macro_arg(self, args):
+        return (Name(args[0]), args[1])
+
+    def positional_macro_arg(self, args):
+        return args[0]
 
     def empty_list(self, args):
         return []

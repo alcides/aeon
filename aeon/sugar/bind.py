@@ -201,7 +201,8 @@ def _bind_definition(
     decorators = []
     for dec in df.decorators:
         dargs = [bind_sterm(da, subs) for da in dec.macro_args]
-        decorators.append(Decorator(dec.name, dargs))
+        ndargs = {name: bind_sterm(da, subs) for name, da in dec.named_args.items()}
+        decorators.append(Decorator(dec.name, dargs, ndargs))
     return Definition(
         name, foralls, args, ntype, body, decorators, rforalls, decreasing_by=decreasing, loc=df.loc
     ), nsubs

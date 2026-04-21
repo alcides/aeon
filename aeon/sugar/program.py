@@ -335,11 +335,14 @@ class InductiveDecl(Node):
 class Decorator(Node):
     name: Name
     macro_args: list[STerm]
+    named_args: dict[Name, STerm] = field(default_factory=dict)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
-        macro_args = ", ".join([f"{term}" for (term) in self.macro_args])
-        return f"@{self.name}({macro_args})"
+        macro_args = ", ".join([f"{term}" for term in self.macro_args])
+        named_args = ", ".join([f"{n}={t}" for n, t in self.named_args.items()])
+        all_args = ", ".join(filter(None, [macro_args, named_args]))
+        return f"@{self.name}({all_args})"
 
 
 @dataclass

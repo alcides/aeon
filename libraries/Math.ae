@@ -24,6 +24,9 @@ def Math_toInt (i:Float) : Int = native "int(i)"
 # Returns the square root of an integer as a float.
 def Math_sqrt (i:Int) : Float = native "math.sqrt(i)"
 
+# Raises a float to the power of another float.
+def Math_powf (i:Float) (j:Float) : Float = native "i ** j";
+
 # Raises an integer to the power of another integer.
 def Math_pow (i:Int) (j:Int) : Int = native "i ** j"
 

@@ -1,0 +1,4 @@
+@gpu(target="cuda",debug=true)
+def gpu_sum (a:Int) (b:Int) : Int = a + b;
+
+def main (args:Int) : Unit = print (gpu_sum 5 7);

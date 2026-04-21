@@ -39,7 +39,10 @@ soft_constraint :                      -> empty_list
 macro : "@" ID  macro_args       -> macro
 
 macro_args :                           -> empty_list
-     | "(" expression ("," expression)* ")"    -> macro_args
+     | "(" macro_arg ("," macro_arg)* ")"    -> macro_args
+
+macro_arg : ID "=" expression           -> named_macro_arg
+          | expression                  -> positional_macro_arg
 
 
 args :                          -> empty_list

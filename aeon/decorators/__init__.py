@@ -79,7 +79,7 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
     for decorator in sugar_decs:
         dname = decorator.name.name
         decorator_processor = sugar_decorators_environment[dname]
-        partial, extra, metadata = decorator_processor(decorator.macro_args, partial, metadata)
+        partial, extra, metadata = decorator_processor(decorator, partial, metadata)
         total_extra.extend(extra)
     return partial, total_extra, metadata
 
@@ -134,5 +134,5 @@ def apply_core_decorators_phase(
     for fname, dec in queue:
         dname = dec.name.name
         proc = core_decorators_environment[dname]
-        md = proc(dec.macro_args, fname, typing_ctx, core_program, md)
+        md = proc(dec, fname, typing_ctx, core_program, md)
     return md

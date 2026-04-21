@@ -9,13 +9,15 @@ from __future__ import annotations
 
 from aeon.core.terms import Term
 from aeon.decorators.api import CoreDecoratorType, Metadata, metadata_update_by_name
-from aeon.sugar.program import STerm
+from aeon.llvm.decorators.gpu import gpu_core
+from aeon.llvm.decorators.llvm import llvm_core
+from aeon.sugar.program import Decorator
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
 def after_typecheck(
-    args: list[STerm],
+    dec: Decorator,
     fun_name: Name,
     typing_ctx: TypingContext,
     core_program: Term,
@@ -28,11 +30,13 @@ def after_typecheck(
         @after_typecheck
         def f(x: Int) : Int = x + 1;
     """
-    assert len(args) == 0, "after_typecheck expects no arguments"
+    assert len(dec.macro_args) == 0, "after_typecheck expects no arguments"
     _ = typing_ctx, core_program
     return metadata_update_by_name(metadata, fun_name, {"ran_after_typecheck": True})
 
 
 core_decorators_environment: dict[str, CoreDecoratorType] = {
     "after_typecheck": after_typecheck,
+    "llvm": llvm_core,
+    "gpu": gpu_core,
 }

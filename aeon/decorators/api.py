@@ -1,19 +1,19 @@
 from typing import Any, Callable, TYPE_CHECKING
 
 from aeon.utils.name import Name
-from aeon.sugar.program import Definition, STerm
+from aeon.sugar.program import Definition, Decorator
 
 if TYPE_CHECKING:
     from aeon.core.terms import Term
     from aeon.typechecking.context import TypingContext
 
 Metadata = dict[Name, Any]
-DecoratorType = Callable[[list[STerm], Definition, Metadata], tuple[Definition, list[Definition], Metadata]]
+DecoratorType = Callable[[Decorator, Definition, Metadata], tuple[Definition, list[Definition], Metadata]]
 
 # Reserved metadata key for pending core-phase decorators (see ``collect_core_decorator_queue``).
 CORE_DECORATOR_QUEUE_META_KEY = Name("_aeon_core_decorator_queue", -1)
 
-CoreDecoratorType = Callable[[list[STerm], Name, "TypingContext", "Term", Metadata], Metadata]
+CoreDecoratorType = Callable[[Decorator, Name, "TypingContext", "Term", Metadata], Metadata]
 
 
 def metadata_update(metadata: Metadata, fun: Definition, aux_dict: dict[str, Any] = None) -> Metadata:
