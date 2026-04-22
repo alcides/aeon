@@ -10,6 +10,7 @@ from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import SVar
+from aeon.decorators import apply_core_decorators_phase
 from aeon.typechecking.typeinfer import check_type_errors
 
 
@@ -56,6 +57,7 @@ def test_factorial_nat_path_sensitive_terminates():
     core_ast_anf = ensure_anf(core_ast)
     errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
     assert errors == [], [type(e).__name__ for e in errors]
+    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
 
 
 def test_lexicographic_ackermann_typechecks():
@@ -76,3 +78,4 @@ def test_lexicographic_ackermann_typechecks():
     core_ast_anf = ensure_anf(core_ast)
     errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
     assert errors == [], [type(e).__name__ for e in errors]
+    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)

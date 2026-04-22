@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
@@ -8,7 +8,7 @@ from aeon.core.bind import bind_ids
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
-from aeon.decorators import Metadata
+from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate
 from aeon.facade.api import AeonError
 from aeon.frontend.anf_converter import ensure_anf
@@ -28,6 +28,7 @@ from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
 from aeon.utils.time_utils import RecordTime
+from aeon.llvm.pipeline import MultiBackendPipeline
 
 
 def read_file(filename: str) -> str:
@@ -88,18 +89,26 @@ class AeonDriver:
             if type_errors:
                 return type_errors
 
+        with RecordTime("CorePhaseDecorators"):
+            metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
+
         with RecordTime("Preparing execution env"):
-            evaluation_ctx = EvaluationContext(evaluation_vars)
+            pipeline = MultiBackendPipeline(metadata=metadata)
+            evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
 
         self.metadata = metadata
         self.core = core_ast_anf
         self.typing_ctx = typing_ctx
         self.evaluation_ctx = evaluation_ctx
+
+        with RecordTime("LLVM compilation"):
+            pipeline.compile(self.core)
+
         return []
 
-    def run(self) -> None:
+    def run(self) -> Any:
         with RecordTime("Evaluation"):
-            eval(self.core, self.evaluation_ctx)
+            return eval(self.core, self.evaluation_ctx)
 
     def has_synth(self) -> bool:
         with RecordTime("DetectSynthesis"):
