@@ -243,48 +243,6 @@ class CPUFullApplicationValidationStep(ValidationStep):
         return LLVMInt
 
 
-class CPUFullApplicationValidationStep(ValidationStep):
-    def validate(self, t: Term, ctx: ValidationContext) -> None:
-        assert isinstance(ctx, CPUValidationContext)
-        no_top = replace(ctx, is_top_level=False)
-        match t:
-            case Application(fun, arg):
-                arguments = [arg]
-                base = fun
-                while isinstance(base, Application):
-                    arguments.append(base.arg)
-                    base = base.fun
-                for a in arguments:
-                    self.validate(a, no_top)
-                self.validate(base, no_top)
-            case Let(var_name, var_value, body):
-                llvm_var_type = self._infer_let_type(var_value)
-                self.validate(var_value, no_top)
-                self.validate(body, replace(ctx, type_env=ctx.type_env | {var_name: llvm_var_type}, is_top_level=False))
-            case Rec(var_name, var_ty, var_value, body):
-                llvm_ty = to_llvm_type(var_ty)
-                new_ctx = replace(ctx, type_env=ctx.type_env | {var_name: llvm_ty}, is_top_level=False)
-                self.validate(var_value, new_ctx)
-                self.validate(body, new_ctx)
-            case Abstraction(_, body) | Annotation(body, _) | TypeApplication(body, _) | TypeAbstraction(_, _, body):
-                self.validate(body, no_top)
-            case If(cond, then_t, else_t):
-                for sub in (cond, then_t, else_t):
-                    self.validate(sub, no_top)
-            case _:
-                pass
-
-    @staticmethod
-    def _infer_let_type(var_value: Term) -> LLVMType:
-        if isinstance(var_value, Annotation):
-            return to_llvm_type(var_value.type)
-        if isinstance(var_value, Rec):
-            return to_llvm_type(var_value.var_type)
-        if isinstance(var_value, Var) and var_value.name.name in BINARY_OPS:
-            return get_builtin_op_type(var_value.name.name)
-        return LLVMInt
-
-
 class CPULLVMLowerer(LLVMLowerer):
     def get_validation_steps(self) -> List[ValidationStep]:
         return [CPUTypeValidationStep(), CPUFunctionCallValidationStep(), CPUFullApplicationValidationStep()]
