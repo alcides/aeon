@@ -30,9 +30,6 @@ class LLVMIntType(LLVMType):
     def to_ir(self) -> ir.Type:
         return ir.IntType(self.bits)
 
-    def __str__(self):
-        return f"i{self.bits}"
-
 
 @dataclass(frozen=True)
 class LLVMFloatType(LLVMType):
@@ -122,43 +119,6 @@ class LLVMFunctionType(LLVMType):
     def __str__(self):
         args = ", ".join(map(str, self.arg_types))
         return f"({args}) -> {self.return_type}"
-
-
-@dataclass(frozen=True)
-class LLVMPointerType(LLVMType):
-    element_type: LLVMType
-    address_space: LLVMAddressSpace = LLVMAddressSpace.GENERIC
-
-    def __str__(self):
-        return f"{self.element_type}*"
-
-    def to_ir(self) -> ir.Type:
-        base = self.element_type.to_ir()
-        if isinstance(base, ir.VoidType):
-            base = ir.IntType(8)
-        return ir.PointerType(base, self.address_space.value)
-
-
-@dataclass(frozen=True)
-class LLVMArrayType(LLVMType):
-    element_type: LLVMType
-    size: int | None = None
-
-    def __str__(self):
-        return f"[{self.size if self.size is not None else 0} x {self.element_type}]"
-
-    def to_ir(self) -> ir.Type:
-        return ir.ArrayType(self.element_type.to_ir(), self.size or 0)
-
-
-@dataclass(frozen=True)
-class LLVMFunctionType(LLVMType):
-    arg_types: list[LLVMType]
-    return_type: LLVMType
-
-    def __str__(self):
-        args = ", ".join(str(t) for t in self.arg_types)
-        return f"{self.return_type} ({args})"
 
     def to_ir(self) -> ir.Type:
         return ir.FunctionType(self.return_type.to_ir(), [t.to_ir() for t in self.arg_types])
@@ -257,10 +217,6 @@ class LLVMFunction(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)
 
-    def __str__(self):
-        args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
-        return f"\\{args} -> {self.body}"
-
 
 @dataclass
 class LLVMCall(LLVMTerm):
@@ -273,17 +229,6 @@ class LLVMCall(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_call(self)
-
-
-@dataclass
-class LLVMCast(LLVMTerm):
-    val: LLVMTerm
-
-    def __str__(self):
-        return f"cast {self.val} to {self.type}"
-
-    def accept(self, visitor: LLVMVisitor) -> Any:
-        return visitor.visit_cast(self)
 
 
 @dataclass
