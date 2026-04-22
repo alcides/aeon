@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Definition, SLiteral, Decorator
+from aeon.core.terms import Term
+from aeon.decorators.api import Metadata, metadata_update_by_name
+from aeon.sugar.program import Decorator, SLiteral
+from aeon.typechecking.context import TypingContext
+from aeon.utils.name import Name
 
 
-def llvm(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
+def _llvm_options_from_decorator(decorator: Decorator) -> dict[str, Any]:
     llvm_args: dict[str, Any] = {"llvm": True, "llvm_debug": False, "llvm_cache": False}
 
     arg_keys = ["llvm_debug", "llvm_cache"]
@@ -27,6 +26,15 @@ def llvm(
         key = mapping.get(name.name, name.name)
         if key in llvm_args and isinstance(arg, SLiteral):
             llvm_args[key] = arg.value
+    return llvm_args
 
-    metadata = metadata_update(metadata, fun, llvm_args)
-    return fun, [], metadata
+
+def llvm_core(
+    decorator: Decorator,
+    fun_name: Name,
+    typing_ctx: TypingContext,
+    core_program: Term,
+    metadata: Metadata,
+) -> Metadata:
+    _ = typing_ctx, core_program
+    return metadata_update_by_name(metadata, fun_name, _llvm_options_from_decorator(decorator))

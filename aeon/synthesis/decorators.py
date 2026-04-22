@@ -95,17 +95,12 @@ def multi_minimize_float(
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a single argument (the body of the definition)."""
-    assert (
-        len(
-            decorator.macro_args,
-        )
-        == 1
-    ), "multi_minimize_float decorator expects a single argument"
+    assert len(decorator.macro_args) == 2, "multi_minimize_float decorator expects two arguments"
     assert isinstance(decorator.macro_args[1], SLiteral)
     assert isinstance(decorator.macro_args[1].value, int), "multi_minimize_float decorator expects an integer argument"
     number_of_objectives = decorator.macro_args[1].value
     return make_optimizer(
-        decorator.macro_args,
+        [decorator.macro_args[0]],
         fun,
         metadata,
         STypeConstructor(Name("List", 0)),

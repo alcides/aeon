@@ -16,6 +16,7 @@ from aeon.sugar.program import (
     SMatch,
     SMatchBranch,
     SHole,
+    SBy,
     SIf,
     SLet,
     SLiteral,
@@ -141,6 +142,24 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def if_e(self, meta, args):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))
+
+    def TACTIC_CMD(self, tok):
+        return str(tok)
+
+    def tactic_steps(self, args):
+        return tuple(s for s in args if s != ";")
+
+    def by_body_atomic(self, args):
+        return (args[0],)
+
+    def by_body_paren(self, args):
+        return args[0]
+
+    @v_args(meta=True)
+    def by_e(self, meta, args):
+        steps = args[0]
+        assert isinstance(steps, tuple)
+        return SBy(steps, loc=self._loc(meta))
 
     @v_args(meta=True)
     def match_e(self, meta, args):

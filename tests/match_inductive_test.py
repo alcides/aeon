@@ -15,14 +15,12 @@ def test_match_lowering_intlist():
         inductive IntList
         | empty : IntList
         | cons (hd:Int) (tl:IntList) : IntList
-        def mk (l:IntList) : IntList {
+        def mk (l:IntList) : IntList =
             match l with
             | empty => l
             | cons hd tl => l
-        }
-        def main (args:Int) : Int {
+        def main (args:Int) : Int =
             0
-        }
     """
 
     prog = parse_program(src)
@@ -40,14 +38,12 @@ def test_match_lowering_intlist_after_bind_program():
         inductive IntList
         | empty : IntList
         | cons (hd:Int) (tl:IntList) : IntList
-        def mk (l:IntList) : IntList {
+        def mk (l:IntList) : IntList =
             match l with
             | empty => l
             | cons hd tl => l
-        }
-        def main (args:Int) : Int {
+        def main (args:Int) : Int =
             0
-        }
     """
 
     prog = parse_main_program(src, filename="<test>")
@@ -63,7 +59,7 @@ def test_inductive_abstract_refinement_parameters_parse():
     src = """
         inductive Box forall <p : Int -> Bool>
         | mk (x:Int) : Box
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     ind = prog.inductive_decls[0]
@@ -77,7 +73,7 @@ def test_inductive_rforalls_merge_into_constructors_and_eliminator():
     src = """
         inductive Box forall <p : Int -> Bool>
         | mk (x:Int) : Box
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     expanded = expand_inductive_decls(Program(prog.imports, prog.type_decls, prog.inductive_decls, prog.definitions))
@@ -94,7 +90,7 @@ def test_inductive_rforall_sort_may_use_type_parameter():
     src = """
         inductive RList a forall <p : a -> Bool>
         | rnil : (RList a)
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     ind = prog.inductive_decls[0]
@@ -106,7 +102,7 @@ def test_infer_inductive_rforall_from_constructor_signature():
     src = """
         inductive Box
         | mk : {b:Box | r b}
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     assert prog.inductive_decls[0].rforalls == []
@@ -126,8 +122,8 @@ def test_infer_inductive_rforall_from_top_level_def_types():
     src = """
         inductive Box
         | mk : Box
-        def use (x:{b:Box | s b}) : Int { 0 }
-        def main (args:Int) : Int { 0 }
+        def use (x:{b:Box | s b}) : Int = 0
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     inferred = infer_inductive_rforall_decls(prog)
@@ -141,7 +137,7 @@ def test_infer_inductive_rforall_from_type_parameter_refinement():
         inductive RList a
         | rnil : (RList a)
         | rcons (x:{v:a | q v}) : (RList a)
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     inferred = infer_inductive_rforall_decls(prog)
@@ -154,7 +150,7 @@ def test_infer_inductive_rforall_does_not_lift_predicates_on_other_sorts():
     src = """
         inductive Box
         | mk : {x:Int | p x}
-        def main (args:Int) : Int { 0 }
+        def main (args:Int) : Int = 0
     """
     prog = parse_program(src)
     inferred = infer_inductive_rforall_decls(prog)

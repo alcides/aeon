@@ -117,8 +117,8 @@ class LLVMFunctionType(LLVMType):
     return_type: LLVMType
 
     def __str__(self):
-        args = ", ".join(str(t) for t in self.arg_types)
-        return f"{self.return_type} ({args})"
+        args = ", ".join(map(str, self.arg_types))
+        return f"({args}) -> {self.return_type}"
 
     def to_ir(self) -> ir.Type:
         return ir.FunctionType(self.return_type.to_ir(), [t.to_ir() for t in self.arg_types])

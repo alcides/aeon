@@ -1,7 +1,7 @@
-def String_len : (i:String) -> Int = \i -> native "len(i)";
-def String_intToString : (i:Int) -> String = \i -> native "str(i)";
+def String_len : (i:String) -> Int = \i -> native "len(i)"
+def String_intToString : (i:Int) -> String = \i -> native "str(i)"
 
-def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j"
 
 
 def validate_tweet (tweet: String) : String = tweet_length = String_len(tweet);

@@ -24,6 +24,7 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 from aeon.synthesis.api import ErrorInSynthesis, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
 
@@ -139,8 +140,17 @@ def synthesize_holes(
         evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
+        tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
+        steps = None
+        if isinstance(tac_map, dict):
+            raw = tac_map.get(hole_name)
+            if raw is not None:
+                steps = tuple(raw)
+            elif len(tac_map) == 1:
+                steps = tuple(next(iter(tac_map.values())))
+        syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
         try:
-            t = synthesizer.synthesize(
+            t = syn_impl.synthesize(
                 ctx=tyctx,
                 type=ty,
                 validate=validator,

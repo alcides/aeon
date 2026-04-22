@@ -9,11 +9,11 @@
 #
 # Expected solution: 2 coins of 1, 1 coin of 5, 3 coins of 10 (6 coins total)
 
-type CoinChange;
+type CoinChange
 
-def coins_1  : (c:CoinChange) -> Int = uninterpreted;
-def coins_5  : (c:CoinChange) -> Int = uninterpreted;
-def coins_10 : (c:CoinChange) -> Int = uninterpreted;
+def coins_1  : (c:CoinChange) -> Int = uninterpreted
+def coins_5  : (c:CoinChange) -> Int = uninterpreted
+def coins_10 : (c:CoinChange) -> Int = uninterpreted
 
 def coinchange_mk
     (c1  : {n:Int | n >= 0})
@@ -25,7 +25,7 @@ def coinchange_mk
         (coins_10 c == c10)
     } = native "[c1, c5, c10]";
 
-def total_coins (c:CoinChange) : Int = native "c[0] + c[1] + c[2]";
+def total_coins (c:CoinChange) : Int = native "c[0] + c[1] + c[2]"
 
 @minimize_int((total_coins coin_solution_hole))
 def coin_solution_hole : {c:CoinChange |

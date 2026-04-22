@@ -1,8 +1,8 @@
 
-def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j" ;
+def Math_floor_division : (i:Int) -> (j:Int)-> Int = \i -> \j -> native "i // j"
 
-def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j";
-def String_intToString : (i:Int) -> String = \i -> native "str(i)";
+def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j"
+def String_intToString : (i:Int) -> String = \i -> native "str(i)"
 
 
 def square_digits ( n : Int) : String = if n == 0 then
@@ -16,4 +16,4 @@ def square_digits ( n : Int) : String = if n == 0 then
         else
             String_concat (square_digits(Math_floor_division n 10)) (String_intToString(square));
 
-def main (n : Int) : Unit = print (square_digits 44 );
+def main (n : Int) : Unit = print (square_digits 44 )

@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Definition, SLiteral, Decorator
+from aeon.core.terms import Term
+from aeon.decorators.api import Metadata, metadata_update_by_name
+from aeon.sugar.program import Decorator, SLiteral
+from aeon.typechecking.context import TypingContext
+from aeon.utils.name import Name
 
 
-def gpu(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
+def _gpu_options_from_decorator(decorator: Decorator) -> dict[str, Any]:
     gpu_info: dict[str, Any] = {
         "gpu": True,
         "gpu_device": "cuda",
@@ -38,6 +37,15 @@ def gpu(
         key = mapping.get(name.name, name.name)
         if key in gpu_info and isinstance(arg, SLiteral):
             gpu_info[key] = arg.value
+    return gpu_info
 
-    metadata = metadata_update(metadata, fun, gpu_info)
-    return fun, [], metadata
+
+def gpu_core(
+    decorator: Decorator,
+    fun_name: Name,
+    typing_ctx: TypingContext,
+    core_program: Term,
+    metadata: Metadata,
+) -> Metadata:
+    _ = typing_ctx, core_program
+    return metadata_update_by_name(metadata, fun_name, _gpu_options_from_decorator(decorator))

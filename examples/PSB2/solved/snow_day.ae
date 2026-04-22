@@ -10,4 +10,4 @@ def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float = if isZero n t
 
         snow_day n1 c t p;
 
-def main(n: Int) : Unit= print (snow_day 10 0.0 1.0 0.0);
+def main(n: Int) : Unit= print (snow_day 10 0.0 1.0 0.0)

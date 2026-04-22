@@ -1,6 +1,6 @@
-type Board;
+type Board
 
-def Board_size : (b:Board) -> Int = uninterpreted;
+def Board_size : (b:Board) -> Int = uninterpreted
 
 def Board_is_empty (b:Board) : {t:Bool | t == (Board_size b == 0)  } = native "len(b) == 0";
 

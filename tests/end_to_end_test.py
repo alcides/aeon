@@ -95,7 +95,7 @@ def test_horn_solver_error_location():
     """When the Horn solver fails, the error location should point to the AST element
     being checked as the subtype (e.g. the argument in f(-3)), not the top-level program."""
     source = """
-def f (x: {a:Int | a > 0}) : Int { x }
+def f (x: {a:Int | a > 0}) : Int = x
 
 def k : Int = f (-3);
 """
@@ -106,7 +106,7 @@ def test_horn_solver_error_location_positive_arg():
     """Calling a function that expects negative with a positive argument fails;
     error location should point to the argument expression (2 + 40)."""
     source = """
-def g (x: {a:Int | a < 0}) : Int { x }
+def g (x: {a:Int | a < 0}) : Int = x
 
 def k : Int = g (2 + 40);
 """

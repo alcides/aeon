@@ -1,13 +1,13 @@
-import "List.ae";
+import "List.ae"
 
 def consume : (l: {x:(List Int) | List_size x == 1}) -> Int = \n -> 0;
 def consume : (l:(List Int) | List_size l == 1) -> Int = \n -> 0;
 
-# def neg1 : Int = consume(List_new);
+# def neg1 : Int = consume(List_new)
 
-# def neg2: Int = consume(List_append(List_append(List_new)(1))(1));
+# def neg2: Int = consume(List_append(List_append(List_new)(1))(1))
 
-def pos : Int = consume (List_append (List_new[Int]) 1);
+def pos : Int = consume (List_append (List_new[Int]) 1)
 
 def main (x:Int) : Unit =
     empty = List_new[Int];

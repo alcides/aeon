@@ -1,13 +1,13 @@
-type Pair;
+type Pair
 
-def Pair_fst_logical : (p:Pair) -> Int = uninterpreted;
+def Pair_fst_logical : (p:Pair) -> Int = uninterpreted
 
-def Pair_snd_logical : (p:Pair) -> Int = uninterpreted;
+def Pair_snd_logical : (p:Pair) -> Int = uninterpreted
 
-def Pair_mk (x:Int) (y:{ y:Int | y > x}) : Pair = native "(x,y)";
+def Pair_mk (x:Int) (y:{ y:Int | y > x}) : Pair = native "(x,y)"
 
 
-def assert : (b:{b:Bool | b}) -> Unit = native "()";
+def assert : (b:{b:Bool | b}) -> Unit = native "()"
 
 # def Pair_fst (p:Pair) : Int { native "p[0]" }
 

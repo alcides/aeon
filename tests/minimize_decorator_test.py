@@ -13,7 +13,7 @@ def test_minimize_single_arg():
         @minimize(f(1.0) - 5.0)
         @minimize(f(2.0) - 5.0)
         @minimize(f(3.0) - 5.0)
-        def f(x:Float) : Float { ?hole }
+        def f(x:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
@@ -38,7 +38,7 @@ def test_minimize_two_args():
         @minimize(f(0.0)(1.0) - 1.0)
         @minimize(f(0.0)(0.0) - 0.0)
         @minimize(f(1.0)(1.0) - 2.0)
-        def f(a:Float) (b:Float) : Float { ?hole }
+        def f(a:Float) (b:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
@@ -62,7 +62,7 @@ def test_maximize_extracts_training_data():
         @maximize(f(1.0) - 5.0)
         @maximize(f(2.0) - 5.0)
         @maximize(f(3.0) - 5.0)
-        def f(x:Float) : Float { ?hole }
+        def f(x:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
@@ -85,7 +85,7 @@ def test_minimize_combined_with_csv_data():
     source = r"""
         @csv_data("1.0,5.0\n2.0,5.0")
         @minimize(f(3.0) - 5.0)
-        def f(x:Float) : Float { ?hole }
+        def f(x:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
@@ -108,7 +108,7 @@ def test_minimize_metadata_has_training_data():
     source = """
         @minimize(f(1.0) - 10.0)
         @minimize(f(2.0) - 20.0)
-        def f(x:Float) : Float { ?hole }
+        def f(x:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     # Check training data exists in metadata
@@ -127,7 +127,7 @@ def test_minimize_metadata_has_goals():
     """@minimize also creates fitness goals for standard synthesizers."""
     source = """
         @minimize(f(1.0) - 10.0)
-        def f(x:Float) : Float { ?hole }
+        def f(x:Float) : Float = ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     assert any("goals" in v for v in metadata.values() if isinstance(v, dict))

@@ -13,7 +13,7 @@ def test_hole_identification():
             def year : Int = 2023;
             def minus : (a:Int) -> (b:Int) -> Int = \\x -> \\y -> x - y;
             @minimize_int( year - (synth 7) )
-            def synth(a: Int) : Int { (?hole:Int) * a}
+            def synth(a: Int) : Int = (?hole:Int) * a
         """
     holes = extract_target_functions(code)
     match holes:
@@ -25,9 +25,8 @@ def test_hole_identification():
 
 def test_hole1():
     source = r"""
-        def test (x:{k:Int | k > 0}) : {z:Int | z < 0} {
+        def test (x:{k:Int | k > 0}) : {z:Int | z < 0} =
         ?r
-        }
     """
     holes = extract_target_functions(source)
     match holes:

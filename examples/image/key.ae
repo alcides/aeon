@@ -1,6 +1,6 @@
-import "Image.ae";
+import "Image.ae"
 
-def target : Image = Image_open "examples/image/key_target.jpg";
+def target : Image = Image_open "examples/image/key_target.jpg"
 
 def key_example (steps:Int) : Image =
     white : Color = Color_mk 255 255 255;
@@ -13,14 +13,14 @@ def key_example (steps:Int) : Image =
     image5 = Image_draw_rectangle image4 686 424 100 48 key_color;
     image5;
 
-def k : Image = key_example 1;
+def k : Image = key_example 1
 
-def mod : (x: Int) -> (y: Int) -> Int = \x -> \y -> (x % y);
+def mod : (x: Int) -> (y: Int) -> Int = \x -> \y -> (x % y)
 
-def synth : Image = ?hole;
+def synth : Image = ?hole
 
-def fitness : Float = Image_diff synth target;
+def fitness : Float = Image_diff synth target
 
-# def keyshow : Unit = Image_show k;
-# def keysave : Unit = Image_save k "examples/image/key.jpg";
+# def keyshow : Unit = Image_show k
+# def keysave : Unit = Image_save k "examples/image/key.jpg"
 # def main (x:Int) : Unit { keysave }

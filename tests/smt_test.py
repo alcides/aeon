@@ -64,13 +64,13 @@ def List_size: (l:List) -> Int = uninterpreted;
 
 def List_new : {x:List | List_size x == 0} = native "[]" ;
 
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == (List_size l) + 1} { native "l + [i]" }
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == (List_size l) + 1} = native "l + [i]"
 
-def main (x:Int) : Unit {
+def main (x:Int) : Unit =
     empty = List_new;
     one = List_append empty 3;
     print(one)
-}"""
+"""
     check_compile(aeon_code, st_top)
 
 
@@ -79,13 +79,13 @@ def test_uninterpreted2() -> None:
 type List;
 def List_size: (l:List) -> Int = uninterpreted;
 def List_new : {u:List | List_size u == 0} = native "[]" ;
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1}  { native "l + [i]" }
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]"
 
-def main (x:Int) : Unit {
+def main (x:Int) : Unit =
     empty = List_new;
     one = List_append empty 3;
     print(one)
-}"""
+"""
     check_compile(aeon_code, st_top)
 
 

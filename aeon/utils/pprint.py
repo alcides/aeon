@@ -17,6 +17,7 @@ from aeon.sugar.program import (
     SLiteral,
     SVar,
     SHole,
+    SBy,
     STerm,
     Node,
     ImportAe,
@@ -164,7 +165,7 @@ def get_sterm_operation(sterm: STerm) -> Operation:
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
-        case SLiteral() | SVar() | SHole():
+        case SLiteral() | SVar() | SHole() | SBy():
             return Operation.LITERAL
         case _:
             return Operation.LITERAL
@@ -425,6 +426,10 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
         case SHole(name=name):
             return text("?" + name.pretty())
 
+        case SBy(steps=steps):
+            inner = text("; ".join(steps))
+            return group(concat([text("by "), inner]))
+
         case SAnnotation(expr=expr, type=_type):
             expr_doc = pretty_sterm_with_parens(expr, ParenthesisContext(Precedence.ANNOTATION, Side.LEFT), depth + 1)
             type_doc = stype_pretty(_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
@@ -540,7 +545,6 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                                 pretty_func_definition,
                                 text(" ="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
-                                text(";"),
                             ]
                         )
                     )
@@ -614,6 +618,8 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             return normalize_term(simplified_term, context, new_seen)
         case SHole(name=name):
             return SHole(name=name)
+        case SBy(steps=steps, loc=loc):
+            return SBy(steps=steps, loc=loc)
         case SAnnotation(expr=expr, type=type):
             simplified_expr = normalize_term(expr, context, seen)
             return SAnnotation(expr=simplified_expr, type=type)
@@ -712,14 +718,14 @@ def node_pretty(node: Node) -> Doc:
     match node:
         case ImportAe(path=path, func=func):
             return (
-                group(concat([text("import"), line(), text(f'"{path}";')]))
+                group(concat([text("import"), line(), text(f'"{path}"')]))
                 if not func
                 else group(
-                    concat([text("import"), line(), text(func), line(), text("from"), line(), text(f'"{path}";')])
+                    concat([text("import"), line(), text(func), line(), text("from"), line(), text(f'"{path}"')])
                 )
             )
         case TypeDecl(name=name):
-            return group(concat([text("type"), line(), text(f"{name.pretty()};")]))
+            return group(concat([text("type"), line(), text(f"{name.pretty()}")]))
         case Decorator(name=name, macro_args=macro_args):
             pretty_macro_args = [sterm_pretty(simplify_sterm(arg)) for arg in macro_args]
             pretty_macro_args_doc = parens(insert_between(concat([text(","), line()]), pretty_macro_args))
@@ -802,7 +808,6 @@ def node_pretty(node: Node) -> Doc:
                                 pretty_func_definition,
                                 text(" ="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body])),
-                                text(";"),
                             ]
                         )
                     )
@@ -822,7 +827,6 @@ def node_pretty(node: Node) -> Doc:
                                 line(),
                                 text("= "),
                                 nest(DEFAULT_TAB_SIZE, pretty_body),
-                                text(";"),
                             ]
                         )
                     )
