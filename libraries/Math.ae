@@ -28,7 +28,7 @@ def Math_sqrt (i:Int) : Float = native "math.sqrt(i)"
 def Math_powf (i:Float) (j:Float) : Float = native "i ** j";
 
 # Raises a float to the power of another float.
-def Math_powf (i:Float) (j:Float) : Float { native "i ** j" }
+def Math_powf (i:Float) (j:Float) : Float = native "i ** j"
 
 # Raises an integer to the power of another integer.
 def Math_pow (i:Int) (j:Int) : Int = native "i ** j"
