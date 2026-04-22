@@ -51,12 +51,10 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
-    "llvm": llvm,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
-    "gpu": gpu,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
