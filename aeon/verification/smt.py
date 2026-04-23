@@ -194,6 +194,103 @@ def ple_unfold_fixpoint(
     return current
 
 
+def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
+    match ty:
+        case TypeConstructor(name, _, _):
+            return mapping.get(name.name, ty)
+        case AbstractionType(vname, vty, body, loc):
+            svty = _specialize_type(vty, mapping)
+            sbody = _specialize_type(body, mapping)
+            assert isinstance(svty, (Top, TypeVar, TypeConstructor, RefinedType, AbstractionType))
+            return AbstractionType(vname, svty, sbody, loc=loc)
+        case TypePolymorphism(_, _, body):
+            return _specialize_type(body, mapping)
+        case RefinementPolymorphism(_, _, body):
+            return _specialize_type(body, mapping)
+        case RefinedType(vname, bty, ref, loc):
+            sbty = _specialize_type(bty, mapping)
+            assert isinstance(sbty, (TypeConstructor, TypeVar))
+            return RefinedType(vname, sbty, ref, loc=loc)
+        case _:
+            return ty
+
+
+def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> TypeConstructor | None:
+    match t:
+        case LiquidLiteralInt():
+            return t_int
+        case LiquidLiteralFloat():
+            return t_float
+        case LiquidLiteralBool():
+            return t_bool
+        case LiquidLiteralString():
+            return t_string
+        case LiquidVar(name):
+            return variables.get(str(name), None)
+        case _:
+            return None
+
+
+def _specialization_name(base: str, concrete: tuple[str, ...]) -> str:
+    return f"{base}__spec__{'__'.join(concrete)}"
+
+
+def _specialize_liquid_term(
+    t: LiquidTerm,
+    functions: dict[str, AbstractionType],
+    variables: dict[str, TypeConstructor],
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+    specializations: dict[tuple[str, tuple[str, ...]], str],
+) -> tuple[LiquidTerm, dict[str, AbstractionType], dict[str, tuple[tuple[Name, ...], LiquidTerm]]]:
+    if not isinstance(t, LiquidApp):
+        return t, functions, reflected_functions
+
+    nfuncs = functions
+    nref = reflected_functions
+    nargs: list[LiquidTerm] = []
+    for a in t.args:
+        sa, nfuncs, nref = _specialize_liquid_term(a, nfuncs, variables, nref, specializations)
+        nargs.append(sa)
+
+    fname = str(t.fun)
+    if fname not in nfuncs:
+        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+
+    fty = nfuncs[fname]
+    cur: Type = fty
+    subst: dict[str, TypeConstructor] = {}
+    for arg in nargs:
+        if not isinstance(cur, AbstractionType):
+            break
+        actual = _term_base_type(arg, variables)
+        expected = cur.var_type
+        if (
+            isinstance(expected, TypeConstructor)
+            and expected.name.name[:1].islower()
+            and expected.name.name not in {"Int", "Bool", "Float", "String", "Unit", "Top"}
+            and actual is not None
+        ):
+            subst[expected.name.name] = actual
+        cur = cur.type
+
+    if not subst:
+        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+
+    concrete_sig = tuple(sorted(str(v.name) for v in subst.values()))
+    skey = (fname, concrete_sig)
+    if skey in specializations:
+        sname = specializations[skey]
+    else:
+        sname = _specialization_name(fname, concrete_sig)
+        nty = _specialize_type(fty, subst)
+        assert isinstance(nty, AbstractionType)
+        nfuncs = {**nfuncs, sname: nty}
+        if fname in nref:
+            nref = {**nref, sname: nref[fname]}
+        specializations[skey] = sname
+    return LiquidApp(Name(sname, 0), nargs, loc=t.loc), nfuncs, nref
+
+
 def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTContext:
     """Add Z3-scalar bindings for each curried parameter of ``fun_ty`` (for UFD / recursion VCs)."""
     out = ctx
@@ -270,9 +367,17 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
         ctx = SMTContext(["Top"], {}, {}, [], {})
     match c:
         case LiquidConstraint(expr):
-            premise = [ple_unfold_fixpoint(p, ctx.reflected_functions) for p in ctx.premises]
-            out_ctx = SMTContext(ctx.sorts, ctx.functions, ctx.variables, premise, ctx.reflected_functions)
-            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(expr, ctx.reflected_functions))
+            specializations: dict[tuple[str, tuple[str, ...]], str] = {}
+            nfunctions = ctx.functions
+            nref = ctx.reflected_functions
+            sprem: list[LiquidTerm] = []
+            for p in ctx.premises:
+                sp, nfunctions, nref = _specialize_liquid_term(p, nfunctions, ctx.variables, nref, specializations)
+                sprem.append(sp)
+            sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
+            premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
+            out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
+            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
         case Conjunction(c1, c2):
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)

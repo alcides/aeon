@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
@@ -12,6 +13,8 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_int
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
+from aeon.verification.smt import flatten
+from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
@@ -177,3 +180,26 @@ def test_rank3_reflected_unfolding() -> None:
         reflected_impl=((g, n), LiquidVar(n)),
     )
     assert isinstance(reflected, ReflectedFunctionDeclaration)
+
+
+def test_polymorphic_reflection_specializes_multiple_instances() -> None:
+    a = Name("a")
+    x = Name("x")
+    id_name = Name("id")
+    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    base = implication_constraint(
+        id_name,
+        poly_id,
+        Conjunction(
+            LiquidConstraint(
+                LiquidApp(Name("==", 0), [LiquidApp(id_name, [LiquidLiteralInt(1)]), LiquidLiteralInt(1)])
+            ),
+            LiquidConstraint(
+                LiquidApp(Name("==", 0), [LiquidApp(id_name, [LiquidLiteralFloat(1.0)]), LiquidLiteralFloat(1.0)])
+            ),
+        ),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert smt_valid(base)
+    cans = list(flatten(base))
+    assert any("__spec__Int" in name or "__spec__Float" in name for c in cans for name in c.functions.keys())
