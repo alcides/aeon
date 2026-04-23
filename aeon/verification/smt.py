@@ -181,16 +181,41 @@ def ple_unfold_fixpoint(
     reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
     max_steps: int = 256,
 ) -> LiquidTerm:
+    def term_size(node: LiquidTerm) -> int:
+        match node:
+            case LiquidApp(_, args):
+                return 1 + sum(term_size(a) for a in args)
+            case _:
+                return 1
+
+    max_term_size = 4096
     current = t
+    start_size = term_size(current)
     seen: set[str] = {repr(current)}
+    unfolded_steps = 0
+    stop_reason = "fixpoint"
     for _ in range(max_steps):
         current, changed = _ple_unfold_once(current, reflected_functions)
         if not changed:
+            stop_reason = "no_change"
+            break
+        unfolded_steps += 1
+        if term_size(current) > max_term_size:
+            stop_reason = "size_guard"
             break
         signature = repr(current)
         if signature in seen:
+            stop_reason = "seen_guard"
             break
         seen.add(signature)
+    logger.debug(
+        "PLE unfold: steps={} start_size={} final_size={} stop={} reflected_funs={}",
+        unfolded_steps,
+        start_size,
+        term_size(current),
+        stop_reason,
+        len(reflected_functions),
+    )
     return current
 
 

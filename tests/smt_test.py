@@ -235,3 +235,12 @@ def test_refinement_polymorphic_reflection_rejects_predicate_dependent_body() ->
     )
     ty = RefinementPolymorphism(p, t_int, AbstractionType(x, t_int, t_bool))
     assert _reflected_impl_for(Name("rid"), ty, impl) is None
+
+
+def test_recursive_reflection_requires_termination_metric() -> None:
+    f = Name("f")
+    x = Name("x")
+    ty = AbstractionType(x, t_int, t_int)
+    impl = Abstraction(x, Application(Var(f), Var(x)))
+    assert _reflected_impl_for(f, ty, impl, has_termination_metric=False) is None
+    assert _reflected_impl_for(f, ty, impl, has_termination_metric=True) is not None

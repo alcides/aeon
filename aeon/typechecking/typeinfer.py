@@ -95,7 +95,13 @@ def _strip_type_level_wrappers(t: Term) -> Term:
     return t
 
 
-def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, ...], LiquidTerm] | None:
+def _reflected_impl_for(
+    name: Name,
+    ty: Type,
+    impl: Term,
+    *,
+    has_termination_metric: bool = False,
+) -> tuple[tuple[Name, ...], LiquidTerm] | None:
     def has_horn(t: LiquidTerm) -> bool:
         if isinstance(t, LiquidHornApplication):
             return True
@@ -142,6 +148,10 @@ def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, .
     allowed = set(ty_params) | {name}
     op_names = {op.name for op in ops}
     if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
+        return None
+    is_recursive_body = any(v == name for v in liquid_free_vars(liq))
+    if is_recursive_body and not has_termination_metric:
+        # Recursive reflection is only enabled when we have explicit termination evidence.
         return None
     if any(v in refinement_params for v in liquid_free_vars(liq)):
         # Current reflection pipeline only supports refinement-polymorphic functions
@@ -353,7 +363,12 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
             c1 = check(nrctx, var_value, var_type)
             (c2, t2) = synth(nrctx, body)
-            reflected_impl = _reflected_impl_for(var_name, var_type, var_value)
+            reflected_impl = _reflected_impl_for(
+                var_name,
+                var_type,
+                var_value,
+                has_termination_metric=bool(t.decreasing_by),
+            )
             c1 = implication_constraint(var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
@@ -429,7 +444,12 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             nrctx: TypingContext = ctx.with_var(var_name, t1)
             c1 = check(nrctx, var_value, var_type)
             c2 = check(nrctx, body, ty)
-            reflected_impl = _reflected_impl_for(var_name, t1, var_value)
+            reflected_impl = _reflected_impl_for(
+                var_name,
+                t1,
+                var_value,
+                has_termination_metric=bool(t.decreasing_by),
+            )
             c1 = implication_constraint(var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
