@@ -104,7 +104,8 @@ def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, .
         return False
 
     if not isinstance(ty, AbstractionType):
-        return None
+        if not isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+            return None
     if not isinstance(impl, Term):
         return None
     current = _strip_type_level_wrappers(impl)
@@ -116,6 +117,13 @@ def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, .
         return None
     ty_params: list[Name] = []
     cur_ty: Type = ty
+    refinement_params: set[Name] = set()
+    while isinstance(cur_ty, TypePolymorphism) or isinstance(cur_ty, RefinementPolymorphism):
+        if isinstance(cur_ty, TypePolymorphism):
+            cur_ty = cur_ty.body
+        else:
+            refinement_params.add(cur_ty.name)
+            cur_ty = cur_ty.body
     while isinstance(cur_ty, AbstractionType):
         ty_params.append(cur_ty.var_name)
         cur_ty = cur_ty.type
@@ -134,6 +142,10 @@ def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, .
     allowed = set(ty_params) | {name}
     op_names = {op.name for op in ops}
     if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
+        return None
+    if any(v in refinement_params for v in liquid_free_vars(liq)):
+        # Current reflection pipeline only supports refinement-polymorphic functions
+        # whose runtime body is independent of the refinement predicate symbol.
         return None
     return (tuple(ty_params), liq)
 

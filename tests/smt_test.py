@@ -8,9 +8,12 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import AbstractionType
 from aeon.core.types import BaseKind
+from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.types import t_int
+from aeon.core.types import t_bool
+from aeon.core.terms import Abstraction, Application, RefinementAbstraction, Var
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
 from aeon.verification.smt import flatten
@@ -19,6 +22,7 @@ from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.sub import implication_constraint
+from aeon.typechecking.typeinfer import _reflected_impl_for
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.ast_helpers import st_int, st_top, st_bool
@@ -203,3 +207,31 @@ def test_polymorphic_reflection_specializes_multiple_instances() -> None:
     assert smt_valid(base)
     cans = list(flatten(base))
     assert any("__spec__Int" in name or "__spec__Float" in name for c in cans for name in c.functions.keys())
+
+
+def test_refinement_polymorphic_reflection_supported() -> None:
+    p = Name("p")
+    x = Name("x")
+    ty = RefinementPolymorphism(p, t_int, AbstractionType(x, t_int, t_int))
+    reflected = implication_constraint(
+        Name("rid"),
+        ty,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)
+
+
+def test_refinement_polymorphic_reflection_rejects_predicate_dependent_body() -> None:
+    p = Name("p")
+    x = Name("x")
+    impl = RefinementAbstraction(
+        p,
+        t_int,
+        Abstraction(
+            x,
+            Application(Var(p), Var(x)),
+        ),
+    )
+    ty = RefinementPolymorphism(p, t_int, AbstractionType(x, t_int, t_bool))
+    assert _reflected_impl_for(Name("rid"), ty, impl) is None
