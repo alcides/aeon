@@ -100,6 +100,11 @@ def witness (x:Int) : {v:Int | v > x} = inc x;
 The proof for `witness` succeeds because `inc x` is unfolded to `x + 1` while discharging VCs.
 
 `native` and explicitly `uninterpreted` definitions are not reflected.
+Functions with holes are not reflected.
+
+Recursive functions are reflected only when termination evidence is present (for example with `decreasing_by`), so unfolding stays sound.
+
+Before SMT solving, Aeon also simplifies generated verification constraints (boolean identities, redundant equalities, and repeated trivial structure), which helps both solver performance and error-message readability.
 
 ## Types
 

@@ -117,18 +117,36 @@ def is_used(n: Name, c: Constraint) -> bool:
 
 def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
     """Simplifies a liquid term by reducing it."""
-    if isinstance(expr, LiquidApp) and expr.fun == Name("&&", 0):
-        if expr.args[0] == LiquidLiteralBool(True):
-            return simplify_expr(expr.args[1])
-        elif expr.args[1] == LiquidLiteralBool(True):
-            return simplify_expr(expr.args[0])
-    if isinstance(expr, LiquidApp) and expr.fun == Name("||", 0):
-        if expr.args[0] == LiquidLiteralBool(False):
-            return simplify_expr(expr.args[1])
-        elif expr.args[1] == LiquidLiteralBool(False):
-            return simplify_expr(expr.args[0])
     if isinstance(expr, LiquidApp):
-        return LiquidApp(expr.fun, [simplify_expr(e) for e in expr.args])
+        args = [simplify_expr(e) for e in expr.args]
+        if expr.fun == Name("&&", 0):
+            if args[0] == LiquidLiteralBool(False) or args[1] == LiquidLiteralBool(False):
+                return LiquidLiteralBool(False)
+            if args[0] == LiquidLiteralBool(True):
+                return args[1]
+            if args[1] == LiquidLiteralBool(True):
+                return args[0]
+            if args[0] == args[1]:
+                return args[0]
+        if expr.fun == Name("||", 0):
+            if args[0] == LiquidLiteralBool(True) or args[1] == LiquidLiteralBool(True):
+                return LiquidLiteralBool(True)
+            if args[0] == LiquidLiteralBool(False):
+                return args[1]
+            if args[1] == LiquidLiteralBool(False):
+                return args[0]
+            if args[0] == args[1]:
+                return args[0]
+        if expr.fun == Name("!", 0) and len(args) == 1:
+            if args[0] == LiquidLiteralBool(True):
+                return LiquidLiteralBool(False)
+            if args[0] == LiquidLiteralBool(False):
+                return LiquidLiteralBool(True)
+            if isinstance(args[0], LiquidApp) and args[0].fun == Name("!", 0) and len(args[0].args) == 1:
+                return args[0].args[0]
+        if expr.fun == Name("==", 0) and len(args) == 2 and args[0] == args[1]:
+            return LiquidLiteralBool(True)
+        return LiquidApp(expr.fun, args)
     return expr
 
 
@@ -194,6 +212,12 @@ def simplify_constraint(c: Constraint) -> Constraint:
     elif isinstance(c, Conjunction):
         left = simplify_constraint(c.c1)
         right = simplify_constraint(c.c2)
+        if left == right:
+            return left
+        if isinstance(left, LiquidConstraint) and left.expr == LiquidLiteralBool(False):
+            return left
+        if isinstance(right, LiquidConstraint) and right.expr == LiquidLiteralBool(False):
+            return right
         if isinstance(left, LiquidConstraint) and left.expr == LiquidLiteralBool(True):
             return right
         elif isinstance(right, LiquidConstraint) and right.expr == LiquidLiteralBool(True):
@@ -247,6 +271,17 @@ def simplify_constraint(c: Constraint) -> Constraint:
         cont = simplify_constraint(c.seq)
         return ReflectedFunctionDeclaration(c.name, c.type, c.params, simplify_expr(c.body), cont)
     return c
+
+
+def simplify_constraint_fixpoint(c: Constraint, max_steps: int = 16) -> Constraint:
+    """Apply simplification repeatedly until stable (or bounded)."""
+    cur = c
+    for _ in range(max_steps):
+        nxt = simplify_constraint(cur)
+        if nxt == cur:
+            return cur
+        cur = nxt
+    return cur
 
 
 def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
