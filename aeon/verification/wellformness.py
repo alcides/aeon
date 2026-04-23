@@ -10,6 +10,7 @@ from aeon.verification.vcs import (
     LiquidConstraint,
     Top,
     Conjunction,
+    ReflectedFunctionDeclaration,
     TypeVarDeclaration,
     UninterpretedFunctionDeclaration,
 )
@@ -24,6 +25,12 @@ def wellformed_constraint_liquid(ctx: LiquidTypeCheckingContext, c: Constraint) 
             wellformed_constraint_liquid(ctx, c1)
             wellformed_constraint_liquid(ctx, c2)
         case UninterpretedFunctionDeclaration(name, ft, seq):
+            nctx = LiquidTypeCheckingContext(
+                ctx.known_types, ctx.variables, ctx.functions | {name: lower_abstraction_type(ft)}
+            )
+            assert isinstance(ft, AbstractionType), f"{ft} is expected to be an AbstractionType."
+            wellformed_constraint_liquid(nctx, seq)
+        case ReflectedFunctionDeclaration(name, ft, _, _, seq):
             nctx = LiquidTypeCheckingContext(
                 ctx.known_types, ctx.variables, ctx.functions | {name: lower_abstraction_type(ft)}
             )
@@ -79,6 +86,16 @@ def canonicalize_constraint(c: Constraint, stack: list[Name] = None) -> Constrai
             nty = canonicalize_type(ft)
             assert isinstance(nty, AbstractionType), f"Expected AbstractionType, got {nty}."
             return UninterpretedFunctionDeclaration(new_name, nty, nseq)
+        case ReflectedFunctionDeclaration(name, ft, params, body, seq):
+            new_name = Name(name.name, fresh_counter.fresh())
+            if new_name != name:
+                nseq = rename_constraint(c, name, new_name)
+            else:
+                nseq = seq
+            nseq = canonicalize_constraint(nseq, stack + [new_name])
+            nty = canonicalize_type(ft)
+            assert isinstance(nty, AbstractionType), f"Expected AbstractionType, got {nty}."
+            return ReflectedFunctionDeclaration(new_name, nty, params, body, nseq)
         case TypeVarDeclaration(name, seq):
             if name in stack:
                 assert False, f"Type variable {name} is already in the stack."

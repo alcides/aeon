@@ -100,3 +100,25 @@ def test_poly_to_smt():
             Name("z"): st_int,
         },
     )
+
+
+def test_reflected_function_unfolding() -> None:
+    aeon_code = """
+def inc (x:Int) : Int = x + 1;
+
+def witness (x:Int) : {v:Int | v > x} = inc x;
+
+def main (x:Int) : Unit = print(witness x)
+"""
+    assert check_compile(aeon_code, st_top)
+
+
+def test_native_function_is_not_reflected() -> None:
+    aeon_code = """
+def native_inc (x:Int) : Int = native "x + 1";
+
+def witness (x:Int) : {v:Int | v > x} = native_inc x;
+
+def main (x:Int) : Unit = print(witness x)
+"""
+    assert not check_compile(aeon_code, st_top)

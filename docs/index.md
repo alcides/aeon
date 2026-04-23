@@ -85,6 +85,22 @@ The above top-level definitions are equal to each-other. The first version defin
 
 `\x -> x + 1` is an annonymous lambda function, which can be annotated with the type `(x:Int) -> Int`.
 
+### Reflected functions and PLE
+
+Aeon automatically reflects non-native top-level functions into the logical environment used by refinement checking.
+This means the solver can unfold their definitions during verification (PLE-style) instead of treating them as fully uninterpreted symbols.
+
+Example:
+
+```
+def inc (x:Int) : Int = x + 1;
+def witness (x:Int) : {v:Int | v > x} = inc x;
+```
+
+The proof for `witness` succeeds because `inc x` is unfolded to `x + 1` while discharging VCs.
+
+`native` and explicitly `uninterpreted` definitions are not reflected.
+
 ## Types
 
 Types in Aeon can be very expressive. In refined types, `where` can be used interchangeably with `|`:

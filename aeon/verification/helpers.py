@@ -18,6 +18,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
@@ -32,6 +33,8 @@ def constraint_location(c: Constraint) -> Location | None:
     elif isinstance(c, Conjunction):
         return c.loc or constraint_location(c.c1) or constraint_location(c.c2)
     elif isinstance(c, UninterpretedFunctionDeclaration):
+        return constraint_location(c.seq)
+    elif isinstance(c, ReflectedFunctionDeclaration):
         return constraint_location(c.seq)
     return None
 
@@ -100,6 +103,8 @@ def is_used(n: Name, c: Constraint) -> bool:
         return is_used_liquid(n, c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         return False
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        return is_used_liquid(n, c.body) or is_used(n, c.seq)
     elif isinstance(c, Implication):
         if n == c.name:
             return False
@@ -133,6 +138,8 @@ def constraint_free_variables(c: Constraint) -> list[Name]:
         return liquid_free_vars(c.expr)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         return []
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        return [v for v in liquid_free_vars(c.body) if v not in c.params] + constraint_free_variables(c.seq)
     elif isinstance(c, Implication):
         lv = liquid_free_vars(c.pred)
         rv = constraint_free_variables(c.seq)
@@ -161,6 +168,10 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
         case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
             nseq = substitution_in_constraint(seq, rep, name)
             return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
+        case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
+            nbody = substitution_in_liquid(body, rep, name)
+            nseq = substitution_in_constraint(seq, rep, name)
+            return ReflectedFunctionDeclaration(rfd_name, rfd_type, params, nbody, nseq)
         case _:
             assert False
 
@@ -232,6 +243,9 @@ def simplify_constraint(c: Constraint) -> Constraint:
     elif isinstance(c, UninterpretedFunctionDeclaration):
         cont = simplify_constraint(c.seq)
         return UninterpretedFunctionDeclaration(c.name, c.type, cont)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        cont = simplify_constraint(c.seq)
+        return ReflectedFunctionDeclaration(c.name, c.type, c.params, simplify_expr(c.body), cont)
     return c
 
 
@@ -249,6 +263,9 @@ def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
     elif isinstance(c, UninterpretedFunctionDeclaration):
         for inner in conjunctive_normal_form(c.seq):
             yield UninterpretedFunctionDeclaration(c.name, c.type, inner)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        for inner in conjunctive_normal_form(c.seq):
+            yield ReflectedFunctionDeclaration(c.name, c.type, c.params, c.body, inner)
     else:
         assert False
 
@@ -270,6 +287,10 @@ def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
         return [Implication(c.name, c.base, c.pred, s, loc=c.loc) for s in split_or_in_conclusion(c.seq)]
     elif isinstance(c, UninterpretedFunctionDeclaration):
         return [UninterpretedFunctionDeclaration(c.name, c.type, s) for s in split_or_in_conclusion(c.seq)]
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        return [
+            ReflectedFunctionDeclaration(c.name, c.type, c.params, c.body, s) for s in split_or_in_conclusion(c.seq)
+        ]
     return [c]
 
 
@@ -280,6 +301,10 @@ def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, No
         yield (f"{c.expr}", 0)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         yield (f"fun {c.name} : {c.type}", 0)
+        yield from pretty_print_generator(c.seq)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        params = ", ".join(str(p) for p in c.params)
+        yield (f"reflected {c.name}({params}) : {c.type}", 0)
         yield from pretty_print_generator(c.seq)
     elif isinstance(c, Implication):
         if is_used(c.name, c.seq):
@@ -305,6 +330,8 @@ def is_implication_true(c: Constraint):
         return c.expr == LiquidLiteralBool(True)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         return is_implication_true(c.seq)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        return is_implication_true(c.seq)
     elif isinstance(c, Implication):
         return is_implication_true(c.seq)
     elif isinstance(c, Conjunction):
@@ -318,6 +345,8 @@ def remove_unrelated_context(c: Constraint, ignore_vars: set[Name]) -> tuple[Con
     if isinstance(c, LiquidConstraint):
         return (c, used_variables(c.expr).difference(ignore_vars or []))
     elif isinstance(c, UninterpretedFunctionDeclaration):
+        return remove_unrelated_context(c.seq, ignore_vars.union([c.name]))
+    elif isinstance(c, ReflectedFunctionDeclaration):
         return remove_unrelated_context(c.seq, ignore_vars.union([c.name]))
     elif isinstance(c, Implication):
         (ic, vs) = remove_unrelated_context(c.seq, ignore_vars)

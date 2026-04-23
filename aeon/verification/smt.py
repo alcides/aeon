@@ -46,6 +46,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
 
@@ -118,18 +119,79 @@ class SMTContext:
     functions: dict[str, AbstractionType]
     variables: dict[str, TypeConstructor]
     premises: list[LiquidTerm]
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]]
 
     def with_sort(self, name: Name) -> SMTContext:
-        return SMTContext(self.sorts + [str(name)], self.functions, self.variables, self.premises)
+        return SMTContext(
+            self.sorts + [str(name)], self.functions, self.variables, self.premises, self.reflected_functions
+        )
 
     def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
-        return SMTContext(self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises)
+        return SMTContext(
+            self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises, self.reflected_functions
+        )
 
     def with_var(self, name: Name, ty: TypeConstructor) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises)
+        return SMTContext(
+            self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises, self.reflected_functions
+        )
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
+        return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p], self.reflected_functions)
+
+    def with_reflected_function(self, name: Name, params: tuple[Name, ...], body: LiquidTerm) -> SMTContext:
+        return SMTContext(
+            self.sorts,
+            self.functions,
+            self.variables,
+            self.premises,
+            {**self.reflected_functions, str(name): (params, body)},
+        )
+
+
+def _ple_unfold_once(
+    t: LiquidTerm,
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+) -> tuple[LiquidTerm, bool]:
+    match t:
+        case LiquidApp(fun, args, loc):
+            n_args: list[LiquidTerm] = []
+            changed = False
+            for arg in args:
+                n_arg, arg_changed = _ple_unfold_once(arg, reflected_functions)
+                n_args.append(n_arg)
+                changed = changed or arg_changed
+            key = str(fun)
+            if key in reflected_functions:
+                params, body = reflected_functions[key]
+                if len(params) == len(n_args):
+                    unfolded = body
+                    for param, arg in zip(params, n_args):
+                        unfolded = substitution_in_liquid(unfolded, arg, param)
+                    return unfolded, True
+            if changed:
+                return LiquidApp(fun, n_args, loc=loc), True
+            return t, False
+        case _:
+            return t, False
+
+
+def ple_unfold_fixpoint(
+    t: LiquidTerm,
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+    max_steps: int = 256,
+) -> LiquidTerm:
+    current = t
+    seen: set[str] = {repr(current)}
+    for _ in range(max_steps):
+        current, changed = _ple_unfold_once(current, reflected_functions)
+        if not changed:
+            break
+        signature = repr(current)
+        if signature in seen:
+            break
+        seen.add(signature)
+    return current
 
 
 def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTContext:
@@ -190,6 +252,11 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
         case UninterpretedFunctionDeclaration(name, absty, seq):
             nseq = rename_constraint(seq, old_name, new_name)
             return UninterpretedFunctionDeclaration(name, absty, nseq)
+        case ReflectedFunctionDeclaration(name, absty, params, body, seq):
+            nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
+            nparams = tuple(new_name if p == old_name else p for p in params)
+            nseq = rename_constraint(seq, old_name, new_name)
+            return ReflectedFunctionDeclaration(name, absty, nparams, nbody, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
 
@@ -197,10 +264,12 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
-        ctx = SMTContext(["Top"], {}, {}, [])
+        ctx = SMTContext(["Top"], {}, {}, [], {})
     match c:
         case LiquidConstraint(expr):
-            yield CanonicConstraint(ctx, expr)
+            premise = [ple_unfold_fixpoint(p, ctx.reflected_functions) for p in ctx.premises]
+            out_ctx = SMTContext(ctx.sorts, ctx.functions, ctx.variables, premise, ctx.reflected_functions)
+            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(expr, ctx.reflected_functions))
         case Conjunction(c1, c2):
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)
@@ -224,6 +293,13 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
             yield from flatten(seq, nctx.with_function(name, ty))
+        case ReflectedFunctionDeclaration(name, ty, params, body, seq):
+            nctx = (
+                _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
+            )
+            app = LiquidApp(name, [LiquidVar(p) for p in params])
+            eq = LiquidApp(Name("==", 0), [app, body])
+            yield from flatten(seq, nctx.with_premise(eq))
         case _:
             assert False, f"Cannot flatten {c}."
 

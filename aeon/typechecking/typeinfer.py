@@ -4,17 +4,19 @@ from typing import Iterable
 from loguru import logger
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidApp, LiquidTerm
+from aeon.core.liquid import LiquidApp, LiquidTerm, liquid_free_vars
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarKind
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
     instantiate_refinement_in_type,
     instantiate_refinement_with_horn_in_type,
     liquefy,
+    substitution_in_liquid,
     substitute_vartype,
     substitution_liquid_in_term,
     substitution_liquid_in_type,
@@ -81,6 +83,51 @@ from aeon.verification.helpers import (
 )
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
+
+
+def _strip_type_level_wrappers(t: Term) -> Term:
+    while isinstance(t, TypeAbstraction) or isinstance(t, RefinementAbstraction) or isinstance(t, Annotation):
+        if isinstance(t, TypeAbstraction):
+            t = t.body
+        elif isinstance(t, RefinementAbstraction):
+            t = t.body
+        else:
+            t = t.expr
+    return t
+
+
+def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, ...], LiquidTerm] | None:
+    if not isinstance(ty, AbstractionType):
+        return None
+    if not isinstance(impl, Term):
+        return None
+    current = _strip_type_level_wrappers(impl)
+    impl_params: list[Name] = []
+    while isinstance(current, Abstraction):
+        impl_params.append(current.var_name)
+        current = current.body
+    if not impl_params:
+        return None
+    ty_params: list[Name] = []
+    cur_ty: Type = ty
+    while isinstance(cur_ty, AbstractionType):
+        ty_params.append(cur_ty.var_name)
+        cur_ty = cur_ty.type
+    if len(ty_params) != len(impl_params):
+        return None
+    liq = liquefy(current)
+    if liq is None:
+        return None
+    for src, dst in zip(impl_params, ty_params):
+        if src != dst:
+            liq = substitution_in_liquid(liq, LiquidVar(dst), src)
+    if any(v.name in {"native", "native_import"} for v in liquid_free_vars(liq)):
+        return None
+    allowed = set(ty_params) | {name}
+    op_names = {op.name for op in ops}
+    if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
+        return None
+    return (tuple(ty_params), liq)
 
 
 def is_compatible(a: Kind, b: Kind):
@@ -208,6 +255,37 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
     return RefinedType(new_name, ty.type, refinement)
 
 
+def _selfify_with_term(ty: Type, term: Term) -> Type:
+    def contains_native_call(t: LiquidTerm) -> bool:
+        if isinstance(t, LiquidLiteralString):
+            return True
+        if isinstance(t, LiquidApp):
+            if t.fun.name in {"native", "native_import"}:
+                return True
+            return any(contains_native_call(a) for a in t.args)
+        return False
+
+    liq_term = liquefy(term)
+    if liq_term is None:
+        return ty
+    if contains_native_call(liq_term):
+        return ty
+    refined = ensure_refined(ty)
+    if not isinstance(refined, RefinedType):
+        return ty
+    return RefinedType(
+        refined.name,
+        refined.type,
+        LiquidApp(
+            Name("&&", 0),
+            [
+                refined.refinement,
+                LiquidApp(Name("==", 0), [LiquidVar(refined.name), liq_term]),
+            ],
+        ),
+    )
+
+
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
@@ -263,16 +341,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 case AbstractionType(aname, atype, rtype):
                     cp = check(ctx, arg, atype)
                     t_subs = substitution_in_type(rtype, arg, aname)
+                    t_subs = _selfify_with_term(t_subs, t)
                     c0 = Conjunction(c, cp)
-                    # if ctx.has_uninterpreted_fun(aname):
-                    #     selfification = LiquidConstraint(LiquidApp(
-                    #             Name("==", 0),
-                    #             [
-                    #                 LiquidVar(aname),
-                    #                 LiquidApp(fun, []),
-                    #             ],
-                    #     ))
-                    #     c0 = Conjunction(c0, selfification)
                     return (c0, t_subs)
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
@@ -282,16 +352,24 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c2, t2) = synth(nctx, body)
             term_vars = type_free_term_vars(t1)
             assert t.var_name not in term_vars
-            r = (Conjunction(c1, implication_constraint(var_name, t1, c2, body.loc)), t2)
+            reflected_impl = _reflected_impl_for(var_name, t1, var_value)
+            r = (
+                Conjunction(
+                    c1,
+                    implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl),
+                ),
+                t2,
+            )
             return r
         case Rec(var_name, var_type, var_value, body):
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
             c1 = check(nrctx, var_value, var_type)
             (c2, t2) = synth(nrctx, body)
-            c1 = implication_constraint(var_name, var_type, c1, var_value.loc)
-            c2 = implication_constraint(var_name, var_type, c2, body.loc)
+            reflected_impl = _reflected_impl_for(var_name, var_type, var_value)
+            c1 = implication_constraint(var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl)
+            c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
-            term_c = implication_constraint(var_name, var_type, term_c, var_value.loc)
+            term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
             return Conjunction(Conjunction(c1, c2), term_c), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
@@ -356,16 +434,18 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             (c1, t1) = synth(ctx, val)
             nctx: TypingContext = ctx.with_var(name, t1)
             c2 = check(nctx, body, ty)
-            return Conjunction(c1, implication_constraint(name, t1, c2, body.loc))
+            reflected_impl = _reflected_impl_for(name, t1, val)
+            return Conjunction(c1, implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl))
         case Rec(var_name, var_type, var_value, body), _:
             t1 = fresh(ctx, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
             c1 = check(nrctx, var_value, var_type)
             c2 = check(nrctx, body, ty)
-            c1 = implication_constraint(var_name, t1, c1, var_value.loc)
-            c2 = implication_constraint(var_name, t1, c2, body.loc)
+            reflected_impl = _reflected_impl_for(var_name, t1, var_value)
+            c1 = implication_constraint(var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl)
+            c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
-            term_c = implication_constraint(var_name, t1, term_c, var_value.loc)
+            term_c = implication_constraint(var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl)
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())

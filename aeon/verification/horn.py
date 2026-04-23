@@ -34,6 +34,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
 
@@ -117,6 +118,8 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
             return obtain_holes(e)
         case UninterpretedFunctionDeclaration(_, _, post):
             return obtain_holes_constraint(post)
+        case ReflectedFunctionDeclaration(_, _, _, _, post):
+            return obtain_holes_constraint(post)
         case _:
             assert False, c
 
@@ -148,6 +151,8 @@ def contains_horn_constraint(c: Constraint) -> bool:
         return contains_horn(c.pred) or contains_horn_constraint(c.seq)
     elif isinstance(c, UninterpretedFunctionDeclaration):
         return contains_horn_constraint(c.seq)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        return contains_horn(c.body) or contains_horn_constraint(c.seq)
     else:
         assert False
 
@@ -309,6 +314,8 @@ def split(c: Constraint) -> list[Constraint]:
             return [Implication(name, base, pre, cp) for cp in split(post)]
         case UninterpretedFunctionDeclaration(name, type, seq):
             return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
+        case ReflectedFunctionDeclaration(name, type, params, body, seq):
+            return [ReflectedFunctionDeclaration(name, type, params, body, c) for c in split(seq)]
         case _:
             assert False
 
@@ -376,6 +383,10 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
             )
         case UninterpretedFunctionDeclaration(name, base, post):
             return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
+        case ReflectedFunctionDeclaration(name, base, params, body, post):
+            return ReflectedFunctionDeclaration(
+                name, base, params, apply_liquid(assign, body), apply_constraint(assign, post)
+            )
         case _:
             assert False
 
@@ -415,6 +426,10 @@ def extract_components_of_imp(
         case UninterpretedFunctionDeclaration(name, base, post):
             (vs1, (p, h)) = extract_components_of_imp(post)
             vsh: list[tuple[Name, TypeConstructor | TypeVar | AbstractionType | Top]] = [(name, base)]
+            return (vsh + vs1, (p, h))
+        case ReflectedFunctionDeclaration(name, base, _, _, post):
+            (vs1, (p, h)) = extract_components_of_imp(post)
+            vsh = [(name, base)]
             return (vsh + vs1, (p, h))
         case Implication(name, base, pre, seq):
             (vs1, (p, h)) = extract_components_of_imp(seq)
