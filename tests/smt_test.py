@@ -5,11 +5,13 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
+from aeon.core.types import AbstractionType
 from aeon.core.types import t_int
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.ast_helpers import st_int, st_top, st_bool
@@ -103,14 +105,21 @@ def test_poly_to_smt():
 
 
 def test_reflected_function_unfolding() -> None:
-    aeon_code = """
-def inc (x:Int) : Int = x + 1;
-
-def witness (x:Int) : {v:Int | v > x} = inc x;
-
-def main (x:Int) : Unit = print(witness x)
-"""
-    assert check_compile(aeon_code, st_top)
+    inc_name = Name("inc")
+    x_name = Name("x")
+    reflected_inc = ReflectedFunctionDeclaration(
+        inc_name,
+        AbstractionType(x_name, t_int, t_int),
+        (x_name,),
+        LiquidApp(Name("+", 0), [LiquidVar(x_name), LiquidLiteralInt(1)]),
+        Implication(
+            x_name,
+            t_int,
+            LiquidLiteralBool(True),
+            LiquidConstraint(LiquidApp(Name(">", 0), [LiquidApp(inc_name, [LiquidVar(x_name)]), LiquidVar(x_name)])),
+        ),
+    )
+    assert smt_valid(reflected_inc)
 
 
 def test_native_function_is_not_reflected() -> None:

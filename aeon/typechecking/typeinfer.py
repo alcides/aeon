@@ -9,7 +9,6 @@ from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarK
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
-from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
@@ -97,6 +96,13 @@ def _strip_type_level_wrappers(t: Term) -> Term:
 
 
 def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, ...], LiquidTerm] | None:
+    def has_horn(t: LiquidTerm) -> bool:
+        if isinstance(t, LiquidHornApplication):
+            return True
+        if isinstance(t, LiquidApp):
+            return any(has_horn(a) for a in t.args)
+        return False
+
     if not isinstance(ty, AbstractionType):
         return None
     if not isinstance(impl, Term):
@@ -117,6 +123,8 @@ def _reflected_impl_for(name: Name, ty: Type, impl: Term) -> tuple[tuple[Name, .
         return None
     liq = liquefy(current)
     if liq is None:
+        return None
+    if has_horn(liq):
         return None
     for src, dst in zip(impl_params, ty_params):
         if src != dst:
@@ -255,37 +263,6 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
     return RefinedType(new_name, ty.type, refinement)
 
 
-def _selfify_with_term(ty: Type, term: Term) -> Type:
-    def contains_native_call(t: LiquidTerm) -> bool:
-        if isinstance(t, LiquidLiteralString):
-            return True
-        if isinstance(t, LiquidApp):
-            if t.fun.name in {"native", "native_import"}:
-                return True
-            return any(contains_native_call(a) for a in t.args)
-        return False
-
-    liq_term = liquefy(term)
-    if liq_term is None:
-        return ty
-    if contains_native_call(liq_term):
-        return ty
-    refined = ensure_refined(ty)
-    if not isinstance(refined, RefinedType):
-        return ty
-    return RefinedType(
-        refined.name,
-        refined.type,
-        LiquidApp(
-            Name("&&", 0),
-            [
-                refined.refinement,
-                LiquidApp(Name("==", 0), [LiquidVar(refined.name), liq_term]),
-            ],
-        ),
-    )
-
-
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
@@ -341,7 +318,6 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 case AbstractionType(aname, atype, rtype):
                     cp = check(ctx, arg, atype)
                     t_subs = substitution_in_type(rtype, arg, aname)
-                    t_subs = _selfify_with_term(t_subs, t)
                     c0 = Conjunction(c, cp)
                     return (c0, t_subs)
                 case _:

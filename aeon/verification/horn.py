@@ -361,6 +361,8 @@ def has_k_head(c: Constraint) -> bool:
             return isinstance(e, LiquidHornApplication)
         case UninterpretedFunctionDeclaration(_, _, post):
             return has_k_head(post)
+        case ReflectedFunctionDeclaration(_, _, _, _, post):
+            return has_k_head(post)
         case _:
             assert False, f"Unkown constraint type: {c} ({type(c)})"
 
