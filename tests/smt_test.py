@@ -6,12 +6,16 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import AbstractionType
+from aeon.core.types import BaseKind
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.core.types import t_int
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
+from aeon.verification.sub import implication_constraint
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.ast_helpers import st_int, st_top, st_bool
@@ -131,3 +135,45 @@ def witness (x:Int) : {v:Int | v > x} = native_inc x;
 def main (x:Int) : Unit = print(witness x)
 """
     assert not check_compile(aeon_code, st_top)
+
+
+def test_rank2_reflected_unfolding() -> None:
+    a = Name("a")
+    x = Name("x")
+    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    reflected = implication_constraint(
+        Name("id"),
+        poly_id,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)
+    vc = implication_constraint(
+        x,
+        t_int,
+        LiquidConstraint(LiquidApp(Name("==", 0), [LiquidApp(Name("id"), [LiquidVar(x)]), LiquidVar(x)])),
+    )
+    assert smt_valid(ReflectedFunctionDeclaration(Name("id"), reflected.type, (x,), LiquidVar(x), vc))
+
+
+def test_rank3_reflected_unfolding() -> None:
+    t = Name("t")
+    f = Name("f")
+    g = Name("g")
+    n = Name("n")
+    rank3_ty = TypePolymorphism(
+        f,
+        BaseKind(),
+        AbstractionType(
+            g,
+            TypePolymorphism(t, BaseKind(), AbstractionType(Name("x"), TypeVar(t), TypeVar(t))),
+            AbstractionType(n, TypeVar(f), TypeVar(f)),
+        ),
+    )
+    reflected = implication_constraint(
+        Name("passPoly"),
+        rank3_ty,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((g, n), LiquidVar(n)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)

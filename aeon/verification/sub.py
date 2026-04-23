@@ -42,11 +42,23 @@ def ensure_refined(t: Type) -> Type:
 
 def is_first_order_function(at: AbstractionType):
     v: Type = at
+    while isinstance(v, TypePolymorphism) or isinstance(v, RefinementPolymorphism):
+        if isinstance(v, TypePolymorphism):
+            v = v.body
+        else:
+            v = v.body
     while isinstance(v, AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case Top() | RefinedType(_, _, _) | TypeVar(_) | TypeConstructor(_, _):
+            case (
+                Top()
+                | RefinedType(_, _, _)
+                | TypeVar(_)
+                | TypeConstructor(_, _)
+                | TypePolymorphism(_, _, _)
+                | RefinementPolymorphism(_, _, _)
+            ):
                 pass
             case _:
                 assert False
@@ -62,6 +74,10 @@ def lower_constraint_type(ttype: Type) -> Type:
             return t_unit
         case AbstractionType(name, b, r):
             return AbstractionType(name, lower_constraint_type(b), lower_constraint_type(r))
+        case TypePolymorphism(_, _, body):
+            return lower_constraint_type(body)
+        case RefinementPolymorphism(_, _, body):
+            return lower_constraint_type(body)
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
@@ -103,8 +119,18 @@ def implication_constraint(
             else:
                 return c
         case TypePolymorphism(_, _, _):
+            if reflected_impl is not None:
+                lowered = lower_constraint_type(ty)
+                if isinstance(lowered, AbstractionType):
+                    (params, body) = reflected_impl
+                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             return c
         case RefinementPolymorphism(_, _, _):
+            if reflected_impl is not None:
+                lowered = lower_constraint_type(ty)
+                if isinstance(lowered, AbstractionType):
+                    (params, body) = reflected_impl
+                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             return c
         case _:
             assert False

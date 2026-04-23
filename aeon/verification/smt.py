@@ -37,7 +37,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
+from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
@@ -209,6 +209,9 @@ def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTCo
                 mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
                 nname = Name(mangle_name, fresh_counter.fresh())
                 base_tc = TypeConstructor(nname)
+            case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+                # Higher-rank arguments are represented as opaque scalar tokens in SMT.
+                base_tc = t_int
             case _:
                 assert False, f"{base} ({type(base)}) is not a base type for curried formal."
         out = out.with_var(cur.var_name, base_tc)
@@ -411,6 +414,8 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
                     inputs.append(t_int)
                 else:
                     inputs.append(TypeConstructor(name))
+            case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+                inputs.append(t_int)
             case _:
                 assert False, f"Unknown SMT type {current.var_type} in {base}."
         current = current.type
