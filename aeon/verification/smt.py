@@ -44,6 +44,7 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import alpha_key
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
@@ -464,9 +465,16 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
 s = Solver()
 (s.set(timeout=200),)
 
+_smt_valid_cache: dict[str, bool] = {}
+
 
 def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
+    key = alpha_key(constraint)
+    cached = _smt_valid_cache.get(key)
+    if cached is not None:
+        return cached
+
     n = 0
     for c in flatten(constraint):
         n += 1
@@ -483,10 +491,13 @@ def smt_valid(constraint: Constraint) -> bool:
         result = s.check()
         s.pop()
         if result == sat:
+            _smt_valid_cache[key] = False
             return False
         elif result == unknown:
+            _smt_valid_cache[key] = False
             return False
 
+    _smt_valid_cache[key] = True
     return True
 
 
