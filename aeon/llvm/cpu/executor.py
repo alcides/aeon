@@ -76,6 +76,12 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         return res
 
     def _convert_to_ctypes(self, val: Any, ty: LLVMType) -> Any:
+        if isinstance(ty, LLVMPointerType):
+            if hasattr(val, "__cuda_array_interface__"):  # CuPy
+                return ctypes.c_void_p(val.data.ptr)
+            if hasattr(val, "ctypes"):  # NumPy
+                return ctypes.c_void_p(val.ctypes.data)
+
         if isinstance(ty, LLVMPointerType) and isinstance(val, list):
             flat_val = self._flatten_list(val)
             base_ty = ty.element_type
@@ -117,8 +123,12 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         args: List[Any],
         arg_types: List[LLVMType],
         ret_type: LLVMType,
+        metadata: dict[str, Any] | None = None,
     ) -> Any:
         self._keep_alive = []
+        metadata = metadata or {}
+        opt_level = metadata.get("llvm_opt_level", 3)
+
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
             "native",
@@ -128,8 +138,15 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         )
 
         backing_mod = llvm.parse_assembly(llvm_ir)
-
         backing_mod.verify()
+
+        pmb = llvm.create_pass_manager_builder()
+        pmb.opt_level = opt_level
+
+        pm = llvm.create_module_pass_manager()
+        pmb.populate(pm)
+        pm.run(backing_mod)
+
         with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)
