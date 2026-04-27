@@ -1,0 +1,20 @@
+import "Vector.ae";
+import "Math.ae";
+
+@gpu
+def count_spaces (chars: (Vector Int)) (size: Int) : Int =
+    Vector_count[Int] (\c -> c == 32) chars size;
+
+def main (args:Int) : Unit =
+    let _ : Unit = print("reading lusiadas...");
+    let content : (Vector Int) = native "[ord(c) for c in open('examples/llvm/gpu/lusiadas.txt', 'r', encoding='latin-1').read()]";
+    let size : Int = native "len(content)";
+
+    let _ : Unit = print("launching space count kernel...");
+    let spaces : Int = count_spaces content size;
+    let words : Int = spaces + 1;
+
+    let _ : Unit = print("total words (estimated by spaces): ");
+    let _ : Unit = print(words);
+
+    print("Done.");
