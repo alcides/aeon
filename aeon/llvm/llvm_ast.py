@@ -8,19 +8,13 @@ from aeon.utils.name import Name
 from aeon.llvm.core import LLVMVisitor
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMType:
-    def is_pointer(self) -> bool:
-        return isinstance(self, LLVMPointerType)
-
-    def is_function(self) -> bool:
-        return isinstance(self, LLVMFunctionType)
-
     def to_ir(self) -> ir.Type:
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMIntType(LLVMType):
     bits: int = 32
 
@@ -31,7 +25,7 @@ class LLVMIntType(LLVMType):
         return ir.IntType(self.bits)
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMFloatType(LLVMType):
     def __str__(self):
         return "float"
@@ -40,7 +34,7 @@ class LLVMFloatType(LLVMType):
         return ir.FloatType()
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMDoubleType(LLVMType):
     def __str__(self):
         return "double"
@@ -49,7 +43,7 @@ class LLVMDoubleType(LLVMType):
         return ir.DoubleType()
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMBoolType(LLVMType):
     def __str__(self):
         return "i1"
@@ -58,16 +52,7 @@ class LLVMBoolType(LLVMType):
         return ir.IntType(1)
 
 
-@dataclass(frozen=True)
-class LLVMCharType(LLVMType):
-    def __str__(self):
-        return "i8"
-
-    def to_ir(self) -> ir.Type:
-        return ir.IntType(8)
-
-
-@dataclass(frozen=True)
+@dataclass
 class LLVMVoidType(LLVMType):
     def __str__(self):
         return "void"
@@ -76,15 +61,23 @@ class LLVMVoidType(LLVMType):
         return ir.VoidType()
 
 
+@dataclass
+class LLVMCharType(LLVMType):
+    def __str__(self):
+        return "i8"
+
+    def to_ir(self) -> ir.Type:
+        return ir.IntType(8)
+
+
 class LLVMAddressSpace(IntEnum):
     GENERIC = 0
     GLOBAL = 1
     SHARED = 3
-    CONSTANT = 4
     LOCAL = 5
 
 
-@dataclass(frozen=True)
+@dataclass
 class LLVMPointerType(LLVMType):
     element_type: LLVMType
     address_space: LLVMAddressSpace = LLVMAddressSpace.GENERIC
@@ -96,55 +89,38 @@ class LLVMPointerType(LLVMType):
         base = self.element_type.to_ir()
         if isinstance(base, ir.VoidType):
             base = ir.IntType(8)
-        return ir.PointerType(base, self.address_space.value)
+        return ir.PointerType(base, addrspace=int(self.address_space))
 
 
-@dataclass(frozen=True)
-class LLVMArrayType(LLVMType):
-    element_type: LLVMType
-    size: int | None = None
-
-    def __str__(self):
-        return f"[{self.size if self.size is not None else 0} x {self.element_type}]"
-
-    def to_ir(self) -> ir.Type:
-        return ir.ArrayType(self.element_type.to_ir(), self.size or 0)
-
-
-@dataclass(frozen=True)
+@dataclass
 class LLVMFunctionType(LLVMType):
     arg_types: list[LLVMType]
     return_type: LLVMType
 
     def __str__(self):
-        args = ", ".join(map(str, self.arg_types))
-        return f"({args}) -> {self.return_type}"
+        args = ", ".join(str(t) for t in self.arg_types)
+        return f"{self.return_type} ({args})"
 
     def to_ir(self) -> ir.Type:
         return ir.FunctionType(self.return_type.to_ir(), [t.to_ir() for t in self.arg_types])
 
 
-LLVMInt = LLVMIntType(32)
+LLVMInt = LLVMIntType()
 LLVMLong = LLVMIntType(64)
 LLVMFloat = LLVMFloatType()
 LLVMDouble = LLVMDoubleType()
 LLVMBool = LLVMBoolType()
-LLVMChar = LLVMCharType()
 LLVMVoid = LLVMVoidType()
+LLVMChar = LLVMCharType()
+
 LLVMVectorInt = LLVMPointerType(LLVMInt)
+LLVMVectorLong = LLVMPointerType(LLVMLong)
 LLVMVectorFloat = LLVMPointerType(LLVMFloat)
 LLVMVectorDouble = LLVMPointerType(LLVMDouble)
+LLVMVectorBool = LLVMPointerType(LLVMBool)
+LLVMVectorChar = LLVMPointerType(LLVMChar)
 
-VECTOR_OPERATIONS: frozenset[str] = frozenset(
-    [
-        "Vector_map",
-        "Vector_reduce",
-        "Vector_imap",
-        "Vector_filter",
-        "Vector_zipWith",
-        "Vector_count",
-    ]
-)
+VECTOR_OPERATIONS = {"Vector_map", "Vector_reduce", "Vector_imap", "Vector_filter", "Vector_zipWith", "Vector_count"}
 
 
 @dataclass
@@ -152,7 +128,7 @@ class LLVMTerm:
     type: LLVMType
 
     def accept(self, visitor: LLVMVisitor) -> Any:
-        return visitor.visit(self)
+        raise NotImplementedError
 
 
 @dataclass
@@ -160,7 +136,7 @@ class LLVMLiteral(LLVMTerm):
     value: Any
 
     def __str__(self):
-        return str(self.value)
+        return f"{self.type} {self.value}"
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_literal(self)
@@ -171,7 +147,7 @@ class LLVMVar(LLVMTerm):
     name: Name
 
     def __str__(self):
-        return self.name.name
+        return str(self.name)
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_var(self)
@@ -197,7 +173,7 @@ class LLVMLet(LLVMTerm):
     body: LLVMTerm
 
     def __str__(self):
-        return f"let {self.var_name.name} = {self.var_value} in {self.body}"
+        return f"let {self.var_name} = {self.var_value} in {self.body}"
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_let(self)
@@ -211,8 +187,8 @@ class LLVMFunction(LLVMTerm):
     name: Name | None = None
 
     def __str__(self):
-        args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
-        return f"\\{args} -> {self.body}"
+        name_str = f" @{self.name}" if self.name else ""
+        return f"fn{name_str} {self.type} {self.arg_names} {self.body}"
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)
@@ -223,9 +199,19 @@ class LLVMCall(LLVMTerm):
     target: LLVMTerm
     args: list[LLVMTerm]
 
+    def __post_init__(self):
+        # Flatten if needed
+        new_args = []
+        for a in self.args:
+            if isinstance(a, list):
+                new_args.extend(a)
+            else:
+                new_args.append(a)
+        self.args = new_args
+
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
-        return f"{self.target}({args})"
+        return f"call {self.target}({args})"
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_call(self)
@@ -356,3 +342,28 @@ class LLVMVectorCount(LLVMVectorOp):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_count(self)
+
+
+@dataclass
+class LLVMVectorGet(LLVMTerm):
+    v: LLVMTerm
+    index: LLVMTerm
+
+    def __str__(self):
+        return f"vector_get {self.v}[{self.index}]"
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_vector_get(self)
+
+
+@dataclass
+class LLVMVectorSet(LLVMTerm):
+    v: LLVMTerm
+    index: LLVMTerm
+    value: LLVMTerm
+
+    def __str__(self):
+        return f"vector_set {self.v}[{self.index}] = {self.value}"
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_vector_set(self)

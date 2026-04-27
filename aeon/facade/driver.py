@@ -70,8 +70,14 @@ class AeonDriver:
             desugared = DesugaredProgram(progt, ctx, desugared.metadata)
             metadata: Metadata = desugared.metadata
 
+        from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY
+
+        auto_skip_elaboration = self.cfg.skip_elaboration or (
+            CORE_DECORATOR_QUEUE_META_KEY in metadata and len(metadata[CORE_DECORATOR_QUEUE_META_KEY]) > 0
+        )
+
         try:
-            if self.cfg.skip_elaboration:
+            if auto_skip_elaboration:
                 sterm: STerm = desugared.program
             else:
                 with RecordTime("Elaboration"):
@@ -87,7 +93,7 @@ class AeonDriver:
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
 
-        if not self.cfg.skip_elaboration:
+        if not auto_skip_elaboration:
             with RecordTime("TypeChecking"):
                 type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
                 # TODO
