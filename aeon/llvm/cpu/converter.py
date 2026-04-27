@@ -31,6 +31,8 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
+    LLVMVectorGet,
+    LLVMVectorSet,
     VECTOR_OPERATIONS,
     LLVMCast,
 )
@@ -249,6 +251,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
             self.builder.ret_void()
         else:
+            if ret_val is not None:
+                ret_val = self._cast_if_needed(ret_val, func.function_type.return_type)
             self.builder.ret(ret_val)
 
         self.builder, self.env = old_builder, old_env
@@ -271,6 +275,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(target_func, ir.Function):
             if len(arg_vals) < len(target_func.function_type.args):
                 return None
+            new_arg_vals = []
+            for arg_val, expected_ty in zip(arg_vals, target_func.function_type.args):
+                new_arg_vals.append(self._cast_if_needed(arg_val, expected_ty))
+            arg_vals = new_arg_vals
+
         return self.builder.call(target_func, arg_vals)
 
     def to_ir_operator(self, op: str, args: list[LLVMTerm]) -> ir.Value | None:
@@ -278,6 +287,26 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         vals = [arg.accept(self) for arg in args]
         if any(v is None for v in vals):
             return None
+
+        if len(vals) == 2:
+            if vals[0].type != vals[1].type:
+                if isinstance(vals[0].type, (ir.FloatType, ir.DoubleType)) or isinstance(
+                    vals[1].type, (ir.FloatType, ir.DoubleType)
+                ):
+                    target_ty = (
+                        vals[0].type if isinstance(vals[0].type, (ir.FloatType, ir.DoubleType)) else vals[1].type
+                    )
+                    if isinstance(vals[0].type, ir.DoubleType) or isinstance(vals[1].type, ir.DoubleType):
+                        target_ty = ir.DoubleType()
+                    vals[0] = self._cast_if_needed(vals[0], target_ty)
+                    vals[1] = self._cast_if_needed(vals[1], target_ty)
+                else:
+                    w0 = vals[0].type.width if isinstance(vals[0].type, ir.IntType) else 0
+                    w1 = vals[1].type.width if isinstance(vals[1].type, ir.IntType) else 0
+                    target_ty = ir.IntType(max(w0, w1))
+                    vals[0] = self._cast_if_needed(vals[0], target_ty)
+                    vals[1] = self._cast_if_needed(vals[1], target_ty)
+
         is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
 
         match op:
@@ -349,22 +378,48 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                 return self.builder.not_(vals[0])
         return None
 
+    def _cast_if_needed(self, val: ir.Value, target_ty: ir.Type) -> ir.Value:
+        if val.type == target_ty:
+            return val
+
+        if isinstance(val.type, ir.VoidType):
+            return ir.Constant(target_ty, None)
+
+        if isinstance(val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
+            return self.builder.sitofp(val, target_ty)
+
+        if isinstance(val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
+            return self.builder.fptosi(val, target_ty)
+
+        if isinstance(val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
+            return self.builder.fpext(val, target_ty)
+
+        if isinstance(val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
+            return self.builder.fptrunc(val, target_ty)
+
+        if isinstance(val.type, ir.IntType) and isinstance(target_ty, ir.IntType):
+            if val.type.width > target_ty.width:
+                return self.builder.trunc(val, target_ty)
+            elif val.type.width < target_ty.width:
+                return self.builder.zext(val, target_ty)
+
+        if isinstance(val.type, ir.PointerType) and isinstance(target_ty, ir.PointerType):
+            return self.builder.bitcast(val, target_ty)
+
+        if isinstance(val.type, ir.PointerType) and isinstance(target_ty, ir.IntType):
+            return self.builder.ptrtoint(val, target_ty)
+
+        if isinstance(val.type, ir.IntType) and isinstance(target_ty, ir.PointerType):
+            return self.builder.inttoptr(val, target_ty)
+
+        return self.builder.bitcast(val, target_ty)
+
     def visit_cast(self, node: LLVMCast) -> ir.Value:
         val, ty = node.val, node.type
         self._is_top_level = False
         v_val = val.accept(self)
         target_ty = self.to_ir_type(ty)
-        if v_val.type == target_ty:
-            return v_val
-        if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
-            return self.builder.sitofp(v_val, target_ty)
-        if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
-            return self.builder.fptosi(v_val, target_ty)
-        if isinstance(v_val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
-            return self.builder.fpext(v_val, target_ty)
-        if isinstance(v_val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
-            return self.builder.fptrunc(v_val, target_ty)
-        return self.builder.bitcast(v_val, target_ty)
+        return self._cast_if_needed(v_val, target_ty)
 
     def visit_gep(self, node: LLVMGetElementPtr) -> ir.Value:
         ptr, indices = node.ptr, node.indices
@@ -380,7 +435,9 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self._is_top_level = False
         v_val = value.accept(self)
         p_val = ptr.accept(self)
-        return p_val if isinstance(v_val.type, ir.VoidType) else self.builder.store(v_val, p_val)
+        if not isinstance(v_val.type, ir.VoidType):
+            self.builder.store(v_val, p_val)
+        return p_val
 
     def visit_alloc(self, node: LLVMAlloc) -> ir.Value:
         ty = node.type
@@ -526,3 +583,19 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
 
         self.to_ir_loop(size_val, "count", body)
         return self.builder.load(count_ptr)
+
+    def visit_vector_get(self, node: LLVMVectorGet) -> ir.Value:
+        self._is_top_level = False
+        v_val = node.v.accept(self)
+        idx_val = node.index.accept(self)
+        ptr = self.builder.gep(v_val, [idx_val])
+        return self.builder.load(ptr)
+
+    def visit_vector_set(self, node: LLVMVectorSet) -> ir.Value:
+        self._is_top_level = False
+        v_val = node.v.accept(self)
+        idx_val = node.index.accept(self)
+        val_val = node.value.accept(self)
+        ptr = self.builder.gep(v_val, [idx_val])
+        self.builder.store(self._cast_if_needed(val_val, ptr.type.pointee), ptr)
+        return v_val
