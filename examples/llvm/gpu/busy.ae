@@ -6,6 +6,6 @@ def multiply_by_ten (1 v:(Array Int)) : (Array Int) :=
 
 def main (args:Int) : Unit :=
     let size : Int := 1000000 in
-    let v : (Array Int) := native "[0] * size" in
+    let v : (Array Int) := native "[1] * size" in
     let res : (Array Int) := multiply_by_ten v in
     print (Array.get{Int} res 1);
