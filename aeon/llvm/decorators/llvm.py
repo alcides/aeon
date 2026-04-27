@@ -10,15 +10,23 @@ from aeon.utils.name import Name
 
 
 def _llvm_options_from_decorator(decorator: Decorator) -> dict[str, Any]:
-    llvm_args: dict[str, Any] = {"llvm": True, "llvm_debug": False, "llvm_cache": False}
+    llvm_args: dict[str, Any] = {
+        "llvm": True,
+        "llvm_opt_level": 3,
+        "llvm_log_ir": False,
+        "llvm_debug": False,
+        "llvm_cache": False,
+    }
 
-    arg_keys = ["llvm_debug", "llvm_cache"]
+    arg_keys = ["llvm_opt_level", "llvm_log_ir", "llvm_debug", "llvm_cache"]
 
     for key, arg in zip(arg_keys, decorator.macro_args):
         if isinstance(arg, SLiteral):
             llvm_args[key] = arg.value
 
     mapping = {
+        "opt_level": "llvm_opt_level",
+        "log_ir": "llvm_log_ir",
         "debug": "llvm_debug",
         "cache": "llvm_cache",
     }
