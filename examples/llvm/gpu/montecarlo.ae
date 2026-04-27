@@ -1,0 +1,42 @@
+import "Vector.ae";
+import "Math.ae";
+
+@gpu
+def is_inside_circle (x : Float) (y : Float) : Int =
+    if x * x + y * y <= 1.0 then 1 else 0
+
+@gpu
+def count_kernel (xs: (Vector Float)) (ys: (Vector Float)) (size: Int) : Int =
+    let points_in_circle = Vector_zipWith[Float][Float][Int] is_inside_circle xs ys size;
+    Vector_count[Int] (\x:Int -> x == 1) points_in_circle size;
+
+
+def run_batches (batches_left: Int) (points_per_batch: Int) (acc: Int) : Int =
+    if batches_left <= 0 then acc else (
+        let _ : Unit = print "---";
+        let _ : Unit = print "batches left:";
+        let _ : Unit = print batches_left;
+        let xs : (Vector Float) = native "[__import__('random').random() for _ in range(points_per_batch)]";
+        let ys : (Vector Float) = native "[__import__('random').random() for _ in range(points_per_batch)]";
+        let points_inside : Int = count_kernel xs ys points_per_batch;
+        run_batches (batches_left - 1) points_per_batch (acc + points_inside)
+    );
+
+def main (args:Int) : Unit =
+    let total_points : Int = 10000000;
+    let points_per_batch : Int = 1000000;
+    let num_batches : Int = Math_floor_division total_points points_per_batch;
+
+    let _ : Unit = print "running pi estimation...";
+    let _ : Unit = print "total points:";
+    let _ : Unit = print total_points;
+    let _ : Unit = print "number of batches:";
+    let _ : Unit = print num_batches;
+
+    let inside_count : Int = run_batches num_batches points_per_batch 0;
+
+    let pi : Float = 4.0 * (Math_toFloat inside_count) / (Math_toFloat total_points);
+
+    let _ : Unit = print "estimated pi: ";
+    let _ : Unit = print pi;
+    print "Done.";
