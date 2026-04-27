@@ -1,6 +1,6 @@
-import "String.ae"
-import "Math.ae"
-import "PSB2.ae"
+open String
+open Math
+open PSB2
 
 
 def  train: TrainData =  extract_train_data ( load_dataset "middle-character" 200 200)

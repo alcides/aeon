@@ -1,12 +1,5 @@
 
-import extract_train_data from "PSB2.ae"
-import get_input_list from "PSB2.ae"
-import get_output_list from "PSB2.ae"
-import calculate_list_errors from "PSB2.ae"
-import get_gcd_synth_values from "PSB2.ae"
-import unpack_train_data from "PSB2.ae"
-import load_dataset from "PSB2.ae"
-import mean_absolute_error from "PSB2.ae"
+import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_gcd_synth_values, unpack_train_data, load_dataset, mean_absolute_error)
 
 
 def gcd (n:Int) (z:Int) : Int = if z == 0 then n else (gcd(z)(n % z));

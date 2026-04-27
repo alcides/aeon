@@ -1,4 +1,4 @@
-import "List.ae"
+open List
 
 # Returns the mean (average) of a non-empty list of numbers.
 # xs: non-empty list of numbers

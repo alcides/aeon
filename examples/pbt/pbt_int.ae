@@ -1,4 +1,4 @@
-import "PropTesting.ae"
+open PropTesting
 
 def negativeInt (x: Int) : Int = -x
 

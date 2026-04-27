@@ -1,4 +1,4 @@
-import "Image.ae"
+open Image
 
 
 def main (steps:Int) : Image = white : Color = Color_mk 255 255 255;

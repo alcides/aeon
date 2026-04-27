@@ -5,8 +5,8 @@
 # output : float
 # -- working--
 
-import "Math.ae"
-import "PSB2.ae"
+open Math
+open PSB2
 
 #constants
 def constant_f0 : Float = 0.0

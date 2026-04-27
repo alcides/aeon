@@ -21,6 +21,7 @@ from aeon.sugar.program import (
     SMatch,
     SLet,
     SLiteral,
+    SQualifiedVar,
     SRec,
     SRefinementAbstraction,
     SRefinementApplication,
@@ -122,6 +123,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
     match t:
         case SLiteral(_, _):
             return t
+        case SQualifiedVar():
+            return t  # Resolved during desugaring, not during binding
         case SVar(name, loc=loc):
             return SVar(apply_subs_name(subs, name), loc=loc)
         case SHole(name, loc=loc):

@@ -25,7 +25,7 @@ class ImportError(AeonError):
     possible_containers: Iterable[Path]
 
     def __str__(self) -> str:
-        return f"Could not find {self.importel.path} in the following list of container folders: {self.possible_containers}"
+        return f"Could not find module '{self.importel.module_path}' (file: {self.importel.file_path}) in the following list of container folders: {self.possible_containers}"
 
     def position(self) -> Location:
         return self.importel.loc

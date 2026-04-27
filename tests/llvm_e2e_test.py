@@ -68,7 +68,7 @@ def test_e2e_llvm_fibonacci():
 )
 def test_e2e_llvm_matrix_sum():
     source = r"""
-    import "Vector.ae";
+    open Vector
 
     @llvm
     def add(acc:Int) (curr:Int) : Int = acc + curr;
@@ -87,7 +87,7 @@ def test_e2e_llvm_matrix_sum():
 )
 def test_e2e_llvm_matrix_filter():
     source = r"""
-    import "Vector.ae";
+    open Vector
 
     @llvm
     def filter_even(m:(Vector Int)) (s:Int) : (Vector Int) =
@@ -107,7 +107,7 @@ def test_e2e_llvm_matrix_filter():
 )
 def test_e2e_llvm_matrix_zip_with():
     source = r"""
-    import "Vector.ae";
+    open Vector
 
     @llvm
     def vec_add(v1:(Vector Int)) (v2:(Vector Int)) (s:Int) : (Vector Int) =
@@ -128,7 +128,7 @@ def test_e2e_llvm_matrix_zip_with():
 )
 def test_e2e_llvm_matrix_count():
     source = r"""
-    import "Vector.ae";
+    open Vector
 
     @llvm
     def count_gt_10(v:(Vector Int)) (s:Int) : Int =
@@ -147,7 +147,7 @@ def test_e2e_llvm_matrix_count():
 )
 def test_e2e_llvm_matrix_map():
     source = r"""
-    import "Vector.ae";
+    open Vector
 
     @llvm
     def vec_inc(v:(Vector Int)) (s:Int) : (Vector Int) =
@@ -164,7 +164,7 @@ def test_e2e_llvm_matrix_map():
 
 def test_e2e_llvm_math_integration():
     source = r"""
-    import "Math.ae";
+    open Math
 
     @llvm
     def compute_circle_area(radius:Float) : Float = Math_PI * Math_powf radius 2.0;

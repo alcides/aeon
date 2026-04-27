@@ -11,6 +11,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SQualifiedVar,
     SRefinementAbstraction,
     SRefinementApplication,
     SMatch,
@@ -274,6 +275,11 @@ class TreeToSugar(Transformer):
         return SVar(Name(args[0]), loc=self._loc(meta))
 
     @v_args(meta=True)
+    def qualified_var(self, meta, args):
+        parts = str(args[0]).split(".", 1)
+        return SQualifiedVar(parts[0], Name(parts[1]), loc=self._loc(meta))
+
+    @v_args(meta=True)
     def hole(self, meta, args):
         return SHole(Name(args[0]), loc=self._loc(meta))
 
@@ -313,13 +319,21 @@ class TreeToSugar(Transformer):
         inductive = [el for el in args[1] if isinstance(el, InductiveDecl)]
         return Program(args[0], non_inductive, inductive, args[2])
 
-    @v_args(meta=True)
-    def regular_imp(self, meta, args):
-        return ImportAe(args[0], [], loc=self._loc(meta))
+    def module_path(self, args):
+        return ".".join(str(a) for a in args)
 
     @v_args(meta=True)
-    def function_imp(self, meta, args):
-        return ImportAe(args[1], args[0], loc=self._loc(meta))
+    def module_imp(self, meta, args):
+        return ImportAe(args[0], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def module_selective_imp(self, meta, args):
+        names = [str(n) for n in args[1]]
+        return ImportAe(args[0], selected_names=names, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def open_imp(self, meta, args):
+        return ImportAe(args[0], is_open=True, loc=self._loc(meta))
 
     @v_args(meta=True)
     def type_decl(self, meta, args):

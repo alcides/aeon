@@ -6,16 +6,8 @@
 # discrete event of adding snow and then melting, not a continuous process.
 # input : integer in [0, 20], float in [0.0, 20.0], float in [0.0, 10.0], float in [0.0, 1.0]
 # output : float
-import "Math.ae"
-
-import extract_train_data from "PSB2.ae"
-import get_input_list from "PSB2.ae"
-import get_output_list from "PSB2.ae"
-import calculate_list_errors from "PSB2.ae"
-import get_snowd_synth_values from "PSB2.ae"
-import unpack_train_data from "PSB2.ae"
-import load_dataset from "PSB2.ae"
-import mean_absolute_error from "PSB2.ae"
+open Math
+import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_snowd_synth_values, unpack_train_data, load_dataset, mean_absolute_error)
 
 
 def  train: TrainData =  extract_train_data ( load_dataset "snow-day" 200 200)

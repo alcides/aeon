@@ -1,7 +1,7 @@
 # Table is a list of dicts, where each dict represents a row, with keys corresponding to column names
 # and values to the respective entries in the table
 
-import "List.ae"
+open List
 
 type Table
 type Row

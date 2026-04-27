@@ -1,4 +1,4 @@
-import "PropTesting.ae"
+open PropTesting
 
 def reverse (xs: (List Int)) : (List Int) = List_reversed(xs)
 

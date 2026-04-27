@@ -5,7 +5,7 @@
 # input : integer in [1, 1000000]
 # output : string
 # --not working properly--
-import "PSB2.ae"
+open PSB2
 
 #constants
 def constant_i : Int = 0

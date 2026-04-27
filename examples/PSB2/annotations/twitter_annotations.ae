@@ -1,5 +1,5 @@
-import "String.ae"
-import "PSB2.ae"
+open String
+open PSB2
 
 
 def  train: TrainData =  extract_train_data ( load_dataset "twitter" 200 200)

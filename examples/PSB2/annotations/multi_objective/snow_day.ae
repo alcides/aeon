@@ -1,6 +1,5 @@
-import "Math.ae"
-import extract_train_data from "PSB2.ae"
-import load_dataset from "PSB2.ae"
+open Math
+import PSB2 (extract_train_data, load_dataset)
 
 def isZero : (n: Int) -> Bool = \n -> n == 0;
 

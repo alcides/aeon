@@ -1,4 +1,4 @@
-import "Math.ae"
+open Math
 
 def length : {n:Int | n == 10} = 10;
 

@@ -1,4 +1,4 @@
-import "List.ae";
+open List
 
 @minimize_int( if (List_empty List_new) then 0 else 1 )
 def is_empty (xs: (List a)) : { j:Bool | (j == ((List_size xs) == 0)) } {
