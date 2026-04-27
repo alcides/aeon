@@ -4,6 +4,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import MutableSequence
 
+from aeon.core.liquid import LiquidTerm
 from aeon.core.types import (
     AbstractionType,
     BaseKind,
@@ -40,6 +41,18 @@ class UninterpretedBinder(TypingContextEntry):
 
     def __repr__(self):
         return f"uninterpreted {self.name} : {self.type}"
+
+
+@dataclass(unsafe_hash=True)
+class ReflectedBinder(TypingContextEntry):
+    name: Name
+    type: AbstractionType
+    params: tuple[Name, ...]
+    body: LiquidTerm
+
+    def __repr__(self):
+        params = ", ".join(str(p) for p in self.params)
+        return f"reflected {self.name}({params}) : {self.type}"
 
 
 @dataclass(unsafe_hash=True)
@@ -124,7 +137,7 @@ class TypingContext:
         return [
             (e.name, e.type)
             for e in self.entries
-            if isinstance(e, VariableBinder) or isinstance(e, UninterpretedBinder)
+            if isinstance(e, VariableBinder) or isinstance(e, UninterpretedBinder) or isinstance(e, ReflectedBinder)
         ]
 
     def concrete_vars(self) -> list[tuple[Name, Type]]:

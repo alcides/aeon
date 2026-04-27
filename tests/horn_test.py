@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidVar
 from aeon.core.types import LiquidHornApplication
 from aeon.core.types import RefinedType
 from aeon.core.types import t_int
 from aeon.utils.ctx_helpers import build_context
 from aeon.verification.helpers import conj, constraint_builder, end, imp, parse_liquid
+from aeon.verification.helpers import simplify_constraint_fixpoint
 from aeon.verification.horn import build_initial_assignment
 from aeon.verification.horn import flat
 from aeon.verification.horn import fresh
@@ -129,3 +130,18 @@ def test_solve():
     ex = get_abs_example()
     b = solve(ex)
     assert b is True
+
+
+def test_simplify_constraint_fixpoint_reduces_trivial_boolean_structure():
+    c = LiquidConstraint(
+        LiquidApp(
+            Name("&&", 0),
+            [
+                LiquidApp(Name("==", 0), [LiquidVar(Name("x")), LiquidVar(Name("x"))]),
+                LiquidLiteralBool(True),
+            ],
+        )
+    )
+    s = simplify_constraint_fixpoint(c)
+    assert isinstance(s, LiquidConstraint)
+    assert s.expr == LiquidLiteralBool(True)

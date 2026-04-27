@@ -37,7 +37,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType, RefinedType, Top, TypePolymorphism
+from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
@@ -46,6 +46,7 @@ from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
 
@@ -118,18 +119,201 @@ class SMTContext:
     functions: dict[str, AbstractionType]
     variables: dict[str, TypeConstructor]
     premises: list[LiquidTerm]
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]]
 
     def with_sort(self, name: Name) -> SMTContext:
-        return SMTContext(self.sorts + [str(name)], self.functions, self.variables, self.premises)
+        return SMTContext(
+            self.sorts + [str(name)], self.functions, self.variables, self.premises, self.reflected_functions
+        )
 
     def with_function(self, name: Name, ty: AbstractionType) -> SMTContext:
-        return SMTContext(self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises)
+        return SMTContext(
+            self.sorts, {**self.functions, str(name): ty}, self.variables, self.premises, self.reflected_functions
+        )
 
     def with_var(self, name: Name, ty: TypeConstructor) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises)
+        return SMTContext(
+            self.sorts, self.functions, {**self.variables, str(name): ty}, self.premises, self.reflected_functions
+        )
 
     def with_premise(self, p: LiquidTerm) -> SMTContext:
-        return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p])
+        return SMTContext(self.sorts, self.functions, self.variables, self.premises + [p], self.reflected_functions)
+
+    def with_reflected_function(self, name: Name, params: tuple[Name, ...], body: LiquidTerm) -> SMTContext:
+        return SMTContext(
+            self.sorts,
+            self.functions,
+            self.variables,
+            self.premises,
+            {**self.reflected_functions, str(name): (params, body)},
+        )
+
+
+def _ple_unfold_once(
+    t: LiquidTerm,
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+) -> tuple[LiquidTerm, bool]:
+    match t:
+        case LiquidApp(fun, args, loc):
+            n_args: list[LiquidTerm] = []
+            changed = False
+            for arg in args:
+                n_arg, arg_changed = _ple_unfold_once(arg, reflected_functions)
+                n_args.append(n_arg)
+                changed = changed or arg_changed
+            key = str(fun)
+            if key in reflected_functions:
+                params, body = reflected_functions[key]
+                if len(params) == len(n_args):
+                    unfolded = body
+                    for param, arg in zip(params, n_args):
+                        unfolded = substitution_in_liquid(unfolded, arg, param)
+                    return unfolded, True
+            if changed:
+                return LiquidApp(fun, n_args, loc=loc), True
+            return t, False
+        case _:
+            return t, False
+
+
+def ple_unfold_fixpoint(
+    t: LiquidTerm,
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+    max_steps: int = 256,
+) -> LiquidTerm:
+    def term_size(node: LiquidTerm) -> int:
+        match node:
+            case LiquidApp(_, args):
+                return 1 + sum(term_size(a) for a in args)
+            case _:
+                return 1
+
+    max_term_size = 4096
+    current = t
+    start_size = term_size(current)
+    seen: set[str] = {repr(current)}
+    unfolded_steps = 0
+    stop_reason = "fixpoint"
+    for _ in range(max_steps):
+        current, changed = _ple_unfold_once(current, reflected_functions)
+        if not changed:
+            stop_reason = "no_change"
+            break
+        unfolded_steps += 1
+        if term_size(current) > max_term_size:
+            stop_reason = "size_guard"
+            break
+        signature = repr(current)
+        if signature in seen:
+            stop_reason = "seen_guard"
+            break
+        seen.add(signature)
+    logger.debug(
+        "PLE unfold: steps={} start_size={} final_size={} stop={} reflected_funs={}",
+        unfolded_steps,
+        start_size,
+        term_size(current),
+        stop_reason,
+        len(reflected_functions),
+    )
+    return current
+
+
+def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
+    match ty:
+        case TypeConstructor(name, _, _):
+            return mapping.get(name.name, ty)
+        case AbstractionType(vname, vty, body, loc):
+            svty = _specialize_type(vty, mapping)
+            sbody = _specialize_type(body, mapping)
+            assert isinstance(svty, (Top, TypeVar, TypeConstructor, RefinedType, AbstractionType))
+            return AbstractionType(vname, svty, sbody, loc=loc)
+        case TypePolymorphism(_, _, body):
+            return _specialize_type(body, mapping)
+        case RefinementPolymorphism(_, _, body):
+            return _specialize_type(body, mapping)
+        case RefinedType(vname, bty, ref, loc):
+            sbty = _specialize_type(bty, mapping)
+            assert isinstance(sbty, (TypeConstructor, TypeVar))
+            return RefinedType(vname, sbty, ref, loc=loc)
+        case _:
+            return ty
+
+
+def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> TypeConstructor | None:
+    match t:
+        case LiquidLiteralInt():
+            return t_int
+        case LiquidLiteralFloat():
+            return t_float
+        case LiquidLiteralBool():
+            return t_bool
+        case LiquidLiteralString():
+            return t_string
+        case LiquidVar(name):
+            return variables.get(str(name), None)
+        case _:
+            return None
+
+
+def _specialization_name(base: str, concrete: tuple[str, ...]) -> str:
+    return f"{base}__spec__{'__'.join(concrete)}"
+
+
+def _specialize_liquid_term(
+    t: LiquidTerm,
+    functions: dict[str, AbstractionType],
+    variables: dict[str, TypeConstructor],
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+    specializations: dict[tuple[str, tuple[str, ...]], str],
+) -> tuple[LiquidTerm, dict[str, AbstractionType], dict[str, tuple[tuple[Name, ...], LiquidTerm]]]:
+    if not isinstance(t, LiquidApp):
+        return t, functions, reflected_functions
+
+    nfuncs = functions
+    nref = reflected_functions
+    nargs: list[LiquidTerm] = []
+    for a in t.args:
+        sa, nfuncs, nref = _specialize_liquid_term(a, nfuncs, variables, nref, specializations)
+        nargs.append(sa)
+
+    fname = str(t.fun)
+    if fname not in nfuncs:
+        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+
+    fty = nfuncs[fname]
+    cur: Type = fty
+    subst: dict[str, TypeConstructor] = {}
+    for arg in nargs:
+        if not isinstance(cur, AbstractionType):
+            break
+        actual = _term_base_type(arg, variables)
+        expected = cur.var_type
+        if (
+            isinstance(expected, TypeConstructor)
+            and expected.name.name[:1].islower()
+            and expected.name.name not in {"Int", "Bool", "Float", "String", "Unit", "Top"}
+            and actual is not None
+        ):
+            subst[expected.name.name] = actual
+        cur = cur.type
+
+    if not subst:
+        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+
+    concrete_sig = tuple(sorted(str(v.name) for v in subst.values()))
+    skey = (fname, concrete_sig)
+    if skey in specializations:
+        sname = specializations[skey]
+    else:
+        sname = _specialization_name(fname, concrete_sig)
+        nty = _specialize_type(fty, subst)
+        assert isinstance(nty, AbstractionType)
+        nfuncs = {**nfuncs, sname: nty}
+        if fname in nref:
+            nref = {**nref, sname: nref[fname]}
+        specializations[skey] = sname
+    return LiquidApp(Name(sname, 0), nargs, loc=t.loc), nfuncs, nref
 
 
 def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTContext:
@@ -147,6 +331,9 @@ def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTCo
                 mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
                 nname = Name(mangle_name, fresh_counter.fresh())
                 base_tc = TypeConstructor(nname)
+            case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+                # Higher-rank arguments are represented as opaque scalar tokens in SMT.
+                base_tc = t_int
             case _:
                 assert False, f"{base} ({type(base)}) is not a base type for curried formal."
         out = out.with_var(cur.var_name, base_tc)
@@ -190,6 +377,11 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
         case UninterpretedFunctionDeclaration(name, absty, seq):
             nseq = rename_constraint(seq, old_name, new_name)
             return UninterpretedFunctionDeclaration(name, absty, nseq)
+        case ReflectedFunctionDeclaration(name, absty, params, body, seq):
+            nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
+            nparams = tuple(new_name if p == old_name else p for p in params)
+            nseq = rename_constraint(seq, old_name, new_name)
+            return ReflectedFunctionDeclaration(name, absty, nparams, nbody, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
 
@@ -197,10 +389,20 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
-        ctx = SMTContext(["Top"], {}, {}, [])
+        ctx = SMTContext(["Top"], {}, {}, [], {})
     match c:
         case LiquidConstraint(expr):
-            yield CanonicConstraint(ctx, expr)
+            specializations: dict[tuple[str, tuple[str, ...]], str] = {}
+            nfunctions = ctx.functions
+            nref = ctx.reflected_functions
+            sprem: list[LiquidTerm] = []
+            for p in ctx.premises:
+                sp, nfunctions, nref = _specialize_liquid_term(p, nfunctions, ctx.variables, nref, specializations)
+                sprem.append(sp)
+            sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
+            premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
+            out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
+            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
         case Conjunction(c1, c2):
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)
@@ -224,6 +426,13 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
             yield from flatten(seq, nctx.with_function(name, ty))
+        case ReflectedFunctionDeclaration(name, ty, params, body, seq):
+            nctx = (
+                _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
+            )
+            app = LiquidApp(name, [LiquidVar(p) for p in params])
+            eq = LiquidApp(Name("==", 0), [app, body])
+            yield from flatten(seq, nctx.with_premise(eq))
         case _:
             assert False, f"Cannot flatten {c}."
 
@@ -335,6 +544,8 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
                     inputs.append(t_int)
                 else:
                     inputs.append(TypeConstructor(name))
+            case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+                inputs.append(t_int)
             case _:
                 assert False, f"Unknown SMT type {current.var_type} in {base}."
         current = current.type
