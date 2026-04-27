@@ -73,14 +73,30 @@ inductive Chunks
 | cons_chunk (c: Chunk) (cs: Chunks) : {cs2: Chunks | chunk_count cs2 == chunk_count cs + 1}
 + chunk_count (cs: Chunks) : Int
 
-# --- Level: requires at least 3 chunks and 2-10 enemies ---
+# --- Level ---
+# Minimum chunk/enemy counts are enforced by the fitness, not the type,
+# so that partial candidates can still be evaluated by the synthesizer.
 
 inductive Level
-| mk_level (cs: Chunks | chunk_count cs >= 3)
-           (es: Enemies | sizeE es >= 2 && sizeE es <= 10) : Level
+| mk_level (cs: Chunks) (es: Enemies) : Level
+
+# --- Fitness (native helpers operating on the tagged-tuple runtime representation) ---
+# Inductive constructors produce tagged tuples at runtime, e.g.:
+#   cons_chunk c cs → ('Chunks_cons_chunk', c, cs)
+#   gap_chunk x y wg wB wA → ('Chunk_gap_chunk', x, y, wg, wBefore, wAfter)
+# The width helper (_w) computes how many horizontal cells a chunk occupies.
+
+# Total cells covered by all chunks (proxy for map fullness)
+def coverage (level: Level) : Int = native "(lambda _w: (lambda f: f(f, level[1]))((lambda f, cs: 0 if cs[0] == 'Chunks_empty_chunks' else _w(cs[1]) + f(f, cs[2]))))((lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3))"
+
+# Count pairwise spatial overlaps between chunks (1D x-axis overlap)
+def conflicts (level: Level) : Int = native "(lambda _w, segs: sum(max(0, min(segs[i][1], segs[j][1]) - max(segs[i][0], segs[j][0])) for i in range(len(segs)) for j in range(i+1, len(segs))))((lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3), (lambda f: f(f, level[1]))((lambda f, cs: [] if cs[0] == 'Chunks_empty_chunks' else [(cs[1][1], cs[1][1] + (lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3)(cs[1]))] + f(f, cs[2]))))"
 
 # --- Synthesis target ---
-# The type constraints alone force the synthesizer to produce a non-trivial level.
+# Maximize map coverage, minimize spatial conflicts between chunks.
 
-@minimize_int(0)
+@hide(coverage,
+      conflicts)
+@maximize_int(coverage new_map)
+@minimize_int(conflicts new_map)
 def new_map : Level = ?hole
