@@ -325,6 +325,8 @@ class CPULLVMLowerer(LLVMLowerer):
         return ""
 
     def _is_inlinable_anf(self, name: Name, val: LLVMTerm) -> bool:
+        if isinstance(val, LLVMFunction):
+            return True
         if not name.name.startswith("anf"):
             return False
         is_partial = isinstance(val, LLVMCall) and isinstance(val.type, LLVMFunctionType)
