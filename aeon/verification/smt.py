@@ -440,9 +440,16 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
 s = Solver()
 (s.set(timeout=200),)
 
+_smt_valid_cache: dict[str, bool] = {}
+
 
 def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
+    key = repr(constraint)
+    cached = _smt_valid_cache.get(key)
+    if cached is not None:
+        return cached
+
     n = 0
     for c in flatten(constraint):
         n += 1
@@ -459,10 +466,13 @@ def smt_valid(constraint: Constraint) -> bool:
         result = s.check()
         s.pop()
         if result == sat:
+            _smt_valid_cache[key] = False
             return False
         elif result == unknown:
+            _smt_valid_cache[key] = False
             return False
 
+    _smt_valid_cache[key] = True
     return True
 
 
