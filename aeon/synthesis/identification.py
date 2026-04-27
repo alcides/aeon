@@ -58,7 +58,13 @@ def get_holes_info(
             return get_holes_info(ctx, expr, ty, targets, refined_types)
         case Application(fun=fun, arg=arg):
             hs1 = get_holes_info(ctx, fun, ty, targets, refined_types)
-            hs2 = get_holes_info(ctx, arg, ty, targets, refined_types)
+            # Determine the argument type from the function's type when possible.
+            try:
+                _, fun_ty = synth(ctx, fun)
+                arg_ty = fun_ty.var_type if isinstance(fun_ty, AbstractionType) else ty
+            except Exception:
+                arg_ty = ty
+            hs2 = get_holes_info(ctx, arg, arg_ty, targets, refined_types)
             return hs1 | hs2
         case If(cond=cond, then=then, otherwise=otherwise):
             hs1 = get_holes_info(ctx, cond, ty, targets, refined_types)

@@ -80,23 +80,74 @@ inductive Chunks
 inductive Level
 | mk_level (cs: Chunks) (es: Enemies) : Level
 
-# --- Fitness (native helpers operating on the tagged-tuple runtime representation) ---
-# Inductive constructors produce tagged tuples at runtime, e.g.:
-#   cons_chunk c cs → ('Chunks_cons_chunk', c, cs)
-#   gap_chunk x y wg wB wA → ('Chunk_gap_chunk', x, y, wg, wBefore, wAfter)
-# The width helper (_w) computes how many horizontal cells a chunk occupies.
+# --- Fitness helpers (pure Aeon, using match on inductive types) ---
 
-# Total cells covered by all chunks (proxy for map fullness)
-def coverage (level: Level) : Int = native "(lambda _w: (lambda f: f(f, level[1]))((lambda f, cs: 0 if cs[0] == 'Chunks_empty_chunks' else _w(cs[1]) + f(f, cs[2]))))((lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3))"
+# Width of a chunk (horizontal cells occupied)
+def chunk_width (c: Chunk) : Int =
+    match c with
+    | gap_chunk x y wg wBefore wAfter => wg + wBefore + wAfter
+    | platform_chunk x y w => w
+    | hill_chunk x y w => w
+    | canon_chunk x y h wBefore wAfter => wBefore + wAfter
+    | tube_chunk x y h wBefore wAfter => wBefore + wAfter
+    | coin_chunk x y wc => wc
+    | boxes_chunk bs => 3;
 
-# Count pairwise spatial overlaps between chunks (1D x-axis overlap)
-def conflicts (level: Level) : Int = native "(lambda _w, segs: sum(max(0, min(segs[i][1], segs[j][1]) - max(segs[i][0], segs[j][0])) for i in range(len(segs)) for j in range(i+1, len(segs))))((lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3), (lambda f: f(f, level[1]))((lambda f, cs: [] if cs[0] == 'Chunks_empty_chunks' else [(cs[1][1], cs[1][1] + (lambda c: c[3] + c[4] + c[5] if c[0] == 'Chunk_gap_chunk' else c[3] if c[0] in ('Chunk_platform_chunk', 'Chunk_hill_chunk', 'Chunk_coin_chunk') else c[4] + c[5] if c[0] in ('Chunk_canon_chunk', 'Chunk_tube_chunk') else 3)(cs[1]))] + f(f, cs[2]))))"
+# Total width covered by all chunks (proxy for map fullness)
+def coverage (cs: Chunks) : Int =
+    match cs with
+    | empty_chunks => 0
+    | cons_chunk c rest => chunk_width c + coverage rest;
+
+# X position of a chunk
+def chunk_x (c: Chunk) : Int =
+    match c with
+    | gap_chunk x y wg wBefore wAfter => x
+    | platform_chunk x y w => x
+    | hill_chunk x y w => x
+    | canon_chunk x y h wBefore wAfter => x
+    | tube_chunk x y h wBefore wAfter => x
+    | coin_chunk x y wc => x
+    | boxes_chunk bs => 0;
+
+# Overlap between two chunks on the x-axis (0 if no overlap)
+def max (a: Int) (b: Int) : Int = if a > b then a else b
+def min (a: Int) (b: Int) : Int = if a < b then a else b
+
+def overlap (c1: Chunk) (c2: Chunk) : Int =
+    lo = max (chunk_x c1) (chunk_x c2);
+    hi = min (chunk_x c1 + chunk_width c1) (chunk_x c2 + chunk_width c2);
+    max 0 (hi - lo);
+
+# Count total pairwise overlap of one chunk against the rest
+def conflicts_one (c: Chunk) (cs: Chunks) : Int =
+    match cs with
+    | empty_chunks => 0
+    | cons_chunk c2 rest => overlap c c2 + conflicts_one c rest;
+
+# Total pairwise conflicts across all chunks
+def conflicts (cs: Chunks) : Int =
+    match cs with
+    | empty_chunks => 0
+    | cons_chunk c rest => conflicts_one c rest + conflicts rest;
+
+# Extract chunks from a level
+def level_chunks (level: Level) : Chunks =
+    match level with
+    | mk_level cs es => cs;
 
 # --- Synthesis target ---
 # Maximize map coverage, minimize spatial conflicts between chunks.
 
-@hide(coverage,
-      conflicts)
-@maximize_int(coverage new_map)
-@minimize_int(conflicts new_map)
+@hide(chunk_width,
+      coverage,
+      chunk_x,
+      max,
+      min,
+      overlap,
+      conflicts_one,
+      conflicts,
+      level_chunks)
+@maximize_int(coverage (level_chunks new_map))
+@minimize_int(conflicts (level_chunks new_map))
 def new_map : Level = ?hole
