@@ -13,30 +13,36 @@ def _gpu_options_from_decorator(decorator: Decorator) -> dict[str, Any]:
     gpu_info: dict[str, Any] = {
         "gpu": True,
         "gpu_device": "cuda",
+        "gpu_target": "",
+        "gpu_opt_level": 3,
+        "gpu_log_ir": False,
         "gpu_debug": False,
         "gpu_cache": False,
-        "gpu_block_size": 1,
-        "gpu_thread_count": 1,
+        "gpu_block_size": 32,
+        "gpu_thread_count": 128,
     }
 
-    arg_keys = ["gpu_device", "gpu_debug", "gpu_cache", "gpu_block_size", "gpu_thread_count"]
-
-    for key, arg in zip(arg_keys, decorator.macro_args):
-        if isinstance(arg, SLiteral):
-            gpu_info[key] = arg.value
-
     mapping = {
-        "target": "gpu_device",
         "device": "gpu_device",
+        "target": "gpu_target",
+        "opt_level": "gpu_opt_level",
+        "log_ir": "gpu_log_ir",
         "debug": "gpu_debug",
         "cache": "gpu_cache",
         "block_size": "gpu_block_size",
         "thread_count": "gpu_thread_count",
     }
+
+    arg_keys = list(mapping.values())
+    for key, arg in zip(arg_keys, decorator.macro_args):
+        if isinstance(arg, SLiteral):
+            gpu_info[key] = arg.value
+
     for name, arg in decorator.named_args.items():
         key = mapping.get(name.name, name.name)
         if key in gpu_info and isinstance(arg, SLiteral):
             gpu_info[key] = arg.value
+
     return gpu_info
 
 
