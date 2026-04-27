@@ -232,7 +232,7 @@ def type_infer_liquid(
                             raise LiquidTypeCheckException(f"Function {fun_name} only applies to Floats or Ints.")
                     elif fun_name in ["==", "!="] and not isinstance(first_argument, TypeVar):
                         # TODO: Add type equality
-                        if not is_base_type_in(first_argument, ["Unit", "Bool", "Float", "Int", "String"]):
+                        if not is_base_type_in(first_argument, ["Unit", "Bool", "Float", "Int", "String", "Set"]):
                             raise LiquidTypeCheckException(f"Function {fun_name} only applies to built-in types.")
                     elif fun_name in ["+", "-", "*", "/"] and not isinstance(first_argument, TypeVar):
                         if not is_base_type_in(first_argument, ["Float", "Int"]):

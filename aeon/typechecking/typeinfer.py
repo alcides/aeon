@@ -43,6 +43,7 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
+from aeon.core.types import t_set
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
 from aeon.facade.api import (
@@ -241,6 +242,19 @@ def prim_op(t: Name) -> Type:
         case "!":
             name = Name("fresh", fresh_counter.fresh())
             return AbstractionType(name, t_bool, t_bool)
+        case "-->":
+            return make_binary_app_type(t, t_bool, t_bool)
+        case "Set_sng":
+            name = Name("fresh", fresh_counter.fresh())
+            return AbstractionType(name, t_int, t_set)
+        case "Set_cup" | "Set_cap" | "Set_dif":
+            return make_binary_app_type(t, t_set, t_set)
+        case "Set_mem":
+            xname = Name("x", fresh_counter.fresh())
+            sname = Name("s", fresh_counter.fresh())
+            return AbstractionType(xname, t_int, AbstractionType(sname, t_set, t_bool))
+        case "Set_sub":
+            return make_binary_app_type(t, t_set, t_bool)
         case _:
             assert False, f"Unknown selfication of {t}"
 
