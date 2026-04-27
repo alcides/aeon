@@ -43,6 +43,7 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
+from aeon.verification.vcs import alpha_key
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
@@ -445,7 +446,7 @@ _smt_valid_cache: dict[str, bool] = {}
 
 def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
-    key = repr(constraint)
+    key = alpha_key(constraint)
     cached = _smt_valid_cache.get(key)
     if cached is not None:
         return cached
