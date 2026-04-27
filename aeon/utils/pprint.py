@@ -10,6 +10,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SApplication,
     SAnnotation,
+    SQualifiedVar,
     SRec,
     SRefinementAbstraction,
     STypeAbstraction,
@@ -423,6 +424,9 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
         case SVar(name=name):
             return text(name.pretty())
 
+        case SQualifiedVar(qualifier=qualifier, name=name):
+            return text(f"{qualifier}.{name.pretty()}")
+
         case SHole(name=name):
             return text("?" + name.pretty())
 
@@ -716,14 +720,14 @@ def simplify_sterm(term: STerm) -> STerm:
 
 def node_pretty(node: Node) -> Doc:
     match node:
-        case ImportAe(path=path, func=func):
-            return (
-                group(concat([text("import"), line(), text(f'"{path}"')]))
-                if not func
-                else group(
-                    concat([text("import"), line(), text(func), line(), text("from"), line(), text(f'"{path}"')])
-                )
-            )
+        case ImportAe(module_path=module_path, selected_names=selected_names, is_open=is_open):
+            if is_open:
+                return group(concat([text("open"), line(), text(module_path)]))
+            elif selected_names:
+                names = ", ".join(selected_names)
+                return group(concat([text("import"), line(), text(module_path), line(), text(f"({names})")]))
+            else:
+                return group(concat([text("import"), line(), text(module_path)]))
         case TypeDecl(name=name):
             return group(concat([text("type"), line(), text(f"{name.pretty()}")]))
         case Decorator(name=name, macro_args=macro_args):

@@ -1,4 +1,4 @@
-import "Image.ae"
+open Image
 
 def target : Image = Image_open "examples/image/key_target.jpg"
 

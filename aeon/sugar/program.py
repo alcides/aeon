@@ -53,6 +53,19 @@ class SVar(STerm):
 
 
 @dataclass(frozen=True)
+class SQualifiedVar(STerm):
+    qualifier: str
+    name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"{self.qualifier}.{self.name}"
+
+    def __repr__(self):
+        return f"QVar({self.qualifier}.{self.name})"
+
+
+@dataclass(frozen=True)
 class SAnnotation(STerm):
     expr: STerm
     type: SType
@@ -280,15 +293,29 @@ class Node:
 
 @dataclass
 class ImportAe(Node):
-    path: str
-    func: str
+    module_path: str  # e.g. "Math" or "Math.Basic"
+    selected_names: list[str] = field(default_factory=list)  # empty = all (qualified access)
+    is_open: bool = False  # True for `open Math`
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
+    @property
+    def file_path(self) -> str:
+        """Convert module path to filesystem path: Math -> Math.ae, Math.Basic -> Math/Basic.ae"""
+        return self.module_path.replace(".", "/") + ".ae"
+
+    @property
+    def module_name(self) -> str:
+        """The top-level module name used as qualifier, e.g. 'Math' from 'Math.Basic'."""
+        return self.module_path.split(".")[0]
+
     def __str__(self):
-        if not self.func:
-            return f"import {self.path};"
+        if self.is_open:
+            return f"open {self.module_path};"
+        elif self.selected_names:
+            names = ", ".join(self.selected_names)
+            return f"import {self.module_path} ({names});"
         else:
-            return f"import {self.func} from {self.path};"
+            return f"import {self.module_path};"
 
 
 @dataclass

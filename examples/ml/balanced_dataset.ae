@@ -1,7 +1,7 @@
 # This file is an example of how to use the Learning libary to generate a statically checked balanced dataset
 # and train a random forest model on it.
 
-import "Learning.ae"
+open Learning
 
 
 def generate_model_1 (filename: String) : Model =

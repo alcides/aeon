@@ -1,4 +1,4 @@
-import "Vector.ae";
+open Vector
 
 @gpu(target="cuda", debug=true)
 def multiply_by_ten (v:(Vector Int)) (size:Int) : (Vector Int) =

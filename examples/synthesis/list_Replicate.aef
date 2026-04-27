@@ -1,5 +1,5 @@
-import "List.ae";
-import Math_abs from "Math.ae";
+open List
+import Math (abs)
 
 @minimize_int(Math_abs((List_sum (replicate 3 3)) - 9))
 def replicate (n: {x:Int | x > 0} ) (elem: Int) : { j:(List Int) | n == (List_size j) } {

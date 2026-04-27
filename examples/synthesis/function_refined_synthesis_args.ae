@@ -1,4 +1,4 @@
-import Math_abs from "Math.ae"
+import Math (abs)
 
 def test (j:{h:Int | h > 0 }): Int = 8
 

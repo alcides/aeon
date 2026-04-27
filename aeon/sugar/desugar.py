@@ -25,6 +25,7 @@ from aeon.sugar.program import (
     SBy,
     SLiteral,
     SIf,
+    SQualifiedVar,
     SRec,
     SLet,
     SMatch,
@@ -132,7 +133,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole():
+        case SLiteral() | SVar() | SHole() | SQualifiedVar():
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)
@@ -223,6 +224,65 @@ def lower_by_blocks_in_definitions(
     return new_definitions, metadata
 
 
+def resolve_qualified_names_in_sterm(
+    t: STerm, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+) -> STerm:
+    """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names."""
+
+    def rec(node: STerm) -> STerm:
+        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope)
+
+    match t:
+        case SQualifiedVar(qualifier, name, loc):
+            key = (qualifier, name.name)
+            if key in qualified_scope:
+                return SVar(qualified_scope[key], loc=loc)
+            raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
+        case SVar(name, loc) if name.name in unqualified_scope:
+            return SVar(unqualified_scope[name.name], loc=loc)
+        case SApplication(fun, arg, loc):
+            return SApplication(rec(fun), rec(arg), loc=loc)
+        case SAbstraction(name, body, loc):
+            return SAbstraction(name, rec(body), loc=loc)
+        case SLet(name, val, body, loc):
+            return SLet(name, rec(val), rec(body), loc=loc)
+        case SRec(name, ty, val, body, decreasing_by, loc):
+            nd = tuple(rec(m) for m in decreasing_by)
+            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc)
+        case SIf(cond, then, otherwise, loc):
+            return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(rec(expr), ty, loc=loc)
+        case STypeApplication(body, ty, loc):
+            return STypeApplication(rec(body), ty, loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(rec(body), rec(refinement), loc=loc)
+        case STypeAbstraction(name, kind, body, loc):
+            return STypeAbstraction(name, kind, rec(body), loc=loc)
+        case SRefinementAbstraction(pname, sort, body, loc):
+            return SRefinementAbstraction(pname, sort, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(constructor=br.constructor, binders=br.binders, body=rec(br.body), loc=br.loc)
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case _:
+            return t
+
+
+def resolve_qualified_names_in_definition(
+    d: Definition, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+) -> Definition:
+    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope)
+    if new_body is d.body:
+        return d
+    return Definition(d.name, d.foralls, d.args, d.type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
+
+
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
@@ -237,7 +297,11 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     prog = determine_main_function(p, is_main_hole)
 
     defs, type_decls = p.definitions, p.type_decls
-    defs, type_decls = handle_imports(p.imports, defs, type_decls)
+    defs, type_decls, qualified_scope, unqualified_scope = handle_imports(p.imports, defs, type_decls)
+
+    # Resolve qualified names (Math.pow -> Math_pow) and unqualified bare names from open/selective imports
+    defs = [resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope) for d in defs]
+    prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope)
 
     defs, metadata = apply_decorators_in_definitions(defs)
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
@@ -701,28 +765,62 @@ def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
         return SLiteral(1, st_int)
 
 
+def _bare_name(module_name: str, def_name: str) -> str:
+    """Strip module prefix from a definition name: Math_pow -> pow."""
+    prefix = module_name + "_"
+    if def_name.startswith(prefix):
+        return def_name[len(prefix) :]
+    return def_name
+
+
+# Scope entry: maps (qualifier, bare_name) -> prefixed Name for qualified access,
+# and bare_name -> prefixed Name for unqualified access (open / selective imports).
+ModuleScope = dict[str, Name]  # bare_name -> original Name
+QualifiedScope = dict[tuple[str, str], Name]  # (qualifier, bare_name) -> original Name
+UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
+
+
 def handle_imports(
     imports: list[ImportAe],
     defs: list[Definition],
     type_decls: list[TypeDecl],
-) -> tuple[list[Definition], list[TypeDecl]]:
+) -> tuple[list[Definition], list[TypeDecl], QualifiedScope, UnqualifiedScope]:
+    qualified_scope: QualifiedScope = {}
+    unqualified_scope: UnqualifiedScope = {}
+
     for imp in imports[::-1]:
-        import_p = handle_import(imp)
+        import_p = _resolve_import(imp)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
         type_decls_recursive: list[TypeDecl] = []
         if import_p.imports:
-            defs_recursive, type_decls_recursive = handle_imports(
+            defs_recursive, type_decls_recursive, rec_q, rec_u = handle_imports(
                 import_p.imports,
                 import_p.definitions,
                 import_p.type_decls,
             )
-        if imp.func:
-            import_p_definitions = [d for d in import_p_definitions if str(d.name.name) == imp.func]
+            qualified_scope.update(rec_q)
+            unqualified_scope.update(rec_u)
+
+        module_name = imp.module_path.split(".")[-1]
+
+        # Build scope entries for this module's definitions
+        for d in import_p_definitions:
+            bare = _bare_name(module_name, d.name.name)
+            # Always register for qualified access: Module.bare -> original name
+            qualified_scope[(module_name, bare)] = d.name
+
+            if imp.is_open:
+                # open Math: all names available unqualified
+                unqualified_scope[bare] = d.name
+            elif imp.selected_names:
+                # import Math (pow, abs): selected names available unqualified
+                if bare in imp.selected_names:
+                    unqualified_scope[bare] = d.name
 
         defs = defs_recursive + import_p_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
-    return defs, type_decls
+    return defs, type_decls, qualified_scope, unqualified_scope
 
 
 def apply_decorators_in_program(prog: Program) -> Program:
@@ -823,17 +921,38 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             assert False, f"{d} is not a definition"
 
 
-def handle_import(imp: ImportAe) -> Program:
-    """Imports a given path, following the precedence rules of current folder,
-    AEONPATH."""
-    path = imp.path
+_import_cache: dict[str, Program] = {}
+_currently_importing: set[str] = set()
+
+
+def clear_import_cache() -> None:
+    """Clear the import cache. Useful for tests and LSP reloads."""
+    _import_cache.clear()
+    _currently_importing.clear()
+
+
+def _resolve_import(imp: ImportAe) -> Program:
+    """Imports a given module path, following the precedence rules of current folder,
+    AEONPATH. Results are cached by resolved file path."""
+    path = imp.file_path
     possible_containers = (
         [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
     )
     for container in possible_containers:
         file = container / f"{path}"
         if file.exists():
-            contents = open(file).read()
-            parse = mk_parser("program", filename=str(file))
-            return parse(contents)
+            resolved = str(file.resolve())
+            if resolved in _currently_importing:
+                raise ImportError(importel=imp, possible_containers=possible_containers)
+            if resolved in _import_cache:
+                return _import_cache[resolved]
+            _currently_importing.add(resolved)
+            try:
+                contents = open(file).read()
+                parse = mk_parser("program", filename=str(file))
+                result = parse(contents)
+                _import_cache[resolved] = result
+                return result
+            finally:
+                _currently_importing.discard(resolved)
     raise ImportError(importel=imp, possible_containers=possible_containers)

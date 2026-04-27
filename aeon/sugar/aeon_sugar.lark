@@ -2,8 +2,12 @@ program :  aeimport type_decls defs                     -> program
 
 aeimport : import*                                      -> list
 
-import: "import" ESCAPED_STRING ";"?                     -> regular_imp
-      | "import" CNAME "from" ESCAPED_STRING ";"?        -> function_imp
+import: "import" module_path ";"?                         -> module_imp
+      | "import" module_path "(" import_names ")" ";"?    -> module_selective_imp
+      | "open" module_path ";"?                           -> open_imp
+
+module_path : CNAME ("." CNAME)*                          -> module_path
+import_names : CNAME ("," CNAME)*                         -> list
 
 type_decls : type_decl*                              -> list
 
@@ -134,6 +138,7 @@ expression_simple : "(" expression ")"                       -> same
         | FLOATLIT                                           -> float_lit
         | BOOLLIT                                            -> bool_lit
         | ESCAPED_STRING                                     -> string_lit
+        | QUALIFIED_ID                                       -> qualified_var
         | ID                                                 -> var
         | "?" ID                                             -> hole
 
@@ -147,6 +152,7 @@ INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 
 TYPENAME : /[a-zA-Z0-9]+/
+QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 
 _PIPE.10 : "where" | "|"

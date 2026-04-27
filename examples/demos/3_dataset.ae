@@ -1,4 +1,4 @@
-import "Learning.ae"
+open Learning
 
 def training_multinomial_nb (filename: String) : Model = let df = Learning_load_dataset filename in
     let balanced_df = Learning_smote_oversample df in

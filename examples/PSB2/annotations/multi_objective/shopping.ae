@@ -1,11 +1,4 @@
-import extract_train_data from "PSB2.ae"
-import psb2_aeon from "PSB2.ae"
-import get_input_list from "PSB2.ae"
-import get_output_list from "PSB2.ae"
-import calculate_list_errors from "PSB2.ae"
-import get_shop_synth_values from "PSB2.ae"
-import unpack_train_data from "PSB2.ae"
-import load_dataset from "PSB2.ae"
+import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_list_errors, get_shop_synth_values, unpack_train_data, load_dataset)
 type List
 type Map
 

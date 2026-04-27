@@ -4,7 +4,7 @@
 # input : float in [0.0, 360.0] (v1), float in [0.0, 360.0] (v2), float in [0.0, 1.0] (e)
 # output : float
 
-import "Math.ae"
+open Math
 
 def degrees_to_radians (angle: {deg: Float | 0.0 <= deg && deg <= 360.0 })
                         : {rad: Float | 0.0 <= rad && rad <= 2.0 * Math_PI} = let HALF_TURN: {deg: Float | deg == 180.0 } = 180.0 in

@@ -1,4 +1,4 @@
-import "List.ae"
+open List
 
 def random : Unit = native_import "random"
 

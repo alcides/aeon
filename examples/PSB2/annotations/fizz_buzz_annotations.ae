@@ -1,5 +1,5 @@
 # --not working properly--
-import "PSB2.ae"
+open PSB2
 
 def constant_i : Int = 0
 def constant_i3 : Int = 3

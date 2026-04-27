@@ -11,7 +11,7 @@ setup_logger()
 )
 def test_gpu_fallback():
     aeon_code = """
-        import "Vector.ae";
+        open Vector
 
         @gpu(target="cuda", debug=false, cache=false, block_size=32, thread_count=1024)
         def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) =
