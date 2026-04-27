@@ -32,9 +32,9 @@ class MultiBackendPipeline(LLVMPipeline):
             try:
                 from aeon.llvm.cuda.lowerer import CUDALLVMLowerer
                 from aeon.llvm.cuda.converter import CUDALLVMIRGenerator
-                from aeon.llvm.cuda.executor import CUDAExecutionEngine
+                from aeon.llvm.cuda.executor import CUDALLVMExecutionEngine
 
-                cuda_backend = Backend(CUDAExecutionEngine(), CUDALLVMIRGenerator(), CUDALLVMLowerer())
+                cuda_backend = Backend(CUDALLVMExecutionEngine(), CUDALLVMIRGenerator(), CUDALLVMLowerer())
                 self.register_backend("cuda", cuda_backend)
                 self.cuda_initialized = True
             except Exception as e:
