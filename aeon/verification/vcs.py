@@ -49,6 +49,19 @@ class UninterpretedFunctionDeclaration(Constraint):
 
 
 @dataclass
+class ReflectedFunctionDeclaration(Constraint):
+    name: Name
+    type: AbstractionType
+    params: tuple[Name, ...]
+    body: LiquidTerm
+    seq: Constraint
+
+    def __repr__(self):
+        params = ", ".join(str(p) for p in self.params)
+        return f"reflected {self.name}({params}):{self.type} = {self.body} => {self.seq}"
+
+
+@dataclass
 class Implication(Constraint):
     name: Name
     base: TypeConstructor | TypeVar | Top
@@ -96,3 +109,6 @@ def variables_free_in(c: Constraint) -> Generator[str, None, None]:
                 yield k
     elif isinstance(c, LiquidConstraint):
         yield from variables_in_liq(c.expr)
+    elif isinstance(c, ReflectedFunctionDeclaration):
+        yield from variables_in_liq(c.body)
+        yield from variables_free_in(c.seq)

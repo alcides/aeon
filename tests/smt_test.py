@@ -2,14 +2,27 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
+from aeon.core.types import AbstractionType
+from aeon.core.types import BaseKind
+from aeon.core.types import RefinementPolymorphism
+from aeon.core.types import TypePolymorphism
+from aeon.core.types import TypeVar
 from aeon.core.types import t_int
+from aeon.core.types import t_bool
+from aeon.core.terms import Abstraction, Application, RefinementAbstraction, Var
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
+from aeon.verification.smt import flatten
+from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
+from aeon.verification.vcs import ReflectedFunctionDeclaration
+from aeon.verification.sub import implication_constraint
+from aeon.typechecking.typeinfer import _reflected_impl_for
 from tests.driver import check_compile, check_compile_expr
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.ast_helpers import st_int, st_top, st_bool
@@ -100,3 +113,134 @@ def test_poly_to_smt():
             Name("z"): st_int,
         },
     )
+
+
+def test_reflected_function_unfolding() -> None:
+    inc_name = Name("inc")
+    x_name = Name("x")
+    reflected_inc = ReflectedFunctionDeclaration(
+        inc_name,
+        AbstractionType(x_name, t_int, t_int),
+        (x_name,),
+        LiquidApp(Name("+", 0), [LiquidVar(x_name), LiquidLiteralInt(1)]),
+        Implication(
+            x_name,
+            t_int,
+            LiquidLiteralBool(True),
+            LiquidConstraint(LiquidApp(Name(">", 0), [LiquidApp(inc_name, [LiquidVar(x_name)]), LiquidVar(x_name)])),
+        ),
+    )
+    assert smt_valid(reflected_inc)
+
+
+def test_native_function_is_not_reflected() -> None:
+    aeon_code = """
+def native_inc (x:Int) : Int = native "x + 1";
+
+def witness (x:Int) : {v:Int | v > x} = native_inc x;
+
+def main (x:Int) : Unit = print(witness x)
+"""
+    assert not check_compile(aeon_code, st_top)
+
+
+def test_rank2_reflected_unfolding() -> None:
+    a = Name("a")
+    x = Name("x")
+    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    reflected = implication_constraint(
+        Name("id"),
+        poly_id,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)
+    vc = implication_constraint(
+        x,
+        t_int,
+        LiquidConstraint(LiquidApp(Name("==", 0), [LiquidApp(Name("id"), [LiquidVar(x)]), LiquidVar(x)])),
+    )
+    assert smt_valid(ReflectedFunctionDeclaration(Name("id"), reflected.type, (x,), LiquidVar(x), vc))
+
+
+def test_rank3_reflected_unfolding() -> None:
+    t = Name("t")
+    f = Name("f")
+    g = Name("g")
+    n = Name("n")
+    rank3_ty = TypePolymorphism(
+        f,
+        BaseKind(),
+        AbstractionType(
+            g,
+            TypePolymorphism(t, BaseKind(), AbstractionType(Name("x"), TypeVar(t), TypeVar(t))),
+            AbstractionType(n, TypeVar(f), TypeVar(f)),
+        ),
+    )
+    reflected = implication_constraint(
+        Name("passPoly"),
+        rank3_ty,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((g, n), LiquidVar(n)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)
+
+
+def test_polymorphic_reflection_specializes_multiple_instances() -> None:
+    a = Name("a")
+    x = Name("x")
+    id_name = Name("id")
+    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    base = implication_constraint(
+        id_name,
+        poly_id,
+        Conjunction(
+            LiquidConstraint(
+                LiquidApp(Name("==", 0), [LiquidApp(id_name, [LiquidLiteralInt(1)]), LiquidLiteralInt(1)])
+            ),
+            LiquidConstraint(
+                LiquidApp(Name("==", 0), [LiquidApp(id_name, [LiquidLiteralFloat(1.0)]), LiquidLiteralFloat(1.0)])
+            ),
+        ),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert smt_valid(base)
+    cans = list(flatten(base))
+    assert any("__spec__Int" in name or "__spec__Float" in name for c in cans for name in c.functions.keys())
+
+
+def test_refinement_polymorphic_reflection_supported() -> None:
+    p = Name("p")
+    x = Name("x")
+    ty = RefinementPolymorphism(p, t_int, AbstractionType(x, t_int, t_int))
+    reflected = implication_constraint(
+        Name("rid"),
+        ty,
+        LiquidConstraint(LiquidLiteralBool(True)),
+        reflected_impl=((x,), LiquidVar(x)),
+    )
+    assert isinstance(reflected, ReflectedFunctionDeclaration)
+
+
+def test_refinement_polymorphic_reflection_rejects_predicate_dependent_body() -> None:
+    p = Name("p")
+    x = Name("x")
+    impl = RefinementAbstraction(
+        p,
+        t_int,
+        Abstraction(
+            x,
+            Application(Var(p), Var(x)),
+        ),
+    )
+    ty = RefinementPolymorphism(p, t_int, AbstractionType(x, t_int, t_bool))
+    assert _reflected_impl_for(Name("rid"), ty, impl) is None
+
+
+def test_recursive_reflection_requires_termination_metric() -> None:
+    f = Name("f")
+    x = Name("x")
+    ty = AbstractionType(x, t_int, t_int)
+    impl = Abstraction(x, Application(Var(f), Var(x)))
+    assert _reflected_impl_for(f, ty, impl, has_termination_metric=False) is None
+    assert _reflected_impl_for(f, ty, impl, has_termination_metric=True) is not None

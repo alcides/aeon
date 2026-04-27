@@ -3,6 +3,7 @@ from __future__ import annotations
 from loguru import logger
 
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
@@ -16,6 +17,7 @@ from aeon.core.types import t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
@@ -40,11 +42,23 @@ def ensure_refined(t: Type) -> Type:
 
 def is_first_order_function(at: AbstractionType):
     v: Type = at
+    while isinstance(v, TypePolymorphism) or isinstance(v, RefinementPolymorphism):
+        if isinstance(v, TypePolymorphism):
+            v = v.body
+        else:
+            v = v.body
     while isinstance(v, AbstractionType):
         match v.var_type:
             case AbstractionType(_, _, _):
                 return False
-            case Top() | RefinedType(_, _, _) | TypeVar(_) | TypeConstructor(_, _):
+            case (
+                Top()
+                | RefinedType(_, _, _)
+                | TypeVar(_)
+                | TypeConstructor(_, _)
+                | TypePolymorphism(_, _, _)
+                | RefinementPolymorphism(_, _, _)
+            ):
                 pass
             case _:
                 assert False
@@ -60,6 +74,10 @@ def lower_constraint_type(ttype: Type) -> Type:
             return t_unit
         case AbstractionType(name, b, r):
             return AbstractionType(name, lower_constraint_type(b), lower_constraint_type(r))
+        case TypePolymorphism(_, _, body):
+            return lower_constraint_type(body)
+        case RefinementPolymorphism(_, _, body):
+            return lower_constraint_type(body)
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
@@ -73,7 +91,13 @@ def lower_constraint_type(ttype: Type) -> Type:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
 
-def implication_constraint(name: Name, ty: Type, c: Constraint, loc: Location | None = None) -> Constraint:
+def implication_constraint(
+    name: Name,
+    ty: Type,
+    c: Constraint,
+    loc: Location | None = None,
+    reflected_impl: tuple[tuple[Name, ...], LiquidTerm] | None = None,
+) -> Constraint:
     match ty:
         case Top() | TypeVar(_) | TypeConstructor(_, _):
             basety = lower_constraint_type(ty)
@@ -85,16 +109,28 @@ def implication_constraint(name: Name, ty: Type, c: Constraint, loc: Location | 
             assert isinstance(ltype, TypeConstructor) or isinstance(ltype, TypeVar)
             return Implication(name, ltype, ref_subs, c, loc=loc)
         case AbstractionType(_, _, _):
-            # TODO Poly Refl: instead of true, reflect the implementation of the function?
             if is_first_order_function(ty):
                 absty = lower_constraint_type(ty)
                 assert isinstance(absty, AbstractionType)
+                if reflected_impl is not None:
+                    (params, body) = reflected_impl
+                    return ReflectedFunctionDeclaration(name, absty, params, body, c)
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
                 return c
         case TypePolymorphism(_, _, _):
+            if reflected_impl is not None:
+                lowered = lower_constraint_type(ty)
+                if isinstance(lowered, AbstractionType):
+                    (params, body) = reflected_impl
+                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             return c
         case RefinementPolymorphism(_, _, _):
+            if reflected_impl is not None:
+                lowered = lower_constraint_type(ty)
+                if isinstance(lowered, AbstractionType):
+                    (params, body) = reflected_impl
+                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             return c
         case _:
             assert False
