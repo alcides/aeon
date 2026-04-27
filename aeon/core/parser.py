@@ -181,15 +181,29 @@ class TreeToCore(Transformer):
         return StarKind()
 
 
+_parser_cache: dict[str, Lark] = {}
+
+
+def _get_cached_parser(rule: str) -> Lark:
+    if rule not in _parser_cache:
+        _parser_cache[rule] = Lark.open(
+            pathlib.Path(__file__).parent.absolute() / "aeon_core.lark",
+            parser="lalr",
+            start=rule,
+        )
+    return _parser_cache[rule]
+
+
 def mk_parser(rule="start", start_counter=0):
-    return Lark.open(
-        pathlib.Path(__file__).parent.absolute() / "aeon_core.lark",
-        parser="lalr",
-        # lexer='standard',
-        start=rule,
-        transformer=TreeToCore(start_counter),
-    )
+    parser = _get_cached_parser(rule)
+    transf = TreeToCore(start_counter)
+
+    def parse(s: str):
+        tree = parser.parse(s)
+        return transf.transform(tree)
+
+    return parse
 
 
-parse_type: Callable[[str], Type] = mk_parser("type").parse
-parse_term: Callable[[str], Term] = mk_parser("expression").parse
+parse_type: Callable[[str], Type] = mk_parser("type")
+parse_term: Callable[[str], Term] = mk_parser("expression")
