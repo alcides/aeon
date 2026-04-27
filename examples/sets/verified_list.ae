@@ -1,0 +1,44 @@
+# SMT Set example: verified list operations with element tracking.
+#
+# Set is a built-in type with operations available in refinements:
+#   Set_empty           : Set             (empty set)
+#   Set_sng x           : Set             (singleton {x})
+#   Set_cup a b         : Set             (union)
+#   Set_cap a b         : Set             (intersection)
+#   Set_dif a b         : Set             (difference)
+#   Set_mem x s         : Bool            (membership)
+#   Set_sub a b         : Bool            (subset)
+
+type IntList
+
+# Uninterpreted measure: maps a list to its element set
+def elts : (l:IntList) -> Set = uninterpreted
+
+# Empty list has no elements
+def empty : {l:IntList | elts l == Set_empty} = native "[]"
+
+# Cons adds exactly one element
+def cons (x:Int) (xs:IntList) : {l:IntList | elts l == Set_cup (Set_sng x) (elts xs)} =
+    native "[x] + xs"
+
+# Append is union of elements
+def append (xs:IntList) (ys:IntList) : {l:IntList | elts l == Set_cup (elts xs) (elts ys)} =
+    native "xs + ys"
+
+# Sort preserves elements (permutation property)
+def sort (xs:IntList) : {l:IntList | elts l == elts xs} = native "sorted(xs)"
+
+# Filter returns a subset
+def myfilter (xs:IntList) : {l:IntList | Set_sub (elts l) (elts xs)} =
+    native "[x for x in xs if x > 0]"
+
+# Membership check is faithful
+def contains (x:Int) (xs:IntList) : {b:Bool | b == Set_mem x (elts xs)} =
+    native "x in xs"
+
+def main (_:Int) : Unit =
+    a = cons 3 (cons 1 (cons 2 empty));
+    b = sort a;
+    c = append a b;
+    d = myfilter c;
+    print(contains 3 d)

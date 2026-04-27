@@ -26,6 +26,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
+from z3 import EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
@@ -40,7 +41,7 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
-from aeon.core.types import t_bool, t_int, t_float, t_string, t_unit
+from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Constraint
@@ -76,11 +77,20 @@ smt_function_types: dict[str, list[Type]] = {
     "smtMultFloat": [t_float, t_float, t_float],
     "smtDivFloat": [t_float, t_float, t_float],
     "smtImplies": [t_bool, t_bool, t_bool],
+    # SMT Set operations
+    "smtSetSng": [t_int, t_set],
+    "smtSetCup": [t_set, t_set, t_set],
+    "smtSetCap": [t_set, t_set, t_set],
+    "smtSetDif": [t_set, t_set, t_set],
+    "smtSetMem": [t_int, t_set, t_bool],
+    "smtSetSub": [t_set, t_set, t_bool],
+    "smtEqSet": [t_set, t_set, t_bool],
+    "smtNeqSet": [t_set, t_set, t_bool],
 }
 
 smt_function_translation: dict[str, list[str]] = {
-    "==": ["smtEqBool", "smtEqInt", "smtEqFloat", "smtEqString"],
-    "!=": ["smtNeqBool", "smtNeqInt", "smtNeqFloat", "smtNeqString"],
+    "==": ["smtEqBool", "smtEqInt", "smtEqFloat", "smtEqString", "smtEqSet"],
+    "!=": ["smtNeqBool", "smtNeqInt", "smtNeqFloat", "smtNeqString", "smtNeqSet"],
     "!": ["smtNot"],
     "<": ["smtLeqInt", "smtLeqFloat"],
     "<=": ["smtLtInt", "smtLtFloat"],
@@ -92,6 +102,12 @@ smt_function_translation: dict[str, list[str]] = {
     "/": ["smtDivInt", "smtDivFloat"],
     "%": ["smtModInt"],
     "-->": ["smtImplies"],
+    "Set_sng": ["smtSetSng"],
+    "Set_cup": ["smtSetCup"],
+    "Set_cap": ["smtSetCap"],
+    "Set_dif": ["smtSetDif"],
+    "Set_mem": ["smtSetMem"],
+    "Set_sub": ["smtSetSub"],
 }
 
 base_functions: dict[str, Any] = {
@@ -110,6 +126,14 @@ base_functions: dict[str, Any] = {
     "/": lambda x, y: x / y,
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
+    # SMT Set operations
+    "Set_empty": EmptySet(IntSort()),
+    "Set_sng": lambda x: SetAdd(EmptySet(IntSort()), x),
+    "Set_cup": lambda a, b: SetUnion(a, b),
+    "Set_cap": lambda a, b: SetIntersect(a, b),
+    "Set_dif": lambda a, b: SetDifference(a, b),
+    "Set_mem": lambda x, s: IsMember(x, s),
+    "Set_sub": lambda a, b: IsSubset(a, b),
 }
 
 
@@ -494,6 +518,8 @@ def get_sort(base: Type) -> SortRef:
             return Float64()
         case TypeConstructor(Name("String", _)):
             return StringSort()
+        case TypeConstructor(Name("Set", _)):
+            return SetSort(IntSort())
         case TypeConstructor(name, _):
             return IntSort()
             # This will be reenable once we have typeclasses
@@ -574,6 +600,8 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
             # return FP(name, fpsort)
         case TypeConstructor(Name("String", _)):
             return String(name)
+        case TypeConstructor(Name("Set", _)):
+            return Const(name, SetSort(IntSort()))
         case TypeConstructor(_, _):
             return Int(name)
             # TODO: we always use int, in the case of a typevar.
@@ -602,7 +630,12 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidLiteralString(s):
             return s
         case LiquidVar(name):
-            return variables[str(name)]
+            sname = str(name)
+            if sname in variables:
+                return variables[sname]
+            if sname in base_functions:
+                return base_functions[sname]
+            raise KeyError(f"Variable {sname} not found in SMT context")
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):

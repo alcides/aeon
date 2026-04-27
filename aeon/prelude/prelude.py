@@ -30,6 +30,7 @@ native_types: list[Name] = [
     Name("Int", 0),
     Name("Float", 0),
     Name("String", 0),
+    Name("Set", 0),
     Name("Tensor", 0),
     Name("GpuConfig", 0),
 ]
@@ -110,6 +111,14 @@ prelude = [
     ("&&", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x and y),
     ("||", "(x:Bool) -> (y:Bool) -> Bool", lambda x: lambda y: x or y),
     ("!", "(x:Bool) -> Bool", lambda x: not x),
+    # SMT Set operations (logical only, used in refinements)
+    ("Set_empty", "Set", set()),
+    ("Set_sng", "(x:Int) -> Set", lambda x: {x}),
+    ("Set_cup", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a | b),
+    ("Set_cap", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a & b),
+    ("Set_dif", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a - b),
+    ("Set_mem", "(x:Int) -> (s:Set) -> Bool", lambda x: lambda s: x in s),
+    ("Set_sub", "(a:Set) -> (b:Set) -> Bool", lambda a: lambda b: a <= b),
     (
         "$",
         "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>, (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",
