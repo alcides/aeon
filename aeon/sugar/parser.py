@@ -442,15 +442,23 @@ class TreeToSugar(Transformer):
         )
 
 
+_parser_cache: dict[str, Lark] = {}
+
+
+def _get_cached_parser(rule: str) -> Lark:
+    if rule not in _parser_cache:
+        _parser_cache[rule] = Lark.open(
+            pathlib.Path(__file__).parent.absolute() / "aeon_sugar.lark",
+            parser="lalr",
+            start=rule,
+            import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
+            propagate_positions=True,
+        )
+    return _parser_cache[rule]
+
+
 def mk_parser(rule="start", start_counter: int = 0, filename: str = ""):
-    parser = Lark.open(
-        pathlib.Path(__file__).parent.absolute() / "aeon_sugar.lark",
-        parser="lalr",
-        # lexer='standard',
-        start=rule,
-        import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
-        propagate_positions=True,
-    )
+    parser = _get_cached_parser(rule)
     transf = TreeToSugar(filename, start_counter)
 
     def parse(s: str):
