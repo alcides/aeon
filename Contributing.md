@@ -69,6 +69,7 @@ Source (.ae) --> Parse (lark) --> Sugar AST --> Desugar/Elaborate --> Core AST -
 | `aeon/bindings` | FFI bindings |
 | `aeon/locations` | Source location tracking |
 | `aeon/utils` | Shared utilities (names, locations, etc.) |
+| `libraries/` | Standard library `.ae` files (List, Math, Image, etc.) — at repo root, not a Python package |
 
 ### Important distinction: Sugar vs Core
 
@@ -89,14 +90,12 @@ Source (.ae) --> Parse (lark) --> Sugar AST --> Desugar/Elaborate --> Core AST -
 
 ## Code style
 
-- **Line length**: 120 characters (enforced by ruff and black)
+- **Line length**: 120 characters (enforced by ruff)
 - **Linting**: Ruff with E and F rule codes enabled (ignoring E741, E501)
 - **Formatting**: Ruff formatter (black-compatible)
-- **Type checking**: Strict mypy with custom stubs in `/stubs`. See `mypy.ini` for per-package overrides.
+- **Type checking**: Strict mypy. See `mypy.ini` for per-package overrides.
 - **Runtime type checking**: pytest-beartype is enabled for the `aeon.core` package during tests
 - **Python target**: 3.10+
-- **Import cleanup**: pycln (remove unused imports)
-- **Docstrings**: Google style (via docformatter)
 
 ---
 
@@ -124,9 +123,3 @@ Tests cover each stage of the compiler pipeline and various language features:
 - **End-to-end**: `end_to_end_test.py` (full pipeline tests with inline source)
 - **LLVM backend**: `llvm_*.py` (lowering, generation, decorators, validation, GPU, end-to-end)
 - **Other**: `lsp_test.py`, `optimization_test.py`, `pprint_test.py`, `equality_test.py`, `substitutions_test.py`, `native_test.py`
-
-### What is the difference between the `STypes` and `Types` classes?
-
-- The `Types` class represents the **Core Language**. These types are part of the internal implementation and should **never be exposed** to the user.
-
-- The `STypes` class represents the **Sugar Language** (also called the **Surface Language**). These are types that are safe to expose and interact with in external code or tooling.
