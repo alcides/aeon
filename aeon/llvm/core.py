@@ -27,6 +27,8 @@ if TYPE_CHECKING:
         LLVMVectorFilter,
         LLVMVectorZipWith,
         LLVMVectorCount,
+        LLVMVectorGet,
+        LLVMVectorSet,
     )
 else:
     LLVMTerm = Any
@@ -48,6 +50,8 @@ else:
     LLVMVectorFilter = Any
     LLVMVectorZipWith = Any
     LLVMVectorCount = Any
+    LLVMVectorGet = Any
+    LLVMVectorSet = Any
 
 
 class LLVMBackendError(Exception):
@@ -205,4 +209,12 @@ class LLVMVisitor(ABC):
 
     @abstractmethod
     def visit_vector_count(self, node: LLVMVectorCount) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_get(self, node: LLVMVectorGet) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_set(self, node: LLVMVectorSet) -> Any:
         pass

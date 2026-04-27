@@ -19,6 +19,7 @@ from aeon.backend.contracts import ContractClosure, ContractState, wrap_callable
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.llvm.core import LLVMPipeline
+from aeon.utils.name import Name
 
 real_eval = eval
 
@@ -217,7 +218,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             if ctx.pipeline and ctx.metadata:
                 for k, v in ctx.metadata.items():
                     k_name = k.name if isinstance(k, Name) else str(k)
-                    if k_name == var_name.name and v.get("llvm"):
+                    if k_name == name_str and (v.get("llvm") or v.get("gpu")):
                         found_llvm = True
                         break
 
