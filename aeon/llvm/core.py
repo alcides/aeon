@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         LLVMVectorCount,
         LLVMVectorGet,
         LLVMVectorSet,
+        LLVMVectorSize,
     )
 else:
     LLVMTerm = Any
@@ -217,4 +218,8 @@ class LLVMVisitor(ABC):
 
     @abstractmethod
     def visit_vector_set(self, node: LLVMVectorSet) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_size(self, node: LLVMVectorSize) -> Any:
         pass

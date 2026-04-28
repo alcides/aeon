@@ -19,6 +19,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVar,
     LLVMTerm,
     LLVMLet,
+    LLVMVectorSize,
 )
 from aeon.llvm.utils import sanitize_name
 from aeon.utils.name import Name
@@ -311,3 +312,6 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def visit_vector_reduce(self, node: LLVMVectorReduce) -> ir.Value:
         return super().visit_vector_reduce(node)
+
+    def visit_vector_size(self, node: LLVMVectorSize) -> ir.Value:
+        return ir.Constant(ir.IntType(32), 0)
