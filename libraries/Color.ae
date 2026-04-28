@@ -1,0 +1,2 @@
+inductive Color
+| mk (r:{v:Int | v >= 0 && v < 256}) (g:{v:Int | v >= 0 && v < 256}) (b:{v:Int | v >= 0 && v < 256}) : Color

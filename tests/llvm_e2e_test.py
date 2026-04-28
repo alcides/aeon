@@ -74,7 +74,7 @@ def test_e2e_llvm_matrix_sum():
     def add(acc:Int) (curr:Int) : Int = acc + curr;
 
     @llvm
-    def sum_matrix(m:(Vector Int)) (s:Int) : Int = Vector_reduce[Int][Int] add 0 m s;
+    def sum_matrix(m:(Vector Int)) (s:Int) : Int = Vector.reduce[Int][Int] add 0 m s;
 
     def main (i:Int) : Int = sum_matrix (native "[1, 2, 3, 4]") 4;
     """
@@ -91,12 +91,12 @@ def test_e2e_llvm_matrix_filter():
 
     @llvm
     def filter_even(m:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector_filter[Int] (\x:Int -> x % 2 == 0) m s;
+        Vector.filter[Int] (\x:Int -> x % 2 == 0) m s;
 
     def main (i:Int) : Int =
         let m : (Vector Int) = native "[1, 2, 3, 4, 5, 6]" in
         let filtered : (Vector Int) = filter_even m 6 in
-        Vector_get[Int] filtered 0;
+        Vector.get[Int] filtered 0;
     """
     res = compile_and_run(source)
     assert res == 2
@@ -111,13 +111,13 @@ def test_e2e_llvm_matrix_zip_with():
 
     @llvm
     def vec_add(v1:(Vector Int)) (v2:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector_zipWith[Int][Int][Int] (\x:Int -> \y:Int -> x + y) v1 v2 s;
+        Vector.zipWith[Int][Int][Int] (\x:Int -> \y:Int -> x + y) v1 v2 s;
 
     def main (i:Int) : Int =
         let v1 : (Vector Int) = native "[1, 2, 3]" in
         let v2 : (Vector Int) = native "[10, 20, 30]" in
         let v3 : (Vector Int) = vec_add v1 v2 3 in
-        Vector_get[Int] v3 1;
+        Vector.get[Int] v3 1;
     """
     res = compile_and_run(source)
     assert res == 22
@@ -132,7 +132,7 @@ def test_e2e_llvm_matrix_count():
 
     @llvm
     def count_gt_10(v:(Vector Int)) (s:Int) : Int =
-        Vector_count[Int] (\x:Int -> x > 10) v s;
+        Vector.count[Int] (\x:Int -> x > 10) v s;
 
     def main (i:Int) : Int =
         let v : (Vector Int) = native "[5, 15, 8, 25, 3]" in
@@ -151,12 +151,12 @@ def test_e2e_llvm_matrix_map():
 
     @llvm
     def vec_inc(v:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector_map[Int][Int] (\x:Int -> x + 1) v s;
+        Vector.map[Int][Int] (\x:Int -> x + 1) v s;
 
     def main (i:Int) : Int =
         let v : (Vector Int) = native "[1, 2, 3, 4, 5]" in
         let v2 : (Vector Int) = vec_inc v 5 in
-        Vector_get[Int] v2 2;
+        Vector.get[Int] v2 2;
     """
     res = compile_and_run(source)
     assert res == 4
@@ -167,7 +167,7 @@ def test_e2e_llvm_math_integration():
     open Math
 
     @llvm
-    def compute_circle_area(radius:Float) : Float = Math_PI * Math_powf radius 2.0;
+    def compute_circle_area(radius:Float) : Float = Math.PI * Math.powf radius 2.0;
 
     def main (i:Int) : Float = compute_circle_area 5.0;
     """

@@ -53,8 +53,8 @@ def test_lower_abstraction_full():
 
 def test_lower_vector_get():
     lowerer = CPULLVMLowerer()
-    # Vector_get vec 0
-    app = Application(Application(Var(Name("Vector_get")), Var(Name("vec"))), Literal(0, t_int))
+    # get vec 0
+    app = Application(Application(Var(Name("get")), Var(Name("vec"))), Literal(0, t_int))
     from aeon.llvm.llvm_ast import LLVMPointerType
 
     type_env = {Name("vec"): LLVMPointerType(LLVMInt)}
@@ -64,9 +64,9 @@ def test_lower_vector_get():
 
 def test_lower_vector_map():
     lowerer = CPULLVMLowerer()
-    # Vector_map (\x -> x + 1) vec sz
+    # map (\x -> x + 1) vec sz
     kernel = Abstraction(Name("x"), Application(Application(Var(Name("+")), Var(Name("x"))), Literal(1, t_int)))
-    app = Application(Application(Application(Var(Name("Vector_map")), kernel), Var(Name("vec"))), Var(Name("sz")))
+    app = Application(Application(Application(Var(Name("map")), kernel), Var(Name("vec"))), Var(Name("sz")))
     from aeon.llvm.llvm_ast import LLVMPointerType
 
     type_env = {Name("vec"): LLVMPointerType(LLVMInt), Name("sz"): LLVMInt}
@@ -77,17 +77,17 @@ def test_lower_vector_map():
 
 def test_lower_math_pow():
     lowerer = CPULLVMLowerer()
-    # Math_pow is (Int, Int) -> Int; mixed float literal is cast to Int.
-    app = Application(Application(Var(Name("Math_pow")), Literal(2, t_int)), Literal(3, t_int))
+    # pow is (Int, Int) -> Int; mixed float literal is cast to Int.
+    app = Application(Application(Var(Name("pow")), Literal(2, t_int)), Literal(3, t_int))
     llvm_pow = lowerer.lower(app)
     from aeon.llvm.llvm_ast import LLVMInt
 
     assert llvm_pow.type == LLVMInt
 
-    # Float exponentiation uses Math_powf : (Double, Double) -> Double
+    # Float exponentiation uses powf : (Double, Double) -> Double
     from aeon.core.types import t_float
     from aeon.llvm.llvm_ast import LLVMDouble
 
-    appf = Application(Application(Var(Name("Math_powf")), Literal(2.0, t_float)), Literal(3.0, t_float))
+    appf = Application(Application(Var(Name("powf")), Literal(2.0, t_float)), Literal(3.0, t_float))
     llvm_powf = lowerer.lower(appf)
     assert llvm_powf.type == LLVMDouble

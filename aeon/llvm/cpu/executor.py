@@ -105,8 +105,8 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             return ctypes.c_void_p(None)
 
         return {
-            "Vector_get": vector_get,
-            "Vector_set": vector_set,
+            "get": vector_get,
+            "set": vector_set,
             "native": native_dummy,
         }
 

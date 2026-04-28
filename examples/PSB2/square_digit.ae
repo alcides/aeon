@@ -14,7 +14,7 @@ open PSB2
 #    else
 #        digit = n % 10
 #        square = digit * digit
-#        result = String_concat (square_digit(Math_floor_division n 10)) (String_intToString(square))
+#        result = String.concat (square_digit(Math.floor_division n 10)) (String.intToString(square))
 #        result
 #}
 
@@ -24,7 +24,7 @@ def square_digit_unsafe  ( n : Int) : String =
     else
         digit = n % 10;
         square = digit * digit;
-        result = String_concat (square_digit_unsafe(Math_floor_division n 10)) (String_intToString(square));
+        result = String.concat (square_digit_unsafe(Math.floor_division n 10)) (String.intToString(square));
         result;
 
 def synth_sd ( n : Int) : String = (?hole:String)

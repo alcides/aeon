@@ -1,7 +1,7 @@
 open List
 
-@minimize_int( if (List_empty List_new) then 0 else 1 )
-def is_empty (xs: (List a)) : { j:Bool | (j == ((List_size xs) == 0)) } {
-    let i : Int = List_length xs;
+@minimize_int( if (List.empty List.new) then 0 else 1 )
+def is_empty (xs: (List a)) : { j:Bool | (j == ((List.size xs) == 0)) } {
+    let i : Int = List.length xs;
     ?hole
 }
