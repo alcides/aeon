@@ -89,12 +89,12 @@ class CPULLVMPipeline(LLVMPipeline):
 
         return discovery_targets
 
-    def get_curried_function(self, function_id: Name):
+    def get_curried_function(self, function_id: Name, native_fallback: Any = None):
         if function_id not in self.compiled_functions:
             function_id = self.name_to_id_cache.get(function_id.name)
 
         if function_id is None or function_id not in self.compiled_functions:
-            return None
+            return native_fallback
 
         target_type = self.type_environment.get(function_id)
         if not target_type:

@@ -131,7 +131,7 @@ class LLVMPipeline(ABC):
         pass
 
     @abstractmethod
-    def get_curried_function(self, name: Name) -> Any:
+    def get_curried_function(self, name: Name, native_fallback: Any = None) -> Any:
         pass
 
     @abstractmethod
