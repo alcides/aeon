@@ -1,6 +1,12 @@
 # Super Mario Level Generator - Pure Aeon version
-# Uses inductive types with measures to encode constraints.
-# The synthesizer must produce a well-typed Level satisfying all refinements.
+# Uses inductive types with a parametric List for all collections.
+
+# --- Generic list with length measure ---
+
+inductive List a
+| nil : {l: (List a) | len l == 0}
+| cons (hd: a) (tl: (List a)) : {l: (List a) | len l == len tl + 1}
++ len (l: (List a)) : Int
 
 # --- Atomic enumerations ---
 
@@ -24,18 +30,6 @@ inductive Box
 inductive Enemy
 | mk_enemy (m: MobType)
            (x: Int | x >= 5 && x <= 95) : Enemy
-
-# --- Collections with size measures ---
-
-inductive Boxes
-| empty_boxes : {bs: Boxes | sizeB bs == 0}
-| cons_box (b: Box) (bs: Boxes) : {bs2: Boxes | sizeB bs2 == sizeB bs + 1}
-+ sizeB (bs: Boxes) : Int
-
-inductive Enemies
-| empty_enemies : {es: Enemies | sizeE es == 0}
-| cons_enemy (e: Enemy) (es: Enemies) : {es2: Enemies | sizeE es2 == sizeE es + 1}
-+ sizeE (es: Enemies) : Int
 
 # --- Chunk types (level geometry) ---
 
@@ -64,21 +58,14 @@ inductive Chunk
 | coin_chunk (x: Int | x >= 5 && x <= 95)
              (y: Int | y >= 3 && y <= 5)
              (wc: Int | wc >= 3 && wc <= 15) : Chunk
-| boxes_chunk (bs: Boxes | sizeB bs >= 2 && sizeB bs <= 7) : Chunk
-
-# --- Chunk list with size measure ---
-
-inductive Chunks
-| empty_chunks : {cs: Chunks | chunk_count cs == 0}
-| cons_chunk (c: Chunk) (cs: Chunks) : {cs2: Chunks | chunk_count cs2 == chunk_count cs + 1}
-+ chunk_count (cs: Chunks) : Int
+| boxes_chunk (bs: (List Box) | len bs >= 2 && len bs <= 7) : Chunk
 
 # --- Level ---
 # Minimum chunk/enemy counts are enforced by the fitness, not the type,
 # so that partial candidates can still be evaluated by the synthesizer.
 
 inductive Level
-| mk_level (cs: Chunks) (es: Enemies) : Level
+| mk_level (cs: (List Chunk)) (es: (List Enemy)) : Level
 
 # --- Fitness helpers (pure Aeon, using match on inductive types) ---
 
@@ -94,10 +81,10 @@ def chunk_width (c: Chunk) : Int =
     | boxes_chunk bs => 3;
 
 # Total width covered by all chunks (proxy for map fullness)
-def coverage (cs: Chunks) : Int =
+def coverage (cs: (List Chunk)) : Int =
     match cs with
-    | empty_chunks => 0
-    | cons_chunk c rest => chunk_width c + coverage rest;
+    | nil => 0
+    | cons c rest => chunk_width c + coverage rest;
 
 # X position of a chunk
 def chunk_x (c: Chunk) : Int =
@@ -120,19 +107,19 @@ def overlap (c1: Chunk) (c2: Chunk) : Int =
     max 0 (hi - lo);
 
 # Count total pairwise overlap of one chunk against the rest
-def conflicts_one (c: Chunk) (cs: Chunks) : Int =
+def conflicts_one (c: Chunk) (cs: (List Chunk)) : Int =
     match cs with
-    | empty_chunks => 0
-    | cons_chunk c2 rest => overlap c c2 + conflicts_one c rest;
+    | nil => 0
+    | cons c2 rest => overlap c c2 + conflicts_one c rest;
 
 # Total pairwise conflicts across all chunks
-def conflicts (cs: Chunks) : Int =
+def conflicts (cs: (List Chunk)) : Int =
     match cs with
-    | empty_chunks => 0
-    | cons_chunk c rest => conflicts_one c rest + conflicts rest;
+    | nil => 0
+    | cons c rest => conflicts_one c rest + conflicts rest;
 
 # Extract chunks from a level
-def level_chunks (level: Level) : Chunks =
+def level_chunks (level: Level) : (List Chunk) =
     match level with
     | mk_level cs es => cs;
 
