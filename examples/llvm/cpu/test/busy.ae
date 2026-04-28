@@ -1,11 +1,14 @@
 import "Vector.ae";
 
-@gpu(llvm_ir=true)
+@cpu
+def mult10 (x: Int) : Int = x * 10
+
+@cpu
 def multiply_by_ten (v:(Vector Int)) (size:Int) : (Vector Int) =
-    Vector_map[Int][Int] (\x:Int -> x * 10) v size;
+    Vector_map[Int][Int] mult10 v size;
 
 def main (args:Int) : Unit =
     let size : Int = 1000000 in
     let v : (Vector Int) = native "[1] * size" in
     let res : (Vector Int) = multiply_by_ten v size in
-    print (Vector_get[Int] res 1);
+    print (Vector_get[Int] res 1)
