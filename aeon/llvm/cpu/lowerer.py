@@ -51,6 +51,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorCount,
     VECTOR_OPERATIONS,
     LLVMCast,
+    LLVMVectorSize,
 )
 from aeon.llvm.utils import (
     validate_type,
@@ -88,6 +89,7 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "Vector_append": LLVMFunctionType([_generic_ptr, LLVMInt], _generic_ptr),
     "Vector_get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
     "Vector_set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
+    "Vector_size": LLVMFunctionType([_generic_ptr], LLVMInt),
     "Vector_map": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
     "Vector_reduce": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
     "Vector_imap": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, LLVMInt], _generic_ptr),
@@ -109,6 +111,7 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "Math_log",
     "Vector_get",
     "Vector_set",
+    "Vector_size",
     "Vector_new",
     "Vector_map",
     "Vector_reduce",
@@ -435,6 +438,11 @@ class CPULLVMLowerer(LLVMLowerer):
     ) -> LLVMTerm:
         def low_term(term, exp=None):
             return self._lower_term(term, exp, type_env, env, allowed, in_vector_op=True)
+
+        if op == "Vector_size":
+            (vector_term,) = args
+            low_vec = low_term(vector_term)
+            return LLVMVectorSize(LLVMInt, low_vec)
 
         if op == "Vector_reduce":
             kernel_term, init_term, vector_term, size_term = args

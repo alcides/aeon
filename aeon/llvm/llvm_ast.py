@@ -120,7 +120,15 @@ LLVMVectorDouble = LLVMPointerType(LLVMDouble)
 LLVMVectorBool = LLVMPointerType(LLVMBool)
 LLVMVectorChar = LLVMPointerType(LLVMChar)
 
-VECTOR_OPERATIONS = {"Vector_map", "Vector_reduce", "Vector_imap", "Vector_filter", "Vector_zipWith", "Vector_count"}
+VECTOR_OPERATIONS = {
+    "Vector_map",
+    "Vector_reduce",
+    "Vector_imap",
+    "Vector_filter",
+    "Vector_zipWith",
+    "Vector_count",
+    "Vector_size",
+}
 
 
 @dataclass
@@ -421,3 +429,17 @@ class LLVMVectorSet(LLVMTerm):
 
     def find_calls(self) -> set[Name]:
         return self.v.find_calls() | self.index.find_calls() | self.value.find_calls()
+
+
+@dataclass
+class LLVMVectorSize(LLVMTerm):
+    v: LLVMTerm
+
+    def __str__(self):
+        return f"vector_size {self.v}"
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_vector_size(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.v.find_calls()
