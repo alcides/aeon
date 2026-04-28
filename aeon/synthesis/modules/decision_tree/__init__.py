@@ -106,6 +106,7 @@ class DecisionTreeSynthesizer(Synthesizer):
             return None
 
         # Try increasing depths until budget runs out or validation passes
+        has_goals = bool(current_metadata.get("goals"))
         best_term = None
         best_quality = None
         max_depth_limit = self.max_depth or X.shape[0]
@@ -121,6 +122,10 @@ class DecisionTreeSynthesizer(Synthesizer):
             elapsed = get_elapsed_time(start_time)
 
             if validate(candidate):
+                # No optimization goals — return immediately
+                if not has_goals:
+                    ui.register(candidate, [], elapsed, True)
+                    return candidate
                 try:
                     quality = evaluate(candidate)
                     is_best = best_quality is None or all(q <= bq for q, bq in zip(quality, best_quality))

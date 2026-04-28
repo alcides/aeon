@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aeon.core.liquid_ops import ops
 from aeon.core.terms import Var
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.tactics.holes import collect_hole_judgments, replace_hole
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.tactics.subtyping import fits
@@ -24,7 +24,7 @@ def tactic_assumption(state: TacticState, hole_name: Name) -> TacticState | None
     goal_ty, hole_ctx = holes[hole_name]
 
     for x, xty in hole_ctx.concrete_vars():
-        if x in ops:
+        if x.name in SYNTHESIS_EXCLUDED_NAMES:
             continue
         if fits(hole_ctx, xty, goal_ty) and fits(hole_ctx, goal_ty, xty):
             return TacticState(state.ctx, replace_hole(state.term, hole_name, Var(x, _loc)), state.goal)

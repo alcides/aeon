@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, Hole, Term, Var
 from aeon.core.types import AbstractionType, Type
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.tactics.holes import collect_hole_judgments, replace_hole
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.tactics.subtyping import fits
@@ -29,7 +29,7 @@ def tactic_apply_question(state: TacticState, hole_name: Name) -> TacticState | 
         return None
     goal_ty, hole_ctx = holes[hole_name]
     for x, xty in hole_ctx.concrete_vars():
-        if x in ops:
+        if x.name in SYNTHESIS_EXCLUDED_NAMES:
             continue
         if fits(hole_ctx, xty, goal_ty):
             return TacticState(state.ctx, replace_hole(state.term, hole_name, Var(x, _loc)), state.goal)
@@ -53,7 +53,7 @@ def tactic_constructor(state: TacticState, hole_name: Name) -> TacticState | Non
             return TacticState(state.ctx, replace_hole(state.term, hole_name, lam), state.goal)
 
     for f, fty in hole_ctx.concrete_vars():
-        if f in ops:
+        if f.name in SYNTHESIS_EXCLUDED_NAMES:
             continue
         params, ret = _split_arrow_spine(fty)
         if not params:

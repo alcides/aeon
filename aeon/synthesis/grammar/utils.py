@@ -15,6 +15,9 @@ from aeon.core.pprint import aeon_prelude_ops_to_text
 
 prelude_ops: list[str] = ["print", "native_import", "native"]
 
+# Names that must never appear in synthesized terms.
+SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import"})
+
 internal_functions: list[str] = []
 
 text_to_aeon_prelude_ops: dict[str, str] = {v: k for k, v in aeon_prelude_ops_to_text.items()}
