@@ -35,6 +35,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorSet,
     VECTOR_OPERATIONS,
     LLVMCast,
+    LLVMVectorSize,
 )
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
 from aeon.utils.name import Name
@@ -208,10 +209,12 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         return ty.to_ir()
 
     def _heap_alloc(self, element_ty: ir.Type, count: ir.Value) -> ir.Value:
+        header_size = 8
         element_size = element_ty.get_abi_size(self.target_data)
 
         count_i64 = self.builder.sext(count, ir.IntType(64)) if count.type.width < 64 else count
-        total_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
+        data_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
+        total_size = self.builder.add(data_size, ir.Constant(ir.IntType(64), header_size))
 
         malloc_ty = ir.FunctionType(ir.PointerType(ir.IntType(8)), [ir.IntType(64)])
         malloc_func = self.module.globals.get("malloc")
@@ -219,7 +222,12 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             malloc_func = ir.Function(self.module, malloc_ty, name="malloc")
 
         raw_ptr = self.builder.call(malloc_func, [total_size])
-        return self.builder.bitcast(raw_ptr, ir.PointerType(element_ty))
+
+        size_ptr = self.builder.bitcast(raw_ptr, ir.PointerType(ir.IntType(32)))
+        self.builder.store(self.builder.trunc(count, ir.IntType(32)), size_ptr)
+
+        data_ptr_raw = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), header_size)])
+        return self.builder.bitcast(data_ptr_raw, ir.PointerType(element_ty))
 
     def generate_ir(self, definitions: list[LLVMTerm], initial_env: Dict[str, Any] = None) -> str:
         if initial_env:
@@ -590,6 +598,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                 self.builder.store(self.builder.add(new_idx, ir.Constant(ir.IntType(32), 1)), new_idx_ptr)
 
         self.vector_executor.execute(size_val, "filter", body)
+
+        final_size = self.builder.load(new_idx_ptr)
+        raw_ptr = self.builder.bitcast(new_v, ir.PointerType(ir.IntType(8)))
+        header_ptr = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), -8)])
+        size_ptr = self.builder.bitcast(header_ptr, ir.PointerType(ir.IntType(32)))
+        self.builder.store(final_size, size_ptr)
+
         return new_v
 
     def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
@@ -644,3 +659,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         ptr = self.builder.gep(v_val, [idx_val])
         self.builder.store(self._cast_if_needed(val_val, ptr.type.pointee), ptr)
         return v_val
+
+    def visit_vector_size(self, node: LLVMVectorSize) -> ir.Value:
+        v_val = node.v.accept(self)
+        raw_ptr = self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))
+        header_ptr = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), -8)])
+        size_ptr = self.builder.bitcast(header_ptr, ir.PointerType(ir.IntType(32)))
+        return self.builder.load(size_ptr)
