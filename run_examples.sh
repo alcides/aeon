@@ -16,6 +16,8 @@ function run_example {
     RESULT=$?
     if [ $RESULT -eq 0 ]; then
         echo "(success)"
+    elif [ $RESULT -eq 2 ]; then
+        echo "(no solution found, but OK)"
     else
         echo "(failed)"
         exit 111

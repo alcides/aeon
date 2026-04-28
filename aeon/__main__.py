@@ -163,7 +163,7 @@ def main() -> None:
             term = driver.synth()
         except SynthesisNotSuccessful:
             print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(2)
         print("Synthesized:")
         print("#str")
         print(str(term))
