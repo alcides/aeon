@@ -168,7 +168,7 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
         mod.verify()
         target = llvm.Target.from_triple("nvptx64-nvidia-cuda")
         tm = target.create_target_machine(cpu="sm_86", opt=3)
-        pto = llvm.create_pipeline_tuning_options()
+        pto = llvm.create_pipeline_tuning_options(speed_level=3)
         pb = llvm.create_pass_builder(tm, pto)
         pm = llvm.create_new_module_pass_manager()
         pm.add_always_inliner_pass()
