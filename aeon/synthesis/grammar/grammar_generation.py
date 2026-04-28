@@ -556,7 +556,7 @@ def create_monomorphized_var_nodes(
 
             args_names = [aname for aname, _ in args]
 
-            def get_core(_self, _name=name, _ta=type_apps, _args=args_names):
+            def get_core_app(_self, _name=name, _ta=type_apps, _args=args_names):
                 term = Var(_name)
                 for t in _ta:
                     term = TypeApplication(term, t)
@@ -564,7 +564,7 @@ def create_monomorphized_var_nodes(
                     term = Application(term, getattr(_self, mangle_name(aname)).get_core())
                 return term
 
-            setattr(dc, "get_core", get_core)
+            setattr(dc, "get_core", get_core_app)
             dc = weight(APP_WEIGHT)(dc)
             nodes.append(dc)
 
@@ -650,10 +650,7 @@ def gen_grammar_nodes(
 
     # Build set of all types to consider
     types_to_consider = (
-        set([t_bool, t_float, t_int, t_string])
-        | set([x[1] for x in ctx_vars_unrefined])
-        | set([ty])
-        | mono_extra_types
+        set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider))

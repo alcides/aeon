@@ -19,7 +19,6 @@ import time
 from typing import Callable
 
 import z3
-from loguru import logger
 
 from aeon.core.liquid import (
     LiquidApp,
@@ -185,9 +184,7 @@ def _unify_types(ty1: Type, ty2: Type, forall_names: set[Name], bindings: dict[N
     return ty1 == ty2
 
 
-def _try_instantiate_poly(
-    var_ty: TypePolymorphism, target_base: TypeConstructor
-) -> tuple[Type, list[Type]] | None:
+def _try_instantiate_poly(var_ty: TypePolymorphism, target_base: TypeConstructor) -> tuple[Type, list[Type]] | None:
     """Try to instantiate a polymorphic type so its return type matches target_base.
 
     Returns (instantiated_body, type_apps) or None if unification fails.
@@ -376,8 +373,6 @@ class SMTSynthesizer(Synthesizer):
         if not isinstance(base, TypeConstructor):
             return None
 
-        target_name = base.name.name
-
         _SYSTEM_NAMES = {"native", "native_import", "print"}
 
         # Shuffle context variable order to explore different terms on each attempt
@@ -445,12 +440,12 @@ class SMTSynthesizer(Synthesizer):
                 args.append(arg)
 
             if success:
-                head: Term = Var(var_name)
+                result_term: Term = Var(var_name)
                 for ta in type_apps:
-                    head = TypeApplication(head, ta)
+                    result_term = TypeApplication(result_term, ta)
                 for arg in args:
-                    head = Application(head, arg)
-                return head
+                    result_term = Application(result_term, arg)
+                return result_term
 
         return None
 
