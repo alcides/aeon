@@ -3,7 +3,13 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementAbstraction as RefinementAbstraction_alias, RefinementApplication, TypeAbstraction, TypeApplication
+from aeon.core.terms import (
+    Abstraction,
+    RefinementApplication,
+    TypeAbstraction,
+    TypeApplication,
+    RefinementAbstraction,
+)
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
