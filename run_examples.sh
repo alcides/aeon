@@ -12,8 +12,8 @@ cd "$(dirname "$0")"
 
 function run_example {
     printf "Running %s ..." "${@}"
-    uv run python -m aeon --no-main --budget 10 "$@" > /dev/null
-    RESULT=$?
+    RESULT=0
+    uv run python -m aeon --no-main --budget 10 "$@" > /dev/null || RESULT=$?
     if [ $RESULT -eq 0 ]; then
         echo "(success)"
     elif [ $RESULT -eq 2 ]; then
