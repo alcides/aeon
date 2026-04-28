@@ -22,10 +22,34 @@ class LLVMExecutionError(LLVMBackendError):
     pass
 
 
+class LLVMVector:
+    def __init__(self, addr, element_cty):
+        self.addr = addr
+        self.element_cty = element_cty
+
+    def __getitem__(self, i):
+        if i >= len(self):
+            raise IndexError("index out of range")
+        res = ctypes.cast(self.addr, ctypes.POINTER(self.element_cty))[i]
+        if self.element_cty == ctypes.c_char:
+            return chr(res)
+        return res
+
+    def __len__(self):
+        size_ptr = ctypes.cast(ctypes.c_void_p(self.addr - 8), ctypes.POINTER(ctypes.c_int32))
+        return size_ptr[0]
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    def __repr__(self):
+        return f"LLVMVector(addr={self.addr}, size={len(self)})"
+
+
 class CPULLVMExecutionEngine(LLVMExecutionEngine):
     def __init__(self):
         self._init_llvm()
-        self.target_machine = self._create_target_machine()
         self._keep_alive = []
 
     def _init_llvm(self):
@@ -189,5 +213,9 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
             if isinstance(ret_type, LLVMCharType):
                 return chr(result)
+
+            if isinstance(ret_type, LLVMPointerType) and result is not None:
+                element_cty = self._get_ctypes_type(ret_type.element_type)
+                return LLVMVector(result, element_cty)
 
             return result
