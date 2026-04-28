@@ -3,8 +3,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from aeon.core.multiplicity import M0
-from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplication, TypeAbstraction, TypeApplication
+from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementAbstraction as RefinementAbstraction_alias, RefinementApplication, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -222,39 +221,22 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                         found_llvm = True
                         break
 
-            if found_llvm:
-                try:
-                    v = ctx.pipeline.get_curried_function(var_name)
-                    if v is not None:
-                        return eval(body, ctx.with_var(var_name, v))
-                except Exception:
-                    pass
+                def v_py(x):
+                    return eval(
+                        fun.body,
+                        ctx.with_var(var_name, v_py).with_var(fun.var_name, x),
+                    )
 
-            # Peel off TypeAbstraction/RefinementAbstraction wrappers introduced by
-            # elaboration so the recursion-tying trick still applies to polymorphic
-            # functions (e.g. ``def length : forall a, ... = fun l => ... (length tl) ...``).
-            inner_value = var_value
-            while isinstance(inner_value, (TypeAbstraction, RefinementAbstraction)):
-                inner_value = inner_value.body
+                v = v_py
 
-            if isinstance(inner_value, Abstraction):
-                fun = inner_value
-
-                def v(x):
-                    rec_ctx = ctx.with_var(var_name, v).with_var(fun.var_name, x)
-                    tr = ctx.trace
-                    if tr is None:
-                        return eval(fun.body, rec_ctx)
-                    st = ctx.trace_stack
-                    idx = len(tr)
-                    tr.append([var_name, (x,), None, st[-1] if st else -1])
-                    st.append(idx)
-                    try:
-                        result = eval(fun.body, rec_ctx)
-                    finally:
-                        st.pop()
-                    tr[idx][2] = result
-                    return result
+                if ctx.pipeline and ctx.metadata:
+                    name_str = var_name.name
+                    found_llvm = False
+                    for k, meta in ctx.metadata.items():
+                        k_name = k.name if isinstance(k, Name) else str(k)
+                        if k_name == name_str and (meta.get("cpu") or meta.get("gpu")):
+                            found_llvm = True
+                            break
 
                 v = _wrap_if_contract(v, var_type, var_name, ctx, loc=t.loc)
             else:
