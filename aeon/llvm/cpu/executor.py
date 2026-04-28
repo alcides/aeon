@@ -118,12 +118,19 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             ctypes.cast(ptr, ctypes.POINTER(el_ty))[idx] = val
             return ptr
 
+        def vector_size(ptr: ctypes.c_void_p) -> int:
+            if not ptr:
+                return 0
+            size_ptr = ctypes.cast(ctypes.c_void_p(ptr - 8), ctypes.POINTER(ctypes.c_int32))
+            return size_ptr[0]
+
         def native_dummy(code: ctypes.c_char_p) -> ctypes.c_void_p:
             return ctypes.c_void_p(None)
 
         return {
             "Vector_get": vector_get,
             "Vector_set": vector_set,
+            "Vector_size": vector_size,
             "native": native_dummy,
         }
 
@@ -141,24 +148,30 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         opt_level = metadata.get("cpu_opt_level", 3)
 
         vector_impls = self._get_vector_impl(arg_types, ret_type)
-        llvm.add_symbol(
-            "native",
-            ctypes.cast(
-                ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p)(vector_impls["native"]), ctypes.c_void_p
-            ).value,
+
+        def add_symbol(name, fn, ctype):
+            cfun = ctype(fn)
+            self._keep_alive.append(cfun)
+            llvm.add_symbol(name, ctypes.cast(cfun, ctypes.c_void_p).value)
+
+        add_symbol("native", vector_impls["native"], ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_char_p))
+        add_symbol("Vector_size", vector_impls["Vector_size"], ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.c_void_p))
+        add_symbol(
+            "Vector_get",
+            vector_impls["Vector_get"],
+            ctypes.CFUNCTYPE(self._get_ctypes_type(ret_type), ctypes.c_void_p, ctypes.c_int32),
         )
 
         backing_mod = llvm.parse_assembly(llvm_ir)
         backing_mod.verify()
 
-        pto = llvm.create_pipeline_tuning_options()
-        pto.opt_level = opt_level
-        pb = llvm.create_pass_builder(self.target_machine, pto)
-        pm = llvm.create_new_module_pass_manager()
-        pb.populate_module_pass_manager(pm)
+        target_machine = self._create_target_machine()
+        pto = llvm.create_pipeline_tuning_options(speed_level=opt_level)
+        pb = llvm.PassBuilder(target_machine, pto)
+        pm = pb.getModulePassManager()
         pm.run(backing_mod, pb)
 
-        with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
+        with llvm.create_mcjit_compiler(backing_mod, target_machine) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)
             if not func_ptr:
