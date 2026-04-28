@@ -87,10 +87,21 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             base_ty = ty.element_type
             element_cty = self._get_ctypes_type(base_ty)
             processed_flat_val = [self._convert_to_ctypes(item, base_ty) for item in flat_val]
-            array_type = element_cty * len(processed_flat_val)
-            c_array = array_type(*processed_flat_val)
-            self._keep_alive.append(c_array)
-            return ctypes.cast(c_array, ctypes.c_void_p)
+
+            header_size = 8
+            data_size = len(processed_flat_val) * ctypes.sizeof(element_cty)
+            buffer = (ctypes.c_byte * (header_size + data_size))()
+
+            size_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int32))
+            size_ptr[0] = len(processed_flat_val)
+
+            if processed_flat_val:
+                data_ptr = ctypes.cast(ctypes.addressof(buffer) + header_size, ctypes.POINTER(element_cty))
+                for i, v in enumerate(processed_flat_val):
+                    data_ptr[i] = v
+
+            self._keep_alive.append(buffer)
+            return ctypes.cast(ctypes.addressof(buffer) + header_size, ctypes.c_void_p)
 
         if isinstance(ty, LLVMCharType) and isinstance(val, str):
             return ord(val)
