@@ -385,6 +385,9 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             self.module, self.to_ir_type(function_type), name=func_name
         )
 
+        if len(func.blocks) > 0:
+            return func
+
         with self._push_scope():
             self.env[func_name] = func
             self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
