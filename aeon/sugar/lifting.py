@@ -93,6 +93,10 @@ def lift_type(ty: Type) -> SType:
         case AbstractionType(name, atype, rtype, loc):
             return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc)
         case RefinedType(name, typ, ref, loc):
+            from aeon.core.types import LiquidHornApplication
+
+            if isinstance(ref, LiquidHornApplication):
+                return lift_type(typ)
             return SRefinedType(name, lift_type(typ), lift_liquid(ref), loc=loc)
         case TypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, lift_type(body), loc=loc)

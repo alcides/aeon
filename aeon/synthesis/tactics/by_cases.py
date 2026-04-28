@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from aeon.core.liquid_ops import ops
 from aeon.core.terms import Annotation, Hole, If, Term, Var
 from aeon.core.types import Type, t_bool
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.tactics.holes import collect_hole_judgments, replace_hole
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.tactics.subtyping import fits
@@ -25,7 +25,7 @@ def tactic_by_cases(state: TacticState, hole_name: Name) -> TacticState | None:
     goal_ty, hole_ctx = holes[hole_name]
 
     for b, bty in hole_ctx.concrete_vars():
-        if b in ops:
+        if b.name in SYNTHESIS_EXCLUDED_NAMES:
             continue
         if not fits(hole_ctx, bty, t_bool):
             continue

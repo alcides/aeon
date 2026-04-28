@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 
 from aeon.facade.api import AeonError
 from aeon.facade.driver import AeonConfig, AeonDriver
+from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
@@ -158,7 +159,11 @@ def main() -> None:
         driver.pretty_print(args.filename, args.fix)
 
     elif driver.has_synth():
-        term = driver.synth()
+        try:
+            term = driver.synth()
+        except SynthesisNotSuccessful:
+            print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
+            sys.exit(2)
         print("Synthesized:")
         print("#str")
         print(str(term))

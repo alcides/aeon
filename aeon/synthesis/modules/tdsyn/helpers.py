@@ -76,7 +76,7 @@ def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_all
         return True
     if name.name.startswith("__internal__"):
         return True
-    if name.name in ["native", "native_import", "print"]:
+    if name.name in ("native", "native_import", "print"):
         return True
     return False
 

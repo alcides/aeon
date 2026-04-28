@@ -10,7 +10,7 @@ from loguru import logger
 from aeon.core.terms import Abstraction, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
 from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
@@ -70,11 +70,15 @@ class TDSynSynthesizer(Synthesizer):
     """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
 
     Supports both enumerative (BFS) and random exploration modes.
+    Loops until the time budget is exhausted, restarting with shuffled expansion
+    order on each iteration to explore different term structures.
     """
 
     def __init__(self, mode: str = "enumerative"):
         assert mode in ("enumerative", "random")
         self.mode = mode
+        self._rng = random.Random(42)
+        self._iteration = 0
 
     def synthesize(
         self,
@@ -91,6 +95,7 @@ class TDSynSynthesizer(Synthesizer):
         assert isinstance(type, Type)
 
         skip = make_skip_fn(fun_name, metadata)
+        self._has_goals = bool(metadata.get(fun_name, {}).get("goals"))
         start_time = monotonic_ns()
         best: tuple[list[float], Term | None] = ([], None)
         ui.register(None, None, 0, True)
@@ -100,12 +105,19 @@ class TDSynSynthesizer(Synthesizer):
 
         initial_partial = PartialAST(term=initial_term, holes=initial_holes, depth=0)
 
-        if self.mode == "enumerative":
-            best = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
-        else:
-            best = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+        # Loop: restart search when worklist/walk is exhausted, until budget runs out
+        while _get_elapsed_time(start_time) < budget:
+            if self.mode == "enumerative":
+                best = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+            else:
+                best = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+            # If no goals, return the first valid term found
+            if not self._has_goals and best[1] is not None:
+                return best[1]
 
-        return best[1]
+        if best[1] is not None:
+            return best[1]
+        raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
 
     def _try_complete(
         self,
@@ -122,6 +134,9 @@ class TDSynSynthesizer(Synthesizer):
         term = partial.term
         try:
             if validate(term):
+                if not self._has_goals:
+                    ui.register(term, [], _get_elapsed_time(start_time), True)
+                    return ([], term)
                 score = evaluate(term)
                 if _is_better(score, best[0]):
                     best = (score, term)
@@ -190,6 +205,10 @@ class TDSynSynthesizer(Synthesizer):
                 if new_depth <= MAX_DEPTH:
                     results.append(PartialAST(term=new_term, holes=remaining_holes, depth=new_depth))
 
+        # Shuffle on non-first iterations to explore different orderings
+        if self._iteration > 0 and results:
+            self._rng.shuffle(results)
+
         return results
 
     def _enumerative_search(
@@ -204,6 +223,7 @@ class TDSynSynthesizer(Synthesizer):
         best: tuple[list[float], Term | None],
     ) -> tuple[list[float], Term | None]:
         """BFS-based enumerative search."""
+        self._iteration += 1
         worklist: deque[PartialAST] = deque([initial])
 
         while worklist:

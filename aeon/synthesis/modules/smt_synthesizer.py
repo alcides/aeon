@@ -7,14 +7,18 @@ Builds expression trees top-down:
 
 After the tree is built, solve the z3 constraints and replace placeholders with concrete
 literal values, then validate the result.
+
+The synthesizer loops until the time budget is exhausted, shuffling the context variable
+ordering on each attempt to explore different term structures.
 """
 
 from __future__ import annotations
 
+import random
+import time
 from typing import Callable
 
 import z3
-from loguru import logger
 
 from aeon.core.liquid import (
     LiquidApp,
@@ -26,14 +30,17 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.terms import Application, Literal, Term, Var
+from aeon.core.substitutions import substitute_vartype
+from aeon.core.terms import Application, Literal, Term, TypeApplication, Var
 from aeon.core.types import (
     AbstractionType,
     LiquidHornApplication,
     RefinedType,
+    RefinementPolymorphism,
     Type,
     TypeConstructor,
     TypePolymorphism,
+    TypeVar,
     t_bool,
     t_float,
     t_int,
@@ -50,6 +57,13 @@ from aeon.verification.smt import base_functions, make_variable
 # ---------------------------------------------------------------------------
 
 _SMT_BASE_NAMES = {"Int", "Bool", "Float"}
+
+
+def _is_better(v1: list[float], v2: list[float]) -> bool:
+    """True if v1 dominates v2 (all components strictly less)."""
+    if not v2:
+        return True
+    return all(x < y for x, y in zip(v1, v2))
 
 
 def _is_smt_base(ty: Type) -> bool:
@@ -152,6 +166,59 @@ def _build_uninterp_ctx(ctx: TypingContext) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
+# Polymorphic instantiation
+# ---------------------------------------------------------------------------
+
+
+def _unify_types(ty1: Type, ty2: Type, forall_names: set[Name], bindings: dict[Name, Type]) -> bool:
+    """Try to unify ty1 (may contain TypeVars from forall_names) with concrete ty2."""
+    if isinstance(ty1, TypeVar) and ty1.name in forall_names:
+        if ty1.name in bindings:
+            return bindings[ty1.name] == ty2
+        bindings[ty1.name] = ty2
+        return True
+    if isinstance(ty1, TypeConstructor) and isinstance(ty2, TypeConstructor):
+        if ty1.name != ty2.name or len(ty1.args) != len(ty2.args):
+            return False
+        return all(_unify_types(a1, a2, forall_names, bindings) for a1, a2 in zip(ty1.args, ty2.args))
+    return ty1 == ty2
+
+
+def _try_instantiate_poly(var_ty: TypePolymorphism, target_base: TypeConstructor) -> tuple[Type, list[Type]] | None:
+    """Try to instantiate a polymorphic type so its return type matches target_base.
+
+    Returns (instantiated_body, type_apps) or None if unification fails.
+    """
+    foralls: list[Name] = []
+    current: Type = var_ty
+    while isinstance(current, TypePolymorphism):
+        foralls.append(current.name)
+        current = current.body
+    if isinstance(current, RefinementPolymorphism):
+        return None
+
+    # Walk to return type
+    ret: Type = current
+    while isinstance(ret, AbstractionType):
+        ret = ret.type
+    ret_base = _base_type(ret)
+
+    bindings: dict[Name, Type] = {}
+    if not _unify_types(ret_base, target_base, set(foralls), bindings):
+        return None
+    # All foralls must be bound
+    if not all(f in bindings for f in foralls):
+        return None
+
+    body = current
+    type_apps: list[Type] = []
+    for f in foralls:
+        body = substitute_vartype(body, bindings[f], f)
+        type_apps.append(bindings[f])
+    return (body, type_apps)
+
+
+# ---------------------------------------------------------------------------
 # SMTSynthesizer
 # ---------------------------------------------------------------------------
 
@@ -178,65 +245,94 @@ class SMTSynthesizer(Synthesizer):
         ui: SynthesisUI = SynthesisUI(),
     ) -> Term:
         current_meta = metadata.get(fun_name, {})
-        # @hide stores Name objects with id=-1; context vars have real ids.
-        # Compare by the base name string to correctly filter hidden functions.
         hidden: set[str] = {n.name for n in current_meta.get("hide", [])}
-
-        solver = z3.Solver()
-        solver.set(timeout=int(budget * 1000))
-
-        # holes: hole_name -> (z3_var, TypeConstructor)
-        holes: dict[Name, tuple[object, TypeConstructor]] = {}
-
-        # Build z3 context from typing context SMT variables
-        ctx_z3_vars: dict[str, object] = {}
         uninterp_ctx = _build_uninterp_ctx(ctx)
 
+        # Build z3 context variables (shared across attempts — only depends on ctx)
+        ctx_z3_vars: dict[str, object] = {}
+        ctx_constraints: list[object] = []
         for name, ty in ctx.concrete_vars():
             base = _base_type(ty)
             if _is_smt_base(base):
                 assert isinstance(base, TypeConstructor)
                 z3_var = make_variable(str(name), base)
                 ctx_z3_vars[str(name)] = z3_var
-                # Add refinement constraint for this context variable
                 if isinstance(ty, RefinedType):
                     all_vars = {**ctx_z3_vars, str(ty.name): z3_var}
                     constraint = _translate_liq(ty.refinement, all_vars, uninterp_ctx)
                     if constraint is not None and not isinstance(constraint, bool):
-                        solver.add(constraint)
-                    elif constraint is True:
-                        pass  # trivially true
+                        ctx_constraints.append(constraint)
 
-        # Build the term tree
-        term = self._build_term(
-            ctx=ctx,
-            target_type=type,
-            fun_name=fun_name,
-            hidden=hidden,
-            solver=solver,
-            holes=holes,
-            ctx_z3_vars=ctx_z3_vars,
-            uninterp_ctx=uninterp_ctx,
-            depth=0,
-        )
+        has_goals = bool(current_meta.get("goals"))
+        rng = random.Random(42)
+        best_score: list[float] = []
+        best_term: Term | None = None
+        start_time = time.time()
+        deadline = start_time + budget
+        attempt = 0
 
-        if term is None:
-            raise SynthesisNotSuccessful("SMTSynthesizer: could not build term structure")
+        while time.time() < deadline:
+            attempt += 1
 
-        result = solver.check()
-        if result != z3.sat:
-            raise SynthesisNotSuccessful(f"SMTSynthesizer: z3 returned {result}")
+            solver = z3.Solver()
+            solver.set(timeout=min(10_000, int((deadline - time.time()) * 1000)))
+            for c in ctx_constraints:
+                solver.add(c)
 
-        model = solver.model()
-        logger.debug(f"SMTSynthesizer: z3 model = {model}")
+            holes: dict[Name, tuple[object, TypeConstructor]] = {}
 
-        concrete_term = self._replace_holes(term, holes, model)
-        logger.debug(f"SMTSynthesizer: candidate term = {concrete_term}")
+            term = self._build_term(
+                ctx=ctx,
+                target_type=type,
+                fun_name=fun_name,
+                hidden=hidden,
+                solver=solver,
+                holes=holes,
+                ctx_z3_vars=ctx_z3_vars,
+                uninterp_ctx=uninterp_ctx,
+                depth=0,
+                rng=rng if attempt > 1 else None,
+            )
 
-        if validate(concrete_term):
-            return concrete_term
+            if term is None:
+                continue
 
-        raise SynthesisNotSuccessful("SMTSynthesizer: term did not validate")
+            result = solver.check()
+            if result != z3.sat:
+                continue
+
+            model = solver.model()
+            concrete_term = self._replace_holes(term, holes, model)
+
+            try:
+                if not validate(concrete_term):
+                    ui.register(concrete_term, "Invalid", time.time() - start_time, False)
+                    continue
+            except Exception:
+                ui.register(concrete_term, "Invalid", time.time() - start_time, False)
+                continue
+
+            # No optimization goals — return immediately
+            if not has_goals:
+                ui.register(concrete_term, [], time.time() - start_time, True)
+                return concrete_term
+
+            try:
+                score = evaluate(concrete_term)
+            except Exception:
+                ui.register(concrete_term, "Invalid", time.time() - start_time, False)
+                continue
+
+            elapsed = time.time() - start_time
+            is_best = not best_score or _is_better(score, best_score)
+            if is_best:
+                best_score = score
+                best_term = concrete_term
+            ui.register(concrete_term, score, elapsed, is_best)
+
+        if best_term is not None:
+            return best_term
+        raise SynthesisNotSuccessful("SMTSynthesizer: no valid candidate found within budget")
 
     def _build_term(
         self,
@@ -249,6 +345,7 @@ class SMTSynthesizer(Synthesizer):
         ctx_z3_vars: dict[str, object],
         uninterp_ctx: dict[str, object],
         depth: int,
+        rng: random.Random | None = None,
     ) -> Term | None:
         if depth > self.max_depth:
             return None
@@ -276,11 +373,14 @@ class SMTSynthesizer(Synthesizer):
         if not isinstance(base, TypeConstructor):
             return None
 
-        target_name = base.name.name
-
         _SYSTEM_NAMES = {"native", "native_import", "print"}
 
-        for var_name, var_ty in ctx.concrete_vars():
+        # Shuffle context variable order to explore different terms on each attempt
+        ctx_vars = list(ctx.concrete_vars())
+        if rng is not None:
+            rng.shuffle(ctx_vars)
+
+        for var_name, var_ty in ctx_vars:
             # Skip hidden variables (compare by base name string, not id)
             if var_name.name in hidden:
                 continue
@@ -290,25 +390,34 @@ class SMTSynthesizer(Synthesizer):
             # Skip internal/system names
             if var_name.name.startswith("__internal__") or var_name.name in _SYSTEM_NAMES:
                 continue
-            # Skip polymorphic functions — can't handle type instantiation here
+            # Try to instantiate polymorphic functions
+            effective_ty: Type = var_ty
+            type_apps: list[Type] = []
             if isinstance(var_ty, TypePolymorphism):
-                continue
+                result = _try_instantiate_poly(var_ty, base)
+                if result is None:
+                    continue
+                effective_ty, type_apps = result
+
             # Skip non-functions (plain values of non-SMT type could be vars)
-            if not isinstance(var_ty, AbstractionType):
+            if not isinstance(effective_ty, AbstractionType):
                 # A plain variable (non-function) whose base type matches
-                plain_base = _base_type(var_ty)
-                if isinstance(plain_base, TypeConstructor) and plain_base.name.name == target_name:
-                    return Var(var_name)
+                plain_base = _base_type(effective_ty)
+                if isinstance(plain_base, TypeConstructor) and plain_base == base:
+                    head: Term = Var(var_name)
+                    for ta in type_apps:
+                        head = TypeApplication(head, ta)
+                    return head
                 continue
 
-            ret_base = _return_base_type(var_ty)
+            ret_base = _return_base_type(effective_ty)
             if not isinstance(ret_base, TypeConstructor):
                 continue
-            if ret_base.name.name != target_name:
+            if ret_base != base:
                 continue
 
             # This function can produce the needed type — try to build args
-            params = _get_params(var_ty)
+            params = _get_params(effective_ty)
             args: list[Term] = []
             success = True
 
@@ -323,6 +432,7 @@ class SMTSynthesizer(Synthesizer):
                     ctx_z3_vars=ctx_z3_vars,
                     uninterp_ctx=uninterp_ctx,
                     depth=depth + 1,
+                    rng=rng,
                 )
                 if arg is None:
                     success = False
@@ -330,10 +440,12 @@ class SMTSynthesizer(Synthesizer):
                 args.append(arg)
 
             if success:
-                term: Term = Var(var_name)
+                result_term: Term = Var(var_name)
+                for ta in type_apps:
+                    result_term = TypeApplication(result_term, ta)
                 for arg in args:
-                    term = Application(term, arg)
-                return term
+                    result_term = Application(result_term, arg)
+                return result_term
 
         return None
 

@@ -7,7 +7,7 @@ from typing import Callable
 from aeon.core.terms import Hole, Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.tactics.assumption import tactic_assumption
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
 from aeon.synthesis.tactics.by_cases import tactic_by_cases
@@ -22,6 +22,12 @@ from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
 
 _loc = SynthesizedLocation("tactics")
+
+
+def _is_better(v1: list[float], v2: list[float]) -> bool:
+    if not v2:
+        return True
+    return all(x < y for x, y in zip(v1, v2))
 
 
 class TacticRandomSynthesizer(Synthesizer):
@@ -40,14 +46,12 @@ class TacticRandomSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
-    ) -> Term | None:
+    ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
+        has_goals = bool(metadata.get(fun_name, {}).get("goals"))
         rng = random.Random(self.seed)
-        root = Name("_root", fresh_counter.fresh())
-        term = Hole(root, loc=_loc)
-        state = TacticState(ctx, term, type)
         tactics = [
             tactic_apply_question,
             tactic_assumption,
@@ -59,28 +63,78 @@ class TacticRandomSynthesizer(Synthesizer):
         ]
 
         start = time.time()
-        ui.register(None, None, 0.0, True)
-
         deadline = start + float(budget)
+        best_score: list[float] = []
+        best_term: Term | None = None
+        max_tactic_steps = 20
+
         while time.time() < deadline:
+            # Start a fresh random tactic walk each iteration
+            root = Name("_root", fresh_counter.fresh())
+            state = TacticState(ctx, Hole(root, loc=_loc), type)
+
+            steps = 0
+            stuck = False
+            while time.time() < deadline and steps < max_tactic_steps:
+                holes = collect_hole_judgments(state.ctx, state.term, state.goal, refined_types=True)
+                if not holes:
+                    break  # complete — evaluate below
+                focal = rng.choice(list(holes.keys()))
+                tact = rng.choice(tactics)
+                nxt = tact(state, focal)
+                if nxt is not None:
+                    state = nxt
+                    steps += 1
+                else:
+                    # Tactic failed on this hole — try a few more random tactics
+                    retries = 3
+                    applied = False
+                    for _ in range(retries):
+                        alt_tact = rng.choice(tactics)
+                        alt_nxt = alt_tact(state, focal)
+                        if alt_nxt is not None:
+                            state = alt_nxt
+                            steps += 1
+                            applied = True
+                            break
+                    if not applied:
+                        stuck = True
+                        break
+
+            if stuck:
+                continue
+
+            # Check if complete (no remaining holes)
             holes = collect_hole_judgments(state.ctx, state.term, state.goal, refined_types=True)
-            if not holes:
-                if validate(state.term):
-                    elapsed = time.time() - start
-                    try:
-                        score = evaluate(state.term)
-                        ui.register(state.term, score, elapsed, True)
-                    except Exception:
-                        ui.register(state.term, "Invalid", elapsed, False)
-                    return state.term
-                ui.register(state.term, "Invalid", time.time() - start, False)
-                return None
+            if holes:
+                continue
 
-            focal = rng.choice(list(holes.keys()))
-            tact = rng.choice(tactics)
-            nxt = tact(state, focal)
-            if nxt is not None:
-                state = nxt
+            elapsed = time.time() - start
+            try:
+                if not validate(state.term):
+                    ui.register(state.term, "Invalid", elapsed, False)
+                    continue
+            except Exception:
+                ui.register(state.term, "Invalid", elapsed, False)
+                continue
 
-        ui.register(state.term, None, time.time() - start, False)
-        return None
+            # No optimization goals — return immediately
+            if not has_goals:
+                ui.register(state.term, [], elapsed, True)
+                return state.term
+
+            try:
+                score = evaluate(state.term)
+            except Exception:
+                ui.register(state.term, "Invalid", elapsed, False)
+                continue
+
+            is_best = not best_score or _is_better(score, best_score)
+            if is_best:
+                best_score = score
+                best_term = state.term
+            ui.register(state.term, score, elapsed, is_best)
+
+        if best_term is not None:
+            return best_term
+        raise SynthesisNotSuccessful("TacticRandomSynthesizer: no valid candidate found within budget")

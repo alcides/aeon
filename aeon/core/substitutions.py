@@ -568,6 +568,10 @@ def liquefy(rep: Term) -> LiquidTerm | None:
             return liquefy_if(rep)
         case Annotation(_, _):
             return liquefy_ann(rep)
+        case TypeApplication(body, _):
+            return liquefy(body)
+        case RefinementApplication(body, _):
+            return liquefy(body)
         case Abstraction(_, _):
             return None
         case _:

@@ -1,120 +1,140 @@
-type Level
-type Chunks
-type Chunk
-type Enemy
-type Enemies
-type Boxes
-type Box
-type Mob
-type MobType
-type BoxType
-type List
+# Super Mario Level Generator - Pure Aeon version
+# Uses inductive types with a parametric List for all collections.
 
-# Define uninterpreted functions for size
-def size: (l: List) -> Int = uninterpreted
-def sizeB: (b: Boxes) -> Int = uninterpreted
-def sizeE: (e: Enemies) -> Int = uninterpreted
+# --- Generic list with length measure ---
 
-# Level functions
-def new_level (cs: Chunks) (e: Enemies) : Level = native "(sum(cs, []), sum(e, []))"
+inductive List a
+| nil : {l: (List a) | len l == 0}
+| cons (hd: a) (tl: (List a)) : {l: (List a) | len l == len tl + 1}
++ len (l: (List a)) : Int
 
-# Chunks functions
-def empty_chunks : Chunks = native "[]"
-def append_chunk (cs: Chunks) (c: Chunk) : Chunks = native "cs + [c]"
+# --- Atomic enumerations ---
 
-# Chunk constructors
-def new_gap_chunk (x: Int | x >= 5 && x <= 95)
-                  (y: Int | y >= 3 && y <= 5)
-                   (wg: Int | wg >= 2 && wg <= 5)
-                   (wBefore: Int | wBefore >= 2 && wBefore <= 7)
-                   (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
-                   Chunk = native "(' ', x, y, wg, wBefore, wAfter)";
+inductive BoxType
+| block_coin : BoxType
+| block_power_up : BoxType
+| block_rock_coin : BoxType
+| block_rock_empty : BoxType
 
-def new_platform_chunk (x: Int | x >= 5 && x <= 95)
-                        (y: Int | y >= 3 && y <= 5)
-                        (w: Int | w >= 3 && w <= 15) :
-                        Chunk = native "('P', x, y, w)";
+inductive MobType
+| goomba : MobType
+| koopa : MobType
 
-def new_hill_chunk (x: Int | x >= 5 && x <= 95)
-                    (y: Int | y >= 3 && y <= 5)
-                    (w: Int | w >= 3 && w <= 15) :
-                    Chunk = native "('H', x, y, w)";
+# --- Positioned elements ---
 
-def new_canon_hill_chunk (x: Int | x >= 5 && x <= 95)
-                         (y: Int | y >= 3 && y <= 5)
-                         (h: Int | h >= 2 && h <= 3)
-                         (wBefore: Int | wBefore >= 2 && wBefore <= 7)
-                         (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
-                         Chunk = native "('C', x, y, h, wBefore, wAfter)";
+inductive Box
+| mk_box (bt: BoxType)
+         (x: Int | x >= 5 && x <= 95)
+         (y: Int | y >= 3 && y <= 5) : Box
 
-def new_tube_hill_chunk (x: Int | x >= 5 && x <= 95)
-                        (y: Int | y >= 3 && y <= 5)
-                        (h: Int | h >= 2 && h <= 3)
-                        (wBefore: Int | wBefore >= 2 && wBefore <= 7)
-                        (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
-                        Chunk = native "('T', x, y, h, wBefore, wAfter)";
+inductive Enemy
+| mk_enemy (m: MobType)
+           (x: Int | x >= 5 && x <= 95) : Enemy
 
-def new_coin_chunk (x: Int | x >= 5 && x <= 95)
-                   (y: Int | y >= 3 && y <= 5)
-                   (wc: Int | wc >= 3 && wc <= 15) :
-                   Chunk = native "('c', x, y, wc)";
+# --- Chunk types (level geometry) ---
 
-def new_canon_chunk (x: Int | x >= 5 && x <= 95)
-                    (y: Int | y >= 3 && y <= 5)
-                    (h: Int | h >= 2 && h <= 3)
-                    (wBefore: Int | wBefore >= 2 && wBefore <= 7)
-                    (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
-                    Chunk = native "('C', x, y, h, wBefore, wAfter)";
+inductive Chunk
+| gap_chunk (x: Int | x >= 5 && x <= 95)
+            (y: Int | y >= 3 && y <= 5)
+            (wg: Int | wg >= 2 && wg <= 5)
+            (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+            (wAfter: Int | wAfter >= 2 && wAfter <= 7) : Chunk
+| platform_chunk (x: Int | x >= 5 && x <= 95)
+                 (y: Int | y >= 3 && y <= 5)
+                 (w: Int | w >= 3 && w <= 15) : Chunk
+| hill_chunk (x: Int | x >= 5 && x <= 95)
+             (y: Int | y >= 3 && y <= 5)
+             (w: Int | w >= 3 && w <= 15) : Chunk
+| canon_chunk (x: Int | x >= 5 && x <= 95)
+              (y: Int | y >= 3 && y <= 5)
+              (h: Int | h >= 2 && h <= 3)
+              (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+              (wAfter: Int | wAfter >= 2 && wAfter <= 7) : Chunk
+| tube_chunk (x: Int | x >= 5 && x <= 95)
+             (y: Int | y >= 3 && y <= 5)
+             (h: Int | h >= 2 && h <= 3)
+             (wBefore: Int | wBefore >= 2 && wBefore <= 7)
+             (wAfter: Int | wAfter >= 2 && wAfter <= 7) : Chunk
+| coin_chunk (x: Int | x >= 5 && x <= 95)
+             (y: Int | y >= 3 && y <= 5)
+             (wc: Int | wc >= 3 && wc <= 15) : Chunk
+| boxes_chunk (bs: (List Box) | len bs >= 2 && len bs <= 7) : Chunk
 
-def new_tube_chunk (x: Int | x >= 5 && x <= 95)
-                   (y: Int | y >= 3 && y <= 5)
-                   (h: Int | h >= 2 && h <= 3)
-                   (wBefore: Int | wBefore >= 2 && wBefore <= 7)
-                   (wAfter: Int | wAfter >= 2 && wAfter <= 7) :
-                   Chunk = native "('T', x, y, h, wBefore, wAfter)";
+# --- Level ---
+# Minimum chunk/enemy counts are enforced by the fitness, not the type,
+# so that partial candidates can still be evaluated by the synthesizer.
 
-# Boxes functions
-def empty_boxes: {x: Boxes | sizeB x == 0} = native "[]";
-def append_box (l: Boxes) (i: Box) : {l2: Boxes | sizeB l2 == sizeB l + 1} = native "l + [i]";
+inductive Level
+| mk_level (cs: (List Chunk)) (es: (List Enemy)) : Level
 
-def new_box (box: BoxType)
-            (x: Int | x >= 5 && x <= 95)
-            (y: Int | y >= 3 && y <= 5) :
-            Box = native "(box, x, y)";
+# --- Fitness helpers (pure Aeon, using match on inductive types) ---
 
-def new_boxes (boxes: Boxes | (sizeB boxes) >= 2 && (sizeB boxes) <= 7) :
-              Chunk = native "boxes";
+# Width of a chunk (horizontal cells occupied)
+def chunk_width (c: Chunk) : Int =
+    match c with
+    | gap_chunk x y wg wBefore wAfter => wg + wBefore + wAfter
+    | platform_chunk x y w => w
+    | hill_chunk x y w => w
+    | canon_chunk x y h wBefore wAfter => wBefore + wAfter
+    | tube_chunk x y h wBefore wAfter => wBefore + wAfter
+    | coin_chunk x y wc => wc
+    | boxes_chunk bs => 3;
 
-def new_block_coin: BoxType = native "lambda x: 'c'"
-def new_block_power_up: BoxType = native "lambda x: 'p'"
-def new_block_rock_coin: BoxType = native "lambda x: 'R'"
-def new_block_rock_empty: BoxType = native "lambda x: 'r'"
+# Total width covered by all chunks (proxy for map fullness)
+def coverage (cs: (List Chunk)) : Int =
+    match cs with
+    | nil => 0
+    | cons c rest => chunk_width c + coverage rest;
 
-# Enemies functions
-def empty_enemies: {x: Enemies | sizeE x == 0} = native "[]";
-def append_enemy (l: Enemies) (i: Enemy) : {l2: Enemies | sizeE l2 == sizeE l + 1} = native "l + [i]";
+# X position of a chunk
+def chunk_x (c: Chunk) : Int =
+    match c with
+    | gap_chunk x y wg wBefore wAfter => x
+    | platform_chunk x y w => x
+    | hill_chunk x y w => x
+    | canon_chunk x y h wBefore wAfter => x
+    | tube_chunk x y h wBefore wAfter => x
+    | coin_chunk x y wc => x
+    | boxes_chunk bs => 0;
 
-def new_enemies (enemies: Enemies | (sizeE enemies) >= 2 && (sizeE enemies) <= 10) :
-                Enemies = native "enemies";
+# Overlap between two chunks on the x-axis (0 if no overlap)
+def max (a: Int) (b: Int) : Int = if a > b then a else b
+def min (a: Int) (b: Int) : Int = if a < b then a else b
 
-# Mob functions
-def new_mob (m: MobType)
-            (x: Int | x >= 5 && x <= 95) :
-            Mob = native "[(m, x)]";
+def overlap (c1: Chunk) (c2: Chunk) : Int =
+    lo = max (chunk_x c1) (chunk_x c2);
+    hi = min (chunk_x c1 + chunk_width c1) (chunk_x c2 + chunk_width c2);
+    max 0 (hi - lo);
 
-def new_goompa: MobType = native "lambda x: 'G'"
-def new_koompa: MobType = native "lambda x: 'K'"
+# Count total pairwise overlap of one chunk against the rest
+def conflicts_one (c: Chunk) (cs: (List Chunk)) : Int =
+    match cs with
+    | nil => 0
+    | cons c2 rest => overlap c c2 + conflicts_one c rest;
 
-# Fitness functions
-def numpy: Unit = native_import "numpy"
+# Total pairwise conflicts across all chunks
+def conflicts (cs: (List Chunk)) : Int =
+    match cs with
+    | nil => 0
+    | cons c rest => conflicts_one c rest + conflicts rest;
 
-def number_of_chunks (max_w: Int) (max_h: Int) (level: Level) : Float = native "max_w * max_h - len(level[0])"
+# Extract chunks from a level
+def level_chunks (level: Level) : (List Chunk) =
+    match level with
+    | mk_level cs es => cs;
 
-def conflicts (max_w: Int) (max_h: Int) (level: Level) : Float = native "sum(numpy.add.reduce([chunk.place_in(numpy.zeros((max_w, max_h))) or 0 for chunk in level[0]] + [enemy.place_in(numpy.zeros((max_w, max_h))) or 0 for enemy in level[1]]))"
+# --- Synthesis target ---
+# Maximize map coverage, minimize spatial conflicts between chunks.
 
-@hide(numpy,
-      number_of_chunks,
-      conflicts)
-@maximize_float(number_of_chunks 110 10 new_map)
-@minimize_float(conflicts 110 10 new_map)
+@hide(chunk_width,
+      coverage,
+      chunk_x,
+      max,
+      min,
+      overlap,
+      conflicts_one,
+      conflicts,
+      level_chunks)
+@maximize_int(coverage (level_chunks new_map))
+@minimize_int(conflicts (level_chunks new_map))
 def new_map : Level = ?hole

@@ -48,7 +48,7 @@ class ANFConverter:
                     return self.convert(Let(v, fun, Application(Var(v), arg, loc=loc), loc=loc))
 
                 arg = self.convert(arg)
-                if isinstance(arg, Var) or isinstance(arg, Literal):
+                if isinstance(arg, (Var, Literal, Abstraction)):
                     return Application(fun, arg, loc=loc)
                 else:
                     v = self.fresh()

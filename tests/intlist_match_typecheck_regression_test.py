@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
@@ -16,8 +14,8 @@ from aeon.sugar.parser import parse_main_program
 from aeon.typechecking.typeinfer import check_type_errors
 
 
-def test_intlist_len_match_typechecker_raises_unhandled_abstraction() -> None:
-    """Guards ``tests/fixtures/intlist_len_match.ae`` until typechecking accepts the lowered match."""
+def test_intlist_len_match_typechecks() -> None:
+    """Verifies that ``tests/fixtures/intlist_len_match.ae`` typechecks after ANF keeps lambdas inline."""
     path = Path(__file__).resolve().parent / "fixtures" / "intlist_len_match.ae"
     src = path.read_text(encoding="utf-8")
 
@@ -33,9 +31,5 @@ def test_intlist_len_match_typechecker_raises_unhandled_abstraction() -> None:
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast_anf = ensure_anf(core_ast)
 
-    # Depending on whether the ``SYNTH_TYPE`` log level is registered, the failure
-    # surfaces as a loguru ``ValueError`` or as the subsequent ``AssertionError``.
-    with pytest.raises((ValueError, AssertionError)) as excinfo:
-        list(check_type_errors(typing_ctx, core_ast_anf, top))
-    msg = str(excinfo.value)
-    assert "SYNTH_TYPE" in msg or "Unhandled term" in msg
+    errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
+    assert errors == [], f"Expected no type errors, got: {errors}"
