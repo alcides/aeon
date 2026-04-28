@@ -794,6 +794,14 @@ def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
         return SLiteral(1, st_int)
 
 
+def _is_native_import_def(d: Definition) -> bool:
+    """Check if a definition's body is a native_import call (side-effect import)."""
+    match d.body:
+        case SApplication(SVar(Name("native_import", _)), _):
+            return True
+    return False
+
+
 def _bare_name(module_name: str, def_name: str) -> str:
     """Strip module prefix from a definition name if present: Math_pow -> pow, or pow -> pow."""
     prefix = module_name + "_"
@@ -819,6 +827,8 @@ def handle_imports(
 
     for imp in imports[::-1]:
         import_p = _resolve_import(imp)
+        # Expand inductive declarations so constructors and eliminators become definitions.
+        import_p = expand_inductive_decls(import_p)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
         type_decls_recursive: list[TypeDecl] = []
@@ -833,21 +843,43 @@ def handle_imports(
 
         module_name = imp.module_path.split(".")[-1]
 
-        # Build scope entries for this module's definitions
+        # Re-prefix definitions with module name to avoid name collisions in the let-chain.
+        # E.g. Color's "mk" becomes "Color_mk", Image's "mk" becomes "Image_mk".
+        prefixed_definitions: list[Definition] = []
         for d in import_p_definitions:
             bare = _bare_name(module_name, d.name.name)
-            # Always register for qualified access: Module.bare -> original name
-            qualified_scope[(module_name, bare)] = d.name
+            # Don't re-prefix native_import definitions — their name is used as a
+            # Python symbol during evaluation (e.g. `def math = native_import "math"`
+            # must keep name "math" so that `native "math.pi"` can resolve it).
+            if _is_native_import_def(d):
+                prefixed_definitions.append(d)
+                continue
+            # Build the internal name: module_name + "_" + bare
+            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            # Create a copy of the definition with the prefixed name
+            prefixed_d = Definition(
+                internal_name,
+                d.foralls,
+                d.args,
+                d.type,
+                d.body,
+                d.decorators,
+                d.rforalls,
+                d.decreasing_by,
+                d.loc,
+            )
+            prefixed_definitions.append(prefixed_d)
+
+            # Register for qualified access: Module.bare -> internal_name
+            qualified_scope[(module_name, bare)] = internal_name
 
             if imp.is_open:
-                # open Math: all names available unqualified
-                unqualified_scope[bare] = d.name
+                unqualified_scope[bare] = internal_name
             elif imp.selected_names:
-                # import Math (pow, abs): selected names available unqualified
                 if bare in imp.selected_names:
-                    unqualified_scope[bare] = d.name
+                    unqualified_scope[bare] = internal_name
 
-        defs = defs_recursive + import_p_definitions + defs
+        defs = defs_recursive + prefixed_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
     return defs, type_decls, qualified_scope, unqualified_scope
 

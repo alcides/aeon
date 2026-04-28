@@ -141,7 +141,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             return self.module.globals[str_name]
 
         base_name = var_name.name
-        if base_name == "PI":
+        if base_name == "PI" or base_name.endswith("_PI"):
             return ir.Constant(ir.DoubleType(), 3.141592653589793)
 
         builtin_map = {
@@ -157,6 +157,12 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
 
         name_parts = str_name.rsplit("_", 1)
         lookup_name = name_parts[0] if len(name_parts) > 1 and name_parts[1].isdigit() else str_name
+
+        # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
+        if "_" in lookup_name and lookup_name not in builtin_map:
+            bare = lookup_name.split("_", 1)[1]
+            if bare in builtin_map:
+                lookup_name = bare
 
         actual_name = builtin_map.get(lookup_name, lookup_name)
 

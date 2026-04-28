@@ -184,9 +184,18 @@ class CPUFunctionCallValidationStep(ValidationStep):
 
     def _validate_var_call(self, name: Name, ctx: CPUValidationContext) -> None:
         str_name = sanitize_name(name)
-        is_builtin = name.name in BINARY_OPS or name.name in UNARY_OPS or name.name in BUILTIN_FUNCTION_TYPES
+        # Strip module prefix for builtin lookup (e.g. "Math_powf" -> "powf")
+        bare_name = name.name.split("_", 1)[1] if "_" in name.name else name.name
+        is_builtin = (
+            name.name in BINARY_OPS
+            or name.name in UNARY_OPS
+            or name.name in BUILTIN_FUNCTION_TYPES
+            or bare_name in BINARY_OPS
+            or bare_name in UNARY_OPS
+            or bare_name in BUILTIN_FUNCTION_TYPES
+        )
         is_allowed = name in ctx.allowed_func_calls or str_name in ctx.env_names
-        if not (is_builtin or is_allowed or name.name == "native" or name.name == "PI"):
+        if not (is_builtin or is_allowed or name.name == "native" or name.name == "PI" or bare_name == "PI"):
             if ctx.strict:
                 raise LLVMValidationError(f"Function {name.name} is not allowed in this LLVM context")
 
@@ -322,14 +331,18 @@ class CPULLVMLowerer(LLVMLowerer):
         target = self._get_target_name(val) if isinstance(val, LLVMVar) else ""
         if isinstance(val, LLVMCall):
             target = self._get_target_name(val.target)
+        # Strip module prefix for builtin lookup
+        bare_target = target.split("_", 1)[1] if "_" in target else target
         is_op = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
-            target in BINARY_OPS or target in UNARY_OPS
+            target in BINARY_OPS or target in UNARY_OPS or bare_target in BINARY_OPS or bare_target in UNARY_OPS
         )
-        is_vec = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target in (
-            VECTOR_OPERATIONS | {"set", "get"}
+        is_vec = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
+            target in (VECTOR_OPERATIONS | {"set", "get"}) or bare_target in (VECTOR_OPERATIONS | {"set", "get"})
         )
         _MATH_BUILTINS = {"pow", "powf", "sqrt", "sqrtf", "sin", "cos", "exp", "log"}
-        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and target in _MATH_BUILTINS
+        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
+            target in _MATH_BUILTINS or bare_target in _MATH_BUILTINS
+        )
         if is_math and is_partial:
             return False
         return is_partial or is_op or is_vec or is_math
@@ -532,11 +545,14 @@ class CPULLVMLowerer(LLVMLowerer):
     def _lower_var(
         self, name: Name, expected: LLVMType | None, type_env: Dict[Name, LLVMType], env: Dict[Name, LLVMTerm]
     ) -> LLVMTerm:
-        if name.name in BINARY_OPS or name.name in UNARY_OPS:
-            return LLVMVar(self._get_operator_type(name.name, expected), name)
+        bare = name.name.split("_", 1)[1] if "_" in name.name else name.name
+        op_name = name.name if name.name in BINARY_OPS or name.name in UNARY_OPS else bare
+        if op_name in BINARY_OPS or op_name in UNARY_OPS:
+            return LLVMVar(self._get_operator_type(op_name, expected), name)
 
-        if name.name in BUILTIN_FUNCTION_TYPES:
-            ty = BUILTIN_FUNCTION_TYPES[name.name]
+        builtin_key = name.name if name.name in BUILTIN_FUNCTION_TYPES else bare
+        if builtin_key in BUILTIN_FUNCTION_TYPES:
+            ty = BUILTIN_FUNCTION_TYPES[builtin_key]
             if expected and isinstance(expected, LLVMFunctionType) and len(expected.arg_types) == len(ty.arg_types):
                 ty = expected
             elif expected and name.name == "new" and isinstance(expected, LLVMPointerType):
@@ -632,7 +648,13 @@ class CPULLVMLowerer(LLVMLowerer):
 
     def _get_lookup_name(self, target: LLVMTerm) -> str:
         name = self._get_target_name(target)
-        return name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
+        lookup = name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
+        # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
+        if "_" in lookup and lookup not in BUILTIN_FUNCTION_TYPES and lookup not in VECTOR_OPERATIONS:
+            bare = lookup.split("_", 1)[1]
+            if bare in BUILTIN_FUNCTION_TYPES or bare in VECTOR_OPERATIONS:
+                lookup = bare
+        return lookup
 
     def _is_full_vector_op(self, op: str, total_args: int) -> bool:
         if op not in VECTOR_OPERATIONS:

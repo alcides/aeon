@@ -1,26 +1,6 @@
-type Color
+open Color
+
 type Image
-
-# Returns the red component of a color (0-255).
-def Color_r: (c:Color) -> Int = uninterpreted
-
-# Returns the green component of a color (0-255).
-def Color_g: (c:Color) -> Int = uninterpreted
-
-# Returns the blue component of a color (0-255).
-def Color_b: (c:Color) -> Int = uninterpreted
-
-# Constructs a color from red, green, and blue components.
-# r: red (0-255)
-# g: green (0-255)
-# b: blue (0-255)
-# returns: color with specified RGB values
-def Color_mk
-    (r:{r:Int | r >= 0 && r < 256})
-    (g:{r:Int | r >= 0 && r < 256})
-    (b:{r:Int | r >= 0 && r < 256}) :
-    {c:Color | (Color_r c == r) && (Color_g c == g) && (Color_b c == b) } = native "(r, g, b)"
-
 
 # Returns the height of the image in pixels.
 def height : (im:Image) -> Int = uninterpreted
@@ -38,7 +18,7 @@ def mk
     (h:{p:Int | p > 0})
     (color:Color) :
     {i : Image | (width i == w) && (height i == h) } =
-native "__import__('aeon.bindings.image').bindings.image.Image_mk(w, h, color)"
+native "__import__('aeon.bindings.image').bindings.image.Image_mk(w, h, color[1:])"
 
 # Displays the image.
 # image: image to display
@@ -76,4 +56,4 @@ def draw_rectangle
     (h:{p:Int | p > 0 && y + p <= height im })
     (color:Color) :
     {rim:Image | (width rim == width im) && (height rim == height im) } =
-        native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle(im, x, y, w, h, color)"
+        native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle(im, x, y, w, h, color[1:])"
