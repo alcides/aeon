@@ -130,6 +130,9 @@ class LLVMTerm:
     def accept(self, visitor: LLVMVisitor) -> Any:
         raise NotImplementedError
 
+    def find_calls(self) -> set[Name]:
+        return set()
+
 
 @dataclass
 class LLVMLiteral(LLVMTerm):
@@ -152,6 +155,9 @@ class LLVMVar(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_var(self)
 
+    def find_calls(self) -> set[Name]:
+        return {self.name}
+
 
 @dataclass
 class LLVMIf(LLVMTerm):
@@ -165,6 +171,9 @@ class LLVMIf(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_if(self)
 
+    def find_calls(self) -> set[Name]:
+        return self.cond.find_calls() | self.then_t.find_calls() | self.else_t.find_calls()
+
 
 @dataclass
 class LLVMLet(LLVMTerm):
@@ -177,6 +186,9 @@ class LLVMLet(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_let(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.var_value.find_calls() | self.body.find_calls()
 
 
 @dataclass
@@ -192,6 +204,12 @@ class LLVMFunction(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)
+
+    def find_calls(self) -> set[Name]:
+        names = self.body.find_calls()
+        if self.name:
+            names.add(self.name)
+        return names
 
 
 @dataclass
@@ -216,6 +234,12 @@ class LLVMCall(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_call(self)
 
+    def find_calls(self) -> set[Name]:
+        names = self.target.find_calls()
+        for a in self.args:
+            names |= a.find_calls()
+        return names
+
 
 @dataclass
 class LLVMCast(LLVMTerm):
@@ -226,6 +250,9 @@ class LLVMCast(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_cast(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.val.find_calls()
 
 
 @dataclass
@@ -240,6 +267,12 @@ class LLVMGetElementPtr(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_gep(self)
 
+    def find_calls(self) -> set[Name]:
+        names = self.ptr.find_calls()
+        for i in self.indices:
+            names |= i.find_calls()
+        return names
+
 
 @dataclass
 class LLVMLoad(LLVMTerm):
@@ -250,6 +283,9 @@ class LLVMLoad(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_load(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.ptr.find_calls()
 
 
 @dataclass
@@ -262,6 +298,9 @@ class LLVMStore(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_store(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.value.find_calls() | self.ptr.find_calls()
 
 
 @dataclass
@@ -278,6 +317,9 @@ class LLVMVectorOp(LLVMTerm):
     f: LLVMTerm
     v: LLVMTerm
     size: LLVMTerm
+
+    def find_calls(self) -> set[Name]:
+        return self.f.find_calls() | self.v.find_calls() | self.size.find_calls()
 
 
 @dataclass
@@ -301,6 +343,9 @@ class LLVMVectorReduce(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_reduce(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.f.find_calls() | self.initial.find_calls() | self.v.find_calls() | self.size.find_calls()
 
 
 @dataclass
@@ -334,6 +379,9 @@ class LLVMVectorZipWith(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_zipwith(self)
 
+    def find_calls(self) -> set[Name]:
+        return self.f.find_calls() | self.v1.find_calls() | self.v2.find_calls() | self.size.find_calls()
+
 
 @dataclass
 class LLVMVectorCount(LLVMVectorOp):
@@ -355,6 +403,9 @@ class LLVMVectorGet(LLVMTerm):
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_get(self)
 
+    def find_calls(self) -> set[Name]:
+        return self.v.find_calls() | self.index.find_calls()
+
 
 @dataclass
 class LLVMVectorSet(LLVMTerm):
@@ -367,3 +418,6 @@ class LLVMVectorSet(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_set(self)
+
+    def find_calls(self) -> set[Name]:
+        return self.v.find_calls() | self.index.find_calls() | self.value.find_calls()
