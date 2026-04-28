@@ -78,7 +78,7 @@ class CPULLVMPipeline(LLVMPipeline):
                 else:
                     for meta_key, meta_value in self.metadata.items():
                         key_string = meta_key.name if isinstance(meta_key, Name) else str(meta_key)
-                        if key_string == target_name and meta_value.get("llvm"):
+                        if key_string == target_name and meta_value.get("cpu"):
                             should_compile = True
                             break
 

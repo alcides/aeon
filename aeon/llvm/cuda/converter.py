@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import llvmlite.binding as llvm
 import llvmlite.ir as ir
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 
-from aeon.llvm.cpu.converter import CPULLVMIRGenerator
+from aeon.llvm.cpu.converter import CPULLVMIRGenerator, VectorExecutor
 from aeon.llvm.llvm_ast import (
     LLVMFunction,
     LLVMFunctionType,
@@ -24,10 +24,23 @@ from aeon.llvm.utils import sanitize_name
 from aeon.utils.name import Name
 
 
+class CUDAVectorExecutor(VectorExecutor):
+    def execute(self, size_val: ir.Value, name: str, body_fn: Callable[[ir.Value], None]):
+        if self.gen.vector_op_depth > 0:
+            self.gen.to_ir_loop(size_val, f"nested_{self.gen.vector_op_depth}", body_fn)
+        else:
+            self.gen.vector_op_depth += 1
+            idx = self.gen._get_global_id()
+            with self.gen.builder.if_then(self.gen.builder.icmp_signed("<", idx, size_val)):
+                body_fn(idx)
+            self.gen.vector_op_depth -= 1
+
+
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
     def __init__(self) -> None:
         super().__init__()
         self._reset_module()
+        self.vector_executor = CUDAVectorExecutor(self)
 
     def _reset_module(self) -> None:
         self.module = ir.Module(name="aeon_cuda_module")
@@ -132,26 +145,26 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         func = ir.Function(self.module, f_ty, name=func_name)
         func.linkage = "internal"
 
-        old_builder, old_env = self.builder, self.env.copy()
-        self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
+        with self._push_scope():
+            self.env[func_name] = func
+            self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
 
-        for i, arg_name in enumerate(node.arg_names):
-            name = sanitize_name(arg_name)
-            func.args[i].name = name
-            self.env[name] = func.args[i]
+            for i, arg_name in enumerate(node.arg_names):
+                name = sanitize_name(arg_name)
+                func.args[i].name = name
+                self.env[name] = func.args[i]
 
-        self._is_top_level = False
-        ret_val = node.body.accept(self)
+            self._is_top_level = False
+            ret_val = node.body.accept(self)
 
-        if not self.builder.block.is_terminated:
-            if isinstance(func.function_type.return_type, ir.VoidType):
-                self.builder.ret_void()
-            else:
-                if ret_val is None:
-                    ret_val = ir.Constant(func.function_type.return_type, 0)
-                self.builder.ret(self._cast_if_needed(ret_val, func.function_type.return_type))
+            if not self.builder.block.is_terminated:
+                if isinstance(func.function_type.return_type, ir.VoidType):
+                    self.builder.ret_void()
+                else:
+                    if ret_val is None:
+                        ret_val = ir.Constant(func.function_type.return_type, 0)
+                    self.builder.ret(self._cast_if_needed(ret_val, func.function_type.return_type))
 
-        self.builder, self.env = old_builder, old_env
         return func
 
     def visit_var(self, node: LLVMVar) -> ir.Value:
@@ -167,16 +180,6 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             return self.module.globals[base_name]
         return super().visit_var(node)
 
-    def _execute_vector_op(self, size_val, body_fn):
-        if self.vector_op_depth > 0:
-            self.to_ir_loop(size_val, f"nested_{self.vector_op_depth}", body_fn)
-        else:
-            self.vector_op_depth += 1
-            idx = self._get_global_id()
-            with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
-                body_fn(idx)
-            self.vector_op_depth -= 1
-
     def _resolve_actual_f(self, f_node: LLVMTerm) -> LLVMTerm:
         if isinstance(f_node, LLVMVar):
             if f_node.name in self.ast_env:
@@ -189,12 +192,10 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
     def _inline_or_call(self, f_node: LLVMTerm, args: list[ir.Value]) -> ir.Value:
         actual_f = self._resolve_actual_f(f_node)
         if isinstance(actual_f, LLVMFunction):
-            old_env = self.env.copy()
-            for name, val in zip(actual_f.arg_names, args):
-                self.env[sanitize_name(name)] = val
-            res = actual_f.body.accept(self)
-            self.env = old_env
-            return res
+            with self._push_scope():
+                for name, val in zip(actual_f.arg_names, args):
+                    self.env[sanitize_name(name)] = val
+                return actual_f.body.accept(self)
 
         target_func = f_node.accept(self)
         if isinstance(target_func, ir.Function):
@@ -215,7 +216,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if res is not None and not isinstance(res.type, ir.VoidType):
                 self.builder.store(self._cast_if_needed(res, ptr.type.pointee), ptr)
 
-        self._execute_vector_op(size_val, body)
+        self.vector_executor.execute(size_val, "vector_map", body)
         return v_val
 
     def visit_vector_imap(self, node: LLVMVectorIMap) -> ir.Value:
@@ -229,7 +230,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if res is not None and not isinstance(res.type, ir.VoidType):
                 self.builder.store(self._cast_if_needed(res, ptr.type.pointee), ptr)
 
-        self._execute_vector_op(size_val, body)
+        self.vector_executor.execute(size_val, "vector_imap", body)
         return v_val
 
     def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
@@ -243,7 +244,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if res is not None and not isinstance(res.type, ir.VoidType):
                 self.builder.store(self._cast_if_needed(res, ptr.type.pointee), ptr)
 
-        self._execute_vector_op(size, body)
+        self.vector_executor.execute(size, "vector_zipwith", body)
         return v1
 
     def visit_vector_count(self, node: LLVMVectorCount) -> ir.Value:
