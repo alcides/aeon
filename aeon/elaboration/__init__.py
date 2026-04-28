@@ -11,6 +11,7 @@ from aeon.facade.api import (
 )
 from aeon.sugar.program import (
     SAbstraction,
+    SAnonConstructor,
     SAnnotation,
     SApplication,
     SHole,
@@ -45,6 +46,17 @@ def base(ty: SType) -> SType:
     if isinstance(ty, SRefinedType):
         return ty.type
     return ty
+
+
+def _extract_base_type_name(ty: SType) -> str | None:
+    """Extract the base type constructor name from a type, unwrapping refinements."""
+    match ty:
+        case STypeConstructor(name, _):
+            return name.name
+        case SRefinedType(_, inner, _):
+            return _extract_base_type_name(inner)
+        case _:
+            return None
 
 
 @dataclass
@@ -251,6 +263,8 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                     raise UnificationUnknownTypeError(t)
                 case ty:
                     return (t, ty)
+        case SAnonConstructor():
+            raise UnificationUnknownTypeError(t)
         case SHole(_):
             u = UnificationVar(ctx.fresh_typevar())
             return (t, u)
@@ -358,6 +372,20 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
             nbody = elaborate_check(ctx, body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
+        case (SAnonConstructor(cname, loc=loc), _):
+            # Resolve anonymous constructor (.cons) using expected type
+            base_name = _extract_base_type_name(ty)
+            if base_name is not None and cname in ctx.constructor_to_type and cname in ctx.constructor_defs:
+                expected_type_name = ctx.constructor_to_type[cname].name
+                if expected_type_name == base_name:
+                    resolved = SVar(ctx.constructor_defs[cname], loc=loc)
+                    return elaborate_check(ctx, resolved, ty)
+            # If we can resolve without type match, still use prefixed name
+            if cname in ctx.constructor_defs:
+                resolved = SVar(ctx.constructor_defs[cname], loc=loc)
+                return elaborate_check(ctx, resolved, ty)
+            # Fallback: raise error
+            raise UnificationUnknownTypeError(t)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
@@ -498,7 +526,7 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
-        case SLiteral() | SVar() | SHole():
+        case SLiteral() | SVar() | SHole() | SAnonConstructor():
             return t
         case SAnnotation(expr, ty, loc=loc):
             return SAnnotation(elaborate_remove_unification(ctx, expr), ty, loc=loc)

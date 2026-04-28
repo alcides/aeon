@@ -1,0 +1,12 @@
+inductive IntList
+| empty : IntList
+| cons (hd:Int) (tl:IntList) : IntList
+
+def mk : IntList = IntList.cons 1 (IntList.empty);
+
+def head_or_zero (l:IntList) : Int =
+    match l with
+    | IntList.empty => 0
+    | IntList.cons hd tl => hd;
+
+def main (args:Int) : Int = head_or_zero mk;

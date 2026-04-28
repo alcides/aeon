@@ -13,6 +13,7 @@ from aeon.sugar.program import (
     InductiveDecl,
     Program,
     SAbstraction,
+    SAnonConstructor,
     SAnnotation,
     SApplication,
     SHole,
@@ -89,7 +90,7 @@ def bind_ectx(
             case _:
                 assert False, f"{entry} not yet supported in bind."
         nentries.append(e)
-    return ElaborationTypingContext(nentries), subs
+    return ElaborationTypingContext(nentries, ectx.constructor_to_type, ectx.constructor_defs), subs
 
 
 def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
@@ -125,6 +126,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return t
         case SQualifiedVar():
             return t  # Resolved during desugaring, not during binding
+        case SAnonConstructor():
+            return t  # Resolved during elaboration, not during binding
         case SVar(name, loc=loc):
             return SVar(apply_subs_name(subs, name), loc=loc)
         case SHole(name, loc=loc):
@@ -166,7 +169,9 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
                 # Align pattern constructor names with the `Name` ids assigned while
                 # binding inductive constructor definitions (see `bind_program`).
                 ctor = apply_subs_name(subs, br.constructor)
-                n_branches.append(type(br)(constructor=ctor, binders=renamed_binders, body=n_body, loc=br.loc))
+                n_branches.append(
+                    type(br)(constructor=ctor, binders=renamed_binders, body=n_body, qualifier=br.qualifier, loc=br.loc)
+                )
             return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
