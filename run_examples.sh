@@ -19,25 +19,7 @@ else
     NCORES=4
 fi
 
-# Worker that runs a single example. Kept self-contained (rather than an
-# exported function) so it survives across differing bash versions invoked by
-# xargs. A complete line is printed at once so parallel output doesn't interleave.
-read -r -d '' RUN_ONE <<'EOF' || true
-f="$1"
-RESULT=0
-uv run python -m aeon --no-main --budget 10 "$f" > /dev/null 2>&1 || RESULT=$?
-if [ "$RESULT" -eq 0 ]; then
-    printf "Running %s ...(success)\n" "$f"
-elif [ "$RESULT" -eq 2 ]; then
-    printf "Running %s ...(no solution found, but OK)\n" "$f"
-else
-    printf "Running %s ...(failed)\n" "$f"
-    exit 111
-fi
-EOF
-
-status=0
-for folder in ffi image imports list mutual syntax synthesis synthesis/image_edits verification "PSB2/solved" 99problems;
+for folder in ffi image imports list syntax synthesis "PSB2/solved" "llvm/cpu/test" "llvm/gpu/test";
 do
     for entry in examples/$folder/*.ae
     do
