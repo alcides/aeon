@@ -161,8 +161,8 @@ def main() -> None:
     elif driver.has_synth():
         try:
             term = driver.synth()
-        except SynthesisNotSuccessful as e:
-            print(f"Synthesis failed: {e}", file=sys.stderr)
+        except SynthesisNotSuccessful:
+            print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
             sys.exit(1)
         print("Synthesized:")
         print("#str")
