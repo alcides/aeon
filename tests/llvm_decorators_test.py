@@ -57,21 +57,21 @@ def test_gpu_decorator_with_args():
     assert max_meta["gpu_thread_count"] == 128
 
 
-def test_llvm_decorator_defaults():
+def test_cpu_decorator_defaults():
     source = """
-    @llvm
+    @cpu
     def max(a:Int) (b:Int) : Int = if a > b then a else b;
     def main (x:Int) : Int = max 1 2;
     """
     metadata = _metadata_from_driver(source)
-    llvm_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("llvm")]
-    assert len(llvm_funcs) == 1
+    cpu_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("cpu")]
+    assert len(cpu_funcs) == 1
 
-    max_meta = metadata[llvm_funcs[0]]
-    assert max_meta["llvm_opt_level"] == 3
-    assert max_meta["llvm_log_ir"] is False
-    assert max_meta["llvm_debug"] is False
-    assert max_meta["llvm_cache"] is False
+    max_meta = metadata[cpu_funcs[0]]
+    assert max_meta["cpu_opt_level"] == 3
+    assert max_meta["cpu_log_ir"] is False
+    assert max_meta["cpu_debug"] is False
+    assert max_meta["cpu_cache"] is False
 
 
 def test_gpu_decorator_with_named_args():
@@ -95,27 +95,27 @@ def test_gpu_decorator_with_named_args():
     assert max_meta["gpu_thread_count"] == 128
 
 
-def test_llvm_decorator_with_named_args():
+def test_cpu_decorator_with_named_args():
     source = r"""
-    @llvm(opt_level=1, log_ir=true, cache=true, debug=true)
+    @cpu(opt_level=1, log_ir=true, cache=true, debug=true)
     def max(a:Int) (b:Int) : Int = if a > b then a else b;
     def main (x:Int) : Int = max 1 2;
     """
     metadata = _metadata_from_driver(source)
-    llvm_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("llvm")]
-    assert len(llvm_funcs) == 1
+    cpu_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("cpu")]
+    assert len(cpu_funcs) == 1
 
-    max_meta = metadata[llvm_funcs[0]]
-    assert max_meta["llvm_opt_level"] == 1
-    assert max_meta["llvm_log_ir"] is True
-    assert max_meta["llvm_debug"] is True
-    assert max_meta["llvm_cache"] is True
+    max_meta = metadata[cpu_funcs[0]]
+    assert max_meta["cpu_opt_level"] == 1
+    assert max_meta["cpu_log_ir"] is True
+    assert max_meta["cpu_debug"] is True
+    assert max_meta["cpu_cache"] is True
 
 
 def test_core_queue_cleared_after_typecheck():
-    """Queued ``@llvm`` metadata is applied in core phase (not left on sugar-only desugar)."""
+    """Queued ``@cpu`` metadata is applied in core phase (not left on sugar-only desugar)."""
     source = """
-    @llvm
+    @cpu
     def f(x:Int) : Int = x + 1;
     def main (x:Int) : Int = f x;
     """
@@ -123,5 +123,5 @@ def test_core_queue_cleared_after_typecheck():
     from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY
 
     assert CORE_DECORATOR_QUEUE_META_KEY not in metadata
-    llvm_keys = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("llvm")]
-    assert len(llvm_keys) >= 1
+    cpu_keys = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("cpu")]
+    assert len(cpu_keys) >= 1

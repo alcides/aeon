@@ -92,7 +92,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 name_str = var_name.name
                 for k, v in ctx.metadata.items():
                     k_name = k.name if isinstance(k, Name) else str(k)
-                    if k_name == name_str and (v.get("llvm") or v.get("gpu")):
+                    if k_name == name_str and (v.get("cpu") or v.get("gpu")):
                         found_llvm = True
                         break
 

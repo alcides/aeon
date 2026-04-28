@@ -25,7 +25,7 @@ def compile_and_run(source: str):
 
 def test_e2e_sum_floats():
     source = r"""
-    @llvm
+    @cpu
     def special_sum (x:Float) (y:Float) : Float =
         let w : Float = 5.0 in
         let z : Float = 10.0 in
@@ -39,7 +39,7 @@ def test_e2e_sum_floats():
 
 def test_e2e_recursive():
     source = r"""
-    @llvm
+    @cpu
     def count_divisors (target:Int) (candidate:Int) : Int =
         if candidate <= 0 then 0 else
         let remainder : Int = target % candidate in
@@ -54,7 +54,7 @@ def test_e2e_recursive():
 
 def test_e2e_llvm_fibonacci():
     source = r"""
-    @llvm
+    @cpu
     def fib(n:Int) : Int = if n <= 1 then n else fib (n-1) + fib (n-2);
 
     def main (i:Int) : Int = fib 10;
@@ -70,10 +70,10 @@ def test_e2e_llvm_matrix_sum():
     source = r"""
     import "Vector.ae";
 
-    @llvm
+    @cpu
     def add(acc:Int) (curr:Int) : Int = acc + curr;
 
-    @llvm
+    @cpu
     def sum_matrix(m:(Vector Int)) (s:Int) : Int = Vector_reduce[Int][Int] add 0 m s;
 
     def main (i:Int) : Int = sum_matrix (native "[1, 2, 3, 4]") 4;
@@ -89,7 +89,7 @@ def test_e2e_llvm_matrix_filter():
     source = r"""
     import "Vector.ae";
 
-    @llvm
+    @cpu
     def filter_even(m:(Vector Int)) (s:Int) : (Vector Int) =
         Vector_filter[Int] (\x:Int -> x % 2 == 0) m s;
 
@@ -109,7 +109,7 @@ def test_e2e_llvm_matrix_zip_with():
     source = r"""
     import "Vector.ae";
 
-    @llvm
+    @cpu
     def vec_add(v1:(Vector Int)) (v2:(Vector Int)) (s:Int) : (Vector Int) =
         Vector_zipWith[Int][Int][Int] (\x:Int -> \y:Int -> x + y) v1 v2 s;
 
@@ -130,7 +130,7 @@ def test_e2e_llvm_matrix_count():
     source = r"""
     import "Vector.ae";
 
-    @llvm
+    @cpu
     def count_gt_10(v:(Vector Int)) (s:Int) : Int =
         Vector_count[Int] (\x:Int -> x > 10) v s;
 
@@ -149,7 +149,7 @@ def test_e2e_llvm_matrix_map():
     source = r"""
     import "Vector.ae";
 
-    @llvm
+    @cpu
     def vec_inc(v:(Vector Int)) (s:Int) : (Vector Int) =
         Vector_map[Int][Int] (\x:Int -> x + 1) v s;
 
@@ -166,7 +166,7 @@ def test_e2e_llvm_math_integration():
     source = r"""
     import "Math.ae";
 
-    @llvm
+    @cpu
     def compute_circle_area(radius:Float) : Float = Math_PI * Math_powf radius 2.0;
 
     def main (i:Int) : Float = compute_circle_area 5.0;
