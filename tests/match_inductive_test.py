@@ -242,6 +242,7 @@ def test_anon_constructor_in_expression_with_annotation():
 def test_anon_constructor_parsed_as_node():
     """Parser produces SAnonConstructor for .foo expressions."""
     from aeon.sugar.parser import parse_expression
+
     t = parse_expression(".empty")
     assert isinstance(t, SAnonConstructor)
     assert t.name == "empty"
@@ -290,6 +291,7 @@ def test_bare_constructors_require_open():
 def test_bare_constructors_fail_without_open():
     """Without 'open', bare constructor names are NOT resolved (remain as unresolved vars)."""
     from aeon.facade.api import AeonError
+
     src = """
         inductive IntList
         | empty : IntList
@@ -303,5 +305,6 @@ def test_bare_constructors_fail_without_open():
     ctx, progt = bind(desugared.elabcontext, desugared.program)
     # Bare 'cons' should not resolve — elaboration should fail
     import pytest
+
     with pytest.raises((AeonError, AssertionError)):
         elaborate(ctx, progt, st_top)

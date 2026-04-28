@@ -173,7 +173,11 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
             for br in branches:
                 nb, sb = lower_by_blocks_in_sterm(br.body)
                 acc = merge(acc, sb)
-                nbrs.append(SMatchBranch(constructor=br.constructor, binders=br.binders, body=nb, qualifier=br.qualifier, loc=br.loc))
+                nbrs.append(
+                    SMatchBranch(
+                        constructor=br.constructor, binders=br.binders, body=nb, qualifier=br.qualifier, loc=br.loc
+                    )
+                )
             return SMatch(ns, nbrs, loc=loc), acc
         case SLet(name, val, body, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
@@ -270,7 +274,13 @@ def resolve_qualified_names_in_sterm(
             return SMatch(
                 scrutinee=rec(scrutinee),
                 branches=[
-                    SMatchBranch(constructor=br.constructor, binders=br.binders, body=rec(br.body), qualifier=br.qualifier, loc=br.loc)
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        body=rec(br.body),
+                        qualifier=br.qualifier,
+                        loc=br.loc,
+                    )
                     for br in branches
                 ],
                 loc=loc,
@@ -926,7 +936,9 @@ def replace_concrete_types(
             case _:
                 return e
 
-    return t, ElaborationTypingContext([fix_vartype(e) for e in etctx.entries], etctx.constructor_to_type, etctx.constructor_defs)
+    return t, ElaborationTypingContext(
+        [fix_vartype(e) for e in etctx.entries], etctx.constructor_to_type, etctx.constructor_defs
+    )
 
 
 def type_of_definition(d: Definition) -> SType:
