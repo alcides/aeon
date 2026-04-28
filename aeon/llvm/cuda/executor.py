@@ -165,6 +165,7 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
         llvm.initialize_all_targets()
         llvm.initialize_all_asmprinters()
         mod = llvm.parse_assembly(llvm_ir)
+        mod.verify()
         target = llvm.Target.from_triple("nvptx64-nvidia-cuda")
         tm = target.create_target_machine(cpu="sm_86", opt=3)
         pto = llvm.create_pipeline_tuning_options()
