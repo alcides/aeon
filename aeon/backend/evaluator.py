@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementAbstraction as RefinementAbstraction_alias, RefinementApplication, TypeAbstraction, TypeApplication
+from aeon.core.terms import (
+    Abstraction,
+    RefinementApplication,
+    TypeAbstraction,
+    TypeApplication,
+    RefinementAbstraction,
+)
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -109,7 +115,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
                     if found_llvm:
                         try:
-                            v_llvm = ctx.pipeline.get_curried_function(var_name,native_fallback=v_py)
+                            v_llvm = ctx.pipeline.get_curried_function(var_name, native_fallback=v_py)
                             if v_llvm is not None:
                                 v = v_llvm
                         except Exception:

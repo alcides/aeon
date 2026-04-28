@@ -121,7 +121,10 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         def vector_size(ptr: ctypes.c_void_p) -> int:
             if not ptr:
                 return 0
-            size_ptr = ctypes.cast(ctypes.c_void_p(ptr - 8), ctypes.POINTER(ctypes.c_int32))
+            addr = ctypes.cast(ptr, ctypes.c_void_p).value
+            if addr is None:
+                return 0
+            size_ptr = ctypes.cast(ctypes.c_void_p(addr - 8), ctypes.POINTER(ctypes.c_int32))
             return size_ptr[0]
 
         def native_dummy(code: ctypes.c_char_p) -> ctypes.c_void_p:
