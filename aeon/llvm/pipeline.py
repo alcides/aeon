@@ -18,7 +18,7 @@ class MultiBackendPipeline(LLVMPipeline):
     def __init__(self, metadata: Dict[Name, Any] | None = None):
         self.metadata = metadata or {}
         self.backends: Dict[str, Backend] = {}
-        self.function_targets: Dict[Name, str] = {}
+        self.function_targets: Dict[Name, list[str]] = {}
         self.compiled_functions_by_backend: Dict[str, Dict[Name, LLVMTerm]] = {}
         self.llvm_ir_by_backend: Dict[str, str] = {}
         self.type_environment: Dict[Name, Any] = {}
@@ -64,37 +64,44 @@ class MultiBackendPipeline(LLVMPipeline):
 
         for target_id, target_body in discovered_targets.items():
             target_name = self._get_target_for_function(target_id)
-            if target_name not in self.backends:
-                logger.warning(f"Backend {target_name} not found for function {target_id}. Falling back to cpu.")
-                target_name = "cpu"
 
-            self.function_targets[target_id] = target_name
-            backend = self.backends[target_name]
+            targets_to_try = []
+            if target_name in self.backends and target_name != "cpu":
+                targets_to_try.append(target_name)
+            targets_to_try.append("cpu")
 
-            target_type = self.type_environment[target_id]
-            target_llvm_type = to_llvm_type(target_type)
+            successful_targets = []
 
-            env = {}
-            for b_funcs in self.compiled_functions_by_backend.values():
-                env.update(b_funcs)
+            for current_target in targets_to_try:
+                try:
+                    backend = self.backends[current_target]
 
-            llvm_ast = backend.lowerer.lower(
-                target_body,
-                expected_type=target_llvm_type,
-                type_env={fid: to_llvm_type(ty) for fid, ty in self.type_environment.items()},
-                env=env,
-            )
+                    target_type = self.type_environment[target_id]
+                    target_llvm_type = to_llvm_type(target_type)
 
-            if isinstance(llvm_ast, LLVMFunction):
-                llvm_ast.name = target_id
+                    env = {}
+                    for b_funcs in self.compiled_functions_by_backend.values():
+                        env.update(b_funcs)
 
-            self.compiled_functions_by_backend[target_name][target_id] = llvm_ast
+                    llvm_ast = backend.lowerer.lower(
+                        target_body,
+                        expected_type=target_llvm_type,
+                        type_env={fid: to_llvm_type(ty) for fid, ty in self.type_environment.items()},
+                        env=env,
+                    )
 
-        for backend_name, backend in self.backends.items():  # generate ir
-            funcs = list(self.compiled_functions_by_backend[backend_name].values())
-            if funcs:
-                self.llvm_ir_by_backend[backend_name] = backend.generator.generate_ir(funcs)
-                logger.debug(f"Backend {backend_name} IR:\n{self.llvm_ir_by_backend[backend_name]}")
+                    if isinstance(llvm_ast, LLVMFunction):
+                        llvm_ast.name = target_id
+
+                    self.compiled_functions_by_backend[current_target][target_id] = llvm_ast
+                    successful_targets.append(current_target)
+                except Exception as e:
+                    logger.debug(f"Failed to compile {target_id} for {current_target}: {e}")
+
+            if successful_targets:
+                self.function_targets[target_id] = successful_targets
+            else:
+                logger.warning(f"All LLVM compilations failed for {target_id}. Falling back to native python.")
 
     def _find_compilation_targets(self, term: Term) -> Dict[Name, Term]:
         discovery_targets = {}
@@ -111,7 +118,7 @@ class MultiBackendPipeline(LLVMPipeline):
                 should_compile = False
                 for meta_key, meta_value in self.metadata.items():
                     key_string = meta_key.name if isinstance(meta_key, Name) else str(meta_key)
-                    if key_string == target_name and (meta_value.get("llvm") or meta_value.get("gpu")):
+                    if key_string == target_name and (meta_value.get("cpu") or meta_value.get("gpu")):
                         should_compile = True
                         break
 
@@ -122,15 +129,19 @@ class MultiBackendPipeline(LLVMPipeline):
 
         return discovery_targets
 
-    def get_curried_function(self, function_id: Name):
+    def get_curried_function(self, function_id: Name, native_fallback: Any = None):
         if function_id not in self.function_targets:
             function_id = self.name_to_id_cache.get(function_id.name)
 
         if function_id is None or function_id not in self.function_targets:
             return None
 
-        target_name = self.function_targets[function_id]
-        backend = self.backends[target_name]
+        target_names = self.function_targets[function_id]
+        if not target_names:
+            return None
+
+        first_target = target_names[0]
+        backend = self.backends[first_target]
         target_type = self.type_environment.get(function_id)
 
         target_llvm_type = to_llvm_type(target_type)
@@ -138,30 +149,71 @@ class MultiBackendPipeline(LLVMPipeline):
 
         def invoke_wrapper(accumulated_args: list[Any]):
             if len(accumulated_args) == len(param_types):
-                return self.invoke(function_id, accumulated_args)
+                return self.invoke(function_id, accumulated_args, native_fallback)
             else:
                 return lambda next_arg: invoke_wrapper(accumulated_args + [next_arg])
 
         return invoke_wrapper([])
 
-    def invoke(self, name_id: Name, arguments: list[Any]):
-        target_name = self.function_targets.get(name_id)
-        if not target_name:  # try cache
+    def invoke(self, name_id: Name, arguments: list[Any], native_fallback: Any = None):
+        target_names = self.function_targets.get(name_id)
+        if not target_names:  # try cache
             name_id = self.name_to_id_cache.get(name_id.name)
-            target_name = self.function_targets.get(name_id)
+            target_names = self.function_targets.get(name_id)
 
-        if not target_name:
+        if not target_names:
+            if native_fallback:
+                return self._invoke_native(native_fallback, arguments)
             raise LLVMBackendError(f"target backend for {name_id} not found")
 
-        backend = self.backends[target_name]
-        target_type = self.type_environment.get(name_id)
-        target_llvm_type = to_llvm_type(target_type)
-        param_types, return_type = backend.lowerer.get_signature(target_llvm_type)
+        last_exception = None
 
-        return backend.executor.execute(
-            self.llvm_ir_by_backend[target_name],
-            sanitize_name(name_id),
-            arguments,
-            param_types,
-            return_type,
-        )
+        # Make a copy to iterate so we can remove elements from the original safely
+        for target_name in list(target_names):
+            backend = self.backends[target_name]
+
+            if not self.llvm_ir_by_backend.get(target_name):
+                funcs = list(self.compiled_functions_by_backend[target_name].values())
+                if funcs:
+                    try:
+                        self.llvm_ir_by_backend[target_name] = backend.generator.generate_ir(funcs)
+                        logger.debug(f"Backend {target_name} IR:\\n{self.llvm_ir_by_backend[target_name]}")
+                    except Exception as e:
+                        logger.warning(f"IR generation failed for {target_name}: {e}. Falling back...")
+                        self.function_targets[name_id].remove(target_name)
+                        continue
+                else:
+                    self.function_targets[name_id].remove(target_name)
+                    continue
+
+            target_type = self.type_environment.get(name_id)
+            target_llvm_type = to_llvm_type(target_type)
+            param_types, return_type = backend.lowerer.get_signature(target_llvm_type)
+
+            try:
+                return backend.executor.execute(
+                    self.llvm_ir_by_backend[target_name],
+                    sanitize_name(name_id),
+                    arguments,
+                    param_types,
+                    return_type,
+                )
+            except Exception as e:
+                logger.warning(f"Execution failed on {target_name} for {name_id}: {e}. Falling back...")
+                last_exception = e
+                self.function_targets[name_id].remove(target_name)
+
+        if native_fallback:
+            logger.warning(f"All LLVM executions failed for {name_id}. Falling back to native python.")
+            return self._invoke_native(native_fallback, arguments)
+
+        raise LLVMBackendError(f"All executions failed for {name_id}. Last error: {last_exception}")
+
+    def _invoke_native(self, native_func: Any, args: list[Any]) -> Any:
+        res = native_func
+        for arg in args:
+            if callable(res):
+                res = res(arg)
+            else:
+                raise LLVMBackendError("Native fallback is not callable with provided arguments.")
+        return res

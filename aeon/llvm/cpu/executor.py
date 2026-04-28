@@ -127,7 +127,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
     ) -> Any:
         self._keep_alive = []
         metadata = metadata or {}
-        opt_level = metadata.get("llvm_opt_level", 3)
+        opt_level = metadata.get("cpu_opt_level", 3)
 
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
@@ -140,12 +140,12 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         backing_mod = llvm.parse_assembly(llvm_ir)
         backing_mod.verify()
 
-        pmb = llvm.create_pass_manager_builder()
-        pmb.opt_level = opt_level
-
-        pm = llvm.create_module_pass_manager()
-        pmb.populate(pm)
-        pm.run(backing_mod)
+        pto = llvm.create_pipeline_tuning_options()
+        pto.opt_level = opt_level
+        pb = llvm.create_pass_builder(self.target_machine, pto)
+        pm = llvm.create_new_module_pass_manager()
+        pb.populate_module_pass_manager(pm)
+        pm.run(backing_mod, pb)
 
         with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
             engine.finalize_object()
