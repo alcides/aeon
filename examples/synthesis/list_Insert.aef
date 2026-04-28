@@ -1,5 +1,5 @@
 open List
 
-def insert_end (n: Int) (xs:(List Int)) : { j:(List Int)| ((List_size xs) + 1) == (List_size j) } {
+def insert_end (n: Int) (xs:(List Int)) : { j:(List Int)| ((List.size xs) + 1) == (List.size j) } {
     ?hole
 }

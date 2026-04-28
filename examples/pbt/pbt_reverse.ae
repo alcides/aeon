@@ -1,9 +1,10 @@
+open List
 open PropTesting
 
-def reverse (xs: (List Int)) : (List Int) = List_reversed(xs)
+def reverse (xs: (List Int)) : (List Int) = List.reversed(xs)
 
 
-def prop_reversed_lists_same_size (xs:(List Int)) : Bool = (List_length xs) == (List_length (reverse xs));
+def prop_reversed_lists_same_size (xs:(List Int)) : Bool = (List.length xs) == (List.length (reverse xs));
 
 def list_property_testing (y: Int) : Float = forAllLists prop_reversed_lists_same_size
 

@@ -137,12 +137,12 @@ LLVMVectorDouble = LLVMPointerType(LLVMDouble)
 
 VECTOR_OPERATIONS: frozenset[str] = frozenset(
     [
-        "Vector_map",
-        "Vector_reduce",
-        "Vector_imap",
-        "Vector_filter",
-        "Vector_zipWith",
-        "Vector_count",
+        "map",
+        "reduce",
+        "imap",
+        "filter",
+        "zipWith",
+        "count",
     ]
 )
 

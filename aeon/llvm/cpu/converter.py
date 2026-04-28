@@ -141,18 +141,18 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             return self.module.globals[str_name]
 
         base_name = var_name.name
-        if base_name == "Math_PI":
+        if base_name == "PI":
             return ir.Constant(ir.DoubleType(), 3.141592653589793)
 
         builtin_map = {
-            "Math_pow": "pow",
-            "Math_powf": "pow",
-            "Math_sqrt": "sqrt",
-            "Math_sqrtf": "sqrt",
-            "Math_sin": "sin",
-            "Math_cos": "cos",
-            "Math_exp": "exp",
-            "Math_log": "log",
+            "pow": "pow",
+            "powf": "pow",
+            "sqrt": "sqrt",
+            "sqrtf": "sqrt",
+            "sin": "sin",
+            "cos": "cos",
+            "exp": "exp",
+            "log": "log",
         }
 
         name_parts = str_name.rsplit("_", 1)

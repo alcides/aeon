@@ -9,21 +9,21 @@ type Row
 # Reads a CSV file and returns a Table.
 # path: path to the CSV file
 # returns: table loaded from the CSV file
-def Table_from_csv(path: String): Table =
+def from_csv(path: String): Table =
     native "__import__('pandas').read_csv(path).to_dict('records')"
 
 
 # Writes a Table to a CSV file.
 # table: the table to write
 # path: path to the output CSV file
-def Table_to_csv(table: Table) (path: String): Unit =
+def to_csv(table: Table) (path: String): Unit =
     native "__import__('pandas').DataFrame(table).to_csv(path, index=False)"
 
 
 # Returns the list of column names in the table.
 # table: the table to inspect
 # returns: list of column names
-def Table_columns(table: Table): (List String) =
+def columns(table: Table): (List String) =
     native "list(table[0].keys()) if len(table) > 0 else []"
 
 
@@ -31,7 +31,7 @@ def Table_columns(table: Table): (List String) =
 # table: the table to select from
 # columns: columns to select
 # returns: new table with only the selected columns
-def Table_select(table: Table) (columns: (List String)): Table =
+def select(table: Table) (columns: (List String)): Table =
     native "[{col: row[col] for col in columns} for row in table]"
 
 
@@ -39,7 +39,7 @@ def Table_select(table: Table) (columns: (List String)): Table =
 # table: the table to filter
 # predicate: function to decide if a row is kept
 # returns: filtered table
-def Table_filter(table: Table) (predicate: (row: Row) -> Bool): Table =
+def filter(table: Table) (predicate: (row: Row) -> Bool): Table =
     native "[row for row in table if predicate(row)]"
 
 
@@ -48,7 +48,7 @@ def Table_filter(table: Table) (predicate: (row: Row) -> Bool): Table =
 # column: column to modify
 # f: function to apply to each value in the column
 # returns: table with updated column values
-def Table_map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
+def map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
     native "[dict(row, **{column: f(row[column])}) for row in table]"
 
 
@@ -57,7 +57,7 @@ def Table_map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
 # column: column to summarize
 # f: summary function (e.g., sum, mean)
 # returns: result of the summary function
-def Table_summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b =
+def summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b =
     native "f([row[column] for row in table])"
 
 
@@ -66,7 +66,7 @@ def Table_summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b =
 # table: the table to group
 # column: column to group by
 # returns: list of tables, each corresponding to a group
-def Table_group_by(table: Table) (column: String): (List Table) =
+def group_by(table: Table) (column: String): (List Table) =
     native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.group_by(table, column)"
 
 
@@ -79,7 +79,7 @@ def Table_group_by(table: Table) (column: String): (List Table) =
 # columns: column whose unique values become new columns
 # values: column to fill values from
 # returns: reshaped table (list of dicts)
-def Table_pivot(table: Table) (index: String) (columns: String) (values: String): Table =
+def pivot(table: Table) (index: String) (columns: String) (values: String): Table =
     native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.pivot(table, index, columns, values)"
 
 
@@ -92,5 +92,5 @@ def Table_pivot(table: Table) (index: String) (columns: String) (values: String)
 # var_name: name for the new variable column
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
-def Table_melt(table: Table) (id_vars: (List String)) (value_vars: (List String)) (var_name: String) (value_name: String): Table =
+def melt(table: Table) (id_vars: (List String)) (value_vars: (List String)) (var_name: String) (value_name: String): Table =
     native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"

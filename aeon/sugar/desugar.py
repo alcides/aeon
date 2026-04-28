@@ -274,13 +274,42 @@ def resolve_qualified_names_in_sterm(
             return t
 
 
+def resolve_qualified_names_in_stype(
+    ty: SType, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+) -> SType:
+    """Resolve qualified names inside refinement predicates within types."""
+
+    def rec_ty(t: SType) -> SType:
+        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope)
+
+    def rec_term(t: STerm) -> STerm:
+        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope)
+
+    match ty:
+        case SRefinedType(name, inner_ty, refinement, loc):
+            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
+        case SAbstractionType(var_name, var_type, body_type, loc):
+            return SAbstractionType(var_name, rec_ty(var_type), rec_ty(body_type), loc=loc)
+        case STypePolymorphism(name, kind, body, loc):
+            return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(name, rec_ty(sort), rec_ty(body), loc=loc)
+        case STypeConstructor(name, args, loc):
+            new_args = [rec_ty(a) for a in args]
+            return STypeConstructor(name, new_args, loc=loc)
+        case _:
+            return ty
+
+
 def resolve_qualified_names_in_definition(
     d: Definition, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
 ) -> Definition:
     new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope)
-    if new_body is d.body:
+    new_args = [(name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope)) for name, ty in d.args]
+    new_type = resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope) if d.type else d.type
+    if new_body is d.body and new_args == d.args and new_type is d.type:
         return d
-    return Definition(d.name, d.foralls, d.args, d.type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
+    return Definition(d.name, d.foralls, new_args, new_type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
@@ -299,7 +328,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs, type_decls = p.definitions, p.type_decls
     defs, type_decls, qualified_scope, unqualified_scope = handle_imports(p.imports, defs, type_decls)
 
-    # Resolve qualified names (Math.pow -> Math_pow) and unqualified bare names from open/selective imports
+    # Resolve qualified names (Math.pow -> pow) and unqualified bare names from open/selective imports
     defs = [resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope) for d in defs]
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope)
 
@@ -766,7 +795,7 @@ def determine_main_function(p: Program, is_main_hole: bool = True) -> STerm:
 
 
 def _bare_name(module_name: str, def_name: str) -> str:
-    """Strip module prefix from a definition name: Math_pow -> pow."""
+    """Strip module prefix from a definition name if present: Math_pow -> pow, or pow -> pow."""
     prefix = module_name + "_"
     if def_name.startswith(prefix):
         return def_name[len(prefix) :]

@@ -1,70 +1,215 @@
 def math : Unit = native_import "math"
 
-# Returns the minimum of two integers.
-def Math_min (i: Int) (j: Int) : Int = native "min(i, j)"
-
-# Returns the maximum of two integers.
-def Math_max (i: Int) (j: Int) : Int = native "max(i, j)"
-
-# Returns the absolute value of an integer.
-def Math_abs (i:Int) : {v:Int | v >= 0} = native "abs(i)"
-
-# Returns the ceiling of a float as an integer.
-def Math_ceil (i:Float) : Int = native "math.ceil(i)"
-
-# Returns the floor of an integer as an integer.
-def Math_floor (i:Int) : Int = native "math.floor(i)"
-
-# Converts an integer to a float.
-def Math_toFloat (i:Int) : Float = native "float(i)"
-
-# Converts a float to an integer (truncates towards zero).
-def Math_toInt (i:Float) : Int = native "int(i)"
-
-# Returns the square root of an integer as a float.
-def Math_sqrt (i:Int) : Float = native "math.sqrt(i)"
-
-# Raises a float to the power of another float.
-def Math_powf (i:Float) (j:Float) : Float = native "i ** j";
-
-# Raises an integer to the power of another integer.
-def Math_pow (i:Int) (j:Int) : Int = native "i ** j"
-
-# Rounds a float to the nearest integer.
-def Math_round (i:Float) : Int = native "round(i)"
-
-# Performs integer division (floor division).
-def Math_floor_division (i:Int) (j: Int) : Int = native "i // j"
-
-# Returns the sine of a float (in radians).
-def Math_sin (i: Float) : Float = native "math.sin(i)"
-
-# Returns the cosine of a float (in radians).
-def Math_cos (i: Float) : Float = native "math.cos(i)"
-
-# Returns the arc tangent of sinVal/cosVal, in radians.
-def Math_atan2 (sinVal: Float) (cosVal: Float) : Float = native "math.atan2(sinVal, cosVal)"
+# ── Constants ──────────────────────────────────────────────────────────
 
 # The value of PI.
-def Math_PI : Float = native "math.pi"
+def PI : Float = native "math.pi"
+
+# The value of Euler's number e.
+def E : Float = native "math.e"
+
+# The value of tau (2 * PI).
+def TAU : Float = native "math.tau"
+
+# Positive infinity.
+def INF : Float = native "math.inf"
+
+# ── Conversions ────────────────────────────────────────────────────────
+
+# Converts an integer to a float.
+def toFloat (i:Int) : Float = native "float(i)"
+
+# Converts a float to an integer (truncates towards zero).
+def toInt (i:Float) : Int = native "int(i)"
+
+# ── Integer arithmetic ─────────────────────────────────────────────────
+
+# Returns the minimum of two integers.
+def min (i: Int) (j: Int) : Int = native "min(i, j)"
+
+# Returns the maximum of two integers.
+def max (i: Int) (j: Int) : Int = native "max(i, j)"
+
+# Returns the absolute value of an integer.
+def abs (i:Int) : {v:Int | v >= 0} = native "abs(i)"
+
+# Raises an integer to the power of a non-negative integer.
+def pow (i:Int) (j:{v:Int | v >= 0}) : Int = native "i ** j"
+
+# Performs integer division (floor division). Divisor must be nonzero.
+def floor_division (i:Int) (j:{v:Int | v != 0}) : Int = native "i // j"
+
+# Returns the greatest common divisor of two integers.
+def gcd (i:Int) (j:Int) : {v:Int | v >= 0} = native "math.gcd(i, j)"
+
+# Returns the least common multiple of two integers.
+def lcm (i:Int) (j:Int) : {v:Int | v >= 0} = native "math.lcm(i, j)"
+
+# Returns the factorial of a non-negative integer.
+def factorial (i:{v:Int | v >= 0}) : {v:Int | v >= 1} = native "math.factorial(i)"
+
+# Returns n choose k (binomial coefficient).
+def comb (n:{v:Int | v >= 0}) (k:{v:Int | v >= 0}) : {v:Int | v >= 0} = native "math.comb(n, k)"
+
+# Returns n permute k (number of permutations).
+def perm (n:{v:Int | v >= 0}) (k:{v:Int | v >= 0}) : {v:Int | v >= 0} = native "math.perm(n, k)"
+
+# ── Float arithmetic ──────────────────────────────────────────────────
 
 # Returns the minimum of two floats.
-def Math_minf (i: Float) (j: Float): Float = native "min(i, j)"
+def minf (i: Float) (j: Float): Float = native "min(i, j)"
 
-# Returns the square root of a float.
-def Math_sqrtf (i: Float) : Float = native "math.sqrt(i)"
+# Returns the maximum of two floats.
+def maxf (i: Float) (j: Float): Float = native "max(i, j)"
 
 # Returns the absolute value of a float.
-def Math_absf (i:Float) : Float = native "abs(i)"
+def absf (i:Float) : {v:Float | v >= 0.0} = native "abs(i)"
 
-# Returns the natural logarithm (base e) of a float.
-def Math_log (i: Float) : Float = native "math.log(i)"
+# Raises a float to the power of another float.
+def powf (i:Float) (j:Float) : Float = native "i ** j"
 
-# Returns the base-10 logarithm of a float.
-def Math_log10 (i: Float) : Float = native "math.log10(i)"
+# Returns the remainder of i / j (IEEE 754 style).
+def remainder (i:Float) (j:{v:Float | v != 0.0}) : Float = native "math.remainder(i, j)"
 
-# Returns the base-2 logarithm of a float.
-def Math_log2 (i: Float) : Float = native "math.log2(i)"
+# Returns the float modulo.
+def fmod (i:Float) (j:{v:Float | v != 0.0}) : Float = native "math.fmod(i, j)"
+
+# ── Rounding ──────────────────────────────────────────────────────────
+
+# Rounds a float to the nearest integer.
+def round (i:Float) : Int = native "round(i)"
+
+# Returns the ceiling of a float as an integer.
+def ceil (i:Float) : Int = native "math.ceil(i)"
+
+# Returns the floor of a float as an integer.
+def floor (i:Float) : Int = native "math.floor(i)"
+
+# Truncates a float to an integer (towards zero).
+def trunc (i:Float) : Int = native "math.trunc(i)"
+
+# ── Powers, roots, and exponentials ───────────────────────────────────
+
+# Returns the square root of a non-negative integer as a float.
+def sqrt (i:{v:Int | v >= 0}) : {v:Float | v >= 0.0} = native "math.sqrt(i)"
+
+# Returns the square root of a non-negative float.
+def sqrtf (i:{v:Float | v >= 0.0}) : {v:Float | v >= 0.0} = native "math.sqrt(i)"
+
+# Returns the integer square root of a non-negative integer.
+def isqrt (i:{v:Int | v >= 0}) : {v:Int | v >= 0} = native "math.isqrt(i)"
+
+# Returns the cube root of a float.
+def cbrt (i:Float) : Float = native "math.cbrt(i)"
 
 # Returns e raised to the power of the given float.
-def Math_exp (i: Float) : Float = native "math.exp(i)"
+def exp (i: Float) : {v:Float | v > 0.0} = native "math.exp(i)"
+
+# Returns e**x - 1, more precise for small x.
+def expm1 (i: Float) : Float = native "math.expm1(i)"
+
+# Returns 2 raised to the power of the given float.
+def exp2 (i: Float) : {v:Float | v > 0.0} = native "2.0 ** i"
+
+# ── Logarithms ────────────────────────────────────────────────────────
+
+# Returns the natural logarithm (base e) of a positive float.
+def log (i: {v:Float | v > 0.0}) : Float = native "math.log(i)"
+
+# Returns the base-10 logarithm of a positive float.
+def log10 (i: {v:Float | v > 0.0}) : Float = native "math.log10(i)"
+
+# Returns the base-2 logarithm of a positive float.
+def log2 (i: {v:Float | v > 0.0}) : Float = native "math.log2(i)"
+
+# Returns log(1 + x), more precise for small x.
+def log1p (i: {v:Float | v > -1.0}) : Float = native "math.log1p(i)"
+
+# ── Trigonometry ──────────────────────────────────────────────────────
+
+# Returns the sine of a float (in radians).
+def sin (i: Float) : Float = native "math.sin(i)"
+
+# Returns the cosine of a float (in radians).
+def cos (i: Float) : Float = native "math.cos(i)"
+
+# Returns the tangent of a float (in radians).
+def tan (i: Float) : Float = native "math.tan(i)"
+
+# Returns the arc sine of a float in [-1, 1].
+def asin (i: {v:Float | -1.0 <= v && v <= 1.0}) : Float = native "math.asin(i)"
+
+# Returns the arc cosine of a float in [-1, 1].
+def acos (i: {v:Float | -1.0 <= v && v <= 1.0}) : Float = native "math.acos(i)"
+
+# Returns the arc tangent of a float.
+def atan (i: Float) : Float = native "math.atan(i)"
+
+# Returns the arc tangent of sinVal/cosVal, in radians.
+def atan2 (sinVal: Float) (cosVal: Float) : Float = native "math.atan2(sinVal, cosVal)"
+
+# Converts degrees to radians.
+def radians (deg: Float) : Float = native "math.radians(deg)"
+
+# Converts radians to degrees.
+def degrees (rad: Float) : Float = native "math.degrees(rad)"
+
+# Returns the Euclidean distance between two 2D points.
+def hypot (x: Float) (y: Float) : {v:Float | v >= 0.0} = native "math.hypot(x, y)"
+
+# ── Hyperbolic functions ──────────────────────────────────────────────
+
+# Returns the hyperbolic sine.
+def sinh (i: Float) : Float = native "math.sinh(i)"
+
+# Returns the hyperbolic cosine. Result is always >= 1.
+def cosh (i: Float) : {v:Float | v >= 1.0} = native "math.cosh(i)"
+
+# Returns the hyperbolic tangent.
+def tanh (i: Float) : Float = native "math.tanh(i)"
+
+# Returns the inverse hyperbolic sine.
+def asinh (i: Float) : Float = native "math.asinh(i)"
+
+# Returns the inverse hyperbolic cosine. Input must be >= 1.
+def acosh (i: {v:Float | v >= 1.0}) : {v:Float | v >= 0.0} = native "math.acosh(i)"
+
+# Returns the inverse hyperbolic tangent. Input must be in (-1, 1).
+def atanh (i: {v:Float | -1.0 < v && v < 1.0}) : Float = native "math.atanh(i)"
+
+# ── Special functions ─────────────────────────────────────────────────
+
+# Returns the error function.
+def erf (i: Float) : Float = native "math.erf(i)"
+
+# Returns the complementary error function.
+def erfc (i: Float) : Float = native "math.erfc(i)"
+
+# Returns the natural log of the absolute value of the Gamma function.
+def lgamma (i: Float) : Float = native "math.lgamma(i)"
+
+# Returns the Gamma function. Input must be positive or non-integer.
+def gamma (i: {v:Float | v > 0.0}) : {v:Float | v > 0.0} = native "math.gamma(i)"
+
+# ── Classification ────────────────────────────────────────────────────
+
+# Returns true if the float is finite (not infinity or NaN).
+def isfinite (i: Float) : Bool = native "math.isfinite(i)"
+
+# Returns true if the float is infinity.
+def isinf (i: Float) : Bool = native "math.isinf(i)"
+
+# Returns true if the float is NaN.
+def isnan (i: Float) : Bool = native "math.isnan(i)"
+
+# Returns the sign of an integer: -1, 0, or 1.
+def sign (i: Int) : {v:Int | v >= (0 - 1) && v <= 1} = native "(0 < i) - (i < 0)"
+
+# Returns the sign of a float: -1, 0, or 1.
+def signf (i: Float) : {v:Int | v >= (0 - 1) && v <= 1} = native "(0.0 < i) - (i < 0.0)"
+
+# Clamps an integer to the range [lo, hi].
+def clamp (x: Int) (lo: Int) (hi: {v:Int | v >= lo}) : {v:Int | v >= lo && v <= hi} = native "max(lo, min(x, hi))"
+
+# Clamps a float to the range [lo, hi].
+def clampf (x: Float) (lo: Float) (hi: {v:Float | v >= lo}) : {v:Float | v >= lo && v <= hi} = native "max(lo, min(x, hi))"
