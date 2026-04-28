@@ -16,12 +16,12 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorZipWith,
     LLVMVectorCount,
     LLVMVoidType,
-    LLVMCall,
     LLVMVar,
     LLVMTerm,
     LLVMLet,
 )
 from aeon.llvm.utils import sanitize_name
+from aeon.utils.name import Name
 
 
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
@@ -39,7 +39,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         self.kernel_names: set[str] = set()
         self.fn_count = 0
         self.env: dict[str, Any] = {}
-        self.ast_env: dict[str, LLVMTerm] = {}
+        self.ast_env: dict[Name, LLVMTerm] = {}
         self.vector_op_depth = 0
         llvm.initialize_all_targets()
 
@@ -49,25 +49,18 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             self.env.update(initial_env)
         kernels: list[LLVMFunction] = [d for d in definitions if isinstance(d, LLVMFunction)]
         for k in kernels:
-            self.ast_env[sanitize_name(k.name)] = k
+            self.ast_env[k.name] = k
 
         all_called = set()
 
-        def find_calls(node):
-            if isinstance(node, LLVMCall) and isinstance(node.target, LLVMVar):
-                all_called.add(sanitize_name(node.target.name))
-            if isinstance(node, LLVMFunction):
-                find_calls(node.body)
-            if isinstance(node, list):
-                [find_calls(i) for i in node]
-            if hasattr(node, "__dict__"):
-                [find_calls(v) for v in node.__dict__.values() if isinstance(v, (LLVMTerm, list))]
-
         for k in kernels:
-            find_calls(k.body)
+            all_called.update(k.body.find_calls())
 
+        all_called_base_names = {n.name for n in all_called}
         self.kernel_names = {
-            sanitize_name(k.name) for k in kernels if k.name and sanitize_name(k.name) not in all_called
+            sanitize_name(k.name)
+            for k in kernels
+            if k.name and k.name not in all_called and k.name.name not in all_called_base_names
         }
 
         all_funcs = []
@@ -186,12 +179,11 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def _resolve_actual_f(self, f_node: LLVMTerm) -> LLVMTerm:
         if isinstance(f_node, LLVMVar):
-            name = sanitize_name(f_node.name)
-            if name in self.ast_env:
-                return self.ast_env[name]
-            base_name = f_node.name.name
-            if base_name in self.ast_env:
-                return self.ast_env[base_name]
+            if f_node.name in self.ast_env:
+                return self.ast_env[f_node.name]
+            for key, val in self.ast_env.items():
+                if key.name == f_node.name.name:
+                    return val
         return f_node
 
     def _inline_or_call(self, f_node: LLVMTerm, args: list[ir.Value]) -> ir.Value:
@@ -292,7 +284,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def visit_let(self, node: LLVMLet) -> ir.Value | None:
         if isinstance(node.var_value, LLVMFunction):
-            self.ast_env[sanitize_name(node.var_name)] = node.var_value
+            self.ast_env[node.var_name] = node.var_value
             return node.body.accept(self)
         return super().visit_let(node)
 
