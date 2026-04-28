@@ -216,17 +216,34 @@ class SIf(STerm):
 
 
 @dataclass(frozen=True)
+class SAnonConstructor(STerm):
+    name: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f".{self.name}"
+
+    def __repr__(self):
+        return f"AnonCtor(.{self.name})"
+
+    def __eq__(self, other):
+        return isinstance(other, SAnonConstructor) and self.name == other.name
+
+
+@dataclass(frozen=True)
 class SMatchBranch:
     constructor: Name
     binders: list[Name]
     body: STerm
+    qualifier: str | None = None
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
         binders = " ".join(str(b) for b in self.binders)
+        prefix = f"{self.qualifier}." if self.qualifier else ""
         if binders:
-            return f"| {self.constructor} {binders} => {self.body}"
-        return f"| {self.constructor} => {self.body}"
+            return f"| {prefix}{self.constructor} {binders} => {self.body}"
+        return f"| {prefix}{self.constructor} => {self.body}"
 
 
 @dataclass(frozen=True)

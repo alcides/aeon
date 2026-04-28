@@ -9,6 +9,7 @@ from aeon.core.types import BaseKind, StarKind
 from aeon.sugar.program import (
     Decorator,
     SAbstraction,
+    SAnonConstructor,
     SAnnotation,
     SApplication,
     SQualifiedVar,
@@ -173,6 +174,30 @@ class TreeToSugar(Transformer):
         constructor_name = Name(args[0])
         binders = [Name(b) for b in args[1]]
         return SMatchBranch(constructor=constructor_name, binders=binders, body=args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def match_branch_qualified(self, meta, args):
+        # | Type.Constructor <binders>* => <body>
+        parts = str(args[0]).split(".", 1)
+        qualifier = parts[0]
+        constructor_name = Name(parts[1])
+        binders = [Name(b) for b in args[1]]
+        return SMatchBranch(
+            constructor=constructor_name, binders=binders, body=args[2], qualifier=qualifier, loc=self._loc(meta)
+        )
+
+    @v_args(meta=True)
+    def match_branch_anon(self, meta, args):
+        # | .Constructor <binders>* => <body>
+        bare = str(args[0])[1:]  # strip leading dot
+        constructor_name = Name(bare)
+        binders = [Name(b) for b in args[1]]
+        return SMatchBranch(constructor=constructor_name, binders=binders, body=args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def anon_constructor(self, meta, args):
+        bare = str(args[0])[1:]  # strip leading dot
+        return SAnonConstructor(bare, loc=self._loc(meta))
 
     @v_args(meta=True)
     def nnot(self, meta, args):

@@ -39,6 +39,8 @@ class ElabTypeDecl(ElabTypingContextEntry):
 @dataclass
 class ElaborationTypingContext:
     entries: MutableSequence[ElabTypingContextEntry] = field(default_factory=list)
+    constructor_to_type: dict[str, Name] = field(default_factory=dict)
+    constructor_defs: dict[str, Name] = field(default_factory=dict)
 
     def type_of(self, name: Name):
         """Returns the type of the variable name."""
@@ -52,21 +54,32 @@ class ElaborationTypingContext:
     def with_var(self, name: Name, ty: SType):
         """Creates a new context, with an extra variable."""
         nentries = [x for x in self.entries] + [ElabVariableBinder(name, ty)]
-        return ElaborationTypingContext(nentries)
+        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs)
 
     def with_typevar(self, name: Name, kind: Kind):
         """Creates a new context, with an extra type variable"""
         nentries = [x for x in self.entries] + [ElabTypeVarBinder(name, kind)]
-        return ElaborationTypingContext(nentries)
+        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs)
 
     def fresh_typevar(self) -> Name:
         """Returns a type variable that does not exist in context."""
         return Name("tv", fresh_counter.fresh())
 
 
-def build_typing_context(ls: dict[Name, SType], tdecl: list[TypeDecl] | None = None) -> ElaborationTypingContext:
+def build_typing_context(
+    ls: dict[Name, SType],
+    tdecl: list[TypeDecl] | None = None,
+    constructor_to_type: dict[str, Name] | None = None,
+    constructor_defs: dict[str, Name] | None = None,
+) -> ElaborationTypingContext:
     if tdecl is None:
         tdecl = []
+    if constructor_to_type is None:
+        constructor_to_type = {}
+    if constructor_defs is None:
+        constructor_defs = {}
     return ElaborationTypingContext(
-        [ElabVariableBinder(name, ls[name]) for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl]
+        [ElabVariableBinder(name, ls[name]) for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl],
+        constructor_to_type,
+        constructor_defs,
     )

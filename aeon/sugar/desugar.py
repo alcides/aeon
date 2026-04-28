@@ -19,6 +19,7 @@ from aeon.sugar.parser import mk_parser
 from aeon.sugar.program import (
     Definition,
     SAbstraction,
+    SAnonConstructor,
     SApplication,
     SAnnotation,
     SHole,
@@ -116,6 +117,8 @@ class DesugaredProgram(NamedTuple):
     program: STerm
     elabcontext: ElaborationTypingContext
     metadata: Metadata
+    constructor_to_type: dict[str, Name] = {}
+    constructor_defs: dict[str, Name] = {}
 
 
 def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...]]]:
@@ -133,7 +136,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole() | SQualifiedVar():
+        case SLiteral() | SVar() | SHole() | SQualifiedVar() | SAnonConstructor():
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)
@@ -170,7 +173,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
             for br in branches:
                 nb, sb = lower_by_blocks_in_sterm(br.body)
                 acc = merge(acc, sb)
-                nbrs.append(SMatchBranch(constructor=br.constructor, binders=br.binders, body=nb, loc=br.loc))
+                nbrs.append(SMatchBranch(constructor=br.constructor, binders=br.binders, body=nb, qualifier=br.qualifier, loc=br.loc))
             return SMatch(ns, nbrs, loc=loc), acc
         case SLet(name, val, body, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
@@ -233,6 +236,8 @@ def resolve_qualified_names_in_sterm(
         return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope)
 
     match t:
+        case SAnonConstructor():
+            return t
         case SQualifiedVar(qualifier, name, loc):
             key = (qualifier, name.name)
             if key in qualified_scope:
@@ -265,7 +270,7 @@ def resolve_qualified_names_in_sterm(
             return SMatch(
                 scrutinee=rec(scrutinee),
                 branches=[
-                    SMatchBranch(constructor=br.constructor, binders=br.binders, body=rec(br.body), loc=br.loc)
+                    SMatchBranch(constructor=br.constructor, binders=br.binders, body=rec(br.body), qualifier=br.qualifier, loc=br.loc)
                     for br in branches
                 ],
                 loc=loc,
@@ -297,7 +302,32 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     prog = determine_main_function(p, is_main_hole)
 
     defs, type_decls = p.definitions, p.type_decls
-    defs, type_decls, qualified_scope, unqualified_scope = handle_imports(p.imports, defs, type_decls)
+
+    # Separate "open InductiveType" from file imports
+    inductive_names = {decl.name.name for decl in inductive_decls_snapshot}
+    file_imports = []
+    open_inductives: set[str] = set()
+    for imp in p.imports:
+        if imp.is_open and imp.module_path in inductive_names:
+            open_inductives.add(imp.module_path)
+        else:
+            file_imports.append(imp)
+
+    defs, type_decls, qualified_scope, unqualified_scope = handle_imports(file_imports, defs, type_decls)
+
+    # Register inductive constructors for qualified access (e.g. IntList.cons)
+    # and build constructor_to_type / constructor_defs mappings
+    constructor_to_type: dict[str, Name] = {}
+    constructor_defs: dict[str, Name] = {}
+    for decl in inductive_decls_snapshot:
+        for cons in decl.constructors:
+            prefixed = Name(f"{decl.name.name}_{cons.name.name}", cons.name.id)
+            qualified_scope[(decl.name.name, cons.name.name)] = prefixed
+            constructor_to_type[cons.name.name] = decl.name
+            constructor_defs[cons.name.name] = prefixed
+            # "open IntList" brings constructors into bare scope
+            if decl.name.name in open_inductives:
+                unqualified_scope[cons.name.name] = prefixed
 
     # Resolve qualified names (Math.pow -> Math_pow) and unqualified bare names from open/selective imports
     defs = [resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope) for d in defs]
@@ -311,14 +341,14 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 
     defs, metadata = collect_core_decorator_queue(defs, metadata)
 
-    etctx = build_typing_context(vs, type_decls)
+    etctx = build_typing_context(vs, type_decls, constructor_to_type, constructor_defs)
     etctx, prog = update_program_and_context(prog, defs, etctx)
     prog, etctx = replace_concrete_types(
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
     )
     # Lower match expressions (Lean syntax) into the generated inductive eliminators.
     prog = lower_match_to_inductive_rec(prog, inductive_decls_snapshot)
-    return DesugaredProgram(prog, etctx, metadata)
+    return DesugaredProgram(prog, etctx, metadata, constructor_to_type, constructor_defs)
 
 
 def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDecl]) -> STerm:
@@ -351,14 +381,25 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                 lowered_branches: list[SMatchBranch] = branches
                 cons_names = [b.constructor for b in lowered_branches]
 
-                # Find the first inductive that contains all branch constructors.
+                # If any branch has a qualifier, use it to directly select the inductive.
                 chosen: Name | None = None
                 chosen_cons_map: dict[Name, list[tuple[Name, SType]]] | None = None
-                for iname, cmap in inductive_info.items():
-                    if all(cn in cmap for cn in cons_names):
-                        chosen = iname
-                        chosen_cons_map = cmap
+                for br in lowered_branches:
+                    if br.qualifier is not None:
+                        for iname, cmap in inductive_info.items():
+                            if iname.name == br.qualifier:
+                                chosen = iname
+                                chosen_cons_map = cmap
+                                break
                         break
+
+                # Fall back: find the first inductive that contains all branch constructors.
+                if chosen is None:
+                    for iname, cmap in inductive_info.items():
+                        if all(cn in cmap for cn in cons_names):
+                            chosen = iname
+                            chosen_cons_map = cmap
+                            break
 
                 if chosen is None or chosen_cons_map is None:
                     # Fall back: this should typically be rejected by typechecking later.
@@ -573,8 +614,10 @@ def expand_inductive_decls(p: Program) -> Program:
                                 SVar(Name("native", 0)), SLiteral(f"('{key_for(name, cname)}', {arg_s})", st_string)
                             )
                             merged_c_rf = _merge_inductive_rforalls(dtype_rfs, c_rf)
+                            # Prefix constructor name with type name to namespace it
+                            prefixed_cname = Name(f"{name.name}_{cname.name}", cname.id)
                             de = Definition(
-                                cname,
+                                prefixed_cname,
                                 cforalls,
                                 cargs,
                                 crtype,
@@ -883,7 +926,7 @@ def replace_concrete_types(
             case _:
                 return e
 
-    return t, ElaborationTypingContext([fix_vartype(e) for e in etctx.entries])
+    return t, ElaborationTypingContext([fix_vartype(e) for e in etctx.entries], etctx.constructor_to_type, etctx.constructor_defs)
 
 
 def type_of_definition(d: Definition) -> SType:

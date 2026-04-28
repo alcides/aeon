@@ -66,7 +66,7 @@ class AeonDriver:
 
         with RecordTime("Bind"):
             ctx, progt = bind(desugared.elabcontext, desugared.program)
-            desugared = DesugaredProgram(progt, ctx, desugared.metadata)
+            desugared = DesugaredProgram(progt, ctx, desugared.metadata, desugared.constructor_to_type, desugared.constructor_defs)
             metadata: Metadata = desugared.metadata
 
         try:

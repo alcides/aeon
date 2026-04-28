@@ -10,6 +10,7 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.program import (
     SAbstraction,
+    SAnonConstructor,
     SAnnotation,
     SApplication,
     SHole,
@@ -107,7 +108,7 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
         return substitution_sterm_in_stype(x, beta, alpha)
 
     match t:
-        case SLiteral(_, _) | SHole(_) | SBy() | SQualifiedVar():
+        case SLiteral(_, _) | SHole(_) | SBy() | SQualifiedVar() | SAnonConstructor():
             return t
         case SVar(name):
             if name == alpha:
@@ -152,6 +153,7 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                         # Avoid substituting into a branch body if `alpha`
                         # is bound by that branch's binders.
                         body=br.body if alpha in br.binders else rec(br.body),
+                        qualifier=br.qualifier,
                         loc=br.loc,
                     )
                     for br in branches
@@ -198,7 +200,7 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
         return substitution_svartype_in_sterm(x, rep, name)
 
     match t:
-        case SVar(_) | SHole(_) | SBy() | SQualifiedVar():
+        case SVar(_) | SHole(_) | SBy() | SQualifiedVar() | SAnonConstructor():
             return t
         case SLiteral(v, ty, loc):
             return SLiteral(v, substitute_svartype_in_stype(ty, rep, name), loc=loc)
@@ -234,6 +236,7 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
                         constructor=br.constructor,
                         binders=br.binders,
                         body=rec(br.body),
+                        qualifier=br.qualifier,
                         loc=br.loc,
                     )
                     for br in branches

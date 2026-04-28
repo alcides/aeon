@@ -5,8 +5,8 @@
 
 #def size (l:(MList a)) : {n:Int | n == len l} {
 #    match l with
-#    | MList.empty => 0
-#    | Mlist.cons v tl => 1 + (size tl)
+#    | .empty => 0
+#    | .cons v tl => 1 + (size tl)
 #}
 
 # def size (l:(MList a)) : {n:Int | n == len l} {
@@ -24,5 +24,5 @@ inductive IntList
 
 
 def main (args:Int) : Unit =
-    #a : {x:(IntList) | len x > 0} = cons 3 empty;
+    #a : {x:(IntList) | len x > 0} = .cons 3 .empty;
     print "Hello World";
