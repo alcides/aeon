@@ -96,6 +96,14 @@ def _strip_type_level_wrappers(t: Term) -> Term:
     return t
 
 
+def _has_horn(t: LiquidTerm) -> bool:
+    if isinstance(t, LiquidHornApplication):
+        return True
+    if isinstance(t, LiquidApp):
+        return any(_has_horn(a) for a in t.args)
+    return False
+
+
 def _reflected_impl_for(
     name: Name,
     ty: Type,
@@ -103,12 +111,6 @@ def _reflected_impl_for(
     *,
     has_termination_metric: bool = False,
 ) -> tuple[tuple[Name, ...], LiquidTerm] | None:
-    def has_horn(t: LiquidTerm) -> bool:
-        if isinstance(t, LiquidHornApplication):
-            return True
-        if isinstance(t, LiquidApp):
-            return any(has_horn(a) for a in t.args)
-        return False
 
     if not isinstance(ty, AbstractionType):
         if not isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
@@ -139,7 +141,7 @@ def _reflected_impl_for(
     liq = liquefy(current)
     if liq is None:
         return None
-    if has_horn(liq):
+    if _has_horn(liq):
         return None
     for src, dst in zip(impl_params, ty_params):
         if src != dst:
@@ -355,6 +357,24 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     cp = check(ctx, arg, atype)
                     t_subs = substitution_in_type(rtype, arg, aname)
                     c0 = Conjunction(c, cp)
+                    # Selfify: when the return type is a bare base type and the
+                    # function is a user-defined name (not an ANF temp or operator),
+                    # refine the result with v == f(arg) so PLE can unfold reflected functions.
+                    if (
+                        isinstance(t_subs, TypeConstructor)
+                        and t_subs in (t_int, t_bool)
+                        and isinstance(fun, Var)
+                        and fun.name not in ops
+                        and not fun.name.name.startswith("anf")
+                    ):
+                        liq_app = liquefy(t)
+                        if liq_app is not None and isinstance(liq_app, LiquidApp) and not _has_horn(liq_app):
+                            vname = Name("v", fresh_counter.fresh())
+                            t_subs = RefinedType(
+                                vname,
+                                t_subs,
+                                LiquidApp(Name("==", 0), [LiquidVar(vname), liq_app]),
+                            )
                     return (c0, t_subs)
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
