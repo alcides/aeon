@@ -222,11 +222,11 @@ You can write the refinement quantifier explicitly with `forall <p : T -> Bool>`
 
 ```
 def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
-    Λ t : B => \x -> x;
+    Λ t : B => Λ <p : t -> Bool> => \x -> x;
 
 def main (args:Int) : Unit =
     score : Int | score > 0 = 42;
-    safe_score : Int | safe_score > 0 = wrap[Int] score;
+    safe_score : Int | safe_score > 0 = wrap[Int]{\n -> n > 0} score;
     print safe_score;
 ```
 
