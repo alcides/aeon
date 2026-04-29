@@ -601,7 +601,7 @@ class CPULLVMLowerer(LLVMLowerer):
             raise LLVMBackendError(f"could not lower base {base}")
 
         target, prev_args, eff_ty = self._extract_call_info(lowered_base)
-        params, ret = self.get_signature(eff_ty)
+        params, ret = self.get_signature(target.type if prev_args else eff_ty)
         lookup = self._get_lookup_name(target)
 
         if lookup in BUILTIN_FUNCTION_TYPES or lookup in VECTOR_OPERATIONS:
