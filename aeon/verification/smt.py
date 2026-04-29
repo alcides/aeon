@@ -520,7 +520,7 @@ def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) ->
 def get_sort(base: Type) -> SortRef:
     match base:
         case Top() | TypeConstructor(Name("Top", _)):
-            return DeclareSort("Top")
+            return IntSort()
         case TypeConstructor(Name("Int", _)):
             return IntSort()
         case TypeConstructor(Name("Bool", _)):
@@ -532,11 +532,12 @@ def get_sort(base: Type) -> SortRef:
         case TypeConstructor(Name("Set", _)):
             return SetSort(IntSort())
         case TypeConstructor(name, _):
+            sname = str(name)
+            if sname[:1].isupper():
+                if sname not in sort_cache:
+                    sort_cache[sname] = DeclareSort(sname)
+                return sort_cache[sname]
             return IntSort()
-            # This will be reenable once we have typeclasses
-            # if name not in sort_cache:
-            #     sort_cache[name] = DeclareSort(name)
-            # return sort_cache[name]
         case TypeVar(name):
             assert False, f"TypeVar {name} should not be used in SMT solver."
         case _:
@@ -596,7 +597,7 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
 def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
     match base:
         case Top():
-            return Const(name, get_sort(base))
+            return Int(name)
         case TypeConstructor(Name("Int", _)):
             return Int(name)
         case TypeConstructor(Name("Bool", _)):
@@ -613,10 +614,10 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
             return String(name)
         case TypeConstructor(Name("Set", _)):
             return Const(name, SetSort(IntSort()))
-        case TypeConstructor(_, _):
+        case TypeConstructor(Name("Top", _)):
             return Int(name)
-            # TODO: we always use int, in the case of a typevar.
-            # return Const(name, get_sort(base))
+        case TypeConstructor(_, _):
+            return Const(name, get_sort(base))
         case TypeVar(_):
             return Int(name)
         case AbstractionType(_, _, _):

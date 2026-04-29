@@ -1,11 +1,10 @@
 # Pizza Puzzle - from https://gist.github.com/josepablocam/78282c068f774961f1f4ab1330174c90
 #
-# 7 people each order one of 7 pizzas (Pepperoni, Margherita, BBQ, Hawaiian,
-# Peppers, Cheese, Sausage). Everyone picks a different pizza. Find a valid
-# assignment satisfying each person's preference constraints.
+# 7 people each order one of 7 pizzas. Everyone picks a different pizza.
+# Find a valid assignment satisfying each person's preference constraints.
 #
 # Constraints:
-#   emily   : Margherita, Peppers, or Cheese — and NOT Peppers → Margherita or Cheese
+#   emily   : Margherita or Cheese
 #   owen    : Margherita, Peppers, or Cheese
 #   yasmine : not Cheese
 #   nathan  : Cheese, Pepperoni, or Margherita
@@ -13,61 +12,59 @@
 #   rachel  : Cheese
 #   kevin   : Pepperoni, BBQ, Sausage, or Hawaiian
 
-type Assignment;
+# Pizza type as an enum with an ordinal measure for z3 reasoning.
+# Each constructor is axiomatically distinct via its pizza_ord value.
+# The Pizza type itself uses a custom z3 sort (DeclareSort("Pizza")).
+inductive Pizza
+| pepperoni  : {p:Pizza | pizza_ord p == 0}
+| margherita : {p:Pizza | pizza_ord p == 1}
+| bbq        : {p:Pizza | pizza_ord p == 2}
+| hawaiian   : {p:Pizza | pizza_ord p == 3}
+| peppers    : {p:Pizza | pizza_ord p == 4}
+| cheese     : {p:Pizza | pizza_ord p == 5}
+| sausage    : {p:Pizza | pizza_ord p == 6}
++ pizza_ord (p:Pizza) : Int
 
-def Pepperoni : {n:Int | n == 0} = 0;
-def Margherita : {n:Int | n == 1} = 1;
-def BBQ        : {n:Int | n == 2} = 2;
-def Hawaiian   : {n:Int | n == 3} = 3;
-def Peppers    : {n:Int | n == 4} = 4;
-def Cheese     : {n:Int | n == 5} = 5;
-def Sausage    : {n:Int | n == 6} = 6;
-
-def Assignment_size   : (a:Assignment) -> Int = uninterpreted;
-def emily_pizza   : (a:Assignment) -> Int = uninterpreted;
-def owen_pizza    : (a:Assignment) -> Int = uninterpreted;
-def yasmine_pizza : (a:Assignment) -> Int = uninterpreted;
-def nathan_pizza  : (a:Assignment) -> Int = uninterpreted;
-def wendy_pizza   : (a:Assignment) -> Int = uninterpreted;
-def rachel_pizza  : (a:Assignment) -> Int = uninterpreted;
-def kevin_pizza   : (a:Assignment) -> Int = uninterpreted;
-
-def assignment_mk
-    (emily   : {n:Int | 0 <= n && n <= 6})
-    (owen    : {n:Int | 0 <= n && n <= 6})
-    (yasmine : {n:Int | 0 <= n && n <= 6})
-    (nathan  : {n:Int | 0 <= n && n <= 6})
-    (wendy   : {n:Int | 0 <= n && n <= 6})
-    (rachel  : {n:Int | 0 <= n && n <= 6})
-    (kevin   : {n:Int | 0 <= n && n <= 6}) :
-    {a:Assignment |
-        (Assignment_size a == 7) &&
+inductive Assignment
+| mk (emily   : Pizza)
+     (owen    : Pizza)
+     (yasmine : Pizza)
+     (nathan  : Pizza)
+     (wendy   : Pizza)
+     (rachel  : Pizza)
+     (kevin   : Pizza)
+   : {a:Assignment |
         (emily_pizza a == emily) &&
         (owen_pizza a == owen) &&
         (yasmine_pizza a == yasmine) &&
         (nathan_pizza a == nathan) &&
         (wendy_pizza a == wendy) &&
         (rachel_pizza a == rachel) &&
-        (kevin_pizza a == kevin)
-    } { native "[emily, owen, yasmine, nathan, wendy, rachel, kevin]" }
+        (kevin_pizza a == kevin)}
++ emily_pizza   (a:Assignment) : Pizza
++ owen_pizza    (a:Assignment) : Pizza
++ yasmine_pizza (a:Assignment) : Pizza
++ nathan_pizza  (a:Assignment) : Pizza
++ wendy_pizza   (a:Assignment) : Pizza
++ rachel_pizza  (a:Assignment) : Pizza
++ kevin_pizza   (a:Assignment) : Pizza
 
 @minimize_int(1)
 def pizza_solution_hole : {a:Assignment |
-    (Assignment_size a == 7) &&
     # emily: Margherita(1) or Cheese(5)
-    ((emily_pizza a == 1) || (emily_pizza a == 5)) &&
+    ((pizza_ord (emily_pizza a) == 1) || (pizza_ord (emily_pizza a) == 5)) &&
     # owen: Margherita(1), Peppers(4), or Cheese(5)
-    ((owen_pizza a == 1) || (owen_pizza a == 4) || (owen_pizza a == 5)) &&
+    ((pizza_ord (owen_pizza a) == 1) || (pizza_ord (owen_pizza a) == 4) || (pizza_ord (owen_pizza a) == 5)) &&
     # yasmine: not Cheese(5)
-    (yasmine_pizza a != 5) &&
+    (pizza_ord (yasmine_pizza a) != 5) &&
     # nathan: Cheese(5), Pepperoni(0), or Margherita(1)
-    ((nathan_pizza a == 5) || (nathan_pizza a == 0) || (nathan_pizza a == 1)) &&
+    ((pizza_ord (nathan_pizza a) == 5) || (pizza_ord (nathan_pizza a) == 0) || (pizza_ord (nathan_pizza a) == 1)) &&
     # wendy: not Hawaiian(3)
-    (wendy_pizza a != 3) &&
+    (pizza_ord (wendy_pizza a) != 3) &&
     # rachel: Cheese(5)
-    (rachel_pizza a == 5) &&
+    (pizza_ord (rachel_pizza a) == 5) &&
     # kevin: Pepperoni(0), BBQ(2), Sausage(6), or Hawaiian(3)
-    ((kevin_pizza a == 0) || (kevin_pizza a == 2) || (kevin_pizza a == 6) || (kevin_pizza a == 3)) &&
+    ((pizza_ord (kevin_pizza a) == 0) || (pizza_ord (kevin_pizza a) == 2) || (pizza_ord (kevin_pizza a) == 6) || (pizza_ord (kevin_pizza a) == 3)) &&
     # all 7 choices are distinct (21 pairs)
     (emily_pizza a != owen_pizza a) &&
     (emily_pizza a != yasmine_pizza a) &&
@@ -90,18 +87,17 @@ def pizza_solution_hole : {a:Assignment |
     (wendy_pizza a != rachel_pizza a) &&
     (wendy_pizza a != kevin_pizza a) &&
     (rachel_pizza a != kevin_pizza a)
-} = ?hole;
+} = ?hole
 
 # Verification: the known solution below should type-check (Aeon proves correctness)
-# emily=Margherita(1), owen=Peppers(4), yasmine=Hawaiian(3),
-# nathan=Pepperoni(0), wendy=Sausage(6), rachel=Cheese(5), kevin=BBQ(2)
+# emily=Margherita, owen=Peppers, yasmine=Hawaiian,
+# nathan=Pepperoni, wendy=Sausage, rachel=Cheese, kevin=BBQ
 def pizza_solution : {a:Assignment |
-    (Assignment_size a == 7) &&
-    (emily_pizza a == 1) &&
-    (owen_pizza a == 4) &&
-    (yasmine_pizza a != 5) &&
-    (nathan_pizza a == 0) &&
-    (wendy_pizza a != 3) &&
-    (rachel_pizza a == 5) &&
-    ((kevin_pizza a == 0) || (kevin_pizza a == 2) || (kevin_pizza a == 6) || (kevin_pizza a == 3))
-} = assignment_mk 1 4 3 0 6 5 2;
+    (pizza_ord (emily_pizza a) == 1) &&
+    (pizza_ord (owen_pizza a) == 4) &&
+    (pizza_ord (yasmine_pizza a) != 5) &&
+    (pizza_ord (nathan_pizza a) == 0) &&
+    (pizza_ord (wendy_pizza a) != 3) &&
+    (pizza_ord (rachel_pizza a) == 5) &&
+    ((pizza_ord (kevin_pizza a) == 0) || (pizza_ord (kevin_pizza a) == 2) || (pizza_ord (kevin_pizza a) == 6) || (pizza_ord (kevin_pizza a) == 3))
+} = .mk .margherita .peppers .hawaiian .pepperoni .sausage .cheese .bbq
