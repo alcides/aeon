@@ -27,9 +27,8 @@ uvx --from aeonlang aeon [file.ae]
 ### Hello World
 
 ```
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     print "Hello World"
-}
 ```
 
 The documentation is available at [https://alcides.github.io/aeon](https://alcides.github.io/aeon).
@@ -42,9 +41,8 @@ In this example, you can see the refined type `{x:Int | x > 0}` that represents 
 ```
 def sqrt : (i: {x:Int | x > 0} ) -> Float = native "__import__('math').sqrt";
 
-def main (i:Int) : Unit {
+def main (i:Int) : Unit =
     print (sqrt (-25)) # This is a type-checking error!
-}
 ```
 
 
