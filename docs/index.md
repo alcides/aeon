@@ -4,8 +4,8 @@ Aeon is a programming that with a focus on Liquid Types. Liquid types allow deve
 
 ```
 let age : Int = 25;
-let age : (age:Int | age > 0) = 25;
-let age : (age:Int | age >= 18 && age < 130) = 25;
+let age : {age:Int | age > 0} = 25;
+let age : {age:Int | age >= 18 && age < 130} = 25;
 ```
 
 In Aeon, all three declarations are valid, and each more specific than the previous. Liquid Types restrict the domain of values and functions, support assertions in the source code, and can statically catch violations at compile time.
@@ -58,9 +58,16 @@ Aeon supports most operators that exist in mainstream languages.
 let price = 100;
 let total = price + (price * tax / 100);
 let eligible = (age >= 18) && (score > 50);
-let status = if eligible then 1 else 0;
-let best = Math_max score1 score2; # function application uses spaces
+let discount = if price > 50 then 10 else 0;
 true
+```
+
+Function application uses spaces (no parentheses around arguments):
+
+```
+open Math
+# ...
+let result = Math_max 10 20;
 ```
 
 Arithmetic operators work on both integers and floats:
