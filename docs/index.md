@@ -25,9 +25,8 @@ Aeon can be executed directly from PyPI using [uvx](https://github.com/astral-sh
 If your aeon file contains a function named `main`, it will be the entrypoint to the program.
 
 ```
-def main (args:Int) : Unit {
+def main (args:Int) : Unit =
     print "Hello World"
-}
 ```
 
 Main returns Unit, which is the singleton type. It can be used like void in C.
@@ -74,16 +73,24 @@ let a = 1.0 - 2.0;
 ## Functions
 
 ```
-def plus (x:Int) (y:Int) : Int {
-    x + y
-}
+def plus (x:Int) (y:Int) : Int = x + y;
 
-def plus : (x:Int) -> (y:Int) -> Int = \x -> \y -> x+y;
+def plus : (x:Int) -> (y:Int) -> Int = \x -> \y -> x + y;
 ```
 
-The above top-level definitions are equal to each-other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
+The above top-level definitions are equal to each other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
 
-`\x -> x + 1` is an annonymous lambda function, which can be annotated with the type `(x:Int) -> Int`.
+`\x -> x + 1` is an anonymous lambda function, which can be annotated with the type `(x:Int) -> Int`.
+
+### The `$` operator
+
+The `$` operator provides right-associative, low-precedence function application, similar to Haskell:
+
+```
+f $ g $ x    # equivalent to f (g x)
+```
+
+When used with parametrically refined functions, `$` preserves refinements through the application chain.
 
 ### Reflected functions and PLE
 
@@ -115,27 +122,50 @@ let x : Int = 1;
 let y : {z:Int | z > 0} = 2; # 0 would raise a type error!
 let w : {z:Int where z > 0} = 2; # equivalent to the above
 
-def plus (x:Int | x > 0) (y:Int | y > 0) : {z:Int | z > x && z > y} {
-    x + y
-}
+def plus (x:Int | x > 0) (y:Int | y > 0) : {z:Int | z > x && z > y} =
+    x + y;
 
 let k = 2; # inferred to be {k:Int | k == 2}
 let g = plus k x; # inferred to be {g:Int | g > 2 && g > 1}
 ```
 
-## Imports
+## Modules and Imports
 
-Currently, Aeon allows to include other files in the current file, similarly to C's include statement.
+Aeon has a Lean-style module system. Each `.ae` file is a module whose name matches the file name (without extension). There are three forms of import:
 
-```
-import "otherfile.ae";
-```
-
-You can also import a specific function from a file:
+### Qualified import
 
 ```
-import myFunction from "otherfile.ae";
+import Math
 ```
+
+After a qualified import, names from the module are accessed via dot syntax: `Math.pow 2 3`. The dot syntax is desugared internally to `Math_pow`.
+
+### Selective import
+
+```
+import Math (pow, abs)
+```
+
+This imports only the listed names, making them available unqualified.
+
+### Open import
+
+```
+open Math
+```
+
+This brings all names from the module into scope unqualified.
+
+### Module resolution
+
+Modules are resolved by searching (in order):
+
+1. The current directory
+2. The `libraries/` directory bundled with Aeon
+3. Directories listed in the `AEONPATH` environment variable
+
+Import results are cached by resolved path, and circular imports are detected and raise an error.
 
 ## Polymorphism
 
@@ -147,13 +177,106 @@ def id : forall t : B, (x : t) -> t = Λ t : B => \x -> x;
 
 The kind `B` represents base types, and `*` represents all types. Type abstraction is introduced with `Λ` (capital lambda) and `=>`.
 
-Aeon also supports refinement polymorphism, allowing a refinement predicate to be abstracted over:
+### Parametric Refinements
+
+Aeon supports refinement polymorphism, allowing a refinement predicate to be abstracted over. This is useful when a function preserves a refinement without needing to know what the refinement is.
+
+#### Implicit style (inferred)
+
+When a type variable appears with `<p>`, Aeon infers the refinement quantifier automatically:
 
 ```
-def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => \x -> x;
+def id : (x : t<p>) -> t<p> = \x -> x
+
+def main (args:Int) : Unit =
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = id x;
+    print y;
 ```
 
-Here, `<p : t -> Bool>` abstracts over a predicate on type `t`, and `t<p>` applies that predicate as a refinement.
+Here `t` and `p` are both inferred. The refinement `x > 0` propagates through `id` because the type `t<p>` preserves whatever predicate `p` the argument satisfies.
+
+Another example — a `maxI` function that preserves the caller's refinement:
+
+```
+def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> =
+    \x -> \y -> if x < y then y else x;
+
+def main (args:Int) : Unit =
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = 5;
+    z : Int | z > 0 = maxI x y;
+    print z;
+```
+
+#### Explicit style
+
+You can also write the refinement quantifier explicitly with `forall <p : T -> Bool>` and introduce it with `Λ`:
+
+```
+def id : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
+    Λ t : B => \x -> x;
+
+def main (args:Int) : Unit =
+    x : Int | x > 0 = 3;
+    y : Int | y > 0 = id[Int] x;
+    print y;
+```
+
+#### Refinement application
+
+When calling a function with an explicit refinement parameter, use `{predicate}` to apply the refinement:
+
+```
+id[Int]{\n -> n > 0} x
+```
+
+### Inductive types with parametric refinements
+
+Inductive types can also carry abstract refinement parameters:
+
+```
+inductive Box forall <p : Int -> Bool>
+| mk (x:Int) : Box
+```
+
+## Inductive Types and Pattern Matching
+
+Aeon supports user-defined inductive (algebraic) data types with Lean-style `match` expressions.
+
+### Defining inductive types
+
+```
+inductive IntList
+| empty : IntList
+| cons (hd:Int) (tl:IntList) : IntList
+```
+
+Each constructor is declared with `|`, followed by its name, arguments, and return type.
+
+### Pattern matching
+
+Use `match ... with` to destructure inductive values:
+
+```
+def len (l:IntList) : Int =
+    match l with
+    | empty => 0
+    | cons hd tl => 1 + (len tl);
+```
+
+Each branch binds the constructor's fields by position. The `match` expression is lowered internally to the inductive eliminator (e.g. `IntList_rec`), so all constructors must be covered.
+
+### Measures
+
+Inductive types can declare measure functions with `+`. These are used for refinements on the type itself:
+
+```
+inductive MList a
+| empty : {e:(MList a) | len e == 0}
+| cons (x:a) (y:(MList a)) : {z:(MList a) | len z == (len y + 1)}
++ len (m:(MList a)) : Int
+```
 
 <a name="FFI"></a>
 
@@ -218,9 +341,8 @@ There are a few libraries available, but unstable as they are under development:
 Aeon supports the automatic synthesis of incomplete code. Take the following example:
 
 ```
-def fun (i:Int | i > 0) : (j:Int | j > i) {
-    (?todo : Int)
-}
+def fun (i:Int | i > 0) : (j:Int | j > i) =
+    (?todo : Int);
 ```
 
 This function is incomplete: there is a hole in the program (`?todo`) name todo. If you run this program, the compiler will try to search for an expression to replace the hole with, that has the proper type.
@@ -231,9 +353,8 @@ Because liquid types are limited, you can define your target function using deco
 
 ```
 @minimize(fun 3.0 - 5.0)
-def fun (i:Int | i > 0) : Float {
-    (?todo : Float)
-}
+def fun (i:Int | i > 0) : Float =
+    (?todo : Float);
 ```
 
 - `@minimize(expr)` — minimize the given expression, also extracts training data when the expression matches `f(args) - expected`
