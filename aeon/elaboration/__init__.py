@@ -301,6 +301,11 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             nval = elaborate_check(ctx, value, u)
             (nbody, nbody_type) = elaborate_synth(ctx.with_var(name, u), body)
             return SLet(name, nval, nbody), nbody_type
+        case SRec(name, vty, val, body, decreasing_by, loc=loc):
+            nctx = ctx.with_var(name, vty)
+            nval = elaborate_check(nctx, val, vty)
+            (nbody, nbody_type) = elaborate_synth(nctx, body)
+            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc), nbody_type
         case SIf(cond, then, otherwise):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen, nthen_type = elaborate_synth(ctx, then)
@@ -324,7 +329,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 case SAbstractionType(_, arg_type, return_type, loc):
                     narg = elaborate_check(ctx, arg, arg_type)
                     match narg:
-                        case SLiteral(_) | SVar(_):
+                        case SLiteral(_) | SVar(_) | SAbstraction(_, _):
                             return SApplication(nfun, narg), return_type
                         case _:
                             nname = Name("_anf", fresh_counter.fresh())
