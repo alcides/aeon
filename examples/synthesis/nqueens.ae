@@ -1,42 +1,38 @@
-type Coordinate
-type Board
+open Coordinate
+open Board
+
+# N-Queens problem using inductive types and pattern matching.
+# No native calls — all data structures and logic are pure aeon.
+
+inductive Coordinate
+| C_mk (cx:Int | cx >= 0 && cx < 9) (cy:Int | cy >= 0 && cy < 9) : Coordinate
+
+inductive Board
+| Board_empty : {b:Board | Board_size b == 0}
+| Board_cons (head:Coordinate) (tail:Board) : {b:Board | Board_size b == Board_size tail + 1}
 
 def N : {n:Int | n == 9} = 9;
 
-def C_mk
-    (q1x:Int | 0 <= q1x && q1x < N )
-    (q1y:Int | 0 <= q1y && q1y < N ) :
-    Coordinate = native "(x, y)";
-
-def C_x (s:Coordinate) : Int = native "s[0]"
-def C_y (s:Coordinate) : Int = native "s[1]"
-
-
-
 def Board_size : (b:Board) -> Int = uninterpreted
 
-def Board_is_empty (b:Board) : {t:Bool | t == (Board_size b == 0)  } = native "len(b) == 0";
+def abs (x:Int) : {r:Int | r >= 0} = if x >= 0 then x else 0 - x;
 
-def Board_head (b:Board | Board_size b > 0) : Coordinate = native "b[0]"
-
-def Board_tail (b:Board | Board_size b > 0) : {b2:Board | Board_size b2 == (Board_size b - 1)} = native "b[1:]";
-
-def conflicts (t:Coordinate) (b:Board | Board_size b >= 0) : Int = if Board_is_empty b
-    then 0
-    else
-        h : Coordinate = Board_head b;
-        tl = Board_tail b;
-        row : {r:Int | 0 <= r && r <= 1} = if C_x t == C_x h then 1 else 0;
-        col : {r:Int | 0 <= r && r <= 1} = if C_y t == C_y h then 1 else 0;
-        v1: Int = (C_x t) * (C_y h);
-        v2: Int = (C_x h) * (C_y t);
-        diag : {r:Int | 0 <= r && r <= 1} = if v1 == v2 then 1 else 0;
-
-        component1 : {c:Int | 0 <= c && c <= 3} = row + col + diag;
-        component2 : Int = conflicts t tl;
-        component1 + component2;
-
-
+def conflicts (t:Coordinate) (b:Board) : Int =
+    match b with
+    | Board_empty => 0
+    | Board_cons h tl =>
+        match t with
+        | C_mk tx ty =>
+            match h with
+            | C_mk hx hy =>
+                let row : {r:Int | 0 <= r && r <= 1} = if tx == hx then 1 else 0 in
+                let col : {r:Int | 0 <= r && r <= 1} = if ty == hy then 1 else 0 in
+                let dx : Int = abs (tx - hx) in
+                let dy : Int = abs (ty - hy) in
+                let diag : {r:Int | 0 <= r && r <= 1} = if dx == dy then 1 else 0 in
+                let component1 : {c:Int | 0 <= c && c <= 3} = row + col + diag in
+                let component2 : Int = conflicts t tl in
+                component1 + component2
 
 def create_solution
     (q1 : Coordinate)
@@ -48,11 +44,10 @@ def create_solution
     (q7 : Coordinate)
     (q8 : Coordinate)
     (q9 : Coordinate) :
-   {b:Board | Board_size b == N} = native "[q1, q2, q3, q4, q5, q6, q7, q8, q9]";
+   {b:Board | Board_size b == N} =
+    Board_cons q1 (Board_cons q2 (Board_cons q3 (Board_cons q4 (Board_cons q5 (Board_cons q6 (Board_cons q7 (Board_cons q8 (Board_cons q9 Board_empty))))))));
 
 
 @minimize_int(1)
-@hide(Board_head, Board_tail, conflicts, Board_quality, Board_is_empty, C_x, C_y)
+@hide(conflicts, Board_quality)
 def nqueens : {b:Board | Board_size b == N} = ?hole;
-
-# (((((((((create_solution ((C_mk 0) 4)) ((C_mk 1) 6)) ((C_mk 4) 1)) ((C_mk 0) 6)) ((C_mk 8) 5)) ((C_mk 5) 0)) ((C_mk 2) 2)) ((C_mk 8) 5)) ((C_mk 3) 6))
