@@ -177,12 +177,13 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
         pto = llvm.create_pipeline_tuning_options()
         pto.opt_level = opt_level
-        pb = llvm.create_pass_builder(self.target_machine, pto)
+        tm = self._create_target_machine()
+        pb = llvm.create_pass_builder(tm, pto)
         pm = llvm.create_new_module_pass_manager()
         pb.populate_module_pass_manager(pm)
         pm.run(backing_mod, pb)
 
-        with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
+        with llvm.create_mcjit_compiler(backing_mod, tm) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)
             if not func_ptr:
