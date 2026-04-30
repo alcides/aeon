@@ -26,7 +26,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
-from z3 import EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
+from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
@@ -678,6 +678,27 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
     return funs
 
 
+def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
+    """Generate Distinct(...) assertions for constructor constants of the same inductive type."""
+    from aeon.verification.constructor_registry import get_constructor_groups
+
+    # Build reverse lookup: base name (no ID suffix) -> SMT variable
+    # Variable keys include superscript IDs (e.g. "Pizza_margherita⁷"),
+    # but the registry stores plain names (e.g. "Pizza_margherita").
+    base_to_var: dict[str, Any] = {}
+    for key, val in variables.items():
+        # Strip any trailing superscript digits (Unicode superscripts ⁰-⁹)
+        base = key.rstrip("⁰¹²³⁴⁵⁶⁷⁸⁹")
+        base_to_var[base] = val
+
+    assertions: list[BoolRef] = []
+    for _type_name, ctor_names in get_constructor_groups().items():
+        present = [base_to_var[n] for n in ctor_names if n in base_to_var]
+        if len(present) >= 2:
+            assertions.append(Distinct(*present))
+    return assertions
+
+
 def translate(
     c: CanonicConstraint,
 ) -> BoolRef | bool:
@@ -690,4 +711,6 @@ def translate(
         return False
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
-    return And(e1, Not(e2))
+    distinct = _constructor_distinctness(variables)
+    premise = And(e1, *distinct) if distinct else e1
+    return And(premise, Not(e2))

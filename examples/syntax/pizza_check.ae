@@ -3,14 +3,13 @@
 # nathan=Pepperoni, wendy=Sausage, rachel=Cheese, kevin=BBQ
 
 inductive Pizza
-| pepperoni  : {p:Pizza | pizza_ord p == 0}
-| margherita : {p:Pizza | pizza_ord p == 1}
-| bbq        : {p:Pizza | pizza_ord p == 2}
-| hawaiian   : {p:Pizza | pizza_ord p == 3}
-| peppers    : {p:Pizza | pizza_ord p == 4}
-| cheese     : {p:Pizza | pizza_ord p == 5}
-| sausage    : {p:Pizza | pizza_ord p == 6}
-+ pizza_ord (p:Pizza) : Int
+| pepperoni  : Pizza
+| margherita : Pizza
+| bbq        : Pizza
+| hawaiian   : Pizza
+| peppers    : Pizza
+| cheese     : Pizza
+| sausage    : Pizza
 
 inductive Assignment
 | mk (emily   : Pizza)
@@ -37,13 +36,13 @@ inductive Assignment
 + kevin_pizza   (a:Assignment) : Pizza
 
 def pizza_solution : {a:Assignment |
-    ((pizza_ord (emily_pizza a) == 1) || (pizza_ord (emily_pizza a) == 5)) &&
-    ((pizza_ord (owen_pizza a) == 1) || (pizza_ord (owen_pizza a) == 4) || (pizza_ord (owen_pizza a) == 5)) &&
-    (pizza_ord (yasmine_pizza a) != 5) &&
-    ((pizza_ord (nathan_pizza a) == 5) || (pizza_ord (nathan_pizza a) == 0) || (pizza_ord (nathan_pizza a) == 1)) &&
-    (pizza_ord (wendy_pizza a) != 3) &&
-    (pizza_ord (rachel_pizza a) == 5) &&
-    ((pizza_ord (kevin_pizza a) == 0) || (pizza_ord (kevin_pizza a) == 2) || (pizza_ord (kevin_pizza a) == 6) || (pizza_ord (kevin_pizza a) == 3)) &&
+    ((emily_pizza a == .margherita) || (emily_pizza a == .cheese)) &&
+    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    (yasmine_pizza a != .cheese) &&
+    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    (wendy_pizza a != .hawaiian) &&
+    (rachel_pizza a == .cheese) &&
+    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian)) &&
     (emily_pizza a != owen_pizza a) &&
     (emily_pizza a != yasmine_pizza a) &&
     (emily_pizza a != nathan_pizza a) &&
