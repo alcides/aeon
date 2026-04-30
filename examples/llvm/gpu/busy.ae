@@ -1,4 +1,4 @@
-import "Vector.ae";
+open Vector
 
 @gpu
 def mult10 (x: Int) : Int = x * 10

@@ -1,5 +1,5 @@
-import "Vector.ae";
-import "Math.ae";
+open Vector
+open Math
 
 @cpu
 def is_inside_circle (x : Float) (y : Float) : Int =
