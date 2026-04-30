@@ -143,6 +143,7 @@ VECTOR_OPERATIONS: frozenset[str] = frozenset(
         "filter",
         "zipWith",
         "count",
+        "size",
     ]
 )
 

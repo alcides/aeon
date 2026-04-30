@@ -170,7 +170,7 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
         tm = target.create_target_machine(cpu="sm_86", opt=3)
         pto = llvm.create_pipeline_tuning_options(speed_level=3)
         pb = llvm.create_pass_builder(tm, pto)
-        pm = llvm.create_new_module_pass_manager()
+        pm = pb.getModulePassManager()
         pm.add_always_inliner_pass()
         pm.run(mod, pb)
         return str(tm.emit_assembly(mod))
