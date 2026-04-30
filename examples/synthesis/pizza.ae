@@ -1,0 +1,99 @@
+# Pizza Puzzle - from https://gist.github.com/josepablocam/78282c068f774961f1f4ab1330174c90
+#
+# 7 people each order one of 7 pizzas. Everyone picks a different pizza.
+# Find a valid assignment satisfying each person's preference constraints.
+#
+# Constraints:
+#   emily   : Margherita or Cheese
+#   owen    : Margherita, Peppers, or Cheese
+#   yasmine : not Cheese
+#   nathan  : Cheese, Pepperoni, or Margherita
+#   wendy   : not Hawaiian
+#   rachel  : Cheese
+#   kevin   : Pepperoni, BBQ, Sausage, or Hawaiian
+
+inductive Pizza
+| pepperoni  : Pizza
+| margherita : Pizza
+| bbq        : Pizza
+| hawaiian   : Pizza
+| peppers    : Pizza
+| cheese     : Pizza
+| sausage    : Pizza
+
+inductive Assignment
+| mk (emily   : Pizza)
+     (owen    : Pizza)
+     (yasmine : Pizza)
+     (nathan  : Pizza)
+     (wendy   : Pizza)
+     (rachel  : Pizza)
+     (kevin   : Pizza)
+   : {a:Assignment |
+        (emily_pizza a == emily) &&
+        (owen_pizza a == owen) &&
+        (yasmine_pizza a == yasmine) &&
+        (nathan_pizza a == nathan) &&
+        (wendy_pizza a == wendy) &&
+        (rachel_pizza a == rachel) &&
+        (kevin_pizza a == kevin)}
++ emily_pizza   (a:Assignment) : Pizza
++ owen_pizza    (a:Assignment) : Pizza
++ yasmine_pizza (a:Assignment) : Pizza
++ nathan_pizza  (a:Assignment) : Pizza
++ wendy_pizza   (a:Assignment) : Pizza
++ rachel_pizza  (a:Assignment) : Pizza
++ kevin_pizza   (a:Assignment) : Pizza
+
+@minimize_int(1)
+def pizza_solution_hole : {a:Assignment |
+    # emily: Margherita or Cheese
+    ((emily_pizza a == .margherita) || (emily_pizza a == .cheese)) &&
+    # owen: Margherita, Peppers, or Cheese
+    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    # yasmine: not Cheese
+    (yasmine_pizza a != .cheese) &&
+    # nathan: Cheese, Pepperoni, or Margherita
+    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    # wendy: not Hawaiian
+    (wendy_pizza a != .hawaiian) &&
+    # rachel: Cheese
+    (rachel_pizza a == .cheese) &&
+    # kevin: Pepperoni, BBQ, Sausage, or Hawaiian
+    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian)) &&
+    # all 7 choices are distinct (21 pairs)
+    (emily_pizza a != owen_pizza a) &&
+    (emily_pizza a != yasmine_pizza a) &&
+    (emily_pizza a != nathan_pizza a) &&
+    (emily_pizza a != wendy_pizza a) &&
+    (emily_pizza a != rachel_pizza a) &&
+    (emily_pizza a != kevin_pizza a) &&
+    (owen_pizza a != yasmine_pizza a) &&
+    (owen_pizza a != nathan_pizza a) &&
+    (owen_pizza a != wendy_pizza a) &&
+    (owen_pizza a != rachel_pizza a) &&
+    (owen_pizza a != kevin_pizza a) &&
+    (yasmine_pizza a != nathan_pizza a) &&
+    (yasmine_pizza a != wendy_pizza a) &&
+    (yasmine_pizza a != rachel_pizza a) &&
+    (yasmine_pizza a != kevin_pizza a) &&
+    (nathan_pizza a != wendy_pizza a) &&
+    (nathan_pizza a != rachel_pizza a) &&
+    (nathan_pizza a != kevin_pizza a) &&
+    (wendy_pizza a != rachel_pizza a) &&
+    (wendy_pizza a != kevin_pizza a) &&
+    (rachel_pizza a != kevin_pizza a)
+} = ?hole
+
+# Verification: the known solution below should type-check (Aeon proves correctness)
+# emily=Margherita, owen=Peppers, yasmine=Hawaiian,
+# nathan=Pepperoni, wendy=Sausage, rachel=Cheese, kevin=BBQ
+def pizza_solution : {a:Assignment |
+    (emily_pizza a == .margherita) &&
+    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    (yasmine_pizza a != .cheese) &&
+    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    (wendy_pizza a != .hawaiian) &&
+    (rachel_pizza a == .cheese) &&
+    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian))
+} = .mk .margherita .peppers .hawaiian .pepperoni .sausage .cheese .bbq

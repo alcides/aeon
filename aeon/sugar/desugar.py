@@ -232,15 +232,20 @@ def lower_by_blocks_in_definitions(
 
 
 def resolve_qualified_names_in_sterm(
-    t: STerm, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+    t: STerm,
+    qualified_scope: QualifiedScope,
+    unqualified_scope: UnqualifiedScope,
+    constructor_defs: dict[str, Name] | None = None,
 ) -> STerm:
     """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names."""
 
     def rec(node: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope)
+        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope, constructor_defs)
 
     match t:
-        case SAnonConstructor():
+        case SAnonConstructor(cname, loc=loc):
+            if constructor_defs and cname in constructor_defs:
+                return SVar(constructor_defs[cname], loc=loc)
             return t
         case SQualifiedVar(qualifier, name, loc):
             key = (qualifier, name.name)
@@ -290,15 +295,18 @@ def resolve_qualified_names_in_sterm(
 
 
 def resolve_qualified_names_in_stype(
-    ty: SType, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+    ty: SType,
+    qualified_scope: QualifiedScope,
+    unqualified_scope: UnqualifiedScope,
+    constructor_defs: dict[str, Name] | None = None,
 ) -> SType:
     """Resolve qualified names inside refinement predicates within types."""
 
     def rec_ty(t: SType) -> SType:
-        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope)
+        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs)
 
     def rec_term(t: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope)
+        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs)
 
     match ty:
         case SRefinedType(name, inner_ty, refinement, loc):
@@ -317,11 +325,21 @@ def resolve_qualified_names_in_stype(
 
 
 def resolve_qualified_names_in_definition(
-    d: Definition, qualified_scope: QualifiedScope, unqualified_scope: UnqualifiedScope
+    d: Definition,
+    qualified_scope: QualifiedScope,
+    unqualified_scope: UnqualifiedScope,
+    constructor_defs: dict[str, Name] | None = None,
 ) -> Definition:
-    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope)
-    new_args = [(name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope)) for name, ty in d.args]
-    new_type = resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope) if d.type else d.type
+    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs)
+    new_args = [
+        (name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs))
+        for name, ty in d.args
+    ]
+    new_type = (
+        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs)
+        if d.type
+        else d.type
+    )
     if new_body is d.body and new_args == d.args and new_type is d.type:
         return d
     return Definition(d.name, d.foralls, new_args, new_type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
@@ -369,8 +387,10 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
                 unqualified_scope[cons.name.name] = prefixed
 
     # Resolve qualified names (Math.pow -> pow) and unqualified bare names from open/selective imports
-    defs = [resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope) for d in defs]
-    prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope)
+    defs = [
+        resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope, constructor_defs) for d in defs
+    ]
+    prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
     defs, metadata = apply_decorators_in_definitions(defs)
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
@@ -644,6 +664,11 @@ def expand_inductive_decls(p: Program) -> Program:
 
                 def key_for(tyname: Name, constructor_name: Name) -> str:
                     return f"{tyname.name}_{constructor_name.name}"
+
+                # Register constructor groups for SMT distinctness assertions
+                from aeon.verification.constructor_registry import register_constructors
+
+                register_constructors(name.name, [key_for(name, cons.name) for cons in constructors])
 
                 for constructor in constructors:
                     match constructor:

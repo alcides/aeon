@@ -1,0 +1,67 @@
+# Pizza Puzzle - Verification only (no synthesis hole)
+# emily=Margherita, owen=Peppers, yasmine=Hawaiian,
+# nathan=Pepperoni, wendy=Sausage, rachel=Cheese, kevin=BBQ
+
+inductive Pizza
+| pepperoni  : Pizza
+| margherita : Pizza
+| bbq        : Pizza
+| hawaiian   : Pizza
+| peppers    : Pizza
+| cheese     : Pizza
+| sausage    : Pizza
+
+inductive Assignment
+| mk (emily   : Pizza)
+     (owen    : Pizza)
+     (yasmine : Pizza)
+     (nathan  : Pizza)
+     (wendy   : Pizza)
+     (rachel  : Pizza)
+     (kevin   : Pizza)
+   : {a:Assignment |
+        (emily_pizza a == emily) &&
+        (owen_pizza a == owen) &&
+        (yasmine_pizza a == yasmine) &&
+        (nathan_pizza a == nathan) &&
+        (wendy_pizza a == wendy) &&
+        (rachel_pizza a == rachel) &&
+        (kevin_pizza a == kevin)}
++ emily_pizza   (a:Assignment) : Pizza
++ owen_pizza    (a:Assignment) : Pizza
++ yasmine_pizza (a:Assignment) : Pizza
++ nathan_pizza  (a:Assignment) : Pizza
++ wendy_pizza   (a:Assignment) : Pizza
++ rachel_pizza  (a:Assignment) : Pizza
++ kevin_pizza   (a:Assignment) : Pizza
+
+def pizza_solution : {a:Assignment |
+    ((emily_pizza a == .margherita) || (emily_pizza a == .cheese)) &&
+    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    (yasmine_pizza a != .cheese) &&
+    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    (wendy_pizza a != .hawaiian) &&
+    (rachel_pizza a == .cheese) &&
+    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian)) &&
+    (emily_pizza a != owen_pizza a) &&
+    (emily_pizza a != yasmine_pizza a) &&
+    (emily_pizza a != nathan_pizza a) &&
+    (emily_pizza a != wendy_pizza a) &&
+    (emily_pizza a != rachel_pizza a) &&
+    (emily_pizza a != kevin_pizza a) &&
+    (owen_pizza a != yasmine_pizza a) &&
+    (owen_pizza a != nathan_pizza a) &&
+    (owen_pizza a != wendy_pizza a) &&
+    (owen_pizza a != rachel_pizza a) &&
+    (owen_pizza a != kevin_pizza a) &&
+    (yasmine_pizza a != nathan_pizza a) &&
+    (yasmine_pizza a != wendy_pizza a) &&
+    (yasmine_pizza a != rachel_pizza a) &&
+    (yasmine_pizza a != kevin_pizza a) &&
+    (nathan_pizza a != wendy_pizza a) &&
+    (nathan_pizza a != rachel_pizza a) &&
+    (nathan_pizza a != kevin_pizza a) &&
+    (wendy_pizza a != rachel_pizza a) &&
+    (wendy_pizza a != kevin_pizza a) &&
+    (rachel_pizza a != kevin_pizza a)
+} = .mk .margherita .peppers .hawaiian .pepperoni .sausage .cheese .bbq
