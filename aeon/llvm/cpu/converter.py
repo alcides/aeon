@@ -212,7 +212,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         header_size = 8
         element_size = element_ty.get_abi_size(self.target_data)
 
-        count_i64 = self.builder.sext(count, ir.IntType(64)) if count.type.width < 64 else count
+        count_i64 = (
+            self.builder.sext(count, ir.IntType(64))
+            if isinstance(count.type, ir.IntType) and count.type.width < 64
+            else count
+        )
         data_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
         total_size = self.builder.add(data_size, ir.Constant(ir.IntType(64), header_size))
 
@@ -311,17 +315,15 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         lookup_name = name_parts[0] if len(name_parts) > 1 and name_parts[1].isdigit() else str_name
 
         # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
-        if "_" in lookup_name and lookup_name not in builtin_map:
+        if "_" in lookup_name and lookup_name not in builtin_map and lookup_name not in VECTOR_OPERATIONS:
             bare = lookup_name.split("_", 1)[1]
-            if bare in builtin_map:
+            if bare in builtin_map or bare in VECTOR_OPERATIONS:
                 lookup_name = bare
 
         actual_name = builtin_map.get(lookup_name, lookup_name)
 
-        if (
-            actual_name in {"pow", "sqrt", "sin", "cos", "exp", "log", "malloc", "free", "printf", "native"}
-            or lookup_name in VECTOR_OPERATIONS
-        ):
+        builtins = {"pow", "sqrt", "sin", "cos", "exp", "log", "malloc", "free", "printf", "native"}
+        if actual_name in builtins or lookup_name in VECTOR_OPERATIONS or actual_name in VECTOR_OPERATIONS:
             if actual_name in self.module.globals:
                 return self.module.globals[actual_name]
 
@@ -331,7 +333,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                     [LLVMPointerType(element_type=LLVMCharType())], LLVMPointerType(element_type=LLVMCharType())
                 )
 
-            return ir.Function(self.module, self.to_ir_type(actual_ty), name=actual_name)
+            ir_ty = self.to_ir_type(actual_ty)
+            if isinstance(ir_ty, ir.FunctionType):
+                return ir.Function(self.module, ir_ty, name=actual_name)
+
+            if actual_name == "size":
+                size_fty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))])
+                return ir.Function(self.module, size_fty, name=actual_name)
 
         raise LLVMIRGenerationError(f"undefined variable {str_name}")
 
@@ -387,9 +395,9 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if not function_name:
             self.fn_count += 1
 
-        func = self.module.globals.get(func_name) or ir.Function(
-            self.module, self.to_ir_type(function_type), name=func_name
-        )
+        func = self.module.globals.get(func_name)
+        if not isinstance(func, ir.Function):
+            func = ir.Function(self.module, self.to_ir_type(function_type), name=func_name)
 
         if len(func.blocks) > 0:
             return func
@@ -429,13 +437,15 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if not target_func:
             return None
 
-        if isinstance(target_func, ir.Function):
-            if len(arg_vals) < len(target_func.function_type.args):
+        func_ty = target_func.type
+        if isinstance(func_ty, ir.PointerType) and isinstance(func_ty.pointee, ir.FunctionType):
+            fty = func_ty.pointee
+            if len(arg_vals) < len(fty.args):
                 return None
-            new_arg_vals = []
-            for arg_val, expected_ty in zip(arg_vals, target_func.function_type.args):
-                new_arg_vals.append(self._cast_if_needed(arg_val, expected_ty))
-            arg_vals = new_arg_vals
+
+            arg_vals = [self._cast_if_needed(val, ty) for val, ty in zip(arg_vals, fty.args)] + arg_vals[
+                len(fty.args) :
+            ]
 
         return self.builder.call(target_func, arg_vals)
 
@@ -446,23 +456,16 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             return None
 
         if len(vals) == 2:
-            if vals[0].type != vals[1].type:
-                if isinstance(vals[0].type, (ir.FloatType, ir.DoubleType)) or isinstance(
-                    vals[1].type, (ir.FloatType, ir.DoubleType)
-                ):
-                    target_ty = (
-                        vals[0].type if isinstance(vals[0].type, (ir.FloatType, ir.DoubleType)) else vals[1].type
-                    )
-                    if isinstance(vals[0].type, ir.DoubleType) or isinstance(vals[1].type, ir.DoubleType):
+            t0, t1 = vals[0].type, vals[1].type
+            if t0 != t1:
+                if any(isinstance(t, (ir.FloatType, ir.DoubleType)) for t in (t0, t1)):
+                    target_ty = t0 if isinstance(t0, (ir.FloatType, ir.DoubleType)) else t1
+                    if any(isinstance(t, ir.DoubleType) for t in (t0, t1)):
                         target_ty = ir.DoubleType()
-                    vals[0] = self._cast_if_needed(vals[0], target_ty)
-                    vals[1] = self._cast_if_needed(vals[1], target_ty)
-                else:
-                    w0 = vals[0].type.width if isinstance(vals[0].type, ir.IntType) else 0
-                    w1 = vals[1].type.width if isinstance(vals[1].type, ir.IntType) else 0
-                    target_ty = ir.IntType(max(w0, w1))
-                    vals[0] = self._cast_if_needed(vals[0], target_ty)
-                    vals[1] = self._cast_if_needed(vals[1], target_ty)
+                    vals = [self._cast_if_needed(v, target_ty) for v in vals]
+                elif all(isinstance(t, ir.IntType) for t in (t0, t1)):
+                    target_ty = ir.IntType(max(t0.width, t1.width))
+                    vals = [self._cast_if_needed(v, target_ty) for v in vals]
 
         is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
         return self.op_strategy.execute(self.builder, op, vals, is_f)
@@ -526,6 +529,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -544,6 +552,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         ty, f, initial, v, size = node.type, node.f, node.initial, node.v, node.size
         self._is_top_level = False
         f_val, init_val, v_val, size_val = f.accept(self), initial.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         acc_ty = self.to_ir_type(ty)
         if isinstance(acc_ty, ir.VoidType):
             acc_ty = ir.IntType(32)
@@ -566,6 +579,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -584,6 +602,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -614,6 +637,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         res_ty, f, v1, v2, size = node.type, node.f, node.v1, node.v2, node.size
         self._is_top_level = False
         f_val, v1_val, v2_val, size_val = f.accept(self), v1.accept(self), v2.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v1_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -633,6 +661,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         f, v, size = node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         count_ptr = self.builder.alloca(ir.IntType(32), name="count_res")
         self.builder.store(ir.Constant(ir.IntType(32), 0), count_ptr)
 

@@ -126,14 +126,7 @@ def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument(
         "--test",
         action="store_true",
-        help="Run property-based tests: check every @property function on random inputs",
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="Random seed for property-based testing (--test). Generation is reproducible for a fixed seed.",
+        help="Skip the elaboration step",
     )
 
     parser.add_argument(

@@ -7,8 +7,8 @@ def is_inside_circle (x : Float) (y : Float) : Int =
 
 @cpu
 def count_kernel (xs: (Vector Float)) (ys: (Vector Float)) (size: Int) : Int =
-    let points_in_circle = Vector_zipWith[Float][Float][Int] is_inside_circle xs ys size;
-    Vector_count[Int] (\x:Int -> x == 1) points_in_circle size;
+    let points_in_circle = Vector.zipWith[Float][Float][Int] is_inside_circle xs ys size;
+    Vector.count[Int] (\x:Int -> x == 1) points_in_circle size;
 
 
 def run_batches (batches_left: Int) (points_per_batch: Int) (acc: Int) : Int =

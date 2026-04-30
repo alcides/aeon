@@ -179,8 +179,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         pto.opt_level = opt_level
         tm = self._create_target_machine()
         pb = llvm.create_pass_builder(tm, pto)
-        pm = llvm.create_new_module_pass_manager()
-        pb.populate_module_pass_manager(pm)
+        pm = pb.getModulePassManager()
         pm.run(backing_mod, pb)
 
         with llvm.create_mcjit_compiler(backing_mod, tm) as engine:
