@@ -55,7 +55,11 @@ class LLMSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
-        var_description = ", ".join([f"{name} : {ty}" for (name, ty) in ctx.concrete_vars()])
+        current_metadata = metadata.get(fun_name, {})
+        hidden_names = {v.name for v in current_metadata.get("hide", [])}
+        var_description = ", ".join(
+            [f"{name} : {ty}" for (name, ty) in ctx.concrete_vars() if name.name not in hidden_names]
+        )
 
         system_prompt = (
             "Please generate a candidate expression for the problem defined after the word PROBLEM."
@@ -73,7 +77,6 @@ class LLMSynthesizer(Synthesizer):
         core_term: Term = Hole(Name("sorry", -1))
         best_quality = None
 
-        current_metadata = metadata.get(fun_name, {})
         goals: list[Goal] = current_metadata.get("goals", [])
         minimize_list = [goal.minimize for goal in goals for _ in range(goal.length)]
         prompt = current_metadata.get("prompt", "Any program")

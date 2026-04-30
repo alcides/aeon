@@ -72,7 +72,7 @@ def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_all
         return not is_recursion_allowed
     current_metadata = metadata.get(fun_name, {})
     vars_to_ignore = current_metadata.get("hide", [])
-    if name in vars_to_ignore:
+    if name.name in {v.name for v in vars_to_ignore}:
         return True
     if name.name.startswith("__internal__"):
         return True
