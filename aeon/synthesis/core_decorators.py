@@ -38,5 +38,6 @@ def after_typecheck(
 core_decorators_environment: dict[str, CoreDecoratorType] = {
     "after_typecheck": after_typecheck,
     "cpu": cpu_core,
+    "llvm": cpu_core,
     "gpu": gpu_core,
 }
