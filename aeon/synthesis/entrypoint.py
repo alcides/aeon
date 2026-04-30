@@ -27,6 +27,7 @@ from aeon.synthesis.api import ErrorInSynthesis, Synthesizer, TimeoutInEvaluatio
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.resource_meters import measure_cputime, measure_energy
 
 
 def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]:
@@ -49,40 +50,6 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
 Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
-def _measure_cputime(thunk: Callable[[], Any]) -> float:
-    """Run ``thunk`` and return the CPU time it consumed, in seconds."""
-    start = time.process_time()
-    thunk()
-    return time.process_time() - start
-
-
-# Fallback power estimate (in watts) used to convert CPU time to a joules-like
-# proxy when no hardware energy counter is available. The exact value matters
-# less than monotonicity: faster candidates score better.
-_DEFAULT_PROXY_POWER_W = 15.0
-
-
-def _measure_energy(thunk: Callable[[], Any]) -> float:
-    """Run ``thunk`` and return the energy it consumed, in joules.
-
-    Uses Intel RAPL via ``pyRAPL`` when importable and supported; otherwise
-    falls back to ``cpu_time * _DEFAULT_PROXY_POWER_W``.
-    """
-    try:
-        import pyRAPL  # type: ignore[import-not-found]
-
-        pyRAPL.setup()
-        meter = pyRAPL.Measurement("aeon_synth")
-        meter.begin()
-        thunk()
-        meter.end()
-        # pyRAPL reports per-package energy in microjoules.
-        pkg = meter.result.pkg if meter.result and meter.result.pkg else [0.0]
-        return float(sum(pkg)) / 1e6
-    except Exception:
-        return _measure_cputime(thunk) * _DEFAULT_PROXY_POWER_W
-
-
 def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
     """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
 
@@ -90,9 +57,9 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
         program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
         try:
             if goal.kind == "cputime":
-                return _measure_cputime(lambda: eval(program_for_fitness, ectx))
+                return measure_cputime(lambda: eval(program_for_fitness, ectx))
             if goal.kind == "energy":
-                return _measure_energy(lambda: eval(program_for_fitness, ectx))
+                return measure_energy(lambda: eval(program_for_fitness, ectx))
             return eval(program_for_fitness, ectx)
         except Exception:
             return sys.maxsize

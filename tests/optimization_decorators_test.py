@@ -1,15 +1,15 @@
-from unittest import mock
-
-from aeon.synthesis.entrypoint import (
-    _DEFAULT_PROXY_POWER_W,
-    _measure_cputime,
-    _measure_energy,
-    make_evaluators,
-    synthesize_holes,
-)
+from aeon.synthesis.entrypoint import make_evaluators, synthesize_holes
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer, create_problem
 from aeon.synthesis.identification import incomplete_functions_and_holes, iterate_top_level
+from aeon.synthesis.resource_meters import (
+    DEFAULT_POWER_W,
+    CPUTimeProxyMeter,
+    PowercapMeter,
+    default_energy_meter,
+    measure_cputime,
+    measure_energy,
+)
 from aeon.sugar.ast_helpers import st_top
 from aeon.utils.name import Name
 
@@ -107,23 +107,38 @@ def test_cputime_and_energy_make_two_evaluators_and_minimize_problem():
 
 
 def test_measure_cputime_is_nonnegative():
-    cheap = _measure_cputime(lambda: None)
-    busy = _measure_cputime(lambda: sum(range(200_000)))
+    cheap = measure_cputime(lambda: None)
+    busy = measure_cputime(lambda: sum(range(200_000)))
     assert cheap >= 0.0
     assert busy >= 0.0
 
 
-def test_measure_energy_falls_back_to_proxy_without_pyrapl():
-    # Force the pyRAPL import to fail and verify we hit the CPU-time proxy.
-    with mock.patch.dict("sys.modules", {"pyRAPL": None}):
-
-        def work():
-            sum(range(50_000))
-
-        joules = _measure_energy(work)
-
+def test_measure_energy_returns_finite_nonnegative():
+    joules = measure_energy(lambda: sum(range(50_000)))
     assert joules >= 0.0
-    assert joules < _DEFAULT_PROXY_POWER_W * 10.0
+    # Sanity bound: synth-sized thunks shouldn't burn kilojoules.
+    assert joules < 1000.0
+
+
+def test_cputime_proxy_meter_uses_default_power():
+    meter = CPUTimeProxyMeter()
+    assert meter.available()
+    # A no-op thunk should consume ~0 J under the proxy.
+    assert meter.measure(lambda: None) < DEFAULT_POWER_W
+
+
+def test_default_energy_meter_picks_powercap_or_proxy():
+    meter = default_energy_meter()
+    assert isinstance(meter, (PowercapMeter, CPUTimeProxyMeter))
+    # The chosen meter's `available()` must return True.
+    assert meter.available()
+
+
+def test_powercap_meter_availability_matches_filesystem():
+    import glob
+
+    expected = bool(glob.glob(PowercapMeter.PATTERN))
+    assert PowercapMeter().available() is expected
 
 
 def test_cputime_synthesis_smoke():

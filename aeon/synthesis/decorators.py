@@ -464,12 +464,12 @@ def minimize_energy(
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this
     expression and the energy consumed (in joules) is contributed as a fitness
-    value to be minimized. When the optional ``pyRAPL`` package is installed
-    and the platform provides Intel RAPL counters, real hardware readings are
-    used; otherwise a CPU-time proxy is used (energy = cpu_time * default_power)
-    so the search signal is still meaningful. Composes with other objectives.
-    The value produced by the expression itself is ignored, so its type is
-    unconstrained.
+    value to be minimized. The actual measurement backend is chosen by
+    :mod:`aeon.synthesis.resource_meters`: hardware RAPL counters via the
+    Linux ``powercap`` interface when available (Intel and modern AMD), and a
+    CPU-time-based proxy elsewhere (macOS, Windows, ARM). Composes with other
+    objectives. The value produced by the expression itself is ignored, so its
+    type is unconstrained.
     """
     assert len(decorator.macro_args) == 1, "minimize_energy decorator expects a single argument"
     return make_optimizer(decorator.macro_args, fun, metadata, st_top, minimize=True, kind="energy")

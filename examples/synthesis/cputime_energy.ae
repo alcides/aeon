@@ -4,8 +4,10 @@
 # @minimize_cputime drives the synthesizer toward candidates that are cheap
 #                   to evaluate (CPU time, in seconds).
 # @minimize_energy  drives the synthesizer toward candidates that consume
-#                   little energy (joules; uses Intel RAPL when available,
-#                   otherwise a CPU-time-based proxy).
+#                   little energy (joules). The backend is chosen automatically
+#                   by aeon.synthesis.resource_meters: Linux powercap RAPL
+#                   when available (Intel + modern AMD), otherwise a
+#                   CPU-time-based proxy (macOS, Windows, ARM).
 #
 # All three goals are minimized simultaneously by the multi-objective
 # synthesizer.
