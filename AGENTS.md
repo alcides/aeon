@@ -2,35 +2,41 @@
 
 ## Cursor Cloud specific instructions
 
-### Environment
+### Quick Start
 
-- Python 3.12+ with `uv` package manager.
-- The project uses a virtual environment at `/workspace/.venv`. Activate it with `source /workspace/.venv/bin/activate` before running commands.
-- All commands documented in `CLAUDE.md` apply; use `pytest` for tests, `pre-commit run --all-files` for linting, and `python -m aeon <file.ae>` to run programs.
+The update script handles all dependency installation. After it runs, activate the venv and you're ready:
+
+```bash
+source /workspace/.venv/bin/activate
+```
+
+All dev commands are documented in `CLAUDE.md`. Key ones:
+
+| Task | Command |
+|------|---------|
+| Run tests | `pytest` |
+| Run single test | `pytest tests/<file>.py::<test> -x` |
+| Lint + format + typecheck | `pre-commit run --all-files` |
+| Type check only | `mypy aeon --no-strict-optional --ignore-missing-imports` |
+| Run .ae file | `python -m aeon <file.ae>` |
+| Run with synthesis | `python -m aeon --budget 10 -s gp examples/synthesis/<file>.ae` |
+| Run all examples (CI) | `bash run_examples.sh` |
 
 ### Gotchas
 
 - **git hooks path**: If `pre-commit install` fails with "Cowardly refusing to install hooks with `core.hooksPath` set", run `git config --unset-all core.hooksPath` first.
-- **System pip permissions**: Do not use `uv pip install --system` — it will fail with permission errors on `/usr/local/bin`. Always install into the venv.
-- **No external services required**: Aeon is fully self-contained (Z3 solver is a pip package). The only optional dependency is Ollama for LLM-based synthesis, which is not needed for standard development/testing.
+- **System pip permissions**: Never use `uv pip install --system`. Always install into `/workspace/.venv`.
+- **No external services**: Aeon is fully self-contained. Z3 solver is a pip package, not a service. Ollama (LLM synthesis) is optional and not needed for tests.
+- **pre-commit first run**: Pre-commit hook environments are cached after first execution. First `pre-commit run --all-files` takes ~90s; subsequent runs are fast.
+- **pytest duration**: Full test suite (~415 tests) takes ~2 minutes. Use `-x` flag and specific test files for faster iteration.
+- **`run_examples.sh` uses `uv run`**: The script calls `uv run python -m aeon`. This works because the package is installed in editable mode via the venv.
 
-### Running the application
+### Architecture (for quick orientation)
 
-```bash
-# Hello world
-python -m aeon examples/syntax/hello_world_main.ae
+See `CLAUDE.md` for full architecture docs. The compiler pipeline is:
 
-# With synthesis (genetic programming, 5s budget)
-python -m aeon --budget 5 -s gp examples/synthesis/int.ae
-
-# Run all examples (integration test)
-bash run_examples.sh
+```
+Source (.ae) → Parse (lark) → Sugar AST → Desugar/Elaborate → Core AST → ANF → Typecheck (z3 SMT) → Synthesize/Evaluate
 ```
 
-### Testing
-
-```bash
-pytest                          # Full test suite (~415 tests, ~2 min)
-pytest tests/some_test.py -x   # Single test file, stop on first failure
-pre-commit run --all-files     # Lint + format + type check
-```
+Entry point: `aeon/__main__.py` → `AeonDriver` in `aeon/facade/`. Synthesis uses `aeon/synthesis/entrypoint.py`.
