@@ -48,7 +48,7 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
             assert not isinstance(ty, RefinedType)
             return RefinedType(rname, rec(ty), ref, loc=loc)
         case AbstractionType(a, aty, rty, loc):
-            return AbstractionType(a, rec(aty), rec(rty), loc=loc)
+            return AbstractionType(a, rec(aty), rec(rty), loc=loc, destructive=t.destructive)
         case TypePolymorphism(pname, kind, body, loc):
             if name == pname:
                 return t
@@ -164,6 +164,7 @@ def instantiate_refinement_in_type(
                 instantiate_refinement_in_type(atype, pred_name, refinement),
                 instantiate_refinement_in_type(rtype, pred_name, refinement),
                 loc=loc,
+                destructive=t.destructive,
             )
         # b{ν:p}[ρ := φ] = b[ρ := φ]{ν:p[ρ := φ]} per tutorial fig 8.6
         case RefinedType(vname, ity, ref, loc):
@@ -242,7 +243,7 @@ def instantiate_refinement_with_horn_in_type(
         case TypeConstructor(name, args, loc):
             return TypeConstructor(name, [rec(a) for a in args], loc=loc)
         case AbstractionType(aname, atype, rtype, loc):
-            return AbstractionType(aname, rec(atype), rec(rtype), loc=loc)
+            return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, destructive=t.destructive)
         case RefinedType(vname, ity, ref, loc):
             nity = rec(ity)
             assert isinstance(nity, TypeConstructor) or isinstance(nity, TypeVar)
@@ -306,7 +307,7 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
             if aname == name:
                 return t
             else:
-                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc)
+                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, destructive=t.destructive)
         case RefinedType(vname, ity, ref, loc):
             if name == vname:
                 return t
@@ -378,7 +379,7 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
             if aname == name:
                 return t
             else:
-                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc)
+                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, destructive=t.destructive)
         case RefinedType(vname, ity, ref, loc):
             if name == vname:
                 return t

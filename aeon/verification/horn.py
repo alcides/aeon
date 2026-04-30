@@ -76,7 +76,7 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         case AbstractionType(name, aty, rty):
             sp = fresh(context, aty)
             tp = fresh(context.with_var(name, aty), rty)
-            return AbstractionType(name, sp, tp)
+            return AbstractionType(name, sp, tp, destructive=ty.destructive)
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, fresh(context, body))
         case RefinementPolymorphism(name, sort, body):

@@ -111,6 +111,7 @@ def collect_core_decorator_queue(
                         rforalls,
                         decreasing_by,
                         loc,
+                        destructive_args=d.destructive_args,
                     )
                 )
             case _:

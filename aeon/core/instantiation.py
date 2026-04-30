@@ -35,7 +35,7 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
                 case city:
                     return RefinedType(name, city, ref, loc=loc)
         case AbstractionType(aname, aty, rty, loc):
-            return AbstractionType(aname, rec(aty), rec(rty), loc=loc)
+            return AbstractionType(aname, rec(aty), rec(rty), loc=loc, destructive=t.destructive)
         case TypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return t
@@ -79,7 +79,7 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
     elif isinstance(t, RefinedType):
         return RefinedType(t.name, rec(t.type), t.refinement, t.loc)
     elif isinstance(t, AbstractionType):
-        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type), t.loc)
+        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type), t.loc, destructive=t.destructive)
     elif isinstance(t, TypePolymorphism):
         return TypePolymorphism(t.name, t.kind, rec(t.body), t.loc)
     elif isinstance(t, RefinementPolymorphism):

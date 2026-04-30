@@ -224,6 +224,7 @@ def lower_by_blocks_in_definitions(
                         rforalls,
                         decreasing_by,
                         loc,
+                        destructive_args=d.destructive_args,
                     )
                 )
             case _:
@@ -342,7 +343,18 @@ def resolve_qualified_names_in_definition(
     )
     if new_body is d.body and new_args == d.args and new_type is d.type:
         return d
-    return Definition(d.name, d.foralls, new_args, new_type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
+    return Definition(
+        d.name,
+        d.foralls,
+        new_args,
+        new_type,
+        new_body,
+        d.decorators,
+        d.rforalls,
+        d.decreasing_by,
+        d.loc,
+        destructive_args=d.destructive_args,
+    )
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
@@ -772,6 +784,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                         rforalls,
                         decreasing_by,
                         loc,
+                        destructive_args=d.destructive_args,
                     )
                 )
     return ndefs
@@ -856,6 +869,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
                         final_rforalls,
                         decreasing_by,
                         loc,
+                        destructive_args=d.destructive_args,
                     )
                 )
     return ndefs
@@ -945,6 +959,7 @@ def handle_imports(
                 d.rforalls,
                 d.decreasing_by,
                 d.loc,
+                destructive_args=d.destructive_args,
             )
             prefixed_definitions.append(prefixed_d)
 
@@ -1031,8 +1046,10 @@ def type_of_definition(d: Definition) -> SType:
     match d:
         case Definition(_, foralls, args, rtype, _, _, rforalls, _, loc):
             ntype = rtype
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                destructive = d.is_destructive(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc, destructive=destructive)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc)
             for name, kind in reversed(foralls):
@@ -1048,8 +1065,10 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
         case Definition(dname, foralls, args, rtype, body, _, rforalls, decreasing_by, loc):
             ntype = rtype
             nbody = body
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc=loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                destructive = d.is_destructive(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc=loc, destructive=destructive)
                 nbody = SAbstraction(name, nbody, loc=loc)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc=loc)
