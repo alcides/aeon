@@ -4,11 +4,13 @@
 
 ### Quick Start
 
-The update script handles all dependency installation. After it runs, activate the venv and you're ready:
+The update script handles all dependency installation and runs `pre-commit run --all-files` to pre-cache hook environments. After it runs, activate the venv and you're ready:
 
 ```bash
 source /workspace/.venv/bin/activate
 ```
+
+Pre-commit hooks are installed as a git pre-commit hook — they run automatically on every `git commit`. If hooks fail, the commit is rejected. Always ensure `pre-commit run --all-files` passes before committing.
 
 All dev commands are documented in `CLAUDE.md`. Key ones:
 
