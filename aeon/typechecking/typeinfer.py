@@ -48,6 +48,7 @@ from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
 from aeon.facade.api import (
     AeonError,
+    CoreDestroyedVariableUseError,
     CoreInvalidApplicationError,
     CoreSubtypingError,
     CoreTypeApplicationRequiresBareTypesError,
@@ -320,6 +321,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         case Var(name):
             if name in ops:
                 return (ctrue, prim_op(name))
+            if ctx.is_destroyed(name):
+                raise CoreDestroyedVariableUseError(ctx, t)
             ty = ctx.type_of(name)
             if not ty:
                 raise CoreVariableNotInContext(ctx, t)
@@ -355,6 +358,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     cp = check(ctx, arg, atype)
                     t_subs = substitution_in_type(rtype, arg, aname)
                     c0 = Conjunction(c, cp)
+                    if ty.destructive and isinstance(arg, Var):
+                        ctx.mark_destroyed(arg.name)
                     return (c0, t_subs)
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
@@ -476,6 +481,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             if not check_type(ctx, cond, t_bool):
                 raise CoreTypingRelation(ctx, cond, t_bool)
             c0 = check(ctx, cond, t_bool)
+            # Snapshot destroyed before each branch so destructions don't leak
+            # between branches; after If, union both branches' destructions.
+            base_destroyed = set(ctx.destroyed)
             name_pos = Name("branch_pos", fresh_counter.fresh())
             c1 = implication_constraint(
                 y,
@@ -483,6 +491,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 check(ctx, then, ty),
                 then.loc,
             )
+            then_destroyed = set(ctx.destroyed)
+            ctx.destroyed.clear()
+            ctx.destroyed.update(base_destroyed)
             name_neg = Name("branch_neg", fresh_counter.fresh())
             c2 = implication_constraint(
                 y,
@@ -490,6 +501,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 check(ctx, otherwise, ty),
                 otherwise.loc,
             )
+            ctx.destroyed.update(then_destroyed)
             return Conjunction(c0, Conjunction(c1, c2))
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
             if var_kind == BaseKind() and kind != var_kind:

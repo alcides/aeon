@@ -54,6 +54,8 @@ args :                          -> empty_list
 
 arg : "(" ID ":" type ")"                       -> arg
     | "(" ID ":" type _PIPE expression ")"      -> refined_arg
+    | "(" "!" ID ":" type ")"                       -> destructive_arg
+    | "(" "!" ID ":" type _PIPE expression ")"      -> destructive_refined_arg
 
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO delete later

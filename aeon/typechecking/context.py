@@ -83,6 +83,10 @@ class TypeConstructorBinder(TypingContextEntry):
 @dataclass
 class TypingContext:
     entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
+    # Names that have been "consumed" by a destructive function argument.
+    # Shared by reference across derived contexts so destructive use in a Let's
+    # value is visible while typing the Let's body.
+    destroyed: set[Name] = field(default_factory=set)
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
@@ -96,11 +100,17 @@ class TypingContext:
 
     def with_var(self, name: Name, type: Type) -> TypingContext:
         nentries = [e for e in self.entries] + [VariableBinder(name, type)]
-        return TypingContext(nentries)
+        return TypingContext(nentries, self.destroyed)
 
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
         nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
-        return TypingContext(nentries)
+        return TypingContext(nentries, self.destroyed)
+
+    def mark_destroyed(self, name: Name) -> None:
+        self.destroyed.add(name)
+
+    def is_destroyed(self, name: Name) -> bool:
+        return name in self.destroyed
 
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:

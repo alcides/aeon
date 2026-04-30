@@ -91,7 +91,7 @@ def lift_type(ty: Type) -> SType:
         case TypeConstructor(name, args, loc):
             return STypeConstructor(name, [lift_type(arg) for arg in args], loc=loc)
         case AbstractionType(name, atype, rtype, loc):
-            return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc)
+            return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc, destructive=ty.destructive)
         case RefinedType(name, typ, ref, loc):
             from aeon.core.types import LiquidHornApplication
 

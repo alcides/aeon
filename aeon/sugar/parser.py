@@ -58,6 +58,21 @@ def ensure_list(a):
         return [a]
 
 
+def _split_destructive(fn_args):
+    """Split parser argument 3-tuples ``(name, type, destructive)`` back into the legacy
+    ``(name, type)`` pair list plus a parallel tuple of destructive booleans."""
+    plain_args: list = []
+    destructive_flags: list[bool] = []
+    for a in fn_args:
+        if isinstance(a, tuple) and len(a) == 3:
+            plain_args.append((a[0], a[1]))
+            destructive_flags.append(bool(a[2]))
+        else:
+            plain_args.append(a)
+            destructive_flags.append(False)
+    return plain_args, tuple(destructive_flags)
+
+
 class AnnotatedStr(str):
     loc: Location
 
@@ -384,7 +399,16 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_ind_cons(self, meta, args):
-        return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
+        plain_args, destructive_flags = _split_destructive(args[1])
+        return Definition(
+            Name(args[0]),
+            [],
+            plain_args,
+            args[2],
+            SLiteral(None, st_unit),
+            loc=self._loc(meta),
+            destructive_args=destructive_flags,
+        )
 
     def decreasing_by_none(self, args):
         return []
@@ -400,27 +424,31 @@ class TreeToSugar(Transformer):
     def def_fun(self, meta, args):
         if len(args) == 5:
             name, fn_args, rtype, decr, body = args
+            plain_args, destructive_flags = _split_destructive(fn_args)
             return Definition(
                 Name(name),
                 [],
-                fn_args,
+                plain_args,
                 rtype,
                 body,
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
+                destructive_args=destructive_flags,
             )
         if len(args) == 6:
             decorators, name, fn_args, rtype, decr, body = args
+            plain_args, destructive_flags = _split_destructive(fn_args)
             return Definition(
                 Name(name),
                 [],
-                fn_args,
+                plain_args,
                 rtype,
                 body,
                 decorators,
                 [],
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
+                destructive_args=destructive_flags,
             )
         raise AssertionError(f"def_fun: unexpected args {args!r}")
 
@@ -463,10 +491,16 @@ class TreeToSugar(Transformer):
         return args
 
     def arg(self, args):
-        return (Name(args[0]), args[1])
+        return (Name(args[0]), args[1], False)
 
     def refined_arg(self, args):
-        return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2])
+        return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2]), False
+
+    def destructive_arg(self, args):
+        return (Name(args[0]), args[1], True)
+
+    def destructive_refined_arg(self, args):
+        return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2]), True
 
     def abstraction_refined_t(self, args):
         type = SRefinedType(Name(args[0]), args[1], args[2])

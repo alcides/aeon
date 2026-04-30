@@ -400,15 +400,21 @@ class Definition(Node):
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     decreasing_by: list[STerm] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    destructive_args: tuple[bool, ...] = field(default_factory=tuple)
 
     def __post_init__(self):
         assert isinstance(self.type, SType)
+
+    def is_destructive(self, i: int) -> bool:
+        if i < len(self.destructive_args):
+            return bool(self.destructive_args[i])
+        return False
 
     def __str__(self):
         if not self.args:
             return f"def {self.name} : {self.type} = {self.body};"
         else:
-            args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
+            args = ", ".join([f"{'!' if self.is_destructive(i) else ''}{n}:{t}" for i, (n, t) in enumerate(self.args)])
             foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
             rforalls = " ".join([f"∀<{n}:{s} -> Bool>" for (n, s) in self.rforalls])
             sep = " " if (foralls or rforalls) else ""

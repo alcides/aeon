@@ -211,6 +211,7 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                 var_type=remove_unions_and_intersections(ctx, vtype),
                 type=remove_unions_and_intersections(ctx, rtype),
                 loc=loc,
+                destructive=ty.destructive,
             )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(
@@ -444,7 +445,9 @@ def replace_unification_variables(
             case STypeVar(_):
                 return ty
             case SAbstractionType(name, vty, rty, loc=loc):
-                return SAbstractionType(name, go(ctx, vty, not polarity), go(ctx, rty, polarity), loc=loc)
+                return SAbstractionType(
+                    name, go(ctx, vty, not polarity), go(ctx, rty, polarity), loc=loc, destructive=ty.destructive
+                )
             case SRefinedType(name, ity, ref, loc=loc):
                 nt = go(ctx, ity, polarity)
                 return SRefinedType(name, nt, ref, loc=loc)

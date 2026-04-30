@@ -141,6 +141,21 @@ class CoreVariableNotInContext(CoreTypeCheckingError):
 
 
 @dataclass
+class CoreDestroyedVariableUseError(CoreTypeCheckingError):
+    """Raised when a variable previously consumed by a destructive function
+    argument is used again."""
+
+    ctx: TypingContext
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Variable {self.term} has been consumed by a destructive function argument and is no longer available."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class CoreInvalidApplicationError(CoreTypeCheckingError):
     term: Term
     type: Type
