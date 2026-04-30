@@ -46,11 +46,12 @@ class SynquidSynthesizer(Synthesizer):
         current_metadata = metadata.get(fun_name, {})
         is_recursion_allowed = current_metadata.get("recursion", False)
         vars_to_ignore = current_metadata.get("hide", [])
+        vars_to_ignore_names = {v.name for v in vars_to_ignore}
 
         def skip(name: Name) -> bool:
             if name == fun_name:
                 return not is_recursion_allowed
-            elif name in vars_to_ignore:
+            elif name.name in vars_to_ignore_names:
                 return True
             elif name.name.startswith("__internal__"):
                 return True

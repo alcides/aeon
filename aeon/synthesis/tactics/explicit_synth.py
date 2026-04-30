@@ -17,7 +17,7 @@ from aeon.synthesis.tactics.inst import tactic_inst
 from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
 
@@ -55,6 +55,13 @@ class ExplicitTacticSynthesizer(Synthesizer):
     ) -> Term | None:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
+
+        current_metadata = metadata.get(fun_name, {})
+        hidden_names = {v.name for v in current_metadata.get("hide", [])}
+        if hidden_names:
+            filtered_entries = [e for e in ctx.entries if not (isinstance(e, VariableBinder) and e.name.name in hidden_names)]
+            ctx = TypingContext(filtered_entries)
+
         for s in self.steps:
             if s not in TACTIC_REGISTRY:
                 ui.register(None, None, 0.0, False)

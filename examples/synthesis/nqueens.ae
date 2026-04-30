@@ -47,7 +47,11 @@ def create_solution
    {b:Board | Board_size b == N} =
     Board_cons q1 (Board_cons q2 (Board_cons q3 (Board_cons q4 (Board_cons q5 (Board_cons q6 (Board_cons q7 (Board_cons q8 (Board_cons q9 Board_empty))))))));
 
+def board_conflicts (b:Board) : Int =
+    match b with
+    | Board_empty => 0
+    | Board_cons h tl => conflicts h tl + board_conflicts tl;
 
-@minimize_int(1)
-@hide(conflicts, Board_quality)
-def nqueens : {b:Board | Board_size b == N} = ?hole;
+@minimize_int(board_conflicts nqueens)
+@hide(conflicts, board_conflicts, abs)
+def nqueens : Board = ?hole;
