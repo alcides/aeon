@@ -1,5 +1,5 @@
-import "Vector.ae";
-import "Math.ae";
+open Vector
+open Math
 
 @gpu
 def count_spaces (chars: (Vector Int)) (size: Int) : Int =

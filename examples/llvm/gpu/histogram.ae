@@ -1,4 +1,4 @@
-import "Vector.ae";
+open Vector
 
 @gpu
 def wordcount (word: Int) (doc: (Vector Int)) (doc_size: Int) : Int =
