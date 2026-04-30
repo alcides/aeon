@@ -46,9 +46,11 @@ class SAbstractionType(SType):
     var_type: SType
     type: SType
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    destructive: bool = False
 
     def __str__(self):
-        return f"({self.var_name} : {self.var_type}) -> {self.type}"
+        bang = "!" if self.destructive else ""
+        return f"({bang}{self.var_name} : {self.var_type}) -> {self.type}"
 
 
 @dataclass(unsafe_hash=True)

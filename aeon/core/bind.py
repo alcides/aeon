@@ -125,7 +125,9 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
         case AbstractionType(aname, atype, rtype, loc):
             nname, nsubs = check_name(aname, subs)
 
-            return AbstractionType(nname, bind_type(atype, subs), bind_type(rtype, nsubs), loc=loc)
+            return AbstractionType(
+                nname, bind_type(atype, subs), bind_type(rtype, nsubs), loc=loc, destructive=ty.destructive
+            )
         case RefinedType(name, ty, ref, loc):
             nty = bind_type(ty, subs)
             nname, nsubs = check_name(name, subs)

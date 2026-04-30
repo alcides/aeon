@@ -1,0 +1,13 @@
+# Destructive argument example.
+#
+# Marking a parameter with a leading `!` declares it destructive.
+# After the function is called, the variable passed in that position
+# is no longer available in the surrounding scope.
+
+def consume (!x: Int | x > 0) : Int = x;
+
+def main (args:Int) : Unit =
+    let a : Int | a > 0 = 5 in
+    let result = consume a in
+    # `a` is no longer available here; only `result` is.
+    print result;

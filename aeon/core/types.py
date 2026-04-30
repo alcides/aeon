@@ -82,9 +82,11 @@ class AbstractionType(Type):
     var_type: Type
     type: Type
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    destructive: bool = False
 
     def __repr__(self):
-        return f"({self.var_name}:{self.var_type}) -> {self.type}"
+        bang = "!" if self.destructive else ""
+        return f"({bang}{self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
         return (
@@ -92,10 +94,11 @@ class AbstractionType(Type):
             and self.var_name == other.var_name
             and self.var_type == other.var_type
             and self.type == other.type
+            and self.destructive == other.destructive
         )
 
     def __hash__(self) -> int:
-        return hash(self.var_name) + hash(self.var_type) + hash(self.type)
+        return hash(self.var_name) + hash(self.var_type) + hash(self.type) + hash(self.destructive)
 
 
 @dataclass
