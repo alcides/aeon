@@ -57,7 +57,9 @@ class LLMSynthesizer(Synthesizer):
 
         current_metadata = metadata.get(fun_name, {})
         hidden_names = {v.name for v in current_metadata.get("hide", [])}
-        var_description = ", ".join([f"{name} : {ty}" for (name, ty) in ctx.concrete_vars() if name.name not in hidden_names])
+        var_description = ", ".join(
+            [f"{name} : {ty}" for (name, ty) in ctx.concrete_vars() if name.name not in hidden_names]
+        )
 
         system_prompt = (
             "Please generate a candidate expression for the problem defined after the word PROBLEM."

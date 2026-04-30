@@ -53,7 +53,9 @@ class TacticRandomSynthesizer(Synthesizer):
         current_metadata = metadata.get(fun_name, {})
         hidden_names = {v.name for v in current_metadata.get("hide", [])}
         if hidden_names:
-            filtered_entries = [e for e in ctx.entries if not (isinstance(e, VariableBinder) and e.name.name in hidden_names)]
+            filtered_entries = [
+                e for e in ctx.entries if not (isinstance(e, VariableBinder) and e.name.name in hidden_names)
+            ]
             ctx = TypingContext(filtered_entries)
 
         has_goals = bool(current_metadata.get("goals"))
