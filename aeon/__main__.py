@@ -104,8 +104,6 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Uses a pretty print version of the code to reformat it",
     )
 
-    return parser.parse_args()
-
 
 def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
@@ -124,10 +122,13 @@ def main() -> None:
 
     logger = setup_logger()
     logfile_name = None
-    if hasattr(args, "filename"):
-        logfile_name = args.filename
-    elif hasattr(args, "language_server_mode"):
-        logfile_name = "lsp"
+    match getattr(args, "filename", None), getattr(args, "language_server_mode", None):
+        case (str() as fn, _):
+            logfile_name = fn
+        case (_, True):
+            logfile_name = "lsp"
+        case _:
+            logfile_name = None
     export_log(args.log, args.logfile, logfile_name)
 
     if args.debug:
@@ -152,25 +153,27 @@ def main() -> None:
 
     errors = driver.parse(args.filename)
 
-    if errors:
-        for err in errors:
-            handle_error(err)
-    elif args.format:
-        driver.pretty_print(args.filename, args.fix)
-
-    elif driver.has_synth():
-        try:
-            term = driver.synth()
-        except SynthesisNotSuccessful:
-            print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
-            sys.exit(2)
-        print("Synthesized:")
-        print("#str")
-        print(str(term))
-        print("#pprint")
-        print(pretty_print_sterm(term))
-    else:
-        driver.run()
+    match errors:
+        case [*_]:
+            for err in errors:
+                handle_error(err)
+        case []:
+            match (args.format, driver.has_synth()):
+                case (True, _):
+                    driver.pretty_print(args.filename, args.fix)
+                case (False, True):
+                    try:
+                        term = driver.synth()
+                    except SynthesisNotSuccessful:
+                        print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
+                        sys.exit(2)
+                    print("Synthesized:")
+                    print("#str")
+                    print(str(term))
+                    print("#pprint")
+                    print(pretty_print_sterm(term))
+                case (False, False):
+                    driver.run()
 
 
 if __name__ == "__main__":
