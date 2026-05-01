@@ -31,16 +31,145 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
+    LLVMVectorGet,
+    LLVMVectorSet,
     VECTOR_OPERATIONS,
     LLVMCast,
+    LLVMVectorSize,
 )
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
 from aeon.utils.name import Name
+
+from contextlib import contextmanager
+from abc import ABC, abstractmethod
 from typing import Dict, Any, Callable
 
 
 class LLVMIRGenerationError(LLVMBackendError):
     pass
+
+
+class TypeCaster:
+    def __init__(self):
+        self.casters = []
+        self.register_defaults()
+
+    def register(self, predicate, cast_func):
+        self.casters.insert(0, (predicate, cast_func))
+
+    def register_defaults(self):
+        self.register(lambda v_ty, t_ty: isinstance(v_ty, ir.VoidType), lambda b, v, t_ty: ir.Constant(t_ty, None))
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.IntType) and isinstance(t_ty, (ir.FloatType, ir.DoubleType)),
+            lambda b, v, t_ty: b.sitofp(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, (ir.FloatType, ir.DoubleType)) and isinstance(t_ty, ir.IntType),
+            lambda b, v, t_ty: b.fptosi(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.FloatType) and isinstance(t_ty, ir.DoubleType),
+            lambda b, v, t_ty: b.fpext(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.DoubleType) and isinstance(t_ty, ir.FloatType),
+            lambda b, v, t_ty: b.fptrunc(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: (
+                isinstance(v_ty, ir.IntType) and isinstance(t_ty, ir.IntType) and v_ty.width > t_ty.width
+            ),
+            lambda b, v, t_ty: b.trunc(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: (
+                isinstance(v_ty, ir.IntType) and isinstance(t_ty, ir.IntType) and v_ty.width < t_ty.width
+            ),
+            lambda b, v, t_ty: b.zext(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.PointerType) and isinstance(t_ty, ir.PointerType),
+            lambda b, v, t_ty: b.bitcast(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.PointerType) and isinstance(t_ty, ir.IntType),
+            lambda b, v, t_ty: b.ptrtoint(v, t_ty),
+        )
+        self.register(
+            lambda v_ty, t_ty: isinstance(v_ty, ir.IntType) and isinstance(t_ty, ir.PointerType),
+            lambda b, v, t_ty: b.inttoptr(v, t_ty),
+        )
+
+    def cast(self, builder: ir.IRBuilder, val: ir.Value, target_ty: ir.Type) -> ir.Value:
+        if val.type == target_ty:
+            return val
+        for predicate, cast_func in self.casters:
+            if predicate(val.type, target_ty):
+                return cast_func(builder, val, target_ty)
+        return builder.bitcast(val, target_ty)
+
+
+class OperatorStrategy:
+    def __init__(self):
+        self.ops = {}
+        self.register_defaults()
+
+    def register(self, op_name, func):
+        self.ops[op_name] = func
+
+    def register_defaults(self):
+        self.register("+", lambda b, v, is_f: b.fadd(v[0], v[1]) if is_f else b.add(v[0], v[1]))
+        self.register(
+            "-",
+            lambda b, v, is_f: (
+                (b.fsub(v[0], v[1]) if len(v) == 2 else b.fneg(v[0]))
+                if is_f
+                else (b.sub(v[0], v[1]) if len(v) == 2 else b.sub(ir.Constant(v[0].type, 0), v[0]))
+            ),
+        )
+        self.register("*", lambda b, v, is_f: b.fmul(v[0], v[1]) if is_f else b.mul(v[0], v[1]))
+        self.register("/", lambda b, v, is_f: b.fdiv(v[0], v[1]) if is_f else b.sdiv(v[0], v[1]))
+        self.register("%", lambda b, v, is_f: b.frem(v[0], v[1]) if is_f else b.srem(v[0], v[1]))
+        self.register(
+            "==", lambda b, v, is_f: b.fcmp_ordered("==", v[0], v[1]) if is_f else b.icmp_signed("==", v[0], v[1])
+        )
+        self.register(
+            "!=", lambda b, v, is_f: b.fcmp_ordered("!=", v[0], v[1]) if is_f else b.icmp_signed("!=", v[0], v[1])
+        )
+        self.register(
+            "<", lambda b, v, is_f: b.fcmp_ordered("<", v[0], v[1]) if is_f else b.icmp_signed("<", v[0], v[1])
+        )
+        self.register(
+            "<=", lambda b, v, is_f: b.fcmp_ordered("<=", v[0], v[1]) if is_f else b.icmp_signed("<=", v[0], v[1])
+        )
+        self.register(
+            ">", lambda b, v, is_f: b.fcmp_ordered(">", v[0], v[1]) if is_f else b.icmp_signed(">", v[0], v[1])
+        )
+        self.register(
+            ">=", lambda b, v, is_f: b.fcmp_ordered(">=", v[0], v[1]) if is_f else b.icmp_signed(">=", v[0], v[1])
+        )
+        self.register("&&", lambda b, v, is_f: b.and_(v[0], v[1]))
+        self.register("||", lambda b, v, is_f: b.or_(v[0], v[1]))
+        self.register("!", lambda b, v, is_f: b.not_(v[0]))
+
+    def execute(self, builder: ir.IRBuilder, op: str, vals: list[ir.Value], is_f: bool) -> ir.Value | None:
+        if op in self.ops:
+            return self.ops[op](builder, vals, is_f)
+        return None
+
+
+class VectorExecutor(ABC):
+    def __init__(self, generator):
+        self.gen = generator
+
+    @abstractmethod
+    def execute(self, size_val: ir.Value, name: str, body_fn: Callable[[ir.Value], None]):
+        pass
+
+
+class CPULoopExecutor(VectorExecutor):
+    def execute(self, size_val: ir.Value, name: str, body_fn: Callable[[ir.Value], None]):
+        self.gen.to_ir_loop(size_val, name, body_fn)
 
 
 class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
@@ -60,14 +189,36 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.fn_count = 0
         self._is_top_level = False
 
+        self.type_caster = TypeCaster()
+        self.op_strategy = OperatorStrategy()
+        self.vector_executor = CPULoopExecutor(self)
+
+    @contextmanager
+    def _push_scope(self):
+        old_builder = self.builder
+        old_env = self.env.copy()
+        old_is_top_level = self._is_top_level
+        try:
+            yield
+        finally:
+            self.builder = old_builder
+            self.env = old_env
+            self._is_top_level = old_is_top_level
+
     def to_ir_type(self, ty: LLVMType) -> ir.Type:
         return ty.to_ir()
 
     def _heap_alloc(self, element_ty: ir.Type, count: ir.Value) -> ir.Value:
+        header_size = 8
         element_size = element_ty.get_abi_size(self.target_data)
 
-        count_i64 = self.builder.sext(count, ir.IntType(64)) if count.type.width < 64 else count
-        total_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
+        count_i64 = (
+            self.builder.sext(count, ir.IntType(64))
+            if isinstance(count.type, ir.IntType) and count.type.width < 64
+            else count
+        )
+        data_size = self.builder.mul(count_i64, ir.Constant(ir.IntType(64), element_size))
+        total_size = self.builder.add(data_size, ir.Constant(ir.IntType(64), header_size))
 
         malloc_ty = ir.FunctionType(ir.PointerType(ir.IntType(8)), [ir.IntType(64)])
         malloc_func = self.module.globals.get("malloc")
@@ -75,7 +226,12 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             malloc_func = ir.Function(self.module, malloc_ty, name="malloc")
 
         raw_ptr = self.builder.call(malloc_func, [total_size])
-        return self.builder.bitcast(raw_ptr, ir.PointerType(element_ty))
+
+        size_ptr = self.builder.bitcast(raw_ptr, ir.PointerType(ir.IntType(32)))
+        self.builder.store(self.builder.trunc(count, ir.IntType(32)), size_ptr)
+
+        data_ptr_raw = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), header_size)])
+        return self.builder.bitcast(data_ptr_raw, ir.PointerType(element_ty))
 
     def generate_ir(self, definitions: list[LLVMTerm], initial_env: Dict[str, Any] = None) -> str:
         if initial_env:
@@ -159,17 +315,15 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         lookup_name = name_parts[0] if len(name_parts) > 1 and name_parts[1].isdigit() else str_name
 
         # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
-        if "_" in lookup_name and lookup_name not in builtin_map:
+        if "_" in lookup_name and lookup_name not in builtin_map and lookup_name not in VECTOR_OPERATIONS:
             bare = lookup_name.split("_", 1)[1]
-            if bare in builtin_map:
+            if bare in builtin_map or bare in VECTOR_OPERATIONS:
                 lookup_name = bare
 
         actual_name = builtin_map.get(lookup_name, lookup_name)
 
-        if (
-            actual_name in {"pow", "sqrt", "sin", "cos", "exp", "log", "malloc", "free", "printf", "native"}
-            or lookup_name in VECTOR_OPERATIONS
-        ):
+        builtins = {"pow", "sqrt", "sin", "cos", "exp", "log", "malloc", "free", "printf", "native"}
+        if actual_name in builtins or lookup_name in VECTOR_OPERATIONS or actual_name in VECTOR_OPERATIONS:
             if actual_name in self.module.globals:
                 return self.module.globals[actual_name]
 
@@ -179,7 +333,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                     [LLVMPointerType(element_type=LLVMCharType())], LLVMPointerType(element_type=LLVMCharType())
                 )
 
-            return ir.Function(self.module, self.to_ir_type(actual_ty), name=actual_name)
+            ir_ty = self.to_ir_type(actual_ty)
+            if isinstance(ir_ty, ir.FunctionType):
+                return ir.Function(self.module, ir_ty, name=actual_name)
+
+            if actual_name == "size":
+                size_fty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))])
+                return ir.Function(self.module, size_fty, name=actual_name)
 
         raise LLVMIRGenerationError(f"undefined variable {str_name}")
 
@@ -208,28 +368,26 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         return phi
 
     def visit_let(self, node: LLVMLet) -> ir.Value | None:
-        var_name, var_value, body, is_top_level = node.var_name, node.var_value, node.body, self._is_top_level
+        var_name, var_value, body = node.var_name, node.var_value, node.body
         str_name = sanitize_name(var_name)
+
         if isinstance(var_value, LLVMFunction):
             var_value.name = var_name
+            with self._push_scope():
+                self._is_top_level = False
+                func = var_value.accept(self)
+
+            with self._push_scope():
+                self.env[str_name] = func
+                return body.accept(self)
+
+        with self._push_scope():
             self._is_top_level = False
-            func = var_value.accept(self)
-            self.env[str_name] = func
-            self._is_top_level = is_top_level
+            val_gen = var_value.accept(self)
+
+        with self._push_scope():
+            self.env[str_name] = val_gen
             return body.accept(self)
-
-        self._is_top_level = False
-        val_gen = var_value.accept(self)
-        old_val = self.env.get(str_name)
-        self.env[str_name] = val_gen
-        self._is_top_level = is_top_level
-        res = body.accept(self)
-
-        if old_val is not None:
-            self.env[str_name] = old_val
-        else:
-            del self.env[str_name]
-        return res
 
     def visit_function(self, node: LLVMFunction) -> ir.Function:
         function_type, arg_names, body, function_name = node.type, node.arg_names, node.body, node.name
@@ -237,27 +395,32 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if not function_name:
             self.fn_count += 1
 
-        func = self.module.globals.get(func_name) or ir.Function(
-            self.module, self.to_ir_type(function_type), name=func_name
-        )
+        func = self.module.globals.get(func_name)
+        if not isinstance(func, ir.Function):
+            func = ir.Function(self.module, self.to_ir_type(function_type), name=func_name)
 
-        old_builder, old_env = self.builder, self.env.copy()
-        self.env[func_name] = func
+        if len(func.blocks) > 0:
+            return func
 
-        self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
-        for i, arg_name in enumerate(arg_names):
-            str_arg_name = sanitize_name(arg_name)
-            func.args[i].name = str_arg_name
-            self.env[str_arg_name] = func.args[i]
+        with self._push_scope():
+            self.env[func_name] = func
+            self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
 
-        self._is_top_level = False
-        ret_val = body.accept(self)
-        if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
-            self.builder.ret_void()
-        else:
-            self.builder.ret(ret_val)
+            for i, arg_name in enumerate(arg_names):
+                str_arg_name = sanitize_name(arg_name)
+                func.args[i].name = str_arg_name
+                self.env[str_arg_name] = func.args[i]
 
-        self.builder, self.env = old_builder, old_env
+            self._is_top_level = False
+            ret_val = body.accept(self)
+
+            if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
+                self.builder.ret_void()
+            else:
+                if ret_val is not None:
+                    ret_val = self._cast_if_needed(ret_val, func.function_type.return_type)
+                self.builder.ret(ret_val)
+
         return func
 
     def visit_call(self, node: LLVMCall) -> ir.Value | None:
@@ -274,9 +437,16 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if not target_func:
             return None
 
-        if isinstance(target_func, ir.Function):
-            if len(arg_vals) < len(target_func.function_type.args):
+        func_ty = target_func.type
+        if isinstance(func_ty, ir.PointerType) and isinstance(func_ty.pointee, ir.FunctionType):
+            fty = func_ty.pointee
+            if len(arg_vals) < len(fty.args):
                 return None
+
+            arg_vals = [self._cast_if_needed(val, ty) for val, ty in zip(arg_vals, fty.args)] + arg_vals[
+                len(fty.args) :
+            ]
+
         return self.builder.call(target_func, arg_vals)
 
     def to_ir_operator(self, op: str, args: list[LLVMTerm]) -> ir.Value | None:
@@ -284,93 +454,31 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         vals = [arg.accept(self) for arg in args]
         if any(v is None for v in vals):
             return None
-        is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
 
-        match op:
-            case "+" if is_f:
-                return self.builder.fadd(vals[0], vals[1])
-            case "+":
-                return self.builder.add(vals[0], vals[1])
-            case "-" if is_f:
-                return self.builder.fsub(vals[0], vals[1]) if len(vals) == 2 else self.builder.fneg(vals[0])
-            case "-":
-                return (
-                    self.builder.sub(vals[0], vals[1])
-                    if len(vals) == 2
-                    else self.builder.sub(ir.Constant(vals[0].type, 0), vals[0])
-                )
-            case "*" if is_f:
-                return self.builder.fmul(vals[0], vals[1])
-            case "*":
-                return self.builder.mul(vals[0], vals[1])
-            case "/" if is_f:
-                return self.builder.fdiv(vals[0], vals[1])
-            case "/":
-                return self.builder.sdiv(vals[0], vals[1])
-            case "%" if is_f:
-                return self.builder.frem(vals[0], vals[1])
-            case "%":
-                return self.builder.srem(vals[0], vals[1])
-            case "==":
-                return (
-                    self.builder.fcmp_ordered("==", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("==", vals[0], vals[1])
-                )
-            case "!=":
-                return (
-                    self.builder.fcmp_ordered("!=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("!=", vals[0], vals[1])
-                )
-            case "<":
-                return (
-                    self.builder.fcmp_ordered("<", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("<", vals[0], vals[1])
-                )
-            case "<=":
-                return (
-                    self.builder.fcmp_ordered("<=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("<=", vals[0], vals[1])
-                )
-            case ">":
-                return (
-                    self.builder.fcmp_ordered(">", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed(">", vals[0], vals[1])
-                )
-            case ">=":
-                return (
-                    self.builder.fcmp_ordered(">=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed(">=", vals[0], vals[1])
-                )
-            case "&&":
-                return self.builder.and_(vals[0], vals[1])
-            case "||":
-                return self.builder.or_(vals[0], vals[1])
-            case "!":
-                return self.builder.not_(vals[0])
-        return None
+        if len(vals) == 2:
+            t0, t1 = vals[0].type, vals[1].type
+            if t0 != t1:
+                if any(isinstance(t, (ir.FloatType, ir.DoubleType)) for t in (t0, t1)):
+                    target_ty = t0 if isinstance(t0, (ir.FloatType, ir.DoubleType)) else t1
+                    if any(isinstance(t, ir.DoubleType) for t in (t0, t1)):
+                        target_ty = ir.DoubleType()
+                    vals = [self._cast_if_needed(v, target_ty) for v in vals]
+                elif all(isinstance(t, ir.IntType) for t in (t0, t1)):
+                    target_ty = ir.IntType(max(t0.width, t1.width))
+                    vals = [self._cast_if_needed(v, target_ty) for v in vals]
+
+        is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
+        return self.op_strategy.execute(self.builder, op, vals, is_f)
+
+    def _cast_if_needed(self, val: ir.Value, target_ty: ir.Type) -> ir.Value:
+        return self.type_caster.cast(self.builder, val, target_ty)
 
     def visit_cast(self, node: LLVMCast) -> ir.Value:
         val, ty = node.val, node.type
         self._is_top_level = False
         v_val = val.accept(self)
         target_ty = self.to_ir_type(ty)
-        if v_val.type == target_ty:
-            return v_val
-        if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
-            return self.builder.sitofp(v_val, target_ty)
-        if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
-            return self.builder.fptosi(v_val, target_ty)
-        if isinstance(v_val.type, ir.FloatType) and isinstance(target_ty, ir.DoubleType):
-            return self.builder.fpext(v_val, target_ty)
-        if isinstance(v_val.type, ir.DoubleType) and isinstance(target_ty, ir.FloatType):
-            return self.builder.fptrunc(v_val, target_ty)
-        return self.builder.bitcast(v_val, target_ty)
+        return self._cast_if_needed(v_val, target_ty)
 
     def visit_gep(self, node: LLVMGetElementPtr) -> ir.Value:
         ptr, indices = node.ptr, node.indices
@@ -386,7 +494,9 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self._is_top_level = False
         v_val = value.accept(self)
         p_val = ptr.accept(self)
-        return p_val if isinstance(v_val.type, ir.VoidType) else self.builder.store(v_val, p_val)
+        if not isinstance(v_val.type, ir.VoidType):
+            self.builder.store(v_val, p_val)
+        return p_val
 
     def visit_alloc(self, node: LLVMAlloc) -> ir.Value:
         ty = node.type
@@ -419,6 +529,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -430,13 +545,18 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             if not isinstance(mapped_val.type, ir.VoidType):
                 self.builder.store(mapped_val, self.builder.gep(new_v, [idx]))
 
-        self.to_ir_loop(size_val, "map", body)
+        self.vector_executor.execute(size_val, "map", body)
         return new_v
 
     def visit_vector_reduce(self, node: LLVMVectorReduce) -> ir.Value:
         ty, f, initial, v, size = node.type, node.f, node.initial, node.v, node.size
         self._is_top_level = False
         f_val, init_val, v_val, size_val = f.accept(self), initial.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         acc_ty = self.to_ir_type(ty)
         if isinstance(acc_ty, ir.VoidType):
             acc_ty = ir.IntType(32)
@@ -452,13 +572,18 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             if not isinstance(new_acc.type, ir.VoidType):
                 self.builder.store(new_acc, acc_ptr)
 
-        self.to_ir_loop(size_val, "reduce", body)
+        self.vector_executor.execute(size_val, "reduce", body)
         return self.builder.load(acc_ptr)
 
     def visit_vector_imap(self, node: LLVMVectorIMap) -> ir.Value:
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -470,13 +595,18 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             if not isinstance(mapped_val.type, ir.VoidType):
                 self.builder.store(mapped_val, self.builder.gep(new_v, [idx]))
 
-        self.to_ir_loop(size_val, "imap", body)
+        self.vector_executor.execute(size_val, "imap", body)
         return new_v
 
     def visit_vector_filter(self, node: LLVMVectorFilter) -> ir.Value:
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -488,18 +618,30 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         def body(idx):
             val = self.builder.load(self.builder.gep(v_val, [idx]))
             keep = self.builder.call(f_val, [val])
-            with self.builder.if_then(keep):
+            with self.builder.if_then(self._cast_if_needed(keep, ir.IntType(1))):
                 new_idx = self.builder.load(new_idx_ptr)
                 self.builder.store(val, self.builder.gep(new_v, [new_idx]))
                 self.builder.store(self.builder.add(new_idx, ir.Constant(ir.IntType(32), 1)), new_idx_ptr)
 
-        self.to_ir_loop(size_val, "filter", body)
+        self.vector_executor.execute(size_val, "filter", body)
+
+        final_size = self.builder.load(new_idx_ptr)
+        raw_ptr = self.builder.bitcast(new_v, ir.PointerType(ir.IntType(8)))
+        header_ptr = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), -8)])
+        size_ptr = self.builder.bitcast(header_ptr, ir.PointerType(ir.IntType(32)))
+        self.builder.store(final_size, size_ptr)
+
         return new_v
 
     def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
         res_ty, f, v1, v2, size = node.type, node.f, node.v1, node.v2, node.size
         self._is_top_level = False
         f_val, v1_val, v2_val, size_val = f.accept(self), v1.accept(self), v2.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v1_val, ir.PointerType(ir.IntType(8)))])
+
         res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
@@ -512,23 +654,51 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             res = self.builder.call(f_val, [val1, val2])
             self.builder.store(res, self.builder.gep(new_v, [idx]))
 
-        self.to_ir_loop(size_val, "zip", body)
+        self.vector_executor.execute(size_val, "zip", body)
         return new_v
 
     def visit_vector_count(self, node: LLVMVectorCount) -> ir.Value:
         f, v, size = node.f, node.v, node.size
         self._is_top_level = False
         f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
         count_ptr = self.builder.alloca(ir.IntType(32), name="count_res")
         self.builder.store(ir.Constant(ir.IntType(32), 0), count_ptr)
 
         def body(idx):
             val = self.builder.load(self.builder.gep(v_val, [idx]))
             is_match = self.builder.call(f_val, [val])
-            with self.builder.if_then(is_match):
+            with self.builder.if_then(self._cast_if_needed(is_match, ir.IntType(1))):
                 self.builder.store(
                     self.builder.add(self.builder.load(count_ptr), ir.Constant(ir.IntType(32), 1)), count_ptr
                 )
 
-        self.to_ir_loop(size_val, "count", body)
+        self.vector_executor.execute(size_val, "count", body)
         return self.builder.load(count_ptr)
+
+    def visit_vector_get(self, node: LLVMVectorGet) -> ir.Value:
+        self._is_top_level = False
+        v_val = node.v.accept(self)
+        idx_val = node.index.accept(self)
+        ptr = self.builder.gep(v_val, [idx_val])
+        return self.builder.load(ptr)
+
+    def visit_vector_set(self, node: LLVMVectorSet) -> ir.Value:
+        self._is_top_level = False
+        v_val = node.v.accept(self)
+        idx_val = node.index.accept(self)
+        val_val = node.value.accept(self)
+        ptr = self.builder.gep(v_val, [idx_val])
+        self.builder.store(self._cast_if_needed(val_val, ptr.type.pointee), ptr)
+        return v_val
+
+    def visit_vector_size(self, node: LLVMVectorSize) -> ir.Value:
+        v_val = node.v.accept(self)
+        raw_ptr = self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))
+        header_ptr = self.builder.gep(raw_ptr, [ir.Constant(ir.IntType(64), -8)])
+        size_ptr = self.builder.bitcast(header_ptr, ir.PointerType(ir.IntType(32)))
+        return self.builder.load(size_ptr)

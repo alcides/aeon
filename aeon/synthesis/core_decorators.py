@@ -10,7 +10,7 @@ from __future__ import annotations
 from aeon.core.terms import Term
 from aeon.decorators.api import CoreDecoratorType, Metadata, metadata_update_by_name
 from aeon.llvm.decorators.gpu import gpu_core
-from aeon.llvm.decorators.llvm import llvm_core
+from aeon.llvm.decorators.cpu import cpu_core
 from aeon.sugar.program import Decorator
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -37,6 +37,7 @@ def after_typecheck(
 
 core_decorators_environment: dict[str, CoreDecoratorType] = {
     "after_typecheck": after_typecheck,
-    "llvm": llvm_core,
+    "cpu": cpu_core,
+    "llvm": cpu_core,
     "gpu": gpu_core,
 }

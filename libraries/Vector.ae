@@ -25,3 +25,5 @@ def zipWith : forall a:B, forall b:B, forall c:B, (f:(x:a) -> (y:b) -> c) -> (v1
 
 def count : forall a:B, (f:(x:a) -> Bool) -> (v:(Vector a)) -> (size:Int) -> Int = \f -> \v -> \size ->
     native "len(list(filter(f, v)))";
+
+def size : forall a:B, (v:(Vector a)) -> Int = \v -> native "len(v)";
