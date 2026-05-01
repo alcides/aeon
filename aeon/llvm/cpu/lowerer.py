@@ -637,7 +637,6 @@ class CPULLVMLowerer(LLVMLowerer):
             effective_name = (
                 lookup if lookup in VECTOR_OPERATIONS else (bare_lookup if bare_lookup in VECTOR_OPERATIONS else lookup)
             )
-            print(f"DEBUG: detected builtin {effective_name}")
             return self._lower_builtin_call(
                 effective_name, target, prev_args, args, expected, type_env, env, allowed, in_vec
             )

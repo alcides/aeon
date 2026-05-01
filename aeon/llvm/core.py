@@ -53,6 +53,7 @@ else:
     LLVMVectorCount = Any
     LLVMVectorGet = Any
     LLVMVectorSet = Any
+    LLVMVectorSize = Any
 
 
 class LLVMBackendError(Exception):
