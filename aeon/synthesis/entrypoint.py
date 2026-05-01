@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 import time
 from typing import Any, Optional
@@ -49,6 +50,57 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
 Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
+def _measure_cputime(thunk: Callable[[], Any]) -> float:
+    """Run ``thunk`` and return the CPU time it consumed, in seconds."""
+    start = time.process_time()
+    thunk()
+    return time.process_time() - start
+
+
+# Fallback power estimate (in watts) used to convert CPU time to a joules-like
+# proxy when no hardware energy counter is available. The exact value matters
+# less than monotonicity: faster candidates score better.
+_DEFAULT_PROXY_POWER_W = 15.0
+
+
+def _measure_energy(thunk: Callable[[], Any]) -> float:
+    """Run ``thunk`` and return the energy it consumed, in joules.
+
+    Uses Intel RAPL via ``pyRAPL`` when importable and supported; otherwise
+    falls back to ``cpu_time * _DEFAULT_PROXY_POWER_W``.
+    """
+    try:
+        pyRAPL = importlib.import_module("pyRAPL")
+
+        pyRAPL.setup()
+        meter = pyRAPL.Measurement("aeon_synth")
+        meter.begin()
+        thunk()
+        meter.end()
+        # pyRAPL reports per-package energy in microjoules.
+        pkg = meter.result.pkg if meter.result and meter.result.pkg else [0.0]
+        return float(sum(pkg)) / 1e6
+    except Exception:
+        return _measure_cputime(thunk) * _DEFAULT_PROXY_POWER_W
+
+
+def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
+    """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
+
+    def fitness(v: Term) -> float:
+        program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
+        try:
+            if goal.kind == "cputime":
+                return _measure_cputime(lambda: eval(program_for_fitness, ectx))
+            if goal.kind == "energy":
+                return _measure_energy(lambda: eval(program_for_fitness, ectx))
+            return eval(program_for_fitness, ectx)
+        except Exception:
+            return sys.maxsize
+
+    return fitness
+
+
 def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata) -> Evaluators:
     """Returns a list of functions that take the original program and return each fitness value"""
 
@@ -56,16 +108,7 @@ def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata)
     fitnesses: list[Callable[[Term], float]] = []
     for goal in goals:
         assert goal.length == 1, "Currently, we only support 1 fitness value per function"
-
-        def fitness(v: Term) -> float:
-            program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
-            try:
-                result = eval(program_for_fitness, ectx)
-            except Exception:
-                result = sys.maxsize
-            return result
-
-        fitnesses.append(fitness)
+        fitnesses.append(_make_fitness(goal, ectx))
     return fitnesses
 
 
