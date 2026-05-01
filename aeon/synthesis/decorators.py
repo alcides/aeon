@@ -440,7 +440,8 @@ def minimize_cputime(
 ) -> tuple[Definition, list[Definition], Metadata]:
     """Adds CPU time of the given expression as a synthesis objective.
 
-    Usage: @minimize_cputime(fun 42)
+    Usage: ``@minimize_cputime(fun 42)`` — equivalent registry name:
+    ``@minimize_cpu_time(fun 42)``.
 
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this

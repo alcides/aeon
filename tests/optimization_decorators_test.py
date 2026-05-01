@@ -59,6 +59,18 @@ def test_minimize_cputime_registers_goal():
     assert goals[0].kind == "cputime"
 
 
+def test_minimize_cpu_time_alias_registers_goal():
+    source = """
+        @minimize_cpu_time(synth 7)
+        def synth (i:Int) : Int = i * (?hole: Int)
+    """
+    _, _, _, metadata = check_and_return_core(source)
+    goals = _find_goals(metadata)
+    assert len(goals) == 1
+    assert goals[0].minimize is True
+    assert goals[0].kind == "cputime"
+
+
 def test_minimize_energy_registers_goal():
     source = """
         @minimize_energy(synth 7)
@@ -134,9 +146,7 @@ def test_cputime_synthesis_smoke():
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete = incomplete_functions_and_holes(ctx, core_ast_anf)
-    mapping = synthesize_holes(
-        ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GESynthesizer(), budget=0.25
-    )
+    mapping = synthesize_holes(ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GESynthesizer(), budget=0.25)
     assert len(mapping) == 1
 
 

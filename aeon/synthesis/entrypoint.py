@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 import time
 from typing import Any, Optional
@@ -69,7 +70,7 @@ def _measure_energy(thunk: Callable[[], Any]) -> float:
     falls back to ``cpu_time * _DEFAULT_PROXY_POWER_W``.
     """
     try:
-        import pyRAPL  # type: ignore[import-not-found]
+        pyRAPL = importlib.import_module("pyRAPL")
 
         pyRAPL.setup()
         meter = pyRAPL.Measurement("aeon_synth")

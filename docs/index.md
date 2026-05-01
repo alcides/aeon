@@ -376,6 +376,16 @@ def approx (x:Int | x > 0) : Float =
 - `@maximize_float(expr)` — maximize a float expression
 - `@multi_minimize_float(expr)` — multi-objective float minimization
 
+### Resource-use objectives
+
+These add extra minimization objectives alongside numeric ones (for example `@minimize_int`). The synthesizer measures how expensive it is to **evaluate** the given expression for each candidate; the expression’s *value* is ignored, so its static type is unconstrained.
+
+- `@minimize_cputime(expr)` — fitness is CPU time in seconds for evaluating `expr` (`time.process_time()` around the evaluation).
+- `@minimize_cpu_time(expr)` — same as `@minimize_cputime` (alternate spelling).
+- `@minimize_energy(expr)` — fitness is energy in joules for evaluating `expr`. Uses Intel RAPL via the optional `pyRAPL` package when available; otherwise a CPU-time proxy (`cpu_time ×` a fixed watt estimate) so cheaper candidates still score better.
+
+See `examples/synthesis/cputime_energy.ae` for a program that combines correctness and resource objectives.
+
 ### Data-driven decorators
 
 - `@csv_data("1.0,2.0,3.0\n4.0,5.0,12.0")` — provide inline CSV training data (last column is expected output)
