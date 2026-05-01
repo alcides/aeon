@@ -105,7 +105,7 @@ class MultiBackendPipeline(LLVMPipeline):
             if successful_targets:
                 self.function_targets[target_id] = successful_targets
             else:
-                logger.debug(f"All LLVM compilations failed for {target_id}. Falling back to native python.")
+                logger.warning(f"All LLVM compilations failed for {target_id}. Falling back to native python.")
 
     def _find_compilation_targets(self, term: Term) -> Dict[Name, Term]:
         discovery_targets = {}
@@ -195,7 +195,7 @@ class MultiBackendPipeline(LLVMPipeline):
                         self.llvm_ir_by_backend[target_name] = backend.generator.generate_ir(funcs)
                         logger.debug(f"Backend {target_name} IR:\n{self.llvm_ir_by_backend[target_name]}")
                     except Exception as e:
-                        logger.debug(f"IR generation failed for {target_name}: {e}. Disabling backend.")
+                        logger.warning(f"IR generation failed for {target_name}: {e}. Disabling backend.")
                         self.disabled_backends.add(target_name)
                         continue
                 else:
@@ -214,7 +214,7 @@ class MultiBackendPipeline(LLVMPipeline):
                     return_type,
                 )
             except Exception as e:
-                logger.debug(f"Execution failed on {target_name} for {name_id}: {e}. Disabling backend.")
+                logger.warning(f"Execution failed on {target_name} for {name_id}: {e}. Disabling backend.")
                 last_exception = e
                 self.disabled_backends.add(target_name)
 
