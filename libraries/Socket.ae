@@ -1,0 +1,190 @@
+# Opaque Python wrappers (see native bodies below).
+type StreamSocket
+type DatagramSocket
+
+# Raw payload (`bytes` at runtime).
+type SocketPayload
+
+# Runtime: address tuple, e.g. `(host, port)` for `AF_INET`.
+type SockAddr
+
+# Runtime: `(socket, addr)` pair from `TCP accept`.
+type TcpAccept
+
+# Runtime: `(data, addr)` pair from `UDP recvfrom`.
+type UdpRecvFrom
+
+# Python `socket` module (binds to the evaluator name `socket`).
+def socket : Unit = native_import "socket"
+
+# ── Logical state (axioms / runtime sync with Python socket) ─────────────
+
+def stream_closed : (s: StreamSocket) -> Bool = uninterpreted
+def stream_bound : (s: StreamSocket) -> Bool = uninterpreted
+def stream_connected : (s: StreamSocket) -> Bool = uninterpreted
+
+def dgram_closed : (s: DatagramSocket) -> Bool = uninterpreted
+def dgram_bound : (s: DatagramSocket) -> Bool = uninterpreted
+def dgram_connected : (s: DatagramSocket) -> Bool = uninterpreted
+
+# Byte length of a payload (`len(data)` at runtime).
+def payload_len : (p: SocketPayload) -> Int = uninterpreted
+
+# Length of the datagram payload in a `recvfrom` result.
+def udp_payload_len : (r: UdpRecvFrom) -> Int = uninterpreted
+
+# Constructed IPv4 text endpoint (`(host, port)`).
+def ipv4_sock_addr : (a: SockAddr) -> Bool = uninterpreted
+
+# ── Addresses ───────────────────────────────────────────────────────────
+
+def ipv4_addr (host: String) (port: { p: Int | (p >= 0) && (p <= 65535) }) :
+    { a: SockAddr | ipv4_sock_addr a == true } =
+    native "(host, port)"
+
+# ── Constructors ─────────────────────────────────────────────────────────
+
+def stream_socket :
+    { s: StreamSocket |
+            (stream_closed s == false)
+            && (stream_bound s == false)
+            && (stream_connected s == false) } =
+    native "socket.socket(socket.AF_INET, socket.SOCK_STREAM)"
+
+def dgram_socket :
+    { s: DatagramSocket |
+            (dgram_closed s == false)
+            && (dgram_bound s == false)
+            && (dgram_connected s == false) } =
+    native "socket.socket(socket.AF_INET, socket.SOCK_DGRAM)"
+
+# ── TCP: projections (used in `stream_accept` refinements) ──────────────
+
+def tcp_accept_socket (r: TcpAccept) :
+    { s: StreamSocket |
+            (stream_closed s == false)
+            && (stream_connected s == true) } =
+    native "r[0]"
+
+def tcp_accept_peer (r: TcpAccept) :
+    { a: SockAddr | ipv4_sock_addr a == true } =
+    native "r[1]"
+
+# ── TCP stream lifecycle ─────────────────────────────────────────────────
+
+def stream_bind (addr: { ad: SockAddr | ipv4_sock_addr ad == true })
+    (s: { sock: StreamSocket |
+            (stream_closed sock == false)
+            && (stream_bound sock == false) }) :
+    { out: StreamSocket |
+            (stream_closed out == false)
+            && (stream_bound out == true) } =
+    native "s.bind(addr); s"
+
+def stream_listen (backlog: { n: Int | n > 0 })
+    (s: { sock: StreamSocket |
+            (stream_closed sock == false)
+            && (stream_bound sock == true) }) :
+    { out: StreamSocket |
+            (stream_closed out == false)
+            && (stream_bound out == true) } =
+    native "s.listen(backlog); s"
+
+def stream_connect (addr: { ad: SockAddr | ipv4_sock_addr ad == true })
+    (s: { sock: StreamSocket |
+            (stream_closed sock == false)
+            && (stream_connected sock == false) }) :
+    { out: StreamSocket |
+            (stream_closed out == false)
+            && (stream_connected out == true) } =
+    native "s.connect(addr); s"
+
+def stream_accept (s: { sock: StreamSocket |
+        (stream_closed sock == false)
+        && (stream_bound sock == true)
+        && (stream_connected sock == false) }) :
+    { r: TcpAccept |
+            (stream_closed (tcp_accept_socket r) == false)
+            && (stream_connected (tcp_accept_socket r) == true) } =
+    native "s.accept()"
+
+def stream_send (data: SocketPayload)
+    (s: { sock: StreamSocket |
+            (stream_closed sock == false)
+            && (stream_connected sock == true) }) :
+    { sent: Int |
+            (sent >= 0)
+            && (sent <= payload_len data) } =
+    native "s.send(data)"
+
+def stream_recv (bufsize: { n: Int | n > 0 })
+    (s: { sock: StreamSocket |
+            (stream_closed sock == false)
+            && (stream_connected sock == true) }) :
+    { p: SocketPayload | payload_len p <= bufsize } =
+    native "s.recv(bufsize)"
+
+def stream_close (s: { sock: StreamSocket | stream_closed sock == false }) :
+    { out: StreamSocket | stream_closed out == true } =
+    native "s.close(); s"
+
+# ── UDP datagram lifecycle ───────────────────────────────────────────────
+
+def dgram_bind (addr: { ad: SockAddr | ipv4_sock_addr ad == true })
+    (s: { sock: DatagramSocket |
+            (dgram_closed sock == false)
+            && (dgram_bound sock == false) }) :
+    { out: DatagramSocket |
+            (dgram_closed out == false)
+            && (dgram_bound out == true) } =
+    native "s.bind(addr); s"
+
+def dgram_connect (addr: { ad: SockAddr | ipv4_sock_addr ad == true })
+    (s: { sock: DatagramSocket | dgram_closed sock == false }) :
+    { out: DatagramSocket |
+            (dgram_closed out == false)
+            && (dgram_connected out == true) } =
+    native "s.connect(addr); s"
+
+def dgram_sendto (data: SocketPayload)
+    (addr: { ad: SockAddr | ipv4_sock_addr ad == true })
+    (s: { sock: DatagramSocket | dgram_closed sock == false }) :
+    { sent: Int |
+            (sent >= 0)
+            && (sent <= payload_len data) } =
+    native "s.sendto(data, addr)"
+
+def dgram_recvfrom (bufsize: { n: Int | n > 0 })
+    (s: { sock: DatagramSocket |
+            (dgram_closed sock == false)
+            && (dgram_bound sock == true) }) :
+    { r: UdpRecvFrom | udp_payload_len r <= bufsize } =
+    native "s.recvfrom(bufsize)"
+
+def udp_recv_payload (r: UdpRecvFrom) :
+    { p: SocketPayload | payload_len p == udp_payload_len r } =
+    native "r[0]"
+
+def udp_recv_peer (r: UdpRecvFrom) :
+    { a: SockAddr | ipv4_sock_addr a == true } =
+    native "r[1]"
+
+def dgram_send (data: SocketPayload)
+    (s: { sock: DatagramSocket |
+            (dgram_closed sock == false)
+            && (dgram_connected sock == true) }) :
+    { sent: Int |
+            (sent >= 0)
+            && (sent <= payload_len data) } =
+    native "s.send(data)"
+
+def dgram_recv (bufsize: { n: Int | n > 0 })
+    (s: { sock: DatagramSocket |
+            (dgram_closed sock == false)
+            && (dgram_connected sock == true) }) :
+    { p: SocketPayload | payload_len p <= bufsize } =
+    native "s.recv(bufsize)"
+
+def dgram_close (s: { sock: DatagramSocket | dgram_closed sock == false }) :
+    { out: DatagramSocket | dgram_closed out == true } =
+    native "s.close(); s"
