@@ -30,6 +30,7 @@ native_types: list[Name] = [
     Name("Int", 0),
     Name("Float", 0),
     Name("String", 0),
+    Name("Vector", 0),
     Name("Set", 0),
     Name("Tensor", 0),
 ]
