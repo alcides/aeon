@@ -24,7 +24,7 @@ function run_example {
     fi
 }
 
-for folder in ffi image imports list syntax synthesis "PSB2/solved";
+for folder in ffi image imports list syntax synthesis "PSB2/solved" "llvm/cpu/test" "llvm/gpu/test";
 do
     for entry in examples/$folder/*.ae
     do

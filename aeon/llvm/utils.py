@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type
+from aeon.core.types import (
+    TypeConstructor,
+    RefinedType,
+    AbstractionType,
+    Type,
+    TypePolymorphism,
+    RefinementPolymorphism,
+    TypeVar,
+    Top,
+)
 from aeon.utils.name import Name
 from aeon.llvm.core import LLVMValidationError
 from aeon.llvm.llvm_ast import (
@@ -22,6 +31,17 @@ BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "
 UNARY_OPS = {"!", "-"}
 
 
+def _resolve_type_constructor_name(name: Name) -> tuple[str, str]:
+    qualified_name = name.name
+    unqualified_name = qualified_name.rsplit(".", 1)[-1]
+    return qualified_name, unqualified_name
+
+
+def _is_supported_builtin_type(name: Name) -> bool:
+    _, unqualified_name = _resolve_type_constructor_name(name)
+    return unqualified_name in SUPPORTED_TYPES and name.id == 0
+
+
 def validate_ops(op: str):
     if not op.startswith("anf") and op not in BINARY_OPS and op not in UNARY_OPS:
         raise LLVMValidationError(f"LLVM Backend does not support operation {op}")
@@ -39,8 +59,17 @@ def validate_type(ty: Type):
         case AbstractionType(_, vt, rt):
             validate_type(vt)
             validate_type(rt)
-        case TypeConstructor(n, _) if n.name not in SUPPORTED_TYPES:
-            raise LLVMValidationError(f"LLVM Backend does not support type {n.name}")
+        case TypePolymorphism(_, _, body):
+            validate_type(body)
+        case RefinementPolymorphism(_, _, body):
+            validate_type(body)
+        case TypeConstructor(n, _) if not _is_supported_builtin_type(n):
+            raise LLVMValidationError(f"LLVM Backend doesn't support support type {n.name}")
+        case TypeVar(name):
+            _ = name
+            pass
+        case Top():
+            raise LLVMValidationError("LLVM Backend doesn't support support Top type")
         case _:
             pass
 
@@ -64,6 +93,10 @@ def to_llvm_type(ty: Type) -> LLVMType:
     match ty:
         case RefinedType(_, it, _):
             return to_llvm_type(it)
+        case TypePolymorphism(_, _, body):
+            return to_llvm_type(body)
+        case RefinementPolymorphism(_, _, body):
+            return to_llvm_type(body)
         case AbstractionType(_, vt, rt):
             args, curr = [to_llvm_type(vt)], rt
             while isinstance(curr, AbstractionType):
@@ -71,7 +104,11 @@ def to_llvm_type(ty: Type) -> LLVMType:
                 curr = curr.type
             return LLVMFunctionType(args, to_llvm_type(curr))
         case TypeConstructor(n, args):
-            match n.name:
+            _, unqualified_name = _resolve_type_constructor_name(n)
+            if not _is_supported_builtin_type(n):
+                raise LLVMValidationError(f"LLVM Backend doesn't support non-builtin type {n}")
+
+            match unqualified_name:
                 case "Int":
                     return LLVMInt
                 case "Float":
@@ -87,8 +124,18 @@ def to_llvm_type(ty: Type) -> LLVMType:
                 case "Unit":
                     return LLVMVoid
                 case "Vector":
-                    return LLVMPointerType(to_llvm_type(args[0])) if args else LLVMVectorInt
+                    if not args:
+                        return LLVMVectorInt
+                    try:
+                        return LLVMPointerType(to_llvm_type(args[0]))
+                    except LLVMValidationError:
+                        return LLVMPointerType(LLVMInt)
+                case "String":
+                    return LLVMPointerType(LLVMChar)
                 case _:
-                    return LLVMInt
-        case _:
+                    raise LLVMValidationError(f"LLVM Backend doesn't support builtin type {n}")
+        case TypeVar(name):
+            _ = name
             return LLVMInt
+        case _:
+            raise LLVMValidationError(f"LLVM Backend doesn't support non-builtin type {ty.__repr__()}")

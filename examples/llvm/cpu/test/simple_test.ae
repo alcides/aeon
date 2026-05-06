@@ -1,0 +1,24 @@
+open Vector
+
+@cpu
+def add_one (x: Int) : Int = x + 1
+
+@cpu
+def diff_two (x: Int) : Bool = x != 2
+
+@cpu
+def sum (x:Int) (y:Int) : Int = x + y
+
+@cpu
+def pipeline_kernel (xs: (Vector Int)) (size: Int) : Int =
+    let xs = Vector.map[Int][Int] add_one xs size;
+    let ys = Vector.filter[Int] diff_two xs size;
+    let new_size = Vector.size[Int] ys;
+    Vector.reduce[Int][Int] sum 0 ys new_size
+
+def main(args: Int) : Unit =
+    let size : Int = 10;
+    let xs : (Vector Int) = native "list(range(10))";
+    let res : Int = pipeline_kernel xs size;
+    let _ : Unit = print "result:";
+    print res;

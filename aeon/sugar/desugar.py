@@ -236,11 +236,13 @@ def resolve_qualified_names_in_sterm(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    local_names: set[str] | None = None,
 ) -> STerm:
     """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names."""
+    local_names = local_names or set()
 
-    def rec(node: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope, constructor_defs)
+    def rec(node: STerm, locals: set[str] = local_names) -> STerm:
+        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope, constructor_defs, locals)
 
     match t:
         case SAnonConstructor(cname, loc=loc):
@@ -252,29 +254,41 @@ def resolve_qualified_names_in_sterm(
             if key in qualified_scope:
                 return SVar(qualified_scope[key], loc=loc)
             raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
-        case SVar(name, loc) if name.name in unqualified_scope:
+        case SVar(name, loc) if name.name in unqualified_scope and name.name not in local_names:
             return SVar(unqualified_scope[name.name], loc=loc)
         case SApplication(fun, arg, loc):
             return SApplication(rec(fun), rec(arg), loc=loc)
         case SAbstraction(name, body, loc):
-            return SAbstraction(name, rec(body), loc=loc)
+            return SAbstraction(name, rec(body, local_names | {name.name}), loc=loc)
         case SLet(name, val, body, loc):
-            return SLet(name, rec(val), rec(body), loc=loc)
+            return SLet(name, rec(val), rec(body, local_names | {name.name}), loc=loc)
         case SRec(name, ty, val, body, decreasing_by, loc):
-            nd = tuple(rec(m) for m in decreasing_by)
-            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc)
+            new_locals = local_names | {name.name}
+            new_ty = resolve_qualified_names_in_stype(
+                ty, qualified_scope, unqualified_scope, constructor_defs, local_names
+            )
+            nd = tuple(rec(m, new_locals) for m in decreasing_by)
+            return SRec(name, new_ty, rec(val, new_locals), rec(body, new_locals), decreasing_by=nd, loc=loc)
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
-            return SAnnotation(rec(expr), ty, loc=loc)
+            return SAnnotation(
+                rec(expr),
+                resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, local_names),
+                loc=loc,
+            )
         case STypeApplication(body, ty, loc):
-            return STypeApplication(rec(body), ty, loc=loc)
+            return STypeApplication(
+                rec(body),
+                resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, local_names),
+                loc=loc,
+            )
         case SRefinementApplication(body, refinement, loc):
             return SRefinementApplication(rec(body), rec(refinement), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return STypeAbstraction(name, kind, rec(body), loc=loc)
         case SRefinementAbstraction(pname, sort, body, loc):
-            return SRefinementAbstraction(pname, sort, rec(body), loc=loc)
+            return SRefinementAbstraction(pname, sort, rec(body, local_names | {pname.name}), loc=loc)
         case SMatch(scrutinee, branches, loc):
             return SMatch(
                 scrutinee=rec(scrutinee),
@@ -282,7 +296,13 @@ def resolve_qualified_names_in_sterm(
                     SMatchBranch(
                         constructor=br.constructor,
                         binders=br.binders,
-                        body=rec(br.body),
+                        body=resolve_qualified_names_in_sterm(
+                            br.body,
+                            qualified_scope,
+                            unqualified_scope,
+                            constructor_defs,
+                            local_names | {bn.name for bn in br.binders},
+                        ),
                         qualifier=br.qualifier,
                         loc=br.loc,
                     )
@@ -299,24 +319,28 @@ def resolve_qualified_names_in_stype(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    local_names: set[str] | None = None,
 ) -> SType:
     """Resolve qualified names inside refinement predicates within types."""
+    local_names = local_names or set()
 
-    def rec_ty(t: SType) -> SType:
-        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs)
+    def rec_ty(t: SType, locals: set[str] = local_names) -> SType:
+        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs, locals)
 
-    def rec_term(t: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs)
+    def rec_term(t: STerm, locals: set[str] = local_names) -> STerm:
+        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs, locals)
 
     match ty:
         case SRefinedType(name, inner_ty, refinement, loc):
-            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
+            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement, local_names | {name.name}), loc=loc)
         case SAbstractionType(var_name, var_type, body_type, loc):
-            return SAbstractionType(var_name, rec_ty(var_type), rec_ty(body_type), loc=loc)
+            return SAbstractionType(
+                var_name, rec_ty(var_type), rec_ty(body_type, local_names | {var_name.name}), loc=loc
+            )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
-            return SRefinementPolymorphism(name, rec_ty(sort), rec_ty(body), loc=loc)
+            return SRefinementPolymorphism(name, rec_ty(sort), rec_ty(body, local_names | {name.name}), loc=loc)
         case STypeConstructor(name, args, loc):
             new_args = [rec_ty(a) for a in args]
             return STypeConstructor(name, new_args, loc=loc)
@@ -330,13 +354,16 @@ def resolve_qualified_names_in_definition(
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
 ) -> Definition:
-    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs)
+    local_names = {name.name for name, _ in d.args}
+    new_body = resolve_qualified_names_in_sterm(
+        d.body, qualified_scope, unqualified_scope, constructor_defs, local_names
+    )
     new_args = [
-        (name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs))
+        (name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, local_names))
         for name, ty in d.args
     ]
     new_type = (
-        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs)
+        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs, local_names)
         if d.type
         else d.type
     )

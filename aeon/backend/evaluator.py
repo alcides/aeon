@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplication, TypeAbstraction, TypeApplication
+from aeon.core.terms import (
+    Abstraction,
+    RefinementApplication,
+    TypeAbstraction,
+    TypeApplication,
+    RefinementAbstraction,
+)
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
@@ -12,9 +18,9 @@ from aeon.core.terms import Literal
 from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
-from aeon.utils.name import Name
 from aeon.decorators.api import Metadata
 from aeon.llvm.core import LLVMPipeline
+from aeon.utils.name import Name
 
 real_eval = eval
 
@@ -87,32 +93,34 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
         case Let(var_name, var_value, body):
             return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
         case Rec(var_name, _, var_value, body, _, _):
-            found_llvm = False
-            if ctx.pipeline and ctx.metadata:
-                name_str = var_name.name
-                for k, v in ctx.metadata.items():
-                    k_name = k.name if isinstance(k, Name) else str(k)
-                    if k_name == name_str and v.get("llvm"):
-                        found_llvm = True
-                        break
-
-            if found_llvm:
-                try:
-                    v = ctx.pipeline.get_curried_function(var_name)
-                    if v is not None:
-                        return eval(body, ctx.with_var(var_name, v))
-                except Exception:
-                    pass
-
             if isinstance(var_value, Abstraction):
                 fun = var_value
 
-                def v(x):
+                def v_py(x):
                     return eval(
                         fun.body,
-                        ctx.with_var(var_name, v).with_var(fun.var_name, x),
+                        ctx.with_var(var_name, v_py).with_var(fun.var_name, x),
                     )
 
+                v = v_py
+
+                if ctx.pipeline and ctx.metadata:
+                    name_str = var_name.name
+                    found_llvm = False
+                    for k, meta in ctx.metadata.items():
+                        k_name = k.name if isinstance(k, Name) else str(k)
+                        if k_name == name_str and (meta.get("cpu") or meta.get("gpu")):
+                            found_llvm = True
+                            break
+
+                    if found_llvm:
+                        try:
+                            v_llvm = ctx.pipeline.get_curried_function(var_name, native_fallback=v_py)
+                            if v_llvm is not None:
+                                v = v_llvm
+                        except Exception:
+                            v = v_py
+                            pass
             else:
                 v = eval(var_value, ctx)
             return eval(body, ctx.with_var(var_name, v))

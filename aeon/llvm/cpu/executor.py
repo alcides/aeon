@@ -22,10 +22,34 @@ class LLVMExecutionError(LLVMBackendError):
     pass
 
 
+class LLVMVector:
+    def __init__(self, addr, element_cty):
+        self.addr = addr
+        self.element_cty = element_cty
+
+    def __getitem__(self, i):
+        if i >= len(self):
+            raise IndexError("index out of range")
+        res = ctypes.cast(self.addr, ctypes.POINTER(self.element_cty))[i]
+        if self.element_cty == ctypes.c_char:
+            return chr(res)
+        return res
+
+    def __len__(self):
+        size_ptr = ctypes.cast(ctypes.c_void_p(self.addr - 8), ctypes.POINTER(ctypes.c_int32))
+        return size_ptr[0]
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    def __repr__(self):
+        return f"LLVMVector(addr={self.addr}, size={len(self)})"
+
+
 class CPULLVMExecutionEngine(LLVMExecutionEngine):
     def __init__(self):
         self._init_llvm()
-        self.target_machine = self._create_target_machine()
         self._keep_alive = []
 
     def _init_llvm(self):
@@ -76,15 +100,32 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         return res
 
     def _convert_to_ctypes(self, val: Any, ty: LLVMType) -> Any:
+        if isinstance(ty, LLVMPointerType):
+            if hasattr(val, "__cuda_array_interface__"):  # CuPy
+                return ctypes.c_void_p(val.data.ptr)
+            if hasattr(val, "ctypes"):  # NumPy
+                return ctypes.c_void_p(val.ctypes.data)
+
         if isinstance(ty, LLVMPointerType) and isinstance(val, list):
             flat_val = self._flatten_list(val)
             base_ty = ty.element_type
             element_cty = self._get_ctypes_type(base_ty)
             processed_flat_val = [self._convert_to_ctypes(item, base_ty) for item in flat_val]
-            array_type = element_cty * len(processed_flat_val)
-            c_array = array_type(*processed_flat_val)
-            self._keep_alive.append(c_array)
-            return ctypes.cast(c_array, ctypes.c_void_p)
+
+            header_size = 8
+            data_size = len(processed_flat_val) * ctypes.sizeof(element_cty)
+            buffer = (ctypes.c_byte * (header_size + data_size))()
+
+            size_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int32))
+            size_ptr[0] = len(processed_flat_val)
+
+            if processed_flat_val:
+                data_ptr = ctypes.cast(ctypes.addressof(buffer) + header_size, ctypes.POINTER(element_cty))
+                for i, v in enumerate(processed_flat_val):
+                    data_ptr[i] = v
+
+            self._keep_alive.append(buffer)
+            return ctypes.cast(ctypes.addressof(buffer) + header_size, ctypes.c_void_p)
 
         if isinstance(ty, LLVMCharType) and isinstance(val, str):
             return ord(val)
@@ -117,8 +158,12 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         args: List[Any],
         arg_types: List[LLVMType],
         ret_type: LLVMType,
+        metadata: dict[str, Any] | None = None,
     ) -> Any:
         self._keep_alive = []
+        metadata = metadata or {}
+        opt_level = metadata.get("cpu_opt_level", 3)
+
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
             "native",
@@ -128,9 +173,16 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         )
 
         backing_mod = llvm.parse_assembly(llvm_ir)
-
         backing_mod.verify()
-        with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
+
+        pto = llvm.create_pipeline_tuning_options()
+        pto.opt_level = opt_level
+        tm = self._create_target_machine()
+        pb = llvm.create_pass_builder(tm, pto)
+        pm = pb.getModulePassManager()
+        pm.run(backing_mod, pb)
+
+        with llvm.create_mcjit_compiler(backing_mod, tm) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)
             if not func_ptr:
@@ -145,5 +197,9 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
             if isinstance(ret_type, LLVMCharType):
                 return chr(result)
+
+            if isinstance(ret_type, LLVMPointerType) and result is not None:
+                element_cty = self._get_ctypes_type(ret_type.element_type)
+                return LLVMVector(result, element_cty)
 
             return result

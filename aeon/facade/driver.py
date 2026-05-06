@@ -44,6 +44,7 @@ class AeonConfig:
     timings: bool = False
     no_main: bool = False
     synthesis_format: SynthesisFormat = SynthesisFormat.DEFAULT
+    skip_elaboration: bool = False
 
 
 class AeonDriver:
@@ -71,9 +72,18 @@ class AeonDriver:
             )
             metadata: Metadata = desugared.metadata
 
+        from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY
+
+        auto_skip_elaboration = self.cfg.skip_elaboration or (
+            CORE_DECORATOR_QUEUE_META_KEY in metadata and len(metadata[CORE_DECORATOR_QUEUE_META_KEY]) > 0
+        )
+
         try:
-            with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
+            if auto_skip_elaboration:
+                sterm: STerm = desugared.program
+            else:
+                with RecordTime("Elaboration"):
+                    sterm = elaborate(desugared.elabcontext, desugared.program, st_top)
         except AeonError as e:
             return [e]  # TODO: Support multiple errors
 
@@ -85,11 +95,12 @@ class AeonDriver:
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
 
-        with RecordTime("TypeChecking"):
-            type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
-            # TODO
-            if type_errors:
-                return type_errors
+        if not auto_skip_elaboration:
+            with RecordTime("TypeChecking"):
+                type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+                # TODO
+                if type_errors:
+                    return type_errors
 
         with RecordTime("CorePhaseDecorators"):
             metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
