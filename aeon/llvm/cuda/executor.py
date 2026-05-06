@@ -44,17 +44,19 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
             raise CUDAExecutionError("cupy is not installed")
 
         metadata = metadata or {}
+        is_debug: bool = bool(metadata.get("debug", False))
+
+        if is_debug:
+            self._write_ir_to_file(llvm_ir, "debug_llvm.ll")
+
         ir_hash = hashlib.md5(llvm_ir.encode("utf-8")).hexdigest()
 
         if ir_hash not in self._module_cache:
-            with open("debug.ll", "w") as f:
-                f.write(llvm_ir)
-
             ptx = self._compile_to_ptx(llvm_ir, metadata)
             self._module_cache[ir_hash] = ptx
 
-            with open("debug.ptx", "w") as f:
-                f.write(ptx)
+            if is_debug:
+                self._write_ir_to_file(ptx, "debug.ptx")
 
         ptx = self._module_cache[ir_hash]
 
@@ -150,7 +152,7 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
                 return val.item()
             return val
 
-        if isinstance(ret_type, LLVMPointerType) or "Vector" in str(ret_type):
+        if isinstance(ret_type, LLVMPointerType):
             if gpu_arrays:
                 res_gpu, _ = gpu_arrays[0]
                 return res_gpu.get().tolist()
@@ -160,6 +162,10 @@ class CUDALLVMExecutionEngine(LLVMExecutionEngine):
             return res_gpu.get().tolist()
 
         return None
+
+    def _write_ir_to_file(self, ir: str, filename: str):
+        with open(filename, "w") as f:
+            f.write(ir)
 
     def _compile_to_ptx(self, llvm_ir: str, metadata: dict[str, Any]) -> str:
         llvm.initialize_all_targets()
