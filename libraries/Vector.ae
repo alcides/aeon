@@ -1,5 +1,3 @@
-type Vector a;
-
 def new : forall a:B, (Vector a) = native "[]";
 
 def append : forall a:B, (v:(Vector a)) -> (x:a) -> (Vector a) = \v -> \x -> native "v + [x]";
