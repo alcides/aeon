@@ -1,8 +1,5 @@
 open List
-
-# Map is referenced by type only; we declare it locally to avoid a clash
-# between Map.size and List.size when both are opened.
-type Map k v;
+open Map
 
 def sys : Unit = native_import "sys"
 def os : Unit = native_import "os"
