@@ -1,0 +1,11 @@
+open Sys
+open List
+
+# argv is statically known to be non-empty, so List.head is well-typed.
+def progName : String = List.head Sys.argv
+
+def show : Unit =
+    _ : Unit = print Sys.platform;
+    print progName
+
+def main (_:Int) : Unit = show
