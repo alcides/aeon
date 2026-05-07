@@ -25,6 +25,7 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType
+from aeon.core.types import ExistentialType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
@@ -49,6 +50,8 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
             return RefinedType(rname, rec(ty), ref, loc=loc)
         case AbstractionType(a, aty, rty, loc):
             return AbstractionType(a, rec(aty), rec(rty), loc=loc)
+        case ExistentialType(binders, body, loc):
+            return ExistentialType(tuple((bn, rec(bt)) for (bn, bt) in binders), rec(body), loc=loc)
         case TypePolymorphism(pname, kind, body, loc):
             if name == pname:
                 return t
@@ -188,6 +191,12 @@ def instantiate_refinement_in_type(
             return TypeConstructor(
                 name, [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args], loc=loc
             )
+        case ExistentialType(binders, body, loc):
+            return ExistentialType(
+                tuple((bn, instantiate_refinement_in_type(bt, pred_name, refinement)) for (bn, bt) in binders),
+                instantiate_refinement_in_type(body, pred_name, refinement),
+                loc=loc,
+            )
         case _:
             assert False, f"Unknown type {t} ({type(t)})"
 
@@ -256,6 +265,8 @@ def instantiate_refinement_with_horn_in_type(
             return TypePolymorphism(pname, kind, rec(body), loc=loc)
         case RefinementPolymorphism(rname, rsort, rbody, loc):
             return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
+        case ExistentialType(binders, body, loc):
+            return ExistentialType(tuple((bn, rec(bt)) for (bn, bt) in binders), rec(body), loc=loc)
         case _:
             assert False, f"instantiate_refinement_with_horn_in_type: unknown type {t}"
 
@@ -320,6 +331,18 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
             return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
         case TypeConstructor(name, args, loc):
             return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
+        case ExistentialType(binders, body, loc):
+            # If `name` is shadowed by a binder, stop the substitution from
+            # entering the body — but still recurse into binder types preceding
+            # the shadow, since binders to the right of a shadowing binder are
+            # allowed to mention it.
+            new_binders: list[tuple[Name, Type]] = []
+            shadowed = False
+            for bn, bt in binders:
+                new_binders.append((bn, bt if shadowed else rec(bt)))
+                if bn == name:
+                    shadowed = True
+            return ExistentialType(tuple(new_binders), body if shadowed else rec(body), loc=loc)
         case _:
             assert False, f"{t} not allowed"
 
@@ -388,6 +411,14 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
             return TypePolymorphism(name, kind, rec(body), loc=loc)
         case TypeConstructor(name, args, loc):
             return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
+        case ExistentialType(binders, body, loc):
+            new_binders: list[tuple[Name, Type]] = []
+            shadowed = False
+            for bn, bt in binders:
+                new_binders.append((bn, bt if shadowed else rec(bt)))
+                if bn == name:
+                    shadowed = True
+            return ExistentialType(tuple(new_binders), body if shadowed else rec(body), loc=loc)
         case _:
             assert False, f"{t} not allowed"
 

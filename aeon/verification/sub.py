@@ -9,6 +9,7 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, RefinementPolymorphism, TypeConstructor, TypeVar
+from aeon.core.types import ExistentialType
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
@@ -139,6 +140,19 @@ def implication_constraint(
 def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> Constraint:
     if t2 == Top():
         return ctrue
+    # Form B existential subtype: skolemise each binder by introducing it as
+    # an implication assumption, then recurse on the body. Binders to the
+    # right may mention earlier binders, so we wrap from innermost out.
+    if isinstance(t1, ExistentialType):
+        c = sub(ctx, t1.body, t2, loc)
+        for bn, bt in reversed(t1.binders):
+            c = implication_constraint(bn, bt, c, loc)
+        return c
+    # Existential on the supertype side would mean "there exists a witness …".
+    # Skolemising naively is unsound; we don't currently produce existentials
+    # in supertype position, so treat it as opaque for now.
+    if isinstance(t2, ExistentialType):
+        return sub(ctx, t1, t2.body, loc)
     match (ensure_refined(t1), ensure_refined(t2)):
         case RefinedType(n1, ty1, r1), RefinedType(n2, ty2, r2):
             if ty2 == Top():

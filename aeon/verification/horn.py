@@ -15,6 +15,7 @@ from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
+from aeon.core.types import ExistentialType
 from aeon.core.types import RefinedType
 from aeon.core.types import t_bool
 from aeon.core.types import Top
@@ -83,6 +84,14 @@ def fresh(context: TypingContext, ty: Type) -> Type:
             return RefinementPolymorphism(name, fresh(context, sort), fresh(context, body))
         case TypeConstructor(name, args):
             return TypeConstructor(name, [fresh(context, c) for c in args])
+        case ExistentialType(binders, body):
+            ext_ctx = context
+            new_binders: list[tuple[Name, Type]] = []
+            for bn, bt in binders:
+                fresh_bt = fresh(ext_ctx, bt)
+                new_binders.append((bn, fresh_bt))
+                ext_ctx = ext_ctx.with_var(bn, fresh_bt)
+            return ExistentialType(tuple(new_binders), fresh(ext_ctx, body))
         case _:
             assert False, f"Type not freshable: {ty}, {type(ty)}"
 

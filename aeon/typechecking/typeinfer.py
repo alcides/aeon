@@ -35,6 +35,7 @@ from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import BaseKind
+from aeon.core.types import ExistentialType
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
@@ -360,18 +361,26 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     raise CoreInvalidApplicationError(t, ty)
         case Let(var_name, var_value, body):
             (c1, t1) = synth(ctx, var_value)
-            nctx: TypingContext = ctx.with_var(var_name, t1)
+            # Form B elimination: if the value's type carries existential binders,
+            # open them into the surrounding scope (each binder name becomes a
+            # context entry under its refinement) and let the body see the
+            # bare body type.
+            opened_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t1, ExistentialType):
+                opened_binders = t1.binders
+                t1 = t1.body
+            nctx: TypingContext = ctx
+            for bn, bt in opened_binders:
+                nctx = nctx.with_var(bn, bt)
+            nctx = nctx.with_var(var_name, t1)
             (c2, t2) = synth(nctx, body)
             term_vars = type_free_term_vars(t1)
             assert t.var_name not in term_vars
             reflected_impl = _reflected_impl_for(var_name, t1, var_value)
-            r = (
-                Conjunction(
-                    c1,
-                    implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl),
-                ),
-                t2,
-            )
+            inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
+            for bn, bt in reversed(opened_binders):
+                inner = implication_constraint(bn, bt, inner, body.loc)
+            r = (Conjunction(c1, inner), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
@@ -449,10 +458,20 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             return implication_constraint(name, var_type, c, body.loc)
         case Let(name, val, body), _:
             (c1, t1) = synth(ctx, val)
-            nctx: TypingContext = ctx.with_var(name, t1)
+            opened_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t1, ExistentialType):
+                opened_binders = t1.binders
+                t1 = t1.body
+            nctx: TypingContext = ctx
+            for bn, bt in opened_binders:
+                nctx = nctx.with_var(bn, bt)
+            nctx = nctx.with_var(name, t1)
             c2 = check(nctx, body, ty)
             reflected_impl = _reflected_impl_for(name, t1, val)
-            return Conjunction(c1, implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl))
+            inner = implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl)
+            for bn, bt in reversed(opened_binders):
+                inner = implication_constraint(bn, bt, inner, body.loc)
+            return Conjunction(c1, inner)
         case Rec(var_name, var_type, var_value, body), _:
             t1 = fresh(ctx, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
