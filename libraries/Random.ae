@@ -8,8 +8,8 @@ def seed (seed: Int) : Unit = native "random.seed(seed)"
 # Returns a random integer N such that a <= N <= b.
 def randint (a: Int) (b: Int) : {r:Int | r >= a && r <= b} = native "random.randint(a, b)"
 
-# Returns a random float in the range [0.0, 1.0).
-def random : {r:Float | r >= 0.0 && r < 1.0} = native "random.random()";
+# Returns a random float in the range [0.0, 1.0). Thunked to defer evaluation.
+def random (_: Unit) : {r:Float | r >= 0.0 && r < 1.0} = native "random.random()";
 
 # Returns a random float N such that a <= N < b.
 def uniform (a: Float) (b: Float) : {r:Float | r >= a && r < b} = native "random.uniform(a, b)"
