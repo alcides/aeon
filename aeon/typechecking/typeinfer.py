@@ -35,7 +35,7 @@ from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import BaseKind
-from aeon.core.types import ExistentialType
+from aeon.core.types import ExistentialType, with_binders
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
@@ -351,12 +351,44 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (ctrue, ty)
         case Application(fun, arg):
             (c, ty) = synth(ctx, fun)
+            # Lift any binders from the function's type to the outer scope so
+            # the body underneath can be matched as an AbstractionType.
+            outer_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(ty, ExistentialType):
+                outer_binders = ty.binders
+                ty = ty.body
             match ty:
                 case AbstractionType(aname, atype, rtype):
                     cp = check(ctx, arg, atype)
-                    t_subs = substitution_in_type(rtype, arg, aname)
+                    # Abstractions can't be synthesised on their own (no
+                    # annotation), and Var/Literal liquefy directly. In all
+                    # three cases the existing direct substitution path is
+                    # what we want — the type system either preserves the
+                    # equation (Var, Literal, liquefiable App) or silently
+                    # passes the body through (Abstraction).
+                    if isinstance(arg, (Var, Literal, Abstraction)):
+                        t_subs = substitution_in_type(rtype, arg, aname)
+                    else:
+                        # Form B existential introduction: synth the argument
+                        # to get its most precise type, prepend a fresh
+                        # binder carrying its refinement, and substitute the
+                        # binder name into the result type. Any binders
+                        # already on the argument's type lift to the outer
+                        # scope (binders are always flat).
+                        (_, ty_arg) = synth(ctx, arg)
+                        if isinstance(ty_arg, ExistentialType):
+                            outer_binders = outer_binders + ty_arg.binders
+                            ty_arg = ty_arg.body
+                        y = Name("_y", fresh_counter.fresh())
+                        binder_ty = ensure_refined(ty_arg)
+                        if isinstance(binder_ty, RefinedType):
+                            renamed = substitution_in_liquid(binder_ty.refinement, LiquidVar(y), binder_ty.name)
+                            assert isinstance(binder_ty.type, (TypeConstructor, TypeVar))
+                            binder_ty = RefinedType(y, binder_ty.type, renamed)
+                        outer_binders = outer_binders + ((y, binder_ty),)
+                        t_subs = substitution_in_type(rtype, Var(y), aname)
                     c0 = Conjunction(c, cp)
-                    return (c0, t_subs)
+                    return (c0, with_binders(outer_binders, t_subs))
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
         case Let(var_name, var_value, body):
