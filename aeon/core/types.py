@@ -165,6 +165,51 @@ class TypeConstructor(Type):
         return hash(self.name) + sum(hash(a) for a in self.args)
 
 
+@dataclass
+class ExistentialType(Type):
+    """Form B: a type wrapped with a list of existential binders.
+
+    Each binder ``(name, ty)`` records that ``name`` is some witness of type
+    ``ty`` (typically a ``RefinedType`` carrying everything we know about the
+    value). The ``body`` is bare — a ``TypeConstructor``, ``TypeVar``, or
+    ``AbstractionType`` — never another ``RefinedType`` and never another
+    ``ExistentialType`` (binders are flat: nested existentials collapse).
+
+    Lives at the top of a type only; transformations should peel and replace
+    binders rather than nest them.
+    """
+
+    binders: tuple[tuple[Name, Type], ...]
+    body: Type
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __post_init__(self):
+        # Bodies must not themselves carry binders — flatten in constructors.
+        assert not isinstance(self.body, ExistentialType), (
+            "ExistentialType bodies must be flat; flatten via `with_binders`."
+        )
+
+    def __str__(self):
+        bs = "; ".join(f"{n}:{t}" for (n, t) in self.binders)
+        return f"[{bs}] {self.body}"
+
+    def __eq__(self, other):
+        return isinstance(other, ExistentialType) and self.binders == other.binders and self.body == other.body
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.binders)) + hash(self.body)
+
+
+def with_binders(extra: tuple[tuple[Name, Type], ...], ty: Type) -> Type:
+    """Smart constructor: prepend ``extra`` binders, flattening any existing
+    ``ExistentialType`` so the result is at most one wrapper deep."""
+    if not extra:
+        return ty
+    if isinstance(ty, ExistentialType):
+        return ExistentialType(tuple(extra) + tuple(ty.binders), ty.body, loc=ty.loc)
+    return ExistentialType(tuple(extra), ty, loc=getattr(ty, "loc", SynthesizedLocation("default")))
+
+
 # Default type constructors
 
 
