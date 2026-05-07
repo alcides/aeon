@@ -319,6 +319,17 @@ def type_free_term_vars(t: Type) -> list[Name]:
         return [x for x in ifv + rfv if x != t.name]
     elif isinstance(t, TypePolymorphism):
         return type_free_term_vars(t.body)
+    elif isinstance(t, ExistentialType):
+        binder_names = {bn for bn, _ in t.binders}
+        bfv: list[Name] = []
+        seen_so_far: set[Name] = set()
+        for bn, bt in t.binders:
+            for v in type_free_term_vars(bt):
+                if v not in seen_so_far and v not in ALL_OPS:
+                    bfv.append(v)
+            seen_so_far.add(bn)
+        body_fv = type_free_term_vars(t.body)
+        return [x for x in bfv + body_fv if x not in binder_names and x not in ALL_OPS]
     return []
 
 

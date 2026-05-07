@@ -412,6 +412,19 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             for bn, bt in reversed(opened_binders):
                 inner = implication_constraint(bn, bt, inner, body.loc)
+            # Form B introduction: if the body's type still mentions a name
+            # bound here (`var_name` or any of the opened binders), wrap it
+            # in an existential so the scope leak is preserved as a binder
+            # rather than as a free variable when the type flows outward.
+            t2_free = type_free_term_vars(t2)
+            leaking: list[tuple[Name, Type]] = []
+            for bn, bt in opened_binders:
+                if bn in t2_free:
+                    leaking.append((bn, bt))
+            if var_name in t2_free:
+                leaking.append((var_name, t1))
+            if leaking:
+                t2 = with_binders(tuple(leaking), t2)
             r = (Conjunction(c1, inner), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
@@ -428,6 +441,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Form B introduction: if the body's type still mentions `var_name`,
+            # wrap it in an existential so the scope leak is preserved as a
+            # binder when the type flows outward.
+            if var_name in type_free_term_vars(t2):
+                t2 = with_binders(((var_name, var_type),), t2)
             return Conjunction(Conjunction(c1, c2), term_c), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)

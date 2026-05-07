@@ -3,7 +3,6 @@ from __future__ import annotations
 from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
@@ -56,10 +55,9 @@ def test_factorial_nat_path_sensitive_terminates():
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
-    errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
+    errors = list(check_type_errors(typing_ctx, core_ast, top))
     assert errors == [], [type(e).__name__ for e in errors]
-    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+    apply_core_decorators_phase(typing_ctx, core_ast, desugared.metadata)
 
 
 def test_lexicographic_ackermann_typechecks():
@@ -79,7 +77,6 @@ def test_lexicographic_ackermann_typechecks():
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
-    errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
+    errors = list(check_type_errors(typing_ctx, core_ast, top))
     assert errors == [], [type(e).__name__ for e in errors]
-    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+    apply_core_decorators_phase(typing_ctx, core_ast, desugared.metadata)

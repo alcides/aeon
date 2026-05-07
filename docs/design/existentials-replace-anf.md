@@ -106,20 +106,35 @@ the same programs.
    we won't need it: the binders only appear in *subtype* positions (left
    of `<:`), where skolemisation is sound.
 
-5. **Delete ANF.** `aeon/frontend/anf_converter.py` and every call site
-   (`tests/driver.py`, `aeon/facade/driver.py`, `aeon/lsp/...`). Tests that
-   construct ANF'd terms by hand via `ensure_anf` get the call removed.
+5. **Remove ANF from the typechecker pipeline.** `tests/driver.py`, the
+   four end-to-end / decreasing-by / intlist regression tests, and
+   `aeon/synthesis/entrypoint.py` no longer call `ensure_anf`. The
+   `test_precedence` test that asserted ANF idempotence is gone with
+   ANF as a public concept.
 
-6. **Substitution / bind / lifting / lowering**: each gets an
-   `ExistentialType` case that recurses into binders and body, taking care
-   to alpha-rename binders to avoid capture.
+6. **Production driver and LLVM backend still run ANF as a defensive
+   pass.** The typechecker passes the full test suite (425/425) without
+   ANF, but two downstream consumers remain coupled to flat let-chains:
 
-7. **Backwards compatibility**: programs that today produce ANF'd terms
-   continue to type-check identically, because the only change at the user
-   level is that the typechecker no longer rejects non-Var arguments.
+   - The LLVM IR builder in `aeon/llvm/cpu/converter.py` walks
+     `Application` nodes assuming the spine has been linearised by ANF.
+   - The SMT translation in `aeon/verification/smt.py` raises a
+     `Z3Exception` on a handful of production-pipeline programs (e.g.
+     `examples/PSB2/solved/bowling.ae`) when their refinements are built
+     from existential-bound names; this needs a deeper trace to pin
+     down whether it's a missed binder skolemisation or a capture issue.
 
-## Open questions to resolve before merging
+   Until those land, `aeon/facade/driver.py` keeps a one-line call to
+   `ensure_anf` after `bind_ids`; the call is documented in-source. The
+   converter file (`aeon/frontend/anf_converter.py`) therefore stays in
+   the tree for now.
 
+## Open questions still on the table
+
+- **SMT for existentials**: the bowling example trips
+  `translate_liq` returning a non-Z3 value through `LiquidVar` lookup.
+  The fix likely involves teaching the SMT context to walk binders the
+  same way `sub`'s `implication_constraint` chain does.
 - **Binder ordering matters for refinements that mention earlier binders.**
   Verify this is preserved through `sub` and the SMT translation.
 - **Polymorphism interaction.** Type variables can appear inside refined
@@ -128,3 +143,5 @@ the same programs.
 - **Hashing / equality of existentials.** Currently structural; if we want
   alpha-equivalence, add a normalisation pass that renames binders to a
   canonical scheme before comparison.
+- **LLVM converter**: rewrite `visit_call` to fold inline applications,
+  so the LLVM path can drop its defensive ANF pass.

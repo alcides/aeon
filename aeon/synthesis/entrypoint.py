@@ -16,7 +16,6 @@ from aeon.core.terms import Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
@@ -32,9 +31,7 @@ from aeon.synthesis.decorators import Goal
 
 def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]:
     def replace(candidate: Term) -> Term:
-        new_program = substitution(whole_program, candidate, hole_name)
-        core_ast_anf = ensure_anf(new_program)
-        return core_ast_anf
+        return substitution(whole_program, candidate, hole_name)
 
     return replace
 
