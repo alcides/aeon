@@ -1,0 +1,3 @@
+def force_one (a:Int) (_:Unit | a > 0) (_:Unit | a < 2) : {r:Unit | a == 1} = native "()"
+
+def main (args:Int) : Unit = print "ok"
