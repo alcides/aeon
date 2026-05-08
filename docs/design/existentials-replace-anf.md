@@ -1,8 +1,8 @@
 # Existentials replacing ANF — Phase 0 spike
 
-Status: **AST scaffolding only.** This document describes the target design;
-the actual rewrite of `synth`, `sub`, SMT, and the deletion of ANF will land
-in subsequent commits on this branch.
+Status: **completed and shipped on this branch.** ANF is deleted from the
+codebase entirely. The typechecker, the production driver, and the LLVM
+backend all run without it; `aeon/frontend/anf_converter.py` is gone.
 
 ## Why
 
@@ -112,28 +112,26 @@ the same programs.
    `test_precedence` test that asserted ANF idempotence is gone with
    ANF as a public concept.
 
-6. **Production driver removed from ANF, LLVM still runs it.** The
-   typechecker passes the full test suite (425/425) and `run_examples.sh`
-   end-to-end *without* ANF. One downstream consumer remains:
+6. **Production driver and LLVM backend now run without ANF too.**
+   Two pre-existing bugs that ANF was masking by hoisting literals
+   into named bindings have been fixed in place:
 
-   - The LLVM IR builder in `aeon/llvm/cpu/converter.py` walks
-     `Application` nodes assuming the spine has been linearised by ANF.
+   - `aeon/verification/smt.py::translate_liq` returned a Python `str`
+     for `LiquidLiteralString`. Z3 auto-casts Python `int`/`bool`/
+     `float` into its sorts for inline literal arguments but not
+     `str`, so `String_eq score "X"` raised `Z3Exception` once "X"
+     stopped being hoisted. Fix: wrap with `z3.StringVal`.
+   - `aeon/llvm/cpu/lowerer.py::_lower_builtin_call` only applied the
+     float→double cast for libm builtins when the bare name started
+     with `"Math"`, but `_get_lookup_name` strips the module prefix —
+     so `Math.powf` reached this branch as `"powf"` and the cast was
+     silently skipped. ANF used to hide it by giving the call result
+     a typed binding that was implicitly cast at the use site. Fix:
+     pull the libm builtins out into `_MATH_LIBM_BUILTINS` and trigger
+     the cast on set membership instead of a string prefix.
 
-   `aeon/facade/driver.py` therefore re-runs `ensure_anf` only inside
-   the `LLVM compilation` block, just before `pipeline.compile`. The
-   converter file (`aeon/frontend/anf_converter.py`) stays in the tree
-   until the LLVM converter is taught to fold inline applications.
-
-   The earlier `Z3Exception` on `examples/PSB2/solved/bowling.ae` was
-   diagnosed and turned out to be **unrelated** to existentials: it was
-   a pre-existing bug in `aeon/verification/smt.py::translate_liq`
-   where `LiquidLiteralString` returned a Python `str` rather than a
-   `z3.StringVal`. Z3 auto-casts Python `int`/`bool`/`float` into its
-   sorts when a literal appears as an argument, but not Python `str`.
-   ANF was hiding the bug by hoisting every literal into a let-bound
-   name, so string literals only ever reached SMT through the typed
-   `variables` dict (a Z3 `String` const). Fixed by wrapping in
-   `StringVal` at the literal case.
+7. **`aeon/frontend/anf_converter.py` deleted.** `is_anf` is also gone
+   from `aeon/utils/ast_helpers.py` (no remaining consumers).
 
 ## Open questions still on the table
 

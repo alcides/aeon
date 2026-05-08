@@ -100,13 +100,7 @@ class AeonDriver:
         self.evaluation_ctx = evaluation_ctx
 
         with RecordTime("LLVM compilation"):
-            # The LLVM IR builder still walks `Application` nodes assuming a
-            # flat let-chain (e.g. `let _t = g a in f _t` rather than `f (g a)`).
-            # Type-checking no longer requires that shape, so we re-run ANF
-            # only here, just before LLVM codegen.
-            from aeon.frontend.anf_converter import ensure_anf
-
-            pipeline.compile(ensure_anf(self.core))
+            pipeline.compile(self.core)
 
         return []
 

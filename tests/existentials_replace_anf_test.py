@@ -1,16 +1,15 @@
-"""Form B existentials replace ANF — focused spike test.
+"""Form B existentials replaced ANF — focused regression tests.
 
-ANF (`aeon.frontend.anf_converter.ensure_anf`) historically rewrote every
-non-Var argument into a `let _anf = arg in f _anf` so that `synth(Application)`
-could substitute a name into the result type. With Form B existentials, the
-synthesized binder lives in the *type* instead, so non-Var arguments can be
-type-checked inline.
+ANF historically rewrote every non-Var argument into `let _anf = arg in f _anf`
+so that `synth(Application)` could substitute a name into the result type.
+The pass is gone now (commit ``Phase 0 spike (5/N)`` deleted the module);
+the synthesised binder lives in the *type* via Form B existentials.
 
-This test exercises that path by deliberately *skipping* the ANF pass and
-constructing a core term whose application has a non-trivial argument
-(`f (g a)` rather than `let _anf = g a in f _anf`). It verifies that:
+These tests exercise that path directly with hand-built core terms whose
+applications have non-trivial arguments (e.g. ``id (id 0)``), confirming
+that:
 
-1. `synth(Application)` still produces a constraint that solves;
+1. `synth(Application)` produces a constraint that solves;
 2. the resulting type carries an `ExistentialType` binder;
 3. a refinement on the function's return type that mentions the parameter
    name survives the binder substitution and is provable.
