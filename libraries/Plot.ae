@@ -1,7 +1,7 @@
+open List
+
 # Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.
 type Plot
-
-type List a; # Assuming this is how you define generic lists
 
 def plt : Unit = native_import "matplotlib.pyplot"
 

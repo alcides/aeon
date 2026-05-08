@@ -1,0 +1,73 @@
+open List
+open Map
+
+def sys : Unit = native_import "sys"
+def os : Unit = native_import "os"
+
+# ── Process arguments ──────────────────────────────────────────────────
+
+# The list of command-line arguments. argv[0] is the program name, so
+# the list is always non-empty.
+def argv : {l: (List String) | List.size l >= 1} = native "sys.argv"
+
+# Command-line arguments without the program name. May be empty.
+def args : (List String) = native "sys.argv[1:]"
+
+# The number of command-line arguments. Always >= 1 (argv[0] is the program).
+def argc : {x:Int | x >= 1} = native "len(sys.argv)"
+
+# The program name (argv[0]).
+def progName : String = native "sys.argv[0]"
+
+# ── Exit ───────────────────────────────────────────────────────────────
+
+# Exits the process. Conventionally 0 = success, 1-255 = error.
+def exit (code: {x:Int | x >= 0 && x <= 255}) : Unit = native "sys.exit(code)"
+
+# ── Standard streams ───────────────────────────────────────────────────
+
+# Reads a line from stdin (newline stripped). Thunked to defer the read.
+def readLine (_: Unit) : String = native "input()"
+
+# Prints a string to stderr followed by a newline.
+def eprint (s: String) : Unit = native "print(s, file=sys.stderr)"
+
+# Flushes the standard output buffer.
+def flushStdout (_: Unit) : Unit = native "sys.stdout.flush()"
+
+# Flushes the standard error buffer.
+def flushStderr (_: Unit) : Unit = native "sys.stderr.flush()"
+
+# ── Environment ────────────────────────────────────────────────────────
+
+# Returns a snapshot of the current environment as a Map.
+def environ (_: Unit) : (Map String String) = native "dict(os.environ)"
+
+# Looks up an environment variable, returning default if unset.
+# name: non-empty environment variable name
+# default: value to return if the variable is unset
+def getenv (name: {s:String | s != ""}) (default: String) : String =
+    native "os.environ.get(name, default)"
+
+# Returns true if the environment variable is set.
+# name: non-empty environment variable name
+def hasenv (name: {s:String | s != ""}) : Bool =
+    native "name in os.environ"
+
+# Sets an environment variable and returns a snapshot of the new environment.
+# name: non-empty environment variable name
+# value: value to assign
+# returns: a Map of the environment after the update
+def setenv (name: {s:String | s != ""}) (value: String) : (Map String String) =
+    native "(os.environ.__setitem__(name, value), dict(os.environ))[1]"
+
+# ── Platform info ──────────────────────────────────────────────────────
+
+# A string identifying the platform (e.g. "linux", "darwin", "win32").
+def platform : String = native "sys.platform"
+
+# The Python version string of the underlying interpreter.
+def pythonVersion : String = native "sys.version"
+
+# The path to the Python executable.
+def executable : String = native "sys.executable"
