@@ -96,6 +96,7 @@ def gpu_run(k):
 prelude = [
     ("native", "forall a:B, (x:String) -> {x:a | false}", eval),
     ("native_import", "forall a:B, (x:String) -> {x:a | false}", native_import),
+    ("unit", "Unit", None),
     ("print", "forall a:B, (x:a) -> Unit", p),
     ("==", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x == y),
     ("!=", "forall a:B, (x:a) -> (y:a) -> Bool", lambda x: lambda y: x != y),
