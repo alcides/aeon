@@ -1,0 +1,28 @@
+# Gpu — tensor and kernel primitives.
+#
+# These helpers are CPU fallbacks for now (see aeon/prelude/gpu.py); the
+# names are stable so programs can opt in via `open Gpu` and migrate to a
+# real GPU implementation later without source changes.
+
+def gpu : Unit = native_import "aeon.prelude.gpu"
+
+# Indexes into a Tensor.
+def __index__ (t:Tensor) (i:Int) : a = native "gpu.index_tensor(t)(i)"
+
+# Maps a function over every element of a Tensor.
+def gpu_map (f: (x:a) -> b) (t:Tensor) : Tensor = native "gpu.gpu_map(f)(t)"
+
+# Maps a function over the indices [0..len(t)).
+def gpu_imap (f: (i:Int) -> b) (t:Tensor) : Tensor = native "gpu.gpu_imap(f)(t)"
+
+# Folds a binary function over a Tensor with an initial accumulator.
+def gpu_reduce (f: (acc:a) -> (x:a) -> a) (initial:a) (t:Tensor) : a = native "gpu.gpu_reduce(f)(initial)(t)"
+
+# Filters a Tensor by a predicate.
+def gpu_filter (f: (x:a) -> Bool) (t:Tensor) : Tensor = native "gpu.gpu_filter(f)(t)"
+
+# Inner product of two Tensors.
+def gpu_dot (a:Tensor) (b:Tensor) : Float = native "gpu.gpu_dot(a)(b)"
+
+# Runs a kernel against a Tensor with a given configuration.
+def run_gpu (kernel: (x:Tensor) -> a) (config:GpuConfig) (input:Tensor) : a = native "gpu.gpu_run(kernel)(config)(input)"

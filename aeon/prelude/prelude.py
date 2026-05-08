@@ -36,51 +36,6 @@ native_types: list[Name] = [
 ]
 
 
-def gpu_map(f):
-    def run(t, conf=None):
-        # TODO add gpu support
-        return [f(x) for x in t]
-
-    return run
-
-
-def gpu_imap(f):
-    def run(t, conf=None):
-        # TODO add gpu support
-        return [f(i) for i in range(len(t))]
-
-    return run
-
-
-def gpu_reduce(f):
-    def with_initial(i):
-        def run(t, conf=None):
-            import functools
-
-            # TODO add gpu support
-            return functools.reduce(lambda x, y: f(x)(y), t, i)
-
-        return run
-
-    return with_initial
-
-
-def gpu_filter(f):
-    def run(t, conf=None):
-        # TODO add gpu support
-        return [x for x in t if f(x)]
-
-    return run
-
-
-def gpu_dot(a):
-    def with_b(b):
-        # TODO add gpu support
-        return sum(x * y for x, y in zip(a, b))
-
-    return with_b
-
-
 def gpu_run(k):
     def with_config(c):
         def with_input(t):
@@ -124,33 +79,9 @@ prelude = [
         "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>, (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",
         lambda f: lambda x: f(x),
     ),
-    ("gpu_map", "forall a:B, forall b:B, (f:(x:a) -> b) -> (t:Tensor) -> Tensor", gpu_map),
-    (
-        "gpu_imap",
-        "forall b:B, (f:(i:Int) -> b) -> (t:Tensor) -> Tensor",
-        gpu_imap,
-    ),
-    ("__index__", "forall a:B, (t:Tensor) -> (i:Int) -> a", lambda t: lambda i: t[i]),
-    (
-        "gpu_reduce",
-        "forall a:B, (f:(acc:a) -> (x:a) -> a) -> (initial:a) -> (t:Tensor) -> a",
-        gpu_reduce,
-    ),
-    (
-        "gpu_filter",
-        "forall a:B, (f:(x:a) -> Bool) -> (t:Tensor) -> Tensor",
-        gpu_filter,
-    ),
-    (
-        "gpu_dot",
-        "(a:Tensor) -> (b:Tensor) -> Float",
-        gpu_dot,
-    ),
-    (
-        "run_gpu",
-        "forall a:B, (kernel:(x:Tensor) -> a) -> (config:GpuConfig) -> (input:Tensor) -> a",
-        gpu_run,
-    ),
+    # GPU helpers (__index__, gpu_map, gpu_imap, gpu_reduce, gpu_filter,
+    # gpu_dot, run_gpu) live in the Gpu library and are imported via
+    # `open Gpu` / `import Gpu`. See aeon/prelude/gpu.py and libraries/Gpu.ae.
 ]
 
 typing_vars: dict[Name, SType] = {}
