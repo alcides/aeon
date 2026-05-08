@@ -1,0 +1,18 @@
+open Args
+open List
+
+# Build a parser with a flag and an option-with-default. We use parseList
+# with an explicit empty argv so the example runs cleanly under
+# `aeon args_example.ae` (which doesn't forward CLI args).
+
+def parser : Parser =
+    p0 : Parser = Args.newParser "Demo CLI";
+    p1 : Parser = Args.addOption p0 "greeting" "Hello" "what to say";
+    Args.addFlag p1 "uppercase" "shout instead of say"
+
+def emptyArgs : (List String) = native "[]"
+
+def main (_:Int) : Unit =
+    a : ParsedArgs = Args.parseList parser emptyArgs;
+    g : String = Args.getString a "greeting";
+    print g
