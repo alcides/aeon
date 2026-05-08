@@ -157,8 +157,14 @@ def backward_candidates(
     1. If T is a function type, produce an abstraction
     2. Generate literals for base types
     3. Look up variables with matching types
-    4. Find functions whose return type matches T
-    5. Generate if-then-else
+    4. Generate if-then-else
+    5. Find functions whose return type matches T
+
+    The if-then-else shell is emitted before function applications so BFS
+    pops it (and starts filling its three sub-holes) before it reaches
+    nested arithmetic expansions like ``(*) ((+) ?h ?h) ?h``. On
+    example-driven problems whose canonical solution is a comparator,
+    this dramatically cuts the BFS distance to a useful candidate.
     """
     T = hole.expected_type
     ctx = hole.context
@@ -199,16 +205,8 @@ def backward_candidates(
             if is_subtype(ctx, var_type, T):
                 candidates.append((Var(name, _loc), []))
 
-    # 4. Function applications (monomorphic + polymorphic)
-    for f_term, f_type in get_applicable_functions(ctx, skip):
-        assert isinstance(f_type, AbstractionType)
-        ret_type = get_return_type(f_type)
-        if bases_match(ret_type, T):
-            params = get_param_types(f_type)
-            app_term, new_holes = _build_application(f_term, params, hole)
-            candidates.append((app_term, new_holes))
-
-    # 5. If-then-else
+    # 4. If-then-else (placed before function applications so BFS reaches
+    # comparator-shaped candidates earlier than nested arithmetic).
     cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx)
     then_hole_term, then_typed_hole = fresh_hole(T, ctx)
     else_hole_term, else_typed_hole = fresh_hole(T, ctx)
@@ -218,6 +216,15 @@ def backward_candidates(
             [cond_typed_hole, then_typed_hole, else_typed_hole],
         )
     )
+
+    # 5. Function applications (monomorphic + polymorphic)
+    for f_term, f_type in get_applicable_functions(ctx, skip):
+        assert isinstance(f_type, AbstractionType)
+        ret_type = get_return_type(f_type)
+        if bases_match(ret_type, T):
+            params = get_param_types(f_type)
+            app_term, new_holes = _build_application(f_term, params, hole)
+            candidates.append((app_term, new_holes))
 
     return candidates
 
