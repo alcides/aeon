@@ -24,11 +24,56 @@ MAX_DEPTH = 5
 
 _loc = SynthesizedLocation("tdsyn")
 
+# Default ε for the dominance filter. 0.0 = strict Pareto (no information loss);
+# any positive value collapses near-duplicate points to bound the front size.
+DEFAULT_EPSILON = 0.0
 
-def _is_better(v1: list[float], v2: list[float]) -> bool:
-    if not v2:
-        return True
-    return all(x < y for x, y in zip(v1, v2))
+
+Front = list[tuple[list[float], Term]]
+
+
+def _eps_dominates(a: list[float], b: list[float], eps: float) -> bool:
+    """Strict ε-dominance: ``a`` is no more than ε worse than ``b`` on any
+    axis, and more than ε better on at least one. Both score vectors must
+    have the same length."""
+    if len(a) != len(b):
+        return False
+    strictly_better = False
+    for x, y in zip(a, b):
+        if x > y + eps:
+            return False
+        if x < y - eps:
+            strictly_better = True
+    return strictly_better
+
+
+def _front_offer(front: Front, score: list[float], term: Term, eps: float) -> bool:
+    """Offer ``(score, term)`` to the Pareto front.
+
+    Rejects if any existing point ε-dominates the candidate or is within ε
+    on every axis (ε-equality is treated as a near-duplicate). Otherwise
+    evicts every existing point ε-dominated by the candidate, appends the
+    new point, and returns True. Mutates ``front`` in place.
+    """
+    for s, _ in front:
+        if _eps_dominates(s, score, eps):
+            return False
+        if all(abs(x - y) <= eps for x, y in zip(s, score)):
+            return False
+    front[:] = [(s, t) for s, t in front if not _eps_dominates(score, s, eps)]
+    front.append((score, term))
+    return True
+
+
+def _select_from_front(front: Front) -> Term | None:
+    """Pick a representative term from the Pareto front.
+
+    Min sum-of-scores favours generalists (low on every axis) over
+    specialists that ace a few axes by being trivial.
+    """
+    if not front:
+        return None
+    return min(front, key=lambda st: sum(st[0]))[1]
 
 
 def _get_elapsed_time(start_time: int) -> float:
@@ -74,9 +119,11 @@ class TDSynSynthesizer(Synthesizer):
     order on each iteration to explore different term structures.
     """
 
-    def __init__(self, mode: str = "enumerative"):
+    def __init__(self, mode: str = "enumerative", epsilon: float = DEFAULT_EPSILON):
         assert mode in ("enumerative", "random")
+        assert epsilon >= 0.0
         self.mode = mode
+        self.epsilon = epsilon
         self._rng = random.Random(42)
         self._iteration = 0
 
@@ -97,7 +144,7 @@ class TDSynSynthesizer(Synthesizer):
         skip = make_skip_fn(fun_name, metadata)
         self._has_goals = bool(metadata.get(fun_name, {}).get("goals"))
         start_time = monotonic_ns()
-        best: tuple[list[float], Term | None] = ([], None)
+        front: Front = []
         ui.register(None, None, 0, True)
 
         # Peel abstractions from the target type
@@ -108,15 +155,16 @@ class TDSynSynthesizer(Synthesizer):
         # Loop: restart search when worklist/walk is exhausted, until budget runs out
         while _get_elapsed_time(start_time) < budget:
             if self.mode == "enumerative":
-                best = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+                front = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, front)
             else:
-                best = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, best)
+                front = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, front)
             # If no goals, return the first valid term found
-            if not self._has_goals and best[1] is not None:
-                return best[1]
+            if not self._has_goals and front:
+                return front[0][1]
 
-        if best[1] is not None:
-            return best[1]
+        chosen = _select_from_front(front)
+        if chosen is not None:
+            return chosen
         raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
 
     def _try_complete(
@@ -126,28 +174,27 @@ class TDSynSynthesizer(Synthesizer):
         evaluate: Callable[[Term], list[float]],
         start_time: int,
         ui: SynthesisUI,
-        best: tuple[list[float], Term | None],
-    ) -> tuple[list[float], Term | None]:
-        """Try to validate and evaluate a complete term."""
+        front: Front,
+    ) -> Front:
+        """Try to validate and evaluate a complete term, offering it to the front."""
         if not partial.is_complete():
-            return best
+            return front
         term = partial.term
         try:
             if validate(term):
                 if not self._has_goals:
+                    if not front:
+                        front.append(([], term))
                     ui.register(term, [], _get_elapsed_time(start_time), True)
-                    return ([], term)
+                    return front
                 score = evaluate(term)
-                if _is_better(score, best[0]):
-                    best = (score, term)
-                    ui.register(term, score, _get_elapsed_time(start_time), True)
-                else:
-                    ui.register(term, score, _get_elapsed_time(start_time), False)
+                added = _front_offer(front, score, term, self.epsilon)
+                ui.register(term, score, _get_elapsed_time(start_time), added)
             else:
                 ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
         except Exception:
             ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
-        return best
+        return front
 
     def _try_smt_complete(
         self,
@@ -156,30 +203,29 @@ class TDSynSynthesizer(Synthesizer):
         evaluate: Callable[[Term], list[float]],
         start_time: int,
         ui: SynthesisUI,
-        best: tuple[list[float], Term | None],
-    ) -> tuple[list[float], Term | None, bool]:
+        front: Front,
+    ) -> tuple[Front, bool]:
         """Try to complete a partial AST by solving all remaining holes with SMT.
 
-        Returns (best, smt_succeeded). smt_succeeded is True if SMT produced
+        Returns (front, smt_succeeded). smt_succeeded is True if SMT produced
         at least one solution attempt (even if validation failed).
         """
         if not partial.holes or not all_leaf_holes(partial.holes):
-            return best[0], best[1], False
+            return front, False
 
         solutions = solve_literals(partial.holes)
         if not solutions:
-            return best[0], best[1], False
+            return front, False
 
         for solution in solutions:
-            # Substitute all holes with their solved values
             term = partial.term
             for hole_name, literal_term in solution.items():
                 term = substitute_hole(term, hole_name, literal_term)
 
             complete = PartialAST(term=term, holes=[], depth=partial.depth)
-            best = self._try_complete(complete, validate, evaluate, start_time, ui, best)
+            front = self._try_complete(complete, validate, evaluate, start_time, ui, front)
 
-        return best[0], best[1], True
+        return front, True
 
     def _expand_hole(
         self,
@@ -220,8 +266,8 @@ class TDSynSynthesizer(Synthesizer):
         start_time: int,
         budget: float,
         ui: SynthesisUI,
-        best: tuple[list[float], Term | None],
-    ) -> tuple[list[float], Term | None]:
+        front: Front,
+    ) -> Front:
         """BFS-based enumerative search."""
         self._iteration += 1
         worklist: deque[PartialAST] = deque([initial])
@@ -233,12 +279,11 @@ class TDSynSynthesizer(Synthesizer):
             partial = worklist.popleft()
 
             if partial.is_complete():
-                best = self._try_complete(partial, validate, evaluate, start_time, ui, best)
+                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
                 continue
 
             # Try SMT completion if all holes are leaf-solvable
-            best_score, best_term, smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, best)
-            best = (best_score, best_term)
+            front, _smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
 
             # Pick the first unfilled hole
             hole = partial.holes[0]
@@ -248,17 +293,16 @@ class TDSynSynthesizer(Synthesizer):
                 if _get_elapsed_time(start_time) > budget:
                     break
                 if new_partial.is_complete():
-                    best = self._try_complete(new_partial, validate, evaluate, start_time, ui, best)
+                    front = self._try_complete(new_partial, validate, evaluate, start_time, ui, front)
                 else:
                     # Try SMT on newly expanded partials too
-                    best_score, best_term, smt_ok = self._try_smt_complete(
-                        new_partial, validate, evaluate, start_time, ui, best
+                    front, smt_ok = self._try_smt_complete(
+                        new_partial, validate, evaluate, start_time, ui, front
                     )
-                    best = (best_score, best_term)
                     if not smt_ok:
                         worklist.append(new_partial)
 
-        return best
+        return front
 
     def _random_search(
         self,
@@ -269,8 +313,8 @@ class TDSynSynthesizer(Synthesizer):
         start_time: int,
         budget: float,
         ui: SynthesisUI,
-        best: tuple[list[float], Term | None],
-    ) -> tuple[list[float], Term | None]:
+        front: Front,
+    ) -> Front:
         """Random exploration search."""
         rng = random.Random(42)
 
@@ -285,10 +329,9 @@ class TDSynSynthesizer(Synthesizer):
                     break
 
                 # Try SMT completion first
-                best_score, best_term, smt_ok = self._try_smt_complete(
-                    partial, validate, evaluate, start_time, ui, best
+                front, smt_ok = self._try_smt_complete(
+                    partial, validate, evaluate, start_time, ui, front
                 )
-                best = (best_score, best_term)
                 if smt_ok:
                     break
 
@@ -305,6 +348,6 @@ class TDSynSynthesizer(Synthesizer):
                 attempts += 1
 
             if partial.is_complete():
-                best = self._try_complete(partial, validate, evaluate, start_time, ui, best)
+                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
 
-        return best
+        return front
