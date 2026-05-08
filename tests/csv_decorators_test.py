@@ -55,6 +55,19 @@ def test_csv_data_metadata_has_goals():
     assert any("goals" in v for v in metadata.values() if isinstance(v, dict))
 
 
+def test_csv_data_emits_one_goal_per_row():
+    """@csv_data registers a separate minimization Goal for every row."""
+    source = r"""
+        @csv_data("1.0,2.0\n3.0,4.0\n5.0,6.0\n7.0,8.0")
+        def f(x:Float) : Float = ?hole
+    """
+    _, _, _, metadata = check_and_return_core(source)
+    goals = next(v["goals"] for v in metadata.values() if isinstance(v, dict) and "goals" in v)
+    assert len(goals) == 4
+    assert all(g.minimize is True for g in goals)
+    assert all(g.kind == "expression" for g in goals)
+
+
 @pytest.mark.skip(reason="Synthesis-only")
 def test_csv_data_synthesis():
     """Test that synthesis works with csv_data decorator."""

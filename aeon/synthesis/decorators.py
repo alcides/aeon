@@ -245,27 +245,33 @@ def _parse_csv_rows(text: str) -> list[list[float]]:
     return rows
 
 
+def _build_row_error(row: list[float], fun_name: Name) -> STerm:
+    """Build the squared-error term for a single CSV row.
+
+    Returns ``(f(x1) … (xn) - expected) ** 2`` as an STerm. Squared keeps
+    the metric non-negative without a dedicated abs.
+    """
+    assert len(row) >= 2, "CSV row must have at least 2 columns (inputs + expected output)"
+    inputs = row[:-1]
+    expected = row[-1]
+
+    call: STerm = SVar(fun_name)
+    for val in inputs:
+        call = SApplication(call, SLiteral(val, st_float))
+
+    diff = _binop("-", call, SLiteral(expected, st_float))
+    return _squared(diff)
+
+
 def _build_csv_fitness_body(rows: list[list[float]], fun_name: Name) -> STerm:
-    """Build the fitness body: sum of abs(f(x1,...,xn) - expected) for each row."""
+    """Build the fitness body: sum of (f(x1,...,xn) - expected)^2 for each row."""
     assert len(rows) > 0, "CSV data must contain at least one row"
     n_cols = len(rows[0])
     assert n_cols >= 2, "CSV data must have at least 2 columns (inputs + expected output)"
     for i, row in enumerate(rows):
         assert len(row) == n_cols, f"CSV row {i} has {len(row)} columns, expected {n_cols}"
 
-    error_terms = []
-    for row in rows:
-        inputs = row[:-1]
-        expected = row[-1]
-
-        # Build f(x1)(x2)...(xn)
-        call: STerm = SVar(fun_name)
-        for val in inputs:
-            call = SApplication(call, SLiteral(val, st_float))
-
-        # (call - expected)^2
-        diff = _binop("-", call, SLiteral(expected, st_float))
-        error_terms.append(_squared(diff))
+    error_terms = [_build_row_error(row, fun_name) for row in rows]
 
     # Sum all error terms
     total = error_terms[0]
@@ -273,6 +279,32 @@ def _build_csv_fitness_body(rows: list[list[float]], fun_name: Name) -> STerm:
         total = _binop("+", total, term)
 
     return total
+
+
+def _csv_register_per_row_goals(
+    rows: list[list[float]],
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Register one minimization Goal per CSV row.
+
+    Each row becomes its own ``@minimize_float``-style goal. Per-row goals
+    let multi-objective search (e.g. NSGA-II / lexicase) preserve specialist
+    candidates that are correct on a subset of rows, which the single
+    summed-error formulation collapses away.
+    """
+    assert len(rows) > 0, "CSV data must contain at least one row"
+    n_cols = len(rows[0])
+    assert n_cols >= 2, "CSV data must have at least 2 columns (inputs + expected output)"
+    for i, row in enumerate(rows):
+        assert len(row) == n_cols, f"CSV row {i} has {len(row)} columns, expected {n_cols}"
+
+    extra_defs: list[Definition] = []
+    for row in rows:
+        body = _build_row_error(row, fun.name)
+        fun, extra, metadata = make_optimizer([body], fun, metadata, st_float, minimize=True)
+        extra_defs.extend(extra)
+    return fun, extra_defs, metadata
 
 
 def csv_data(
@@ -283,7 +315,9 @@ def csv_data(
     """Decorator that accepts inline CSV data as a string.
 
     Each row is a data point where the last column is the expected output
-    and preceding columns are function arguments. Minimizes sum of absolute errors.
+    and preceding columns are function arguments. Registers one minimization
+    objective per row (squared error), so multi-objective synthesizers can
+    reward candidates that fit subsets of the data.
 
     Usage: @csv_data("1.0,2.0,3.0\\n4.0,5.0,12.0")
     """
@@ -293,10 +327,9 @@ def csv_data(
     )
 
     rows = _parse_csv_rows(decorator.macro_args[0].value)
-    body = _build_csv_fitness_body(rows, fun.name)
     current_data = metadata.get(fun.name, {}).get("training_data", [])
     metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
-    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+    return _csv_register_per_row_goals(rows, fun, metadata)
 
 
 def csv_file(
@@ -307,8 +340,8 @@ def csv_file(
     """Decorator that accepts a CSV filename.
 
     Reads the file and behaves like csv_data: each row is a data point where
-    the last column is the expected output and preceding columns are function arguments.
-    Minimizes sum of absolute errors.
+    the last column is the expected output and preceding columns are function
+    arguments. Registers one minimization objective per row (squared error).
 
     Usage: @csv_file("data.csv")
     """
@@ -322,10 +355,9 @@ def csv_file(
         text = f.read()
 
     rows = _parse_csv_rows(text)
-    body = _build_csv_fitness_body(rows, fun.name)
     current_data = metadata.get(fun.name, {}).get("training_data", [])
     metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
-    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+    return _csv_register_per_row_goals(rows, fun, metadata)
 
 
 def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
