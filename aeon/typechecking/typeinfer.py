@@ -9,6 +9,7 @@ from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarK
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
@@ -43,6 +44,7 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
+from aeon.core.types import t_string
 from aeon.core.types import t_set
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
@@ -203,6 +205,15 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
+def prim_litstring(t: str) -> RefinedType:
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        t_string,
+        LiquidApp(Name("==", 0), [LiquidVar(vname), LiquidLiteralString(t)]),
+    )
+
+
 def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConstructor | TypeVar) -> Type:
     """Creates the type of a binary operator"""
     xname = Name("x", fresh_counter.fresh())
@@ -314,9 +325,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         case Literal(vf, TypeConstructor(Name("Float", _))):
             assert isinstance(vf, float)
             return (ctrue, prim_litfloat(vf))
-        case Literal(_, TypeConstructor(Name("String", _))):
-            # TODO: String support
-            return (ctrue, t.type)
+        case Literal(vs, TypeConstructor(Name("String", _))):
+            assert isinstance(vs, str)
+            return (ctrue, prim_litstring(vs))
         case Var(name):
             if name in ops:
                 return (ctrue, prim_op(name))
