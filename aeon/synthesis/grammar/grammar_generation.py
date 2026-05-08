@@ -665,9 +665,7 @@ def gen_grammar_nodes(
     ifs = create_if_nodes(type_info)
     mono_nodes = create_monomorphized_var_nodes(monomorphized, type_info)
 
-    ret = type_nodes + literals + literals_ref + vars + applications + abstractions + mono_nodes
-    if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[synth_func_name]:
-        ret = ret + ifs
+    ret = type_nodes + literals + literals_ref + vars + applications + abstractions + mono_nodes + ifs
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.

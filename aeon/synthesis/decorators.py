@@ -190,22 +190,6 @@ def error_fitness(
     return fun, [], metadata
 
 
-def disable_control_flow(
-    decorator: Decorator, fun: Definition, metadata: Metadata
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects zero arguments .
-
-    It does not modify the original definition. It makes sure that
-    the control flow grammar nodes are allowed during synthesis
-    """
-    assert len(decorator.macro_args) == 0
-
-    aux_dict = {"disable_control_flow": True}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
-
-
 def allow_recursion(
     decorator: Decorator,
     fun: Definition,

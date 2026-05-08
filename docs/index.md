@@ -384,7 +384,6 @@ def approx (x:Int | x > 0) : Float =
 ### Synthesis control decorators
 
 - `@allow_recursion` — allow recursion during synthesis
-- `@disable_control_flow` — disable control flow grammar nodes during synthesis
 - `@hide(var1, var2)` — exclude specific variables from the synthesis grammar
 - `@hide_types(type1, type2)` — exclude specific types from the synthesis grammar
 - `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
