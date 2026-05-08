@@ -56,22 +56,17 @@ args :                          -> empty_list
 //   (1 x: T)      → linear  : x must be consumed exactly once
 //   (0 x: T)      → erased  : x is compile-time only
 //   (omega x: T)  → unrestricted (same as omitting the prefix)
-//   (!x: T)       → sugar for (1 x: T) — "destructive" / linear consumption
 arg : "(" ID ":" type ")"                                       -> arg
     | "(" ID ":" type _PIPE expression ")"                      -> refined_arg
     | "(" MULT ID ":" type ")"                                  -> mult_arg
     | "(" MULT ID ":" type _PIPE expression ")"                 -> mult_refined_arg
-    | "(" "!" ID ":" type ")"                                   -> bang_arg
-    | "(" "!" ID ":" type _PIPE expression ")"                  -> bang_refined_arg
 
 
 type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO delete later
      | "(" ID ":" type ")" "->" type                       -> abstraction_t
      | "(" MULT ID ":" type ")" "->" type                  -> mult_abstraction_t
-     | "(" "!" ID ":" type ")" "->" type                   -> bang_abstraction_t
      | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
      | "(" MULT ID ":" type _PIPE expression ")" "->" type -> mult_abstraction_refined_t
-     | "(" "!" ID ":" type _PIPE expression ")" "->" type  -> bang_abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | "forall" "<" ID ":" type "->" "Bool" ">" "," type   -> refinement_polymorphism_t
      | ID "<" ID ">"                                       -> base_angle_refined_t

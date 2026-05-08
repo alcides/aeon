@@ -542,15 +542,6 @@ class TreeToSugar(Transformer):
         ty = SRefinedType(Name(args[1]), args[2], args[3])
         return (Name(args[1]), ty, from_token(str(args[0])))
 
-    def bang_arg(self, args):
-        # (!ID : type) — sugar for (1 ID : type), i.e. linear consumption.
-        return (Name(args[0]), args[1], from_token("1"))
-
-    def bang_refined_arg(self, args):
-        # (!ID : type | refinement) — sugar for (1 ID : type | refinement).
-        ty = SRefinedType(Name(args[0]), args[1], args[2])
-        return (Name(args[0]), ty, from_token("1"))
-
     def abstraction_refined_t(self, args):
         type = SRefinedType(Name(args[0]), args[1], args[2])
         return SAbstractionType(Name(args[0]), type, args[3])
@@ -563,15 +554,6 @@ class TreeToSugar(Transformer):
         # (MULT ID : type | refinement) -> type
         ty = SRefinedType(Name(args[1]), args[2], args[3])
         return SAbstractionType(Name(args[1]), ty, args[4], multiplicity=from_token(str(args[0])))
-
-    def bang_abstraction_t(self, args):
-        # (!ID : type) -> type — sugar for (1 ID : type) -> type.
-        return SAbstractionType(Name(args[0]), args[1], args[2], multiplicity=from_token("1"))
-
-    def bang_abstraction_refined_t(self, args):
-        # (!ID : type | refinement) -> type — sugar for (1 …) -> type.
-        ty = SRefinedType(Name(args[0]), args[1], args[2])
-        return SAbstractionType(Name(args[0]), ty, args[3], multiplicity=from_token("1"))
 
     def abstraction_et(self, args):
         return SAnnotation(
