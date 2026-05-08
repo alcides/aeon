@@ -112,29 +112,31 @@ the same programs.
    `test_precedence` test that asserted ANF idempotence is gone with
    ANF as a public concept.
 
-6. **Production driver and LLVM backend still run ANF as a defensive
-   pass.** The typechecker passes the full test suite (425/425) without
-   ANF, but two downstream consumers remain coupled to flat let-chains:
+6. **Production driver removed from ANF, LLVM still runs it.** The
+   typechecker passes the full test suite (425/425) and `run_examples.sh`
+   end-to-end *without* ANF. One downstream consumer remains:
 
    - The LLVM IR builder in `aeon/llvm/cpu/converter.py` walks
      `Application` nodes assuming the spine has been linearised by ANF.
-   - The SMT translation in `aeon/verification/smt.py` raises a
-     `Z3Exception` on a handful of production-pipeline programs (e.g.
-     `examples/PSB2/solved/bowling.ae`) when their refinements are built
-     from existential-bound names; this needs a deeper trace to pin
-     down whether it's a missed binder skolemisation or a capture issue.
 
-   Until those land, `aeon/facade/driver.py` keeps a one-line call to
-   `ensure_anf` after `bind_ids`; the call is documented in-source. The
-   converter file (`aeon/frontend/anf_converter.py`) therefore stays in
-   the tree for now.
+   `aeon/facade/driver.py` therefore re-runs `ensure_anf` only inside
+   the `LLVM compilation` block, just before `pipeline.compile`. The
+   converter file (`aeon/frontend/anf_converter.py`) stays in the tree
+   until the LLVM converter is taught to fold inline applications.
+
+   The earlier `Z3Exception` on `examples/PSB2/solved/bowling.ae` was
+   diagnosed and turned out to be **unrelated** to existentials: it was
+   a pre-existing bug in `aeon/verification/smt.py::translate_liq`
+   where `LiquidLiteralString` returned a Python `str` rather than a
+   `z3.StringVal`. Z3 auto-casts Python `int`/`bool`/`float` into its
+   sorts when a literal appears as an argument, but not Python `str`.
+   ANF was hiding the bug by hoisting every literal into a let-bound
+   name, so string literals only ever reached SMT through the typed
+   `variables` dict (a Z3 `String` const). Fixed by wrapping in
+   `StringVal` at the literal case.
 
 ## Open questions still on the table
 
-- **SMT for existentials**: the bowling example trips
-  `translate_liq` returning a non-Z3 value through `LiquidVar` lookup.
-  The fix likely involves teaching the SMT context to walk binders the
-  same way `sub`'s `implication_constraint` chain does.
 - **Binder ordering matters for refinements that mention earlier binders.**
   Verify this is preserved through `sub` and the SMT translation.
 - **Polymorphism interaction.** Type variables can appear inside refined

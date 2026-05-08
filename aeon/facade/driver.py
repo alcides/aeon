@@ -81,18 +81,6 @@ class AeonDriver:
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
-        with RecordTime("ANF conversion"):
-            # The type checker no longer requires ANF (`synth(Application)`
-            # builds existential binders for non-Var arguments inline), but
-            # downstream consumers — the SMT translation on a few synthesis
-            # programs and the LLVM IR builder — still expect a flat
-            # let-chain. Until those are taught to accept inline applications
-            # we keep ANF in the production pipeline as a defensive pass.
-            # See `docs/design/existentials-replace-anf.md`.
-            from aeon.frontend.anf_converter import ensure_anf
-
-            core_ast = ensure_anf(core_ast)
-
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast, top)
             # TODO
@@ -112,7 +100,13 @@ class AeonDriver:
         self.evaluation_ctx = evaluation_ctx
 
         with RecordTime("LLVM compilation"):
-            pipeline.compile(self.core)
+            # The LLVM IR builder still walks `Application` nodes assuming a
+            # flat let-chain (e.g. `let _t = g a in f _t` rather than `f (g a)`).
+            # Type-checking no longer requires that shape, so we re-run ANF
+            # only here, just before LLVM codegen.
+            from aeon.frontend.anf_converter import ensure_anf
+
+            pipeline.compile(ensure_anf(self.core))
 
         return []
 

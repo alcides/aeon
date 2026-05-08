@@ -9,6 +9,7 @@ from loguru import logger
 from z3 import Function
 from z3 import Int
 from z3 import Solver
+from z3 import StringVal
 from z3 import sat
 from z3 import unknown
 from z3.z3 import And
@@ -640,7 +641,12 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidLiteralFloat(f):
             return f
         case LiquidLiteralString(s):
-            return s
+            # Z3 auto-casts Python int/bool/float into its sorts when a literal
+            # appears as an argument, but Python `str` does not auto-cast to
+            # Z3's String sort. Convert explicitly. (Previously hidden because
+            # ANF hoisted every literal into a let-bound name, so the literal
+            # only ever reached SMT through the typed `variables` dict.)
+            return StringVal(s)
         case LiquidVar(name):
             sname = str(name)
             if sname in variables:
