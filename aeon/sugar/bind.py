@@ -177,12 +177,18 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SMatch(n_scrutinee, n_branches, loc=loc)
         case SLet(name, body, cont, loc=loc):
             name, nsubs = check_name(name, subs)
-            return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc)
+            return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, body, cont, decreasing_by, loc=loc):
             name, subs = check_name(name, subs)
             nd = tuple(bind_sterm(m, subs) for m in decreasing_by)
             return SRec(
-                name, bind_stype(ty, subs), bind_sterm(body, subs), bind_sterm(cont, subs), decreasing_by=nd, loc=loc
+                name,
+                bind_stype(ty, subs),
+                bind_sterm(body, subs),
+                bind_sterm(cont, subs),
+                decreasing_by=nd,
+                loc=loc,
+                multiplicity=t.multiplicity,
             )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"

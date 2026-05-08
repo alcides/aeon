@@ -1,0 +1,249 @@
+"""Phase 2a — linearity (QTT) enforcement.
+
+These tests check the syntactic-occurrence linearity pass that runs after
+the existing constraint check. They cover:
+
+- ``ω``-bound names (the default for every existing program) are
+  unaffected, regardless of how often they appear.
+- ``1``-bound names (linear) must appear exactly once in their scope.
+- ``0``-bound names (erased) must not appear at all.
+- ``if`` branches with a ``1``-bound name must consume it equally.
+- Errors thread through ``check_type_errors`` after the constraint
+  check, so the user sees both kinds of diagnostic in one go.
+"""
+
+from __future__ import annotations
+
+from aeon.core.bind import bind_ids
+from aeon.core.types import top
+from aeon.elaboration import elaborate
+from aeon.facade.api import (
+    ErasedUsedAtRuntimeError,
+    LinearBranchMismatchError,
+    LinearUnusedError,
+    LinearUsedTooManyTimesError,
+)
+from aeon.sugar.desugar import desugar
+from aeon.sugar.lowering import lower_to_core, lower_to_core_context
+from aeon.sugar.parser import parse_program
+from aeon.typechecking.linearity import check_linearity
+from aeon.typechecking.typeinfer import check_type_errors
+
+
+def _typecheck(source: str):
+    prog = parse_program(source)
+    desugared = desugar(prog, is_main_hole=False)
+    sterm = elaborate(desugared.elabcontext, desugared.program)
+    core = lower_to_core(sterm)
+    typing_ctx = lower_to_core_context(desugared.elabcontext)
+    typing_ctx, core = bind_ids(typing_ctx, core)
+    return list(check_type_errors(typing_ctx, core, top))
+
+
+def _linearity(source: str):
+    prog = parse_program(source)
+    desugared = desugar(prog, is_main_hole=False)
+    sterm = elaborate(desugared.elabcontext, desugared.program)
+    core = lower_to_core(sterm)
+    typing_ctx = lower_to_core_context(desugared.elabcontext)
+    typing_ctx, core = bind_ids(typing_ctx, core)
+    return check_linearity(core)
+
+
+# ---------------------------------------------------------------------------
+# Sanity / no-op cases
+# ---------------------------------------------------------------------------
+
+
+def test_omega_default_no_check():
+    """Programs without any multiplicity annotation aren't flagged."""
+    src = """
+def main (i: Int) : Int =
+    let a = 5 in
+    a + a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no linearity errors, got {errs}"
+
+
+def test_omega_explicit_no_check():
+    """Explicit ``omega`` matches the default — no enforcement."""
+    src = """
+def main (i: Int) : Int =
+    let omega a = 5 in
+    a + a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no linearity errors, got {errs}"
+
+
+# ---------------------------------------------------------------------------
+# Linear (μ = 1) — must use exactly once
+# ---------------------------------------------------------------------------
+
+
+def test_linear_used_exactly_once_ok():
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_linear_unused_errors():
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    42;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUnusedError) for e in errs), errs
+
+
+def test_linear_used_twice_errors():
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    a + a;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# Erased (μ = 0) — must not be used at runtime
+# ---------------------------------------------------------------------------
+
+
+def test_erased_unused_ok():
+    src = """
+def main (i: Int) : Int =
+    let 0 a = 5 in
+    42;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_erased_used_errors():
+    src = """
+def main (i: Int) : Int =
+    let 0 a = 5 in
+    a;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, ErasedUsedAtRuntimeError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# Branches must consume linear names equally
+# ---------------------------------------------------------------------------
+
+
+def test_linear_used_equally_in_branches_ok():
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    if i > 0 then a else a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_linear_used_in_only_one_branch_errors():
+    """`if c then a else 0` uses a linearly only in one branch — but the
+    syntactic-count check sees two occurrences (one per arm) and flags
+    a branch-mismatch error rather than too-many-uses."""
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    if i > 0 then a else 0;
+"""
+    errs = _linearity(src)
+    # Either flavour of error is acceptable evidence that the program
+    # was rejected; we want at least one linearity error.
+    assert any(
+        isinstance(e, (LinearBranchMismatchError, LinearUsedTooManyTimesError, LinearUnusedError)) for e in errs
+    ), errs
+
+
+# ---------------------------------------------------------------------------
+# Plumbing through `check_type_errors`
+# ---------------------------------------------------------------------------
+
+
+def test_linearity_errors_surface_through_check_type_errors():
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    a + a;
+"""
+    errs = _typecheck(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_omega_program_typecheck_is_clean():
+    """A vanilla, multiplicity-free program produces no errors of any kind."""
+    src = """
+def f (n: Int) : Int = n + 1;
+
+def main (i: Int) : Int =
+    let a = 5 in
+    f a;
+"""
+    errs = _typecheck(src)
+    assert errs == [], f"expected clean typecheck, got {errs}"
+
+
+# ---------------------------------------------------------------------------
+# Realistic file-handle pattern (the original motivating example)
+# ---------------------------------------------------------------------------
+
+
+def test_linear_file_handle_close_ok():
+    """`let 1 f = open in close f` is the canonical "must be closed" pattern."""
+    src = """
+def open_f (path: Int) : Int = path;
+def close_f (f: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 1 f = open_f 0 in
+    close_f f;
+"""
+    errs = _typecheck(src)
+    # No linearity errors expected. Other constraint errors (if any) are
+    # incidental to this test, so we only assert there are no linearity
+    # errors in particular.
+    from aeon.facade.api import LinearityError
+
+    lin = [e for e in errs if isinstance(e, LinearityError)]
+    assert lin == [], f"expected no linearity errors, got {lin}"
+
+
+def test_linear_file_handle_unclosed_errors():
+    """Forgetting the `close` produces a `LinearUnusedError`."""
+    src = """
+def open_f (path: Int) : Int = path;
+
+def main (i: Int) : Int =
+    let 1 f = open_f 0 in
+    42;
+"""
+    errs = _typecheck(src)
+    assert any(isinstance(e, LinearUnusedError) for e in errs), errs
+
+
+def test_linear_file_handle_double_close_errors():
+    """Closing twice produces a `LinearUsedTooManyTimesError`."""
+    src = """
+def open_f (path: Int) : Int = path;
+def close_f (f: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 1 f = open_f 0 in
+    close_f f + close_f f;
+"""
+    errs = _typecheck(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs

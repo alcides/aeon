@@ -255,7 +255,7 @@ def lower_to_core(t: STerm) -> Term:
         case SApplication(fun, arg, loc):
             return Application(lower_to_core(fun), lower_to_core(arg), loc=loc)
         case SLet(name, val, body, loc):
-            return Let(name, lower_to_core(val), lower_to_core(body), loc=loc)
+            return Let(name, lower_to_core(val), lower_to_core(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
             return Rec(
                 name,
@@ -264,6 +264,7 @@ def lower_to_core(t: STerm) -> Term:
                 lower_to_core(body),
                 decreasing_by=tuple(lower_to_core(m) for m in decreasing_by),
                 loc=loc,
+                multiplicity=t.multiplicity,
             )
         case SAnnotation(expr, ty, loc):
             return Annotation(lower_to_core(expr), type_to_core(ty), loc=loc)

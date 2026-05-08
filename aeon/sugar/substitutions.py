@@ -129,15 +129,23 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                 return SAbstraction(aname, rec(body), loc=loc)
         case SLet(vname, vvalue, body, loc):
             if vname == alpha:
-                return SLet(vname, rec(vvalue), body, loc=loc)
+                return SLet(vname, rec(vvalue), body, loc=loc, multiplicity=t.multiplicity)
             else:
-                return SLet(vname, rec(vvalue), rec(body), loc=loc)
+                return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vty, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
             if vname == alpha:
-                return SRec(vname, rect(vty), rec(vvalue), body, decreasing_by=nd, loc=loc)
+                return SRec(vname, rect(vty), rec(vvalue), body, decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
             else:
-                return SRec(vname, rect(vty), rec(vvalue), rec(body), decreasing_by=nd, loc=loc)
+                return SRec(
+                    vname,
+                    rect(vty),
+                    rec(vvalue),
+                    rec(body),
+                    decreasing_by=nd,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), rect(ty), loc=loc)
         case SIf(cond, then, otherwise, loc):
@@ -216,11 +224,17 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
         case SAbstraction(aname, body, loc):
             return SAbstraction(aname, rec(body), loc=loc)
         case SLet(vname, vvalue, body, loc):
-            return SLet(vname, rec(vvalue), rec(body), loc=loc)
+            return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vtype, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
             return SRec(
-                vname, substitute_svartype_in_stype(vtype, rep, name), rec(vvalue), rec(body), decreasing_by=nd, loc=loc
+                vname,
+                substitute_svartype_in_stype(vtype, rep, name),
+                rec(vvalue),
+                rec(body),
+                decreasing_by=nd,
+                loc=loc,
+                multiplicity=t.multiplicity,
             )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), substitute_svartype_in_stype(ty, rep, name), loc=loc)

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from aeon.core.multiplicity import Multiplicity
 from aeon.core.terms import Term
 from aeon.core.types import Kind, Type
 from aeon.sugar.program import ImportAe, STerm
@@ -187,6 +188,90 @@ class CoreSubtypingError(CoreTypeCheckingError):
 
     def __str__(self) -> str:
         return f"Expression {self.term} is expected to be of type {self.expected_type}, but {self.inferred_type} was found instead."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+# Linearity / quantitative type theory diagnostics.
+#
+# These fire when a binder declares a non-default multiplicity (`0` or `1`)
+# and the body's syntactic uses of that name don't match. ``MOmega`` binders
+# (the default for every existing program) are never reported.
+
+
+class LinearityError(CoreTypeCheckingError):
+    """Marker base for usage-discipline violations under QTT."""
+
+    pass
+
+
+@dataclass
+class LinearUnusedError(LinearityError):
+    """A ``1``-bound name was never referenced in its scope."""
+
+    name: object  # Name; left as object to avoid an import cycle
+    declared: Multiplicity
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Linear binding {self.name} is declared with multiplicity {self.declared} but is never used."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
+class LinearUsedTooManyTimesError(LinearityError):
+    """A ``1``-bound name was used more than once in its scope."""
+
+    name: object
+    declared: Multiplicity
+    actual_uses: int
+    term: Term
+
+    def __str__(self) -> str:
+        return (
+            f"Linear binding {self.name} is declared with multiplicity {self.declared} "
+            f"but is used {self.actual_uses} times."
+        )
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
+class ErasedUsedAtRuntimeError(LinearityError):
+    """A ``0``-bound name was referenced from a runtime position. ``0`` is
+    intended for proof-only / ghost bindings — referencing it here would
+    require it at evaluation time."""
+
+    name: object
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Erased binding {self.name} (multiplicity 0) cannot be used at runtime."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
+class LinearBranchMismatchError(LinearityError):
+    """The two branches of an ``if`` use a ``1``-bound name a different
+    number of times. Whichever branch is taken at run time, exactly one
+    use must happen."""
+
+    name: object
+    then_uses: int
+    else_uses: int
+    term: Term
+
+    def __str__(self) -> str:
+        return (
+            f"Linear binding {self.name} is used {self.then_uses} time(s) in the `then` branch "
+            f"but {self.else_uses} time(s) in the `else` branch — both branches must consume it equally."
+        )
 
     def position(self) -> Location:
         return self.term.loc

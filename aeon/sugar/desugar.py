@@ -183,7 +183,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SLet(name, val, body, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
             nb, s2 = lower_by_blocks_in_sterm(body)
-            return SLet(name, nv, nb, loc=loc), merge(s1, s2)
+            return SLet(name, nv, nb, loc=loc, multiplicity=t.multiplicity), merge(s1, s2)
         case SRec(name, ty, val, body, decreasing_by, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
             nb, s2 = lower_by_blocks_in_sterm(body)
@@ -192,7 +192,10 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
             s_decr: dict[Name, tuple[str, ...]] = {}
             for _, sd in decr_parts:
                 s_decr = merge(s_decr, sd)
-            return SRec(name, ty, nv, nb, decreasing_by=nd, loc=loc), merge(merge(s1, s2), s_decr)
+            return (
+                SRec(name, ty, nv, nb, decreasing_by=nd, loc=loc, multiplicity=t.multiplicity),
+                merge(merge(s1, s2), s_decr),
+            )
         case _:
             assert False, f"lower_by_blocks_in_sterm: unhandled {t} ({type(t)})"
 
@@ -261,10 +264,10 @@ def resolve_qualified_names_in_sterm(
         case SAbstraction(name, body, loc):
             return SAbstraction(name, rec(body), loc=loc)
         case SLet(name, val, body, loc):
-            return SLet(name, rec(val), rec(body), loc=loc)
+            return SLet(name, rec(val), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
-            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc)
+            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
@@ -537,10 +540,18 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
             case SAbstraction(name, body, loc=loc):
                 return SAbstraction(name, lower_term(body), loc=loc)
             case SLet(name, val, body, loc=loc):
-                return SLet(name, lower_term(val), lower_term(body), loc=loc)
+                return SLet(name, lower_term(val), lower_term(body), loc=loc, multiplicity=t.multiplicity)
             case SRec(name, ty, val, body, decreasing_by, loc=loc):
                 nd = tuple(lower_term(m) for m in decreasing_by)
-                return SRec(name, ty, lower_term(val), lower_term(body), decreasing_by=nd, loc=loc)
+                return SRec(
+                    name,
+                    ty,
+                    lower_term(val),
+                    lower_term(body),
+                    decreasing_by=nd,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
             case SIf(cond, then, otherwise, loc=loc):
                 return SIf(lower_term(cond), lower_term(then), lower_term(otherwise), loc=loc)
             case SAnnotation(expr, ty, loc=loc):
