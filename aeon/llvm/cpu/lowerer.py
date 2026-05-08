@@ -96,6 +96,8 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
 }
 
+_MATH_LIBM_BUILTINS: set[str] = {"pow", "powf", "exp", "sqrt", "sqrtf", "sin", "cos", "log"}
+
 POLYMORPHIC_FUNCTIONS: set[str] = {
     "pow",
     "powf",
@@ -629,7 +631,11 @@ class CPULLVMLowerer(LLVMLowerer):
         all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
 
         if name in POLYMORPHIC_FUNCTIONS:
-            if name.startswith("Math"):
+            # libm builtins (`pow`, `sqrt`, `sin`, ...) accept `double` only,
+            # so cast `Float` arguments before the call. The check used to
+            # gate this on a `"Math"` prefix, but `_get_lookup_name` strips
+            # module prefixes — `Math.powf` reaches us as bare `"powf"`.
+            if name in _MATH_LIBM_BUILTINS:
                 all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
                 return LLVMCall(ret, target, all_args)
 

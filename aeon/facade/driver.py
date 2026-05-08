@@ -11,7 +11,6 @@ from aeon.core.types import top
 from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate
 from aeon.facade.api import AeonError
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
@@ -82,24 +81,21 @@ class AeonDriver:
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
 
-        with RecordTime("ANF conversion"):
-            core_ast_anf = ensure_anf(core_ast)
-
         with RecordTime("TypeChecking"):
-            type_errors = check_type_errors(typing_ctx, core_ast_anf, top)
+            type_errors = check_type_errors(typing_ctx, core_ast, top)
             # TODO
             if type_errors:
                 return type_errors
 
         with RecordTime("CorePhaseDecorators"):
-            metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
+            metadata = apply_core_decorators_phase(typing_ctx, core_ast, metadata)
 
         with RecordTime("Preparing execution env"):
             pipeline = MultiBackendPipeline(metadata=metadata)
             evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
 
         self.metadata = metadata
-        self.core = core_ast_anf
+        self.core = core_ast
         self.typing_ctx = typing_ctx
         self.evaluation_ctx = evaluation_ctx
 
