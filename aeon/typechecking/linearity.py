@@ -147,6 +147,35 @@ def _drop(tally: Tally, counts: _Counts, name: Name) -> tuple[Tally, _Counts]:
     return nt, nc
 
 
+def _alias_project(
+    tally: Tally,
+    counts: _Counts,
+    name: Name,
+    val: Term,
+) -> tuple[Tally, _Counts]:
+    """Phase 3: when a let binds ``name`` to a bare ``Var(x)``, the binder
+    is just an alias. Any uses of ``name`` in the body should be folded
+    back into ``x`` so the outer scope sees them too — otherwise a linear
+    ``x`` aliased through ``let g = x`` and consumed twice via ``g`` would
+    slip past the linearity check.
+
+    For non-``Var`` values we simply drop ``name`` (no alias to chase)."""
+    if not isinstance(val, Var):
+        return _drop(tally, counts, name)
+    target = val.name
+    if name == target:
+        # ``let x = x`` — projecting onto self is a no-op.
+        return _drop(tally, counts, name)
+    n_use = tally.get(name, M0)
+    n_count = counts.get(name, 0)
+    nt = {k: v for k, v in tally.items() if k != name}
+    nc = {k: v for k, v in counts.items() if k != name}
+    if n_use is not M0:
+        nt[target] = _add_usage(nt.get(target, M0), n_use)
+        nc[target] = nc.get(target, 0) + n_count
+    return nt, nc
+
+
 @dataclass
 class _Walker:
     """Walks a core term tracking per-name multiplicities and counts.
@@ -215,15 +244,23 @@ class _Walker:
                 bt, bc = inner.tally(body)
                 return _drop(bt, bc, n)
             case Let(n, val, body, _, _):
-                vt, vc = self.tally(val)
                 inner = self.with_var(n, None)
                 bt, bc = inner.tally(body)
+                if isinstance(val, Var) and val.name != n:
+                    # Phase 3 alias projection: ``let n = x`` is pure
+                    # renaming. Substitute ``n := x`` in body's tally and
+                    # *don't* add a separate ``vt`` contribution — the
+                    # bare read of ``x`` in val position is the same use
+                    # as the (now-redirected) reads of ``n`` in body.
+                    bt, bc = _alias_project(bt, bc, n, val)
+                    return (bt, bc)
+                # Non-alias val: tally val + body-without-name as usual.
+                # We don't scale val by μ here: the tally we return is
+                # what the *enclosing* scope sees, and the binder
+                # declaration bounds usage of ``n`` *within* body, not
+                # the let's dependence on outer free vars.
+                vt, vc = self.tally(val)
                 bt, bc = _drop(bt, bc, n)
-                # The let's *outer* tally is val + body-without-name. We
-                # don't scale val by μ here: the tally we return is what
-                # the *enclosing* scope sees, and the binder declaration
-                # bounds usage of ``n`` *within* body, not the let's
-                # dependence on outer free vars.
                 return (_tally_add(vt, bt), _counts_add(vc, bc))
             case Rec(n, var_type, val, body, _, _, _):
                 inner = self.with_var(n, var_type)

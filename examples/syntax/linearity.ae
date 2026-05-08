@@ -6,6 +6,12 @@
 # always passed to its consumer (here `close`) before going out of
 # scope.
 #
+# `(!h: Int)` is sugar for `(1 h: Int)` — a linear ("destructive")
+# parameter. Under QTT scaling, passing a linear value into an
+# unrestricted-parameter function would scale the use to ω and break
+# linearity, so functions that *consume* linear resources need the
+# linear parameter annotation to transfer the obligation.
+#
 # Multiplicity `0` is the dual: an erased binding that must NOT be
 # referenced at run time (useful for proof-only ghost values).
 # Omitting the prefix gives the unrestricted default (`omega`), so
@@ -13,7 +19,7 @@
 
 def open_handle (path: Int) : Int = path;
 
-def close (h: Int) : Int = 0;
+def close (!h: Int) : Int = h;
 
 def main (args: Int) : Unit =
     # `f` must be consumed exactly once. Removing `close f` here

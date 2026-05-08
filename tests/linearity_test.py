@@ -327,3 +327,116 @@ def main (i: Int) : Int =
 """
     errs = _linearity(src)
     assert errs == [], f"expected no linearity errors, got {errs}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — alias-aware tally projection
+# ---------------------------------------------------------------------------
+
+
+def test_alias_then_double_use_caught():
+    """`let g = f` aliases `f` as `g`. Using `g` twice (via a linear-param
+    function applied twice) should still consume `f` twice and trip the
+    linear binder. Without alias projection the tally for `f` stayed at 1
+    and the violation was missed."""
+    src = """
+def close_f (1 f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    let g = f in
+    close_f g + close_f g;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_alias_then_use_via_alias_only_ok():
+    """`let g = f in close_f g` — `f` is used once via the alias, which is
+    its single linear use. Should pass."""
+    src = """
+def close_f (1 f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    let g = f in
+    close_f g;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_alias_chain_used_too_many():
+    """Aliasing through multiple `let`s should still propagate to the
+    original linear binder."""
+    src = """
+def close_f (1 f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    let g = f in
+    let h = g in
+    close_f h + close_f h;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_alias_then_use_original_after_consume():
+    """Using both the alias *and* the original name counts as two uses of
+    the original linear binder."""
+    src = """
+def close_f (1 f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    let g = f in
+    close_f g + close_f f;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# Destructive-argument sugar — `!x: T` is shorthand for `(1 x: T)`
+# ---------------------------------------------------------------------------
+
+
+def test_bang_arg_is_linear_param_ok():
+    """`(!f: Int)` desugars to `(1 f: Int)`: passing a linear value into
+    it transfers cleanly."""
+    src = """
+def close_f (!f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    close_f f;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_bang_arg_double_use_errors():
+    """Double-using an argument annotated `!` triggers the same linear
+    diagnostic as `(1 f: Int)`."""
+    src = """
+def close_f (!f: Int) : Int = f;
+
+def main (i: Int) : Int =
+    let 1 f = 5 in
+    close_f f + close_f f;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_bang_arg_unused_in_body_errors():
+    """A `!`-annotated parameter that the function body never uses is the
+    same as a never-used `1`-bound binder — `LinearUnusedError`."""
+    src = """
+def discard (!f: Int) : Int = 0;
+
+def main (i: Int) : Int = discard 0;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUnusedError) for e in errs), errs
