@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aeon.core.multiplicity import M0, M1, MOmega, Multiplicity, add, mul
+from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity, add, mul
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -79,10 +79,35 @@ class _Mismatch:
     else_uses: int
 
 
+class _Bottom:
+    """Sticky sentinel produced by *native FFI bodies* (``native "..."`` /
+    ``native_import "..."``). The native body opaquely uses every name in
+    scope at whatever multiplicity satisfies the surrounding binder — so
+    ``_Bottom`` flows like ``false`` does for refinements: it satisfies any
+    declared discipline (``M0``, ``M1``, ``MOmega``, ``MN``).
+
+    Sticky in addition and scaling so it survives propagation up through
+    intermediate combinators."""
+
+    _instance: _Bottom | None = None
+
+    def __new__(cls) -> _Bottom:
+        # Single instance — comparisons use ``is`` throughout the module.
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return "⊥"
+
+
+_BOTTOM = _Bottom()
+
+
 # Per-name usage record. ``count`` is the syntactic occurrence count
 # (used for diagnostics); ``mult`` is the QTT multiplicity that drives
-# the binder check. ``_Mismatch`` flows in place of either.
-_Usage = Multiplicity | _Mismatch
+# the binder check. ``_Mismatch`` and ``_Bottom`` flow in place of either.
+_Usage = Multiplicity | _Mismatch | _Bottom
 Tally = dict[Name, _Usage]
 _Counts = dict[Name, int]
 
@@ -96,6 +121,9 @@ def _peel_existential(ty: Type | None) -> Type | None:
 
 
 def _add_usage(a: _Usage, b: _Usage) -> _Usage:
+    # ``_Bottom`` and ``_Mismatch`` are sticky and dominate addition.
+    if isinstance(a, _Bottom) or isinstance(b, _Bottom):
+        return _BOTTOM
     if isinstance(a, _Mismatch):
         return a
     if isinstance(b, _Mismatch):
@@ -104,6 +132,8 @@ def _add_usage(a: _Usage, b: _Usage) -> _Usage:
 
 
 def _scale_usage(scale: Multiplicity, b: _Usage) -> _Usage:
+    if isinstance(b, _Bottom):
+        return _BOTTOM
     if isinstance(b, _Mismatch):
         return b
     return mul(scale, b)
@@ -117,11 +147,14 @@ def _tally_add(t1: Tally, t2: Tally) -> Tally:
 
 
 def _tally_scale(scale: Multiplicity, t: Tally) -> Tally:
-    if scale is M1:
+    if scale is M1 or scale is MN:
+        # ``MN`` is the identity on the caller side: a polymorphic-mult
+        # function lets the argument's tally flow through unchanged.
         return dict(t)
     if scale is M0:
-        # Erased: every name's contribution is zero.
-        return {n: M0 for n in t}
+        # Erased: every name's contribution is zero (except ``_Bottom``,
+        # which stays sticky).
+        return {n: (m if isinstance(m, _Bottom) else M0) for n, m in t.items()}
     # ω scaling forces every nonzero usage to ω.
     return {n: _scale_usage(scale, m) for n, m in t.items()}
 
@@ -136,8 +169,9 @@ def _counts_add(c1: _Counts, c2: _Counts) -> _Counts:
 def _counts_scale(scale: Multiplicity, c: _Counts) -> _Counts:
     if scale is M0:
         return {n: 0 for n in c}
-    # 1 and ω both leave the integer count alone — the multiplicity track
-    # captures the QTT-level scaling, the count is purely diagnostic.
+    # 1, ω, and n all leave the integer count alone — the multiplicity
+    # track captures the QTT-level scaling, the count is purely
+    # diagnostic.
     return dict(c)
 
 
@@ -180,12 +214,16 @@ def _alias_project(
 class _Walker:
     """Walks a core term tracking per-name multiplicities and counts.
 
-    ``var_types`` maps every in-scope name to its type so application
-    can read off the parameter multiplicity for scaling.
+    ``var_types`` maps every in-scope *typed* name to its type so
+    application can read off the parameter multiplicity for scaling.
+    ``in_scope`` is the broader set of names visible at this point,
+    including binders whose types we don't track — used by native FFI
+    bodies to spread ``_Bottom`` across every name in scope.
     """
 
     var_types: dict[Name, Type]
     errors: list[LinearityError]
+    in_scope: frozenset[Name] = frozenset()
 
     def with_var(self, name: Name, ty: Type | None) -> _Walker:
         new_types = dict(self.var_types)
@@ -195,7 +233,11 @@ class _Walker:
             # Shadowed without a known type: drop the outer binding so
             # the inner one isn't accidentally consulted.
             del new_types[name]
-        return _Walker(var_types=new_types, errors=self.errors)
+        return _Walker(
+            var_types=new_types,
+            errors=self.errors,
+            in_scope=self.in_scope | {name},
+        )
 
     def term_type(self, term: Term) -> Type | None:
         """Best-effort type inference for QTT scaling. ``None`` means the
@@ -216,7 +258,17 @@ class _Walker:
             case _:
                 return None
 
+    def _native_bottom_tally(self) -> tuple[Tally, _Counts]:
+        """Tally for a ``native "..."`` / ``native_import "..."`` call:
+        every name in scope gets ``_Bottom`` so any surrounding linear
+        binder check passes. The native body is opaque to Aeon's
+        analysis; the caller-side declaration is what carries the
+        discipline."""
+        return ({n: _BOTTOM for n in self.in_scope}, {})
+
     def tally(self, term: Term) -> tuple[Tally, _Counts]:
+        if _is_native_ffi_call(term):
+            return self._native_bottom_tally()
         match term:
             case Var(n):
                 return ({n: M1}, {n: 1})
@@ -300,7 +352,11 @@ def _branch_merge(
     for k in keys:
         v_then = tt.get(k, M0)
         v_else = et.get(k, M0)
-        if isinstance(v_then, _Mismatch):
+        if isinstance(v_then, _Bottom) or isinstance(v_else, _Bottom):
+            # If either arm produces ``_Bottom`` (a native FFI body), the
+            # whole branch is satisfied for this name.
+            out_t[k] = _BOTTOM
+        elif isinstance(v_then, _Mismatch):
             out_t[k] = v_then
         elif isinstance(v_else, _Mismatch):
             out_t[k] = v_else
@@ -327,13 +383,20 @@ def _check_binder(
 ) -> None:
     """Enforce ``multiplicity`` on ``name`` against the QTT-scaled tally
     for the body. ``term`` is the enclosing AST node — only used for the
-    error's location. Skips the check when ``multiplicity`` is ``MOmega``.
+    error's location. Skips the check when ``multiplicity`` is ``MOmega``
+    or ``MN`` (polymorphic — body discipline is not enforced).
     """
-    if multiplicity is MOmega:
+    if multiplicity is MOmega or multiplicity is MN:
         return
 
     use = body_tally.get(name, M0)
     count = body_counts.get(name, 0)
+
+    # ``_Bottom`` (native FFI body) satisfies any required multiplicity —
+    # the body is opaque and the caller-side declaration carries the
+    # discipline.
+    if isinstance(use, _Bottom):
+        return
 
     if isinstance(use, _Mismatch):
         if multiplicity is M0:
@@ -393,26 +456,24 @@ def _abstraction_body_type(declared_type: Type | None) -> Type | None:
     return None
 
 
-def _is_native_ffi_body(t: Term) -> bool:
-    """Recognise a function whose entire body delegates to ``native "..."``
-    or ``native_import "..."`` after stripping any leading ``Abstraction``
-    layers. Aeon's linearity check can't see through the FFI string, so a
-    parameter referenced only inside the native code would otherwise look
-    unused. Native shims declare their multiplicity in the *type* (which
-    callers honour) — we simply skip the syntactic check inside the body."""
-    while isinstance(t, Abstraction):
-        t = t.body
-    while isinstance(t, (Annotation, TypeApplication, RefinementApplication)):
-        t = t.expr if isinstance(t, Annotation) else t.body
-    if isinstance(t, Var) and t.name.name in {"native", "native_import"}:
+def _is_native_ffi_call(t: Term) -> bool:
+    """Recognise a single ``native "..."`` / ``native_import "..."`` call
+    site. The linearity check can't see through the FFI string, so any
+    parameter referenced only inside the native code looks unused — we
+    feed back ``_Bottom`` for every name in scope at this point so the
+    caller-side declared discipline is the only thing checked."""
+    head: Term = t
+    while isinstance(head, (Annotation, TypeApplication, RefinementApplication)):
+        head = head.expr if isinstance(head, Annotation) else head.body
+    if isinstance(head, Var) and head.name.name in {"native", "native_import"}:
         return True
-    if isinstance(t, Application):
-        head: Term = t
-        while isinstance(head, Application):
-            head = head.fun
-        while isinstance(head, (TypeApplication, RefinementApplication)):
-            head = head.body
-        if isinstance(head, Var) and head.name.name in {"native", "native_import"}:
+    if isinstance(head, Application):
+        cur: Term = head
+        while isinstance(cur, Application):
+            cur = cur.fun
+        while isinstance(cur, (TypeApplication, RefinementApplication)):
+            cur = cur.body
+        if isinstance(cur, Var) and cur.name.name in {"native", "native_import"}:
             return True
     return False
 
@@ -454,26 +515,19 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 inner = walker.with_var(name, None)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
-                # Native FFI shims are opaque to the linearity check —
-                # the parameter is referenced only inside the native
-                # string, which we can't see through. Trust the type's
-                # declared multiplicities for callers; skip recursion.
-                if not _is_native_ffi_body(val):
-                    visit(val, walker)
+                visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
                 inner = walker.with_var(name, var_type)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
-                # Skip the body of native FFI shims (see Let above).
-                if not _is_native_ffi_body(val):
-                    if isinstance(val, Abstraction):
-                        # When ``val`` is an ``Abstraction``, propagate
-                        # the function's parameter multiplicity through.
-                        inner_param_mult = _abstraction_param_multiplicity(var_type)
-                        visit(val, inner, inner_param_mult)
-                    else:
-                        visit(val, inner)
+                if isinstance(val, Abstraction):
+                    # When ``val`` is an ``Abstraction``, propagate the
+                    # function's parameter multiplicity through.
+                    inner_param_mult = _abstraction_param_multiplicity(var_type)
+                    visit(val, inner, inner_param_mult)
+                else:
+                    visit(val, inner)
                 visit(body, inner)
             case If(cond, then_t, else_t):
                 visit(cond, walker)
@@ -486,6 +540,10 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case _:
                 return
 
-    root = _Walker(var_types=initial_types, errors=errors)
+    root = _Walker(
+        var_types=initial_types,
+        errors=errors,
+        in_scope=frozenset(initial_types),
+    )
     visit(term, root)
     return errors

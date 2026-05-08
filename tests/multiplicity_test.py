@@ -22,7 +22,7 @@ and the new fields are inert.
 from __future__ import annotations
 
 from aeon.core.bind import bind_ids
-from aeon.core.multiplicity import M0, M1, MOmega, Multiplicity, add, from_token, mul
+from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity, add, from_token, mul
 from aeon.core.terms import Rec
 from aeon.core.types import AbstractionType
 from aeon.elaboration import elaborate
@@ -78,6 +78,7 @@ def test_from_token_accepts_canonical_forms():
     assert from_token("1") is M1
     assert from_token("omega") is MOmega
     assert from_token("ω") is MOmega
+    assert from_token("n") is MN
 
 
 def test_from_token_rejects_garbage():
@@ -85,6 +86,14 @@ def test_from_token_rejects_garbage():
 
     with pytest.raises(ValueError):
         from_token("two")
+
+
+def test_mul_n_is_identity():
+    """Scaling by ``MN`` preserves the operand — the polymorphism marker
+    imposes no multiplicative demand on the caller side."""
+    for m in (M0, M1, MOmega, MN):
+        assert mul(MN, m) is m
+        assert mul(m, MN) is m
 
 
 # ---------------------------------------------------------------------------

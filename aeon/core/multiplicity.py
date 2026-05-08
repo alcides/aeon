@@ -15,10 +15,16 @@ within its scope:
   including zero. This is the default; existing programs that omit a
   multiplicity continue to behave identically.
 
-This module only defines the algebra and the parser-facing tokens.
-The linearity check that consumes these annotations lives in a later
-phase; for now the type checker treats ``MOmega`` everywhere and the
-new fields are inert.
+In addition to the QTT semiring there is a fourth, *non-semiring* marker:
+
+- ``MN``: multiplicity-polymorphic — written ``(n x: T)`` in source.
+  The function works for *any* concrete instantiation of the
+  parameter's multiplicity. Caller-side, scaling by ``MN`` is the
+  identity (the argument's tally flows through unchanged); body-side,
+  the binder check is skipped (the body is trusted to be polymorphic).
+  This is the *trust-the-user* flavour useful for prelude primitives
+  like ``native`` and library helpers whose discipline is enforced
+  elsewhere.
 
 The semiring laws (Atkey, *Syntax and Semantics of Quantitative Type
 Theory*, LICS 2018):
@@ -38,6 +44,10 @@ Theory*, LICS 2018):
       1 * μ = μ * 1 = μ
       ω * 1 = ω = 1 * ω
       ω * ω = ω
+
+``MN`` short-circuits both: it is the identity in scaling and treats
+addition the same as ``M1`` (one polymorphic use that callers
+instantiate).
 """
 
 from __future__ import annotations
@@ -46,11 +56,13 @@ from enum import Enum
 
 
 class Multiplicity(Enum):
-    """The QTT multiplicity semiring ``{0, 1, ω}``."""
+    """The QTT multiplicity semiring ``{0, 1, ω}`` plus the polymorphism
+    marker ``MN``."""
 
     M0 = "0"  # erased
     M1 = "1"  # linear (use exactly once)
     MOmega = "ω"  # unrestricted (use any number of times)
+    MN = "n"  # multiplicity-polymorphic (any concrete instantiation)
 
     def __repr__(self) -> str:
         return self.value
@@ -62,14 +74,20 @@ class Multiplicity(Enum):
 M0 = Multiplicity.M0
 M1 = Multiplicity.M1
 MOmega = Multiplicity.MOmega
+MN = Multiplicity.MN
 
 
 def add(a: Multiplicity, b: Multiplicity) -> Multiplicity:
     """Semiring addition — combine usage tallies in a single scope.
 
     ``0`` is the identity, ``1 + 1`` saturates to ``ω``, and ``ω`` is
-    absorbing for any non-zero argument.
+    absorbing for any non-zero argument. ``MN`` collapses to ``M1`` for
+    the arithmetic.
     """
+    if a is MN:
+        a = M1
+    if b is MN:
+        b = M1
     if a is M0:
         return b
     if b is M0:
@@ -85,9 +103,16 @@ def mul(a: Multiplicity, b: Multiplicity) -> Multiplicity:
     inner one (e.g. parameter multiplicity ⊗ argument tally during
     application).
 
-    ``0`` is absorbing, ``1`` is the identity, and ``ω`` is absorbing
-    for anything other than ``0``.
+    ``0`` is absorbing, ``1`` is the identity, ``ω`` is absorbing for
+    anything other than ``0``, and ``MN`` is the *identity* on the
+    caller side — scaling by ``n`` preserves the argument's tally so
+    a polymorphic-multiplicity function does not artificially constrain
+    its callers.
     """
+    if a is MN:
+        return b
+    if b is MN:
+        return a
     if a is M0 or b is M0:
         return M0
     if a is M1:
@@ -98,8 +123,9 @@ def mul(a: Multiplicity, b: Multiplicity) -> Multiplicity:
 
 
 def from_token(tok: str) -> Multiplicity:
-    """Parse a surface-syntax multiplicity token (``"0"``, ``"1"``, or
-    ``"omega"`` / ``"ω"``). Raises ``ValueError`` for anything else."""
+    """Parse a surface-syntax multiplicity token (``"0"``, ``"1"``,
+    ``"omega"`` / ``"ω"``, or ``"n"``). Raises ``ValueError`` for
+    anything else."""
     match tok:
         case "0":
             return M0
@@ -107,5 +133,7 @@ def from_token(tok: str) -> Multiplicity:
             return M1
         case "omega" | "ω":
             return MOmega
+        case "n":
+            return MN
         case _:
             raise ValueError(f"Not a multiplicity token: {tok!r}")

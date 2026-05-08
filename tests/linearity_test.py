@@ -395,3 +395,109 @@ def main (i: Int) : Int =
 """
     errs = _linearity(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# Multiplicity polymorphism — `(n x: T)` works for any caller mult
+# ---------------------------------------------------------------------------
+
+
+def test_n_arg_accepts_linear_value():
+    """``(n x: T)`` is the identity on the caller side, so a linear value
+    flows through without being consumed by the function."""
+    src = """
+def take_n (n x: Int) : Int = x;
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    take_n a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_n_arg_accepts_omega_value():
+    """``n`` works for ω callers too — scaling by ``n`` is identity."""
+    src = """
+def take_n (n x: Int) : Int = x;
+
+def main (i: Int) : Int =
+    let a = 5 in
+    take_n a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_n_arg_body_check_is_skipped():
+    """A polymorphic-multiplicity binder doesn't enforce body-side use
+    discipline, so an unused parameter doesn't error."""
+    src = """
+def discard (n x: Int) : Int = 0;
+
+def main (i: Int) : Int = discard 0;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_n_arg_body_can_use_param_many_times():
+    """``n`` says nothing about how the body uses the parameter — twice is
+    fine, just like ω."""
+    src = """
+def double (n x: Int) : Int = x + x;
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    double a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+# ---------------------------------------------------------------------------
+# Native FFI bottom — opaque bodies satisfy any declared multiplicity
+# ---------------------------------------------------------------------------
+
+
+def test_native_ffi_with_linear_param_ok():
+    """A function whose body is ``native "..."`` can declare any
+    multiplicity — the body's tally produces ``_Bottom`` for every name in
+    scope so the binder check passes."""
+    src = """
+def write (1 buf: Int) : Int = native "buf";
+
+def main (i: Int) : Int =
+    let 1 b = 5 in
+    write b;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_native_ffi_with_erased_param_ok():
+    """``(0 x: T)`` on a native body is fine: the body never references
+    ``x`` syntactically (it's inside an opaque string), and ``_Bottom``
+    satisfies the erased discipline."""
+    src = """
+def ghost (0 x: Int) : Int = native "0";
+
+def main (i: Int) : Int = ghost 0;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_native_ffi_caller_still_respects_declared_mult():
+    """Even though the body is opaque, the caller-side QTT scaling still
+    fires from the declared multiplicity. Passing a linear value into an
+    ``ω``-parameter native shim scales to ω and trips the linear binder."""
+    src = """
+def use_anyhow (x: Int) : Int = native "x";
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    use_anyhow a;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs

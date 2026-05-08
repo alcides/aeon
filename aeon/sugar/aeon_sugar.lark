@@ -167,7 +167,13 @@ BOOLLIT.5 : "true" | "false"
 // QTT multiplicities. The contextual LALR lexer routes to ``MULT`` only
 // in binder positions (after `let`, after `(`); in regular expression
 // positions ``0`` and ``1`` continue to be ``INTLIT``.
-MULT.6 : "0" | "1" | "omega" | "ω"
+//   ``n`` marks a multiplicity-polymorphic binder — the function works
+//   for any caller-side multiplicity and the body's discipline is not
+//   enforced (used by prelude primitives like ``native``). It is only
+//   recognised when followed by whitespace + an identifier so that
+//   ordinary variables named ``n`` (e.g. ``(n: Int)``) still parse as
+//   plain ``ID``.
+MULT.6 : "0" | "1" | "omega" | "ω" | /n(?=[ \t]+[A-Za-z_])/
 INTLIT : /[0-9][0-9]*/
 FLOATLIT : SIGNED_FLOAT
 
