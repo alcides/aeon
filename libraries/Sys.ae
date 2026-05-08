@@ -44,21 +44,21 @@ def flushStderr (_: Unit) : Unit = native "sys.stderr.flush()"
 def environ (_: Unit) : (Map String String) = native "dict(os.environ)"
 
 # Looks up an environment variable, returning default if unset.
-# name: non-empty environment variable name
+# name: environment variable name
 # default: value to return if the variable is unset
-def getenv (name: {s:String | s != ""}) (default: String) : String =
+def getenv (name: String) (default: String) : String =
     native "os.environ.get(name, default)"
 
 # Returns true if the environment variable is set.
-# name: non-empty environment variable name
-def hasenv (name: {s:String | s != ""}) : Bool =
+# name: environment variable name
+def hasenv (name: String) : Bool =
     native "name in os.environ"
 
 # Sets an environment variable and returns a snapshot of the new environment.
-# name: non-empty environment variable name
+# name: environment variable name
 # value: value to assign
 # returns: a Map of the environment after the update
-def setenv (name: {s:String | s != ""}) (value: String) : (Map String String) =
+def setenv (name: String) (value: String) : (Map String String) =
     native "(os.environ.__setitem__(name, value), dict(os.environ))[1]"
 
 # ── Platform info ──────────────────────────────────────────────────────
