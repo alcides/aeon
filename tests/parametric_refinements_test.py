@@ -28,6 +28,22 @@ def main (args:Int) : Unit =
     assert check_compile(source, st_top)
 
 
+def test_parametric_explicit_type_explicit_pred_implicit_term_pred_compiles():
+    """Regression for issue #209: explicit `forall <p>` in signature with no
+    matching `Λ <p>` in body should implicitly introduce the refinement abstraction
+    instead of injecting a `_pred` synthesis hole."""
+    source = """
+def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
+    Λ t : B => \\x -> x;
+
+def main (args:Int) : Unit =
+    score : Int | score > 0 = 42;
+    safe_score : Int | safe_score > 0 = wrap[Int] score;
+    print safe_score
+"""
+    assert check_compile(source, st_top)
+
+
 def test_parametric_implicit_type_implicit_refinement_compiles():
     source = f"""
 {ID_IMPLICIT_TYPE_IMPLICIT_REF}
