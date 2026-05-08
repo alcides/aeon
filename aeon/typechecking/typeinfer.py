@@ -674,5 +674,5 @@ def check_type_errors(
     except CoreTypeCheckingError as e:
         return [e]
 
-    linearity_errors = check_linearity(term)
+    linearity_errors = check_linearity(term, ctx)
     return type_errors + list(linearity_errors)

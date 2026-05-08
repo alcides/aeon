@@ -203,10 +203,14 @@ def main (i: Int) : Int =
 
 
 def test_linear_file_handle_close_ok():
-    """`let 1 f = open in close f` is the canonical "must be closed" pattern."""
+    """`let 1 f = open in close f` is the canonical "must be closed" pattern.
+
+    Under QTT scaling, ``close_f`` must declare its parameter linear so the
+    obligation transfers; if it took an ω parameter the linear ``f`` would
+    be scaled to ω in ``close_f f`` and rejected."""
     src = """
 def open_f (path: Int) : Int = path;
-def close_f (f: Int) : Int = 0;
+def close_f (1 f: Int) : Int = f;
 
 def main (i: Int) : Int =
     let 1 f = open_f 0 in
@@ -239,7 +243,7 @@ def test_linear_file_handle_double_close_errors():
     """Closing twice produces a `LinearUsedTooManyTimesError`."""
     src = """
 def open_f (path: Int) : Int = path;
-def close_f (f: Int) : Int = 0;
+def close_f (1 f: Int) : Int = f;
 
 def main (i: Int) : Int =
     let 1 f = open_f 0 in
@@ -247,3 +251,79 @@ def main (i: Int) : Int =
 """
     errs = _typecheck(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# QTT scaling — parameter multiplicity multiplies the argument's tally
+# ---------------------------------------------------------------------------
+
+
+def test_linear_passed_to_omega_param_errors():
+    """Passing a ``1``-bound value into an ``ω``-parameter scales the
+    argument tally to ``ω``, breaking the linear obligation. The
+    syntactic-count check from Phase 2a missed this; Phase 2b catches it."""
+    src = """
+def use_anyhow (x: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    use_anyhow a;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_linear_passed_to_linear_param_ok():
+    """Passing a ``1``-bound value into a ``1``-parameter transfers the
+    obligation cleanly: ``1 ⊗ 1 = 1``."""
+    src = """
+def consume (1 x: Int) : Int = x;
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    consume a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no linearity errors, got {errs}"
+
+
+def test_omega_passed_to_linear_param_ok():
+    """Calling a linear-parameter function with an unrestricted value is
+    fine — the parameter's linear obligation is local to the function."""
+    src = """
+def consume (1 x: Int) : Int = x;
+
+def main (i: Int) : Int =
+    let a = 5 in
+    consume a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no linearity errors, got {errs}"
+
+
+def test_erased_passed_to_omega_param_errors():
+    """A ``0``-bound name leaking into a runtime application — even
+    through an ``ω``-parameter — is a runtime use of an erased binding."""
+    src = """
+def use_anyhow (x: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 0 a = 5 in
+    use_anyhow a;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, ErasedUsedAtRuntimeError) for e in errs), errs
+
+
+def test_erased_scaled_through_zero_param_ok():
+    """``0 ⊗ μ = 0`` — a ``0``-parameter erases its argument's tally, so
+    even passing a ``0``-bound name is fine."""
+    src = """
+def ignore (0 x: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 0 a = 5 in
+    ignore a;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no linearity errors, got {errs}"
