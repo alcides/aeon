@@ -7,6 +7,7 @@ from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteral
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
+from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import fresh_counter, Name
 
@@ -82,9 +83,11 @@ class AbstractionType(Type):
     var_type: Type
     type: Type
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __repr__(self):
-        return f"({self.var_name}:{self.var_type}) -> {self.type}"
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return f"({prefix}{self.var_name}:{self.var_type}) -> {self.type}"
 
     def __eq__(self, other):
         return (
@@ -92,10 +95,11 @@ class AbstractionType(Type):
             and self.var_name == other.var_name
             and self.var_type == other.var_type
             and self.type == other.type
+            and self.multiplicity is other.multiplicity
         )
 
     def __hash__(self) -> int:
-        return hash(self.var_name) + hash(self.var_type) + hash(self.type)
+        return hash(self.var_name) + hash(self.var_type) + hash(self.type) + hash(self.multiplicity)
 
 
 @dataclass

@@ -1,3 +1,4 @@
+from aeon.core.multiplicity import MOmega
 from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
@@ -61,7 +62,9 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), ref)
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             if tname == alpha:
                 return ty
@@ -85,7 +88,9 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), substitution_sterm_in_sterm(ref, beta, alpha))
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(name, sort, body):
@@ -182,7 +187,9 @@ def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> STy
         case SRefinedType(name, ity, ref):
             return SRefinedType(name, rec(ity), substitution_sterm_in_sterm(ref, SVar(new), old))
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(rname, sort, body):

@@ -5,6 +5,7 @@ from typing import Callable
 
 from lark import Lark, Transformer, v_args
 
+from aeon.core.multiplicity import from_token, Multiplicity, MOmega
 from aeon.core.types import BaseKind, StarKind
 from aeon.sugar.program import (
     Decorator,
@@ -56,6 +57,23 @@ def ensure_list(a):
         return a
     else:
         return [a]
+
+
+def _split_arg_multiplicities(fn_args):
+    """Each entry in ``fn_args`` is either a ``(name, type)`` 2-tuple from
+    the plain-arg productions or a ``(name, type, multiplicity)`` 3-tuple
+    from the ``mult_arg`` productions. Return a list of 2-tuples and a
+    parallel tuple of multiplicities (defaulting to ``MOmega``)."""
+    plain: list = []
+    mults: list[Multiplicity] = []
+    for a in fn_args:
+        if isinstance(a, tuple) and len(a) == 3:
+            plain.append((a[0], a[1]))
+            mults.append(a[2])
+        else:
+            plain.append(a)
+            mults.append(MOmega)
+    return plain, tuple(mults)
 
 
 class AnnotatedStr(str):
@@ -132,14 +150,47 @@ class TreeToSugar(Transformer):
         return SLet(Name(args[0]), args[1], args[2], loc=self._loc(meta))
 
     @v_args(meta=True)
+    def mult_let_e(self, meta, args):
+        # `let MULT ID = value in body`
+        return SLet(Name(args[1]), args[2], args[3], loc=self._loc(meta), multiplicity=from_token(str(args[0])))
+
+    @v_args(meta=True)
     def rec_e(self, meta, args):
         return SRec(Name(args[0]), args[1], args[2], args[3], decreasing_by=(), loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def mult_rec_e(self, meta, args):
+        # `let MULT ID : type = value in body`
+        return SRec(
+            Name(args[1]),
+            args[2],
+            args[3],
+            args[4],
+            decreasing_by=(),
+            loc=self._loc(meta),
+            multiplicity=from_token(str(args[0])),
+        )
 
     @v_args(meta=True)
     def rec_refined_e(self, meta, args):
         name = Name(args[0])
         refined_type = SRefinedType(name, args[1], args[2])
         return SRec(name, refined_type, args[3], args[4], decreasing_by=(), loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def mult_rec_refined_e(self, meta, args):
+        # `let MULT ID : type | refinement = value in body`
+        name = Name(args[1])
+        refined_type = SRefinedType(name, args[2], args[3])
+        return SRec(
+            name,
+            refined_type,
+            args[4],
+            args[5],
+            decreasing_by=(),
+            loc=self._loc(meta),
+            multiplicity=from_token(str(args[0])),
+        )
 
     @v_args(meta=True)
     def if_e(self, meta, args):
@@ -384,7 +435,16 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_ind_cons(self, meta, args):
-        return Definition(Name(args[0]), [], args[1], args[2], SLiteral(None, st_unit), loc=self._loc(meta))
+        plain_args, mults = _split_arg_multiplicities(args[1])
+        return Definition(
+            Name(args[0]),
+            [],
+            plain_args,
+            args[2],
+            SLiteral(None, st_unit),
+            loc=self._loc(meta),
+            arg_multiplicities=mults,
+        )
 
     def decreasing_by_none(self, args):
         return []
@@ -400,27 +460,31 @@ class TreeToSugar(Transformer):
     def def_fun(self, meta, args):
         if len(args) == 5:
             name, fn_args, rtype, decr, body = args
+            plain_args, mults = _split_arg_multiplicities(fn_args)
             return Definition(
                 Name(name),
                 [],
-                fn_args,
+                plain_args,
                 rtype,
                 body,
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
+                arg_multiplicities=mults,
             )
         if len(args) == 6:
             decorators, name, fn_args, rtype, decr, body = args
+            plain_args, mults = _split_arg_multiplicities(fn_args)
             return Definition(
                 Name(name),
                 [],
-                fn_args,
+                plain_args,
                 rtype,
                 body,
                 decorators,
                 [],
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
+                arg_multiplicities=mults,
             )
         raise AssertionError(f"def_fun: unexpected args {args!r}")
 
@@ -468,9 +532,28 @@ class TreeToSugar(Transformer):
     def refined_arg(self, args):
         return Name(args[0]), SRefinedType(Name(args[0]), args[1], args[2])
 
+    def mult_arg(self, args):
+        # (MULT ID : type) — multiplicity-annotated parameter.
+        # Returns a 3-tuple so def_fun can pick up the multiplicity.
+        return (Name(args[1]), args[2], from_token(str(args[0])))
+
+    def mult_refined_arg(self, args):
+        # (MULT ID : type | refinement)
+        ty = SRefinedType(Name(args[1]), args[2], args[3])
+        return (Name(args[1]), ty, from_token(str(args[0])))
+
     def abstraction_refined_t(self, args):
         type = SRefinedType(Name(args[0]), args[1], args[2])
         return SAbstractionType(Name(args[0]), type, args[3])
+
+    def mult_abstraction_t(self, args):
+        # (MULT ID : type) -> type
+        return SAbstractionType(Name(args[1]), args[2], args[3], multiplicity=from_token(str(args[0])))
+
+    def mult_abstraction_refined_t(self, args):
+        # (MULT ID : type | refinement) -> type
+        ty = SRefinedType(Name(args[1]), args[2], args[3])
+        return SAbstractionType(Name(args[1]), ty, args[4], multiplicity=from_token(str(args[0])))
 
     def abstraction_et(self, args):
         return SAnnotation(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.core.types import Kind
 from aeon.core.types import t_string
 from aeon.core.types import Type
@@ -123,9 +124,11 @@ class Let(Term):
     var_value: Term
     body: Term
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __str__(self):
-        return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return f"(let {prefix}{self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
         return (
@@ -133,6 +136,7 @@ class Let(Term):
             and self.var_name == other.var_name
             and self.var_value == other.var_value
             and self.body == other.body
+            and self.multiplicity is other.multiplicity
         )
 
 
@@ -144,12 +148,15 @@ class Rec(Term):
     body: Term
     decreasing_by: tuple[Term, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __repr__(self):
         return str(self)
 
     def __str__(self):
-        return "(let {} : {} = {} in\n\t{})".format(
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return "(let {}{} : {} = {} in\n\t{})".format(
+            prefix,
             self.var_name,
             self.var_type,
             self.var_value,
@@ -164,6 +171,7 @@ class Rec(Term):
             and self.var_value == other.var_value
             and self.body == other.body
             and self.decreasing_by == other.decreasing_by
+            and self.multiplicity is other.multiplicity
         )
 
 

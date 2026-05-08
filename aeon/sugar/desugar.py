@@ -225,6 +225,7 @@ def lower_by_blocks_in_definitions(
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
             case _:
@@ -313,7 +314,9 @@ def resolve_qualified_names_in_stype(
         case SRefinedType(name, inner_ty, refinement, loc):
             return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
         case SAbstractionType(var_name, var_type, body_type, loc):
-            return SAbstractionType(var_name, rec_ty(var_type), rec_ty(body_type), loc=loc)
+            return SAbstractionType(
+                var_name, rec_ty(var_type), rec_ty(body_type), loc=loc, multiplicity=ty.multiplicity
+            )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
@@ -359,7 +362,16 @@ def resolve_qualified_names_in_definition(
     if new_body is d.body and new_args == d.args and new_type is d.type and new_decorators == d.decorators:
         return d
     return Definition(
-        d.name, d.foralls, new_args, new_type, new_body, new_decorators, d.rforalls, d.decreasing_by, d.loc
+        d.name,
+        d.foralls,
+        new_args,
+        new_type,
+        new_body,
+        new_decorators,
+        d.rforalls,
+        d.decreasing_by,
+        d.loc,
+        arg_multiplicities=d.arg_multiplicities,
     )
 
 
@@ -790,6 +802,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
     return ndefs
@@ -874,6 +887,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
                         final_rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
     return ndefs
@@ -963,6 +977,7 @@ def handle_imports(
                 d.rforalls,
                 d.decreasing_by,
                 d.loc,
+                arg_multiplicities=d.arg_multiplicities,
             )
             prefixed_definitions.append(prefixed_d)
 
@@ -1049,8 +1064,10 @@ def type_of_definition(d: Definition) -> SType:
     match d:
         case Definition(_, foralls, args, rtype, _, _, rforalls, _, loc):
             ntype = rtype
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                mult = d.multiplicity_of(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc, multiplicity=mult)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc)
             for name, kind in reversed(foralls):
@@ -1066,8 +1083,10 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
         case Definition(dname, foralls, args, rtype, body, _, rforalls, decreasing_by, loc):
             ntype = rtype
             nbody = body
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc=loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                mult = d.multiplicity_of(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc=loc, multiplicity=mult)
                 nbody = SAbstraction(name, nbody, loc=loc)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc=loc)

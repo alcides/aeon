@@ -103,7 +103,9 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
         case SAbstractionType(aname, atype, rtype):
             nname, nsubs = check_name(aname, subs)
 
-            return SAbstractionType(nname, bind_stype(atype, subs), bind_stype(rtype, nsubs))
+            return SAbstractionType(
+                nname, bind_stype(atype, subs), bind_stype(rtype, nsubs), multiplicity=ty.multiplicity
+            )
         case SRefinedType(name, ty, ref):
             nty = bind_stype(ty, subs)
             nname, nsubs = check_name(name, subs)
@@ -212,7 +214,16 @@ def _bind_definition(
         ndargs = {name: bind_sterm(da, nsubs) for name, da in dec.named_args.items()}
         decorators.append(Decorator(dec.name, dargs, ndargs))
     return Definition(
-        name, foralls, args, ntype, body, decorators, rforalls, decreasing_by=decreasing, loc=df.loc
+        name,
+        foralls,
+        args,
+        ntype,
+        body,
+        decorators,
+        rforalls,
+        decreasing_by=decreasing,
+        loc=df.loc,
+        arg_multiplicities=df.arg_multiplicities,
     ), nsubs
 
 

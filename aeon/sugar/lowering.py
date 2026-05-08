@@ -1,3 +1,4 @@
+from aeon.core.multiplicity import MOmega
 from aeon.core.liquid import (
     LiquidApp,
     LiquidLiteralBool,
@@ -208,7 +209,13 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
                 nrty = substitution_sterm_in_stype(rty, SVar(nname), name)
             else:
                 nrty = rty
-            return AbstractionType(nname, at, type_to_core(nrty, available_vars), loc=loc)
+            return AbstractionType(
+                nname,
+                at,
+                type_to_core(nrty, available_vars),
+                loc=loc,
+                multiplicity=getattr(ty, "multiplicity", MOmega),
+            )
         case STypePolymorphism(name, kind, rty, loc):
             return TypePolymorphism(name, kind, type_to_core(rty, available_vars), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
