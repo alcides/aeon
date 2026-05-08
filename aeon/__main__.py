@@ -154,9 +154,6 @@ def main() -> None:
     errors = driver.parse(args.filename)
 
     match errors:
-        case [*_]:
-            for err in errors:
-                handle_error(err)
         case []:
             match (args.format, driver.has_synth()):
                 case (True, _):
@@ -174,6 +171,9 @@ def main() -> None:
                     print(pretty_print_sterm(term))
                 case (False, False):
                     driver.run()
+        case [*_]:
+            for err in errors:
+                handle_error(err)
 
 
 if __name__ == "__main__":
