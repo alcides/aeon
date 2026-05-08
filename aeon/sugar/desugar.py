@@ -17,6 +17,7 @@ from aeon.elaboration.context import (
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
 from aeon.sugar.program import (
+    Decorator,
     Definition,
     SAbstraction,
     SAnonConstructor,
@@ -340,9 +341,26 @@ def resolve_qualified_names_in_definition(
         if d.type
         else d.type
     )
-    if new_body is d.body and new_args == d.args and new_type is d.type:
+    new_decorators = [
+        Decorator(
+            name=dec.name,
+            macro_args=[
+                resolve_qualified_names_in_sterm(a, qualified_scope, unqualified_scope, constructor_defs)
+                for a in dec.macro_args
+            ],
+            named_args={
+                k: resolve_qualified_names_in_sterm(v, qualified_scope, unqualified_scope, constructor_defs)
+                for k, v in dec.named_args.items()
+            },
+            loc=dec.loc,
+        )
+        for dec in d.decorators
+    ]
+    if new_body is d.body and new_args == d.args and new_type is d.type and new_decorators == d.decorators:
         return d
-    return Definition(d.name, d.foralls, new_args, new_type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
+    return Definition(
+        d.name, d.foralls, new_args, new_type, new_body, new_decorators, d.rforalls, d.decreasing_by, d.loc
+    )
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
