@@ -393,6 +393,30 @@ def _abstraction_body_type(declared_type: Type | None) -> Type | None:
     return None
 
 
+def _is_native_ffi_body(t: Term) -> bool:
+    """Recognise a function whose entire body delegates to ``native "..."``
+    or ``native_import "..."`` after stripping any leading ``Abstraction``
+    layers. Aeon's linearity check can't see through the FFI string, so a
+    parameter referenced only inside the native code would otherwise look
+    unused. Native shims declare their multiplicity in the *type* (which
+    callers honour) — we simply skip the syntactic check inside the body."""
+    while isinstance(t, Abstraction):
+        t = t.body
+    while isinstance(t, (Annotation, TypeApplication, RefinementApplication)):
+        t = t.expr if isinstance(t, Annotation) else t.body
+    if isinstance(t, Var) and t.name.name in {"native", "native_import"}:
+        return True
+    if isinstance(t, Application):
+        head: Term = t
+        while isinstance(head, Application):
+            head = head.fun
+        while isinstance(head, (TypeApplication, RefinementApplication)):
+            head = head.body
+        if isinstance(head, Var) and head.name.name in {"native", "native_import"}:
+            return True
+    return False
+
+
 def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[LinearityError]:
     """Walk ``term`` and return any linearity violations. Empty list ⇔ OK.
 
@@ -430,19 +454,26 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 inner = walker.with_var(name, None)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
-                visit(val, walker)
+                # Native FFI shims are opaque to the linearity check —
+                # the parameter is referenced only inside the native
+                # string, which we can't see through. Trust the type's
+                # declared multiplicities for callers; skip recursion.
+                if not _is_native_ffi_body(val):
+                    visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
                 inner = walker.with_var(name, var_type)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
-                # When ``val`` is itself an ``Abstraction``, propagate the
-                # function's parameter multiplicity through.
-                if isinstance(val, Abstraction):
-                    inner_param_mult = _abstraction_param_multiplicity(var_type)
-                    visit(val, inner, inner_param_mult)
-                else:
-                    visit(val, inner)
+                # Skip the body of native FFI shims (see Let above).
+                if not _is_native_ffi_body(val):
+                    if isinstance(val, Abstraction):
+                        # When ``val`` is an ``Abstraction``, propagate
+                        # the function's parameter multiplicity through.
+                        inner_param_mult = _abstraction_param_multiplicity(var_type)
+                        visit(val, inner, inner_param_mult)
+                    else:
+                        visit(val, inner)
                 visit(body, inner)
             case If(cond, then_t, else_t):
                 visit(cond, walker)
