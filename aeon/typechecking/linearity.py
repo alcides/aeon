@@ -309,7 +309,13 @@ class _Walker:
                 bt, bc = inner.tally(body)
                 return _drop(bt, bc, n)
             case Let(n, val, body, _, _):
-                inner = self.with_var(n, None)
+                # Best-effort type for the bound name: this lets nested
+                # uses of ``n`` (e.g. partial applications saved into a
+                # let, ``let bind_to_addr = stream_bind addr in
+                # bind_to_addr sock``) scale the right way at the call
+                # site instead of falling back to ``M1``.
+                val_ty = self.term_type(val)
+                inner = self.with_var(n, val_ty)
                 bt, bc = inner.tally(body)
                 if isinstance(val, Var) and val.name != n:
                     # Phase 3 alias projection: ``let n = x`` is pure
@@ -543,7 +549,12 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 _check_binder(name, param_mult, bt, bc, node, errors)
                 visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
-                inner = walker.with_var(name, None)
+                # Inline-infer ``val``'s type so ``name`` carries it
+                # forward; downstream applications of ``name`` then scale
+                # by the *declared* parameter multiplicity instead of
+                # falling back to ``M1``.
+                val_ty = walker.term_type(val)
+                inner = walker.with_var(name, val_ty)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
                 visit(val, walker)

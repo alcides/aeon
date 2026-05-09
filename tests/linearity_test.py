@@ -617,3 +617,41 @@ def main (i: Int) : Int =
 """
     with pytest.raises(ZeroDivisionError):
         _evaluate(src)
+
+
+# ---------------------------------------------------------------------------
+# Let-bound partial applications inherit their inferred function type
+# ---------------------------------------------------------------------------
+
+
+def test_let_partial_application_propagates_param_mult():
+    """``let bind_to_addr = stream_bind addr`` saves a partial application
+    of a function whose remaining parameter is linear. Calling
+    ``bind_to_addr sock`` afterwards should scale ``sock`` by ``M1`` from
+    the inferred function type — not by the conservative ``M1`` floor —
+    so a double-call against the same linear ``sock`` is rejected."""
+    src = """
+def stream_bind (addr: Int) (1 s: Int) : Int = s;
+
+def main (i: Int) : Int =
+    let 1 sock = 5 in
+    let bind_to_addr = stream_bind 0 in
+    bind_to_addr sock + bind_to_addr sock;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_let_partial_application_single_use_ok():
+    """The same partial application called once on a linear value
+    transfers the obligation cleanly."""
+    src = """
+def stream_bind (addr: Int) (1 s: Int) : Int = s;
+
+def main (i: Int) : Int =
+    let 1 sock = 5 in
+    let bind_to_addr = stream_bind 0 in
+    bind_to_addr sock;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
