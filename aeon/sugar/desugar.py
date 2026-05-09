@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import NamedTuple
 
+from aeon.core.multiplicity import MOmega, Multiplicity
 from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
@@ -734,9 +735,13 @@ def expand_inductive_decls(p: Program) -> Program:
                             )
                             defs.append(de)
 
-                def curry(args: list[tuple[Name, SType]], rty: SType) -> SType:
-                    for aname, aty in args[::-1]:
-                        rty = SAbstractionType(aname, aty, rty)
+                def curry(args: list[tuple[Name, SType]], rty: SType, mults: tuple[Multiplicity, ...] = ()) -> SType:
+                    n = len(args)
+                    for i, (aname, aty) in enumerate(args[::-1]):
+                        # ``mults`` is in original (forward) order; index back through it.
+                        idx = n - 1 - i
+                        m = mults[idx] if idx < len(mults) else MOmega
+                        rty = SAbstractionType(aname, aty, rty, multiplicity=m)
                     return rty
 
                 def case_for(cname: Name, cargs: list[tuple[Name, SType]]) -> str:
@@ -762,9 +767,18 @@ def expand_inductive_decls(p: Program) -> Program:
                 target_type = STypeConstructor(name, [STypeVar(a) for a in args])
                 rec_args.append((Name("this", -1), target_type))
 
-                # Prepare arguments for each constructor
+                # Prepare arguments for each constructor. Constructor
+                # parameter multiplicities flow through into the
+                # corresponding handler abstraction so QTT-discipline
+                # destructuring (``match`` over an inductive whose
+                # constructors carry ``(1 …)`` fields) works correctly.
                 for cons in constructors:
-                    rec_args.append((Name(f"case_{cons.name.name}", -1), curry(cons.args, return_type)))
+                    rec_args.append(
+                        (
+                            Name(f"case_{cons.name.name}", -1),
+                            curry(cons.args, return_type, cons.arg_multiplicities),
+                        )
+                    )
 
                 rec_de = Definition(
                     name=Name(name.name + "_rec", -1),

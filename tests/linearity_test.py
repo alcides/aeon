@@ -488,6 +488,65 @@ def main (i: Int) : Int = ghost 0;
     assert errs == [], f"expected no errors, got {errs}"
 
 
+# ---------------------------------------------------------------------------
+# Match / inductive destructuring — handler binders inherit the
+# constructor's parameter multiplicities
+# ---------------------------------------------------------------------------
+
+
+def test_match_linear_constructor_binders_used_linearly_ok():
+    """An inductive constructor declared ``(1 a) (1 b)`` makes the
+    corresponding match-handler binders linear. Using each exactly once
+    in the branch body is fine."""
+    src = """
+inductive LinPair
+| pair (1 a: Int) (1 b: Int) : LinPair
+
+def consume (1 x: Int) (1 y: Int) : Int = x + y;
+
+def main (args: Int) : Int =
+    let p : LinPair = LinPair_pair 1 2 in
+    match p with
+    | pair x y => consume x y;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
+def test_match_linear_constructor_binders_double_use_errors():
+    """Using a linear-constructor binder more than once in the match
+    branch body trips the linear binder check."""
+    src = """
+inductive LinPair
+| pair (1 a: Int) (1 b: Int) : LinPair
+
+def consume (1 x: Int) (1 y: Int) : Int = x + y;
+
+def main (args: Int) : Int =
+    let p : LinPair = LinPair_pair 1 2 in
+    match p with
+    | pair x y => consume x x;
+"""
+    errs = _linearity(src)
+    assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+def test_match_omega_constructor_binders_unaffected():
+    """Constructors without multiplicity annotations behave the same as
+    before — handlers default to ``ω`` and the body is unconstrained."""
+    src = """
+inductive Pair
+| pair (a: Int) (b: Int) : Pair
+
+def main (args: Int) : Int =
+    let p : Pair = Pair_pair 1 2 in
+    match p with
+    | pair x y => x + x + y;
+"""
+    errs = _linearity(src)
+    assert errs == [], f"expected no errors, got {errs}"
+
+
 def test_native_ffi_caller_still_respects_declared_mult():
     """Even though the body is opaque, the caller-side QTT scaling still
     fires from the declared multiplicity. Passing a linear value into an

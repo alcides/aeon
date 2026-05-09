@@ -53,7 +53,13 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, ExistentialType, Type
+from aeon.core.types import (
+    AbstractionType,
+    ExistentialType,
+    RefinementPolymorphism,
+    Type,
+    TypePolymorphism,
+)
 from aeon.facade.api import (
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
@@ -113,9 +119,11 @@ _Counts = dict[Name, int]
 
 
 def _peel_existential(ty: Type | None) -> Type | None:
-    """Strip outer ``ExistentialType`` wrappers; binders don't change a
-    type's parameter multiplicity."""
-    while isinstance(ty, ExistentialType):
+    """Strip outer ``ExistentialType``, ``TypePolymorphism``, and
+    ``RefinementPolymorphism`` wrappers — none of them change the
+    underlying parameter multiplicities, and we need the bare
+    ``AbstractionType`` to read off ``.multiplicity``."""
+    while isinstance(ty, (ExistentialType, TypePolymorphism, RefinementPolymorphism)):
         ty = ty.body
     return ty
 
@@ -255,6 +263,11 @@ class _Walker:
                 if isinstance(ft, AbstractionType):
                     return ft.type
                 return None
+            case TypeApplication(body, _) | RefinementApplication(body, _):
+                # Peel the polymorphism wrapper from the underlying type;
+                # the multiplicity discipline is unaffected by the type
+                # arguments we instantiate at.
+                return _peel_existential(self.term_type(body))
             case _:
                 return None
 
@@ -497,20 +510,38 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
         for n, t in ctx.vars():
             initial_types[n] = t
 
-    def visit(node: Term, walker: _Walker, declared_param_mult: Multiplicity = MOmega) -> None:
+    def visit(node: Term, walker: _Walker, expected_ty: Type | None = None) -> None:
+        # When ``expected_ty`` is an ``AbstractionType``, the outer
+        # ``Abstraction`` reads its parameter multiplicity from it; the
+        # body's expected type is the abstraction's return type, so a
+        # curried function declared ``(1 a) -> (1 b) -> R`` propagates
+        # ``M1`` to both inner abstractions.
         match node:
             case Literal() | Var() | Hole():
                 return
             case Annotation(expr, _):
-                visit(expr, walker)
+                visit(expr, walker, expected_ty)
             case Application(fun, arg):
                 visit(fun, walker)
-                visit(arg, walker)
+                fun_ty = _peel_existential(walker.term_type(fun))
+                if isinstance(fun_ty, AbstractionType):
+                    visit(arg, walker, fun_ty.var_type)
+                else:
+                    visit(arg, walker)
             case Abstraction(name, body):
-                inner = walker.with_var(name, None)
+                ety = _peel_existential(expected_ty)
+                if isinstance(ety, AbstractionType):
+                    param_mult = ety.multiplicity
+                    inner_ty: Type | None = ety.var_type
+                    body_ty: Type | None = ety.type
+                else:
+                    param_mult = MOmega
+                    inner_ty = None
+                    body_ty = None
+                inner = walker.with_var(name, inner_ty)
                 bt, bc = inner.tally(body)
-                _check_binder(name, declared_param_mult, bt, bc, node, errors)
-                visit(body, inner)
+                _check_binder(name, param_mult, bt, bc, node, errors)
+                visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
                 inner = walker.with_var(name, None)
                 bt, bc = inner.tally(body)
@@ -521,22 +552,19 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 inner = walker.with_var(name, var_type)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
-                if isinstance(val, Abstraction):
-                    # When ``val`` is an ``Abstraction``, propagate the
-                    # function's parameter multiplicity through.
-                    inner_param_mult = _abstraction_param_multiplicity(var_type)
-                    visit(val, inner, inner_param_mult)
-                else:
-                    visit(val, inner)
+                # ``var_type`` typed-walks the abstraction body so nested
+                # parameter multiplicities (curried funs / match handlers)
+                # are checked against their declared types.
+                visit(val, inner, var_type)
                 visit(body, inner)
             case If(cond, then_t, else_t):
                 visit(cond, walker)
-                visit(then_t, walker)
-                visit(else_t, walker)
+                visit(then_t, walker, expected_ty)
+                visit(else_t, walker, expected_ty)
             case TypeApplication(body, _) | RefinementApplication(body, _):
-                visit(body, walker)
+                visit(body, walker, expected_ty)
             case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
-                visit(body, walker)
+                visit(body, walker, expected_ty)
             case _:
                 return
 
