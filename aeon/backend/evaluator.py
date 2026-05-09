@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from aeon.core.multiplicity import M0
 from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplication, TypeAbstraction, TypeApplication
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
@@ -84,8 +85,19 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             if is_native_import(fun):
                 globals()[argv] = e
             return e
+        case Let(var_name, _, body, _, mult) if mult is M0:
+            # Phase 4 — runtime erasure. The linearity check has already
+            # verified that ``var_name`` is never referenced at runtime,
+            # so we skip evaluating ``var_value`` entirely. ``var_name``
+            # is bound to ``None`` only as a tripwire — any reference
+            # would raise immediately, surfacing a missed check.
+            return eval(body, ctx.with_var(var_name, None))
         case Let(var_name, var_value, body):
             return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
+        case Rec(var_name, _, _, body, _, _, mult) if mult is M0:
+            # Phase 4 — same erasure for ``Rec``. ``var_value`` may be a
+            # recursive lambda that's only meaningful at type level.
+            return eval(body, ctx.with_var(var_name, None))
         case Rec(var_name, _, var_value, body, _, _):
             found_llvm = False
             if ctx.pipeline and ctx.metadata:

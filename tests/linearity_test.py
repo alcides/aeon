@@ -50,6 +50,21 @@ def _linearity(source: str):
     return check_linearity(core)
 
 
+def _evaluate(source: str):
+    """Lower, type-check, and run a program. Returns ``main``'s result."""
+    from aeon.backend.evaluator import EvaluationContext, eval as backend_eval
+    from aeon.prelude.prelude import evaluation_vars
+
+    prog = parse_program(source)
+    desugared = desugar(prog, is_main_hole=False)
+    sterm = elaborate(desugared.elabcontext, desugared.program)
+    core = lower_to_core(sterm)
+    typing_ctx = lower_to_core_context(desugared.elabcontext)
+    typing_ctx, core = bind_ids(typing_ctx, core)
+    ctx = EvaluationContext(evaluation_vars)
+    return backend_eval(core, ctx)
+
+
 # ---------------------------------------------------------------------------
 # Sanity / no-op cases
 # ---------------------------------------------------------------------------
@@ -560,3 +575,45 @@ def main (i: Int) : Int =
 """
     errs = _linearity(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — runtime erasure: M0 bindings are not evaluated
+# ---------------------------------------------------------------------------
+
+
+def test_m0_let_val_is_not_evaluated_at_runtime():
+    """A ``0``-bound let's value is skipped at runtime — even a value
+    that would crash if executed is harmless because the binding is
+    purely compile-time."""
+    src = """
+def main (i: Int) : Int =
+    let 0 ghost : Int = native "1/0" in
+    42;
+"""
+    assert _evaluate(src) == 42
+
+
+def test_m0_rec_val_is_not_evaluated_at_runtime():
+    """Same erasure for ``Rec``: an erased recursive definition's body
+    is never evaluated."""
+    src = """
+def main (i: Int) : Int =
+    let 0 ghost : Int = native "(_ for _ in iter(int, 1))[0]" in
+    7;
+"""
+    assert _evaluate(src) == 7
+
+
+def test_omega_let_val_is_evaluated():
+    """The companion check: an unrestricted (default) let's value *is*
+    evaluated, so a crashing native body propagates the exception."""
+    import pytest
+
+    src = """
+def main (i: Int) : Int =
+    let ghost : Int = native "1/0" in
+    42;
+"""
+    with pytest.raises(ZeroDivisionError):
+        _evaluate(src)
