@@ -68,6 +68,7 @@ from aeon.facade.api import (
     LinearUsedTooManyTimesError,
 )
 from aeon.typechecking.context import TypingContext
+from aeon.utils.location import Location
 from aeon.utils.name import Name
 
 
@@ -187,6 +188,58 @@ def _drop(tally: Tally, counts: _Counts, name: Name) -> tuple[Tally, _Counts]:
     nt = {n: m for n, m in tally.items() if n != name}
     nc = {n: k for n, k in counts.items() if n != name}
     return nt, nc
+
+
+def _find_var_uses(term: Term, name: Name, *, stop_at_shadow: bool = True) -> list[Location]:
+    """Collect locations of every free occurrence of ``name`` in ``term``.
+
+    Used purely for diagnostics — when the binder check trips, we replay
+    a small AST walk over the body to surface concrete use sites the
+    user can jump to. Skips into shadowing binders (``let n = …``,
+    ``\\n -> …``, ``Rec(n, …)``) since uses inside the shadow are not
+    references to the outer ``name``.
+    """
+    out: list[Location] = []
+
+    def walk(t: Term) -> None:
+        match t:
+            case Var(n):
+                if n == name:
+                    out.append(t.loc)
+            case Literal() | Hole():
+                return
+            case Annotation(expr, _):
+                walk(expr)
+            case Application(fun, arg):
+                walk(fun)
+                walk(arg)
+            case Abstraction(n, body):
+                if stop_at_shadow and n == name:
+                    return
+                walk(body)
+            case Let(n, val, body, _, _):
+                walk(val)
+                if stop_at_shadow and n == name:
+                    return
+                walk(body)
+            case Rec(n, _, val, body, _, _, _):
+                if stop_at_shadow and n == name:
+                    return
+                walk(val)
+                walk(body)
+            case If(cond, then_t, else_t):
+                walk(cond)
+                walk(then_t)
+                walk(else_t)
+            case TypeApplication(body, _) | RefinementApplication(body, _):
+                walk(body)
+            case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
+                walk(body)
+            case _:
+                return
+
+    walk(term)
+    return out
 
 
 def _alias_project(
@@ -392,6 +445,19 @@ def _branch_merge(
     return out_t, out_c
 
 
+def _binder_body(term: Term) -> Term | None:
+    """Extract the *body* of a binder node — the sub-term in which the
+    bound name is in scope. Used for diagnostics: when the binder check
+    trips, we walk the body to surface concrete use sites."""
+    match term:
+        case Let(_, _, body, _, _) | Abstraction(_, body):
+            return body
+        case Rec(_, _, _, body, _, _, _):
+            return body
+        case _:
+            return None
+
+
 def _check_binder(
     name: Name,
     multiplicity: Multiplicity,
@@ -401,9 +467,11 @@ def _check_binder(
     errors: list[LinearityError],
 ) -> None:
     """Enforce ``multiplicity`` on ``name`` against the QTT-scaled tally
-    for the body. ``term`` is the enclosing AST node — only used for the
-    error's location. Skips the check when ``multiplicity`` is ``MOmega``
-    or ``MN`` (polymorphic — body discipline is not enforced).
+    for the body. ``term`` is the enclosing AST node — used both for
+    the error's primary location and (via :func:`_binder_body`) to walk
+    the body and surface per-use locations in diagnostics. Skips the
+    check when ``multiplicity`` is ``MOmega`` or ``MN`` (polymorphic —
+    body discipline is not enforced).
     """
     if multiplicity is MOmega or multiplicity is MN:
         return
@@ -417,9 +485,12 @@ def _check_binder(
     if isinstance(use, _Bottom):
         return
 
+    body = _binder_body(term)
+    use_locations = _find_var_uses(body, name) if body is not None else []
+
     if isinstance(use, _Mismatch):
         if multiplicity is M0:
-            errors.append(ErasedUsedAtRuntimeError(name=name, term=term))
+            errors.append(ErasedUsedAtRuntimeError(name=name, term=term, use_locations=use_locations))
         else:
             errors.append(
                 LinearBranchMismatchError(
@@ -433,7 +504,7 @@ def _check_binder(
 
     if multiplicity is M0:
         if use is not M0:
-            errors.append(ErasedUsedAtRuntimeError(name=name, term=term))
+            errors.append(ErasedUsedAtRuntimeError(name=name, term=term, use_locations=use_locations))
         return
 
     # multiplicity is M1
@@ -441,17 +512,25 @@ def _check_binder(
         errors.append(LinearUnusedError(name=name, declared=multiplicity, term=term))
         return
     if use is MOmega:
-        # ω can mean either "more than once syntactically" or "passed into
-        # an ω-parameter that may consume it any number of times". The
-        # integer count tells the user *which*; if we have no count, fall
-        # back to 2 to signal "more than 1".
-        actual = count if count >= 2 else 2
+        # ω can come from a literal multiple-syntactic-use *or* from a
+        # single use scaled by an ω-parameter. ``count`` tells us which:
+        # ``count == 1`` means we saw the name exactly once syntactically,
+        # so the ω came purely from scaling; ``count >= 2`` is the
+        # straightforward multi-use case.
+        if count >= 2:
+            cause = "syntactic"
+            actual = count
+        else:
+            cause = "scaled-to-omega"
+            actual = max(count, 1)
         errors.append(
             LinearUsedTooManyTimesError(
                 name=name,
                 declared=multiplicity,
                 actual_uses=actual,
                 term=term,
+                use_locations=use_locations,
+                cause=cause,
             )
         )
         return

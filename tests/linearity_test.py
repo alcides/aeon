@@ -655,3 +655,77 @@ def main (i: Int) : Int =
 """
     errs = _linearity(src)
     assert errs == [], f"expected no errors, got {errs}"
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic quality — errors carry per-use locations and a cause label
+# ---------------------------------------------------------------------------
+
+
+def test_too_many_error_lists_use_locations():
+    """``a + a`` errors with both use sites visible in the message."""
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    a + a;
+"""
+    errs = _linearity(src)
+    too_many = [e for e in errs if isinstance(e, LinearUsedTooManyTimesError)]
+    assert too_many, errs
+    e = too_many[0]
+    assert len(e.use_locations) == 2, e.use_locations
+    assert e.cause == "syntactic"
+    assert "Uses at:" in str(e)
+
+
+def test_scaled_to_omega_message_explains_cause():
+    """A linear value passed once into an ω-parameter is flagged with
+    the ``scaled-to-omega`` cause and a single use location, not a
+    misleading ``2 times`` count."""
+    src = """
+def use_anyhow (x: Int) : Int = 0;
+
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    use_anyhow a;
+"""
+    errs = _linearity(src)
+    too_many = [e for e in errs if isinstance(e, LinearUsedTooManyTimesError)]
+    assert too_many, errs
+    e = too_many[0]
+    assert e.cause == "scaled-to-omega"
+    assert len(e.use_locations) == 1
+    assert "consumed by an unrestricted parameter" in str(e)
+
+
+def test_erased_error_lists_use_location():
+    """A ``0``-bound name used at runtime gets its use site in the
+    diagnostic — the binder location was useless since the user is
+    fixing the use, not the binder."""
+    src = """
+def main (i: Int) : Int =
+    let 0 a = 5 in
+    a;
+"""
+    errs = _linearity(src)
+    erased = [e for e in errs if isinstance(e, ErasedUsedAtRuntimeError)]
+    assert erased, errs
+    e = erased[0]
+    assert len(e.use_locations) == 1
+    assert "Used at:" in str(e)
+
+
+def test_too_many_error_position_points_at_first_use():
+    """``position()`` returns the first use rather than the binder so
+    IDEs / CLIs jump the user to the offending site."""
+    src = """
+def main (i: Int) : Int =
+    let 1 a = 5 in
+    a + a;
+"""
+    errs = _linearity(src)
+    too_many = [e for e in errs if isinstance(e, LinearUsedTooManyTimesError)]
+    e = too_many[0]
+    # Binder is on line 3 (the ``let 1 a = 5``); first use is on line 4
+    # (the ``a + a``). Confirm we point at the use, not the binder.
+    assert e.position() != e.term.loc, "position should point at the use, not the binder"

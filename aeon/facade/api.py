@@ -223,20 +223,38 @@ class LinearUnusedError(LinearityError):
 
 @dataclass
 class LinearUsedTooManyTimesError(LinearityError):
-    """A ``1``-bound name was used more than once in its scope."""
+    """A ``1``-bound name was used more than once in its scope, either
+    because it appears multiple times syntactically or because it was
+    passed into a parameter whose multiplicity scales the use to ``ω``."""
 
     name: object
     declared: Multiplicity
     actual_uses: int
     term: Term
+    use_locations: list[Location] = field(default_factory=list)
+    cause: str = "syntactic"  # "syntactic" or "scaled-to-omega"
 
     def __str__(self) -> str:
-        return (
-            f"Linear binding {self.name} is declared with multiplicity {self.declared} "
-            f"but is used {self.actual_uses} times."
-        )
+        if self.cause == "scaled-to-omega":
+            head = (
+                f"Linear binding {self.name} is declared with multiplicity {self.declared} "
+                f"but is consumed by an unrestricted parameter — its tally is scaled to ω."
+            )
+        else:
+            head = (
+                f"Linear binding {self.name} is declared with multiplicity {self.declared} "
+                f"but is used {self.actual_uses} times."
+            )
+        if self.use_locations:
+            locs = "; ".join(_format_location(loc) for loc in self.use_locations)
+            return f"{head} Uses at: {locs}."
+        return head
 
     def position(self) -> Location:
+        # Point at the first offending use rather than the binder — that's
+        # what the user is actively fixing.
+        if self.use_locations:
+            return self.use_locations[0]
         return self.term.loc
 
 
@@ -248,11 +266,18 @@ class ErasedUsedAtRuntimeError(LinearityError):
 
     name: object
     term: Term
+    use_locations: list[Location] = field(default_factory=list)
 
     def __str__(self) -> str:
-        return f"Erased binding {self.name} (multiplicity 0) cannot be used at runtime."
+        head = f"Erased binding {self.name} (multiplicity 0) cannot be used at runtime."
+        if self.use_locations:
+            locs = "; ".join(_format_location(loc) for loc in self.use_locations)
+            return f"{head} Used at: {locs}."
+        return head
 
     def position(self) -> Location:
+        if self.use_locations:
+            return self.use_locations[0]
         return self.term.loc
 
 
@@ -266,12 +291,34 @@ class LinearBranchMismatchError(LinearityError):
     then_uses: int
     else_uses: int
     term: Term
+    then_locations: list[Location] = field(default_factory=list)
+    else_locations: list[Location] = field(default_factory=list)
 
     def __str__(self) -> str:
-        return (
+        head = (
             f"Linear binding {self.name} is used {self.then_uses} time(s) in the `then` branch "
             f"but {self.else_uses} time(s) in the `else` branch — both branches must consume it equally."
         )
+        parts = []
+        if self.then_locations:
+            parts.append("then-uses at: " + "; ".join(_format_location(loc) for loc in self.then_locations))
+        if self.else_locations:
+            parts.append("else-uses at: " + "; ".join(_format_location(loc) for loc in self.else_locations))
+        if parts:
+            return head + " " + " ".join(parts) + "."
+        return head
 
     def position(self) -> Location:
         return self.term.loc
+
+
+def _format_location(loc: Location) -> str:
+    """Render a ``Location`` as a short, user-readable ``file:line:col``
+    pair when we have positional info; otherwise fall back to ``str``."""
+    file = getattr(loc, "file", "")
+    start = getattr(loc, "start", None)
+    if start is not None:
+        line, col = start[0], start[1]
+        prefix = f"{file}:" if file else ""
+        return f"{prefix}{line}:{col}"
+    return str(loc)
