@@ -6,7 +6,7 @@ from itertools import chain, count, takewhile
 import itertools
 from typing import Callable
 
-from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication, Var
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, TypeApplication, Var
 from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.core.types import refined_to_unrefined_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
@@ -18,7 +18,10 @@ from aeon.synthesis.modules.synquid.guards import (
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
+from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
+
+_loc = SynthesizedLocation("synquid")
 
 
 def monomorfic(t: Type, typing_ctx: TypingContext, t_l: dict[Name, Type]):
@@ -114,9 +117,18 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             case TypeConstructor(Name("Bool", 0)):
                 yield from [Literal(True, base_t), Literal(False, base_t)]
             case TypeConstructor(Name("Int", 0)):
-                yield from [Literal(value, base_t) for value in range(-100, 100)]
+                # Phase-1 placeholder. The id is fixed so memoised generator
+                # output is deterministic and identity-comparable; Phase 2
+                # (smt_holes.smt_complete) re-stamps each occurrence with a
+                # fresh id before SMT, so duplicates from the mem cache are
+                # treated independently. Eagerly yielding range(-100, 100)
+                # would multiply 200x at every level.
+                yield Annotation(Hole(Name("synquid_int_lit", 0), _loc), base_t, _loc)
             case TypeConstructor(Name("Float", 0)):
-                yield from [Literal(value, base_t) for value in frange(-100.0, 100.0, 0.00001)]
+                # Same idea — and this case used to materialise 20 million
+                # Float literals (frange step 1e-5) per generator call, which
+                # made level 0 alone unenterable inside any sane budget.
+                yield Annotation(Hole(Name("synquid_float_lit", 0), _loc), base_t, _loc)
             case TypeConstructor(Name("String", 0)):
                 yield from (
                     Literal(s, base_t)

@@ -11,6 +11,7 @@ from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
+from aeon.synthesis.modules.synquid.smt_holes import smt_complete
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
@@ -77,6 +78,17 @@ class SynquidSynthesizer(Synthesizer):
 
         def consider(result: Term) -> bool:
             nonlocal best, done
+            # Phase 2: fill any Annotation(Hole, T) placeholders left by the
+            # shape enumerator. SMT first; canonical seeds when no
+            # constraints constrain a hole. ``None`` means we couldn't fill
+            # at least one placeholder and the candidate is unusable.
+            completed = smt_complete(result, ctx)
+            if completed is None:
+                ui.register(result, "Invalid (unfilled placeholders)", get_elapsed_time(start_time), False)
+                if get_elapsed_time(start_time) > budget:
+                    done = False
+                return False
+            result = completed
             if typecheck_candidate_first and not check_type(ctx, result, type):
                 ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
