@@ -117,6 +117,7 @@ def collect_core_decorator_queue(
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
             case _:

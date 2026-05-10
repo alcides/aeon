@@ -656,16 +656,23 @@ def check_type_errors(
     if not wellformed(ctx, expected_type):
         return [CoreWellformnessError(expected_type)]
 
+    # Constraint-based type checking, then linearity checking. Both passes
+    # are reported together so the user sees every diagnostic in one go.
+    from aeon.typechecking.linearity import check_linearity
+
     try:
         constraint = check(ctx, term, expected_type)
         match entailment(ctx, constraint):
             case True:
-                return []
+                type_errors: list[AeonError] = []
             case False:
                 full_constraint = entailment_context(ctx, constraint)
-                return [
+                type_errors = [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
                     for vc, loc in constraint_to_parts(full_constraint, ctx)
                 ]
     except CoreTypeCheckingError as e:
         return [e]
+
+    linearity_errors = check_linearity(term, ctx)
+    return type_errors + list(linearity_errors)

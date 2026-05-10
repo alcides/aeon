@@ -1,3 +1,4 @@
+from aeon.core.multiplicity import MOmega
 from aeon.utils.name import Name
 from aeon.sugar.stypes import (
     SAbstractionType,
@@ -61,7 +62,9 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), ref)
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             if tname == alpha:
                 return ty
@@ -85,7 +88,9 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
         case SRefinedType(name, ty, ref):
             return SRefinedType(name, rec(ty), substitution_sterm_in_sterm(ref, beta, alpha))
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(name, sort, body):
@@ -124,15 +129,23 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                 return SAbstraction(aname, rec(body), loc=loc)
         case SLet(vname, vvalue, body, loc):
             if vname == alpha:
-                return SLet(vname, rec(vvalue), body, loc=loc)
+                return SLet(vname, rec(vvalue), body, loc=loc, multiplicity=t.multiplicity)
             else:
-                return SLet(vname, rec(vvalue), rec(body), loc=loc)
+                return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vty, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
             if vname == alpha:
-                return SRec(vname, rect(vty), rec(vvalue), body, decreasing_by=nd, loc=loc)
+                return SRec(vname, rect(vty), rec(vvalue), body, decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
             else:
-                return SRec(vname, rect(vty), rec(vvalue), rec(body), decreasing_by=nd, loc=loc)
+                return SRec(
+                    vname,
+                    rect(vty),
+                    rec(vvalue),
+                    rec(body),
+                    decreasing_by=nd,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), rect(ty), loc=loc)
         case SIf(cond, then, otherwise, loc):
@@ -182,7 +195,9 @@ def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> STy
         case SRefinedType(name, ity, ref):
             return SRefinedType(name, rec(ity), substitution_sterm_in_sterm(ref, SVar(new), old))
         case SAbstractionType(var_name, var_type, return_type):
-            return SAbstractionType(var_name, rec(var_type), rec(return_type))
+            return SAbstractionType(
+                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+            )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(rname, sort, body):
@@ -209,11 +224,17 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
         case SAbstraction(aname, body, loc):
             return SAbstraction(aname, rec(body), loc=loc)
         case SLet(vname, vvalue, body, loc):
-            return SLet(vname, rec(vvalue), rec(body), loc=loc)
+            return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vtype, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
             return SRec(
-                vname, substitute_svartype_in_stype(vtype, rep, name), rec(vvalue), rec(body), decreasing_by=nd, loc=loc
+                vname,
+                substitute_svartype_in_stype(vtype, rep, name),
+                rec(vvalue),
+                rec(body),
+                decreasing_by=nd,
+                loc=loc,
+                multiplicity=t.multiplicity,
             )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), substitute_svartype_in_stype(ty, rep, name), loc=loc)

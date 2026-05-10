@@ -2,6 +2,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from functools import reduce
 
+from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.core.types import Kind
 
 from typing import TYPE_CHECKING
@@ -46,9 +47,11 @@ class SAbstractionType(SType):
     var_type: SType
     type: SType
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __str__(self):
-        return f"({self.var_name} : {self.var_type}) -> {self.type}"
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return f"({prefix}{self.var_name} : {self.var_type}) -> {self.type}"
 
 
 @dataclass(unsafe_hash=True)
