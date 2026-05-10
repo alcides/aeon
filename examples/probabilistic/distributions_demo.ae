@@ -1,0 +1,31 @@
+open List
+open Math
+open Statistics
+open Distributions
+
+# Consumer requiring 99% of values below 7.
+def expectMostlyBelow7
+    (xs: {ys: (List Float) | List.size ys > 0 && fracBelow ys 7.0 >= 0.99})
+    : Unit
+    = print "ok: 99% of values below 7"
+
+# Consumer requiring 95% of values above 0 (i.e., positivity bound).
+def expectMostlyPositive
+    (xs: {ys: (List Float) | List.size ys > 0 && fracAbove ys 0.0 >= 0.95})
+    : Unit
+    = print "ok: 95% of values above 0"
+
+# Demo: pull samples from several distributions and feed them to the
+# consumers, widening as needed.
+def main (_: Int) : Unit =
+    let g     = normalSample 2.0 1.0 100 in
+    let gThr  = 2.0 + 2.33 * 1.0 in
+    let g7    = widenBelow g gThr 7.0 in
+    let r1    = expectMostlyBelow7 g7 in
+    let u     = uniformSample 0.0 5.0 100 in
+    let u7    = widenBelow u 5.0 7.0 in
+    let r2    = expectMostlyBelow7 u7 in
+    let e     = exponentialSample 1.0 100 in
+    let r3    = expectMostlyPositive e in
+    let b     = betaSample 2.0 5.0 100 in
+    expectMostlyPositive b

@@ -1,9 +1,67 @@
 open List
 
+# ─── Uninterpreted refinement-language symbols ─────────────────────────
+# These live in the refinement language so Z3 can reason about them as
+# abstract symbols. Runtime providers below tie concrete values back to
+# them via refined return types.
+
+# Fraction of xs strictly below threshold t.
+def fracBelow : (xs: (List Float)) -> (t: Float) -> Float = uninterpreted
+
+# Fraction of xs strictly above threshold t.
+def fracAbove : (xs: (List Float)) -> (t: Float) -> Float = uninterpreted
+
+# Fraction of xs in the open interval (lo, hi).
+def fracBetween : (xs: (List Float)) -> (lo: Float) -> (hi: Float) -> Float = uninterpreted
+
+# Sample summary statistics as abstract symbols.
+def sampleMean : (xs: (List Float)) -> Float = uninterpreted
+def sampleVar  : (xs: (List Float)) -> Float = uninterpreted
+def sampleStd  : (xs: (List Float)) -> Float = uninterpreted
+def sampleMin  : (xs: (List Float)) -> Float = uninterpreted
+def sampleMax  : (xs: (List Float)) -> Float = uninterpreted
+
+# ─── Axioms (encoded as native no-op castings) ─────────────────────────
+# Each helper is a runtime no-op (returns its input); the return refinement
+# encodes a math fact the SMT solver gets to use at the call site.
+
+# Monotonicity below:  t1 <= t2  ⇒  fracBelow xs t1 <= fracBelow xs t2.
+def widenBelow
+    (xs: {x: (List Float) | List.size x > 0})
+    (t1: Float)
+    (t2: {t: Float | t >= t1})
+    : {r: (List Float) | List.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
+    = native "xs"
+
+# Monotonicity above:  t1 <= t2  ⇒  fracAbove xs t1 >= fracAbove xs t2.
+def widenAbove
+    (xs: {x: (List Float) | List.size x > 0})
+    (t1: Float)
+    (t2: {t: Float | t <= t1})
+    : {r: (List Float) | List.size r > 0 && fracAbove r t2 >= fracAbove xs t1}
+    = native "xs"
+
+# Complement at a non-atomic point:  fracBelow + fracAbove = 1.
+def belowComplement
+    (xs: {x: (List Float) | List.size x > 0})
+    (t: Float)
+    : {r: (List Float) | List.size r > 0 && ((fracBelow r t) == (1.0 - fracAbove xs t))}
+    = native "xs"
+
+# Between bound: fracBetween lo hi >= fracBelow hi - fracBelow lo (slack covers atoms).
+def betweenFromBelow
+    (xs: {x: (List Float) | List.size x > 0})
+    (lo: Float)
+    (hi: {h: Float | h >= lo})
+    : {r: (List Float) | List.size r > 0 && fracBetween r lo hi >= fracBelow xs hi - fracBelow xs lo}
+    = native "xs"
+
+# ─── Runtime statistics ────────────────────────────────────────────────
+
 # Returns the mean (average) of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: mean of the numbers
-def mean(xs: {x: (List Float) | List.size x > 0}): Float = native "__import__('numpy').mean(xs)"
+def mean(xs: {x: (List Float) | List.size x > 0}): {m: Float | m == sampleMean xs} = native "__import__('numpy').mean(xs)"
 
 # Returns the median (middle value) of a non-empty list of numbers.
 # xs: non-empty list of numbers
@@ -13,22 +71,22 @@ def median(xs: {x: (List Float) | List.size x > 0}): Float = native "__import__(
 # Returns the sample standard deviation of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: standard deviation
-def std(xs: {x: (List Float) | List.size x > 0}): Float = native "__import__('numpy').std(xs, ddof=1)"
+def std(xs: {x: (List Float) | List.size x > 0}): {s: Float | s == sampleStd xs} = native "__import__('numpy').std(xs, ddof=1)"
 
 # Returns the sample variance of a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: variance
-def var(xs: {x: (List Float) | List.size x > 0}): Float = native "__import__('numpy').var(xs, ddof=1)"
+def var(xs: {x: (List Float) | List.size x > 0}): {v: Float | v == sampleVar xs} = native "__import__('numpy').var(xs, ddof=1)"
 
 # Returns the minimum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: minimum value
-def min(xs: {x: (List Float) | List.size x > 0}): Float = native "min(xs)"
+def min(xs: {x: (List Float) | List.size x > 0}): {m: Float | m == sampleMin xs} = native "min(xs)"
 
 # Returns the maximum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
 # returns: maximum value
-def max(xs: {x: (List Float) | List.size x > 0}): Float = native "max(xs)"
+def max(xs: {x: (List Float) | List.size x > 0}): {m: Float | m == sampleMax xs} = native "max(xs)"
 
 # Returns the sum of a non-empty list of numbers.
 # xs: non-empty list of numbers
@@ -93,3 +151,23 @@ def corrcoef(xs: {x: (List Float) | List.size x > 0}) (ys: {y: (List Float) | Li
 # ys: non-empty list of numbers, same length as xs
 # returns: covariance
 def cov(xs: {x: (List Float) | List.size x > 0}) (ys: {y: (List Float) | List.size y == List.size xs}): Float = native "__import__('numpy').cov(xs, ys, ddof=1)[0,1]"
+
+# ─── Runtime providers for fraction predicates ────────────────────────
+# Compute the abstract fraction symbols at runtime; the refined return type
+# ties the concrete value back to the SMT-level symbol so it can flow into
+# subsequent refinements.
+
+# Proportion of values strictly below a threshold.
+def proportionBelow (xs: {x: (List Float) | List.size x > 0}) (t: Float)
+    : {f: Float | (f == fracBelow xs t) && 0.0 <= f && f <= 1.0}
+    = native "(sum(1 for v in xs if v < t) / len(xs))"
+
+# Proportion of values strictly above a threshold.
+def proportionAbove (xs: {x: (List Float) | List.size x > 0}) (t: Float)
+    : {f: Float | (f == fracAbove xs t) && 0.0 <= f && f <= 1.0}
+    = native "(sum(1 for v in xs if v > t) / len(xs))"
+
+# Proportion of values strictly inside the open interval (lo, hi).
+def proportionBetween (xs: {x: (List Float) | List.size x > 0}) (lo: Float) (hi: {h: Float | h >= lo})
+    : {f: Float | (f == fracBetween xs lo hi) && 0.0 <= f && f <= 1.0}
+    = native "(sum(1 for v in xs if lo < v and v < hi) / len(xs))"

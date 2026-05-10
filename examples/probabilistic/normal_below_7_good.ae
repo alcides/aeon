@@ -1,0 +1,47 @@
+open List
+open Math
+
+# ─── Probabilistic refinement scaffolding ──────────────────────────────
+
+# Uninterpreted symbol: fraction of xs strictly below threshold t.
+# Lives in the refinement language; Z3 reasons about it abstractly.
+def fracBelow : (xs: (List Float)) -> (t: Float) -> Float = uninterpreted
+
+# Monotonicity axiom for fracBelow:  t1 <= t2  ⟹  frac(t1) <= frac(t2).
+# Implemented as a runtime no-op (returns xs unchanged); the return
+# refinement is the postulate the SMT solver gets to use at call sites.
+def widenThreshold
+    (xs: {x: (List Float) | List.size x > 0})
+    (t1: Float)
+    (t2: {t: Float | t >= t1})
+    : {r: (List Float) | List.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
+    = native "xs"
+
+# ─── Producer: normal samples around (a, b) ────────────────────────────
+
+# By calibration of N(a, b), Pr(X <= a + 2.33·b) ≈ 0.99.
+# Encoded as the producer's postcondition (trusted, since native).
+def normalSample
+    (a: Float)
+    (b: {y: Float | y > 0.0})
+    (n: {m: Int | m > 0})
+    : { xs: (List Float)
+      | List.size xs > 0
+        && fracBelow xs (a + 2.33 * b) >= 0.99 }
+    = native "list(__import__('numpy').random.normal(a, b, n))"
+
+# ─── Consumer: requires 99% below 7 ────────────────────────────────────
+
+def expectMostlyBelow7
+    (xs: {ys: (List Float)
+         | List.size ys > 0
+           && fracBelow ys 7.0 >= 0.99})
+    : Unit
+    = print "ok: list satisfies P(< 7) >= 0.99"
+
+# ─── Driver: GOOD case  (a=2, b=1  ⇒  threshold=4.33 <= 7) ─────────────
+
+def main (_: Int) : Unit =
+    let good = normalSample 2.0 1.0 100 in
+    let widened = widenThreshold good 4.33 7.0 in
+    expectMostlyBelow7 widened
