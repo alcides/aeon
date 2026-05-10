@@ -377,6 +377,9 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
             nbody = elaborate_check(ctx, body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
+        case (SAbstraction(_, _, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
+            nbody = elaborate_check(ctx, t, tbody)
+            return SRefinementAbstraction(rname, rsort, nbody, loc=loc)
         case (SAnonConstructor(cname, loc=loc), _):
             # Resolve anonymous constructor (.cons) using expected type
             base_name = _extract_base_type_name(ty)
