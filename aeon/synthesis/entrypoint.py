@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sys
 import time
 from typing import Any, Optional
@@ -79,15 +80,45 @@ def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata)
 
 
 def make_evaluator(
-    ectx: EvaluationContext, replace: Callable[[Term], Term], evaluators: Evaluators, budget_eval: float = 1.0
+    ectx: EvaluationContext,
+    replace: Callable[[Term], Term],
+    evaluators: Evaluators,
+    budget_eval: float = 1.0,
+    short_circuit: bool = False,
 ) -> Callable[[Term], list[float]]:
-    """Creates a function that takes candidate programs and return the fitness list."""
+    """Creates a function that takes candidate programs and returns the fitness list.
+
+    When ``short_circuit`` is True, the evaluators are run in order and
+    the loop stops at the first one that returns a non-zero (or
+    non-finite) value. The wrapper then returns a *single*-element list
+    ``[len(evaluators) - n_passed]``, to be minimised: 0 means every
+    example passed, ``len(evaluators)`` means even the first example
+    failed (or threw). This collapses an N-axis Pareto problem into a
+    1-axis one, useful when exact correctness is required.
+    """
+
+    n_goals = len(evaluators)
+
+    def _short_circuit_score(program: Any) -> list[float]:
+        passed = 0
+        for ev in evaluators:
+            try:
+                score = float(ev(program))
+            except Exception:
+                break
+            if not math.isfinite(score) or abs(score) >= 1e-9:
+                break
+            passed += 1
+        return [float(n_goals - passed)]
 
     def evaluate_individual(program: Any, result_queue: mp.Queue) -> Any:
         """Function to run in a separate process and places the result in a Queue."""
         start = time.time()
         try:
-            results = [ev(program) for ev in evaluators]
+            if short_circuit:
+                results = _short_circuit_score(program)
+            else:
+                results = [ev(program) for ev in evaluators]
             assert isinstance(results, list)
             result_queue.put(results)
         except Exception as e:
@@ -146,7 +177,10 @@ def synthesize_holes(
         replace = make_program(term, hole_name)
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
-        evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
+        short_circuit_flag = bool(metadata.get(fun_name, {}).get("short_circuit", False))
+        evaluator = make_evaluator(
+            ectx, replace, evaluators, budget_eval, short_circuit=short_circuit_flag
+        )
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
         tac_map = metadata.get(fun_name, {}).get("tactic_scripts")

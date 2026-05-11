@@ -40,6 +40,20 @@ def create_problem(
     metadata: Metadata,
 ) -> Problem:
     goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
+    short_circuit_flag = bool(metadata.get(fun_name, {}).get("short_circuit", False))
+
+    if short_circuit_flag and goals:
+        # @short_circuit collapses N goals into one number via make_evaluator;
+        # advertise it as a single-objective problem to geneticengine.
+        def sc_fitness_fun(phenotype: Any) -> float:
+            p = phenotype.get_core()
+            assert isinstance(p, Term)
+            if not validate(p):
+                raise InvalidFitnessException()
+            return float(evaluate(p)[0])
+
+        return SingleObjectiveProblem(fitness_function=sc_fitness_fun, minimize=True, target=0.0)
+
     minimize_list = [goal.minimize for goal in goals for _ in range(goal.length)]
     if minimize_list:
 

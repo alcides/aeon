@@ -208,6 +208,36 @@ def allow_recursion(
     return fun, [], metadata
 
 
+def short_circuit(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Switch the fitness wrapper to short-circuit, single-objective mode.
+
+    Without this decorator, every Goal registered for the function is
+    evaluated for every candidate and the synthesizer drives them as a
+    multi-objective Pareto problem. With it, the wrapper iterates the
+    goals in order, stops on the first failure (non-zero / non-finite
+    score), and returns ``len(goals) - n_passed`` as a single fitness
+    value to minimise — 0 means every example passed.
+
+    Combines naturally with @csv_data, which emits one Goal per row.
+    With both:
+
+        @short_circuit
+        @csv_data("…rows…")
+        def f (a:Float) (b:Float) : Float = ?hole
+
+    candidates that throw or miss row 0 score worst (= ``len(rows)``);
+    candidates that pass all rows score 0. Useful when you want exact
+    correctness rather than approximate Pareto trade-offs.
+    """
+    assert len(decorator.macro_args) == 0
+    metadata = metadata_update(metadata, fun, {"short_circuit": True})
+    return fun, [], metadata
+
+
 def prompt(
     decorator: Decorator,
     fun: Definition,
