@@ -3,9 +3,21 @@ from __future__ import annotations
 
 import llvmlite.binding as llvm
 import llvmlite.ir as ir
-from typing import Any, Dict, Callable
+from typing import Any, Callable
 
-from aeon.llvm.cpu.converter import CPULLVMIRGenerator, VectorExecutor
+from aeon.llvm.cpu.converter import CPULLVMIRGenerator, VectorExecutor, LLVMIRGenerationError
+from aeon.llvm.cuda.plan import (
+    CudaCommonKernelName,
+    CudaKernelPlan,
+    CudaKernelPlanner,
+    CudaPlanAlgorithm,
+    count_map_kernel_name,
+    filter_mask_kernel_name,
+    filter_scatter_kernel_name,
+    reduce_copy_kernel_name,
+    reduce_finish_kernel_name,
+    reduce_step_kernel_name,
+)
 from aeon.llvm.llvm_ast import (
     LLVMFunction,
     LLVMFunctionType,
@@ -14,12 +26,14 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorIMap,
     LLVMVectorReduce,
     LLVMVectorZipWith,
+    LLVMVectorFilter,
     LLVMVectorCount,
     LLVMVoidType,
     LLVMVar,
     LLVMTerm,
     LLVMLet,
     LLVMVectorSize,
+    LLVMCast,
 )
 from aeon.llvm.utils import sanitize_name
 from aeon.utils.name import Name
@@ -53,17 +67,25 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         self.kernel_names: set[str] = set()
         self.fn_count = 0
         self.env: dict[str, Any] = {}
-        self.ast_env: dict[Name, LLVMTerm] = {}
+        self.ast_env: dict[str, LLVMTerm] = {}
         self.vector_op_depth = 0
+        self._vector_term_bindings: dict[str, LLVMTerm] = {}
+        self.kernel_plans: dict[str, CudaKernelPlan] = {}
         llvm.initialize_all_targets()
 
-    def generate_ir(self, definitions: list[LLVMTerm], initial_env: Dict[str, Any] = None) -> str:
+    def _temp_alloc(self, element_ty: ir.Type, count: ir.Value) -> ir.Value:
+        if not isinstance(count, ir.Constant) or int(count.constant) != 1:
+            raise LLVMIRGenerationError("device vector temp allocation is disabled")
+        return self.builder.alloca(element_ty, count, name="tmp_vec")
+
+    def generate_ir(self, definitions: list[LLVMTerm], initial_env: dict[str, Any] | None = None) -> str:
         self._reset_module()
+        self.kernel_plans = CudaKernelPlanner().build(definitions)
         if initial_env:
             self.env.update(initial_env)
         kernels: list[LLVMFunction] = [d for d in definitions if isinstance(d, LLVMFunction)]
         for k in kernels:
-            self.ast_env[k.name] = k
+            self.ast_env[sanitize_name(k.name)] = k
 
         all_called = set()
 
@@ -86,8 +108,22 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         for k, func in all_funcs:
             if sanitize_name(k.name) in self.kernel_names:
                 self._create_kernel_wrapper(k, func)
+                self._create_planned_count_kernels(k)
+                self._create_planned_reduce_kernels(k)
+                self._create_planned_filter_kernels(k)
+
+        self._create_common_tree_reduce_kernels()
+        self._create_common_scan_kernels()
 
         return str(self.module)
+
+    def _annotate_kernel(self, func: ir.Function) -> None:
+        try:
+            nvvm_annot = self.module.get_named_metadata("nvvm.annotations")
+        except KeyError:
+            nvvm_annot = self.module.add_named_metadata("nvvm.annotations")
+        md_node = self.module.add_metadata([func, "kernel", ir.Constant(ir.IntType(32), 1)])
+        nvvm_annot.add(md_node)
 
     def _create_kernel_wrapper(self, node: LLVMFunction, func: ir.Function) -> None:
         wrapper_name = f"{func.name}_kernel"
@@ -100,12 +136,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         f_ty = ir.FunctionType(ir.VoidType(), ir_arg_types)
         wrapper = ir.Function(self.module, f_ty, name=wrapper_name)
 
-        try:
-            nvvm_annot = self.module.get_named_metadata("nvvm.annotations")
-        except KeyError:
-            nvvm_annot = self.module.add_named_metadata("nvvm.annotations")
-        md_node = self.module.add_metadata([wrapper, "kernel", ir.Constant(ir.IntType(32), 1)])
-        nvvm_annot.add(md_node)
+        self._annotate_kernel(wrapper)
 
         builder = ir.IRBuilder(wrapper.append_basic_block(name="entry"))
         idx = self._get_cuda_id_in_builder(builder)
@@ -115,8 +146,8 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             out_ptr = orig_args.pop()
 
         if has_scalar_return:
-            res = builder.call(func, orig_args)
             with builder.if_then(builder.icmp_signed("==", idx, ir.Constant(ir.IntType(32), 0))):
+                res = builder.call(func, orig_args)
                 builder.store(res, out_ptr)
         else:
             size_val = None
@@ -128,6 +159,368 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
                     builder.call(func, orig_args)
             else:
                 builder.call(func, orig_args)
+        builder.ret_void()
+
+    def _find_count_with_bindings(
+        self, term: LLVMTerm, bindings: dict[str, LLVMTerm] | None = None
+    ) -> tuple[LLVMVectorCount, dict[str, LLVMTerm]] | None:
+        bindings = dict(bindings or {})
+        if isinstance(term, LLVMVectorCount):
+            return term, bindings
+        if isinstance(term, LLVMLet):
+            name = sanitize_name(term.var_name)
+            next_bindings = dict(bindings)
+            next_bindings[name] = term.var_value
+            return self._find_count_with_bindings(term.body, next_bindings) or self._find_count_with_bindings(
+                term.var_value, bindings
+            )
+        if isinstance(term, LLVMCast):
+            return self._find_count_with_bindings(term.val, bindings)
+        return None
+
+    def _resolve_bound_vector_term(self, term: LLVMTerm, bindings: dict[str, LLVMTerm]) -> LLVMTerm:
+        if isinstance(term, LLVMVar):
+            return bindings.get(sanitize_name(term.name), term)
+        if isinstance(term, LLVMCast):
+            return self._resolve_bound_vector_term(term.val, bindings)
+        return term
+
+    def _create_planned_count_kernels(self, node: LLVMFunction) -> None:
+        if not node.name:
+            return
+        fn_name = sanitize_name(node.name)
+        plan = self.kernel_plans.get(fn_name)
+        if plan is None or plan.algorithm != CudaPlanAlgorithm.COUNT_TREE_I32:
+            return
+        found = self._find_count_with_bindings(node.body)
+        if found is None:
+            return
+        count_node, bindings = found
+        source_term = self._resolve_bound_vector_term(count_node.v, bindings)
+        map_name = count_map_kernel_name(fn_name)
+        if map_name in self.module.globals:
+            return
+
+        f_ty = ir.FunctionType(
+            ir.VoidType(),
+            [self.to_ir_type(t) for t in node.arg_types] + [ir.PointerType(ir.IntType(32))],
+        )
+        kernel = ir.Function(self.module, f_ty, name=map_name)
+        self._annotate_kernel(kernel)
+
+        with self._push_scope():
+            self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+            self.env[fn_name] = kernel
+            for i, arg_name in enumerate(node.arg_names):
+                arg = kernel.args[i]
+                arg.name = sanitize_name(arg_name)
+                self.env[arg.name] = arg
+            flags_arg = kernel.args[-1]
+            flags_arg.name = "count_flags"
+
+            idx = self._get_global_id()
+            size_val = kernel.args[len(node.arg_types) - 1]
+            with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
+                if isinstance(source_term, LLVMVectorZipWith):
+                    v1_val = source_term.v1.accept(self)
+                    v2_val = source_term.v2.accept(self)
+                    left = self.builder.load(self.builder.gep(v1_val, [idx]))
+                    right = self.builder.load(self.builder.gep(v2_val, [idx]))
+                    value = self._inline_or_call(source_term.f, [left, right])
+                else:
+                    v_val = source_term.accept(self)
+                    value = self.builder.load(self.builder.gep(v_val, [idx]))
+
+                keep = self._inline_or_call(count_node.f, [value])
+                flag = self.builder.select(
+                    self._cast_if_needed(keep, ir.IntType(1)),
+                    ir.Constant(ir.IntType(32), 1),
+                    ir.Constant(ir.IntType(32), 0),
+                )
+                self.builder.store(flag, self.builder.gep(flags_arg, [idx]))
+
+            self.builder.ret_void()
+
+    def _find_reduce_with_bindings(
+        self, term: LLVMTerm, bindings: dict[str, LLVMTerm] | None = None
+    ) -> tuple[LLVMVectorReduce, dict[str, LLVMTerm]] | None:
+        bindings = dict(bindings or {})
+        if isinstance(term, LLVMVectorReduce):
+            return term, bindings
+        if isinstance(term, LLVMLet):
+            name = sanitize_name(term.var_name)
+            next_bindings = dict(bindings)
+            next_bindings[name] = term.var_value
+            return self._find_reduce_with_bindings(term.body, next_bindings) or self._find_reduce_with_bindings(
+                term.var_value, bindings
+            )
+        if isinstance(term, LLVMCast):
+            return self._find_reduce_with_bindings(term.val, bindings)
+        return None
+
+    def _create_planned_reduce_kernels(self, node: LLVMFunction) -> None:
+        if not node.name:
+            return
+        fn_name = sanitize_name(node.name)
+        plan = self.kernel_plans.get(fn_name)
+        if plan is None or plan.algorithm != CudaPlanAlgorithm.REDUCE_TREE:
+            return
+        found = self._find_reduce_with_bindings(node.body)
+        if found is None:
+            return
+        reduce_node, bindings = found
+        source_term = self._resolve_bound_vector_term(reduce_node.v, bindings)
+        acc_ty = self.to_ir_type(
+            reduce_node.type.element_type if isinstance(reduce_node.type, LLVMPointerType) else reduce_node.type
+        )
+        if isinstance(acc_ty, ir.VoidType):
+            acc_ty = ir.IntType(32)
+
+        copy_name = reduce_copy_kernel_name(fn_name)
+        if copy_name not in self.module.globals:
+            f_ty = ir.FunctionType(
+                ir.VoidType(), [self.to_ir_type(t) for t in node.arg_types] + [ir.PointerType(acc_ty)]
+            )
+            kernel = ir.Function(self.module, f_ty, name=copy_name)
+            self._annotate_kernel(kernel)
+            with self._push_scope():
+                self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+                for i, arg_name in enumerate(node.arg_names):
+                    arg = kernel.args[i]
+                    arg.name = sanitize_name(arg_name)
+                    self.env[arg.name] = arg
+                work_arg = kernel.args[-1]
+                work_arg.name = "reduce_work"
+                idx = self._get_global_id()
+                size_val = reduce_node.size.accept(self)
+                with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
+                    v_val = source_term.accept(self)
+                    src = self.builder.load(self.builder.gep(v_val, [idx]))
+                    self.builder.store(self._cast_if_needed(src, acc_ty), self.builder.gep(work_arg, [idx]))
+                self.builder.ret_void()
+
+        step_name = reduce_step_kernel_name(fn_name)
+        if step_name not in self.module.globals:
+            f_ty = ir.FunctionType(ir.VoidType(), [ir.PointerType(acc_ty), ir.PointerType(acc_ty), ir.IntType(32)])
+            kernel = ir.Function(self.module, f_ty, name=step_name)
+            self._annotate_kernel(kernel)
+            with self._push_scope():
+                self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+                src_arg, dst_arg, n_arg = kernel.args
+                idx = self._get_global_id()
+                out_n = self.builder.udiv(
+                    self.builder.add(n_arg, ir.Constant(ir.IntType(32), 1)), ir.Constant(ir.IntType(32), 2)
+                )
+                with self.builder.if_then(self.builder.icmp_signed("<", idx, out_n)):
+                    left_idx = self.builder.mul(idx, ir.Constant(ir.IntType(32), 2))
+                    right_idx = self.builder.add(left_idx, ir.Constant(ir.IntType(32), 1))
+                    left = self.builder.load(self.builder.gep(src_arg, [left_idx]))
+                    acc_ptr = self.builder.alloca(acc_ty, name="reduce_pair_acc")
+                    self.builder.store(left, acc_ptr)
+                    with self.builder.if_then(self.builder.icmp_signed("<", right_idx, n_arg)):
+                        right = self.builder.load(self.builder.gep(src_arg, [right_idx]))
+                        reduced = self._inline_or_call(reduce_node.f, [self.builder.load(acc_ptr), right])
+                        self.builder.store(self._cast_if_needed(reduced, acc_ty), acc_ptr)
+                    self.builder.store(self.builder.load(acc_ptr), self.builder.gep(dst_arg, [idx]))
+                self.builder.ret_void()
+
+        finish_name = reduce_finish_kernel_name(fn_name)
+        if finish_name not in self.module.globals:
+            f_ty = ir.FunctionType(
+                ir.VoidType(),
+                [self.to_ir_type(t) for t in node.arg_types] + [ir.PointerType(acc_ty), ir.PointerType(acc_ty)],
+            )
+            kernel = ir.Function(self.module, f_ty, name=finish_name)
+            self._annotate_kernel(kernel)
+            with self._push_scope():
+                self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+                for i, arg_name in enumerate(node.arg_names):
+                    arg = kernel.args[i]
+                    arg.name = sanitize_name(arg_name)
+                    self.env[arg.name] = arg
+                src_arg = kernel.args[-2]
+                out_arg = kernel.args[-1]
+                idx = self._get_global_id()
+                size_val = reduce_node.size.accept(self)
+                init_val = reduce_node.initial.accept(self)
+                with self.builder.if_then(self.builder.icmp_signed("==", idx, ir.Constant(ir.IntType(32), 0))):
+                    acc_ptr = self.builder.alloca(acc_ty, name="reduce_final_acc")
+                    self.builder.store(self._cast_if_needed(init_val, acc_ty), acc_ptr)
+                    with self.builder.if_then(self.builder.icmp_signed(">", size_val, ir.Constant(ir.IntType(32), 0))):
+                        tree_val = self.builder.load(self.builder.gep(src_arg, [ir.Constant(ir.IntType(32), 0)]))
+                        final_val = self._inline_or_call(reduce_node.f, [self.builder.load(acc_ptr), tree_val])
+                        self.builder.store(self._cast_if_needed(final_val, acc_ty), acc_ptr)
+                    self.builder.store(
+                        self.builder.load(acc_ptr), self.builder.gep(out_arg, [ir.Constant(ir.IntType(32), 0)])
+                    )
+                self.builder.ret_void()
+
+    def _find_filter_with_bindings(
+        self, term: LLVMTerm, bindings: dict[str, LLVMTerm] | None = None
+    ) -> tuple[LLVMVectorFilter, dict[str, LLVMTerm]] | None:
+        bindings = dict(bindings or {})
+        if isinstance(term, LLVMVectorFilter):
+            return term, bindings
+        if isinstance(term, LLVMLet):
+            name = sanitize_name(term.var_name)
+            next_bindings = dict(bindings)
+            next_bindings[name] = term.var_value
+            return self._find_filter_with_bindings(term.body, next_bindings) or self._find_filter_with_bindings(
+                term.var_value, bindings
+            )
+        if isinstance(term, LLVMCast):
+            return self._find_filter_with_bindings(term.val, bindings)
+        return None
+
+    def _create_planned_filter_kernels(self, node: LLVMFunction) -> None:
+        if not node.name:
+            return
+        fn_name = sanitize_name(node.name)
+        plan = self.kernel_plans.get(fn_name)
+        if plan is None or plan.algorithm not in {
+            CudaPlanAlgorithm.FILTER_COMPACT,
+            CudaPlanAlgorithm.FILTER_SIZE_SCAN,
+        }:
+            return
+        found = self._find_filter_with_bindings(node.body)
+        if found is None:
+            return
+        filter_node, bindings = found
+        source_term = self._resolve_bound_vector_term(filter_node.v, bindings)
+        out_ty = self.to_ir_type(
+            filter_node.type.element_type if isinstance(filter_node.type, LLVMPointerType) else filter_node.type
+        )
+        if isinstance(out_ty, ir.VoidType):
+            out_ty = ir.IntType(32)
+
+        mask_name = filter_mask_kernel_name(fn_name)
+        if mask_name not in self.module.globals:
+            f_ty = ir.FunctionType(
+                ir.VoidType(),
+                [self.to_ir_type(t) for t in node.arg_types] + [ir.PointerType(ir.IntType(32))],
+            )
+            kernel = ir.Function(self.module, f_ty, name=mask_name)
+            self._annotate_kernel(kernel)
+            with self._push_scope():
+                self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+                for i, arg_name in enumerate(node.arg_names):
+                    arg = kernel.args[i]
+                    arg.name = sanitize_name(arg_name)
+                    self.env[arg.name] = arg
+                mask_arg = kernel.args[-1]
+                idx = self._get_global_id()
+                size_val = filter_node.size.accept(self)
+                with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
+                    v_val = source_term.accept(self)
+                    val = self.builder.load(self.builder.gep(v_val, [idx]))
+                    keep = self._inline_or_call(filter_node.f, [val])
+                    mask = self.builder.select(
+                        self._cast_if_needed(keep, ir.IntType(1)),
+                        ir.Constant(ir.IntType(32), 1),
+                        ir.Constant(ir.IntType(32), 0),
+                    )
+                    self.builder.store(mask, self.builder.gep(mask_arg, [idx]))
+                self.builder.ret_void()
+
+        if plan.algorithm == CudaPlanAlgorithm.FILTER_SIZE_SCAN:
+            return
+
+        scatter_name = filter_scatter_kernel_name(fn_name)
+        if scatter_name not in self.module.globals:
+            f_ty = ir.FunctionType(
+                ir.VoidType(),
+                [self.to_ir_type(t) for t in node.arg_types]
+                + [ir.PointerType(ir.IntType(32)), ir.PointerType(ir.IntType(32)), ir.PointerType(out_ty)],
+            )
+            kernel = ir.Function(self.module, f_ty, name=scatter_name)
+            self._annotate_kernel(kernel)
+            with self._push_scope():
+                self.builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+                for i, arg_name in enumerate(node.arg_names):
+                    arg = kernel.args[i]
+                    arg.name = sanitize_name(arg_name)
+                    self.env[arg.name] = arg
+                scan_arg = kernel.args[-3]
+                mask_arg = kernel.args[-2]
+                out_arg = kernel.args[-1]
+                idx = self._get_global_id()
+                size_val = filter_node.size.accept(self)
+                with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
+                    mask = self.builder.load(self.builder.gep(mask_arg, [idx]))
+                    with self.builder.if_then(self.builder.icmp_signed("!=", mask, ir.Constant(ir.IntType(32), 0))):
+                        v_val = source_term.accept(self)
+                        val = self.builder.load(self.builder.gep(v_val, [idx]))
+                        inclusive_pos = self.builder.load(self.builder.gep(scan_arg, [idx]))
+                        out_idx = self.builder.sub(inclusive_pos, ir.Constant(ir.IntType(32), 1))
+                        self.builder.store(self._cast_if_needed(val, out_ty), self.builder.gep(out_arg, [out_idx]))
+                self.builder.ret_void()
+
+    def _create_common_tree_reduce_kernels(self) -> None:
+        i32 = ir.IntType(32)
+        if CudaCommonKernelName.REDUCE_I32_STEP.value not in self.module.globals:
+            f_ty = ir.FunctionType(ir.VoidType(), [ir.PointerType(i32), ir.PointerType(i32), i32])
+            kernel = ir.Function(self.module, f_ty, name=CudaCommonKernelName.REDUCE_I32_STEP.value)
+            self._annotate_kernel(kernel)
+            builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+            src, dst, n = kernel.args
+            idx = self._get_cuda_id_in_builder(builder)
+            out_n = builder.udiv(builder.add(n, ir.Constant(i32, 1)), ir.Constant(i32, 2))
+            with builder.if_then(builder.icmp_signed("<", idx, out_n)):
+                left_idx = builder.mul(idx, ir.Constant(i32, 2))
+                right_idx = builder.add(left_idx, ir.Constant(i32, 1))
+                acc_ptr = builder.alloca(i32, name="reduce_pair_acc")
+                builder.store(builder.load(builder.gep(src, [left_idx])), acc_ptr)
+                has_right = builder.icmp_signed("<", right_idx, n)
+                with builder.if_then(has_right):
+                    right = builder.load(builder.gep(src, [right_idx]))
+                    builder.store(builder.add(builder.load(acc_ptr), right), acc_ptr)
+                builder.store(builder.load(acc_ptr), builder.gep(dst, [idx]))
+            builder.ret_void()
+
+        if CudaCommonKernelName.STORE_I32_RESULT.value not in self.module.globals:
+            f_ty = ir.FunctionType(ir.VoidType(), [ir.PointerType(i32), ir.PointerType(i32)])
+            kernel = ir.Function(self.module, f_ty, name=CudaCommonKernelName.STORE_I32_RESULT.value)
+            self._annotate_kernel(kernel)
+            builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+            src, out = kernel.args
+            idx = self._get_cuda_id_in_builder(builder)
+            with builder.if_then(builder.icmp_signed("==", idx, ir.Constant(i32, 0))):
+                builder.store(builder.load(builder.gep(src, [ir.Constant(i32, 0)])), out)
+            builder.ret_void()
+
+        if CudaCommonKernelName.STORE_I32_LAST.value not in self.module.globals:
+            f_ty = ir.FunctionType(ir.VoidType(), [ir.PointerType(i32), ir.PointerType(i32), i32])
+            kernel = ir.Function(self.module, f_ty, name=CudaCommonKernelName.STORE_I32_LAST.value)
+            self._annotate_kernel(kernel)
+            builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+            src, out, n = kernel.args
+            idx = self._get_cuda_id_in_builder(builder)
+            with builder.if_then(builder.icmp_signed("==", idx, ir.Constant(i32, 0))):
+                with builder.if_else(builder.icmp_signed(">", n, ir.Constant(i32, 0))) as (nonempty, empty):
+                    with nonempty:
+                        last_idx = builder.sub(n, ir.Constant(i32, 1))
+                        builder.store(builder.load(builder.gep(src, [last_idx])), out)
+                    with empty:
+                        builder.store(ir.Constant(i32, 0), out)
+            builder.ret_void()
+
+    def _create_common_scan_kernels(self) -> None:
+        i32 = ir.IntType(32)
+        if CudaCommonKernelName.SCAN_I32_INCLUSIVE_STEP.value in self.module.globals:
+            return
+        f_ty = ir.FunctionType(ir.VoidType(), [ir.PointerType(i32), ir.PointerType(i32), i32, i32])
+        kernel = ir.Function(self.module, f_ty, name=CudaCommonKernelName.SCAN_I32_INCLUSIVE_STEP.value)
+        self._annotate_kernel(kernel)
+        builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+        src, dst, n, offset = kernel.args
+        idx = self._get_cuda_id_in_builder(builder)
+        with builder.if_then(builder.icmp_signed("<", idx, n)):
+            val_ptr = builder.alloca(i32, name="scan_step_val")
+            builder.store(builder.load(builder.gep(src, [idx])), val_ptr)
+            with builder.if_then(builder.icmp_signed(">=", idx, offset)):
+                prev_idx = builder.sub(idx, offset)
+                builder.store(builder.add(builder.load(val_ptr), builder.load(builder.gep(src, [prev_idx]))), val_ptr)
+            builder.store(builder.load(val_ptr), builder.gep(dst, [idx]))
         builder.ret_void()
 
     def visit_function(self, node: LLVMFunction) -> ir.Function:
@@ -156,7 +549,27 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
                 self.env[name] = func.args[i]
 
             self._is_top_level = False
-            ret_val = node.body.accept(self)
+            plan = self.kernel_plans.get(func_name)
+            if plan is not None and plan.algorithm in {
+                CudaPlanAlgorithm.REDUCE_TREE,
+                CudaPlanAlgorithm.FILTER_COMPACT,
+                CudaPlanAlgorithm.FILTER_SIZE_SCAN,
+            }:
+                if isinstance(func.function_type.return_type, ir.PointerType):
+                    ret_val = ir.Constant(func.function_type.return_type, None)
+                elif isinstance(func.function_type.return_type, ir.VoidType):
+                    ret_val = None
+                else:
+                    ret_val = ir.Constant(func.function_type.return_type, 0)
+            else:
+                force_loop_mode = not isinstance(node.type.return_type, (LLVMVoidType, LLVMPointerType))
+                if force_loop_mode:
+                    self.vector_op_depth += 1
+                try:
+                    ret_val = node.body.accept(self)
+                finally:
+                    if force_loop_mode:
+                        self.vector_op_depth -= 1
 
             if not self.builder.block.is_terminated:
                 if isinstance(func.function_type.return_type, ir.VoidType):
@@ -183,19 +596,27 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def _resolve_actual_f(self, f_node: LLVMTerm) -> LLVMTerm:
         if isinstance(f_node, LLVMVar):
-            if f_node.name in self.ast_env:
-                return self.ast_env[f_node.name]
+            name = sanitize_name(f_node.name)
+            if name in self.ast_env:
+                return self.ast_env[name]
             for key, val in self.ast_env.items():
-                if key.name == f_node.name.name:
+                if key == f_node.name.name:
                     return val
         return f_node
 
     def _inline_or_call(self, f_node: LLVMTerm, args: list[ir.Value]) -> ir.Value:
+        if isinstance(f_node, LLVMVar):
+            func_name = sanitize_name(f_node.name)
+            target = self.env.get(func_name) or self.module.globals.get(func_name)
+            if isinstance(target, ir.Function):
+                cast_args = [self._cast_if_needed(arg, ty) for arg, ty in zip(args, target.function_type.args)]
+                return self.builder.call(target, cast_args)
+
         actual_f = self._resolve_actual_f(f_node)
         if isinstance(actual_f, LLVMFunction):
             with self._push_scope():
-                for name, val in zip(actual_f.arg_names, args):
-                    self.env[sanitize_name(name)] = val
+                for name, declared_ty, val in zip(actual_f.arg_names, actual_f.arg_types, args):
+                    self.env[sanitize_name(name)] = self._cast_if_needed(val, self.to_ir_type(declared_ty))
                 return actual_f.body.accept(self)
 
         target_func = f_node.accept(self)
@@ -236,20 +657,61 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
         v1, v2, size = node.v1.accept(self), node.v2.accept(self), node.size.accept(self)
+        if isinstance(v1.type, ir.PointerType):
+            in_ty = v1.type.pointee
+            out_ty = self.to_ir_type(node.type.element_type if isinstance(node.type, LLVMPointerType) else node.type)
+            if in_ty != out_ty:
+                raise LLVMIRGenerationError("type-changing CUDA zipWith is unsupported")
+        out_v = v1
 
         def body(idx):
             self._is_top_level = False
-            ptr = self.builder.gep(v1, [idx])
-            v1_val, v2_val = self.builder.load(ptr), self.builder.load(self.builder.gep(v2, [idx]))
+            v1_val = self.builder.load(self.builder.gep(v1, [idx]))
+            v2_val = self.builder.load(self.builder.gep(v2, [idx]))
             res = self._inline_or_call(node.f, [v1_val, v2_val])
             if res is not None and not isinstance(res.type, ir.VoidType):
-                self.builder.store(self._cast_if_needed(res, ptr.type.pointee), ptr)
+                out_ptr = self.builder.gep(out_v, [idx])
+                self.builder.store(self._cast_if_needed(res, out_ptr.type.pointee), out_ptr)
 
         self.vector_executor.execute(size, "vector_zipwith", body)
-        return v1
+        return out_v
 
     def visit_vector_count(self, node: LLVMVectorCount) -> ir.Value:
-        v_val, size_val = node.v.accept(self), node.size.accept(self)
+        size_val = node.size.accept(self)
+
+        zip_node: LLVMVectorZipWith | None = None
+        if isinstance(node.v, LLVMVectorZipWith):
+            zip_node = node.v
+        elif isinstance(node.v, LLVMCast) and isinstance(node.v.val, LLVMVectorZipWith):
+            zip_node = node.v.val
+        elif isinstance(node.v, LLVMVar):
+            bound = self._vector_term_bindings.get(sanitize_name(node.v.name))
+            if isinstance(bound, LLVMVectorZipWith):
+                zip_node = bound
+            elif isinstance(bound, LLVMCast) and isinstance(bound.val, LLVMVectorZipWith):
+                zip_node = bound.val
+
+        if zip_node is not None:
+            v1_val = zip_node.v1.accept(self)
+            v2_val = zip_node.v2.accept(self)
+
+            count_ptr = self.builder.alloca(ir.IntType(32), name="count_res")
+            self.builder.store(ir.Constant(ir.IntType(32), 0), count_ptr)
+
+            def body(idx):
+                self._is_top_level = False
+                v1_elem = self.builder.load(self.builder.gep(v1_val, [idx]))
+                v2_elem = self.builder.load(self.builder.gep(v2_val, [idx]))
+                zipped = self._inline_or_call(zip_node.f, [v1_elem, v2_elem])
+                is_match = self._inline_or_call(node.f, [zipped])
+                with self.builder.if_then(self._cast_if_needed(is_match, ir.IntType(1))):
+                    curr = self.builder.load(count_ptr)
+                    self.builder.store(self.builder.add(curr, ir.Constant(ir.IntType(32), 1)), count_ptr)
+
+            self.to_ir_loop(size_val, "count_zipwith_fused", body)
+            return self.builder.load(count_ptr)
+
+        v_val = node.v.accept(self)
 
         if self.vector_op_depth > 0:
             count_ptr = self.builder.alloca(ir.IntType(32), name="count_res")
@@ -286,9 +748,68 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
 
     def visit_let(self, node: LLVMLet) -> ir.Value | None:
         if isinstance(node.var_value, LLVMFunction):
-            self.ast_env[node.var_name] = node.var_value
+            self.ast_env[sanitize_name(node.var_name)] = node.var_value
             return node.body.accept(self)
-        return super().visit_let(node)
+
+        def uses_fused_count_var(term: LLVMTerm, var_name: str) -> bool:
+            if isinstance(term, LLVMVectorCount):
+                body_v = term.v
+                if isinstance(body_v, LLVMVar):
+                    return sanitize_name(body_v.name) == var_name
+                if isinstance(body_v, LLVMCast) and isinstance(body_v.val, LLVMVar):
+                    return sanitize_name(body_v.val.name) == var_name
+                return False
+            if isinstance(term, LLVMLet):
+                return uses_fused_count_var(term.var_value, var_name) or uses_fused_count_var(term.body, var_name)
+            if isinstance(term, LLVMCast):
+                return uses_fused_count_var(term.val, var_name)
+            return False
+
+        def uses_filter_size_var(term: LLVMTerm, var_name: str) -> bool:
+            if isinstance(term, LLVMVectorSize):
+                body_v = term.v
+                if isinstance(body_v, LLVMVar):
+                    return sanitize_name(body_v.name) == var_name
+                if isinstance(body_v, LLVMCast) and isinstance(body_v.val, LLVMVar):
+                    return sanitize_name(body_v.val.name) == var_name
+                return False
+            if isinstance(term, LLVMLet):
+                return uses_filter_size_var(term.var_value, var_name) or uses_filter_size_var(term.body, var_name)
+            if isinstance(term, LLVMCast):
+                return uses_filter_size_var(term.val, var_name)
+            return False
+
+        binding_name = sanitize_name(node.var_name)
+        if isinstance(node.var_value, LLVMVectorZipWith) and uses_fused_count_var(node.body, binding_name):
+            previous_binding = self._vector_term_bindings.get(binding_name)
+            self._vector_term_bindings[binding_name] = node.var_value
+            try:
+                return node.body.accept(self)
+            finally:
+                if previous_binding is None:
+                    self._vector_term_bindings.pop(binding_name, None)
+                else:
+                    self._vector_term_bindings[binding_name] = previous_binding
+        if isinstance(node.var_value, LLVMVectorFilter) and uses_filter_size_var(node.body, binding_name):
+            previous_binding = self._vector_term_bindings.get(binding_name)
+            self._vector_term_bindings[binding_name] = node.var_value
+            try:
+                return node.body.accept(self)
+            finally:
+                if previous_binding is None:
+                    self._vector_term_bindings.pop(binding_name, None)
+                else:
+                    self._vector_term_bindings[binding_name] = previous_binding
+
+        previous_binding = self._vector_term_bindings.get(binding_name)
+        self._vector_term_bindings[binding_name] = node.var_value
+        try:
+            return super().visit_let(node)
+        finally:
+            if previous_binding is None:
+                self._vector_term_bindings.pop(binding_name, None)
+            else:
+                self._vector_term_bindings[binding_name] = previous_binding
 
     def _get_cuda_intrinsic_in_builder(self, builder: ir.IRBuilder, name: str) -> ir.Function:
         intrinsic_map = {
@@ -307,11 +828,181 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         ]
         return builder.add(t, builder.mul(c, n))
 
+    def _get_cuda_barrier_in_builder(self, builder: ir.IRBuilder) -> ir.Function:
+        name = "llvm.nvvm.barrier0"
+        if name in self.module.globals:
+            return self.module.globals[name]
+        return ir.Function(self.module, ir.FunctionType(ir.VoidType(), []), name=name)
+
     def _get_global_id(self) -> ir.Value:
         return self._get_cuda_id_in_builder(self.builder)
 
+    def visit_vector_filter(self, node: LLVMVectorFilter) -> ir.Value:
+        res_ty, v, size = node.type, node.v, node.size
+        self._is_top_level = False
+        v_val, size_val = v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
+        res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
+        if isinstance(res_base_ty, ir.VoidType):
+            res_base_ty = ir.IntType(32)
+
+        new_v = self._temp_alloc(res_base_ty, size_val)
+
+        if self.vector_op_depth > 0:
+            i32 = ir.IntType(32)
+            one = ir.Constant(i32, 1)
+            zero = ir.Constant(i32, 0)
+            mask_v = self._temp_alloc(i32, size_val)
+
+            def mask_body(idx):
+                val = self.builder.load(self.builder.gep(v_val, [idx]))
+                keep = self._inline_or_call(node.f, [val])
+                mask = self.builder.select(self._cast_if_needed(keep, ir.IntType(1)), one, zero)
+                self.builder.store(mask, self.builder.gep(mask_v, [idx]))
+
+            self.to_ir_loop(size_val, "filter_mask", mask_body)
+
+            scan_acc = self.builder.alloca(i32, name="filter_scan_acc")
+            self.builder.store(zero, scan_acc)
+
+            def scan_body(idx):
+                curr = self.builder.load(self.builder.gep(mask_v, [idx]))
+                acc = self.builder.load(scan_acc)
+                self.builder.store(acc, self.builder.gep(mask_v, [idx]))
+                self.builder.store(self.builder.add(acc, curr), scan_acc)
+
+            self.to_ir_loop(size_val, "filter_scan", scan_body)
+
+            def scatter_body(idx):
+                val = self.builder.load(self.builder.gep(v_val, [idx]))
+                keep = self._inline_or_call(node.f, [val])
+                with self.builder.if_then(self._cast_if_needed(keep, ir.IntType(1))):
+                    out_idx = self.builder.load(self.builder.gep(mask_v, [idx]))
+                    self.builder.store(self._cast_if_needed(val, res_base_ty), self.builder.gep(new_v, [out_idx]))
+
+            self.to_ir_loop(size_val, "filter_scatter", scatter_body)
+            return new_v
+
+        idx = self._get_global_id()
+        out_count = self.builder.alloca(ir.IntType(32), name="filter_out_count")
+        with self.builder.if_then(self.builder.icmp_signed("==", idx, ir.Constant(ir.IntType(32), 0))):
+            self.builder.store(ir.Constant(ir.IntType(32), 0), out_count)
+
+        self.builder.call(self._get_cuda_barrier_in_builder(self.builder), [])
+
+        with self.builder.if_then(self.builder.icmp_signed("<", idx, size_val)):
+            val = self.builder.load(self.builder.gep(v_val, [idx]))
+            keep = self._inline_or_call(node.f, [val])
+            with self.builder.if_then(self._cast_if_needed(keep, ir.IntType(1))):
+                out_idx = self.builder.atomic_rmw("add", out_count, ir.Constant(ir.IntType(32), 1), "monotonic")
+                self.builder.store(self._cast_if_needed(val, res_base_ty), self.builder.gep(new_v, [out_idx]))
+
+        self.builder.call(self._get_cuda_barrier_in_builder(self.builder), [])
+        return new_v
+
     def visit_vector_reduce(self, node: LLVMVectorReduce) -> ir.Value:
-        return super().visit_vector_reduce(node)
+        ty, f, initial, v, size = node.type, node.f, node.initial, node.v, node.size
+        self._is_top_level = False
+        f_val, init_val, v_val, size_val = f.accept(self), initial.accept(self), v.accept(self), size.accept(self)
+
+        size_ty = size_val.type
+        if isinstance(size_ty, ir.PointerType) and isinstance(size_ty.pointee, ir.FunctionType):
+            size_val = self.builder.call(size_val, [self.builder.bitcast(v_val, ir.PointerType(ir.IntType(8)))])
+
+        acc_ty = self.to_ir_type(ty.element_type if isinstance(ty, LLVMPointerType) else ty)
+        if isinstance(acc_ty, ir.VoidType):
+            acc_ty = ir.IntType(32)
+
+        work_v = self._temp_alloc(acc_ty, size_val)
+
+        def copy_body(idx):
+            src_val = self.builder.load(self.builder.gep(v_val, [idx]))
+            self.builder.store(self._cast_if_needed(src_val, acc_ty), self.builder.gep(work_v, [idx]))
+
+        self.to_ir_loop(size_val, "reduce_copy", copy_body)
+
+        curr_size_ptr = self.builder.alloca(ir.IntType(32), name="reduce_curr_size")
+        self.builder.store(self._cast_if_needed(size_val, ir.IntType(32)), curr_size_ptr)
+
+        cond_bb = self.builder.append_basic_block("reduce_tree_cond")
+        body_bb = self.builder.append_basic_block("reduce_tree_body")
+        end_bb = self.builder.append_basic_block("reduce_tree_end")
+        self.builder.branch(cond_bb)
+
+        self.builder.position_at_end(cond_bb)
+        curr_size = self.builder.load(curr_size_ptr)
+        has_more = self.builder.icmp_signed(">", curr_size, ir.Constant(ir.IntType(32), 1))
+        self.builder.cbranch(has_more, body_bb, end_bb)
+
+        self.builder.position_at_end(body_bb)
+        pair_count = self.builder.udiv(curr_size, ir.Constant(ir.IntType(32), 2))
+        has_odd = self.builder.and_(curr_size, ir.Constant(ir.IntType(32), 1))
+
+        def pair_reduce_body(idx):
+            left_idx = self.builder.mul(idx, ir.Constant(ir.IntType(32), 2))
+            right_idx = self.builder.add(left_idx, ir.Constant(ir.IntType(32), 1))
+            left = self.builder.load(self.builder.gep(work_v, [left_idx]))
+            right = self.builder.load(self.builder.gep(work_v, [right_idx]))
+            reduced = self.builder.call(f_val, [left, right])
+            self.builder.store(self._cast_if_needed(reduced, acc_ty), self.builder.gep(work_v, [idx]))
+
+        self.to_ir_loop(pair_count, "reduce_tree_pairs", pair_reduce_body)
+
+        with self.builder.if_then(self.builder.icmp_signed("==", has_odd, ir.Constant(ir.IntType(32), 1))):
+            last_idx = self.builder.sub(curr_size, ir.Constant(ir.IntType(32), 1))
+            last_val = self.builder.load(self.builder.gep(work_v, [last_idx]))
+            self.builder.store(last_val, self.builder.gep(work_v, [pair_count]))
+
+        next_size = self.builder.add(pair_count, has_odd)
+        self.builder.store(next_size, curr_size_ptr)
+        self.builder.branch(cond_bb)
+
+        self.builder.position_at_end(end_bb)
+        is_empty = self.builder.icmp_signed("==", self.builder.load(curr_size_ptr), ir.Constant(ir.IntType(32), 0))
+        acc_ptr = self.builder.alloca(acc_ty, name="reduce_acc")
+        with self.builder.if_else(is_empty) as (then_empty, else_nonempty):
+            with then_empty:
+                self.builder.store(self._cast_if_needed(init_val, acc_ty), acc_ptr)
+            with else_nonempty:
+                tree_res = self.builder.load(self.builder.gep(work_v, [ir.Constant(ir.IntType(32), 0)]))
+                folded = self.builder.call(f_val, [self._cast_if_needed(init_val, acc_ty), tree_res])
+                self.builder.store(self._cast_if_needed(folded, acc_ty), acc_ptr)
+
+        new_v = self._temp_alloc(acc_ty, ir.Constant(ir.IntType(32), 1))
+        self.builder.store(self.builder.load(acc_ptr), self.builder.gep(new_v, [ir.Constant(ir.IntType(32), 0)]))
+        return new_v
 
     def visit_vector_size(self, node: LLVMVectorSize) -> ir.Value:
-        return ir.Constant(ir.IntType(32), 0)
+        filter_node: LLVMVectorFilter | None = None
+        if isinstance(node.v, LLVMVectorFilter):
+            filter_node = node.v
+        elif isinstance(node.v, LLVMCast) and isinstance(node.v.val, LLVMVectorFilter):
+            filter_node = node.v.val
+        elif isinstance(node.v, LLVMVar):
+            bound = self._vector_term_bindings.get(sanitize_name(node.v.name))
+            if isinstance(bound, LLVMVectorFilter):
+                filter_node = bound
+            elif isinstance(bound, LLVMCast) and isinstance(bound.val, LLVMVectorFilter):
+                filter_node = bound.val
+
+        if filter_node is not None:
+            v_val = filter_node.v.accept(self)
+            size_val = filter_node.size.accept(self)
+            count_ptr = self.builder.alloca(ir.IntType(32), name="filter_size_res")
+            self.builder.store(ir.Constant(ir.IntType(32), 0), count_ptr)
+
+            def body(idx):
+                val = self.builder.load(self.builder.gep(v_val, [idx]))
+                keep = self._inline_or_call(filter_node.f, [val])
+                with self.builder.if_then(self._cast_if_needed(keep, ir.IntType(1))):
+                    curr = self.builder.load(count_ptr)
+                    self.builder.store(self.builder.add(curr, ir.Constant(ir.IntType(32), 1)), count_ptr)
+
+            self.to_ir_loop(size_val, "filter_size_count", body)
+            return self.builder.load(count_ptr)
+
+        raise LLVMIRGenerationError("unsupported CUDA vector size")
