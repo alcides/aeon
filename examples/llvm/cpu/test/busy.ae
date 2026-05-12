@@ -1,11 +1,13 @@
 open Vector
 
-@gpu(llvm_ir=true)
-def multiply_by_ten (v:(Vector Int)) (size:Int) : (Vector Int) =
-    Vector.map[Int][Int] (\x:Int -> x * 10) v size;
+@cpu
+def multiply_by_ten_get (v:(Vector Int)) (size:Int) (idx:Int) : Int =
+    let res : (Vector Int) = Vector.map[Int][Int] (\x:Int -> (x + 1) * 10) v size;
+    Vector.get[Int] res idx;
 
 def main (args:Int) : Unit =
-    let size : Int = 1000000 in
-    let v : (Vector Int) = native "[1] * size" in
-    let res : (Vector Int) = multiply_by_ten v size in
-    print (Vector.get[Int] res 1);
+    let size : Int = 1000000;
+    let v : (Vector Int) = Vector.new size;
+    let out : Int = multiply_by_ten_get v size 1;
+    let _ : Unit = print out;
+    Vector.free[Int] v;

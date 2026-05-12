@@ -1,4 +1,4 @@
 @cpu
-def gpu_sum (a:Int) (b:Int) : Int = a + b;
+def cpu_sum (a:Int) (b:Int) : Int = a + b;
 
-def main (args:Int) : Unit = print (gpu_sum 5 7);
+def main (args:Int) : Unit = print (cpu_sum 5 7);
