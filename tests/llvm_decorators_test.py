@@ -26,14 +26,7 @@ def test_gpu_decorator_defaults():
     assert len(gpu_funcs) == 1
 
     max_meta = metadata[gpu_funcs[0]]
-    assert max_meta["gpu_device"] == "cuda"
-    assert max_meta["gpu_target"] == ""
-    assert max_meta["gpu_opt_level"] == 3
-    assert max_meta["gpu_log_ir"] is False
-    assert max_meta["gpu_debug"] is False
-    assert max_meta["gpu_cache"] is False
-    assert max_meta["gpu_block_size"] == 32
-    assert max_meta["gpu_thread_count"] == 128
+    assert max_meta == {"gpu": True}
 
 
 def test_gpu_decorator_with_args():
@@ -48,13 +41,11 @@ def test_gpu_decorator_with_args():
 
     max_meta = metadata[gpu_funcs[0]]
     assert max_meta["gpu_device"] == "cuda"
-    assert max_meta["gpu_target"] == "sm_60"
+    assert max_meta["gpu_arch"] == "sm_60"
     assert max_meta["gpu_opt_level"] == 2
-    assert max_meta["gpu_log_ir"] is True
     assert max_meta["gpu_debug"] is True
-    assert max_meta["gpu_cache"] is True
     assert max_meta["gpu_block_size"] == 256
-    assert max_meta["gpu_thread_count"] == 128
+    assert "gpu_thread_count" not in max_meta
 
 
 def test_cpu_decorator_defaults():
@@ -68,15 +59,21 @@ def test_cpu_decorator_defaults():
     assert len(cpu_funcs) == 1
 
     max_meta = metadata[cpu_funcs[0]]
-    assert max_meta["cpu_opt_level"] == 3
-    assert max_meta["cpu_log_ir"] is False
-    assert max_meta["cpu_debug"] is False
-    assert max_meta["cpu_cache"] is False
+    assert max_meta == {"cpu": True}
 
 
 def test_gpu_decorator_with_named_args():
     source = r"""
-    @gpu(device="cuda", target="sm_60", opt_level=2, log_ir=true, debug=true, cache=true, block_size=256, thread_count=128)
+    @gpu(
+        device="cuda",
+        target="sm_60",
+        opt_level=2,
+        log_ir=true,
+        debug=true,
+        cache=true,
+        block_size=256,
+        thread_count=128
+    )
     def max(a:Int) (b:Int) : Int = if a > b then a else b;
     def main (x:Int) : Int = max 1 2;
     """
@@ -86,13 +83,11 @@ def test_gpu_decorator_with_named_args():
 
     max_meta = metadata[gpu_funcs[0]]
     assert max_meta["gpu_device"] == "cuda"
-    assert max_meta["gpu_target"] == "sm_60"
+    assert max_meta["gpu_arch"] == "sm_60"
     assert max_meta["gpu_opt_level"] == 2
-    assert max_meta["gpu_log_ir"] is True
     assert max_meta["gpu_debug"] is True
-    assert max_meta["gpu_cache"] is True
     assert max_meta["gpu_block_size"] == 256
-    assert max_meta["gpu_thread_count"] == 128
+    assert "gpu_thread_count" not in max_meta
 
 
 def test_cpu_decorator_with_named_args():
@@ -107,9 +102,9 @@ def test_cpu_decorator_with_named_args():
 
     max_meta = metadata[cpu_funcs[0]]
     assert max_meta["cpu_opt_level"] == 1
-    assert max_meta["cpu_log_ir"] is True
-    assert max_meta["cpu_debug"] is True
-    assert max_meta["cpu_cache"] is True
+    assert "cpu_log_ir" not in max_meta
+    assert "cpu_debug" not in max_meta
+    assert "cpu_cache" not in max_meta
 
 
 def test_core_queue_cleared_after_typecheck():

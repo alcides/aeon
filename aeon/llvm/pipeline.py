@@ -5,6 +5,7 @@ from typing import Any, Dict
 from loguru import logger
 
 from aeon.core.terms import Term, Let, Rec
+from aeon.llvm.constants import LLVMBackendName, LLVMMetadataKey, metadata_get
 from aeon.llvm.core import LLVMPipeline, Backend, LLVMBackendError
 from aeon.llvm.llvm_ast import LLVMFunction, LLVMTerm
 from aeon.llvm.utils import sanitize_name, to_llvm_type
@@ -26,7 +27,10 @@ class MultiBackendPipeline(LLVMPipeline):
         self.disabled_backends: set[str] = set()
         self.debug = debug
 
-        self.register_backend("cpu", Backend(CPULLVMExecutionEngine(), CPULLVMIRGenerator(), CPULLVMLowerer()))
+        self.register_backend(
+            LLVMBackendName.CPU.value,
+            Backend(CPULLVMExecutionEngine(), CPULLVMIRGenerator(), CPULLVMLowerer()),
+        )
         self.cuda_initialized = False
 
     def _initialize_cuda_backend(self):
@@ -37,10 +41,10 @@ class MultiBackendPipeline(LLVMPipeline):
                 from aeon.llvm.cuda.executor import CUDALLVMExecutionEngine
 
                 cuda_backend = Backend(CUDALLVMExecutionEngine(), CUDALLVMIRGenerator(), CUDALLVMLowerer())
-                self.register_backend("cuda", cuda_backend)
+                self.register_backend(LLVMBackendName.CUDA.value, cuda_backend)
             except Exception as e:
                 logger.debug(f"CUDA backend initialization failed: {e}")
-                self.disabled_backends.add("cuda")
+                self.disabled_backends.add(LLVMBackendName.CUDA.value)
             finally:
                 self.cuda_initialized = True
 
@@ -58,9 +62,9 @@ class MultiBackendPipeline(LLVMPipeline):
                     meta = meta_value
                     break
 
-        if meta and meta.get("gpu"):
-            return meta.get("gpu_device", "cuda")
-        return "cpu"
+        if meta and metadata_get(meta, LLVMMetadataKey.GPU_ENABLED):
+            return metadata_get(meta, LLVMMetadataKey.GPU_DEVICE, LLVMBackendName.CUDA.value)
+        return LLVMBackendName.CPU.value
 
     def compile(self, program: Term):
         self._initialize_cuda_backend()
@@ -70,9 +74,9 @@ class MultiBackendPipeline(LLVMPipeline):
             preferred_backend = self._get_preferred_backend(func_id)
 
             backends_to_try = []
-            if preferred_backend in self.backends and preferred_backend != "cpu":
+            if preferred_backend in self.backends and preferred_backend != LLVMBackendName.CPU.value:
                 backends_to_try.append(preferred_backend)
-            backends_to_try.append("cpu")
+            backends_to_try.append(LLVMBackendName.CPU.value)
 
             successful_backends = []
 
@@ -105,7 +109,7 @@ class MultiBackendPipeline(LLVMPipeline):
             if successful_backends:
                 self.function_targets[func_id] = successful_backends
             else:
-                logger.warning(f"All LLVM compilations failed for {func_id}. Falling back to native python.")
+                logger.debug(f"All LLVM compilations failed for {func_id}. Falling back to native python.")
 
     def _find_compilable_definitions(self, term: Term) -> Dict[Name, Term]:
         compilable_defs = {}
@@ -122,7 +126,10 @@ class MultiBackendPipeline(LLVMPipeline):
                 should_compile = False
                 for meta_key, meta_value in self.metadata.items():
                     key_string = meta_key.name if isinstance(meta_key, Name) else str(meta_key)
-                    if key_string == func_name and (meta_value.get("cpu") or meta_value.get("gpu")):
+                    if key_string == func_name and (
+                        metadata_get(meta_value, LLVMMetadataKey.CPU_ENABLED)
+                        or metadata_get(meta_value, LLVMMetadataKey.GPU_ENABLED)
+                    ):
                         should_compile = True
                         break
 
@@ -195,6 +202,7 @@ class MultiBackendPipeline(LLVMPipeline):
                     arguments,
                     params,
                     ret,
+                    self.metadata.get(resolved_id, {}),
                 )
             except Exception as e:
                 logger.debug(f"Execution failed on {backend_name} for {resolved_id}: {e}. Disabling backend.")
@@ -218,10 +226,23 @@ class MultiBackendPipeline(LLVMPipeline):
 
         try:
             self.llvm_ir_by_backend[backend_name] = backend.generator.generate_ir(funcs)
+            if backend_name == LLVMBackendName.CUDA.value and hasattr(backend.generator, "kernel_plans"):
+                for fn_name, plan in getattr(backend.generator, "kernel_plans").items():
+                    resolved = self.name_to_id_cache.get(fn_name)
+                    if resolved is None:
+                        for candidate in self.compiled_functions_by_backend[backend_name]:
+                            if sanitize_name(candidate) == fn_name:
+                                resolved = candidate
+                                break
+                    if resolved is None:
+                        continue
+                    meta = dict(self.metadata.get(resolved, {}))
+                    meta[LLVMMetadataKey.GPU_KERNEL_PLAN.value] = plan.to_dict()
+                    self.metadata[resolved] = meta
             logger.debug(f"Backend {backend_name} IR:\n{self.llvm_ir_by_backend[backend_name]}")
             return True
         except Exception as e:
-            logger.warning(f"IR generation failed for {backend_name}: {e}. Disabling backend.")
+            logger.debug(f"IR generation failed for {backend_name}: {e}. Disabling backend.")
             self.disabled_backends.add(backend_name)
             return False
 
