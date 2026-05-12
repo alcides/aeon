@@ -1,11 +1,13 @@
 open Array
 
-@gpu(target:="cuda", debug:=true)
-def multiply_by_ten (1 v:(Array Int)) : (Array Int) :=
-    Array.map{Int}{Int} (fun (x : Int) => x * 10) v;
+@cpu
+def multiply_by_ten_get (v:(Vector Int)) (size:Int) (idx:Int) : Int =
+    let res : (Vector Int) = Vector.map[Int][Int] (\x:Int -> (x + 1) * 10) v size;
+    Vector.get[Int] res idx;
 
-def main (args:Int) : Unit :=
-    let size : Int := 1000000 in
-    let v : (Array Int) := native "[1] * size" in
-    let res : (Array Int) := multiply_by_ten v in
-    print (Array.get{Int} res 1);
+def main (args:Int) : Unit =
+    let size : Int = 1000000;
+    let v : (Vector Int) = Vector.new size;
+    let out : Int = multiply_by_ten_get v size 1;
+    let _ : Unit = print out;
+    Vector.free[Int] v;

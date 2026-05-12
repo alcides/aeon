@@ -114,7 +114,13 @@ class LLVMOptimizer(ABC):
 class LLVMExecutionEngine(ABC):
     @abstractmethod
     def execute(
-        self, llvm_ir: str, func_name: str, args: List[Any], arg_types: List[LLVMType], ret_type: LLVMType
+        self,
+        llvm_ir: str,
+        func_name: str,
+        args: List[Any],
+        arg_types: List[LLVMType],
+        ret_type: LLVMType,
+        metadata: dict[str, Any] | None = None,
     ) -> Any:
         pass
 
