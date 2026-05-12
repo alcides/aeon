@@ -4,8 +4,10 @@ import ctypes
 from typing import Any, List, Dict
 
 import llvmlite.binding as llvm
+import numpy as np
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
+from aeon.llvm.constants import LLVMMetadataKey, metadata_get
 from aeon.llvm.llvm_ast import (
     LLVMType,
     LLVMIntType,
@@ -16,6 +18,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVoidType,
     LLVMPointerType,
 )
+from aeon.llvm.utils import RawVector, VectorDType
 
 
 class LLVMExecutionError(LLVMBackendError):
@@ -99,8 +102,38 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
                 res.append(item)
         return res
 
+    def _numpy_dtype_for_llvm_element(self, ty: LLVMType):
+        if isinstance(ty, LLVMIntType):
+            if ty.bits <= 32:
+                return np.int32
+            return np.int64
+        if isinstance(ty, LLVMBoolType):
+            return np.bool_
+        if isinstance(ty, LLVMFloatType):
+            return np.float32
+        if isinstance(ty, LLVMDoubleType):
+            return np.float64
+        if isinstance(ty, LLVMCharType):
+            return np.int8
+        return None
+
     def _convert_to_ctypes(self, val: Any, ty: LLVMType) -> Any:
         if isinstance(ty, LLVMPointerType):
+            if isinstance(val, RawVector):
+                val._ensure_not_freed()
+                expected_np_dtype = self._numpy_dtype_for_llvm_element(ty.element_type)
+                if val.dtype == VectorDType.OBJECT or val.arr is None:
+                    if expected_np_dtype is None:
+                        val = val.to_list()
+                    else:
+                        raise LLVMExecutionError("object vector is not supported")
+                else:
+                    arr = val.arr
+                    assert isinstance(arr, np.ndarray)
+                    if expected_np_dtype is not None and arr.dtype != np.dtype(expected_np_dtype):
+                        arr = arr.astype(expected_np_dtype, copy=False)
+                    self._keep_alive.append(arr)
+                    return ctypes.c_void_p(arr.ctypes.data)
             if hasattr(val, "__cuda_array_interface__"):  # CuPy
                 return ctypes.c_void_p(val.data.ptr)
             if hasattr(val, "ctypes"):  # NumPy
@@ -143,7 +176,8 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             return ptr
 
         def native_dummy(code: ctypes.c_char_p) -> ctypes.c_void_p:
-            return ctypes.c_void_p(None)
+            _ = code
+            return None
 
         return {
             "get": vector_get,
@@ -162,7 +196,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
     ) -> Any:
         self._keep_alive = []
         metadata = metadata or {}
-        opt_level = metadata.get("cpu_opt_level", 3)
+        opt_level = metadata_get(metadata, LLVMMetadataKey.CPU_OPT_LEVEL, 3)
 
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
@@ -200,6 +234,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
             if isinstance(ret_type, LLVMPointerType) and result is not None:
                 element_cty = self._get_ctypes_type(ret_type.element_type)
-                return LLVMVector(result, element_cty)
+                vec = LLVMVector(result, element_cty)
+                return RawVector.from_list(list(vec))
 
             return result

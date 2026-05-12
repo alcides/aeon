@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 import llvmlite.ir as ir
+
+from aeon.llvm.constants import VECTOR_OPERATION_NAMES
 from aeon.utils.name import Name
 from aeon.llvm.core import LLVMVisitor
 
@@ -135,17 +137,7 @@ LLVMVectorInt = LLVMPointerType(LLVMInt)
 LLVMVectorFloat = LLVMPointerType(LLVMFloat)
 LLVMVectorDouble = LLVMPointerType(LLVMDouble)
 
-VECTOR_OPERATIONS: frozenset[str] = frozenset(
-    [
-        "map",
-        "reduce",
-        "imap",
-        "filter",
-        "zipWith",
-        "count",
-        "size",
-    ]
-)
+VECTOR_OPERATIONS: frozenset[str] = VECTOR_OPERATION_NAMES
 
 
 @dataclass

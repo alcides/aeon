@@ -6,6 +6,7 @@ from typing import Any
 from aeon.sugar.parser import parse_type
 from aeon.sugar.stypes import SType
 from aeon.utils.name import Name
+from aeon.llvm.utils import RawVector, VectorDType, ensure_raw_vector
 
 INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
 COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
@@ -13,6 +14,75 @@ LOGICAL_OPERATORS = ["&&", "||"]
 EQUALITY_OPERATORS = ["==", "!="]
 
 ALL_OPS = INTEGER_ARITHMETIC_OPERATORS + COMPARISON_OPERATORS + LOGICAL_OPERATORS + EQUALITY_OPERATORS
+
+
+def _aeon_vec_new(size: int):
+    return RawVector(size, VectorDType.INT)
+
+
+def _aeon_vec_append(vector: Any, value: Any):
+    return ensure_raw_vector(vector).append(value)
+
+
+def _aeon_vec_get(vector: Any, index: int):
+    return ensure_raw_vector(vector).get(index)
+
+
+def _aeon_vec_set(vector: Any, index: int, value: Any):
+    return ensure_raw_vector(vector).set(index, value)
+
+
+def _aeon_vec_free(vector: Any):
+    return ensure_raw_vector(vector).free()
+
+
+def _aeon_vec_map(fn, vector: Any, size: int):
+    source = ensure_raw_vector(vector)
+    out = RawVector(size)
+    for index in range(size):
+        out.set(index, fn(source.get(index)))
+    return out
+
+
+def _aeon_vec_reduce(fn, initial: Any, vector: Any, size: int):
+    source = ensure_raw_vector(vector)
+    acc = initial
+    for index in range(size):
+        acc = fn(acc)(source.get(index))
+    out = RawVector(1)
+    out.set(0, acc)
+    return out
+
+
+def _aeon_vec_imap(fn, vector: Any, size: int):
+    source = ensure_raw_vector(vector)
+    out = RawVector(size)
+    for index in range(size):
+        out.set(index, fn(index)(source.get(index)))
+    return out
+
+
+def _aeon_vec_filter(fn, vector: Any, size: int):
+    source = ensure_raw_vector(vector)
+    return RawVector.from_list([value for index in range(size) if fn(value := source.get(index))])
+
+
+def _aeon_vec_zipwith(fn, left: Any, right: Any, size: int):
+    left_vector = ensure_raw_vector(left)
+    right_vector = ensure_raw_vector(right)
+    out = RawVector(size)
+    for index in range(size):
+        out.set(index, fn(left_vector.get(index))(right_vector.get(index)))
+    return out
+
+
+def _aeon_vec_count(fn, vector: Any, size: int):
+    source = ensure_raw_vector(vector)
+    return sum(1 for index in range(size) if fn(source.get(index)))
+
+
+def _aeon_vec_size(vector: Any):
+    return ensure_raw_vector(vector).size
 
 
 def p(x):
