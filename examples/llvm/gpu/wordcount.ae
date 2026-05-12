@@ -3,7 +3,8 @@ open Math
 
 @gpu
 def count_spaces (chars: (Vector Int)) (size: Int) : Int =
-    Vector_count[Int] (\c -> c == 32) chars size;
+    let spaces_vec : (Vector Int) = Vector_filter[Int] (\c -> c == 32) chars size;
+    Vector_size[Int] spaces_vec;
 
 def main (args:Int) : Unit =
     let _ : Unit = print("reading lusiadas...");

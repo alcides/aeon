@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict
-
 from aeon.core.terms import Term
+from aeon.llvm.constants import VectorOperation
 from aeon.llvm.cpu.lowerer import CPULLVMLowerer
 from aeon.llvm.llvm_ast import (
     LLVMType,
@@ -11,6 +10,10 @@ from aeon.llvm.llvm_ast import (
     LLVMAddressSpace,
     LLVMVoidType,
     LLVMCast,
+    LLVMFunctionType,
+    LLVMVectorCount,
+    LLVMInt,
+    LLVMBool,
 )
 from aeon.utils.name import Name
 
@@ -23,8 +26,8 @@ class CUDALLVMLowerer(CPULLVMLowerer):
         self,
         term: Term,
         expected_type: LLVMType | None = None,
-        type_env: Dict[Name, LLVMType] | None = None,
-        env: Dict[Name, LLVMTerm] | None = None,
+        type_env: dict[Name, LLVMType] | None = None,
+        env: dict[Name, LLVMTerm] | None = None,
         allowed_func_calls: set[Name] | None = None,
         strict: bool = False,
         in_vector_op: bool = False,
@@ -43,9 +46,32 @@ class CUDALLVMLowerer(CPULLVMLowerer):
             in_vector_op,
         )
 
-    def _get_vector_base_type(self, vector_type: LLVMType) -> LLVMType:
-        base = super()._get_vector_base_type(vector_type)
-        return base
+    def _lower_vector_op(
+        self,
+        op: str,
+        args: list[Term | LLVMTerm],
+        expected: LLVMType | None,
+        type_env: dict[Name, LLVMType],
+        env: dict[Name, LLVMTerm],
+        allowed: set[Name],
+    ) -> LLVMTerm:
+        if op == VectorOperation.COUNT:
+            kernel_term, vector_term, size_term = args
+            low_vec = self._lower_term(vector_term, None, type_env, env, allowed, in_vector_op=True)
+            low_size = self._lower_term(size_term, LLVMInt, type_env, env, allowed, in_vector_op=True)
+            element_type = self._get_vector_base_type(low_vec.type)
+            vec_cast = self._cast_if_needed(low_vec, LLVMPointerType(element_type))
+            kernel = self._lower_as_standalone(
+                kernel_term,
+                LLVMFunctionType([element_type], LLVMBool),
+                type_env,
+                env,
+                allowed,
+                True,
+            )
+            return LLVMVectorCount(LLVMInt, kernel, vec_cast, low_size)
+
+        return super()._lower_vector_op(op, args, expected, type_env, env, allowed)
 
     def _cast_if_needed(self, val: LLVMTerm, target_ty: LLVMType) -> LLVMTerm:
         if isinstance(val.type, LLVMPointerType) and isinstance(target_ty, LLVMPointerType):
