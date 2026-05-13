@@ -192,3 +192,44 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
 def bind_ids(ctx: TypingContext, t: Term) -> tuple[TypingContext, Term]:
     ctx, subs = bind_ctx(ctx, [])
     return ctx, bind_term(t, subs)
+
+
+def bind_metadata(metadata: dict, core_ast: Term) -> dict:
+    """Re-key a Metadata dict so its top-level ``Name`` keys carry the
+    bound ids assigned by :func:`bind_ids` to ``core_ast``.
+
+    Sugar-phase decorators stamp ``metadata`` with the pre-bind name
+    (id = -1). After ``bind_ids`` rewrites every top-level ``Rec``
+    binder with a unique positive id, the post-bind ``Name`` no longer
+    ``__eq__``-matches the metadata key — so every downstream
+    ``metadata.get(fun_name, {})`` in the synthesis pipeline silently
+    returns ``{}``. This helper walks the AST, collects every top-level
+    ``Rec`` name, and re-keys the metadata to match.
+
+    Sentinel keys whose name doesn't appear in the AST (e.g.
+    ``_aeon_core_decorator_queue``) are passed through unchanged.
+    """
+    from aeon.utils.name import Name
+
+    name_to_bound: dict[str, Name] = {}
+    t = core_ast
+    # Top-level definitions form a right-spine of Rec/Let nodes.
+    while True:
+        if isinstance(t, Rec):
+            name_to_bound[t.var_name.name] = t.var_name
+            t = t.body
+        elif isinstance(t, Let):
+            name_to_bound[t.var_name.name] = t.var_name
+            t = t.body
+        elif isinstance(t, Annotation):
+            t = t.expr
+        else:
+            break
+
+    new_md: dict = {}
+    for k, v in metadata.items():
+        if isinstance(k, Name) and k.name in name_to_bound and k.id < 0:
+            new_md[name_to_bound[k.name]] = v
+        else:
+            new_md[k] = v
+    return new_md

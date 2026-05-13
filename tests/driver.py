@@ -1,7 +1,7 @@
 from typing import Any
 from aeon.core.terms import Term
 from aeon.core.types import Type
-from aeon.core.bind import bind_ctx, bind_ids, bind_term, bind_type
+from aeon.core.bind import bind_ctx, bind_ids, bind_metadata, bind_term, bind_type
 from aeon.elaboration.context import build_typing_context
 from aeon.facade.api import AeonError
 from aeon.prelude.prelude import evaluation_vars
@@ -101,9 +101,10 @@ def extract_core(source: str) -> Term:
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+    metadata = bind_metadata(desugared.metadata, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     if not list(check_type_errors(typing_ctx, core_ast_anf, top)):
-        apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+        apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
     return core_ast_anf
 
 
@@ -115,7 +116,8 @@ def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContex
     core_ast = lower_to_core(sterm)
     ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(ctx, core_ast)
+    metadata = bind_metadata(desugared.metadata, core_ast)
     core_ast_anf = ensure_anf(core_ast)
     assert check_type(typing_ctx, core_ast_anf, top)
-    metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+    metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, metadata)
     return core_ast_anf, typing_ctx, ectx, metadata

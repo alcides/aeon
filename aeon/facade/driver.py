@@ -4,7 +4,7 @@ from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
-from aeon.core.bind import bind_ids
+from aeon.core.bind import bind_ids, bind_metadata
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
@@ -81,6 +81,10 @@ class AeonDriver:
             typing_ctx = lower_to_core_context(desugared.elabcontext)
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+            # Re-key metadata so downstream lookups (synthesize_holes,
+            # make_evaluators, every synthesizer module) actually match the
+            # post-bind names in the AST.
+            metadata = bind_metadata(metadata, core_ast)
 
         with RecordTime("ANF conversion"):
             core_ast_anf = ensure_anf(core_ast)
