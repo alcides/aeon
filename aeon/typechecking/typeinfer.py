@@ -364,13 +364,20 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c, ty) = synth(ctx, fun)
             # Lift any binders from the function's type to the outer scope so
             # the body underneath can be matched as an AbstractionType.
-            outer_binders: tuple[tuple[Name, Type], ...] = ()
+            fun_binders: tuple[tuple[Name, Type], ...] = ()
             if isinstance(ty, ExistentialType):
-                outer_binders = ty.binders
+                fun_binders = ty.binders
                 ty = ty.body
+            # Binders just lifted from the function's type are in scope for
+            # the argument check and any inner synth: atype may reference
+            # them (e.g. dependent parameter types like {t:Float | t >= y}).
+            ctx_inner = ctx
+            for bn, bt in fun_binders:
+                ctx_inner = ctx_inner.with_var(bn, bt)
+            outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
             match ty:
                 case AbstractionType(aname, atype, rtype):
-                    cp = check(ctx, arg, atype)
+                    cp = check(ctx_inner, arg, atype)
                     # Abstractions can't be synthesised on their own (no
                     # annotation), and Var/Literal liquefy directly. In all
                     # three cases the existing direct substitution path is
@@ -386,7 +393,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         # binder name into the result type. Any binders
                         # already on the argument's type lift to the outer
                         # scope (binders are always flat).
-                        (_, ty_arg) = synth(ctx, arg)
+                        (_, ty_arg) = synth(ctx_inner, arg)
                         if isinstance(ty_arg, ExistentialType):
                             outer_binders = outer_binders + ty_arg.binders
                             ty_arg = ty_arg.body
@@ -398,7 +405,15 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                             binder_ty = RefinedType(y, binder_ty.type, renamed)
                         outer_binders = outer_binders + ((y, binder_ty),)
                         t_subs = substitution_in_type(rtype, Var(y), aname)
-                    c0 = Conjunction(c, cp)
+                    # cp may reference the function's lifted binders through
+                    # atype; wrap c0 in implications over them so those
+                    # references are bound when the constraint reaches SMT.
+                    # Argument-side binders propagate to the caller via the
+                    # existential type and get their implication wrap there
+                    # (e.g. in Let's opened_binders loop).
+                    c0: Constraint = Conjunction(c, cp)
+                    for bn, bt in reversed(fun_binders):
+                        c0 = implication_constraint(bn, bt, c0, t.loc)
                     return (c0, with_binders(outer_binders, t_subs))
                 case _:
                     raise CoreInvalidApplicationError(t, ty)

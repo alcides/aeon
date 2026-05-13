@@ -18,9 +18,9 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
-from z3.z3 import Float64
 from z3.z3 import Implies
 from z3.z3 import IntSort
+from z3.z3 import RealSort
 from z3.z3 import Not
 from z3.z3 import Or
 from z3.z3 import String
@@ -552,7 +552,7 @@ def get_sort(base: Type) -> SortRef:
         case TypeConstructor(Name("Bool", _)):
             return BoolSort()
         case TypeConstructor(Name("Float", _)):
-            return Float64()
+            return RealSort()
         case TypeConstructor(Name("String", _)):
             return StringSort()
         case TypeConstructor(Name("Set", _)):
