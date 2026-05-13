@@ -1,3 +1,5 @@
+import os
+
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
@@ -6,6 +8,18 @@ from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
+
+
+def _tdsyn_parallel() -> int:
+    """Read the parallel-workers count for tdsyn from the ``AEON_TDSYN_PARALLEL``
+    env var. Default 1 = sequential. Set to e.g. 4 to evaluate up to 4
+    complete candidates concurrently.
+    """
+    raw = os.environ.get("AEON_TDSYN_PARALLEL", "1")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 1
 
 
 def make_synthesizer(module: str) -> Synthesizer:
@@ -29,7 +43,7 @@ def make_synthesizer(module: str) -> Synthesizer:
         case "smt":
             return SMTSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":
-            return TDSynSynthesizer()
+            return TDSynSynthesizer(parallel=_tdsyn_parallel())
         case "tactics":
             return TacticRandomSynthesizer()
         case _:

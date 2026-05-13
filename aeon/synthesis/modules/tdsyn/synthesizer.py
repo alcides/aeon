@@ -23,7 +23,9 @@ Per-candidate pipeline:
 
 from __future__ import annotations
 
+import threading
 from collections import deque
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from time import monotonic_ns
 from typing import Callable
 
@@ -135,11 +137,20 @@ class TDSynSynthesizer(Synthesizer):
     SMT-aware leaf completion when refinements pin literal values;
     falls back to canonical seeds otherwise. Pareto front with
     ε-dominance for multi-objective fitness.
+
+    ``parallel`` controls how many complete candidates are evaluated
+    concurrently via a :class:`ThreadPoolExecutor`. The actual fitness
+    evaluation spawns a subprocess per call (in ``make_evaluator``), so N
+    threads each waiting on their own subprocess gives real wall-clock
+    parallelism — the GIL is released during ``Process.join``. Set to 1
+    for the strictly sequential search.
     """
 
-    def __init__(self, epsilon: float = DEFAULT_EPSILON):
+    def __init__(self, epsilon: float = DEFAULT_EPSILON, parallel: int = 1):
         assert epsilon >= 0.0
+        assert parallel >= 1
         self.epsilon = epsilon
+        self.parallel = parallel
 
     def synthesize(
         self,
@@ -159,6 +170,7 @@ class TDSynSynthesizer(Synthesizer):
         self._has_goals = bool(metadata.get(fun_name, {}).get("goals"))
         start_time = monotonic_ns()
         front: Front = []
+        front_lock = threading.Lock()
         ui.register(None, None, 0, True)
 
         initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
@@ -166,29 +178,111 @@ class TDSynSynthesizer(Synthesizer):
             [PartialAST(term=initial_term, holes=initial_holes, depth=0)]
         )
 
+        if self.parallel > 1:
+            return self._parallel_search(
+                worklist, validate, evaluate, skip, start_time, budget, ui, front, front_lock,
+            )
+
+        # Sequential path — fully unchanged behaviour.
         while worklist and _get_elapsed_time(start_time) < budget:
             partial = worklist.popleft()
 
             if partial.is_complete():
-                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
+                front = self._try_complete(partial, validate, evaluate, start_time, ui, front, front_lock)
                 if not self._has_goals and front:
                     return front[0][1]
                 continue
 
             # Try SMT completion if every remaining hole is leaf-solvable.
-            front, _smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
+            front, _smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front, front_lock)
 
             # Otherwise expand the first hole and queue every child.
             hole = partial.holes[0]
             for child in self._expand_hole(partial, hole, skip):
                 if child.is_complete():
-                    front = self._try_complete(child, validate, evaluate, start_time, ui, front)
+                    front = self._try_complete(child, validate, evaluate, start_time, ui, front, front_lock)
                     if not self._has_goals and front:
                         return front[0][1]
                 else:
-                    front, smt_ok = self._try_smt_complete(child, validate, evaluate, start_time, ui, front)
+                    front, smt_ok = self._try_smt_complete(child, validate, evaluate, start_time, ui, front, front_lock)
                     if not smt_ok:
                         worklist.append(child)
+
+        chosen = _select_from_front(front)
+        if chosen is not None:
+            return chosen
+        raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
+
+    def _parallel_search(
+        self,
+        worklist: "deque[PartialAST]",
+        validate: Callable[[Term], bool],
+        evaluate: Callable[[Term], list[float]],
+        skip: Callable[[Name], bool],
+        start_time: int,
+        budget: float,
+        ui: SynthesisUI,
+        front: Front,
+        front_lock: threading.Lock,
+    ) -> Term:
+        """BFS with parallel evaluation of complete candidates.
+
+        Expansion / SMT are run on the main thread (cheap). Validate + evaluate
+        of fully-complete candidates is submitted to a ``ThreadPoolExecutor``
+        of size ``self.parallel``; the main loop keeps the pool fed while
+        reaping completed futures and continues expanding partials.
+        """
+        pending: set = set()
+        with ThreadPoolExecutor(max_workers=self.parallel) as executor:
+            def submit(p: PartialAST) -> None:
+                fut = executor.submit(
+                    self._try_complete, p, validate, evaluate, start_time, ui, front, front_lock,
+                )
+                pending.add(fut)
+
+            while (worklist or pending) and _get_elapsed_time(start_time) < budget:
+                # Fan out: submit work until we've saturated the pool's queue.
+                while worklist and len(pending) < self.parallel * 2:
+                    if _get_elapsed_time(start_time) >= budget:
+                        break
+                    partial = worklist.popleft()
+                    if partial.is_complete():
+                        submit(partial)
+                        continue
+                    front, _smt_ok = self._try_smt_complete(
+                        partial, validate, evaluate, start_time, ui, front, front_lock,
+                    )
+                    hole = partial.holes[0]
+                    for child in self._expand_hole(partial, hole, skip):
+                        if child.is_complete():
+                            submit(child)
+                        else:
+                            front, smt_ok = self._try_smt_complete(
+                                child, validate, evaluate, start_time, ui, front, front_lock,
+                            )
+                            if not smt_ok:
+                                worklist.append(child)
+
+                # Reap whatever finished while we were fanning out.
+                if pending:
+                    done, still = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
+                    pending = set(still)
+                    for fut in done:
+                        try:
+                            fut.result()
+                        except Exception as e:
+                            logger.debug(f"tdsyn parallel eval failed: {e}")
+                        if not self._has_goals:
+                            with front_lock:
+                                if front:
+                                    # Drain remaining pending without blocking the return.
+                                    for f in pending:
+                                        f.cancel()
+                                    return front[0][1]
+
+            # Out of budget or work. Cancel anything still pending, then pick.
+            for f in pending:
+                f.cancel()
 
         chosen = _select_from_front(front)
         if chosen is not None:
@@ -203,20 +297,28 @@ class TDSynSynthesizer(Synthesizer):
         start_time: int,
         ui: SynthesisUI,
         front: Front,
+        front_lock: threading.Lock,
     ) -> Front:
-        """Try to validate and evaluate a complete term, offering it to the front."""
+        """Try to validate and evaluate a complete term, offering it to the front.
+
+        Thread-safe under ``front_lock`` — multiple workers may call this
+        concurrently. The expensive ``validate`` / ``evaluate`` calls
+        themselves run outside the lock; only the front update is guarded.
+        """
         if not partial.is_complete():
             return front
         term = partial.term
         try:
             if validate(term):
                 if not self._has_goals:
-                    if not front:
-                        front.append(([], term))
+                    with front_lock:
+                        if not front:
+                            front.append(([], term))
                     ui.register(term, [], _get_elapsed_time(start_time), True)
                     return front
                 score = evaluate(term)
-                added = _front_offer(front, score, term, self.epsilon)
+                with front_lock:
+                    added = _front_offer(front, score, term, self.epsilon)
                 ui.register(term, score, _get_elapsed_time(start_time), added)
             else:
                 ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
@@ -232,6 +334,7 @@ class TDSynSynthesizer(Synthesizer):
         start_time: int,
         ui: SynthesisUI,
         front: Front,
+        front_lock: threading.Lock,
     ) -> tuple[Front, bool]:
         """If every remaining hole is leaf-solvable, ask SMT for a value
         per hole, substitute, and try-complete the resulting term(s).
@@ -259,6 +362,7 @@ class TDSynSynthesizer(Synthesizer):
                 start_time,
                 ui,
                 front,
+                front_lock,
             )
 
         return front, True

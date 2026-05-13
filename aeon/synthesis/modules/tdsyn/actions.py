@@ -155,8 +155,9 @@ def backward_candidates(
 
     Given hole expecting type T:
     1. If T is a function type, produce an abstraction
-    2. Generate literals for base types
-    3. Look up variables with matching types
+    2. Look up variables with matching types  (preferred over literals —
+       a variable in scope is almost always the more useful leaf)
+    3. Generate literals for base types
     4. Find functions whose return type matches T (single-operator shells)
     5. Generate if-then-else
 
@@ -179,7 +180,19 @@ def backward_candidates(
         case _:
             pass
 
-    # 2. Literals
+    # 2. Variables (non-function types) — preferred over literals because
+    # in-scope vars are usually the actual building blocks of the answer
+    # (e.g. `min2 a b` needs `a` and `b`; constants are a distant fallback).
+    for name, var_type in ctx.vars():
+        if skip(name):
+            continue
+        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
+            continue
+        if bases_match(var_type, T):
+            if is_subtype(ctx, var_type, T):
+                candidates.append((Var(name, _loc), []))
+
+    # 3. Literals
     base = base_type_of(T)
     if base is not None:
         match base:
@@ -194,16 +207,6 @@ def backward_candidates(
                     candidates.append((Literal(fval, t_float, _loc), []))
             case _:
                 pass
-
-    # 3. Variables (non-function types)
-    for name, var_type in ctx.vars():
-        if skip(name):
-            continue
-        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
-            continue
-        if bases_match(var_type, T):
-            if is_subtype(ctx, var_type, T):
-                candidates.append((Var(name, _loc), []))
 
     # 4. Function applications (monomorphic + polymorphic) — single-operator shells.
     for f_term, f_type in get_applicable_functions(ctx, skip):
