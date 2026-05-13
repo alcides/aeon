@@ -56,7 +56,7 @@ class TypeVar(Type):
         return f"{self.name}"
 
     def __eq__(self, other):
-        return isinstance(other, TypeVar) and other.name == self.name
+        return type(other) is TypeVar and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
@@ -67,7 +67,7 @@ class Top(Type):
         return "⊤"
 
     def __eq__(self, other):
-        return isinstance(other, Top)
+        return type(other) is Top
 
     def __str__(self):
         return repr(self)
@@ -88,7 +88,7 @@ class AbstractionType(Type):
 
     def __eq__(self, other):
         return (
-            isinstance(other, AbstractionType)
+            type(other) is AbstractionType
             and self.var_name == other.var_name
             and self.var_type == other.var_type
             and self.type == other.type
@@ -110,7 +110,7 @@ class RefinedType(Type):
 
     def __eq__(self, other):
         return (
-            isinstance(other, RefinedType)
+            type(other) is RefinedType
             and self.name == other.name
             and self.type == other.type
             and self.refinement == other.refinement
@@ -159,7 +159,7 @@ class TypeConstructor(Type):
         return f"{self.name} {args}"
 
     def __eq__(self, other):
-        return isinstance(other, TypeConstructor) and other.name == self.name and self.args == other.args
+        return type(other) is TypeConstructor and other.name == self.name and self.args == other.args
 
     def __hash__(self) -> int:
         return hash(self.name) + sum(hash(a) for a in self.args)

@@ -39,7 +39,10 @@ class Name:
         return str(self)
 
     def __eq__(self, other):
-        return isinstance(other, Name) and self.name == other.name and self.id == other.id
+        # `type() is` rather than `isinstance` to skip the ABC/MRO walk.
+        # `Name` has no subclasses; compare `id` first since it's a cheap int
+        # check that short-circuits the more expensive string comparison.
+        return type(other) is Name and self.id == other.id and self.name == other.name
 
     def __lt__(self, other):
         return self.id < other.id
