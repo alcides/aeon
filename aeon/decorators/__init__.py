@@ -35,6 +35,7 @@ from aeon.synthesis.decorators import (
     multi_minimize_float,
     prompt,
     short_circuit,
+    skip_typecheck,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -57,6 +58,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
     "short_circuit": short_circuit,
+    "skip_typecheck": skip_typecheck,
 }
 
 # Backwards-compatible name (sugar-phase registry only).

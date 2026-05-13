@@ -238,6 +238,38 @@ def short_circuit(
     return fun, [], metadata
 
 
+def skip_typecheck(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Skip the refinement-type validate step during synthesis.
+
+    Each candidate proposed by a synthesizer normally goes through
+    ``check_type(ctx, candidate, Top())`` before fitness evaluation. On
+    Float-typed holes this single check averages ~286 ms (z3 SMT under
+    the hood), often >90% of total wall time, while the actual fitness
+    evaluation is ~12 ms. For example-driven fitness (e.g.
+    ``@csv_data`` / ``@short_circuit``), the fitness function already
+    rejects ill-shaped candidates — wrong-typed candidates surface as
+    exceptions inside ``eval`` and are scored as the worst possible
+    fitness. The typecheck is then mostly redundant duplication.
+
+    With this decorator on, the per-candidate ``validate`` is replaced
+    with ``lambda _: True`` for the entire synthesis run. Typical
+    speed-up on the GE family and tdsyn is ~16× on example-driven
+    problems.
+
+    Use with care: when a candidate's correctness depends on refinement
+    constraints that *no example exercises*, skipping the typecheck can
+    accept structurally-wrong terms. For pure-example problems this is
+    fine; for refinement-typed specs it's a foot-gun.
+    """
+    assert len(decorator.macro_args) == 0
+    metadata = metadata_update(metadata, fun, {"skip_typecheck": True})
+    return fun, [], metadata
+
+
 def prompt(
     decorator: Decorator,
     fun: Definition,

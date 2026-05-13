@@ -175,7 +175,12 @@ def synthesize_holes(
         ui.start(tyctx, ectx, hole_name.name, ty, budget)
 
         replace = make_program(term, hole_name)
-        validator = make_validator(ctx, replace)
+        if metadata.get(fun_name, {}).get("skip_typecheck", False):
+            # @skip_typecheck — bypass the SMT typecheck per candidate.
+            def validator(_term: Term) -> bool:
+                return True
+        else:
+            validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
         short_circuit_flag = bool(metadata.get(fun_name, {}).get("short_circuit", False))
         evaluator = make_evaluator(
