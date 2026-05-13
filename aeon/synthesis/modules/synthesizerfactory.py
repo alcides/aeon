@@ -29,9 +29,7 @@ def make_synthesizer(module: str) -> Synthesizer:
         case "smt":
             return SMTSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":
-            return TDSynSynthesizer(mode="enumerative")
-        case "tdsyn_random":
-            return TDSynSynthesizer(mode="random")
+            return TDSynSynthesizer()
         case "tactics":
             return TacticRandomSynthesizer()
         case _:

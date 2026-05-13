@@ -1,6 +1,28 @@
+"""BFS-based type-directed synthesizer.
+
+Starts from a hole of the target type and grows complete terms
+depth-by-depth. The only bound is the wall-clock ``budget``; there's
+no static depth cap.
+
+Per-candidate pipeline:
+
+1. expand the first unfilled hole into all backward/forward action
+   results;
+2. if all remaining holes are leaf-solvable, hand them to SMT
+   (``solve_literals``) to obtain a concrete term;
+3. fill any remaining ``Annotation(Hole, T)`` placeholders with
+   canonical seeds (via ``smt_holes``-style fallback inside
+   ``_try_complete``) — actually done by ``solve_literals`` and
+   ``_extract_solution``;
+4. validate (typecheck against the hole's expected type), evaluate
+   the multi-objective fitness, and offer to a Pareto front with
+   ε-dominance;
+5. when the budget runs out, return the min-sum representative of the
+   front.
+"""
+
 from __future__ import annotations
 
-import random
 from collections import deque
 from time import monotonic_ns
 from typing import Callable
@@ -19,8 +41,6 @@ from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
-
-MAX_DEPTH = 5
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -90,7 +110,6 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
         hole_term, typed_hole = fresh_hole(ty, ctx)
         return hole_term, ty, ctx, [typed_hole]
 
-    # Peel all abstractions
     current_type: Type = ty
     current_ctx = ctx
     var_names: list[Name] = []
@@ -100,10 +119,8 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
         current_ctx = current_ctx.with_var(current_type.var_name, current_type.var_type)
         current_type = current_type.type
 
-    # Create the innermost hole
     inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx)
 
-    # Wrap in abstractions (inside-out)
     term: Term = inner_hole_term
     for var_name in reversed(var_names):
         term = Abstraction(var_name, term, _loc)
@@ -112,20 +129,17 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
 
 
 class TDSynSynthesizer(Synthesizer):
-    """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
+    """BFS-based type-directed synthesizer.
 
-    Supports both enumerative (BFS) and random exploration modes.
-    Loops until the time budget is exhausted, restarting with shuffled expansion
-    order on each iteration to explore different term structures.
+    Grows complete terms depth-by-depth from a hole of the target type.
+    SMT-aware leaf completion when refinements pin literal values;
+    falls back to canonical seeds otherwise. Pareto front with
+    ε-dominance for multi-objective fitness.
     """
 
-    def __init__(self, mode: str = "enumerative", epsilon: float = DEFAULT_EPSILON):
-        assert mode in ("enumerative", "random")
+    def __init__(self, epsilon: float = DEFAULT_EPSILON):
         assert epsilon >= 0.0
-        self.mode = mode
         self.epsilon = epsilon
-        self._rng = random.Random(42)
-        self._iteration = 0
 
     def synthesize(
         self,
@@ -147,20 +161,34 @@ class TDSynSynthesizer(Synthesizer):
         front: Front = []
         ui.register(None, None, 0, True)
 
-        # Peel abstractions from the target type
-        initial_term, inner_type, inner_ctx, initial_holes = _peel_abstractions(type, ctx)
+        initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
+        worklist: deque[PartialAST] = deque(
+            [PartialAST(term=initial_term, holes=initial_holes, depth=0)]
+        )
 
-        initial_partial = PartialAST(term=initial_term, holes=initial_holes, depth=0)
+        while worklist and _get_elapsed_time(start_time) < budget:
+            partial = worklist.popleft()
 
-        # Loop: restart search when worklist/walk is exhausted, until budget runs out
-        while _get_elapsed_time(start_time) < budget:
-            if self.mode == "enumerative":
-                front = self._enumerative_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, front)
-            else:
-                front = self._random_search(initial_partial, skip, validate, evaluate, start_time, budget, ui, front)
-            # If no goals, return the first valid term found
-            if not self._has_goals and front:
-                return front[0][1]
+            if partial.is_complete():
+                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
+                if not self._has_goals and front:
+                    return front[0][1]
+                continue
+
+            # Try SMT completion if every remaining hole is leaf-solvable.
+            front, _smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
+
+            # Otherwise expand the first hole and queue every child.
+            hole = partial.holes[0]
+            for child in self._expand_hole(partial, hole, skip):
+                if child.is_complete():
+                    front = self._try_complete(child, validate, evaluate, start_time, ui, front)
+                    if not self._has_goals and front:
+                        return front[0][1]
+                else:
+                    front, smt_ok = self._try_smt_complete(child, validate, evaluate, start_time, ui, front)
+                    if not smt_ok:
+                        worklist.append(child)
 
         chosen = _select_from_front(front)
         if chosen is not None:
@@ -205,10 +233,13 @@ class TDSynSynthesizer(Synthesizer):
         ui: SynthesisUI,
         front: Front,
     ) -> tuple[Front, bool]:
-        """Try to complete a partial AST by solving all remaining holes with SMT.
+        """If every remaining hole is leaf-solvable, ask SMT for a value
+        per hole, substitute, and try-complete the resulting term(s).
 
-        Returns (front, smt_succeeded). smt_succeeded is True if SMT produced
-        at least one solution attempt (even if validation failed).
+        Returns ``(front, smt_succeeded)``; ``smt_succeeded`` is True if
+        SMT produced at least one solution attempt, even if validation
+        rejected it. When True, the caller should not re-enqueue the
+        partial — SMT has spoken for this shape.
         """
         if not partial.holes or not all_leaf_holes(partial.holes):
             return front, False
@@ -221,9 +252,14 @@ class TDSynSynthesizer(Synthesizer):
             term = partial.term
             for hole_name, literal_term in solution.items():
                 term = substitute_hole(term, hole_name, literal_term)
-
-            complete = PartialAST(term=term, holes=[], depth=partial.depth)
-            front = self._try_complete(complete, validate, evaluate, start_time, ui, front)
+            front = self._try_complete(
+                PartialAST(term=term, holes=[], depth=partial.depth),
+                validate,
+                evaluate,
+                start_time,
+                ui,
+                front,
+            )
 
         return front, True
 
@@ -233,121 +269,23 @@ class TDSynSynthesizer(Synthesizer):
         hole: TypedHole,
         skip: Callable[[Name], bool],
     ) -> list[PartialAST]:
-        """Expand a single hole using backward and forward actions."""
-        results: list[PartialAST] = []
+        """Expand a single hole via backward + forward actions.
 
-        for action_fn in [backward_candidates, forward_candidates]:
+        No depth cap — only the outer time budget bounds the search.
+        Returns children in deterministic action order; BFS over them
+        gives a depth-by-depth visit.
+        """
+        results: list[PartialAST] = []
+        for action_fn in (backward_candidates, forward_candidates):
             try:
                 candidates = action_fn(hole, skip)
             except Exception as e:
                 logger.debug(f"tdsyn: action failed: {e}")
                 continue
-
             for replacement, new_holes in candidates:
                 new_term = substitute_hole(partial.term, hole.name, replacement)
-                remaining_holes = [h for h in partial.holes if h.name != hole.name]
-                remaining_holes.extend(new_holes)
+                remaining = [h for h in partial.holes if h.name != hole.name]
+                remaining.extend(new_holes)
                 new_depth = partial.depth + (1 if new_holes else 0)
-                if new_depth <= MAX_DEPTH:
-                    results.append(PartialAST(term=new_term, holes=remaining_holes, depth=new_depth))
-
-        # Shuffle on non-first iterations to explore different orderings
-        if self._iteration > 0 and results:
-            self._rng.shuffle(results)
-
+                results.append(PartialAST(term=new_term, holes=remaining, depth=new_depth))
         return results
-
-    def _enumerative_search(
-        self,
-        initial: PartialAST,
-        skip: Callable[[Name], bool],
-        validate: Callable[[Term], bool],
-        evaluate: Callable[[Term], list[float]],
-        start_time: int,
-        budget: float,
-        ui: SynthesisUI,
-        front: Front,
-    ) -> Front:
-        """BFS-based enumerative search."""
-        self._iteration += 1
-        worklist: deque[PartialAST] = deque([initial])
-
-        while worklist:
-            if _get_elapsed_time(start_time) > budget:
-                break
-
-            partial = worklist.popleft()
-
-            if partial.is_complete():
-                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
-                continue
-
-            # Try SMT completion if all holes are leaf-solvable
-            front, _smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
-
-            # Pick the first unfilled hole
-            hole = partial.holes[0]
-            expanded = self._expand_hole(partial, hole, skip)
-
-            for new_partial in expanded:
-                if _get_elapsed_time(start_time) > budget:
-                    break
-                if new_partial.is_complete():
-                    front = self._try_complete(new_partial, validate, evaluate, start_time, ui, front)
-                else:
-                    # Try SMT on newly expanded partials too
-                    front, smt_ok = self._try_smt_complete(
-                        new_partial, validate, evaluate, start_time, ui, front
-                    )
-                    if not smt_ok:
-                        worklist.append(new_partial)
-
-        return front
-
-    def _random_search(
-        self,
-        initial: PartialAST,
-        skip: Callable[[Name], bool],
-        validate: Callable[[Term], bool],
-        evaluate: Callable[[Term], list[float]],
-        start_time: int,
-        budget: float,
-        ui: SynthesisUI,
-        front: Front,
-    ) -> Front:
-        """Random exploration search."""
-        rng = random.Random(42)
-
-        while _get_elapsed_time(start_time) < budget:
-            # Start fresh from initial each time for random search
-            partial = PartialAST(term=initial.term, holes=list(initial.holes), depth=initial.depth)
-
-            # Randomly expand holes until complete or stuck
-            attempts = 0
-            while not partial.is_complete() and attempts < MAX_DEPTH * 2:
-                if _get_elapsed_time(start_time) > budget:
-                    break
-
-                # Try SMT completion first
-                front, smt_ok = self._try_smt_complete(
-                    partial, validate, evaluate, start_time, ui, front
-                )
-                if smt_ok:
-                    break
-
-                # Pick a random hole
-                hole = rng.choice(partial.holes)
-
-                # Get all candidates from both actions
-                all_candidates: list[PartialAST] = self._expand_hole(partial, hole, skip)
-
-                if not all_candidates:
-                    break
-
-                partial = rng.choice(all_candidates)
-                attempts += 1
-
-            if partial.is_complete():
-                front = self._try_complete(partial, validate, evaluate, start_time, ui, front)
-
-        return front
