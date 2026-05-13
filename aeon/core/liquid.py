@@ -100,7 +100,7 @@ class LiquidVar(LiquidTerm):
         return f"{self.name}"
 
     def __eq__(self, other):
-        return isinstance(other, LiquidVar) and other.name == self.name
+        return type(other) is LiquidVar and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(self.name)
@@ -122,9 +122,7 @@ class LiquidApp(LiquidTerm):
 
     def __eq__(self, other):
         return (
-            isinstance(other, LiquidApp)
-            and other.fun == self.fun
-            and all(x == y for (x, y) in zip(self.args, other.args))
+            type(other) is LiquidApp and other.fun == self.fun and all(x == y for (x, y) in zip(self.args, other.args))
         )
 
     def __hash__(self) -> int:

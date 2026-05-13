@@ -513,9 +513,34 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 
 sort_cache: dict[str, SortRef] = {}
 
+# Caches for the SMT-context helpers. Within a single solve, `translate` is
+# called repeatedly with constraints that share the same underlying SMTContext,
+# so the `variables`, `functions`, and `sorts` collections are the same Python
+# objects across many calls. We key by `id` because dict/list are not hashable;
+# the cached dict is held strongly so the id cannot be reused while cached.
+_mk_vars_cache: dict[int, tuple[dict[str, TypeConstructor], dict[str, Any]]] = {}
+_mk_funs_cache: dict[int, tuple[dict[str, AbstractionType], dict[str, Any]]] = {}
+_mk_sorts_cache: dict[tuple[str, ...], dict[str, SortRef]] = {}
+_SMT_HELPER_CACHE_MAX = 1024
+
+
+def _bound(cache: dict, limit: int = _SMT_HELPER_CACHE_MAX) -> None:
+    if len(cache) > limit:
+        # Drop ~10% oldest entries (insertion order in CPython dicts).
+        drop = max(1, limit // 10)
+        for k in list(cache.keys())[:drop]:
+            del cache[k]
+
 
 def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) -> dict[str, Any]:
-    return {name: make_variable(name, base) for name, base in variables.items()}
+    key = id(variables)
+    hit = _mk_vars_cache.get(key)
+    if hit is not None and hit[0] is variables:
+        return hit[1]
+    result = {name: make_variable(name, base) for name, base in variables.items()}
+    _mk_vars_cache[key] = (variables, result)
+    _bound(_mk_vars_cache)
+    return result
 
 
 def get_sort(base: Type) -> SortRef:
@@ -670,10 +695,21 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
 
 
 def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
-    return {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
+    key = tuple(sorts)
+    hit = _mk_sorts_cache.get(key)
+    if hit is not None:
+        return hit
+    result = {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
+    _mk_sorts_cache[key] = result
+    _bound(_mk_sorts_cache)
+    return result
 
 
 def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
+    key = id(functions)
+    hit = _mk_funs_cache.get(key)
+    if hit is not None and hit[0] is functions:
+        return hit[1]
     funs = {}
     for name, ty in functions.items():
         input_types, output_type = uncurry(ty)
@@ -681,6 +717,8 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             sorts.get(str(output_type), get_sort(output_type))
         ]
         funs[name] = Function(name, *args)
+    _mk_funs_cache[key] = (functions, funs)
+    _bound(_mk_funs_cache)
     return funs
 
 
@@ -711,8 +749,9 @@ def translate(
     sorts = mk_sorts(c.sorts)
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
-    e1 = translate_liq(c.premise, variables | functions)
-    e2 = translate_liq(c.conclusion, variables | functions)
+    env = variables | functions
+    e1 = translate_liq(c.premise, env)
+    e2 = translate_liq(c.conclusion, env)
     if isinstance(e2, bool) and e2 is True:
         return False
     if isinstance(e1, bool) and isinstance(e2, bool):
