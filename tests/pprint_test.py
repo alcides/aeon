@@ -1,13 +1,26 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 
-from aeon.utils.pprint import Associativity, Side, needs_parens_aux, ParenthesisContext, Precedence
+from aeon.sugar.lifting import lift_type
+from aeon.sugar.lowering import type_to_core
+from aeon.sugar.parser import parse_type
+from aeon.utils.pprint import Associativity, Side, needs_parens_aux, ParenthesisContext, Precedence, stype_pretty
 from aeon.utils.pprint_helpers import (
     Doc,
     text,
     concat,
     parens,
 )
+
+
+def test_refinement_comparison_operand_order():
+    # Regression: lift_liquid reversed curried application args, so a refinement
+    # written `y >= 5` printed as `5 >= y` after a round-trip through the core AST.
+    sugar_ty = parse_type("{y:Int | y >= 5}")
+    core_ty = type_to_core(sugar_ty)
+    rendered = str(stype_pretty(lift_type(core_ty)))
+    assert "y >= 5" in rendered
+    assert "5 >= y" not in rendered
 
 
 def test_simple_pprint_1():

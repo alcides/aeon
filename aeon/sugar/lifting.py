@@ -74,8 +74,10 @@ def lift_liquid(ref: LiquidTerm) -> STerm:
         case LiquidVar(name, loc):
             return SVar(name, loc)
         case LiquidApp(fun, args, loc):
+            # args are stored in source order; a curried application fun a b
+            # is App(App(Var(fun), a), b), so fold left-to-right.
             v: STerm = SVar(fun, loc=loc)
-            for arg in args[::-1]:
+            for arg in args:
                 v = SApplication(v, lift_liquid(arg), loc=loc)
             return v
         case _:
