@@ -499,6 +499,79 @@ pub fn collect_from_type(py: Python<'_>, ty: PyObject, sink: &Bound<'_, PySet>) 
     collect_from_type_inner(py, ty, sink)
 }
 
+/// Walk a term tree, collecting qualifier atoms from every type annotation it
+/// touches. Mirrors aeon.typechecking.qualifiers._collect_from_term.
+#[pyfunction]
+pub fn collect_from_term(py: Python<'_>, t: PyObject, sink: &Bound<'_, PySet>) -> PyResult<()> {
+    use crate::terms::{
+        Abstraction, Annotation, Application, If, Let, Literal, Rec, RefinementApplication,
+        TypeAbstraction, TypeApplication, Var,
+    };
+
+    let bound = t.bind(py);
+
+    if let Ok(an) = bound.downcast::<Annotation>() {
+        let an = an.borrow();
+        collect_from_type_inner(py, an.type_.clone_ref(py), sink)?;
+        collect_from_term(py, an.expr.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(app) = bound.downcast::<Application>() {
+        let app = app.borrow();
+        collect_from_term(py, app.fun.clone_ref(py), sink)?;
+        collect_from_term(py, app.arg.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(ab) = bound.downcast::<Abstraction>() {
+        let ab = ab.borrow();
+        return collect_from_term(py, ab.body.clone_ref(py), sink);
+    }
+    if let Ok(le) = bound.downcast::<Let>() {
+        let le = le.borrow();
+        collect_from_term(py, le.var_value.clone_ref(py), sink)?;
+        collect_from_term(py, le.body.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(rc) = bound.downcast::<Rec>() {
+        let rc = rc.borrow();
+        collect_from_type_inner(py, rc.var_type.clone_ref(py), sink)?;
+        collect_from_term(py, rc.var_value.clone_ref(py), sink)?;
+        collect_from_term(py, rc.body.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(ife) = bound.downcast::<If>() {
+        let ife = ife.borrow();
+        collect_from_term(py, ife.cond.clone_ref(py), sink)?;
+        collect_from_term(py, ife.then.clone_ref(py), sink)?;
+        collect_from_term(py, ife.otherwise.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(ta) = bound.downcast::<TypeAbstraction>() {
+        let ta = ta.borrow();
+        return collect_from_term(py, ta.body.clone_ref(py), sink);
+    }
+    if let Ok(tap) = bound.downcast::<TypeApplication>() {
+        let tap = tap.borrow();
+        collect_from_term(py, tap.body.clone_ref(py), sink)?;
+        collect_from_type_inner(py, tap.type_.clone_ref(py), sink)?;
+        return Ok(());
+    }
+    if let Ok(rapp) = bound.downcast::<RefinementApplication>() {
+        let rapp = rapp.borrow();
+        return collect_from_term(py, rapp.body.clone_ref(py), sink);
+    }
+    if let Ok(lit) = bound.downcast::<Literal>() {
+        let lit = lit.borrow();
+        return collect_from_type_inner(py, lit.type_.clone_ref(py), sink);
+    }
+    if bound.is_instance_of::<Var>() {
+        return Ok(());
+    }
+    // Everything else (Hole, RefinementAbstraction): no atoms — mirrors the
+    // Python's `case _: pass` fallback.
+    Ok(())
+}
+
 fn collect_from_type_inner(py: Python<'_>, ty: PyObject, sink: &Bound<'_, PySet>) -> PyResult<()> {
     let bound = ty.bind(py);
     if let Ok(rt) = bound.downcast::<RefinedType>() {

@@ -9,8 +9,7 @@ PLDI 2016 Synquid).
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidTerm
-from aeon.core.terms import Abstraction, Annotation, Application, If, Let, Literal, Rec, RefinementApplication
-from aeon.core.terms import Term, TypeAbstraction, TypeApplication, Var
+from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.typechecking.context import (
     TypeBinder,
@@ -19,43 +18,8 @@ from aeon.typechecking.context import (
     UninterpretedBinder,
     VariableBinder,
 )
+from aeon_rs import collect_from_term as _collect_from_term
 from aeon_rs import collect_from_type as _collect_from_type
-
-
-def _collect_from_term(t: Term, sink: set[LiquidTerm]) -> None:
-    match t:
-        case Annotation(_, ty):
-            _collect_from_type(ty, sink)
-            _collect_from_term(t.expr, sink)
-        case Application(f, a):
-            _collect_from_term(f, sink)
-            _collect_from_term(a, sink)
-        case Abstraction(_, b):
-            _collect_from_term(b, sink)
-        case Let(_, v, b):
-            _collect_from_term(v, sink)
-            _collect_from_term(b, sink)
-        case Rec(_, vty, vv, b, _, _):
-            _collect_from_type(vty, sink)
-            _collect_from_term(vv, sink)
-            _collect_from_term(b, sink)
-        case If(cond, then, otherwise):
-            _collect_from_term(cond, sink)
-            _collect_from_term(then, sink)
-            _collect_from_term(otherwise, sink)
-        case TypeAbstraction(_, _, b):
-            _collect_from_term(b, sink)
-        case TypeApplication(b, ty):
-            _collect_from_term(b, sink)
-            _collect_from_type(ty, sink)
-        case RefinementApplication(b, _):
-            _collect_from_term(b, sink)
-        case Literal(type=lit_ty):
-            _collect_from_type(lit_ty, sink)
-        case Var():
-            pass
-        case _:
-            pass
 
 
 def extract_qualifier_atoms(
