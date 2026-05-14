@@ -1,0 +1,50 @@
+# Image edit benchmark: select football players, keep spectators.
+#
+# Motivating example from "Synthesizing Optimal Object Selection Predicates
+# for Image Editing using Lattices" (arXiv:2504.03155).
+#
+# Scene: a football game photo. Person objects have:
+#   - age   (interval attribute, 0..100)
+#   - style (categorical: no_style | stride | logo)
+#
+# Players wear striped or plain jerseys (no logos) and are typically older
+# than the youngest spectators. Spectators in the stands wear team logos
+# or are children. The synthesizer must find a predicate that classifies
+# the 24 visible Persons into players (to remove) vs spectators (to keep)
+# given only the labelled examples below.
+
+inductive TopStyle
+| ts_none   : TopStyle
+| ts_stride : TopStyle
+| ts_logo   : TopStyle
+
+inductive Person
+| mk (age   : {a:Int | a >= 0 && a <= 100})
+     (style : TopStyle)
+   : {p:Person | (p_age p == age) && (p_style p == style)}
++ p_age   (p:Person) : Int
++ p_style (p:Person) : TopStyle
+
+# Positive examples (players to remove, blue marks in the paper).
+def pos1 : Person = .mk 24 .ts_none
+def pos2 : Person = .mk 31 .ts_none
+def pos3 : Person = .mk 42 .ts_stride
+
+# Negative examples (spectators to keep, red marks in the paper).
+def neg1 : Person = .mk 22 .ts_none
+def neg2 : Person = .mk 24 .ts_logo
+def neg3 : Person = .mk 19 .ts_logo
+
+def cost_pos (b:Bool) : Int = if b then 0 else 1
+def cost_neg (b:Bool) : Int = if b then 1 else 0
+
+@minimize_int(
+    cost_pos (is_player pos1)
+  + cost_pos (is_player pos2)
+  + cost_pos (is_player pos3)
+  + cost_neg (is_player neg1)
+  + cost_neg (is_player neg2)
+  + cost_neg (is_player neg3)
+)
+@hide(pos1, pos2, pos3, neg1, neg2, neg3, mk, cost_pos, cost_neg)
+def is_player (p:Person) : Bool = ?hole

@@ -1,0 +1,50 @@
+# Image edit benchmark: blur license plates of every vehicle.
+#
+# Privacy scenario from "Synthesizing Optimal Object Selection Predicates
+# for Image Editing using Lattices" (arXiv:2504.03155).
+#
+# A street photo contains a mix of objects detected by vision models: cars,
+# trucks, motorbikes, pedestrians, traffic signs. The user wants to mosaic
+# the license plate of every wheeled vehicle and leave the rest unchanged.
+#
+# Categorical predicate over a multi-valued attribute. The optimal selector
+# is a disjunction over the three vehicle classes:
+#   class o == .car || class o == .truck || class o == .motorbike
+
+inductive ObjectClass
+| oc_car        : ObjectClass
+| oc_truck      : ObjectClass
+| oc_motorbike  : ObjectClass
+| oc_pedestrian : ObjectClass
+| oc_sign       : ObjectClass
+
+inductive StreetObject
+| mk (klass : ObjectClass)
+   : {o:StreetObject | (class_of o == klass)}
++ class_of (o:StreetObject) : ObjectClass
+
+# Positive examples (vehicles to blur).
+def car1   : StreetObject = .mk .oc_car
+def car2   : StreetObject = .mk .oc_car
+def truck1 : StreetObject = .mk .oc_truck
+def bike1  : StreetObject = .mk .oc_motorbike
+
+# Negative examples (non-vehicles to keep).
+def ped1  : StreetObject = .mk .oc_pedestrian
+def ped2  : StreetObject = .mk .oc_pedestrian
+def sign1 : StreetObject = .mk .oc_sign
+
+def cost_pos (b:Bool) : Int = if b then 0 else 1
+def cost_neg (b:Bool) : Int = if b then 1 else 0
+
+@minimize_int(
+    cost_pos (blur_plate car1)
+  + cost_pos (blur_plate car2)
+  + cost_pos (blur_plate truck1)
+  + cost_pos (blur_plate bike1)
+  + cost_neg (blur_plate ped1)
+  + cost_neg (blur_plate ped2)
+  + cost_neg (blur_plate sign1)
+)
+@hide(car1, car2, truck1, bike1, ped1, ped2, sign1, mk, cost_pos, cost_neg)
+def blur_plate (o:StreetObject) : Bool = ?hole
