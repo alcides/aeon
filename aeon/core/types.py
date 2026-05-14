@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from dataclasses import dataclass, field
 
 from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
@@ -12,7 +11,7 @@ from aeon.utils.name import fresh_counter, Name
 
 
 # TODO: convert to ENUM
-class Kind(ABC):
+class Kind:
     def __repr__(self):
         return str(self)
 
@@ -39,7 +38,7 @@ class StarKind(Kind):
         return super().__hash__()
 
 
-class Type(ABC):
+class Type:
     loc: Location
 
 

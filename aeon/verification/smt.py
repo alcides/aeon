@@ -512,6 +512,48 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 
 sort_cache: dict[str, SortRef] = {}
 
+# Cached singleton sorts. Safe because all of Aeon shares the global z3 context.
+_int_sort: SortRef | None = None
+_bool_sort: SortRef | None = None
+_float_sort: SortRef | None = None
+_string_sort: SortRef | None = None
+_set_int_sort: SortRef | None = None
+
+
+def _int_sort_c() -> SortRef:
+    global _int_sort
+    if _int_sort is None:
+        _int_sort = IntSort()
+    return _int_sort
+
+
+def _bool_sort_c() -> SortRef:
+    global _bool_sort
+    if _bool_sort is None:
+        _bool_sort = BoolSort()
+    return _bool_sort
+
+
+def _float_sort_c() -> SortRef:
+    global _float_sort
+    if _float_sort is None:
+        _float_sort = Float64()
+    return _float_sort
+
+
+def _string_sort_c() -> SortRef:
+    global _string_sort
+    if _string_sort is None:
+        _string_sort = StringSort()
+    return _string_sort
+
+
+def _set_int_sort_c() -> SortRef:
+    global _set_int_sort
+    if _set_int_sort is None:
+        _set_int_sort = SetSort(_int_sort_c())
+    return _set_int_sort
+
 
 def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) -> dict[str, Any]:
     return {name: make_variable(name, base) for name, base in variables.items()}
@@ -520,24 +562,24 @@ def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) ->
 def get_sort(base: Type) -> SortRef:
     match base:
         case Top() | TypeConstructor(Name("Top", _)):
-            return IntSort()
+            return _int_sort_c()
         case TypeConstructor(Name("Int", _)):
-            return IntSort()
+            return _int_sort_c()
         case TypeConstructor(Name("Bool", _)):
-            return BoolSort()
+            return _bool_sort_c()
         case TypeConstructor(Name("Float", _)):
-            return Float64()
+            return _float_sort_c()
         case TypeConstructor(Name("String", _)):
-            return StringSort()
+            return _string_sort_c()
         case TypeConstructor(Name("Set", _)):
-            return SetSort(IntSort())
+            return _set_int_sort_c()
         case TypeConstructor(name, _):
             sname = str(name)
             if sname[:1].isupper():
                 if sname not in sort_cache:
                     sort_cache[sname] = DeclareSort(sname)
                 return sort_cache[sname]
-            return IntSort()
+            return _int_sort_c()
         case TypeVar(name):
             assert False, f"TypeVar {name} should not be used in SMT solver."
         case _:
@@ -594,7 +636,22 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
     return (inputs, current)
 
 
+_make_variable_cache: dict[tuple[str, int], Any] = {}
+
+
 def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
+    # Memoize on (name, hash(base)). All z3 objects live in the global default
+    # context (single global Solver), so caching across constraints is safe.
+    key = (name, hash(base))
+    cached = _make_variable_cache.get(key)
+    if cached is not None:
+        return cached
+    result = _make_variable_uncached(name, base)
+    _make_variable_cache[key] = result
+    return result
+
+
+def _make_variable_uncached(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
     match base:
         case Top():
             return Int(name)
@@ -613,7 +670,7 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
         case TypeConstructor(Name("String", _)):
             return String(name)
         case TypeConstructor(Name("Set", _)):
-            return Const(name, SetSort(IntSort()))
+            return Const(name, _set_int_sort_c())
         case TypeConstructor(Name("Top", _)):
             return Int(name)
         case TypeConstructor(_, _):
@@ -667,14 +724,24 @@ def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
     return {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
 
 
+_mk_funs_cache: dict[tuple[str, int], Any] = {}
+
+
 def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
     funs = {}
     for name, ty in functions.items():
+        cache_key = (name, hash(ty))
+        cached = _mk_funs_cache.get(cache_key)
+        if cached is not None:
+            funs[name] = cached
+            continue
         input_types, output_type = uncurry(ty)
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))
         ]
-        funs[name] = Function(name, *args)
+        fn = Function(name, *args)
+        _mk_funs_cache[cache_key] = fn
+        funs[name] = fn
     return funs
 
 

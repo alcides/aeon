@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from abc import ABC
 from dataclasses import dataclass, field
 from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 
 
-class LiquidTerm(ABC):
+class LiquidTerm:
     loc: Location
 
 

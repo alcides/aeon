@@ -39,6 +39,8 @@ class Name:
         return str(self)
 
     def __eq__(self, other):
+        if self is other:
+            return True
         return isinstance(other, Name) and self.name == other.name and self.id == other.id
 
     def __lt__(self, other):
