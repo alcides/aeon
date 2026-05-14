@@ -1,0 +1,12 @@
+# MBPP task 19
+# Write a function to find whether a given array of integers contains any duplicate element.
+#
+# Synthesis target: test_duplicate : List -> Bool
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Bool) : Float = native "float((0 if (f([1, 2, 3, 4, 5]) == False) else 1) + (0 if (f([1, 2, 3, 4, 4]) == True) else 1) + (0 if (f([1, 1, 2, 2, 3, 3, 4, 4, 5]) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (arraynums:List) : Bool = (?hole : Bool)

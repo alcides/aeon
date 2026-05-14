@@ -1,0 +1,12 @@
+# MBPP task 773
+# Write a function to find the occurrence and position of the substrings within a string. Return None if there is no match.
+#
+# Synthesis target: occurance_substring : String -> String -> Tuple
+
+type Tuple
+
+def mbpp_fitness (f:(x0:String) -> (x1:String) -> Tuple) : Float = native "float((0 if (f('python programming, python language')('python') == ('python', 0, 6)) else 1) + (0 if (f('python programming,programming language')('programming') == ('programming', 7, 18)) else 1) + (0 if (f('python programming,programming language')('language') == ('language', 31, 39)) else 1) + (0 if (f('c++ programming, c++ language')('python') == None) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (text:String) (pattern:String) : Tuple = (?hole : Tuple)

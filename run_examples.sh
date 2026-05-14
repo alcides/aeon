@@ -24,7 +24,7 @@ function run_example {
     fi
 }
 
-for folder in ffi image imports list syntax synthesis synthesis/image_edits "PSB2/solved" "MBPP/solved";
+for folder in ffi image imports list syntax synthesis synthesis/image_edits "PSB2/solved";
 do
     for entry in examples/$folder/*.ae
     do

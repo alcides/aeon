@@ -1,0 +1,10 @@
+# MBPP task 102
+# Write a function to convert a snake case string to camel case string.
+#
+# Synthesis target: snake_to_camel : String -> String
+
+def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('python_program') == 'PythonProgram') else 1) + (0 if (f('python_language') == 'PythonLanguage') else 1) + (0 if (f('programming_language') == 'ProgrammingLanguage') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (word:String) : String = (?hole : String)

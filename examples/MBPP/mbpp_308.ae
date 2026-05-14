@@ -1,0 +1,12 @@
+# MBPP task 308
+# Write a function to find the specified number of largest products from two given lists, selecting one factor from each list.
+#
+# Synthesis target: large_product : List -> List -> Int -> List
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> (x1:List) -> (x2:Int) -> List) : Float = native "float((0 if (f([1, 2, 3, 4, 5, 6])([3, 6, 8, 9, 10, 6])(3) == [60, 54, 50]) else 1) + (0 if (f([1, 2, 3, 4, 5, 6])([3, 6, 8, 9, 10, 6])(4) == [60, 54, 50, 48]) else 1) + (0 if (f([1, 2, 3, 4, 5, 6])([3, 6, 8, 9, 10, 6])(5) == [60, 54, 50, 48, 45]) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (nums1:List) (nums2:List) (N:Int) : List = (?hole : List)

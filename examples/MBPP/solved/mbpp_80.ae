@@ -1,6 +1,0 @@
-# MBPP task 80: Write a function to find the nth tetrahedral number.
-# tetrahedral_number(n) = n * (n + 1) * (n + 2) / 6
-
-def tetrahedral_number (n:Int) : Int = (n * (n + 1) * (n + 2)) / 6;
-
-def main (args:Int) : Unit = print (tetrahedral_number 5)

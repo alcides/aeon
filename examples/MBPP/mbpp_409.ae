@@ -1,0 +1,12 @@
+# MBPP task 409
+# Write a function to find the minimum product from the pairs of tuples within a given list.
+#
+# Synthesis target: min_product_tuple : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([(2, 7), (2, 6), (1, 8), (4, 9)]) == 8) else 1) + (0 if (f([(10, 20), (15, 2), (5, 10)]) == 30) else 1) + (0 if (f([(11, 44), (10, 15), (20, 5), (12, 9)]) == 100) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (list1:List) : Int = (?hole : Int)

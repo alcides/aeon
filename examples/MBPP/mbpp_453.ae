@@ -1,0 +1,10 @@
+# MBPP task 453
+# Write a python function to find the sum of even factors of a number.
+#
+# Synthesis target: sumofFactors : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(18) == 26) else 1) + (0 if (f(30) == 48) else 1) + (0 if (f(6) == 8) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

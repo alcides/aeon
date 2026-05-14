@@ -1,0 +1,12 @@
+# MBPP task 87
+# Write a function to merge three dictionaries into a single dictionary.
+#
+# Synthesis target: merge_dictionaries_three : Dict -> Dict -> Dict -> Dict
+
+type Dict
+
+def mbpp_fitness (f:(x0:Dict) -> (x1:Dict) -> (x2:Dict) -> Dict) : Float = native "float((0 if (f({'R': 'Red', 'B': 'Black', 'P': 'Pink'})({'G': 'Green', 'W': 'White'})({'O': 'Orange', 'W': 'White', 'B': 'Black'}) == {'B': 'Black', 'R': 'Red', 'P': 'Pink', 'G': 'Green', 'W': 'White', 'O': 'Orange'}) else 1) + (0 if (f({'R': 'Red', 'B': 'Black', 'P': 'Pink'})({'G': 'Green', 'W': 'White'})({'L': 'lavender', 'B': 'Blue'}) == {'W': 'White', 'P': 'Pink', 'B': 'Black', 'R': 'Red', 'G': 'Green', 'L': 'lavender'}) else 1) + (0 if (f({'R': 'Red', 'B': 'Black', 'P': 'Pink'})({'L': 'lavender', 'B': 'Blue'})({'G': 'Green', 'W': 'White'}) == {'B': 'Black', 'P': 'Pink', 'R': 'Red', 'G': 'Green', 'L': 'lavender', 'W': 'White'}) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (dict1:Dict) (dict2:Dict) (dict3:Dict) : Dict = (?hole : Dict)

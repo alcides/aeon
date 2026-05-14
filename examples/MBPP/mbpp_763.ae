@@ -1,0 +1,12 @@
+# MBPP task 763
+# Write a python function to find the minimum difference between any two elements in a given array. https://www.geeksforgeeks.org/find-minimum-difference-pair/
+#
+# Synthesis target: find_min_diff : Tuple -> Int -> Int
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> Int) : Float = native "float((0 if (f((1, 5, 3, 19, 18, 25))(6) == 1) else 1) + (0 if (f((4, 3, 2, 6))(4) == 1) else 1) + (0 if (f((30, 5, 20, 9))(4) == 4) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (arr:Tuple) (n:Int) : Int = (?hole : Int)

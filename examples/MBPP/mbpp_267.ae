@@ -1,0 +1,10 @@
+# MBPP task 267
+# Write a python function that takes in an integer n and returns the sum of the squares of the first n odd natural numbers.
+#
+# Synthesis target: square_Sum : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(2) == 10) else 1) + (0 if (f(3) == 35) else 1) + (0 if (f(4) == 84) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

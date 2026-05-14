@@ -1,0 +1,12 @@
+# MBPP task 115
+# Write a function to check whether all dictionaries in a list are empty or not.
+#
+# Synthesis target: empty_dit : List -> Bool
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Bool) : Float = native "float((0 if (f([{}, {}, {}]) == True) else 1) + (0 if (f([{1, 2}, {}, {}]) == False) else 1) + (0 if (f({}) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (list1:List) : Bool = (?hole : Bool)

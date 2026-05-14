@@ -1,0 +1,12 @@
+# MBPP task 401
+# Write a function to perform index wise addition of tuple elements in the given two nested tuples.
+#
+# Synthesis target: add_nested_tuples : Tuple -> Tuple -> Tuple
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float = native "float((0 if (f(((1, 3), (4, 5), (2, 9), (1, 10)))(((6, 7), (3, 9), (1, 1), (7, 3))) == ((7, 10), (7, 14), (3, 10), (8, 13))) else 1) + (0 if (f(((2, 4), (5, 6), (3, 10), (2, 11)))(((7, 8), (4, 10), (2, 2), (8, 4))) == ((9, 12), (9, 16), (5, 12), (10, 15))) else 1) + (0 if (f(((3, 5), (6, 7), (4, 11), (3, 12)))(((8, 9), (5, 11), (3, 3), (9, 5))) == ((11, 14), (11, 18), (7, 14), (12, 17))) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple = (?hole : Tuple)

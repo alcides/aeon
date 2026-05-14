@@ -1,0 +1,10 @@
+# MBPP task 135
+# Write a function to find the nth hexagonal number.
+#
+# Synthesis target: hexagonal_num : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(10) == 190) else 1) + (0 if (f(5) == 45) else 1) + (0 if (f(7) == 91) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

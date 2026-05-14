@@ -1,0 +1,12 @@
+# MBPP task 4
+# Write a function to find the n largest integers from a given list of numbers, returned in descending order.
+#
+# Synthesis target: heap_queue_largest : List -> Int -> List
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> (x1:Int) -> List) : Float = native "float((0 if (f([25, 35, 22, 85, 14, 65, 75, 22, 58])(3) == [85, 75, 65]) else 1) + (0 if (f([25, 35, 22, 85, 14, 65, 75, 22, 58])(2) == [85, 75]) else 1) + (0 if (f([25, 35, 22, 85, 14, 65, 75, 22, 58])(5) == [85, 75, 65, 58, 35]) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (nums:List) (n:Int) : List = (?hole : List)

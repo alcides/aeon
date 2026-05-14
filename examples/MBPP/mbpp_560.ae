@@ -1,0 +1,12 @@
+# MBPP task 560
+# Write a function to find the union of the elements of two given tuples and output them in sorted order.
+#
+# Synthesis target: union_elements : Tuple -> Tuple -> Tuple
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float = native "float((0 if (f((3, 4, 5, 6))((5, 7, 4, 10)) == (3, 4, 5, 6, 7, 10)) else 1) + (0 if (f((1, 2, 3, 4))((3, 4, 5, 6)) == (1, 2, 3, 4, 5, 6)) else 1) + (0 if (f((11, 12, 13, 14))((13, 15, 16, 17)) == (11, 12, 13, 14, 15, 16, 17)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple = (?hole : Tuple)

@@ -1,0 +1,10 @@
+# MBPP task 92
+# Write a function to check whether the given number is undulating or not.
+#
+# Synthesis target: is_undulating : Int -> Bool
+
+def mbpp_fitness (f:(x0:Int) -> Bool) : Float = native "float((0 if (f(1212121) == True) else 1) + (0 if (f(1991) == False) else 1) + (0 if (f(121) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Bool = (?hole : Bool)

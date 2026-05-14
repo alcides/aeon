@@ -1,0 +1,10 @@
+# MBPP task 732
+# Write a function to replace all occurrences of spaces, commas, or dots with a colon.
+#
+# Synthesis target: replace_specialchar : String -> String
+
+def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('Python language, Programming language.') == 'Python:language::Programming:language:') else 1) + (0 if (f('a b c,d e f') == 'a:b:c:d:e:f') else 1) + (0 if (f('ram reshma,ram rahim') == 'ram:reshma:ram:rahim') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (text:String) : String = (?hole : String)

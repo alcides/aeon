@@ -1,0 +1,10 @@
+# MBPP task 752
+# Write a function to find the nth jacobsthal number. https://www.geeksforgeeks.org/jacobsthal-and-jacobsthal-lucas-numbers/ 0, 1, 1, 3, 5, 11, 21, 43, 85, 171, 341, 683, 1365, 2731, ...
+#
+# Synthesis target: jacobsthal_num : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(5) == 11) else 1) + (0 if (f(2) == 1) else 1) + (0 if (f(4) == 5) else 1) + (0 if (f(13) == 2731) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

@@ -1,0 +1,12 @@
+# MBPP task 640
+# Write a function to remove the parenthesis and what is inbetween them from a string.
+#
+# Synthesis target: remove_parenthesis : List -> String
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> String) : Float = native "float((0 if (f(['python (chrome)']) == 'python') else 1) + (0 if (f(['string(.abc)']) == 'string') else 1) + (0 if (f(['alpha(num)']) == 'alpha') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (items:List) : String = (?hole : String)

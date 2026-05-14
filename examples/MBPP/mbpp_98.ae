@@ -1,0 +1,12 @@
+# MBPP task 98
+# Write a function to multiply all the numbers in a list and divide with the length of the list.
+#
+# Synthesis target: multiply_num : Tuple -> Float
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> Float) : Float = native "float((0 if (__import__('math').isclose(f((8, 2, 3, -1, 7)), -67.2, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f((-10, -20, -30)), -2000.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f((19, 15, 18)), 1710.0, rel_tol=0.001)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (numbers:Tuple) : Float = (?hole : Float)

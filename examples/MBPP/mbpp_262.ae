@@ -1,0 +1,13 @@
+# MBPP task 262
+# Write a function that takes in a list and an integer L and splits the given list into two parts where the length of the first part of the list is L, and returns the resulting lists in a tuple.
+#
+# Synthesis target: split_two_parts : List -> Int -> Tuple
+
+type List
+type Tuple
+
+def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Tuple) : Float = native "float((0 if (f([1, 1, 2, 3, 4, 4, 5, 1])(3) == ([1, 1, 2], [3, 4, 4, 5, 1])) else 1) + (0 if (f(['a', 'b', 'c', 'd'])(2) == (['a', 'b'], ['c', 'd'])) else 1) + (0 if (f(['p', 'y', 't', 'h', 'o', 'n'])(4) == (['p', 'y', 't', 'h'], ['o', 'n'])) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (list1:List) (L:Int) : Tuple = (?hole : Tuple)

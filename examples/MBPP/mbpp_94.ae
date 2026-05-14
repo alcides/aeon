@@ -1,0 +1,12 @@
+# MBPP task 94
+# Given a list of tuples, write a function that returns the first value of the tuple with the smallest second value.
+#
+# Synthesis target: index_minimum : List -> String
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> String) : Float = native "float((0 if (f([('Rash', 143), ('Manjeet', 200), ('Varsha', 100)]) == 'Varsha') else 1) + (0 if (f([('Yash', 185), ('Dawood', 125), ('Sanya', 175)]) == 'Dawood') else 1) + (0 if (f([('Sai', 345), ('Salman', 145), ('Ayesha', 96)]) == 'Ayesha') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_list:List) : String = (?hole : String)

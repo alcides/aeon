@@ -1,0 +1,12 @@
+# MBPP task 725
+# Write a function to extract values between quotation marks " " of the given string.
+#
+# Synthesis target: extract_quotation : String -> List
+
+type List
+
+def mbpp_fitness (f:(x0:String) -> List) : Float = native "float((0 if (f('Cortex \"A53\" Based \"multi\" tasking \"Processor\"') == ['A53', 'multi', 'Processor']) else 1) + (0 if (f('Cast your \"favorite\" entertainment \"apps\"') == ['favorite', 'apps']) else 1) + (0 if (f('Watch content \"4k Ultra HD\" resolution with \"HDR 10\" Support') == ['4k Ultra HD', 'HDR 10']) else 1) + (0 if (f(\"Watch content '4k Ultra HD' resolution with 'HDR 10' Support\") == []) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (text1:String) : List = (?hole : List)

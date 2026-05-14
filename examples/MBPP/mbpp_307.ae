@@ -1,0 +1,12 @@
+# MBPP task 307
+# Write a function to get a colon of a tuple.
+#
+# Synthesis target: colon_tuplex : Tuple -> Int -> Int -> Tuple
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) : Float = native "float((0 if (f(('HELLO', 5, [], True))(2)(50) == ('HELLO', 5, [50], True)) else 1) + (0 if (f(('HELLO', 5, [], True))(2)(100) == ('HELLO', 5, [100], True)) else 1) + (0 if (f(('HELLO', 5, [], True))(2)(500) == ('HELLO', 5, [500], True)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple = (?hole : Tuple)

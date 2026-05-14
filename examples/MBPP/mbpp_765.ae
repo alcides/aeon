@@ -1,0 +1,10 @@
+# MBPP task 765
+# Write a function to find nth polite number. geeksforgeeks.org/n-th-polite-number/
+#
+# Synthesis target: is_polite : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(7) == 11) else 1) + (0 if (f(4) == 7) else 1) + (0 if (f(9) == 13) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

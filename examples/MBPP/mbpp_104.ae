@@ -1,0 +1,13 @@
+# MBPP task 104
+# Write a function to sort each sublist of strings in a given list of lists.
+#
+# Synthesis target: sort_sublists : Tuple -> List
+
+type List
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> List) : Float = native "float((0 if (f((['green', 'orange'], ['black', 'white'], ['white', 'black', 'orange'])) == [['green', 'orange'], ['black', 'white'], ['black', 'orange', 'white']]) else 1) + (0 if (f(([' red ', 'green'], ['blue ', ' black'], [' orange', 'brown'])) == [[' red ', 'green'], [' black', 'blue '], [' orange', 'brown']]) else 1) + (0 if (f((['zilver', 'gold'], ['magnesium', 'aluminium'], ['steel', 'bronze'])) == [['gold', 'zilver'], ['aluminium', 'magnesium'], ['bronze', 'steel']]) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (input_list:Tuple) : List = (?hole : List)

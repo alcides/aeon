@@ -1,0 +1,12 @@
+# MBPP task 443
+# Write a python function to find the largest negative number from the given list.
+#
+# Synthesis target: largest_neg : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([1, 2, 3, -4, -6]) == -6) else 1) + (0 if (f([1, 2, 3, -8, -9]) == -9) else 1) + (0 if (f([1, 2, 3, 4, -1]) == -1) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (list1:List) : Int = (?hole : Int)

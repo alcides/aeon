@@ -1,0 +1,12 @@
+# MBPP task 399
+# Write a function to perform the mathematical bitwise xor operation across the given tuples.
+#
+# Synthesis target: bitwise_xor : Tuple -> Tuple -> Tuple
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float = native "float((0 if (f((10, 4, 6, 9))((5, 2, 3, 3)) == (15, 6, 5, 10)) else 1) + (0 if (f((11, 5, 7, 10))((6, 3, 4, 4)) == (13, 6, 3, 14)) else 1) + (0 if (f((12, 6, 8, 11))((7, 4, 5, 6)) == (11, 2, 13, 13)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple = (?hole : Tuple)

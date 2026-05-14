@@ -1,0 +1,12 @@
+# MBPP task 809
+# Write a function to check if each element of second tuple is smaller than its corresponding element in the first tuple.
+#
+# Synthesis target: check_smaller : Tuple -> Tuple -> Bool
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Bool) : Float = native "float((0 if (f((1, 2, 3))((2, 3, 4)) == False) else 1) + (0 if (f((4, 5, 6))((3, 4, 5)) == True) else 1) + (0 if (f((11, 12, 13))((10, 11, 12)) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Bool = (?hole : Bool)

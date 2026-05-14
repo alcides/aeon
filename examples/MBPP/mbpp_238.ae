@@ -1,0 +1,10 @@
+# MBPP task 238
+# Write a python function to count the number of non-empty substrings of a given string.
+#
+# Synthesis target: number_of_substrings : String -> Int
+
+def mbpp_fitness (f:(x0:String) -> Int) : Float = native "float((0 if (f('abc') == 6) else 1) + (0 if (f('abcd') == 10) else 1) + (0 if (f('abcde') == 15) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (str:String) : Int = (?hole : Int)

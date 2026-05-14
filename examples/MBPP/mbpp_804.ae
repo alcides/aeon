@@ -1,0 +1,12 @@
+# MBPP task 804
+# Write a function to check whether the product of numbers in a list is even or not.
+#
+# Synthesis target: is_product_even : List -> Bool
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Bool) : Float = native "float((0 if (f([1, 2, 3])) else 1) + (0 if (f([1, 2, 1, 4])) else 1) + (0 if (not f([1, 1])) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (arr:List) : Bool = (?hole : Bool)

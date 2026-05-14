@@ -1,0 +1,12 @@
+# MBPP task 116
+# Write a function to convert a given tuple of positive integers into a single integer.
+#
+# Synthesis target: tuple_to_int : Tuple -> Int
+
+type Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> Int) : Float = native "float((0 if (f((1, 2, 3)) == 123) else 1) + (0 if (f((4, 5, 6)) == 456) else 1) + (0 if (f((5, 6, 7)) == 567) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (nums:Tuple) : Int = (?hole : Int)

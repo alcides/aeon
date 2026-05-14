@@ -1,0 +1,12 @@
+# MBPP task 74
+# Write a function to check whether it follows the sequence given in the patterns array.
+#
+# Synthesis target: is_samepatterns : List -> List -> Bool
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> (x1:List) -> Bool) : Float = native "float((0 if (f(['red', 'green', 'green'])(['a', 'b', 'b']) == True) else 1) + (0 if (f(['red', 'green', 'greenn'])(['a', 'b', 'b']) == False) else 1) + (0 if (f(['red', 'green', 'greenn'])(['a', 'b']) == False) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (colors:List) (patterns:List) : Bool = (?hole : Bool)
