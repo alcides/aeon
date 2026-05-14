@@ -441,6 +441,131 @@ pub fn refined_to_unrefined_type(py: Python<'_>, ty: PyObject) -> PyResult<PyObj
     Ok(ty)
 }
 
+/// substitute_vartype: replace all TypeVar(name) occurrences in `t` by rep.
+/// Mirrors aeon.core.substitutions.substitute_vartype.
+///
+/// Differences from type_substitution:
+///  - On RefinedType, does NOT merge refinements (just rebuilds with recursed inner).
+///  - Asserts the inner of RefinedType is not itself a RefinedType (Aeon invariant).
+///  - Asserts on Top (no Top handler — Python crashes; we crash too for parity).
+#[pyfunction]
+pub fn substitute_vartype(
+    py: Python<'_>,
+    t: PyObject,
+    rep: PyObject,
+    name: Py<Name>,
+) -> PyResult<PyObject> {
+    let bound = t.bind(py);
+
+    if let Ok(tv) = bound.downcast::<TypeVar>() {
+        if name_eq(py, &tv.borrow().name, &name) {
+            return Ok(rep);
+        }
+        return Ok(t);
+    }
+    if let Ok(rt) = bound.downcast::<RefinedType>() {
+        let rt = rt.borrow();
+        let new_inner = substitute_vartype(
+            py,
+            rt.type_.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        // Aeon invariant: inner is TypeConstructor | TypeVar, never RefinedType.
+        return make_refined_type(
+            py,
+            rt.name.clone_ref(py),
+            new_inner,
+            rt.refinement.clone_ref(py),
+            rt.loc.clone_ref(py),
+        );
+    }
+    if let Ok(at) = bound.downcast::<AbstractionType>() {
+        let at = at.borrow();
+        let nv = substitute_vartype(
+            py,
+            at.var_type.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        let nt = substitute_vartype(
+            py,
+            at.type_.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        return make_abstraction_type(
+            py,
+            at.var_name.clone_ref(py),
+            nv,
+            nt,
+            at.loc.clone_ref(py),
+        );
+    }
+    if let Ok(tp) = bound.downcast::<TypePolymorphism>() {
+        let tp = tp.borrow();
+        if name_eq(py, &tp.name, &name) {
+            return Ok(t);
+        }
+        let nb = substitute_vartype(
+            py,
+            tp.body.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        return make_type_polymorphism(
+            py,
+            tp.name.clone_ref(py),
+            tp.kind.clone_ref(py),
+            nb,
+            tp.loc.clone_ref(py),
+        );
+    }
+    if let Ok(rp) = bound.downcast::<RefinementPolymorphism>() {
+        let rp = rp.borrow();
+        let ns = substitute_vartype(
+            py,
+            rp.sort.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        let nb = substitute_vartype(
+            py,
+            rp.body.clone_ref(py),
+            rep.clone_ref(py),
+            name.clone_ref(py),
+        )?;
+        return make_refinement_polymorphism(
+            py,
+            rp.name.clone_ref(py),
+            ns,
+            nb,
+            rp.loc.clone_ref(py),
+        );
+    }
+    if let Ok(tc) = bound.downcast::<TypeConstructor>() {
+        let tc = tc.borrow();
+        let args = tc.args.bind(py);
+        let new_args = PyList::empty_bound(py);
+        for i in 0..args.len() {
+            let arg = args.get_item(i)?;
+            let new_arg =
+                substitute_vartype(py, arg.into(), rep.clone_ref(py), name.clone_ref(py))?;
+            new_args.append(new_arg)?;
+        }
+        return make_type_constructor(
+            py,
+            tc.name.clone_ref(py),
+            new_args.unbind(),
+            tc.loc.clone_ref(py),
+        );
+    }
+    Err(pyo3::exceptions::PyAssertionError::new_err(format!(
+        "substitute_vartype: type {} not allowed in substitution",
+        bound.repr()?.to_string()
+    )))
+}
+
 // ---------- Qualifier-collection walks (aeon.typechecking.qualifiers) ----------
 
 /// True if a LiquidApp wraps the binary && operator (Name("&&", 0)).
@@ -662,9 +787,9 @@ pub fn substitution_in_liquid(
     }
     if let Ok(h) = bound.downcast::<LiquidHornApplication>() {
         let h = h.borrow();
-        // NB: matches Python's substitution_in_liquid: when recursing into
-        // a LiquidHornApplication it passes `t` (the outer horn) as the type
-        // of each rebuilt argtype tuple. Replicating that verbatim.
+        // Python: `[(substitution_in_liquid(a, rep, name), t) for (a, t) in argtypes]`
+        // The comprehension's `for (a, t)` rebinds `t` to each argtype's OWN
+        // type — NOT the outer horn term. Each rebuilt tuple keeps its own ty.
         let argtypes = h.argtypes.bind(py);
         let n = argtypes.len();
         let new_argtypes = PyList::empty_bound(py);
@@ -674,10 +799,10 @@ pub fn substitution_in_liquid(
                 pyo3::exceptions::PyAssertionError::new_err("argtypes items must be tuples")
             })?;
             let a = tup.get_item(0)?;
-            let _ty = tup.get_item(1)?;
+            let ty = tup.get_item(1)?;
             let new_a =
                 substitution_in_liquid(py, a.into(), rep.clone_ref(py), name.clone_ref(py))?;
-            let new_tup = PyTuple::new_bound(py, &[new_a, t.clone_ref(py)]);
+            let new_tup = PyTuple::new_bound(py, &[new_a, ty.into()]);
             new_argtypes.append(new_tup)?;
         }
         return make_liquid_horn_application(

@@ -13,6 +13,7 @@ mod liquid;
 mod loc;
 mod name;
 mod substitutions;
+mod term_subst;
 mod terms;
 mod types;
 
@@ -71,6 +72,19 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(substitutions::refined_to_unrefined_type, m)?)?;
     m.add_function(wrap_pyfunction!(substitutions::collect_from_type, m)?)?;
     m.add_function(wrap_pyfunction!(substitutions::collect_from_term, m)?)?;
+    m.add_function(wrap_pyfunction!(substitutions::substitute_vartype, m)?)?;
+    m.add_function(wrap_pyfunction!(term_subst::substitute_vartype_in_term, m)?)?;
+    m.add_function(wrap_pyfunction!(term_subst::substitution_liquid_in_type, m)?)?;
+    m.add_function(wrap_pyfunction!(term_subst::substitution_liquid_in_term, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        term_subst::instantiate_refinement_with_horn_in_liquid,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        term_subst::instantiate_refinement_with_horn_in_type,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(term_subst::substitution, m)?)?;
 
     Ok(())
 }
