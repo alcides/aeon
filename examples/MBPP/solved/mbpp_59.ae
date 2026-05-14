@@ -1,0 +1,6 @@
+# MBPP task 59: Write a function to find the nth octagonal number.
+# is_octagonal(n) = 3 * n * n - 2 * n
+
+def is_octagonal (n:Int) : Int = 3 * n * n - 2 * n;
+
+def main (args:Int) : Unit = print (is_octagonal 5)

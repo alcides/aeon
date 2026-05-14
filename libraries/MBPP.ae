@@ -1,0 +1,61 @@
+# MBPP — Mostly Basic Programming Problems benchmark
+#
+# Helpers for loading the sanitized MBPP dataset and scoring synthesis
+# candidates against each problem's Python ``test_list``. Pair with the
+# ``@multi_minimize_float`` decorator to drive synthesis toward solutions that
+# satisfy every assertion (the all-zero error vector is optimal).
+#
+# The runtime side is in ``aeon/libraries/mbpp.py``. The sanitized dataset
+# lives at ``libraries/data/mbpp.json`` and is loaded relative to the current
+# working directory.
+
+type MBPPDataset
+type MBPPProblem
+type List
+
+def _mbpp_runner : Unit = native_import "aeon.libraries.mbpp"
+
+# Loads the sanitized MBPP dataset from the given JSON file path.
+def load (path: String) : MBPPDataset =
+    native "_mbpp_runner.load(path)"
+
+# Loads the bundled MBPP dataset (``libraries/data/mbpp.json``).
+def dataset : MBPPDataset = native "_mbpp_runner.load()"
+
+# Returns the problem with the given task id (raises if absent).
+def get_task (d: MBPPDataset) (task_id: Int) : MBPPProblem =
+    native "_mbpp_runner.get_task(d, task_id)"
+
+# Number of assertions in this problem's test_list.
+def test_count (p: MBPPProblem) : Int =
+    native "_mbpp_runner.test_count(p)"
+
+# Scores an arity-1 candidate (``fn x``).
+# Returns a list of test_count errors: ``0.0`` per passing assertion, ``1.0``
+# per failing assertion. The all-zero vector is the optimum.
+def evaluate_arity_1 (p: MBPPProblem) (f: (a:Int) -> Int) : List =
+    native "_mbpp_runner.evaluate_arity_1(p, f)"
+
+# Scores an arity-1 candidate that returns a Bool.
+def evaluate_arity_1_bool (p: MBPPProblem) (f: (a:Int) -> Bool) : List =
+    native "_mbpp_runner.evaluate_arity_1(p, f)"
+
+# Scores an arity-1 candidate that returns a Float (e.g. sphere area).
+def evaluate_arity_1_float (p: MBPPProblem) (f: (a:Int) -> Float) : List =
+    native "_mbpp_runner.evaluate_arity_1(p, f)"
+
+# Scores an arity-2 candidate (``fn x y``).
+def evaluate_arity_2 (p: MBPPProblem) (f: (a:Int) -> (b:Int) -> Int) : List =
+    native "_mbpp_runner.evaluate_arity_2(p, f)"
+
+# Scores an arity-2 candidate that returns a Bool.
+def evaluate_arity_2_bool (p: MBPPProblem) (f: (a:Int) -> (b:Int) -> Bool) : List =
+    native "_mbpp_runner.evaluate_arity_2(p, f)"
+
+# Scores an arity-3 candidate (``fn x y z``).
+def evaluate_arity_3 (p: MBPPProblem) (f: (a:Int) -> (b:Int) -> (c:Int) -> Int) : List =
+    native "_mbpp_runner.evaluate_arity_3(p, f)"
+
+# Scores an arity-1 candidate where the input is a List (e.g. smallest_num).
+def evaluate_list_arity_1 (p: MBPPProblem) (f: (l:List) -> Int) : List =
+    native "_mbpp_runner.evaluate_arity_1(p, f)"

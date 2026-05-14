@@ -1,0 +1,5 @@
+# MBPP task 89: Write a function to find the closest smaller number than n.
+
+def closest_num (n:Int) : Int = n - 1;
+
+def main (args:Int) : Unit = print (closest_num 11)

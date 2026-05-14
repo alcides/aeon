@@ -1,0 +1,6 @@
+# MBPP task 17: Write a function that returns the perimeter of a square given
+# its side length as input.
+
+def square_perimeter (a:Int) : Int = 4 * a;
+
+def main (args:Int) : Unit = print (square_perimeter 10)

@@ -1,0 +1,12 @@
+# MBPP task 58 (synthesis): whether two integers have opposite signs.
+
+import MBPP (dataset, get_task)
+
+def problem : MBPPProblem = get_task dataset 58
+
+def mbpp_errors (p:MBPPProblem) (f:(a:Int) -> (b:Int) -> Bool) : List =
+    native "_mbpp_runner.evaluate_arity_2(p, f)"
+
+@hide(dataset, get_task, problem, mbpp_errors)
+@multi_minimize_float(mbpp_errors problem synth, 1)
+def synth (x:Int) (y:Int) : Bool = (?hole : Bool)

@@ -1,0 +1,10 @@
+# MBPP task 85: Write a function to find the surface area of a sphere.
+# Formula: 4 * pi * r^2
+
+open Math
+
+def surfacearea_sphere (r:Int) : Float =
+    rf : Float = toFloat r;
+    4.0 * PI * rf * rf;
+
+def main (args:Int) : Unit = print (surfacearea_sphere 10)

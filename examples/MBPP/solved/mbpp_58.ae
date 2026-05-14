@@ -1,0 +1,9 @@
+# MBPP task 58: Write a python function to check whether the given two
+# integers have opposite sign or not.
+
+def opposite_Signs (x:Int) (y:Int) : Bool =
+    if x > 0 then y < 0
+    else if x < 0 then y > 0
+    else false;
+
+def main (args:Int) : Unit = print (opposite_Signs 1 (-2))

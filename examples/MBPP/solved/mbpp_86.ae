@@ -1,0 +1,6 @@
+# MBPP task 86: Write a function to find the nth centered hexagonal number.
+# centered_hexagonal_number(n) = 3 * n * (n - 1) + 1
+
+def centered_hexagonal_number (n:Int) : Int = 3 * n * (n - 1) + 1;
+
+def main (args:Int) : Unit = print (centered_hexagonal_number 10)

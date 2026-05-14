@@ -1,0 +1,20 @@
+# MBPP task 66: Write a python function to count the number of positive
+# numbers in a list.
+# Reference uses ``num >= 0`` (treats 0 as positive), so we follow suit.
+
+type List
+
+def List_size : (l:List) -> Int = uninterpreted
+def List_new : {x:List | List_size x == 0} = native "[]"
+def List_append (l:List) (i:Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]"
+
+def List_map_int (f:(a:Int) -> Int) (xs:List) : List = native "list(map(f, xs))"
+def List_sum (xs:List) : Int = native "sum(xs)"
+
+def pos_count (xs:List) : Int =
+    indicator : (x:Int) -> Int = \x -> if x >= 0 then 1 else 0;
+    List_sum (List_map_int indicator xs);
+
+def main (args:Int) : Unit =
+    xs : List = List_append (List_append (List_append (List_append List_new 1) (-2)) 3) (-4);
+    print (pos_count xs);
