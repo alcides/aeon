@@ -2,10 +2,6 @@
 # A tree is symmetric iff its left and right subtrees are mirror images
 # of each other.  The predicate ``mirror`` does structural recursion
 # over two trees in lockstep.
-#
-# The runtime evaluator currently has a known limitation with ``match``;
-# this file defines the type and predicate (which type-check fully) and
-# avoids invoking them from ``main``.
 
 inductive BTree
 | empty : BTree
@@ -31,4 +27,10 @@ def sym_tree : BTree =
     .node 1 (.node 2 .empty (.node 4 .empty .empty))
             (.node 3 (.node 5 .empty .empty) .empty)
 
-def main (args:Int) : Unit = print "symmetric-tree predicate defined"
+def asym_tree : BTree =
+    .node 1 (.node 2 .empty .empty)
+            (.node 3 (.node 5 .empty .empty) .empty)
+
+def main (args:Int) : Unit =
+    _ = print (isSymmetric sym_tree);
+    print (isSymmetric asym_tree)

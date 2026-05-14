@@ -65,9 +65,6 @@ suite.
   (e.g. `p10_encode.ae` uses `itertools.groupby`).  This is in the
   spirit of Aeon's Python FFI: the *types* are still checked by Aeon,
   including refinements, while the implementation reuses Python.
-* The current Aeon evaluator has a known limitation when executing
-  `match` on inductive types (problems 55–56), so those files demonstrate
-  the typing only and avoid calling the predicates from `main`.
 
 ## Mapping to the original 99 problems
 
