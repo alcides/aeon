@@ -1,0 +1,14 @@
+# Problem 18: Extract a slice from a list.
+# Given indices i and k (1-indexed, inclusive), return l[i..k].
+
+open List
+
+def slice (l: (List Int))
+          (i: {x:Int | x >= 1 && x <= List_size l})
+          (k: {y:Int | y >= i && y <= List_size l}) : (List Int) =
+    native "l[i-1:k]"
+
+def main (args:Int) : Unit =
+    a : {x:(List Int) | List_size x == 7} =
+        List.append (List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5) 6) 7;
+    print (slice a 3 5)

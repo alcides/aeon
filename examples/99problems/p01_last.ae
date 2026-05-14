@@ -1,0 +1,10 @@
+# Problem 1: Find the last element of a list.
+# Uses a refinement to require the input list to be non-empty.
+
+open List
+
+def last (l: {x:(List a) | List.size x > 0}) : a = native "l[-1]"
+
+def main (args:Int) : Unit =
+    xs = List.append (List.append (List.append (List.new[Int]) 1) 2) 3;
+    print (last xs);

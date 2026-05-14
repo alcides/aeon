@@ -1,0 +1,34 @@
+# Problem 56: Detect symmetric binary trees.
+# A tree is symmetric iff its left and right subtrees are mirror images
+# of each other.  The predicate ``mirror`` does structural recursion
+# over two trees in lockstep.
+#
+# The runtime evaluator currently has a known limitation with ``match``;
+# this file defines the type and predicate (which type-check fully) and
+# avoids invoking them from ``main``.
+
+inductive BTree
+| empty : BTree
+| node  (v: Int) (l: BTree) (r: BTree) : BTree
+
+def mirror (a: BTree) (b: BTree) : Bool =
+    match a with
+    | .empty =>
+        (match b with
+         | .empty => true
+         | .node v l r => false)
+    | .node va la ra =>
+        (match b with
+         | .empty => false
+         | .node vb lb rb => mirror la rb && mirror ra lb)
+
+def isSymmetric (t: BTree) : Bool =
+    match t with
+    | .empty => true
+    | .node v l r => mirror l r
+
+def sym_tree : BTree =
+    .node 1 (.node 2 .empty (.node 4 .empty .empty))
+            (.node 3 (.node 5 .empty .empty) .empty)
+
+def main (args:Int) : Unit = print "symmetric-tree predicate defined"

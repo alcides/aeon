@@ -1,0 +1,10 @@
+# Problem 3: Find the K'th element of a list (0-indexed).
+# Refinement enforces that k is a valid index.
+
+open List
+
+def kth (l: (List a)) (k: {n:Int | n >= 0 && n < List.size l}) : a = native "l[k]"
+
+def main (args:Int) : Unit =
+    xs = List.append (List.append (List.append (List.append (List.new[Int]) 10) 20) 30) 40;
+    print (kth xs 2);

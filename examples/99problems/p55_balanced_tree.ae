@@ -1,0 +1,30 @@
+# Problem 55: Define completely balanced binary trees.
+# We give an inductive type for binary trees together with a recursive
+# ``isBalanced`` predicate.  The type system accepts trees built only with
+# the constructors ``leaf`` and ``node``, and the predicate is total over
+# any such tree.  We do not invoke the predicate at runtime because the
+# current Aeon evaluator has a known limitation with ``match`` evaluation;
+# the file is intended to be type-checked (and is exercised by the CI
+# script's ``--no-main`` smoke test).
+
+inductive Tree
+| leaf : Tree
+| node (v: Int) (l: Tree) (r: Tree) : Tree
+
+def absInt (n: Int) : Int = if n >= 0 then n else 0 - n
+
+def treeSize (t: Tree) : Int =
+    match t with
+    | .leaf => 0
+    | .node v l r => 1 + treeSize l + treeSize r
+
+def isBalanced (t: Tree) : Bool =
+    match t with
+    | .leaf => true
+    | .node v l r => absInt (treeSize l - treeSize r) <= 1 && isBalanced l && isBalanced r
+
+# Two example trees:
+def empty_tree : Tree = .leaf
+def balanced_tree : Tree = .node 1 (.node 2 .leaf .leaf) (.node 3 .leaf .leaf)
+
+def main (args:Int) : Unit = print "tree types defined"

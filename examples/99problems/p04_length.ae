@@ -1,0 +1,10 @@
+# Problem 4: Find the number of elements of a list.
+# The result is exactly the abstract size of the list (refinement-tracked).
+
+open List
+
+def myLength (l: (List a)) : {n:Int | n == List.size l} = List.length l
+
+def main (args:Int) : Unit =
+    xs = List.append (List.append (List.append (List.new[Int]) 1) 2) 3;
+    print (myLength xs);
