@@ -1,0 +1,56 @@
+# Two Distinct Triples with Equal Sums and Products
+# from https://www.hillelwayne.com/post/z3-examples/
+#
+# Find six distinct positive integers forming two triples (a,b,c) and (d,e,f)
+# such that:
+#   a + b + c == d + e + f
+#   a * b * c == d * e * f
+#   {a, b, c} ∩ {d, e, f} == ∅
+#
+# Known solution: (7, 8, 15) and (14, 6, 10) with sum=30 and product=840.
+
+inductive Triples
+| mk (a:Int | a > 0) (b:Int | b > 0) (c:Int | c > 0)
+     (d:Int | d > 0) (e:Int | e > 0) (f:Int | f > 0) :
+     {t:Triples |
+        (ta t == a) && (tb t == b) && (tc t == c) &&
+        (td t == d) && (te t == e) && (tf t == f)}
++ ta (t:Triples) : Int
++ tb (t:Triples) : Int
++ tc (t:Triples) : Int
++ td (t:Triples) : Int
++ te (t:Triples) : Int
++ tf (t:Triples) : Int
+
+@minimize_int(1)
+def triples_solution_hole : {t:Triples |
+    (ta t > 0) && (tb t > 0) && (tc t > 0) &&
+    (td t > 0) && (te t > 0) && (tf t > 0) &&
+    (ta t + tb t + tc t == td t + te t + tf t) &&
+    (ta t * tb t * tc t == td t * te t * tf t) &&
+    # All six values distinct (15 pairs)
+    (ta t != tb t) && (ta t != tc t) && (ta t != td t) &&
+    (ta t != te t) && (ta t != tf t) &&
+    (tb t != tc t) && (tb t != td t) && (tb t != te t) &&
+    (tb t != tf t) &&
+    (tc t != td t) && (tc t != te t) && (tc t != tf t) &&
+    (td t != te t) && (td t != tf t) &&
+    (te t != tf t)
+} = ?hole
+
+# Verification: (7, 8, 15) and (14, 6, 10) should type-check.
+#   sum:     7 + 8 + 15 = 30 = 14 + 6 + 10
+#   product: 7 * 8 * 15 = 840 = 14 * 6 * 10
+def triples_solution : {t:Triples |
+    (ta t > 0) && (tb t > 0) && (tc t > 0) &&
+    (td t > 0) && (te t > 0) && (tf t > 0) &&
+    (ta t + tb t + tc t == td t + te t + tf t) &&
+    (ta t * tb t * tc t == td t * te t * tf t) &&
+    (ta t != tb t) && (ta t != tc t) && (ta t != td t) &&
+    (ta t != te t) && (ta t != tf t) &&
+    (tb t != tc t) && (tb t != td t) && (tb t != te t) &&
+    (tb t != tf t) &&
+    (tc t != td t) && (tc t != te t) && (tc t != tf t) &&
+    (td t != te t) && (td t != tf t) &&
+    (te t != tf t)
+} = .mk 7 8 15 14 6 10

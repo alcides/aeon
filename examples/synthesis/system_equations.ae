@@ -1,0 +1,23 @@
+# System of Linear Equations - from https://ar-ms.me/thoughts/a-gentle-introduction-to-z3/
+#
+# Find integers x and y such that:
+#   x + y == 18
+#   y == 2 * x
+# Expected solution: x = 6, y = 12.
+
+inductive Pair
+| mk (x:Int) (y:Int) :
+     {p:Pair | (px p == x) && (py p == y)}
++ px (p:Pair) : Int
++ py (p:Pair) : Int
+
+def system_solution_hole : {p:Pair |
+    (px p + py p == 18) &&
+    (py p == 2 * px p)
+} = ?hole
+
+# Verification: the known solution should type-check.
+def system_solution : {p:Pair |
+    (px p + py p == 18) &&
+    (py p == 2 * px p)
+} = .mk 6 12
