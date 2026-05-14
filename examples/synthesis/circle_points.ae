@@ -1,0 +1,20 @@
+# Integer Points on a Circle - from https://ar-ms.me/thoughts/a-gentle-introduction-to-z3/
+#
+# Find integer coordinates (x, y) such that x^2 + y^2 == 25.
+# The circle of radius 5 has 12 such integer (lattice) points, e.g.:
+#   (0,  5), ( 3,  4), ( 4,  3), ( 5, 0)
+#   (0, -5), (-3, -4), (-4, -3), (-5, 0)
+#   ...
+
+inductive Point
+| mk (x:Int) (y:Int) :
+     {p:Point | (px p == x) && (py p == y)}
++ px (p:Point) : Int
++ py (p:Point) : Int
+
+def lattice_point_hole : {p:Point |
+    px p * px p + py p * py p == 25
+} = ?hole
+
+# Verification: a known lattice point should type-check.
+def lattice_point : {p:Point | px p * px p + py p * py p == 25} = .mk 3 4
