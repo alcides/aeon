@@ -11,8 +11,6 @@ There are two *registration* phases (usage syntax is always ``@name(...)``):
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
 from aeon.sugar.program import Decorator, Definition
@@ -74,7 +72,9 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
         else:
             raise Exception(f"Unknown decorator named {dname}, in function {fun.name}.")
 
-    partial = replace(fun, decorators=core_decs)
+    partial = Definition(
+        fun.name, fun.foralls, fun.args, fun.type, fun.body, core_decs, fun.rforalls, fun.decreasing_by, fun.loc
+    )
     total_extra: list[Definition] = []
     for decorator in sugar_decs:
         dname = decorator.name.name

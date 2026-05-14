@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
 from pathlib import Path
 from typing import NamedTuple
 
@@ -110,7 +109,7 @@ def definition_with_inferred_decreasing(d: Definition) -> Definition:
         return d
     if not _sugar_contains_recursive_call(d.body, d.name):
         return d
-    return replace(d, decreasing_by=[SVar(pname)])
+    return Definition(d.name, d.foralls, d.args, d.type, d.body, d.decorators, d.rforalls, [SVar(pname)], d.loc)
 
 
 class DesugaredProgram(NamedTuple):
@@ -627,7 +626,7 @@ def infer_inductive_rforall_decls(p: Program) -> Program:
 
         if acc:
             ordered = sorted(acc.items(), key=lambda item: (item[0].name, item[0].id))
-            inferred.append(replace(ind, rforalls=list(ordered)))
+            inferred.append(InductiveDecl(ind.name, ind.args, list(ordered), ind.constructors, ind.measures, ind.loc))
         else:
             inferred.append(ind)
 

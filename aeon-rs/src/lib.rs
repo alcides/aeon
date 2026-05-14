@@ -15,6 +15,7 @@ mod liquid;
 mod loc;
 mod name;
 mod substitutions;
+mod sugar;
 mod term_subst;
 mod terms;
 mod types;
@@ -94,6 +95,45 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(liquefy::instantiate_refinement_in_liquid, m)?)?;
     m.add_function(wrap_pyfunction!(liquefy::instantiate_refinement_in_type, m)?)?;
     m.add_function(wrap_pyfunction!(liquefy::substitution_in_type, m)?)?;
+
+    // Sugar (surface) AST — SType hierarchy
+    m.add_class::<sugar::SType>()?;
+    m.add_class::<sugar::STypeVar>()?;
+    m.add_class::<sugar::SRefinedType>()?;
+    m.add_class::<sugar::SAbstractionType>()?;
+    m.add_class::<sugar::STypePolymorphism>()?;
+    m.add_class::<sugar::SRefinementPolymorphism>()?;
+    m.add_class::<sugar::STypeConstructor>()?;
+
+    // Sugar AST — STerm hierarchy
+    m.add_class::<sugar::STerm>()?;
+    m.add_class::<sugar::SLiteral>()?;
+    m.add_class::<sugar::SVar>()?;
+    m.add_class::<sugar::SQualifiedVar>()?;
+    m.add_class::<sugar::SAnnotation>()?;
+    m.add_class::<sugar::SHole>()?;
+    m.add_class::<sugar::SBy>()?;
+    m.add_class::<sugar::SApplication>()?;
+    m.add_class::<sugar::SAbstraction>()?;
+    m.add_class::<sugar::SLet>()?;
+    m.add_class::<sugar::SRec>()?;
+    m.add_class::<sugar::SIf>()?;
+    m.add_class::<sugar::SAnonConstructor>()?;
+    m.add_class::<sugar::SMatchBranch>()?;
+    m.add_class::<sugar::SMatch>()?;
+    m.add_class::<sugar::STypeAbstraction>()?;
+    m.add_class::<sugar::SRefinementAbstraction>()?;
+    m.add_class::<sugar::STypeApplication>()?;
+    m.add_class::<sugar::SRefinementApplication>()?;
+
+    // Sugar AST — Node hierarchy
+    m.add_class::<sugar::Node>()?;
+    m.add_class::<sugar::ImportAe>()?;
+    m.add_class::<sugar::TypeDecl>()?;
+    m.add_class::<sugar::InductiveDecl>()?;
+    m.add_class::<sugar::Decorator>()?;
+    m.add_class::<sugar::Definition>()?;
+    m.add_class::<sugar::Program>()?;
 
     Ok(())
 }
