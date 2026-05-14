@@ -1,0 +1,53 @@
+# Image edit benchmark: recolor a specific shoe variant in a catalog.
+#
+# Mixed-attribute scenario inspired by "Synthesizing Optimal Object Selection
+# Predicates for Image Editing using Lattices" (arXiv:2504.03155).
+#
+# A shoe-shop catalog photo contains shoes of two colors (red / blue) in
+# different sizes. The seller wants to preview how blue shoes in adult sizes
+# (>= 38) would look in green, while keeping red shoes and small blue shoes
+# unchanged. Each shoe has:
+#   - shade : categorical (red | blue)
+#   - size  : interval (20..50)
+#
+# The optimal predicate combines a categorical equality with an interval
+# threshold:
+#   shade s == .sc_blue  &&  size s >= 38
+
+inductive ShoeColor
+| sc_red  : ShoeColor
+| sc_blue : ShoeColor
+
+inductive Shoe
+| mk (shade : ShoeColor)
+     (size  : {n:Int | n >= 20 && n <= 50})
+   : {s:Shoe | (shoe_shade s == shade) && (shoe_size s == size)}
++ shoe_shade (s:Shoe) : ShoeColor
++ shoe_size  (s:Shoe) : Int
+
+# Positive examples: blue adult-size shoes.
+def blue_40 : Shoe = .mk .sc_blue 40
+def blue_42 : Shoe = .mk .sc_blue 42
+def blue_45 : Shoe = .mk .sc_blue 45
+
+# Negative examples: red shoes (any size) and blue child-size shoes.
+def red_40    : Shoe = .mk .sc_red 40
+def red_30    : Shoe = .mk .sc_red 30
+def blue_28   : Shoe = .mk .sc_blue 28
+def blue_30   : Shoe = .mk .sc_blue 30
+
+def cost_pos (b:Bool) : Int = if b then 0 else 1
+def cost_neg (b:Bool) : Int = if b then 1 else 0
+
+@minimize_int(
+    cost_pos (recolor blue_40)
+  + cost_pos (recolor blue_42)
+  + cost_pos (recolor blue_45)
+  + cost_neg (recolor red_40)
+  + cost_neg (recolor red_30)
+  + cost_neg (recolor blue_28)
+  + cost_neg (recolor blue_30)
+)
+@hide(blue_40, blue_42, blue_45, red_40, red_30, blue_28, blue_30,
+      mk, cost_pos, cost_neg)
+def recolor (s:Shoe) : Bool = ?hole

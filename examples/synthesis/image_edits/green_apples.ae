@@ -1,0 +1,44 @@
+# Image edit benchmark: recolor green apples to red.
+#
+# Online shop scenario from "Synthesizing Optimal Object Selection Predicates
+# for Image Editing using Lattices" (arXiv:2504.03155).
+#
+# A product photo contains apples of several colors. The seller wants to
+# show what the catalog would look like if every green apple were repainted
+# red. Each apple has a single categorical attribute: its base color.
+#
+# Pure-categorical synthesis task: the optimal predicate is just
+#   color a == .ac_green
+# but the synthesizer must isolate the relevant feature among many.
+
+inductive AppleColor
+| ac_green  : AppleColor
+| ac_red    : AppleColor
+| ac_yellow : AppleColor
+
+inductive Apple
+| mk (color : AppleColor)
+   : {a:Apple | (color_of a == color)}
++ color_of (a:Apple) : AppleColor
+
+# Positive examples: green apples to recolor.
+def green1 : Apple = .mk .ac_green
+def green2 : Apple = .mk .ac_green
+
+# Negative examples: leave other apples untouched.
+def red1    : Apple = .mk .ac_red
+def red2    : Apple = .mk .ac_red
+def yellow1 : Apple = .mk .ac_yellow
+
+def cost_pos (b:Bool) : Int = if b then 0 else 1
+def cost_neg (b:Bool) : Int = if b then 1 else 0
+
+@minimize_int(
+    cost_pos (recolor_target green1)
+  + cost_pos (recolor_target green2)
+  + cost_neg (recolor_target red1)
+  + cost_neg (recolor_target red2)
+  + cost_neg (recolor_target yellow1)
+)
+@hide(green1, green2, red1, red2, yellow1, mk, cost_pos, cost_neg)
+def recolor_target (a:Apple) : Bool = ?hole
