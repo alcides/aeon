@@ -1,0 +1,39 @@
+# Bales of Hay
+# Adapted from https://www.hakank.org/z3/bales_of_hay.py
+#
+# Five bales of hay were weighed in all 10 pairs.  The pairwise sums,
+# sorted ascending, were 80, 82, 83, 84, 85, 86, 87, 88, 90, 91.
+# Find the five individual weights.
+#
+# Variables w1 <= w2 <= w3 <= w4 <= w5 each in [0, 50].  Necessary
+# consequences of the pairwise sums:
+#   w1 + w2  == 80                       (smallest pair)
+#   w4 + w5  == 91                       (largest pair)
+#   sum of all weights * 4    == 856     (each weight appears in 4 pairs,
+#                                         and 80+82+...+91 == 856)
+# Therefore w1 + w2 + w3 + w4 + w5 == 214, i.e. w3 == 214 - 80 - 91 == 43.
+
+inductive Bales
+| mk (w1: Int | w1 >= 0 && w1 <= 50)
+     (w2: Int | w2 >= 0 && w2 <= 50)
+     (w3: Int | w3 >= 0 && w3 <= 50)
+     (w4: Int | w4 >= 0 && w4 <= 50)
+     (w5: Int | w5 >= 0 && w5 <= 50)
+   : {b:Bales |
+        (b1 b == w1) && (b2 b == w2) && (b3 b == w3) &&
+        (b4 b == w4) && (b5 b == w5)}
++ b1 (b:Bales) : Int
++ b2 (b:Bales) : Int
++ b3 (b:Bales) : Int
++ b4 (b:Bales) : Int
++ b5 (b:Bales) : Int
+
+@minimize_int(1)
+def bales_hole : {b:Bales |
+    (b1 b <= b2 b) && (b2 b <= b3 b) && (b3 b <= b4 b) && (b4 b <= b5 b) &&
+    (b1 b + b2 b == 80) &&
+    (b4 b + b5 b == 91) &&
+    (b1 b + b2 b + b3 b + b4 b + b5 b == 214) &&
+    (b1 b + b3 b == 82) &&
+    (b3 b + b5 b == 90)
+} = ?hole

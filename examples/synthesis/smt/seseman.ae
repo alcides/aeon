@@ -1,0 +1,50 @@
+# Seseman's Convent Problem (n = 3)
+# Adapted from https://www.hakank.org/z3/seseman.py
+#
+# A 3x3 matrix has 8 unknown border cells (the center is empty):
+#
+#     a b c
+#     d   e
+#     f g h
+#
+# Each row/column on the border must sum to border_sum = 9, and the
+# total sum of all eight cells is total_sum = 24.
+# All cells are non-negative integers; here we cap each at 9.
+#
+# Constraints:
+#   a + b + c          == 9       (top row)
+#   a + d + f          == 9       (left column)
+#   c + e + h          == 9       (right column)
+#   f + g + h          == 9       (bottom row)
+#   a + b + c + d + e + f + g + h == 24
+
+inductive Seseman
+| mk (a: Int | a >= 0 && a <= 9)
+     (b: Int | b >= 0 && b <= 9)
+     (c: Int | c >= 0 && c <= 9)
+     (d: Int | d >= 0 && d <= 9)
+     (e: Int | e >= 0 && e <= 9)
+     (f: Int | f >= 0 && f <= 9)
+     (g: Int | g >= 0 && g <= 9)
+     (h: Int | h >= 0 && h <= 9)
+   : {s:Seseman |
+        (s_a s == a) && (s_b s == b) && (s_c s == c) && (s_d s == d) &&
+        (s_e s == e) && (s_f s == f) && (s_g s == g) && (s_h s == h)}
++ s_a (s:Seseman) : Int
++ s_b (s:Seseman) : Int
++ s_c (s:Seseman) : Int
++ s_d (s:Seseman) : Int
++ s_e (s:Seseman) : Int
++ s_f (s:Seseman) : Int
++ s_g (s:Seseman) : Int
++ s_h (s:Seseman) : Int
+
+@minimize_int(1)
+def seseman_hole : {s:Seseman |
+    (s_a s + s_b s + s_c s == 9) &&
+    (s_a s + s_d s + s_f s == 9) &&
+    (s_c s + s_e s + s_h s == 9) &&
+    (s_f s + s_g s + s_h s == 9) &&
+    (s_a s + s_b s + s_c s + s_d s +
+     s_e s + s_f s + s_g s + s_h s == 24)
+} = ?hole
