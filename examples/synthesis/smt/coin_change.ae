@@ -1,0 +1,33 @@
+# Coin Change  -- canonical SMT/Z3 puzzle
+# Reach a target value of 37 using denominations 1, 5, and 10 with the
+# fewest coins.  This appears in many SMT tutorials and is a natural fit
+# for refinement-typed synthesis: the type carries the value-sum
+# constraint, and the optimization objective minimizes the total number
+# of coins.
+#
+# Constraints:
+#   c1, c5, c10 >= 0
+#   1*c1 + 5*c5 + 10*c10 == 37
+#
+# Expected optimum: c1=2, c5=1, c10=3  (6 coins total).
+
+inductive Change
+| mk (c1:  Int | c1  >= 0 && c1  <= 37)
+     (c5:  Int | c5  >= 0 && c5  <= 7)
+     (c10: Int | c10 >= 0 && c10 <= 3)
+   : {c:Change |
+        (ones c == c1) && (fives c == c5) && (tens c == c10)}
++ ones  (c:Change) : Int
++ fives (c:Change) : Int
++ tens  (c:Change) : Int
+
+def total (c:Change) : Int =
+    match c with
+    | mk c1 c5 c10 => c1 + c5 + c10;
+
+@hide(total)
+@minimize_int(total change_hole)
+def change_hole : {c:Change |
+    (ones c >= 0) && (fives c >= 0) && (tens c >= 0) &&
+    (ones c + 5 * fives c + 10 * tens c == 37)
+} = ?hole

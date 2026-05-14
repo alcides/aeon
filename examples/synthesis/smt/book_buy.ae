@@ -1,0 +1,49 @@
+# Book Buy puzzle  (M. Kraitchik, "Mathematical Recreations", p. 37)
+# Adapted from https://www.hakank.org/z3/book_buy.py
+#
+# Two fathers (Peter, Paul) and two sons (Tom, Dick) each buy some books.
+# The price of each book equals the number of books they buy (so a person
+# who buys k books spends k*k dollars). Each family spends exactly $65.
+# Peter buys one more book than Tom. Dick buys exactly one book.
+# Determine which father is the parent of which son.
+#
+# Encoding (following the original integer-programming model):
+#   w in {0, 1}   :  w = 1 iff Peter is Tom's father (else Paul is)
+#   x0, x1 in [1, 8]  :  books bought by Peter (x0) and Paul (x1)
+#   y0, y1 in [1, 8]  :  books bought by Tom (y0) and Dick (y1)
+#
+# Constraints:
+#   y1                                              == 1
+#   x0                                              == y0 + 1
+#   x0*x0 + w*y0*y0    + (1 - w)*y1*y1              == 65    (Peter's family)
+#   x1*x1 + (1 - w)*y0*y0 + w*y1*y1                 == 65    (Paul's family)
+
+inductive Books
+| mk (w: Int | w >= 0 && w <= 1)
+     (x0: Int | x0 >= 1 && x0 <= 8)
+     (x1: Int | x1 >= 1 && x1 <= 8)
+     (y0: Int | y0 >= 1 && y0 <= 8)
+     (y1: Int | y1 >= 1 && y1 <= 8)
+   : {b:Books |
+        (which b == w)  &&
+        (peter b == x0) && (paul b == x1) &&
+        (tom   b == y0) && (dick b == y1)}
++ which (b:Books) : Int
++ peter (b:Books) : Int
++ paul  (b:Books) : Int
++ tom   (b:Books) : Int
++ dick  (b:Books) : Int
+
+@minimize_int(1)
+def books_hole : {b:Books |
+    (which b >= 0) && (which b <= 1) &&
+    (peter b >= 1) && (peter b <= 8) &&
+    (paul  b >= 1) && (paul  b <= 8) &&
+    (tom   b >= 1) && (tom   b <= 8) &&
+    (dick b == 1) &&
+    (peter b == tom b + 1) &&
+    (peter b * peter b + which b * tom b * tom b +
+        (1 - which b) * dick b * dick b == 65) &&
+    (paul  b * paul  b + (1 - which b) * tom b * tom b +
+        which b * dick b * dick b == 65)
+} = ?hole

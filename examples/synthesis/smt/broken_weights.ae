@@ -1,0 +1,38 @@
+# Broken Weights (Bachet de Meziriac, 1612)
+# Adapted from https://www.hakank.org/z3/broken_weights.py
+#
+# "A merchant had a forty pound measuring weight that broke into four
+#  pieces as the result of a fall. When the pieces were subsequently
+#  weighed, it was found that the weight of each piece was a whole number
+#  of pounds and that the four pieces could be used to weigh every
+#  integral weight between 1 and 40 pounds. What were the weights of the
+#  pieces?"
+#
+# Variables w1 < w2 < w3 < w4 are the four piece weights in [1, 40],
+# and their sum must equal 40.  The classical solution is (1, 3, 9, 27).
+#
+# Type-level constraints:
+#   - each weight lies in [1, 40]
+# Refinement constraints on the witness:
+#   - strict ordering  w1 < w2 < w3 < w4    (symmetry breaking)
+#   - sum equals 40
+
+inductive Weights
+| mk (w1: Int | w1 >= 1 && w1 <= 40)
+     (w2: Int | w2 >= 1 && w2 <= 40)
+     (w3: Int | w3 >= 1 && w3 <= 40)
+     (w4: Int | w4 >= 1 && w4 <= 40)
+   : {x:Weights |
+        (p1 x == w1) && (p2 x == w2) &&
+        (p3 x == w3) && (p4 x == w4)}
++ p1 (x:Weights) : Int
++ p2 (x:Weights) : Int
++ p3 (x:Weights) : Int
++ p4 (x:Weights) : Int
+
+@minimize_int(1)
+def weights_hole : {x:Weights |
+    (p1 x >= 1) && (p4 x <= 40) &&
+    (p1 x < p2 x) && (p2 x < p3 x) && (p3 x < p4 x) &&
+    (p1 x + p2 x + p3 x + p4 x == 40)
+} = ?hole
