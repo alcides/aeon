@@ -8,7 +8,9 @@
 
 use pyo3::prelude::*;
 
+mod builders;
 mod kind;
+mod liquefy;
 mod liquid;
 mod loc;
 mod name;
@@ -85,6 +87,13 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m
     )?)?;
     m.add_function(wrap_pyfunction!(term_subst::substitution, m)?)?;
+
+    // liquefy / inline_lets cluster
+    m.add_function(wrap_pyfunction!(liquefy::inline_lets, m)?)?;
+    m.add_function(wrap_pyfunction!(liquefy::liquefy, m)?)?;
+    m.add_function(wrap_pyfunction!(liquefy::instantiate_refinement_in_liquid, m)?)?;
+    m.add_function(wrap_pyfunction!(liquefy::instantiate_refinement_in_type, m)?)?;
+    m.add_function(wrap_pyfunction!(liquefy::substitution_in_type, m)?)?;
 
     Ok(())
 }
