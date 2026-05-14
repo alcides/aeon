@@ -91,7 +91,7 @@ def lift_type(ty: Type) -> SType:
         case TypeConstructor(name, args, loc):
             return STypeConstructor(name, [lift_type(arg) for arg in args], loc=loc)
         case AbstractionType(name, atype, rtype, loc):
-            return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc)
+            return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc, multiplicity=ty.multiplicity)
         case RefinedType(name, typ, ref, loc):
             from aeon.core.types import LiquidHornApplication
 
@@ -122,7 +122,7 @@ def lift(t: Term) -> STerm:
         case Abstraction(var_name, body, loc):
             return SAbstraction(var_name, lift(body), loc=loc)
         case Let(var_name, var_value, body, loc):
-            return SLet(var_name, lift(var_value), lift(body), loc=loc)
+            return SLet(var_name, lift(var_value), lift(body), loc=loc, multiplicity=t.multiplicity)
         case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
             return SRec(
                 var_name,
@@ -131,6 +131,7 @@ def lift(t: Term) -> STerm:
                 lift(body),
                 decreasing_by=tuple(lift(m) for m in decreasing_by),
                 loc=loc,
+                multiplicity=t.multiplicity,
             )
         case If(cond, then, otherwise, loc):
             return SIf(lift(cond), lift(then), lift(otherwise), loc=loc)

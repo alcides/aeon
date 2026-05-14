@@ -30,7 +30,7 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
         case SRefinedType(name, ity, ref, loc):
             return normalize(SRefinedType(name, rec(ity), ref, loc=loc))
         case SAbstractionType(name, vty, rty, loc):
-            return SAbstractionType(name, rec(vty), rec(rty), loc=loc)
+            return SAbstractionType(name, rec(vty), rec(rty), loc=loc, multiplicity=ty.multiplicity)
         case STypePolymorphism(name, kind, body, loc):
             # TODO: Double-check alpha_renaming in substitution
             if name == alpha:
@@ -63,7 +63,7 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
         case SRefinedType(name, ity, ref, loc):
             return normalize(SRefinedType(name, rec(ity), ref, loc=loc))
         case SAbstractionType(var_name, var_type, ret_type, loc):
-            return SAbstractionType(var_name, rec(var_type), rec(ret_type), loc=loc)
+            return SAbstractionType(var_name, rec(var_type), rec(ret_type), loc=loc, multiplicity=ty.multiplicity)
         case STypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return ty

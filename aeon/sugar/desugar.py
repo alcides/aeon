@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import NamedTuple
 
+from aeon.core.multiplicity import MOmega, Multiplicity
 from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
@@ -17,6 +18,7 @@ from aeon.elaboration.context import (
 from aeon.prelude.prelude import typing_vars
 from aeon.sugar.parser import mk_parser
 from aeon.sugar.program import (
+    Decorator,
     Definition,
     SAbstraction,
     SAnonConstructor,
@@ -182,7 +184,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SLet(name, val, body, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
             nb, s2 = lower_by_blocks_in_sterm(body)
-            return SLet(name, nv, nb, loc=loc), merge(s1, s2)
+            return SLet(name, nv, nb, loc=loc, multiplicity=t.multiplicity), merge(s1, s2)
         case SRec(name, ty, val, body, decreasing_by, loc=loc):
             nv, s1 = lower_by_blocks_in_sterm(val)
             nb, s2 = lower_by_blocks_in_sterm(body)
@@ -191,7 +193,10 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
             s_decr: dict[Name, tuple[str, ...]] = {}
             for _, sd in decr_parts:
                 s_decr = merge(s_decr, sd)
-            return SRec(name, ty, nv, nb, decreasing_by=nd, loc=loc), merge(merge(s1, s2), s_decr)
+            return (
+                SRec(name, ty, nv, nb, decreasing_by=nd, loc=loc, multiplicity=t.multiplicity),
+                merge(merge(s1, s2), s_decr),
+            )
         case _:
             assert False, f"lower_by_blocks_in_sterm: unhandled {t} ({type(t)})"
 
@@ -224,6 +229,7 @@ def lower_by_blocks_in_definitions(
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
             case _:
@@ -259,10 +265,10 @@ def resolve_qualified_names_in_sterm(
         case SAbstraction(name, body, loc):
             return SAbstraction(name, rec(body), loc=loc)
         case SLet(name, val, body, loc):
-            return SLet(name, rec(val), rec(body), loc=loc)
+            return SLet(name, rec(val), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
-            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc)
+            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
@@ -312,7 +318,9 @@ def resolve_qualified_names_in_stype(
         case SRefinedType(name, inner_ty, refinement, loc):
             return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
         case SAbstractionType(var_name, var_type, body_type, loc):
-            return SAbstractionType(var_name, rec_ty(var_type), rec_ty(body_type), loc=loc)
+            return SAbstractionType(
+                var_name, rec_ty(var_type), rec_ty(body_type), loc=loc, multiplicity=ty.multiplicity
+            )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
@@ -340,9 +348,35 @@ def resolve_qualified_names_in_definition(
         if d.type
         else d.type
     )
-    if new_body is d.body and new_args == d.args and new_type is d.type:
+    new_decorators = [
+        Decorator(
+            name=dec.name,
+            macro_args=[
+                resolve_qualified_names_in_sterm(a, qualified_scope, unqualified_scope, constructor_defs)
+                for a in dec.macro_args
+            ],
+            named_args={
+                k: resolve_qualified_names_in_sterm(v, qualified_scope, unqualified_scope, constructor_defs)
+                for k, v in dec.named_args.items()
+            },
+            loc=dec.loc,
+        )
+        for dec in d.decorators
+    ]
+    if new_body is d.body and new_args == d.args and new_type is d.type and new_decorators == d.decorators:
         return d
-    return Definition(d.name, d.foralls, new_args, new_type, new_body, d.decorators, d.rforalls, d.decreasing_by, d.loc)
+    return Definition(
+        d.name,
+        d.foralls,
+        new_args,
+        new_type,
+        new_body,
+        new_decorators,
+        d.rforalls,
+        d.decreasing_by,
+        d.loc,
+        arg_multiplicities=d.arg_multiplicities,
+    )
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
@@ -507,10 +541,18 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
             case SAbstraction(name, body, loc=loc):
                 return SAbstraction(name, lower_term(body), loc=loc)
             case SLet(name, val, body, loc=loc):
-                return SLet(name, lower_term(val), lower_term(body), loc=loc)
+                return SLet(name, lower_term(val), lower_term(body), loc=loc, multiplicity=t.multiplicity)
             case SRec(name, ty, val, body, decreasing_by, loc=loc):
                 nd = tuple(lower_term(m) for m in decreasing_by)
-                return SRec(name, ty, lower_term(val), lower_term(body), decreasing_by=nd, loc=loc)
+                return SRec(
+                    name,
+                    ty,
+                    lower_term(val),
+                    lower_term(body),
+                    decreasing_by=nd,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
             case SIf(cond, then, otherwise, loc=loc):
                 return SIf(lower_term(cond), lower_term(then), lower_term(otherwise), loc=loc)
             case SAnnotation(expr, ty, loc=loc):
@@ -693,9 +735,13 @@ def expand_inductive_decls(p: Program) -> Program:
                             )
                             defs.append(de)
 
-                def curry(args: list[tuple[Name, SType]], rty: SType) -> SType:
-                    for aname, aty in args[::-1]:
-                        rty = SAbstractionType(aname, aty, rty)
+                def curry(args: list[tuple[Name, SType]], rty: SType, mults: tuple[Multiplicity, ...] = ()) -> SType:
+                    n = len(args)
+                    for i, (aname, aty) in enumerate(args[::-1]):
+                        # ``mults`` is in original (forward) order; index back through it.
+                        idx = n - 1 - i
+                        m = mults[idx] if idx < len(mults) else MOmega
+                        rty = SAbstractionType(aname, aty, rty, multiplicity=m)
                     return rty
 
                 def case_for(cname: Name, cargs: list[tuple[Name, SType]]) -> str:
@@ -721,9 +767,18 @@ def expand_inductive_decls(p: Program) -> Program:
                 target_type = STypeConstructor(name, [STypeVar(a) for a in args])
                 rec_args.append((Name("this", -1), target_type))
 
-                # Prepare arguments for each constructor
+                # Prepare arguments for each constructor. Constructor
+                # parameter multiplicities flow through into the
+                # corresponding handler abstraction so QTT-discipline
+                # destructuring (``match`` over an inductive whose
+                # constructors carry ``(1 …)`` fields) works correctly.
                 for cons in constructors:
-                    rec_args.append((Name(f"case_{cons.name.name}", -1), curry(cons.args, return_type)))
+                    rec_args.append(
+                        (
+                            Name(f"case_{cons.name.name}", -1),
+                            curry(cons.args, return_type, cons.arg_multiplicities),
+                        )
+                    )
 
                 rec_de = Definition(
                     name=Name(name.name + "_rec", -1),
@@ -772,6 +827,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
     return ndefs
@@ -856,6 +912,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
                         final_rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
     return ndefs
@@ -945,6 +1002,7 @@ def handle_imports(
                 d.rforalls,
                 d.decreasing_by,
                 d.loc,
+                arg_multiplicities=d.arg_multiplicities,
             )
             prefixed_definitions.append(prefixed_d)
 
@@ -1031,8 +1089,10 @@ def type_of_definition(d: Definition) -> SType:
     match d:
         case Definition(_, foralls, args, rtype, _, _, rforalls, _, loc):
             ntype = rtype
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                mult = d.multiplicity_of(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc, multiplicity=mult)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc)
             for name, kind in reversed(foralls):
@@ -1048,8 +1108,10 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
         case Definition(dname, foralls, args, rtype, body, _, rforalls, decreasing_by, loc):
             ntype = rtype
             nbody = body
-            for name, atype in reversed(args):
-                ntype = SAbstractionType(name, atype, ntype, loc=loc)
+            n_args = len(args)
+            for i, (name, atype) in enumerate(reversed(args)):
+                mult = d.multiplicity_of(n_args - 1 - i)
+                ntype = SAbstractionType(name, atype, ntype, loc=loc, multiplicity=mult)
                 nbody = SAbstraction(name, nbody, loc=loc)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc=loc)

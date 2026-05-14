@@ -6,7 +6,7 @@ from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Decorator, Definition, SApplication, STerm, SVar
 from aeon.sugar.stypes import STypeConstructor
-from aeon.sugar.ast_helpers import st_int, st_float
+from aeon.sugar.ast_helpers import st_int, st_float, st_top
 from aeon.utils.name import Name, fresh_counter
 
 from aeon.sugar.program import SLiteral
@@ -20,10 +20,23 @@ class Goal(NamedTuple):
     minimize: bool
     length: int
     function: Name
+    # Discriminator for how the synthesizer should compute the fitness value
+    # for this goal. ``"expression"`` (the default) evaluates the internal
+    # fitness function and returns its numeric result. ``"cputime"`` measures
+    # the CPU time consumed evaluating it. ``"energy"`` measures the energy
+    # consumed evaluating it (via RAPL when available, otherwise a CPU-time
+    # proxy). See ``aeon/synthesis/entrypoint.py``.
+    kind: str = "expression"
 
 
 def make_optimizer(
-    args: list[STerm], fun: Definition, metadata: Metadata, typ: STypeConstructor, minimize: bool, length: int = 1
+    args: list[STerm],
+    fun: Definition,
+    metadata: Metadata,
+    typ: STypeConstructor,
+    minimize: bool,
+    length: int = 1,
+    kind: str = "expression",
 ) -> tuple[Definition, list[Definition], Metadata]:
     """This decorator expects a single argument (the body of the definition).
 
@@ -41,7 +54,7 @@ def make_optimizer(
         type=typ,
         body=args[0],
     )
-    goal = Goal(minimize, length, function_name)
+    goal = Goal(minimize, length, function_name, kind)
 
     metadata = metadata_update(
         metadata,
@@ -418,3 +431,46 @@ def maximize(
     # Convert maximize(expr) to minimize(0 - expr)
     negated = _binop("-", SLiteral(0.0, st_float), decorator.macro_args[0])
     return make_optimizer([negated], fun, metadata, st_float, minimize=True)
+
+
+def minimize_cputime(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Adds CPU time of the given expression as a synthesis objective.
+
+    Usage: ``@minimize_cputime(fun 42)`` — equivalent registry name:
+    ``@minimize_cpu_time(fun 42)``.
+
+    The expression is typically a call to the decorated function. During
+    synthesis, the synthesizer evaluates the candidate program against this
+    expression and the CPU time consumed (in seconds) is contributed as a
+    fitness value to be minimized. Composes with other objectives. The value
+    produced by the expression itself is ignored, so its type is unconstrained.
+    """
+    assert len(decorator.macro_args) == 1, "minimize_cputime decorator expects a single argument"
+    return make_optimizer(decorator.macro_args, fun, metadata, st_top, minimize=True, kind="cputime")
+
+
+def minimize_energy(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Adds energy consumption of the given expression as a synthesis objective.
+
+    Usage: @minimize_energy(fun 42)
+
+    The expression is typically a call to the decorated function. During
+    synthesis, the synthesizer evaluates the candidate program against this
+    expression and the energy consumed (in joules) is contributed as a fitness
+    value to be minimized. When the optional ``pyRAPL`` package is installed
+    and the platform provides Intel RAPL counters, real hardware readings are
+    used; otherwise a CPU-time proxy is used (energy = cpu_time * default_power)
+    so the search signal is still meaningful. Composes with other objectives.
+    The value produced by the expression itself is ignored, so its type is
+    unconstrained.
+    """
+    assert len(decorator.macro_args) == 1, "minimize_energy decorator expects a single argument"
+    return make_optimizer(decorator.macro_args, fun, metadata, st_top, minimize=True, kind="energy")

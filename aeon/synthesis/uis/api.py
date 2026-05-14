@@ -64,7 +64,7 @@ class SynthesisUI(abc.ABC):
                     term_str = pretty_print_sterm(terms[name]) if name in terms else "None"
                     print(f"?{name_str}: {term_str}")
         # print()
-        # pretty_print_term(ensure_anf(synthesis_result, 200))
+        # pretty_print_term(synthesis_result, 200)
 
 
 class SilentSynthesisUI(SynthesisUI):

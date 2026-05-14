@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Aeon is a statically-typed programming language with native Liquid Types (refinement types), implemented as a Python interpreter with Python FFI. Developed at LASIGE, University of Lisbon.
 
+## Repository Conventions
+
+- Default branch is `master` (not `main`). Target `master` when opening pull requests and rebasing.
+
 ## Common Commands
 
 ```bash

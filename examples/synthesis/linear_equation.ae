@@ -1,0 +1,9 @@
+# Linear Equation - from https://ar-ms.me/thoughts/a-gentle-introduction-to-z3/
+#
+# Find x such that x + 4 = 7.
+# Expected solution: x = 3.
+
+def x_solution : {n:Int | n + 4 == 7} = ?hole
+
+# Verification: the known solution should type-check.
+def x_solution_known : {n:Int | n + 4 == 7} = 3

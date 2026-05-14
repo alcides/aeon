@@ -5,7 +5,6 @@ from pathlib import Path
 from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
@@ -15,7 +14,7 @@ from aeon.typechecking.typeinfer import check_type_errors
 
 
 def test_intlist_len_match_typechecks() -> None:
-    """Verifies that ``tests/fixtures/intlist_len_match.ae`` typechecks after ANF keeps lambdas inline."""
+    """Verifies that ``tests/fixtures/intlist_len_match.ae`` typechecks (regression)."""
     path = Path(__file__).resolve().parent / "fixtures" / "intlist_len_match.ae"
     src = path.read_text(encoding="utf-8")
 
@@ -31,7 +30,6 @@ def test_intlist_len_match_typechecks() -> None:
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
 
-    errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
+    errors = list(check_type_errors(typing_ctx, core_ast, top))
     assert errors == [], f"Expected no type errors, got: {errors}"

@@ -35,7 +35,7 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
                 case city:
                     return RefinedType(name, city, ref, loc=loc)
         case AbstractionType(aname, aty, rty, loc):
-            return AbstractionType(aname, rec(aty), rec(rty), loc=loc)
+            return AbstractionType(aname, rec(aty), rec(rty), loc=loc, multiplicity=t.multiplicity)
         case TypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return t
@@ -55,34 +55,34 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
     def rec(x):
         return type_variable_instantiation(x, alpha, beta)
 
-    if isinstance(t, TypeConstructor):
-        return t
-    elif isinstance(t, TypeVar) and t.name == alpha:
-        return beta
-    elif isinstance(t, TypeVar) and t.name != alpha:
-        return t
-    elif (
-        isinstance(t, RefinedType)
-        and isinstance(t.type, TypeVar)
-        and t.type.name == alpha
-        and isinstance(beta, RefinedType)
-    ):
-        return RefinedType(
-            t.name,
-            beta.type,
-            mk_liquid_and(
-                t.refinement,
-                substitution_in_liquid(beta.refinement, LiquidVar(t.name), beta.name),
-            ),
-            t.loc,
-        )
-    elif isinstance(t, RefinedType):
-        return RefinedType(t.name, rec(t.type), t.refinement, t.loc)
-    elif isinstance(t, AbstractionType):
-        return AbstractionType(t.var_name, rec(t.var_type), rec(t.type), t.loc)
-    elif isinstance(t, TypePolymorphism):
-        return TypePolymorphism(t.name, t.kind, rec(t.body), t.loc)
-    elif isinstance(t, RefinementPolymorphism):
-        return RefinementPolymorphism(t.name, rec(t.sort), rec(t.body), t.loc)
-    else:
-        assert False
+    match t:
+        case TypeConstructor():
+            return t
+        case TypeVar(name) if name == alpha:
+            return beta
+        case TypeVar():
+            return t
+        case RefinedType(tname, TypeVar(name=tvn), tref, tloc) if tvn == alpha:
+            match beta:
+                case RefinedType(bname, btype, bref, _):
+                    return RefinedType(
+                        tname,
+                        btype,
+                        mk_liquid_and(
+                            tref,
+                            substitution_in_liquid(bref, LiquidVar(tname), bname),
+                        ),
+                        tloc,
+                    )
+                case _:
+                    return RefinedType(tname, rec(t.type), tref, tloc)
+        case RefinedType(name, inner, ref, loc):
+            return RefinedType(name, rec(inner), ref, loc)
+        case AbstractionType(vn, vt, rt, loc):
+            return AbstractionType(vn, rec(vt), rec(rt), loc, multiplicity=t.multiplicity)
+        case TypePolymorphism(name, kind, body, loc):
+            return TypePolymorphism(name, kind, rec(body), loc)
+        case RefinementPolymorphism(name, sort, body, loc):
+            return RefinementPolymorphism(name, rec(sort), rec(body), loc)
+        case _:
+            assert False

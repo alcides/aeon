@@ -9,6 +9,7 @@ from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarK
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
@@ -35,6 +36,7 @@ from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
 from aeon.core.types import BaseKind
+from aeon.core.types import ExistentialType, with_binders
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Type
@@ -43,6 +45,7 @@ from aeon.core.types import TypeVar
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
+from aeon.core.types import t_string
 from aeon.core.types import t_set
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
@@ -203,6 +206,15 @@ def prim_litfloat(t: float) -> RefinedType:
     )
 
 
+def prim_litstring(t: str) -> RefinedType:
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        t_string,
+        LiquidApp(Name("==", 0), [LiquidVar(vname), LiquidLiteralString(t)]),
+    )
+
+
 def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConstructor | TypeVar) -> Type:
     """Creates the type of a binary operator"""
     xname = Name("x", fresh_counter.fresh())
@@ -314,9 +326,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         case Literal(vf, TypeConstructor(Name("Float", _))):
             assert isinstance(vf, float)
             return (ctrue, prim_litfloat(vf))
-        case Literal(_, TypeConstructor(Name("String", _))):
-            # TODO: String support
-            return (ctrue, t.type)
+        case Literal(vs, TypeConstructor(Name("String", _))):
+            assert isinstance(vs, str)
+            return (ctrue, prim_litstring(vs))
         case Var(name):
             if name in ops:
                 return (ctrue, prim_op(name))
@@ -350,28 +362,96 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return (ctrue, ty)
         case Application(fun, arg):
             (c, ty) = synth(ctx, fun)
+            # Lift any binders from the function's type to the outer scope so
+            # the body underneath can be matched as an AbstractionType.
+            fun_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(ty, ExistentialType):
+                fun_binders = ty.binders
+                ty = ty.body
+            # Binders just lifted from the function's type are in scope for
+            # the argument check and any inner synth: atype may reference
+            # them (e.g. dependent parameter types like {t:Float | t >= y}).
+            ctx_inner = ctx
+            for bn, bt in fun_binders:
+                ctx_inner = ctx_inner.with_var(bn, bt)
+            outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
             match ty:
                 case AbstractionType(aname, atype, rtype):
-                    cp = check(ctx, arg, atype)
-                    t_subs = substitution_in_type(rtype, arg, aname)
-                    c0 = Conjunction(c, cp)
-                    return (c0, t_subs)
+                    cp = check(ctx_inner, arg, atype)
+                    # Abstractions can't be synthesised on their own (no
+                    # annotation), and Var/Literal liquefy directly. In all
+                    # three cases the existing direct substitution path is
+                    # what we want — the type system either preserves the
+                    # equation (Var, Literal, liquefiable App) or silently
+                    # passes the body through (Abstraction).
+                    if isinstance(arg, (Var, Literal, Abstraction)):
+                        t_subs = substitution_in_type(rtype, arg, aname)
+                    else:
+                        # Form B existential introduction: synth the argument
+                        # to get its most precise type, prepend a fresh
+                        # binder carrying its refinement, and substitute the
+                        # binder name into the result type. Any binders
+                        # already on the argument's type lift to the outer
+                        # scope (binders are always flat).
+                        (_, ty_arg) = synth(ctx_inner, arg)
+                        if isinstance(ty_arg, ExistentialType):
+                            outer_binders = outer_binders + ty_arg.binders
+                            ty_arg = ty_arg.body
+                        y = Name("_y", fresh_counter.fresh())
+                        binder_ty = ensure_refined(ty_arg)
+                        if isinstance(binder_ty, RefinedType):
+                            renamed = substitution_in_liquid(binder_ty.refinement, LiquidVar(y), binder_ty.name)
+                            assert isinstance(binder_ty.type, (TypeConstructor, TypeVar))
+                            binder_ty = RefinedType(y, binder_ty.type, renamed)
+                        outer_binders = outer_binders + ((y, binder_ty),)
+                        t_subs = substitution_in_type(rtype, Var(y), aname)
+                    # cp may reference the function's lifted binders through
+                    # atype; wrap c0 in implications over them so those
+                    # references are bound when the constraint reaches SMT.
+                    # Argument-side binders propagate to the caller via the
+                    # existential type and get their implication wrap there
+                    # (e.g. in Let's opened_binders loop).
+                    c0: Constraint = Conjunction(c, cp)
+                    for bn, bt in reversed(fun_binders):
+                        c0 = implication_constraint(bn, bt, c0, t.loc)
+                    return (c0, with_binders(outer_binders, t_subs))
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
         case Let(var_name, var_value, body):
             (c1, t1) = synth(ctx, var_value)
-            nctx: TypingContext = ctx.with_var(var_name, t1)
+            # Form B elimination: if the value's type carries existential binders,
+            # open them into the surrounding scope (each binder name becomes a
+            # context entry under its refinement) and let the body see the
+            # bare body type.
+            opened_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t1, ExistentialType):
+                opened_binders = t1.binders
+                t1 = t1.body
+            nctx: TypingContext = ctx
+            for bn, bt in opened_binders:
+                nctx = nctx.with_var(bn, bt)
+            nctx = nctx.with_var(var_name, t1)
             (c2, t2) = synth(nctx, body)
             term_vars = type_free_term_vars(t1)
             assert t.var_name not in term_vars
             reflected_impl = _reflected_impl_for(var_name, t1, var_value)
-            r = (
-                Conjunction(
-                    c1,
-                    implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl),
-                ),
-                t2,
-            )
+            inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
+            for bn, bt in reversed(opened_binders):
+                inner = implication_constraint(bn, bt, inner, body.loc)
+            # Form B introduction: if the body's type still mentions a name
+            # bound here (`var_name` or any of the opened binders), wrap it
+            # in an existential so the scope leak is preserved as a binder
+            # rather than as a free variable when the type flows outward.
+            t2_free = type_free_term_vars(t2)
+            leaking: list[tuple[Name, Type]] = []
+            for bn, bt in opened_binders:
+                if bn in t2_free:
+                    leaking.append((bn, bt))
+            if var_name in t2_free:
+                leaking.append((var_name, t1))
+            if leaking:
+                t2 = with_binders(tuple(leaking), t2)
+            r = (Conjunction(c1, inner), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
@@ -387,6 +467,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, nrctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Form B introduction: if the body's type still mentions `var_name`,
+            # wrap it in an existential so the scope leak is preserved as a
+            # binder when the type flows outward.
+            if var_name in type_free_term_vars(t2):
+                t2 = with_binders(((var_name, var_type),), t2)
             return Conjunction(Conjunction(c1, c2), term_c), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
@@ -449,10 +534,20 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             return implication_constraint(name, var_type, c, body.loc)
         case Let(name, val, body), _:
             (c1, t1) = synth(ctx, val)
-            nctx: TypingContext = ctx.with_var(name, t1)
+            opened_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t1, ExistentialType):
+                opened_binders = t1.binders
+                t1 = t1.body
+            nctx: TypingContext = ctx
+            for bn, bt in opened_binders:
+                nctx = nctx.with_var(bn, bt)
+            nctx = nctx.with_var(name, t1)
             c2 = check(nctx, body, ty)
             reflected_impl = _reflected_impl_for(name, t1, val)
-            return Conjunction(c1, implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl))
+            inner = implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl)
+            for bn, bt in reversed(opened_binders):
+                inner = implication_constraint(bn, bt, inner, body.loc)
+            return Conjunction(c1, inner)
         case Rec(var_name, var_type, var_value, body), _:
             t1 = fresh(ctx, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
@@ -576,16 +671,23 @@ def check_type_errors(
     if not wellformed(ctx, expected_type):
         return [CoreWellformnessError(expected_type)]
 
+    # Constraint-based type checking, then linearity checking. Both passes
+    # are reported together so the user sees every diagnostic in one go.
+    from aeon.typechecking.linearity import check_linearity
+
     try:
         constraint = check(ctx, term, expected_type)
         match entailment(ctx, constraint):
             case True:
-                return []
+                type_errors: list[AeonError] = []
             case False:
                 full_constraint = entailment_context(ctx, constraint)
-                return [
+                type_errors = [
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
                     for vc, loc in constraint_to_parts(full_constraint, ctx)
                 ]
     except CoreTypeCheckingError as e:
         return [e]
+
+    linearity_errors = check_linearity(term, ctx)
+    return type_errors + list(linearity_errors)

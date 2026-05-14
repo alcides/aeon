@@ -1,11 +1,17 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable, Iterable
 
 DEFAULT_NEW_LINE_CHAR = "\n"
 DEFAULT_SPACE_CHAR = " "
 DEFAULT_WIDTH = 120
 DEFAULT_TAB_SIZE = 4
+
+# Memoization cache size. The Wadler-Leijen pretty printer is exponential
+# without it: `Concat.best` and `Concat.fits` repeatedly traverse the same
+# subtrees with the same `(width, current_length)` pair.
+_PPRINT_CACHE_SIZE = 2**16
 
 
 class Doc(ABC):
@@ -27,6 +33,7 @@ class Doc(ABC):
     def __add__(self, other):
         return Concat(self, other)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def calculate_new_length(self, current_length: int) -> int:
         match self:
             case Line():
@@ -112,9 +119,11 @@ class Concat(Doc):
     left: Doc
     right: Doc
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def layout(self, indent: int) -> str:
         return self.left.layout(indent) + self.right.layout(indent)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def fits(self, width: int, current_length: int) -> bool:
         if not self.left.fits(width, current_length):
             return False
@@ -123,6 +132,7 @@ class Concat(Doc):
 
         return self.right.fits(width, new_length)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def best(self, width: int, current_length: int) -> "Doc":
         left_best = self.left.best(width, current_length)
 
@@ -131,6 +141,7 @@ class Concat(Doc):
         right_best = self.right.best(width, new_length)
         return Concat(left_best, right_best)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def flatten(self) -> "Doc":
         return self.left.flatten() + self.right.flatten()
 
@@ -139,12 +150,15 @@ class Concat(Doc):
 class MultiUnion(Doc):
     alternatives_fn: Callable[[], Iterable[Doc]]
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def layout(self, indent: int) -> str:
         return self.best(DEFAULT_WIDTH, 0).layout(indent)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def fits(self, width: int, current_length: int) -> bool:
         return any(doc.fits(width, current_length) for doc in self.alternatives_fn())
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def best(self, width: int, current_length: int) -> "Doc":
         default_document = None
         for doc in self.alternatives_fn():
@@ -153,6 +167,7 @@ class MultiUnion(Doc):
             default_document = doc
         return default_document.best(width, current_length)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def flatten(self) -> "Doc":
         for doc in self.alternatives_fn():
             return doc.flatten()
@@ -164,15 +179,19 @@ class Nest(Doc):
     indent: int
     doc: Doc
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def layout(self, indent: int) -> str:
         return self.doc.layout(indent + self.indent)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def fits(self, width: int, current_length: int) -> bool:
         return self.doc.fits(width, current_length)
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def best(self, width: int, current_length: int) -> "Doc":
         return Nest(self.indent, self.doc.best(width, current_length + self.indent))
 
+    @lru_cache(maxsize=_PPRINT_CACHE_SIZE)
     def flatten(self) -> "Doc":
         return Nest(self.indent, self.doc.flatten())
 

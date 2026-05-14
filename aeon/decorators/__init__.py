@@ -29,6 +29,8 @@ from aeon.synthesis.decorators import (
     maximize_float,
     maximize_int,
     minimize,
+    minimize_cputime,
+    minimize_energy,
     minimize_float,
     minimize_int,
     multi_minimize_float,
@@ -53,6 +55,10 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
+    "minimize_cputime": minimize_cputime,
+    # Spelled-out alias (same implementation as minimize_cputime).
+    "minimize_cpu_time": minimize_cputime,
+    "minimize_energy": minimize_energy,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
@@ -111,6 +117,7 @@ def collect_core_decorator_queue(
                         rforalls,
                         decreasing_by,
                         loc,
+                        arg_multiplicities=d.arg_multiplicities,
                     )
                 )
             case _:

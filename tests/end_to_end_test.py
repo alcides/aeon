@@ -4,7 +4,6 @@ from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
 from aeon.facade.api import LiquidTypeCheckingFailedRelation
-from aeon.frontend.anf_converter import ensure_anf
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
@@ -76,9 +75,8 @@ def _check_refinement_error_location(
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
 
-    errors = list(check_type_errors(typing_ctx, core_ast_anf, top))
+    errors = list(check_type_errors(typing_ctx, core_ast, top))
 
     assert len(errors) >= 1, "Expected at least one type error"
     liquid_errors = [e for e in errors if isinstance(e, LiquidTypeCheckingFailedRelation)]

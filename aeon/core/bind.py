@@ -125,7 +125,9 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
         case AbstractionType(aname, atype, rtype, loc):
             nname, nsubs = check_name(aname, subs)
 
-            return AbstractionType(nname, bind_type(atype, subs), bind_type(rtype, nsubs), loc=loc)
+            return AbstractionType(
+                nname, bind_type(atype, subs), bind_type(rtype, nsubs), loc=loc, multiplicity=ty.multiplicity
+            )
         case RefinedType(name, ty, ref, loc):
             nty = bind_type(ty, subs)
             nname, nsubs = check_name(name, subs)
@@ -174,7 +176,7 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
             return If(bind_term(cond, subs), bind_term(then, subs), bind_term(otherwise, subs), loc=loc)
         case Let(name, body, cont, loc):
             name, nsubs = check_name(name, subs)
-            return Let(name, bind_term(body, subs), bind_term(cont, nsubs), loc)
+            return Let(name, bind_term(body, subs), bind_term(cont, nsubs), loc, multiplicity=t.multiplicity)
         case Rec(name, ty, body, cont, decreasing_by, loc):
             name, subs = check_name(name, subs)
             return Rec(
@@ -184,6 +186,7 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
                 bind_term(cont, subs),
                 decreasing_by=tuple(bind_term(m, subs) for m in decreasing_by),
                 loc=loc,
+                multiplicity=t.multiplicity,
             )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"

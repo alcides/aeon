@@ -211,6 +211,7 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                 var_type=remove_unions_and_intersections(ctx, vtype),
                 type=remove_unions_and_intersections(ctx, rtype),
                 loc=loc,
+                multiplicity=ty.multiplicity,
             )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(
@@ -300,12 +301,15 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             u = UnificationVar(ctx.fresh_typevar())
             nval = elaborate_check(ctx, value, u)
             (nbody, nbody_type) = elaborate_synth(ctx.with_var(name, u), body)
-            return SLet(name, nval, nbody), nbody_type
+            return SLet(name, nval, nbody, multiplicity=t.multiplicity), nbody_type
         case SRec(name, vty, val, body, decreasing_by, loc=loc):
             nctx = ctx.with_var(name, vty)
             nval = elaborate_check(nctx, val, vty)
             (nbody, nbody_type) = elaborate_synth(nctx, body)
-            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc), nbody_type
+            return (
+                SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity),
+                nbody_type,
+            )
         case SIf(cond, then, otherwise):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen, nthen_type = elaborate_synth(ctx, then)
@@ -354,12 +358,12 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nval = elaborate_check(ctx, val, u)
             nctx = ctx.with_var(name, u)
             nbody = elaborate_check(nctx, body, ty)
-            return SLet(name, nval, nbody, loc=loc)
+            return SLet(name, nval, nbody, loc=loc, multiplicity=t.multiplicity)
         case (SRec(name, vty, val, body, decreasing_by, loc=loc), _):
             nctx = ctx.with_var(name, vty)
             nval = elaborate_check(nctx, val, vty)
             nbody = elaborate_check(nctx, body, ty)
-            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc)
+            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
         case (SIf(cond, then, otherwise, loc=loc), _):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
@@ -377,6 +381,9 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
             nbody = elaborate_check(ctx, body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
+        case (SAbstraction(_, _, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
+            nbody = elaborate_check(ctx, t, tbody)
+            return SRefinementAbstraction(rname, rsort, nbody, loc=loc)
         case (SAnonConstructor(cname, loc=loc), _):
             # Resolve anonymous constructor (.cons) using expected type
             base_name = _extract_base_type_name(ty)
@@ -444,7 +451,13 @@ def replace_unification_variables(
             case STypeVar(_):
                 return ty
             case SAbstractionType(name, vty, rty, loc=loc):
-                return SAbstractionType(name, go(ctx, vty, not polarity), go(ctx, rty, polarity), loc=loc)
+                return SAbstractionType(
+                    name,
+                    go(ctx, vty, not polarity),
+                    go(ctx, rty, polarity),
+                    loc=loc,
+                    multiplicity=ty.multiplicity,
+                )
             case SRefinedType(name, ity, ref, loc=loc):
                 nt = go(ctx, ity, polarity)
                 return SRefinedType(name, nt, ref, loc=loc)
@@ -540,7 +553,13 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             return SAbstraction(name, elaborate_remove_unification(ctx, body), loc=loc)
         case SLet(name, val, body, loc=loc):
             nctx = ctx.with_var(t.var_name, st_unit)  # TODO poly: Unit??
-            return SLet(name, elaborate_remove_unification(ctx, val), elaborate_remove_unification(nctx, body), loc=loc)
+            return SLet(
+                name,
+                elaborate_remove_unification(ctx, val),
+                elaborate_remove_unification(nctx, body),
+                loc=loc,
+                multiplicity=t.multiplicity,
+            )
         case SRec(name, ty, val, body, decreasing_by, loc=loc):
             nty = handle_unification_in_type(ctx, ty)
             nt = remove_unions_and_intersections(ctx, ty)
@@ -552,6 +571,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                 elaborate_remove_unification(nctx, body),
                 decreasing_by=decreasing_by,
                 loc=loc,
+                multiplicity=t.multiplicity,
             )
 
         case SIf(cond, then, otherwise, loc=loc):

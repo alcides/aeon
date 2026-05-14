@@ -14,7 +14,7 @@ The `--budget` flag sets the time limit in seconds (default: 60).
 
 ### `gp` — Genetic Programming *(default)*
 
-Evolves a population of candidate programs using genetic programming, implemented via [GeneticEngine](https://github.com/alcides/GeneticEngine). Candidate programs are represented as syntax trees drawn from a grammar derived from the typing context. Selection, crossover, and mutation operators drive the search towards better fitness scores as defined by the synthesis decorators (`@minimize`, `@maximize`, etc.).
+Evolves a population of candidate programs using genetic programming, implemented via [GeneticEngine](https://github.com/alcides/GeneticEngine). Candidate programs are represented as syntax trees drawn from a grammar derived from the typing context. Selection, crossover, and mutation operators drive the search towards better fitness scores as defined by the synthesis decorators (`@minimize`, `@maximize`, `@minimize_cputime` / `@minimize_cpu_time`, `@minimize_energy`, etc.).
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 

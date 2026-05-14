@@ -1,0 +1,30 @@
+# Linearity (QTT) example — the canonical "must close before scope ends".
+#
+# Marking a `let`-binder with multiplicity `1` tells the type checker
+# that the bound name must be referenced *exactly once* in its scope.
+# The simplest application is enforcing that a resource handle is
+# always passed to its consumer (here `close`) before going out of
+# scope.
+#
+# `(1 h: Int)` annotates the parameter as linear: under QTT scaling,
+# passing a linear value into an unrestricted-parameter function would
+# scale the use to ω and break linearity, so functions that *consume*
+# linear resources need the linear parameter annotation to transfer
+# the obligation.
+#
+# Multiplicity `0` is the dual: an erased binding that must NOT be
+# referenced at run time (useful for proof-only ghost values).
+# Omitting the prefix gives the unrestricted default (`omega`), so
+# every existing program continues to type-check unchanged.
+
+def open_handle (path: Int) : Int = path;
+
+def close (1 h: Int) : Int = h;
+
+def main (args: Int) : Unit =
+    # `f` must be consumed exactly once. Removing `close f` here
+    # produces a `LinearUnusedError`; calling `close f` twice produces
+    # a `LinearUsedTooManyTimesError`.
+    let 1 f = open_handle 0 in
+    let r = close f in
+    print r;

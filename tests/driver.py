@@ -23,8 +23,6 @@ from aeon.core.parser import parse_term
 from aeon.core.types import top
 from aeon.utils.name import Name
 
-from aeon.frontend.anf_converter import ensure_anf
-
 
 def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     ectx = EvaluationContext(evaluation_vars)
@@ -37,15 +35,14 @@ def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
     ty_core = type_to_core(ty)
-    if not check_type(typing_ctx, core_ast_anf, ty_core):
+    if not check_type(typing_ctx, core_ast, ty_core):
         return False
 
-    apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
+    apply_core_decorators_phase(typing_ctx, core_ast, desugared.metadata)
 
     if val:
-        r = eval(core_ast_anf, ectx)
+        r = eval(core_ast, ectx)
         assert r == val
     return True
 
@@ -68,14 +65,13 @@ def check_compile_expr(source: str, ty: SType, val: Any = None, extra_vars: dict
     core_ast = bind_term(core_ast, subs)
     core_ty = bind_type(type_to_core(ty), subs)
 
-    core_ast_anf = ensure_anf(core_ast)
-    if not check_type(typing_ctx, core_ast_anf, core_ty):
+    if not check_type(typing_ctx, core_ast, core_ty):
         return False
 
     if val is None:
         return True
     else:
-        r = eval(core_ast_anf, ectx)
+        r = eval(core_ast, ectx)
         return r == val
 
 
@@ -86,11 +82,10 @@ def check_compile_core(source: str, ty: Type, val: Any = None):
 
     core_ast = parse_term(source)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
-    assert check_type(typing_ctx, core_ast_anf, ty)
+    assert check_type(typing_ctx, core_ast, ty)
 
     if val is not None:
-        r = eval(core_ast_anf, ectx)
+        r = eval(core_ast, ectx)
         assert r == val
 
 
@@ -101,10 +96,9 @@ def extract_core(source: str) -> Term:
     core_ast = lower_to_core(sterm)
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
-    if not list(check_type_errors(typing_ctx, core_ast_anf, top)):
-        apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
-    return core_ast_anf
+    if not list(check_type_errors(typing_ctx, core_ast, top)):
+        apply_core_decorators_phase(typing_ctx, core_ast, desugared.metadata)
+    return core_ast
 
 
 def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
@@ -115,7 +109,6 @@ def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContex
     core_ast = lower_to_core(sterm)
     ctx = lower_to_core_context(desugared.elabcontext)
     typing_ctx, core_ast = bind_ids(ctx, core_ast)
-    core_ast_anf = ensure_anf(core_ast)
-    assert check_type(typing_ctx, core_ast_anf, top)
-    metadata = apply_core_decorators_phase(typing_ctx, core_ast_anf, desugared.metadata)
-    return core_ast_anf, typing_ctx, ectx, metadata
+    assert check_type(typing_ctx, core_ast, top)
+    metadata = apply_core_decorators_phase(typing_ctx, core_ast, desugared.metadata)
+    return core_ast, typing_ctx, ectx, metadata

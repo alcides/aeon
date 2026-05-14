@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 
+from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.utils.name import Name
 from aeon.core.types import Kind
 from aeon.sugar.stypes import SType, STypeConstructor
@@ -152,9 +153,11 @@ class SLet(STerm):
     var_value: STerm
     body: STerm
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __str__(self):
-        return f"(let {self.var_name} = {self.var_value} in\n\t{self.body})"
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return f"(let {prefix}{self.var_name} = {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
         return (
@@ -162,6 +165,7 @@ class SLet(STerm):
             and self.var_name == other.var_name
             and self.var_value == other.var_value
             and self.body == other.body
+            and self.multiplicity is other.multiplicity
         )
 
 
@@ -173,12 +177,15 @@ class SRec(STerm):
     body: STerm
     decreasing_by: tuple[STerm, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    multiplicity: Multiplicity = MOmega
 
     def __repr__(self):
         return str(self)
 
     def __str__(self):
-        return "(let {} : {} = {} in\n\t{})".format(
+        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        return "(let {}{} : {} = {} in\n\t{})".format(
+            prefix,
             self.var_name,
             self.var_type,
             self.var_value,
@@ -193,6 +200,7 @@ class SRec(STerm):
             and self.var_value == other.var_value
             and self.body == other.body
             and self.decreasing_by == other.decreasing_by
+            and self.multiplicity is other.multiplicity
         )
 
 
@@ -400,6 +408,15 @@ class Definition(Node):
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     decreasing_by: list[STerm] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    # Parallel to ``args``: the QTT multiplicity declared for each parameter.
+    # Empty tuple ⇔ all parameters default to ``MOmega`` (the value used by
+    # callers that don't track multiplicities yet).
+    arg_multiplicities: tuple[Multiplicity, ...] = field(default_factory=tuple)
+
+    def multiplicity_of(self, i: int) -> Multiplicity:
+        if i < len(self.arg_multiplicities):
+            return self.arg_multiplicities[i]
+        return MOmega
 
     def __post_init__(self):
         assert isinstance(self.type, SType)
@@ -408,7 +425,12 @@ class Definition(Node):
         if not self.args:
             return f"def {self.name} : {self.type} = {self.body};"
         else:
-            args = ", ".join([f"{n}:{t}" for (n, t) in self.args])
+            args = ", ".join(
+                [
+                    f"{'' if self.multiplicity_of(i) is MOmega else str(self.multiplicity_of(i)) + ' '}{n}:{t}"
+                    for i, (n, t) in enumerate(self.args)
+                ]
+            )
             foralls = " ".join([f"∀{n}:{k}" for (n, k) in self.foralls])
             rforalls = " ".join([f"∀<{n}:{s} -> Bool>" for (n, s) in self.rforalls])
             sep = " " if (foralls or rforalls) else ""

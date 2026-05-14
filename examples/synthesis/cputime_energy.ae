@@ -1,0 +1,23 @@
+# Optimize a synthesized function for value-correctness AND for resource use.
+#
+# @minimize_int drives correctness: we want fun(10) close to 100.
+# @minimize_cputime drives the synthesizer toward candidates that are cheap
+#                   to evaluate (CPU time, in seconds).
+# @minimize_energy  drives the synthesizer toward candidates that consume
+#                   little energy (joules; uses Intel RAPL when available,
+#                   otherwise a CPU-time-based proxy).
+#
+# All three goals are minimized simultaneously by the multi-objective
+# synthesizer.
+
+def target : Int = 100
+
+def err (v: Int) : Int = (target - v) * (target - v)
+
+@minimize_int(err (fun 10))
+@minimize_cputime(fun 10)
+@minimize_energy(fun 10)
+def fun (i:Int) : Int = i * (?hole: Int)
+
+
+def main (args: Int) : Unit = print (fun 10)
