@@ -1,12 +1,23 @@
 # MBPP task 301
 # Write a function to find the depth of a dictionary.
 #
-# Synthesis target: dict_depth : Dict -> Int
+# Synthesis target: dict_depth : PyDict -> Int
 
-type Dict
+type List
 
-def mbpp_fitness (f:(x0:Dict) -> Int) : Float = native "float((0 if (f({'a': 1, 'b': {'c': {'d': {}}}}) == 4) else 1) + (0 if (f({'a': 1, 'b': {'c': 'python'}}) == 2) else 1) + (0 if (f({1: 'Sun', 2: {3: {4: 'Mon'}}}) == 3) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:PyDict) -> Int) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'a'), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_str', 'b'), ('PyObj_obj_list', {'c': {'d': {}}}), ('PyDict_dnil',)))) == 4) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'a'), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_str', 'b'), ('PyObj_obj_list', {'c': 'python'}), ('PyDict_dnil',)))) == 2) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_str', 'Sun'), ('PyDict_dcons', ('PyObj_obj_int', 2), ('PyObj_obj_list', {3: {4: 'Mon'}}), ('PyDict_dnil',)))) == 3) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (d:Dict) : Int = (?hole : Int)
+def synth (d:PyDict) : Int = (?hole : Int)

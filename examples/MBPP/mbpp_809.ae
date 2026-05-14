@@ -1,12 +1,23 @@
 # MBPP task 809
 # Write a function to check if each element of second tuple is smaller than its corresponding element in the first tuple.
 #
-# Synthesis target: check_smaller : Tuple -> Tuple -> Bool
+# Synthesis target: check_smaller : PyTuple -> PyTuple -> Bool
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Bool) : Float = native "float((0 if (f((1, 2, 3))((2, 3, 4)) == False) else 1) + (0 if (f((4, 5, 6))((3, 4, 5)) == True) else 1) + (0 if (f((11, 12, 13))((10, 11, 12)) == True) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> (x1:PyTuple) -> Bool) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tnil',)))))(('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tnil',))))) == False) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',)))))(('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tnil',))))) == True) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 11), ('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tcons', ('PyObj_obj_int', 13), ('PyTuple_tnil',)))))(('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tcons', ('PyObj_obj_int', 11), ('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tnil',))))) == True) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup1:Tuple) (test_tup2:Tuple) : Bool = (?hole : Bool)
+def synth (test_tup1:PyTuple) (test_tup2:PyTuple) : Bool = (?hole : Bool)

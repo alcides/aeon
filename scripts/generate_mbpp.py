@@ -15,8 +15,12 @@ Each generated file is fully self-contained:
 
 Argument and return types are inferred heuristically from the literals in the
 first usable test case. Python values that Aeon cannot express natively
-(tuples, dicts, sets, and anything else) get an opaque custom datatype
-declared at the top of the file (`Tuple`, `Dict`, `Set`, `Obj`).
+(tuples, dicts, sets, and anything else) are modelled as inductive datatypes
+declared at the top of the file: `PyObj` wraps a primitive, `PyTuple` / `PySet`
+are cons-lists of `PyObj`, and `PyDict` is a cons-list of key/value pairs. The
+test data for those problems is emitted directly in the inductive runtime
+representation so the embedded assertions agree with what the synthesizer's
+constructors produce.
 
 Usage:
     python scripts/generate_mbpp.py [--source PATH_OR_URL] [--out DIR]
@@ -58,31 +62,93 @@ RESERVED = {
     "main",
 }
 
-# Python builtins that are available inside a `native` expression without import.
-SAFE_BUILTINS = {
-    "set",
-    "sorted",
-    "list",
-    "len",
-    "str",
-    "int",
-    "float",
-    "abs",
-    "round",
-    "sum",
-    "min",
-    "max",
-    "tuple",
-    "dict",
-    "frozenset",
-    "bool",
-    "all",
-    "any",
+# Aeon primitive types that map directly onto Python literals.
+PRIMITIVE_TYPES = {"Int", "Bool", "Float", "String"}
+
+# Inductive datatypes used to model Python values Aeon has no builtin for.
+COMPLEX_TYPES = {"PyObj", "PyTuple", "PySet", "PyDict"}
+
+# Inductive declarations, emitted only when a problem's signature needs them.
+# PyTuple/PySet/PyDict all reference PyObj; PyObj references the opaque List.
+INDUCTIVE_DECLS = {
+    "PyObj": (
+        "inductive PyObj\n"
+        "| obj_int (v:Int) : PyObj\n"
+        "| obj_float (v:Float) : PyObj\n"
+        "| obj_bool (v:Bool) : PyObj\n"
+        "| obj_str (v:String) : PyObj\n"
+        "| obj_list (v:List) : PyObj"
+    ),
+    "PyTuple": ("inductive PyTuple\n| tnil : PyTuple\n| tcons (hd:PyObj) (tl:PyTuple) : PyTuple"),
+    "PySet": ("inductive PySet\n| snil : PySet\n| scons (hd:PyObj) (tl:PySet) : PySet"),
+    "PyDict": ("inductive PyDict\n| dnil : PyDict\n| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict"),
 }
 
 
 class CodeGenError(Exception):
     """Raised when a problem cannot be turned into a valid Aeon file."""
+
+
+def obj_repr(value: object) -> str:
+    """Python expression for the inductive ``PyObj`` runtime representation.
+
+    An inductive constructor ``C a b`` evaluates to the tuple ``('Type_C', a, b)``
+    at runtime, so the embedded test data is emitted in exactly that shape.
+    """
+    if isinstance(value, bool):
+        return f"('PyObj_obj_bool', {value})"
+    if isinstance(value, int):
+        return f"('PyObj_obj_int', {value})"
+    if isinstance(value, float):
+        return f"('PyObj_obj_float', {value})"
+    if isinstance(value, str):
+        return f"('PyObj_obj_str', {value!r})"
+    # Nested containers (and None) live behind the opaque List constructor.
+    return f"('PyObj_obj_list', {value!r})"
+
+
+def to_obj(node: ast.AST) -> str:
+    """Convert a Python literal AST node to its ``PyObj`` representation."""
+    try:
+        return obj_repr(ast.literal_eval(node))
+    except (ValueError, TypeError, SyntaxError):
+        return f"('PyObj_obj_list', {ast.unparse(node)})"
+
+
+def to_inductive(node: ast.AST, aeon_type: str) -> str:
+    """Convert a test-data literal to the Python expression Aeon will see.
+
+    Primitive- and List-typed values pass through as native Python literals;
+    complex values are folded into their inductive runtime representation.
+    """
+    if aeon_type not in COMPLEX_TYPES:
+        return ast.unparse(node)
+    if aeon_type == "PyObj":
+        return to_obj(node)
+    if aeon_type == "PyTuple":
+        elts = getattr(node, "elts", None)
+        if elts is None:
+            return ast.unparse(node)
+        rep = "('PyTuple_tnil',)"
+        for elt in reversed(elts):
+            rep = f"('PyTuple_tcons', {to_obj(elt)}, {rep})"
+        return rep
+    if aeon_type == "PySet":
+        elts = getattr(node, "elts", None)
+        if elts is None:
+            return ast.unparse(node)
+        rep = "('PySet_snil',)"
+        for elt in reversed(elts):
+            rep = f"('PySet_scons', {to_obj(elt)}, {rep})"
+        return rep
+    if aeon_type == "PyDict":
+        if not isinstance(node, ast.Dict):
+            return ast.unparse(node)
+        rep = "('PyDict_dnil',)"
+        for key, val in reversed(list(zip(node.keys, node.values))):
+            rep = f"('PyDict_dcons', {to_obj(key)}, {to_obj(val)}, {rep})"
+        return rep
+    return ast.unparse(node)
 
 
 def classify_literal(node: ast.AST) -> tuple[str, bool]:
@@ -101,28 +167,28 @@ def classify_literal(node: ast.AST) -> tuple[str, bool]:
             return "Float", False
         if isinstance(v, str):
             return "String", False
-        return "Obj", True
+        return "PyObj", True
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
         return classify_literal(node.operand)
     if isinstance(node, ast.List):
         return "List", False
     if isinstance(node, ast.Tuple):
-        return "Tuple", True
+        return "PyTuple", True
     if isinstance(node, ast.Dict):
-        return "Dict", True
+        return "PyDict", True
     if isinstance(node, ast.Set):
-        return "Set", True
+        return "PySet", True
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
         name = node.func.id
         if name == "set":
-            return "Set", True
+            return "PySet", True
         if name in ("list", "sorted"):
             return "List", False
         if name == "tuple":
-            return "Tuple", True
+            return "PyTuple", True
         if name == "dict":
-            return "Dict", True
-    return "Obj", True
+            return "PyDict", True
+    return "PyObj", True
 
 
 def _contains(node: ast.AST, target: ast.AST) -> bool:
@@ -169,9 +235,9 @@ def infer_return_type(test: ast.AST, call: ast.Call) -> tuple[str, bool]:
             if wf == "float":
                 return "Float", False
             if wf == "tuple":
-                return "Tuple", True
+                return "PyTuple", True
             if wf == "dict":
-                return "Dict", True
+                return "PyDict", True
         return classify_literal(other)
     if isinstance(test, ast.Call) and isinstance(test.func, ast.Attribute):
         if test.func.attr == "isclose":
@@ -191,26 +257,62 @@ def infer_arg_types(call: ast.Call) -> tuple[list[str], set[str]]:
     return types, custom
 
 
+def find_expected(test: ast.AST, call: ast.Call) -> ast.AST | None:
+    """The literal the call result is directly compared against, if any."""
+    if isinstance(test, ast.Compare) and len(test.ops) == 1:
+        left, right = test.left, test.comparators[0]
+        if left is call:
+            return right
+        if right is call:
+            return left
+    return None
+
+
+def _literal_node(src: str) -> ast.expr:
+    """Parse a generated Python expression string back into an AST node."""
+    return ast.parse(src, mode="eval").body
+
+
 class _Transformer(ast.NodeTransformer):
     """Rewrite a test assertion so it can run against an Aeon candidate.
 
-    * `fname(a, b, c)` becomes the curried call `f(a)(b)(c)`.
+    * the call to the target function becomes the curried call `f(a)(b)(c)`,
+      with any complex argument folded into its inductive representation,
+    * the expected value is folded into its inductive representation when the
+      function's return type is itself a complex (inductive) type,
     * `math.x` / `sys.x` become `__import__('math').x` / `__import__('sys').x`
       so they resolve inside Aeon's `native` evaluation namespace.
     """
 
-    def __init__(self, fname: str):
-        self.fname = fname
+    def __init__(
+        self,
+        call: ast.Call,
+        arg_types: list[str],
+        ret_type: str,
+        expected: ast.AST | None,
+    ):
+        self.call = call
+        self.arg_types = arg_types
+        self.ret_type = ret_type
+        self.expected = expected
+
+    def visit(self, node: ast.AST) -> ast.AST:
+        if node is self.expected:
+            return _literal_node(to_inductive(node, self.ret_type))
+        return super().visit(node)
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
-        self.generic_visit(node)
-        if isinstance(node.func, ast.Name) and node.func.id == self.fname:
+        if node is self.call:
             if node.keywords:
                 raise CodeGenError("test call uses keyword arguments")
+            if len(node.args) != len(self.arg_types):
+                raise CodeGenError("test call arity differs from inferred signature")
             result: ast.expr = ast.Name(id="f", ctx=ast.Load())
-            for arg in node.args:
-                result = ast.Call(func=result, args=[arg], keywords=[])
+            for arg, aeon_type in zip(node.args, self.arg_types):
+                converted = _literal_node(to_inductive(arg, aeon_type))
+                result = ast.Call(func=result, args=[converted], keywords=[])
             return result
+        self.generic_visit(node)
         return node
 
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
@@ -224,15 +326,17 @@ class _Transformer(ast.NodeTransformer):
         return node
 
 
-def transform_test(test_src: str, fname: str, names: set[str]) -> str:
+def transform_test(test_src: str, names: set[str], arg_types: list[str], ret_type: str) -> str:
     """Return a Python boolean expression equivalent to one MBPP assertion."""
     tree = ast.parse(test_src.strip())
     if not tree.body or not isinstance(tree.body[0], ast.Assert):
         raise CodeGenError("test is not an assert statement")
     test = tree.body[0].test
-    if find_call(test, names) is None:
+    call = find_call(test, names)
+    if call is None:
         raise CodeGenError("assertion does not call the target function")
-    new_test = _Transformer(fname).visit(test)
+    expected = find_expected(test, call) if ret_type in COMPLEX_TYPES else None
+    new_test = _Transformer(call, arg_types, ret_type, expected).visit(test)
     ast.fix_missing_locations(new_test)
     return ast.unparse(new_test)
 
@@ -302,23 +406,25 @@ def generate_file(problem: dict) -> str:
     else:
         arg_names = [f"a{i}" for i in range(arity)]
 
-    arg_types, custom = infer_arg_types(call)
-    ret_type, ret_custom = infer_return_type(chosen_test, call)
-    if ret_custom:
-        custom.add(ret_type)
+    arg_types, _ = infer_arg_types(call)
+    ret_type, _ = infer_return_type(chosen_test, call)
+    signature_types = set(arg_types) | {ret_type}
 
-    # Every non-primitive type used in the signature needs a local opaque
-    # declaration. `List` in particular must be declared monomorphically here,
-    # otherwise elaborating a `?hole : List` unifies against the parametric
-    # `List a` from the standard library and loops.
-    PRIMITIVES = {"Int", "Bool", "Float", "String"}
-    custom |= ({ret_type} | set(arg_types)) - PRIMITIVES
+    # Work out which type declarations the file needs. `List` must be declared
+    # monomorphically here, otherwise elaborating a `?hole : List` unifies
+    # against the parametric `List a` from the standard library and loops.
+    needed_inductive = signature_types & COMPLEX_TYPES
+    need_list_decl = "List" in signature_types
+    if needed_inductive:
+        # Containers are cons-lists of PyObj, and PyObj wraps an opaque List.
+        needed_inductive.add("PyObj")
+        need_list_decl = True
 
     # Transform every assertion; skip any that do not fit the inferred shape.
     conditions: list[str] = []
     for t in test_list:
         try:
-            conditions.append(transform_test(t, fname, defined_names))
+            conditions.append(transform_test(t, defined_names, arg_types, ret_type))
         except (CodeGenError, SyntaxError):
             continue
     if not conditions:
@@ -335,7 +441,13 @@ def generate_file(problem: dict) -> str:
         fitness_arg_type += f"(x{i}:{t}) -> "
     fitness_arg_type += ret_type
 
-    type_decls = "".join(f"type {t}\n" for t in sorted(custom))
+    decl_lines: list[str] = []
+    if need_list_decl:
+        decl_lines.append("type List")
+    for t in ("PyObj", "PyTuple", "PySet", "PyDict"):
+        if t in needed_inductive:
+            decl_lines.append(INDUCTIVE_DECLS[t])
+    type_decls = "\n\n".join(decl_lines)
 
     synth_params = " ".join(f"({n}:{t})" for n, t in syn_args)
 
@@ -346,7 +458,7 @@ def generate_file(problem: dict) -> str:
 
     parts = [header, ""]
     if type_decls:
-        parts.append(type_decls.rstrip())
+        parts.append(type_decls)
         parts.append("")
     parts.append(f'def mbpp_fitness (f:{fitness_arg_type}) : Float = native "{native_body}"')
     parts.append("")

@@ -1,13 +1,23 @@
 # MBPP task 104
 # Write a function to sort each sublist of strings in a given list of lists.
 #
-# Synthesis target: sort_sublists : Tuple -> List
+# Synthesis target: sort_sublists : PyTuple -> List
 
 type List
-type Tuple
 
-def mbpp_fitness (f:(x0:Tuple) -> List) : Float = native "float((0 if (f((['green', 'orange'], ['black', 'white'], ['white', 'black', 'orange'])) == [['green', 'orange'], ['black', 'white'], ['black', 'orange', 'white']]) else 1) + (0 if (f(([' red ', 'green'], ['blue ', ' black'], [' orange', 'brown'])) == [[' red ', 'green'], [' black', 'blue '], [' orange', 'brown']]) else 1) + (0 if (f((['zilver', 'gold'], ['magnesium', 'aluminium'], ['steel', 'bronze'])) == [['gold', 'zilver'], ['aluminium', 'magnesium'], ['bronze', 'steel']]) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> List) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_list', ['green', 'orange']), ('PyTuple_tcons', ('PyObj_obj_list', ['black', 'white']), ('PyTuple_tcons', ('PyObj_obj_list', ['white', 'black', 'orange']), ('PyTuple_tnil',))))) == [['green', 'orange'], ['black', 'white'], ['black', 'orange', 'white']]) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_list', [' red ', 'green']), ('PyTuple_tcons', ('PyObj_obj_list', ['blue ', ' black']), ('PyTuple_tcons', ('PyObj_obj_list', [' orange', 'brown']), ('PyTuple_tnil',))))) == [[' red ', 'green'], [' black', 'blue '], [' orange', 'brown']]) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_list', ['zilver', 'gold']), ('PyTuple_tcons', ('PyObj_obj_list', ['magnesium', 'aluminium']), ('PyTuple_tcons', ('PyObj_obj_list', ['steel', 'bronze']), ('PyTuple_tnil',))))) == [['gold', 'zilver'], ['aluminium', 'magnesium'], ['bronze', 'steel']]) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (input_list:Tuple) : List = (?hole : List)
+def synth (input_list:PyTuple) : List = (?hole : List)

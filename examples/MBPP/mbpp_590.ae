@@ -1,12 +1,23 @@
 # MBPP task 590
 # Write a function to convert polar coordinates to rectangular coordinates.
 #
-# Synthesis target: polar_rect : Int -> Int -> Tuple
+# Synthesis target: polar_rect : Int -> Int -> PyTuple
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Tuple) : Float = native "float((0 if (f(3)(4) == ((5.0, 0.9272952180016122), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(4)(7) == ((8.06225774829855, 1.0516502125483738), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(15)(17) == ((22.67156809750927, 0.8478169733934057), -2 + 2.4492935982947064e-16j)) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> PyTuple) : Float = native "float((0 if (f(3)(4) == ('PyTuple_tcons', ('PyObj_obj_list', (5.0, 0.9272952180016122)), ('PyTuple_tcons', ('PyObj_obj_list', -2 + 2.4492935982947064e-16j), ('PyTuple_tnil',)))) else 1) + (0 if (f(4)(7) == ('PyTuple_tcons', ('PyObj_obj_list', (8.06225774829855, 1.0516502125483738)), ('PyTuple_tcons', ('PyObj_obj_list', -2 + 2.4492935982947064e-16j), ('PyTuple_tnil',)))) else 1) + (0 if (f(15)(17) == ('PyTuple_tcons', ('PyObj_obj_list', (22.67156809750927, 0.8478169733934057)), ('PyTuple_tcons', ('PyObj_obj_list', -2 + 2.4492935982947064e-16j), ('PyTuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (x:Int) (y:Int) : Tuple = (?hole : Tuple)
+def synth (x:Int) (y:Int) : PyTuple = (?hole : PyTuple)

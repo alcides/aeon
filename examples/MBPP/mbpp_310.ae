@@ -1,12 +1,23 @@
 # MBPP task 310
 # Write a function to convert a given string to a tuple of characters.
 #
-# Synthesis target: string_to_tuple : String -> Tuple
+# Synthesis target: string_to_tuple : String -> PyTuple
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:String) -> Tuple) : Float = native "float((0 if (f('python 3.0') == ('p', 'y', 't', 'h', 'o', 'n', '3', '.', '0')) else 1) + (0 if (f('item1') == ('i', 't', 'e', 'm', '1')) else 1) + (0 if (f('15.10') == ('1', '5', '.', '1', '0')) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:String) -> PyTuple) : Float = native "float((0 if (f('python 3.0') == ('PyTuple_tcons', ('PyObj_obj_str', 'p'), ('PyTuple_tcons', ('PyObj_obj_str', 'y'), ('PyTuple_tcons', ('PyObj_obj_str', 't'), ('PyTuple_tcons', ('PyObj_obj_str', 'h'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'n'), ('PyTuple_tcons', ('PyObj_obj_str', '3'), ('PyTuple_tcons', ('PyObj_obj_str', '.'), ('PyTuple_tcons', ('PyObj_obj_str', '0'), ('PyTuple_tnil',))))))))))) else 1) + (0 if (f('item1') == ('PyTuple_tcons', ('PyObj_obj_str', 'i'), ('PyTuple_tcons', ('PyObj_obj_str', 't'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 'm'), ('PyTuple_tcons', ('PyObj_obj_str', '1'), ('PyTuple_tnil',))))))) else 1) + (0 if (f('15.10') == ('PyTuple_tcons', ('PyObj_obj_str', '1'), ('PyTuple_tcons', ('PyObj_obj_str', '5'), ('PyTuple_tcons', ('PyObj_obj_str', '.'), ('PyTuple_tcons', ('PyObj_obj_str', '1'), ('PyTuple_tcons', ('PyObj_obj_str', '0'), ('PyTuple_tnil',))))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (str1:String) : Tuple = (?hole : Tuple)
+def synth (str1:String) : PyTuple = (?hole : PyTuple)

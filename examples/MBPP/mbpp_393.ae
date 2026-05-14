@@ -1,13 +1,23 @@
 # MBPP task 393
 # Write a function to find the list with maximum length.
 #
-# Synthesis target: max_length_list : List -> Tuple
+# Synthesis target: max_length_list : List -> PyTuple
 
 type List
-type Tuple
 
-def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]]) == (3, [13, 15, 17])) else 1) + (0 if (f([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]]) == (5, [1, 2, 3, 4, 5])) else 1) + (0 if (f([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12]]) == (4, [6, 7, 8, 9])) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:List) -> PyTuple) : Float = native "float((0 if (f([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]]) == ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_list', [13, 15, 17]), ('PyTuple_tnil',)))) else 1) + (0 if (f([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]]) == ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', [1, 2, 3, 4, 5]), ('PyTuple_tnil',)))) else 1) + (0 if (f([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12]]) == ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_list', [6, 7, 8, 9]), ('PyTuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (input_list:List) : Tuple = (?hole : Tuple)
+def synth (input_list:List) : PyTuple = (?hole : PyTuple)

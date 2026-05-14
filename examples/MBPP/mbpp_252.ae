@@ -1,12 +1,23 @@
 # MBPP task 252
 # Write a python function to convert complex numbers to polar coordinates.
 #
-# Synthesis target: convert : Int -> Tuple
+# Synthesis target: convert : Int -> PyTuple
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Int) -> Tuple) : Float = native "float((0 if (f(1) == (1.0, 0.0)) else 1) + (0 if (f(4) == (4.0, 0.0)) else 1) + (0 if (f(5) == (5.0, 0.0)) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:Int) -> PyTuple) : Float = native "float((0 if (f(1) == ('PyTuple_tcons', ('PyObj_obj_float', 1.0), ('PyTuple_tcons', ('PyObj_obj_float', 0.0), ('PyTuple_tnil',)))) else 1) + (0 if (f(4) == ('PyTuple_tcons', ('PyObj_obj_float', 4.0), ('PyTuple_tcons', ('PyObj_obj_float', 0.0), ('PyTuple_tnil',)))) else 1) + (0 if (f(5) == ('PyTuple_tcons', ('PyObj_obj_float', 5.0), ('PyTuple_tcons', ('PyObj_obj_float', 0.0), ('PyTuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (numbers:Int) : Tuple = (?hole : Tuple)
+def synth (numbers:Int) : PyTuple = (?hole : PyTuple)

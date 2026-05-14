@@ -1,12 +1,23 @@
 # MBPP task 132
 # Write a function to convert a tuple to a string.
 #
-# Synthesis target: tup_string : Tuple -> String
+# Synthesis target: tup_string : PyTuple -> String
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> String) : Float = native "float((0 if (f(('e', 'x', 'e', 'r', 'c', 'i', 's', 'e', 's')) == 'exercises') else 1) + (0 if (f(('p', 'y', 't', 'h', 'o', 'n')) == 'python') else 1) + (0 if (f(('p', 'r', 'o', 'g', 'r', 'a', 'm')) == 'program') else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> String) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 'x'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'c'), ('PyTuple_tcons', ('PyObj_obj_str', 'i'), ('PyTuple_tcons', ('PyObj_obj_str', 's'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 's'), ('PyTuple_tnil',))))))))))) == 'exercises') else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'p'), ('PyTuple_tcons', ('PyObj_obj_str', 'y'), ('PyTuple_tcons', ('PyObj_obj_str', 't'), ('PyTuple_tcons', ('PyObj_obj_str', 'h'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'n'), ('PyTuple_tnil',)))))))) == 'python') else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'p'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'g'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'a'), ('PyTuple_tcons', ('PyObj_obj_str', 'm'), ('PyTuple_tnil',))))))))) == 'program') else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tup1:Tuple) : String = (?hole : String)
+def synth (tup1:PyTuple) : String = (?hole : String)

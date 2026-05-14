@@ -1,13 +1,23 @@
 # MBPP task 475
 # Write a function to sort a dictionary by value.
 #
-# Synthesis target: sort_counter : Dict -> List
+# Synthesis target: sort_counter : PyDict -> List
 
-type Dict
 type List
 
-def mbpp_fitness (f:(x0:Dict) -> List) : Float = native "float((0 if (f({'Math': 81, 'Physics': 83, 'Chemistry': 87}) == [('Chemistry', 87), ('Physics', 83), ('Math', 81)]) else 1) + (0 if (f({'Math': 400, 'Physics': 300, 'Chemistry': 250}) == [('Math', 400), ('Physics', 300), ('Chemistry', 250)]) else 1) + (0 if (f({'Math': 900, 'Physics': 1000, 'Chemistry': 1250}) == [('Chemistry', 1250), ('Physics', 1000), ('Math', 900)]) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:PyDict) -> List) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Math'), ('PyObj_obj_int', 81), ('PyDict_dcons', ('PyObj_obj_str', 'Physics'), ('PyObj_obj_int', 83), ('PyDict_dcons', ('PyObj_obj_str', 'Chemistry'), ('PyObj_obj_int', 87), ('PyDict_dnil',))))) == [('Chemistry', 87), ('Physics', 83), ('Math', 81)]) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Math'), ('PyObj_obj_int', 400), ('PyDict_dcons', ('PyObj_obj_str', 'Physics'), ('PyObj_obj_int', 300), ('PyDict_dcons', ('PyObj_obj_str', 'Chemistry'), ('PyObj_obj_int', 250), ('PyDict_dnil',))))) == [('Math', 400), ('Physics', 300), ('Chemistry', 250)]) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Math'), ('PyObj_obj_int', 900), ('PyDict_dcons', ('PyObj_obj_str', 'Physics'), ('PyObj_obj_int', 1000), ('PyDict_dcons', ('PyObj_obj_str', 'Chemistry'), ('PyObj_obj_int', 1250), ('PyDict_dnil',))))) == [('Chemistry', 1250), ('Physics', 1000), ('Math', 900)]) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dict1:Dict) : List = (?hole : List)
+def synth (dict1:PyDict) : List = (?hole : List)

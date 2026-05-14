@@ -1,12 +1,23 @@
 # MBPP task 405
 # Write a function to check whether an element exists within a tuple.
 #
-# Synthesis target: check_tuplex : Tuple -> String -> Bool
+# Synthesis target: check_tuplex : PyTuple -> String -> Bool
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:String) -> Bool) : Float = native "float((0 if (f(('w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))('r') == True) else 1) + (0 if (f(('w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))('5') == False) else 1) + (0 if (f(('w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))(3) == True) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> (x1:String) -> Bool) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'w'), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 's'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'u'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'c'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tnil',))))))))))))('r') == True) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'w'), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 's'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'u'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'c'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tnil',))))))))))))('5') == False) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'w'), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tcons', ('PyObj_obj_str', 's'), ('PyTuple_tcons', ('PyObj_obj_str', 'o'), ('PyTuple_tcons', ('PyObj_obj_str', 'u'), ('PyTuple_tcons', ('PyObj_obj_str', 'r'), ('PyTuple_tcons', ('PyObj_obj_str', 'c'), ('PyTuple_tcons', ('PyObj_obj_str', 'e'), ('PyTuple_tnil',))))))))))))(3) == True) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tuplex:Tuple) (tuple1:String) : Bool = (?hole : Bool)
+def synth (tuplex:PyTuple) (tuple1:String) : Bool = (?hole : Bool)

@@ -1,12 +1,23 @@
 # MBPP task 617
 # Write a function to check for the number of jumps required of given length to reach a point of form (d, 0) from origin in a 2d plane.
 #
-# Synthesis target: min_Jumps : Tuple -> Int -> Float
+# Synthesis target: min_Jumps : PyTuple -> Int -> Float
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> Float) : Float = native "float((0 if (f((3, 4))(11) == 3.5) else 1) + (0 if (f((3, 4))(0) == 0) else 1) + (0 if (f((11, 14))(11) == 1) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> (x1:Int) -> Float) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tnil',))))(11) == 3.5) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tnil',))))(0) == 0) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 11), ('PyTuple_tcons', ('PyObj_obj_int', 14), ('PyTuple_tnil',))))(11) == 1) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (steps:Tuple) (d:Int) : Float = (?hole : Float)
+def synth (steps:PyTuple) (d:Int) : Float = (?hole : Float)

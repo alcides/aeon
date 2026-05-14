@@ -1,12 +1,23 @@
 # MBPP task 808
 # Write a function to check if the given tuples contain the k or not.
 #
-# Synthesis target: check_K : Tuple -> Int -> Bool
+# Synthesis target: check_K : PyTuple -> Int -> Bool
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> Bool) : Float = native "float((0 if (f((10, 4, 5, 6, 8))(6) == True) else 1) + (0 if (f((1, 2, 3, 4, 5, 6))(7) == False) else 1) + (0 if (f((7, 8, 9, 44, 11, 12))(11) == True) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> (x1:Int) -> Bool) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tnil',)))))))(6) == True) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',))))))))(7) == False) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_int', 44), ('PyTuple_tcons', ('PyObj_obj_int', 11), ('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tnil',))))))))(11) == True) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:Tuple) (K:Int) : Bool = (?hole : Bool)
+def synth (test_tup:PyTuple) (K:Int) : Bool = (?hole : Bool)

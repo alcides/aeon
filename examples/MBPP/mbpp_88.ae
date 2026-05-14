@@ -1,13 +1,23 @@
 # MBPP task 88
 # Write a function to get the frequency of all the elements in a list, returned as a dictionary.
 #
-# Synthesis target: freq_count : List -> Dict
+# Synthesis target: freq_count : List -> PyDict
 
-type Dict
 type List
 
-def mbpp_fitness (f:(x0:List) -> Dict) : Float = native "float((0 if (f([10, 10, 10, 10, 20, 20, 20, 20, 40, 40, 50, 50, 30]) == {10: 4, 20: 4, 40: 2, 50: 2, 30: 1}) else 1) + (0 if (f([1, 2, 3, 4, 3, 2, 4, 1, 3, 1, 4]) == {1: 3, 2: 2, 3: 3, 4: 3}) else 1) + (0 if (f([5, 6, 7, 4, 9, 10, 4, 5, 6, 7, 9, 5]) == {10: 1, 5: 3, 6: 2, 7: 2, 4: 2, 9: 2}) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:List) -> PyDict) : Float = native "float((0 if (f([10, 10, 10, 10, 20, 20, 20, 20, 40, 40, 50, 50, 30]) == ('PyDict_dcons', ('PyObj_obj_int', 10), ('PyObj_obj_int', 4), ('PyDict_dcons', ('PyObj_obj_int', 20), ('PyObj_obj_int', 4), ('PyDict_dcons', ('PyObj_obj_int', 40), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 50), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 30), ('PyObj_obj_int', 1), ('PyDict_dnil',))))))) else 1) + (0 if (f([1, 2, 3, 4, 3, 2, 4, 1, 3, 1, 4]) == ('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_int', 2), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 3), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_int', 4), ('PyObj_obj_int', 3), ('PyDict_dnil',)))))) else 1) + (0 if (f([5, 6, 7, 4, 9, 10, 4, 5, 6, 7, 9, 5]) == ('PyDict_dcons', ('PyObj_obj_int', 10), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 5), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_int', 6), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 7), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 4), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 9), ('PyObj_obj_int', 2), ('PyDict_dnil',)))))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) : Dict = (?hole : Dict)
+def synth (list1:List) : PyDict = (?hole : PyDict)

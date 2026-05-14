@@ -1,12 +1,23 @@
 # MBPP task 582
 # Write a function to check if a dictionary is empty
 #
-# Synthesis target: my_dict : Set -> Bool
+# Synthesis target: my_dict : PySet -> Bool
 
-type Set
+type List
 
-def mbpp_fitness (f:(x0:Set) -> Bool) : Float = native "float((0 if (f({10}) == False) else 1) + (0 if (f({11}) == False) else 1) + (0 if (f({}) == True) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PySet
+| snil : PySet
+| scons (hd:PyObj) (tl:PySet) : PySet
+
+def mbpp_fitness (f:(x0:PySet) -> Bool) : Float = native "float((0 if (f(('PySet_scons', ('PyObj_obj_int', 10), ('PySet_snil',))) == False) else 1) + (0 if (f(('PySet_scons', ('PyObj_obj_int', 11), ('PySet_snil',))) == False) else 1) + (0 if (f({}) == True) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dict1:Set) : Bool = (?hole : Bool)
+def synth (dict1:PySet) : Bool = (?hole : Bool)

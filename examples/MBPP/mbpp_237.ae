@@ -1,13 +1,23 @@
 # MBPP task 237
 # Write a function that takes in a list of tuples and returns a dictionary mapping each unique tuple to the number of times it occurs in the list.
 #
-# Synthesis target: check_occurences : List -> Dict
+# Synthesis target: check_occurences : List -> PyDict
 
-type Dict
 type List
 
-def mbpp_fitness (f:(x0:List) -> Dict) : Float = native "float((0 if (f([(3, 1), (1, 3), (2, 5), (5, 2), (6, 3)]) == {(1, 3): 2, (2, 5): 2, (3, 6): 1}) else 1) + (0 if (f([(4, 2), (2, 4), (3, 6), (6, 3), (7, 4)]) == {(2, 4): 2, (3, 6): 2, (4, 7): 1}) else 1) + (0 if (f([(13, 2), (11, 23), (12, 25), (25, 12), (16, 23)]) == {(2, 13): 1, (11, 23): 1, (12, 25): 2, (16, 23): 1}) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:List) -> PyDict) : Float = native "float((0 if (f([(3, 1), (1, 3), (2, 5), (5, 2), (6, 3)]) == ('PyDict_dcons', ('PyObj_obj_list', (1, 3)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (2, 5)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (3, 6)), ('PyObj_obj_int', 1), ('PyDict_dnil',))))) else 1) + (0 if (f([(4, 2), (2, 4), (3, 6), (6, 3), (7, 4)]) == ('PyDict_dcons', ('PyObj_obj_list', (2, 4)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (3, 6)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (4, 7)), ('PyObj_obj_int', 1), ('PyDict_dnil',))))) else 1) + (0 if (f([(13, 2), (11, 23), (12, 25), (25, 12), (16, 23)]) == ('PyDict_dcons', ('PyObj_obj_list', (2, 13)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (11, 23)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (12, 25)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (16, 23)), ('PyObj_obj_int', 1), ('PyDict_dnil',)))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : Dict = (?hole : Dict)
+def synth (test_list:List) : PyDict = (?hole : PyDict)

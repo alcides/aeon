@@ -1,13 +1,23 @@
 # MBPP task 305
 # Write a function to return two words from a list of words starting with letter 'p'.
 #
-# Synthesis target: start_withp : List -> Tuple
+# Synthesis target: start_withp : List -> PyTuple
 
 type List
-type Tuple
 
-def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f(['Python PHP', 'Java JavaScript', 'c c++']) == ('Python', 'PHP')) else 1) + (0 if (f(['Python Programming', 'Java Programming']) == ('Python', 'Programming')) else 1) + (0 if (f(['Pqrst Pqr', 'qrstuv']) == ('Pqrst', 'Pqr')) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:List) -> PyTuple) : Float = native "float((0 if (f(['Python PHP', 'Java JavaScript', 'c c++']) == ('PyTuple_tcons', ('PyObj_obj_str', 'Python'), ('PyTuple_tcons', ('PyObj_obj_str', 'PHP'), ('PyTuple_tnil',)))) else 1) + (0 if (f(['Python Programming', 'Java Programming']) == ('PyTuple_tcons', ('PyObj_obj_str', 'Python'), ('PyTuple_tcons', ('PyObj_obj_str', 'Programming'), ('PyTuple_tnil',)))) else 1) + (0 if (f(['Pqrst Pqr', 'qrstuv']) == ('PyTuple_tcons', ('PyObj_obj_str', 'Pqrst'), ('PyTuple_tcons', ('PyObj_obj_str', 'Pqr'), ('PyTuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (words:List) : Tuple = (?hole : Tuple)
+def synth (words:List) : PyTuple = (?hole : PyTuple)

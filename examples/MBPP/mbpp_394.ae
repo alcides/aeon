@@ -1,12 +1,23 @@
 # MBPP task 394
 # Write a function to check if given tuple contains no duplicates.
 #
-# Synthesis target: check_distinct : Tuple -> Bool
+# Synthesis target: check_distinct : PyTuple -> Bool
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> Bool) : Float = native "float((0 if (f((1, 4, 5, 6, 1, 4)) == False) else 1) + (0 if (f((1, 4, 5, 6)) == True) else 1) + (0 if (f((2, 3, 4, 5, 6)) == True) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:PyTuple) -> Bool) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tnil',)))))))) == False) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',)))))) == True) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',))))))) == True) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:Tuple) : Bool = (?hole : Bool)
+def synth (test_tup:PyTuple) : Bool = (?hole : Bool)

@@ -1,12 +1,23 @@
 # MBPP task 464
 # Write a function to check if all values are same in a dictionary.
 #
-# Synthesis target: check_value : Dict -> Int -> Bool
+# Synthesis target: check_value : PyDict -> Int -> Bool
 
-type Dict
+type List
 
-def mbpp_fitness (f:(x0:Dict) -> (x1:Int) -> Bool) : Float = native "float((0 if (f({'Cierra Vega': 12, 'Alden Cantrell': 12, 'Kierra Gentry': 12, 'Pierre Cox': 12})(10) == False) else 1) + (0 if (f({'Cierra Vega': 12, 'Alden Cantrell': 12, 'Kierra Gentry': 12, 'Pierre Cox': 12})(12) == True) else 1) + (0 if (f({'Cierra Vega': 12, 'Alden Cantrell': 12, 'Kierra Gentry': 12, 'Pierre Cox': 12})(5) == False) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:PyDict) -> (x1:Int) -> Bool) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_int', 12), ('PyDict_dnil',))))))(10) == False) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_int', 12), ('PyDict_dnil',))))))(12) == True) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_int', 12), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_int', 12), ('PyDict_dnil',))))))(5) == False) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dict:Dict) (n:Int) : Bool = (?hole : Bool)
+def synth (dict:PyDict) (n:Int) : Bool = (?hole : Bool)

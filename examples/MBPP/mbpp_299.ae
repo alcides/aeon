@@ -1,13 +1,23 @@
 # MBPP task 299
 # Write a function to calculate the maximum aggregate from the list of tuples.
 #
-# Synthesis target: max_aggregate : List -> Tuple
+# Synthesis target: max_aggregate : List -> PyTuple
 
 type List
-type Tuple
 
-def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f([('Juan Whelan', 90), ('Sabah Colley', 88), ('Peter Nichols', 7), ('Juan Whelan', 122), ('Sabah Colley', 84)]) == ('Juan Whelan', 212)) else 1) + (0 if (f([('Juan Whelan', 50), ('Sabah Colley', 48), ('Peter Nichols', 37), ('Juan Whelan', 22), ('Sabah Colley', 14)]) == ('Juan Whelan', 72)) else 1) + (0 if (f([('Juan Whelan', 10), ('Sabah Colley', 20), ('Peter Nichols', 30), ('Juan Whelan', 40), ('Sabah Colley', 50)]) == ('Sabah Colley', 70)) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:List) -> PyTuple) : Float = native "float((0 if (f([('Juan Whelan', 90), ('Sabah Colley', 88), ('Peter Nichols', 7), ('Juan Whelan', 122), ('Sabah Colley', 84)]) == ('PyTuple_tcons', ('PyObj_obj_str', 'Juan Whelan'), ('PyTuple_tcons', ('PyObj_obj_int', 212), ('PyTuple_tnil',)))) else 1) + (0 if (f([('Juan Whelan', 50), ('Sabah Colley', 48), ('Peter Nichols', 37), ('Juan Whelan', 22), ('Sabah Colley', 14)]) == ('PyTuple_tcons', ('PyObj_obj_str', 'Juan Whelan'), ('PyTuple_tcons', ('PyObj_obj_int', 72), ('PyTuple_tnil',)))) else 1) + (0 if (f([('Juan Whelan', 10), ('Sabah Colley', 20), ('Peter Nichols', 30), ('Juan Whelan', 40), ('Sabah Colley', 50)]) == ('PyTuple_tcons', ('PyObj_obj_str', 'Sabah Colley'), ('PyTuple_tcons', ('PyObj_obj_int', 70), ('PyTuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (stdata:List) : Tuple = (?hole : Tuple)
+def synth (stdata:List) : PyTuple = (?hole : PyTuple)

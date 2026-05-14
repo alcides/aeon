@@ -1,13 +1,27 @@
 # MBPP task 740
 # Write a function to convert the given tuple to a key-value dictionary using adjacent elements. https://www.geeksforgeeks.org/python-convert-tuple-to-adjacent-pair-dictionary/
 #
-# Synthesis target: tuple_to_dict : Tuple -> Dict
+# Synthesis target: tuple_to_dict : PyTuple -> PyDict
 
-type Dict
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Tuple) -> Dict) : Float = native "float((0 if (f((1, 5, 7, 10, 13, 5)) == {1: 5, 7: 10, 13: 5}) else 1) + (0 if (f((1, 2, 3, 4, 5, 6)) == {1: 2, 3: 4, 5: 6}) else 1) + (0 if (f((7, 8, 9, 10, 11, 12)) == {7: 8, 9: 10, 11: 12}) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:PyTuple) -> PyDict) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tcons', ('PyObj_obj_int', 13), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tnil',)))))))) == ('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_int', 5), ('PyDict_dcons', ('PyObj_obj_int', 7), ('PyObj_obj_int', 10), ('PyDict_dcons', ('PyObj_obj_int', 13), ('PyObj_obj_int', 5), ('PyDict_dnil',))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',)))))))) == ('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 3), ('PyObj_obj_int', 4), ('PyDict_dcons', ('PyObj_obj_int', 5), ('PyObj_obj_int', 6), ('PyDict_dnil',))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tcons', ('PyObj_obj_int', 11), ('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tnil',)))))))) == ('PyDict_dcons', ('PyObj_obj_int', 7), ('PyObj_obj_int', 8), ('PyDict_dcons', ('PyObj_obj_int', 9), ('PyObj_obj_int', 10), ('PyDict_dcons', ('PyObj_obj_int', 11), ('PyObj_obj_int', 12), ('PyDict_dnil',))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:Tuple) : Dict = (?hole : Dict)
+def synth (test_tup:PyTuple) : PyDict = (?hole : PyDict)

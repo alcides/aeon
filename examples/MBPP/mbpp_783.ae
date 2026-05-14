@@ -1,12 +1,23 @@
 # MBPP task 783
 # Write a function to convert rgb color to hsv color. https://www.geeksforgeeks.org/program-change-rgb-color-model-hsv-color-model/
 #
-# Synthesis target: rgb_to_hsv : Int -> Int -> Int -> Tuple
+# Synthesis target: rgb_to_hsv : Int -> Int -> Int -> PyTuple
 
-type Tuple
+type List
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> (x2:Int) -> Tuple) : Float = native "float((0 if (f(255)(255)(255) == (0, 0.0, 100.0)) else 1) + (0 if (f(0)(215)(0) == (120.0, 100.0, 84.31372549019608)) else 1) + (0 if (f(10)(215)(110) == (149.26829268292684, 95.34883720930233, 84.31372549019608)) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyTuple
+| tnil : PyTuple
+| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
+
+def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> (x2:Int) -> PyTuple) : Float = native "float((0 if (f(255)(255)(255) == ('PyTuple_tcons', ('PyObj_obj_int', 0), ('PyTuple_tcons', ('PyObj_obj_float', 0.0), ('PyTuple_tcons', ('PyObj_obj_float', 100.0), ('PyTuple_tnil',))))) else 1) + (0 if (f(0)(215)(0) == ('PyTuple_tcons', ('PyObj_obj_float', 120.0), ('PyTuple_tcons', ('PyObj_obj_float', 100.0), ('PyTuple_tcons', ('PyObj_obj_float', 84.31372549019608), ('PyTuple_tnil',))))) else 1) + (0 if (f(10)(215)(110) == ('PyTuple_tcons', ('PyObj_obj_float', 149.26829268292684), ('PyTuple_tcons', ('PyObj_obj_float', 95.34883720930233), ('PyTuple_tcons', ('PyObj_obj_float', 84.31372549019608), ('PyTuple_tnil',))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (r:Int) (g:Int) (b:Int) : Tuple = (?hole : Tuple)
+def synth (r:Int) (g:Int) (b:Int) : PyTuple = (?hole : PyTuple)

@@ -1,12 +1,23 @@
 # MBPP task 722
 # The input is given as - a dictionary with a student name as a key and a tuple of float (student_height, student_weight) as a value, - minimal height, - minimal weight. Write a function to filter students that have height and weight above the minimum.
 #
-# Synthesis target: filter_data : Dict -> Float -> Int -> Dict
+# Synthesis target: filter_data : PyDict -> Float -> Int -> PyDict
 
-type Dict
+type List
 
-def mbpp_fitness (f:(x0:Dict) -> (x1:Float) -> (x2:Int) -> Dict) : Float = native "float((0 if (f({'Cierra Vega': (6.2, 70), 'Alden Cantrell': (5.9, 65), 'Kierra Gentry': (6.0, 68), 'Pierre Cox': (5.8, 66)})(6.0)(70) == {'Cierra Vega': (6.2, 70)}) else 1) + (0 if (f({'Cierra Vega': (6.2, 70), 'Alden Cantrell': (5.9, 65), 'Kierra Gentry': (6.0, 68), 'Pierre Cox': (5.8, 66)})(5.9)(67) == {'Cierra Vega': (6.2, 70), 'Kierra Gentry': (6.0, 68)}) else 1) + (0 if (f({'Cierra Vega': (6.2, 70), 'Alden Cantrell': (5.9, 65), 'Kierra Gentry': (6.0, 68), 'Pierre Cox': (5.8, 66)})(5.7)(64) == {'Cierra Vega': (6.2, 70), 'Alden Cantrell': (5.9, 65), 'Kierra Gentry': (6.0, 68), 'Pierre Cox': (5.8, 66)}) else 1))"
+inductive PyObj
+| obj_int (v:Int) : PyObj
+| obj_float (v:Float) : PyObj
+| obj_bool (v:Bool) : PyObj
+| obj_str (v:String) : PyObj
+| obj_list (v:List) : PyObj
+
+inductive PyDict
+| dnil : PyDict
+| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
+
+def mbpp_fitness (f:(x0:PyDict) -> (x1:Float) -> (x2:Int) -> PyDict) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_list', (5.9, 65)), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_list', (6.0, 68)), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_list', (5.8, 66)), ('PyDict_dnil',))))))(6.0)(70) == ('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dnil',))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_list', (5.9, 65)), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_list', (6.0, 68)), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_list', (5.8, 66)), ('PyDict_dnil',))))))(5.9)(67) == ('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_list', (6.0, 68)), ('PyDict_dnil',)))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_list', (5.9, 65)), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_list', (6.0, 68)), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_list', (5.8, 66)), ('PyDict_dnil',))))))(5.7)(64) == ('PyDict_dcons', ('PyObj_obj_str', 'Cierra Vega'), ('PyObj_obj_list', (6.2, 70)), ('PyDict_dcons', ('PyObj_obj_str', 'Alden Cantrell'), ('PyObj_obj_list', (5.9, 65)), ('PyDict_dcons', ('PyObj_obj_str', 'Kierra Gentry'), ('PyObj_obj_list', (6.0, 68)), ('PyDict_dcons', ('PyObj_obj_str', 'Pierre Cox'), ('PyObj_obj_list', (5.8, 66)), ('PyDict_dnil',)))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (students:Dict) (h:Float) (w:Int) : Dict = (?hole : Dict)
+def synth (students:PyDict) (h:Float) (w:Int) : PyDict = (?hole : PyDict)
