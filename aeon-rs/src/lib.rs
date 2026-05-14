@@ -14,6 +14,7 @@ mod liquefy;
 mod liquid;
 mod loc;
 mod name;
+mod ple;
 mod substitutions;
 mod sugar;
 mod term_subst;
@@ -134,6 +135,9 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<sugar::Decorator>()?;
     m.add_class::<sugar::Definition>()?;
     m.add_class::<sugar::Program>()?;
+
+    // SMT encoder — PLE unfolding (z3-free slice)
+    m.add_function(wrap_pyfunction!(ple::ple_unfold_fixpoint, m)?)?;
 
     Ok(())
 }

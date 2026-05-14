@@ -28,6 +28,8 @@ from z3.z3 import SortRef
 from z3.z3types import Z3Exception
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
+from aeon_rs import ple_unfold_fixpoint as ple_unfold_fixpoint
+
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.liquid import LiquidLiteralBool
@@ -174,74 +176,9 @@ class SMTContext:
         )
 
 
-def _ple_unfold_once(
-    t: LiquidTerm,
-    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
-) -> tuple[LiquidTerm, bool]:
-    match t:
-        case LiquidApp(fun, args, loc):
-            n_args: list[LiquidTerm] = []
-            changed = False
-            for arg in args:
-                n_arg, arg_changed = _ple_unfold_once(arg, reflected_functions)
-                n_args.append(n_arg)
-                changed = changed or arg_changed
-            key = str(fun)
-            if key in reflected_functions:
-                params, body = reflected_functions[key]
-                if len(params) == len(n_args):
-                    unfolded = body
-                    for param, arg in zip(params, n_args):
-                        unfolded = substitution_in_liquid(unfolded, arg, param)
-                    return unfolded, True
-            if changed:
-                return LiquidApp(fun, n_args, loc=loc), True
-            return t, False
-        case _:
-            return t, False
-
-
-def ple_unfold_fixpoint(
-    t: LiquidTerm,
-    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
-    max_steps: int = 256,
-) -> LiquidTerm:
-    def term_size(node: LiquidTerm) -> int:
-        match node:
-            case LiquidApp(_, args):
-                return 1 + sum(term_size(a) for a in args)
-            case _:
-                return 1
-
-    max_term_size = 4096
-    current = t
-    start_size = term_size(current)
-    seen: set[str] = {repr(current)}
-    unfolded_steps = 0
-    stop_reason = "fixpoint"
-    for _ in range(max_steps):
-        current, changed = _ple_unfold_once(current, reflected_functions)
-        if not changed:
-            stop_reason = "no_change"
-            break
-        unfolded_steps += 1
-        if term_size(current) > max_term_size:
-            stop_reason = "size_guard"
-            break
-        signature = repr(current)
-        if signature in seen:
-            stop_reason = "seen_guard"
-            break
-        seen.add(signature)
-    logger.debug(
-        "PLE unfold: steps={} start_size={} final_size={} stop={} reflected_funs={}",
-        unfolded_steps,
-        start_size,
-        term_size(current),
-        stop_reason,
-        len(reflected_functions),
-    )
-    return current
+# _ple_unfold_once and ple_unfold_fixpoint are implemented in the Rust core
+# (aeon_rs.ple_unfold_fixpoint, imported above). They are the z3-free slice
+# of the SMT encoder — pure LiquidTerm rewriting.
 
 
 def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
