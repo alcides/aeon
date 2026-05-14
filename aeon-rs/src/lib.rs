@@ -66,7 +66,10 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Ported recursive walks
     m.add_function(wrap_pyfunction!(substitutions::type_substitution, m)?)?;
+    m.add_function(wrap_pyfunction!(substitutions::type_variable_instantiation, m)?)?;
     m.add_function(wrap_pyfunction!(substitutions::substitution_in_liquid, m)?)?;
+    m.add_function(wrap_pyfunction!(substitutions::refined_to_unrefined_type, m)?)?;
+    m.add_function(wrap_pyfunction!(substitutions::collect_from_type, m)?)?;
 
     Ok(())
 }

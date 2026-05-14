@@ -8,20 +8,10 @@ PLDI 2016 Synquid).
 
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm
+from aeon.core.liquid import LiquidTerm
 from aeon.core.terms import Abstraction, Annotation, Application, If, Let, Literal, Rec, RefinementApplication
 from aeon.core.terms import Term, TypeAbstraction, TypeApplication, Var
-from aeon.core.types import (
-    AbstractionType,
-    LiquidHornApplication,
-    RefinementPolymorphism,
-    RefinedType,
-    Type,
-    TypeConstructor,
-    TypePolymorphism,
-    TypeVar,
-    liq_true,
-)
+from aeon.core.types import Type
 from aeon.typechecking.context import (
     TypeBinder,
     TypeConstructorBinder,
@@ -29,48 +19,7 @@ from aeon.typechecking.context import (
     UninterpretedBinder,
     VariableBinder,
 )
-from aeon.utils.name import Name
-
-_AND: Name = Name("&&", 0)
-
-
-def _flatten_and(p: LiquidTerm) -> list[LiquidTerm]:
-    if isinstance(p, LiquidApp) and p.fun == _AND:
-        return _flatten_and(p.args[0]) + _flatten_and(p.args[1])
-    return [p]
-
-
-def _atoms_from_predicate(p: LiquidTerm) -> list[LiquidTerm]:
-    out: list[LiquidTerm] = []
-    for chunk in _flatten_and(p):
-        if isinstance(chunk, LiquidHornApplication):
-            continue
-        if chunk == LiquidLiteralBool(True) or chunk == liq_true:
-            continue
-        out.append(chunk)
-    return out
-
-
-def _collect_from_type(ty: Type, sink: set[LiquidTerm]) -> None:
-    match ty:
-        case RefinedType(_, inner, ref):
-            for atom in _atoms_from_predicate(ref):
-                sink.add(atom)
-            _collect_from_type(inner, sink)
-        case AbstractionType(_, aty, rty):
-            _collect_from_type(aty, sink)
-            _collect_from_type(rty, sink)
-        case TypePolymorphism(_, _, body):
-            _collect_from_type(body, sink)
-        case RefinementPolymorphism(_, _, body):
-            _collect_from_type(body, sink)
-        case TypeConstructor(_, args):
-            for arg_ty in args:
-                _collect_from_type(arg_ty, sink)
-        case TypeVar():
-            pass
-        case _:
-            pass
+from aeon_rs import collect_from_type as _collect_from_type
 
 
 def _collect_from_term(t: Term, sink: set[LiquidTerm]) -> None:

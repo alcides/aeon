@@ -108,13 +108,4 @@ def get_type_vars(t: Type) -> set[TypeVar]:
         assert False, f"Unable to extract {t} ({type(t)})"
 
 
-def refined_to_unrefined_type(ty: Type) -> Type:
-    if isinstance(ty, RefinedType):
-        return ty.type
-    if isinstance(ty, AbstractionType):
-        return AbstractionType(
-            ty.var_name,
-            refined_to_unrefined_type(ty.var_type),
-            refined_to_unrefined_type(ty.type),
-        )
-    return ty
+from aeon_rs import refined_to_unrefined_type as refined_to_unrefined_type  # noqa: E402
