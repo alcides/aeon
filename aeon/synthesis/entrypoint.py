@@ -9,6 +9,8 @@ from typing import TypeAlias
 import multiprocess as mp
 from loguru import logger
 
+import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZER etc.) at import.
+
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term, Var

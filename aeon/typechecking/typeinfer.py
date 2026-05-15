@@ -3,6 +3,8 @@ from typing import Iterable
 
 from loguru import logger
 
+import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTH_TYPE etc.) at import.
+
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm, liquid_free_vars
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarKind
@@ -425,6 +427,69 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (Conjunction(c, c_ref), nty)
+
+        case RefinementAbstraction(pname, psort, inner):
+            # Synth-mode Λρ: mirror Chk-RAbs (lines 505-512) but without an expected type.
+            # Introduce fκ : psort -> bool, synth the body, wrap the resulting type with
+            # RefinementPolymorphism and gate the constraint behind the UF declaration.
+            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), psort, t_bool)
+            ctx_ext = ctx.with_var(pname, fk_type)
+            (c_body, body_ty) = synth(ctx_ext, inner)
+            return (
+                UninterpretedFunctionDeclaration(pname, fk_type, c_body),
+                RefinementPolymorphism(pname, psort, body_ty),
+            )
+
+        case If(cond, then, otherwise):
+            # Synth-mode If: mirror check-mode (lines 472-493), but the branches don't
+            # share an expected type — synth each under its guard and join refinements.
+            liq_cond = liquefy(cond)
+            assert liq_cond is not None, f"Could not liquefy if-condition {cond}"
+            c_cond = check(ctx, cond, t_bool)
+
+            y = Name("_cond", fresh_counter.fresh())
+            (c1_inner, t1) = synth(ctx, then)
+            c1 = implication_constraint(
+                y,
+                RefinedType(Name("branch_pos", fresh_counter.fresh()), t_int, liq_cond),
+                c1_inner,
+                then.loc,
+            )
+            (c2_inner, t2) = synth(ctx, otherwise)
+            c2 = implication_constraint(
+                y,
+                RefinedType(
+                    Name("branch_neg", fresh_counter.fresh()),
+                    t_int,
+                    LiquidApp(Name("!", 0), [liq_cond]),
+                ),
+                c2_inner,
+                otherwise.loc,
+            )
+
+            t1_r = ensure_refined(t1)
+            t2_r = ensure_refined(t2)
+            if isinstance(t1_r, RefinedType) and isinstance(t2_r, RefinedType) and t1_r.type == t2_r.type:
+                v = Name("v_if", fresh_counter.fresh())
+                r1 = substitution_in_liquid(t1_r.refinement, LiquidVar(v), t1_r.name)
+                r2 = substitution_in_liquid(t2_r.refinement, LiquidVar(v), t2_r.name)
+                joined: Type = RefinedType(
+                    v,
+                    t1_r.type,
+                    LiquidApp(
+                        Name("&&", 0),
+                        [
+                            LiquidApp(Name("-->", 0), [liq_cond, r1]),
+                            LiquidApp(Name("-->", 0), [LiquidApp(Name("!", 0), [liq_cond]), r2]),
+                        ],
+                    ),
+                )
+            elif t1 == t2:
+                # Same non-refinable type (e.g., function type) on both branches.
+                joined = t1
+            else:
+                raise CoreSubtypingError(ctx, t, t1, t2)
+            return (Conjunction(c_cond, Conjunction(c1, c2)), joined)
 
         case Hole(hole_name):
             name_a = Name(hole_name.name, fresh_counter.fresh())
