@@ -744,16 +744,20 @@ def expand_inductive_decls(p: Program) -> Program:
                         rty = SAbstractionType(aname, aty, rty, multiplicity=m)
                     return rty
 
-                def case_for(cname: Name, cargs: list[tuple[Name, SType]]) -> str:
-                    pargs = ", ".join(f"{arg.name}" for (arg, _) in cargs)
-                    args = "".join(f"({arg.name})" for (arg, _) in cargs)
-                    return f"\tcase ('{key_for(name, cname)}', {pargs}):\n\t\treturn case_{cname.name}{args}"
+                # Emit the recursor body as a Python *expression* (chain of
+                # conditional expressions) rather than a `match` statement,
+                # so it round-trips cleanly through `eval` at runtime.
+                def branch_for(cname: Name, cargs: list[tuple[Name, SType]]) -> tuple[str, str]:
+                    body = f"case_{cname.name}" + "".join(f"(this[{i + 1}])" for i in range(len(cargs)))
+                    guard = f"this[0] == '{key_for(name, cname)}'"
+                    return body, guard
 
-                cases = "\n".join(case_for(cons.name, cons.args) for cons in constructors)
-                catchall = "\n\tcase _:\n\t\traise Exception('Invalid constructor')"
-                rec_body: STerm = SApplication(
-                    SVar(Name("native", 0)), SLiteral(f"""match this:\n{cases}{catchall}\n""", st_string)
-                )
+                branches = [branch_for(cons.name, cons.args) for cons in constructors]
+                # Catchall raises via a generator-throw trick so it remains an expression.
+                rec_expr = "(_ for _ in ()).throw(Exception('Invalid constructor'))"
+                for body, guard in reversed(branches):
+                    rec_expr = f"({body} if {guard} else {rec_expr})"
+                rec_body: STerm = SApplication(SVar(Name("native", 0)), SLiteral(rec_expr, st_string))
 
                 foralls: list[tuple[Name, Kind]] = [(a, BaseKind()) for a in args]
                 rec_args: list[tuple[Name, SType]] = []

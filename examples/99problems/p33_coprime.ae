@@ -1,0 +1,12 @@
+# Problem 33: Determine whether two positive integers are coprime.
+# Two numbers are coprime iff their gcd is 1.
+
+def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] =
+    if b == 0 then a else myGcd b (a % b)
+
+def coprime (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : Bool =
+    myGcd a b == 1
+
+def main (args:Int) : Unit =
+    _ = print (coprime 35 64);
+    print (coprime 35 49)
