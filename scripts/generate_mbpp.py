@@ -95,6 +95,8 @@ def elt_kind(node: ast.AST) -> str:
         value = ast.literal_eval(node)
     except (ValueError, TypeError, SyntaxError):
         return "Other"
+    if value is None:
+        return "None"
     if isinstance(value, bool):
         return "Bool"
     if isinstance(value, int):
@@ -112,6 +114,25 @@ def elt_kind(node: ast.AST) -> str:
     if isinstance(value, set):
         return "Set"
     return "Other"
+
+
+def _maybe_promote(kinds: set[str]) -> str | None:
+    """Reduce a set of kinds at one slot into a single Aeon type, possibly
+    ``(Maybe X)`` when ``None`` appears alongside a primitive, ``List``, or
+    one of the inductive containers. Returns ``None`` if the slot cannot be
+    expressed as one Aeon type.
+    """
+    representable = PRIMITIVES | {"List", "Tuple", "Dict", "Set"}
+    non_none = kinds - {"None"}
+    has_none = "None" in kinds
+    if not non_none:
+        # Only Nones — fall back to ``Maybe Int`` so the slot is at least typed.
+        return "(Maybe Int)" if has_none else None
+    if len(non_none) == 1:
+        only = next(iter(non_none))
+        if only in representable:
+            return f"(Maybe {only})" if has_none else only
+    return None
 
 
 def classify_literal(node: ast.AST) -> str:
@@ -190,6 +211,28 @@ def infer_arg_types(call: ast.Call) -> list[str]:
     return [classify_literal(arg) for arg in call.args]
 
 
+def aggregate_return_kinds(test_list: list[str], defined_names: set[str]) -> set[str]:
+    """Collect the return-side kind from every usable test in the problem.
+
+    Used to detect when a function returns ``None`` in some tests and a
+    concrete value in others — the return type then becomes ``(Maybe X)``.
+    """
+    kinds: set[str] = set()
+    for src in test_list:
+        try:
+            tree = ast.parse(src.strip())
+        except SyntaxError:
+            continue
+        if not tree.body or not isinstance(tree.body[0], ast.Assert):
+            continue
+        test_expr = tree.body[0].test
+        c = find_call(test_expr, defined_names)
+        if c is None:
+            continue
+        kinds.add(infer_return_type(test_expr, c))
+    return kinds
+
+
 # ---------------------------------------------------------------------------
 # Strategy analysis
 # ---------------------------------------------------------------------------
@@ -240,11 +283,17 @@ def _tuple_strategy(tuples: list[ast.Tuple]) -> dict | None:
             if only in PRIMITIVES or only == "List":
                 return {"kind": "uniform", "elt": only}
 
-    # Record: every literal has the same fixed shape with primitive (or opaque
-    # List) elements.
-    if all(s == shapes[0] for s in shapes) and shapes[0]:
-        if all(k in (PRIMITIVES | {"List"}) for k in shapes[0]):
-            return {"kind": "record", "shape": shapes[0]}
+    # Record: every literal has the same fixed length, with primitive (or
+    # opaque List) elements at each position. A position that mixes ``None``
+    # with a primitive is promoted to ``(Maybe X)``.
+    if shapes[0] and all(len(s) == len(shapes[0]) for s in shapes):
+        position_kinds: list[set[str]] = [set() for _ in shapes[0]]
+        for s in shapes:
+            for i, k in enumerate(s):
+                position_kinds[i].add(k)
+        promoted = [_maybe_promote(ks) for ks in position_kinds]
+        if all(p is not None for p in promoted):
+            return {"kind": "record", "shape": tuple(promoted)}
 
     return None
 
@@ -261,11 +310,11 @@ def _dict_strategy(dicts: list[ast.Dict]) -> dict | None:
                 key_kinds.add(elt_kind(k))
         for v in d.values:
             val_kinds.add(elt_kind(v))
-    if len(key_kinds) == 1 and len(val_kinds) == 1:
-        key_kind, val_kind = next(iter(key_kinds)), next(iter(val_kinds))
-        if key_kind in (PRIMITIVES | {"List", "Tuple"}) and val_kind in (PRIMITIVES | {"List", "Tuple"}):
-            return {"kind": "uniform", "key": key_kind, "val": val_kind}
-    return None
+    promoted_key = _maybe_promote(key_kinds) if key_kinds else None
+    promoted_val = _maybe_promote(val_kinds) if val_kinds else None
+    if promoted_key is None or promoted_val is None:
+        return None
+    return {"kind": "uniform", "key": promoted_key, "val": promoted_val}
 
 
 def _set_strategy(sets: list[ast.Set]) -> dict | None:
@@ -323,7 +372,10 @@ def _polymorphic_decls() -> list[str]:
     ]
 
 
-def declarations_for(strategies: dict[str, dict | None], list_decl_needed: bool) -> list[str]:
+_MAYBE_DECL = "inductive Maybe a\n| none : (Maybe a)\n| just (v:a) : (Maybe a)"
+
+
+def declarations_for(strategies: dict[str, dict | None], list_decl_needed: bool, maybe_needed: bool) -> list[str]:
     """Emit every inductive declaration this file's strategies require."""
     decls: list[str] = []
 
@@ -332,6 +384,8 @@ def declarations_for(strategies: dict[str, dict | None], list_decl_needed: bool)
 
     if list_decl_needed:
         decls.append("type List")
+    if maybe_needed:
+        decls.append(_MAYBE_DECL)
 
     ts = strategies.get("tuple")
     if ts is not None:
@@ -393,8 +447,24 @@ def _polymorphic_repr(node: ast.AST, type_name: str, cons_prefix: str) -> str:
     return _fold_uniform(node.elts, type_name, cons_prefix, _native_literal)
 
 
+def _maybe_inner(aeon_type: str) -> str | None:
+    """If ``aeon_type`` is ``(Maybe X)``, return X; otherwise None."""
+    if aeon_type.startswith("(Maybe ") and aeon_type.endswith(")"):
+        return aeon_type[len("(Maybe ") : -1]
+    return None
+
+
+def _is_none_literal(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and node.value is None
+
+
 def convert_value(node: ast.AST, aeon_type: str, strategies: dict[str, dict | None]) -> str:
     """Render ``node`` as the Python expression Aeon will see for ``aeon_type``."""
+    inner = _maybe_inner(aeon_type)
+    if inner is not None:
+        if _is_none_literal(node):
+            return "('Maybe_none',)"
+        return f"('Maybe_just', {convert_value(node, inner, strategies)})"
     if aeon_type in PRIMITIVES or aeon_type == "List":
         return _native_literal(node)
     if aeon_type == "Other":
@@ -466,6 +536,9 @@ def _aeon_type_for(kind: str, strategies: dict[str, dict | None], position: str)
     naming stays consistent and ``List`` falls back to opaque ``List`` when no
     Set/Dict/Tuple strategy has been picked.
     """
+    # Already a fully-formed Aeon type (e.g. ``(Maybe Int)``) — pass through.
+    if kind.startswith("(") and kind.endswith(")"):
+        return kind
     if kind in PRIMITIVES:
         return kind
     if kind == "Tuple":
@@ -628,29 +701,52 @@ def generate_file(problem: dict) -> str:
     ret_kind = infer_return_type(chosen_test, call)
     strategies = analyze_strategies(problem)
 
+    # If any test returns ``None`` while others return a concrete value, the
+    # return type is ``(Maybe X)``. We aggregate across tests rather than
+    # trusting the single ``chosen_test``.
+    aggregated_returns = aggregate_return_kinds(test_list, defined_names)
+    if "None" in aggregated_returns:
+        promoted_ret = _maybe_promote(aggregated_returns)
+        if promoted_ret is not None:
+            ret_kind = promoted_ret
+
     # A handful of problems (e.g. ``(4, 5, (7, 6, (2, 4)), 6, 8)``, dicts with
     # heterogeneous values, sets of tuples) have container literals we cannot
     # capture with a single inductive declaration. Mark those container kinds
     # as ``opaque`` so we still emit a valid file — the type just has no
     # constructors in the synthesis grammar.
     signature_kinds = set(arg_kinds) | {ret_kind}
-    for kind, key in (("Tuple", "tuple"), ("Dict", "dict"), ("Set", "set")):
-        if kind in signature_kinds and strategies.get(key) is None:
+    needs_tuple = "Tuple" in signature_kinds or any("Tuple" in s for s in signature_kinds if isinstance(s, str))
+    needs_dict = "Dict" in signature_kinds or any("Dict" in s for s in signature_kinds if isinstance(s, str))
+    needs_set = "Set" in signature_kinds or any("Set" in s for s in signature_kinds if isinstance(s, str))
+    for needed, key in ((needs_tuple, "tuple"), (needs_dict, "dict"), (needs_set, "set")):
+        if needed and strategies.get(key) is None:
             strategies[key] = {"kind": "opaque"}
 
     arg_types = [_aeon_type_for(k, strategies, "arg") for k in arg_kinds]
     ret_type = _aeon_type_for(ret_kind, strategies, "return")
 
     # `type List` is needed whenever any declaration or signature mentions it.
-    list_decl_needed = "List" in arg_types or ret_type == "List"
+    list_decl_needed = any("List" in t for t in arg_types) or "List" in ret_type
     ts = strategies.get("tuple")
-    if ts is not None and ts.get("kind") == "record" and "List" in ts["shape"]:
+    if ts is not None and ts.get("kind") == "record" and any("List" in k for k in ts["shape"]):
         list_decl_needed = True
     ds = strategies.get("dict")
-    if ds is not None and ds.get("kind") == "uniform" and "List" in (ds["key"], ds["val"]):
+    if ds is not None and ds.get("kind") == "uniform" and ("List" in ds["key"] or "List" in ds["val"]):
         list_decl_needed = True
 
-    decls = declarations_for(strategies, list_decl_needed)
+    # The ``Maybe`` inductive is needed when any Maybe type shows up in the
+    # signature or in a chosen container element type.
+    def _has_maybe(values) -> bool:
+        return any("Maybe" in v for v in values if isinstance(v, str))
+
+    maybe_needed = _has_maybe(arg_types) or "Maybe" in ret_type
+    if ts is not None and ts.get("kind") == "record" and _has_maybe(ts["shape"]):
+        maybe_needed = True
+    if ds is not None and ds.get("kind") == "uniform" and ("Maybe" in ds["key"] or "Maybe" in ds["val"]):
+        maybe_needed = True
+
+    decls = declarations_for(strategies, list_decl_needed, maybe_needed)
 
     conditions: list[str] = []
     for t in test_list:

@@ -1,0 +1,18 @@
+# A value that is either present (``just v``) or absent (``none``).
+#
+# Models Python's ``None`` sentinel, partial functions, and any operation
+# that may not produce a result. ``Maybe a`` is a polymorphic inductive
+# type so the same library serves ``Maybe Int``, ``Maybe String``, etc.
+
+inductive Maybe a
+| none : (Maybe a)
+| just (v:a) : (Maybe a)
+
+# Returns ``true`` when the value is absent.
+def isNone (m:(Maybe a)) : Bool = Maybe_rec m true (\v -> false)
+
+# Returns ``true`` when the value is present.
+def isJust (m:(Maybe a)) : Bool = Maybe_rec m false (\v -> true)
+
+# Returns the contained value, or ``d`` if the value is absent.
+def withDefault (d:a) (m:(Maybe a)) : a = Maybe_rec m d (\v -> v)
