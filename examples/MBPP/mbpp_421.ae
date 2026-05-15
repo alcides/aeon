@@ -1,23 +1,13 @@
 # MBPP task 421
 # Write a function to concatenate each element of tuple by the delimiter.
 #
-# Synthesis target: concatenate_tuple : PyTuple -> String
+# Synthesis target: concatenate_tuple : Tuple -> String
 
-type List
+inductive Tuple
+| mk (a0:String) (a1:String) (a2:Int) (a3:String) : Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> String) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'ID'), ('PyTuple_tcons', ('PyObj_obj_str', 'is'), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_str', 'UTS'), ('PyTuple_tnil',)))))) == 'ID-is-4-UTS') else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'QWE'), ('PyTuple_tcons', ('PyObj_obj_str', 'is'), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_str', 'RTY'), ('PyTuple_tnil',)))))) == 'QWE-is-4-RTY') else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'ZEN'), ('PyTuple_tcons', ('PyObj_obj_str', 'is'), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_str', 'OP'), ('PyTuple_tnil',)))))) == 'ZEN-is-4-OP') else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> String) : Float = native "float((0 if (f(('Tuple_mk', 'ID', 'is', 4, 'UTS')) == 'ID-is-4-UTS') else 1) + (0 if (f(('Tuple_mk', 'QWE', 'is', 4, 'RTY')) == 'QWE-is-4-RTY') else 1) + (0 if (f(('Tuple_mk', 'ZEN', 'is', 4, 'OP')) == 'ZEN-is-4-OP') else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:PyTuple) : String = (?hole : String)
+def synth (test_tup:Tuple) : String = (?hole : String)

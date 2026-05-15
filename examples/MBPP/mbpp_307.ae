@@ -1,23 +1,15 @@
 # MBPP task 307
 # Write a function to get a colon of a tuple.
 #
-# Synthesis target: colon_tuplex : PyTuple -> Int -> Int -> PyTuple
+# Synthesis target: colon_tuplex : Tuple -> Int -> Int -> Tuple
 
 type List
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Tuple
+| mk (a0:String) (a1:Int) (a2:List) (a3:Bool) : Tuple
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> (x1:Int) -> (x2:Int) -> PyTuple) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', []), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',))))))(2)(50) == ('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', [50]), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', []), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',))))))(2)(100) == ('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', [100]), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', []), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',))))))(2)(500) == ('PyTuple_tcons', ('PyObj_obj_str', 'HELLO'), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_list', [500]), ('PyTuple_tcons', ('PyObj_obj_bool', True), ('PyTuple_tnil',)))))) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) : Float = native "float((0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(50) == ('Tuple_mk', 'HELLO', 5, [50], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(100) == ('Tuple_mk', 'HELLO', 5, [100], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(500) == ('Tuple_mk', 'HELLO', 5, [500], True)) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tuplex:PyTuple) (m:Int) (n:Int) : PyTuple = (?hole : PyTuple)
+def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple = (?hole : Tuple)

@@ -1,23 +1,16 @@
 # MBPP task 779
 # Write a function to count the number of lists within a list. The function should return a dictionary, where every list is turned to a tuple, and the value of the tuple is the number of its occurrences.
 #
-# Synthesis target: unique_sublists : List -> PyDict
+# Synthesis target: unique_sublists : List -> Dict
 
 type List
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Dict
+| dnil : Dict
+| dcons (key:Tuple) (val:Int) (rest:Dict) : Dict
 
-inductive PyDict
-| dnil : PyDict
-| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
-
-def mbpp_fitness (f:(x0:List) -> PyDict) : Float = native "float((0 if (f([[1, 3], [5, 7], [1, 3], [13, 15, 17], [5, 7], [9, 11]]) == ('PyDict_dcons', ('PyObj_obj_list', (1, 3)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (5, 7)), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', (13, 15, 17)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (9, 11)), ('PyObj_obj_int', 1), ('PyDict_dnil',)))))) else 1) + (0 if (f([['green', 'orange'], ['black'], ['green', 'orange'], ['white']]) == ('PyDict_dcons', ('PyObj_obj_list', ('green', 'orange')), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_list', ('black',)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', ('white',)), ('PyObj_obj_int', 1), ('PyDict_dnil',))))) else 1) + (0 if (f([[1, 2], [3, 4], [4, 5], [6, 7]]) == ('PyDict_dcons', ('PyObj_obj_list', (1, 2)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (3, 4)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (4, 5)), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_list', (6, 7)), ('PyObj_obj_int', 1), ('PyDict_dnil',)))))) else 1))"
+def mbpp_fitness (f:(x0:List) -> Dict) : Float = native "float((0 if (f([[1, 3], [5, 7], [1, 3], [13, 15, 17], [5, 7], [9, 11]]) == ('Dict_dcons', (1, 3), 2, ('Dict_dcons', (5, 7), 2, ('Dict_dcons', (13, 15, 17), 1, ('Dict_dcons', (9, 11), 1, ('Dict_dnil',)))))) else 1) + (0 if (f([['green', 'orange'], ['black'], ['green', 'orange'], ['white']]) == ('Dict_dcons', ('green', 'orange'), 2, ('Dict_dcons', ('black',), 1, ('Dict_dcons', ('white',), 1, ('Dict_dnil',))))) else 1) + (0 if (f([[1, 2], [3, 4], [4, 5], [6, 7]]) == ('Dict_dcons', (1, 2), 1, ('Dict_dcons', (3, 4), 1, ('Dict_dcons', (4, 5), 1, ('Dict_dcons', (6, 7), 1, ('Dict_dnil',)))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) : PyDict = (?hole : PyDict)
+def synth (list1:List) : Dict = (?hole : Dict)

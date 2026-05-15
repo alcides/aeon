@@ -1,23 +1,16 @@
 # MBPP task 424
 # Write a function to extract only the rear index element of each string in the given tuple.
 #
-# Synthesis target: extract_rear : PyTuple -> List
+# Synthesis target: extract_rear : Tuple -> List
 
 type List
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:String) (tl:Tuple) : Tuple
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> List) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'Mers'), ('PyTuple_tcons', ('PyObj_obj_str', 'for'), ('PyTuple_tcons', ('PyObj_obj_str', 'Vers'), ('PyTuple_tnil',))))) == ['s', 'r', 's']) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'Avenge'), ('PyTuple_tcons', ('PyObj_obj_str', 'for'), ('PyTuple_tcons', ('PyObj_obj_str', 'People'), ('PyTuple_tnil',))))) == ['e', 'r', 'e']) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'Gotta'), ('PyTuple_tcons', ('PyObj_obj_str', 'get'), ('PyTuple_tcons', ('PyObj_obj_str', 'go'), ('PyTuple_tnil',))))) == ['a', 't', 'o']) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> List) : Float = native "float((0 if (f(('Tuple_tcons', 'Mers', ('Tuple_tcons', 'for', ('Tuple_tcons', 'Vers', ('Tuple_tnil',))))) == ['s', 'r', 's']) else 1) + (0 if (f(('Tuple_tcons', 'Avenge', ('Tuple_tcons', 'for', ('Tuple_tcons', 'People', ('Tuple_tnil',))))) == ['e', 'r', 'e']) else 1) + (0 if (f(('Tuple_tcons', 'Gotta', ('Tuple_tcons', 'get', ('Tuple_tcons', 'go', ('Tuple_tnil',))))) == ['a', 't', 'o']) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tuple:PyTuple) : List = (?hole : List)
+def synth (test_tuple:Tuple) : List = (?hole : List)

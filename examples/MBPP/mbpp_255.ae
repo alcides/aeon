@@ -5,6 +5,10 @@
 
 type List
 
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:String) (tl:Tuple) : Tuple
+
 def mbpp_fitness (f:(x0:List) -> (x1:Int) -> List) : Float = native "float((0 if (f(['Red', 'Green', 'Blue'])(1) == [('Red',), ('Green',), ('Blue',)]) else 1) + (0 if (f(['Red', 'Green', 'Blue'])(2) == [('Red', 'Red'), ('Red', 'Green'), ('Red', 'Blue'), ('Green', 'Green'), ('Green', 'Blue'), ('Blue', 'Blue')]) else 1) + (0 if (f(['Red', 'Green', 'Blue'])(3) == [('Red', 'Red', 'Red'), ('Red', 'Red', 'Green'), ('Red', 'Red', 'Blue'), ('Red', 'Green', 'Green'), ('Red', 'Green', 'Blue'), ('Red', 'Blue', 'Blue'), ('Green', 'Green', 'Green'), ('Green', 'Green', 'Blue'), ('Green', 'Blue', 'Blue'), ('Blue', 'Blue', 'Blue')]) else 1))"
 
 @hide(mbpp_fitness)

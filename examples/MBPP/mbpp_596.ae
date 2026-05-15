@@ -1,23 +1,12 @@
 # MBPP task 596
 # Write a function to find the size in bytes of the given tuple.
 #
-# Synthesis target: tuple_size : PyTuple -> PyObj
+# Synthesis target: tuple_size : Tuple -> Int
 
-type List
+type Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> PyObj) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'A'), ('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_str', 'B'), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_str', 'C'), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tnil',)))))))) == ('PyObj_obj_list', sys.getsizeof(('A', 1, 'B', 2, 'C', 3)))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_str', 'Raju'), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_str', 'Nikhil'), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_str', 'Deepanshu'), ('PyTuple_tnil',)))))))) == ('PyObj_obj_list', sys.getsizeof((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu')))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_list', (1, 'Lion')), ('PyTuple_tcons', ('PyObj_obj_list', (2, 'Tiger')), ('PyTuple_tcons', ('PyObj_obj_list', (3, 'Fox')), ('PyTuple_tcons', ('PyObj_obj_list', (4, 'Wolf')), ('PyTuple_tnil',)))))) == ('PyObj_obj_list', sys.getsizeof(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf'))))) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> Int) : Float = native "float((0 if (f(('A', 1, 'B', 2, 'C', 3)) == sys.getsizeof(('A', 1, 'B', 2, 'C', 3))) else 1) + (0 if (f((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu')) == sys.getsizeof((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu'))) else 1) + (0 if (f(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf'))) == sys.getsizeof(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf')))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tuple_list:PyTuple) : PyObj = (?hole : PyObj)
+def synth (tuple_list:Tuple) : Int = (?hole : Int)

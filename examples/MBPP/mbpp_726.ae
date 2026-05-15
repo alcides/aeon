@@ -1,23 +1,14 @@
 # MBPP task 726
 # Write a function that takes as input a tuple of numbers (t_1,...,t_{N+1}) and returns a tuple of length N where the i-th element of the tuple is equal to t_i * t_{i+1}.
 #
-# Synthesis target: multiply_elements : PyTuple -> PyTuple
+# Synthesis target: multiply_elements : Tuple -> Tuple
 
-type List
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:Int) (tl:Tuple) : Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> PyTuple) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tnil',))))))) == ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 35), ('PyTuple_tcons', ('PyObj_obj_int', 56), ('PyTuple_tcons', ('PyObj_obj_int', 80), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tnil',))))))) == ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 20), ('PyTuple_tcons', ('PyObj_obj_int', 30), ('PyTuple_tcons', ('PyObj_obj_int', 42), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tcons', ('PyObj_obj_int', 13), ('PyTuple_tcons', ('PyObj_obj_int', 14), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_int', 15), ('PyTuple_tnil',))))))) == ('PyTuple_tcons', ('PyObj_obj_int', 156), ('PyTuple_tcons', ('PyObj_obj_int', 182), ('PyTuple_tcons', ('PyObj_obj_int', 126), ('PyTuple_tcons', ('PyObj_obj_int', 135), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 12), ('PyTuple_tnil',))) == ('PyTuple_tnil',)) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> Tuple) : Float = native "float((0 if (f(('Tuple_tcons', 1, ('Tuple_tcons', 5, ('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tcons', 10, ('Tuple_tnil',))))))) == ('Tuple_tcons', 5, ('Tuple_tcons', 35, ('Tuple_tcons', 56, ('Tuple_tcons', 80, ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', 2, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tnil',))))))) == ('Tuple_tcons', 8, ('Tuple_tcons', 20, ('Tuple_tcons', 30, ('Tuple_tcons', 42, ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', 12, ('Tuple_tcons', 13, ('Tuple_tcons', 14, ('Tuple_tcons', 9, ('Tuple_tcons', 15, ('Tuple_tnil',))))))) == ('Tuple_tcons', 156, ('Tuple_tcons', 182, ('Tuple_tcons', 126, ('Tuple_tcons', 135, ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', 12, ('Tuple_tnil',))) == ('Tuple_tnil',)) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:PyTuple) : PyTuple = (?hole : PyTuple)
+def synth (test_tup:Tuple) : Tuple = (?hole : Tuple)

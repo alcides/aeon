@@ -1,23 +1,18 @@
 # MBPP task 446
 # Write a python function to count the occurence of all elements of list in a tuple.
 #
-# Synthesis target: count_Occurrence : PyTuple -> List -> Int
+# Synthesis target: count_Occurrence : (Tuple a) -> (Seq a) -> Int
 
-type List
+inductive Tuple a
+| tnil  : (Tuple a)
+| tcons (hd:a) (tl:(Tuple a)) : (Tuple a)
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Seq a
+| snil  : (Seq a)
+| scons (hd:a) (tl:(Seq a)) : (Seq a)
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> (x1:List) -> Int) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_str', 'a'), ('PyTuple_tcons', ('PyObj_obj_str', 'a'), ('PyTuple_tcons', ('PyObj_obj_str', 'c'), ('PyTuple_tcons', ('PyObj_obj_str', 'b'), ('PyTuple_tcons', ('PyObj_obj_str', 'd'), ('PyTuple_tnil',)))))))(['a', 'b']) == 3) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tnil',)))))))))))([1, 4, 7]) == 6) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',))))))))([1, 2]) == 2) else 1))"
+def mbpp_fitness (f:(x0:(Tuple a)) -> (x1:(Seq a)) -> Int) : Float = native "float((0 if (f(('Tuple_tcons', 'a', ('Tuple_tcons', 'a', ('Tuple_tcons', 'c', ('Tuple_tcons', 'b', ('Tuple_tcons', 'd', ('Tuple_tnil',)))))))(['a', 'b']) == 3) else 1) + (0 if (f(('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', 1, ('Tuple_tcons', 4, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 1, ('Tuple_tcons', 4, ('Tuple_tnil',)))))))))))([1, 4, 7]) == 6) else 1) + (0 if (f(('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',))))))))([1, 2]) == 2) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tup:PyTuple) (lst:List) : Int = (?hole : Int)
+def synth (tup:(Tuple a)) (lst:(Seq a)) : Int = (?hole : Int)

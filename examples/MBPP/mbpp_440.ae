@@ -1,23 +1,13 @@
 # MBPP task 440
 # Write a function to find the first adverb and their positions in a given sentence.
 #
-# Synthesis target: find_adverb_position : String -> PyTuple
+# Synthesis target: find_adverb_position : String -> Tuple
 
-type List
+inductive Tuple
+| mk (a0:Int) (a1:Int) (a2:String) : Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:String) -> PyTuple) : Float = native "float((0 if (f('clearly!! we can see the sky') == ('PyTuple_tcons', ('PyObj_obj_int', 0), ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_str', 'clearly'), ('PyTuple_tnil',))))) else 1) + (0 if (f('seriously!! there are many roses') == ('PyTuple_tcons', ('PyObj_obj_int', 0), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_str', 'seriously'), ('PyTuple_tnil',))))) else 1) + (0 if (f('unfortunately!! sita is going to home') == ('PyTuple_tcons', ('PyObj_obj_int', 0), ('PyTuple_tcons', ('PyObj_obj_int', 13), ('PyTuple_tcons', ('PyObj_obj_str', 'unfortunately'), ('PyTuple_tnil',))))) else 1))"
+def mbpp_fitness (f:(x0:String) -> Tuple) : Float = native "float((0 if (f('clearly!! we can see the sky') == ('Tuple_mk', 0, 7, 'clearly')) else 1) + (0 if (f('seriously!! there are many roses') == ('Tuple_mk', 0, 9, 'seriously')) else 1) + (0 if (f('unfortunately!! sita is going to home') == ('Tuple_mk', 0, 13, 'unfortunately')) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (text:String) : PyTuple = (?hole : PyTuple)
+def synth (text:String) : Tuple = (?hole : Tuple)

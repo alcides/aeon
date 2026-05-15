@@ -1,19 +1,10 @@
 # MBPP task 626
 # Write a python function to find the area of the largest triangle that can be inscribed in a semicircle with a given radius.
 #
-# Synthesis target: triangle_area : Int -> PyObj
+# Synthesis target: triangle_area : Int -> Int
 
-type List
-
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-def mbpp_fitness (f:(x0:Int) -> PyObj) : Float = native "float((0 if (f(-1) == ('PyObj_obj_list', None)) else 1) + (0 if (f(0) == ('PyObj_obj_int', 0)) else 1) + (0 if (f(2) == ('PyObj_obj_int', 4)) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(-1) == None) else 1) + (0 if (f(0) == 0) else 1) + (0 if (f(2) == 4) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (r:Int) : PyObj = (?hole : PyObj)
+def synth (r:Int) : Int = (?hole : Int)

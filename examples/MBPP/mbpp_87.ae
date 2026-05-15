@@ -1,23 +1,14 @@
 # MBPP task 87
 # Write a function to merge three dictionaries into a single dictionary.
 #
-# Synthesis target: merge_dictionaries_three : PyDict -> PyDict -> PyDict -> PyDict
+# Synthesis target: merge_dictionaries_three : Dict -> Dict -> Dict -> Dict
 
-type List
+inductive Dict
+| dnil : Dict
+| dcons (key:String) (val:String) (rest:Dict) : Dict
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyDict
-| dnil : PyDict
-| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
-
-def mbpp_fitness (f:(x0:PyDict) -> (x1:PyDict) -> (x2:PyDict) -> PyDict) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dnil',))))(('PyDict_dcons', ('PyObj_obj_str', 'O'), ('PyObj_obj_str', 'Orange'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dnil',))))) == ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dcons', ('PyObj_obj_str', 'O'), ('PyObj_obj_str', 'Orange'), ('PyDict_dnil',)))))))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dnil',))))(('PyDict_dcons', ('PyObj_obj_str', 'L'), ('PyObj_obj_str', 'lavender'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Blue'), ('PyDict_dnil',)))) == ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'L'), ('PyObj_obj_str', 'lavender'), ('PyDict_dnil',)))))))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'L'), ('PyObj_obj_str', 'lavender'), ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Blue'), ('PyDict_dnil',))))(('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dnil',)))) == ('PyDict_dcons', ('PyObj_obj_str', 'B'), ('PyObj_obj_str', 'Black'), ('PyDict_dcons', ('PyObj_obj_str', 'P'), ('PyObj_obj_str', 'Pink'), ('PyDict_dcons', ('PyObj_obj_str', 'R'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'G'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'L'), ('PyObj_obj_str', 'lavender'), ('PyDict_dcons', ('PyObj_obj_str', 'W'), ('PyObj_obj_str', 'White'), ('PyDict_dnil',)))))))) else 1))"
+def mbpp_fitness (f:(x0:Dict) -> (x1:Dict) -> (x2:Dict) -> Dict) : Float = native "float((0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',))))(('Dict_dcons', 'O', 'Orange', ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'B', 'Black', ('Dict_dnil',))))) == ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'O', 'Orange', ('Dict_dnil',)))))))) else 1) + (0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',))))(('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'B', 'Blue', ('Dict_dnil',)))) == ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'L', 'lavender', ('Dict_dnil',)))))))) else 1) + (0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'B', 'Blue', ('Dict_dnil',))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',)))) == ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'W', 'White', ('Dict_dnil',)))))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dict1:PyDict) (dict2:PyDict) (dict3:PyDict) : PyDict = (?hole : PyDict)
+def synth (dict1:Dict) (dict2:Dict) (dict3:Dict) : Dict = (?hole : Dict)

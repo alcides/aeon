@@ -1,23 +1,13 @@
 # MBPP task 607
 # Write a function to search a string for a regex pattern. The function should return the matching subtring, a start index and an end index.
 #
-# Synthesis target: find_literals : String -> String -> PyTuple
+# Synthesis target: find_literals : String -> String -> Tuple
 
-type List
+inductive Tuple
+| mk (a0:String) (a1:Int) (a2:Int) : Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:String) -> (x1:String) -> PyTuple) : Float = native "float((0 if (f('The quick brown fox jumps over the lazy dog.')('fox') == ('PyTuple_tcons', ('PyObj_obj_str', 'fox'), ('PyTuple_tcons', ('PyObj_obj_int', 16), ('PyTuple_tcons', ('PyObj_obj_int', 19), ('PyTuple_tnil',))))) else 1) + (0 if (f('Its been a very crazy procedure right')('crazy') == ('PyTuple_tcons', ('PyObj_obj_str', 'crazy'), ('PyTuple_tcons', ('PyObj_obj_int', 16), ('PyTuple_tcons', ('PyObj_obj_int', 21), ('PyTuple_tnil',))))) else 1) + (0 if (f('Hardest choices required strongest will')('will') == ('PyTuple_tcons', ('PyObj_obj_str', 'will'), ('PyTuple_tcons', ('PyObj_obj_int', 35), ('PyTuple_tcons', ('PyObj_obj_int', 39), ('PyTuple_tnil',))))) else 1))"
+def mbpp_fitness (f:(x0:String) -> (x1:String) -> Tuple) : Float = native "float((0 if (f('The quick brown fox jumps over the lazy dog.')('fox') == ('Tuple_mk', 'fox', 16, 19)) else 1) + (0 if (f('Its been a very crazy procedure right')('crazy') == ('Tuple_mk', 'crazy', 16, 21)) else 1) + (0 if (f('Hardest choices required strongest will')('will') == ('Tuple_mk', 'will', 35, 39)) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (text:String) (pattern:String) : PyTuple = (?hole : PyTuple)
+def synth (text:String) (pattern:String) : Tuple = (?hole : Tuple)

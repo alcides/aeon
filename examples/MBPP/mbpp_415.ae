@@ -1,23 +1,16 @@
 # MBPP task 415
 # Write a python function to find a pair with highest product from a given array of integers.
 #
-# Synthesis target: max_Product : List -> PyTuple
+# Synthesis target: max_Product : List -> Tuple
 
 type List
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:Int) (tl:Tuple) : Tuple
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:List) -> PyTuple) : Float = native "float((0 if (f([1, 2, 3, 4, 7, 0, 8, 4]) == ('PyTuple_tcons', ('PyObj_obj_int', 7), ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tnil',)))) else 1) + (0 if (f([0, -1, -2, -4, 5, 0, -6]) == ('PyTuple_tcons', ('PyObj_obj_int', -4), ('PyTuple_tcons', ('PyObj_obj_int', -6), ('PyTuple_tnil',)))) else 1) + (0 if (f([1, 2, 3]) == ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tnil',)))) else 1))"
+def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f([1, 2, 3, 4, 7, 0, 8, 4]) == ('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tnil',)))) else 1) + (0 if (f([0, -1, -2, -4, 5, 0, -6]) == ('Tuple_tcons', -4, ('Tuple_tcons', -6, ('Tuple_tnil',)))) else 1) + (0 if (f([1, 2, 3]) == ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tnil',)))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (arr:List) : PyTuple = (?hole : PyTuple)
+def synth (arr:List) : Tuple = (?hole : Tuple)

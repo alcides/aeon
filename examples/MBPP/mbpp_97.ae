@@ -1,23 +1,16 @@
 # MBPP task 97
 # Write a function to find frequency of each element in a flattened list of lists, returned in a dictionary.
 #
-# Synthesis target: frequency_lists : List -> PyDict
+# Synthesis target: frequency_lists : List -> Dict
 
 type List
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Dict
+| dnil : Dict
+| dcons (key:Int) (val:Int) (rest:Dict) : Dict
 
-inductive PyDict
-| dnil : PyDict
-| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
-
-def mbpp_fitness (f:(x0:List) -> PyDict) : Float = native "float((0 if (f([[1, 2, 3, 2], [4, 5, 6, 2], [7, 8, 9, 5]]) == ('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 2), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_int', 3), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 4), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 5), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 6), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 7), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 8), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 9), ('PyObj_obj_int', 1), ('PyDict_dnil',))))))))))) else 1) + (0 if (f([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]) == ('PyDict_dcons', ('PyObj_obj_int', 1), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 2), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 3), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 4), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 5), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 6), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 7), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 8), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 9), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 10), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 11), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 12), ('PyObj_obj_int', 1), ('PyDict_dnil',)))))))))))))) else 1) + (0 if (f([[20, 30, 40, 17], [18, 16, 14, 13], [10, 20, 30, 40]]) == ('PyDict_dcons', ('PyObj_obj_int', 20), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 30), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 40), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_int', 17), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 18), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 16), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 14), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 13), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_int', 10), ('PyObj_obj_int', 1), ('PyDict_dnil',))))))))))) else 1))"
+def mbpp_fitness (f:(x0:List) -> Dict) : Float = native "float((0 if (f([[1, 2, 3, 2], [4, 5, 6, 2], [7, 8, 9, 5]]) == ('Dict_dcons', 1, 1, ('Dict_dcons', 2, 3, ('Dict_dcons', 3, 1, ('Dict_dcons', 4, 1, ('Dict_dcons', 5, 2, ('Dict_dcons', 6, 1, ('Dict_dcons', 7, 1, ('Dict_dcons', 8, 1, ('Dict_dcons', 9, 1, ('Dict_dnil',))))))))))) else 1) + (0 if (f([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]) == ('Dict_dcons', 1, 1, ('Dict_dcons', 2, 1, ('Dict_dcons', 3, 1, ('Dict_dcons', 4, 1, ('Dict_dcons', 5, 1, ('Dict_dcons', 6, 1, ('Dict_dcons', 7, 1, ('Dict_dcons', 8, 1, ('Dict_dcons', 9, 1, ('Dict_dcons', 10, 1, ('Dict_dcons', 11, 1, ('Dict_dcons', 12, 1, ('Dict_dnil',)))))))))))))) else 1) + (0 if (f([[20, 30, 40, 17], [18, 16, 14, 13], [10, 20, 30, 40]]) == ('Dict_dcons', 20, 2, ('Dict_dcons', 30, 2, ('Dict_dcons', 40, 2, ('Dict_dcons', 17, 1, ('Dict_dcons', 18, 1, ('Dict_dcons', 16, 1, ('Dict_dcons', 14, 1, ('Dict_dcons', 13, 1, ('Dict_dcons', 10, 1, ('Dict_dnil',))))))))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) : PyDict = (?hole : PyDict)
+def synth (list1:List) : Dict = (?hole : Dict)

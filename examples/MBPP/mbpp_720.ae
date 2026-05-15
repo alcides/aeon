@@ -1,27 +1,16 @@
 # MBPP task 720
 # Write a function to add a dictionary to the tuple. The output should be a tuple.
 #
-# Synthesis target: add_dict_to_tuple : PyTuple -> PyDict -> PyTuple
+# Synthesis target: add_dict_to_tuple : Tuple -> Dict -> Tuple
 
-type List
+type Tuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Dict
+| dnil : Dict
+| dcons (key:String) (val:Int) (rest:Dict) : Dict
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-inductive PyDict
-| dnil : PyDict
-| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
-
-def mbpp_fitness (f:(x0:PyTuple) -> (x1:PyDict) -> PyTuple) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'MSAM'), ('PyObj_obj_int', 1), ('PyDict_dcons', ('PyObj_obj_str', 'is'), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_str', 'best'), ('PyObj_obj_int', 3), ('PyDict_dnil',))))) == ('PyTuple_tcons', ('PyObj_obj_int', 4), ('PyTuple_tcons', ('PyObj_obj_int', 5), ('PyTuple_tcons', ('PyObj_obj_int', 6), ('PyTuple_tcons', ('PyObj_obj_list', {'MSAM': 1, 'is': 2, 'best': 3}), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'UTS'), ('PyObj_obj_int', 2), ('PyDict_dcons', ('PyObj_obj_str', 'is'), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_str', 'Worst'), ('PyObj_obj_int', 4), ('PyDict_dnil',))))) == ('PyTuple_tcons', ('PyObj_obj_int', 1), ('PyTuple_tcons', ('PyObj_obj_int', 2), ('PyTuple_tcons', ('PyObj_obj_int', 3), ('PyTuple_tcons', ('PyObj_obj_list', {'UTS': 2, 'is': 3, 'Worst': 4}), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tnil',)))))(('PyDict_dcons', ('PyObj_obj_str', 'POS'), ('PyObj_obj_int', 3), ('PyDict_dcons', ('PyObj_obj_str', 'is'), ('PyObj_obj_int', 4), ('PyDict_dcons', ('PyObj_obj_str', 'Okay'), ('PyObj_obj_int', 5), ('PyDict_dnil',))))) == ('PyTuple_tcons', ('PyObj_obj_int', 8), ('PyTuple_tcons', ('PyObj_obj_int', 9), ('PyTuple_tcons', ('PyObj_obj_int', 10), ('PyTuple_tcons', ('PyObj_obj_list', {'POS': 3, 'is': 4, 'Okay': 5}), ('PyTuple_tnil',)))))) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Dict) -> Tuple) : Float = native "float((0 if (f((4, 5, 6))(('Dict_dcons', 'MSAM', 1, ('Dict_dcons', 'is', 2, ('Dict_dcons', 'best', 3, ('Dict_dnil',))))) == (4, 5, 6, {'MSAM': 1, 'is': 2, 'best': 3})) else 1) + (0 if (f((1, 2, 3))(('Dict_dcons', 'UTS', 2, ('Dict_dcons', 'is', 3, ('Dict_dcons', 'Worst', 4, ('Dict_dnil',))))) == (1, 2, 3, {'UTS': 2, 'is': 3, 'Worst': 4})) else 1) + (0 if (f((8, 9, 10))(('Dict_dcons', 'POS', 3, ('Dict_dcons', 'is', 4, ('Dict_dcons', 'Okay', 5, ('Dict_dnil',))))) == (8, 9, 10, {'POS': 3, 'is': 4, 'Okay': 5})) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:PyTuple) (test_dict:PyDict) : PyTuple = (?hole : PyTuple)
+def synth (test_tup:Tuple) (test_dict:Dict) : Tuple = (?hole : Tuple)

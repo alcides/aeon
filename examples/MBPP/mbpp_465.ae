@@ -1,23 +1,12 @@
 # MBPP task 465
 # Write a function to drop empty items from a given dictionary.
 #
-# Synthesis target: drop_empty : PyDict -> PyDict
+# Synthesis target: drop_empty : Dict -> Dict
 
-type List
+type Dict
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
-
-inductive PyDict
-| dnil : PyDict
-| dcons (key:PyObj) (val:PyObj) (rest:PyDict) : PyDict
-
-def mbpp_fitness (f:(x0:PyDict) -> PyDict) : Float = native "float((0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'c1'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'c2'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'c3'), ('PyObj_obj_list', None), ('PyDict_dnil',))))) == ('PyDict_dcons', ('PyObj_obj_str', 'c1'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'c2'), ('PyObj_obj_str', 'Green'), ('PyDict_dnil',)))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'c1'), ('PyObj_obj_str', 'Red'), ('PyDict_dcons', ('PyObj_obj_str', 'c2'), ('PyObj_obj_list', None), ('PyDict_dcons', ('PyObj_obj_str', 'c3'), ('PyObj_obj_list', None), ('PyDict_dnil',))))) == ('PyDict_dcons', ('PyObj_obj_str', 'c1'), ('PyObj_obj_str', 'Red'), ('PyDict_dnil',))) else 1) + (0 if (f(('PyDict_dcons', ('PyObj_obj_str', 'c1'), ('PyObj_obj_list', None), ('PyDict_dcons', ('PyObj_obj_str', 'c2'), ('PyObj_obj_str', 'Green'), ('PyDict_dcons', ('PyObj_obj_str', 'c3'), ('PyObj_obj_list', None), ('PyDict_dnil',))))) == ('PyDict_dcons', ('PyObj_obj_str', 'c2'), ('PyObj_obj_str', 'Green'), ('PyDict_dnil',))) else 1))"
+def mbpp_fitness (f:(x0:Dict) -> Dict) : Float = native "float((0 if (f({'c1': 'Red', 'c2': 'Green', 'c3': None}) == {'c1': 'Red', 'c2': 'Green'}) else 1) + (0 if (f({'c1': 'Red', 'c2': None, 'c3': None}) == {'c1': 'Red'}) else 1) + (0 if (f({'c1': None, 'c2': 'Green', 'c3': None}) == {'c2': 'Green'}) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dict1:PyDict) : PyDict = (?hole : PyDict)
+def synth (dict1:Dict) : Dict = (?hole : Dict)

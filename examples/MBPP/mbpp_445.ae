@@ -1,23 +1,18 @@
 # MBPP task 445
 # Write a function to perform index wise multiplication of tuple elements in the given two tuples.
 #
-# Synthesis target: index_multiplication : PyTuple -> PyTuple -> PyTuple
+# Synthesis target: index_multiplication : Tuple -> Tuple -> Tuple
 
-type List
+inductive InnerTuple
+| inil  : InnerTuple
+| icons (hd:Int) (tl:InnerTuple) : InnerTuple
 
-inductive PyObj
-| obj_int (v:Int) : PyObj
-| obj_float (v:Float) : PyObj
-| obj_bool (v:Bool) : PyObj
-| obj_str (v:String) : PyObj
-| obj_list (v:List) : PyObj
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:InnerTuple) (tl:Tuple) : Tuple
 
-inductive PyTuple
-| tnil : PyTuple
-| tcons (hd:PyObj) (tl:PyTuple) : PyTuple
-
-def mbpp_fitness (f:(x0:PyTuple) -> (x1:PyTuple) -> PyTuple) : Float = native "float((0 if (f(('PyTuple_tcons', ('PyObj_obj_list', (1, 3)), ('PyTuple_tcons', ('PyObj_obj_list', (4, 5)), ('PyTuple_tcons', ('PyObj_obj_list', (2, 9)), ('PyTuple_tcons', ('PyObj_obj_list', (1, 10)), ('PyTuple_tnil',))))))(('PyTuple_tcons', ('PyObj_obj_list', (6, 7)), ('PyTuple_tcons', ('PyObj_obj_list', (3, 9)), ('PyTuple_tcons', ('PyObj_obj_list', (1, 1)), ('PyTuple_tcons', ('PyObj_obj_list', (7, 3)), ('PyTuple_tnil',)))))) == ('PyTuple_tcons', ('PyObj_obj_list', (6, 21)), ('PyTuple_tcons', ('PyObj_obj_list', (12, 45)), ('PyTuple_tcons', ('PyObj_obj_list', (2, 9)), ('PyTuple_tcons', ('PyObj_obj_list', (7, 30)), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_list', (2, 4)), ('PyTuple_tcons', ('PyObj_obj_list', (5, 6)), ('PyTuple_tcons', ('PyObj_obj_list', (3, 10)), ('PyTuple_tcons', ('PyObj_obj_list', (2, 11)), ('PyTuple_tnil',))))))(('PyTuple_tcons', ('PyObj_obj_list', (7, 8)), ('PyTuple_tcons', ('PyObj_obj_list', (4, 10)), ('PyTuple_tcons', ('PyObj_obj_list', (2, 2)), ('PyTuple_tcons', ('PyObj_obj_list', (8, 4)), ('PyTuple_tnil',)))))) == ('PyTuple_tcons', ('PyObj_obj_list', (14, 32)), ('PyTuple_tcons', ('PyObj_obj_list', (20, 60)), ('PyTuple_tcons', ('PyObj_obj_list', (6, 20)), ('PyTuple_tcons', ('PyObj_obj_list', (16, 44)), ('PyTuple_tnil',)))))) else 1) + (0 if (f(('PyTuple_tcons', ('PyObj_obj_list', (3, 5)), ('PyTuple_tcons', ('PyObj_obj_list', (6, 7)), ('PyTuple_tcons', ('PyObj_obj_list', (4, 11)), ('PyTuple_tcons', ('PyObj_obj_list', (3, 12)), ('PyTuple_tnil',))))))(('PyTuple_tcons', ('PyObj_obj_list', (8, 9)), ('PyTuple_tcons', ('PyObj_obj_list', (5, 11)), ('PyTuple_tcons', ('PyObj_obj_list', (3, 3)), ('PyTuple_tcons', ('PyObj_obj_list', (9, 5)), ('PyTuple_tnil',)))))) == ('PyTuple_tcons', ('PyObj_obj_list', (24, 45)), ('PyTuple_tcons', ('PyObj_obj_list', (30, 77)), ('PyTuple_tcons', ('PyObj_obj_list', (12, 33)), ('PyTuple_tcons', ('PyObj_obj_list', (27, 60)), ('PyTuple_tnil',)))))) else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float = native "float((0 if (f(('Tuple_tcons', ('InnerTuple_icons', 1, ('InnerTuple_icons', 3, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 4, ('InnerTuple_icons', 5, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 2, ('InnerTuple_icons', 9, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 1, ('InnerTuple_icons', 10, ('InnerTuple_inil',))), ('Tuple_tnil',))))))(('Tuple_tcons', ('InnerTuple_icons', 6, ('InnerTuple_icons', 7, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 3, ('InnerTuple_icons', 9, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 1, ('InnerTuple_icons', 1, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 7, ('InnerTuple_icons', 3, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) == ('Tuple_tcons', ('InnerTuple_icons', 6, ('InnerTuple_icons', 21, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 12, ('InnerTuple_icons', 45, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 2, ('InnerTuple_icons', 9, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 7, ('InnerTuple_icons', 30, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', ('InnerTuple_icons', 2, ('InnerTuple_icons', 4, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 5, ('InnerTuple_icons', 6, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 3, ('InnerTuple_icons', 10, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 2, ('InnerTuple_icons', 11, ('InnerTuple_inil',))), ('Tuple_tnil',))))))(('Tuple_tcons', ('InnerTuple_icons', 7, ('InnerTuple_icons', 8, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 4, ('InnerTuple_icons', 10, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 2, ('InnerTuple_icons', 2, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 8, ('InnerTuple_icons', 4, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) == ('Tuple_tcons', ('InnerTuple_icons', 14, ('InnerTuple_icons', 32, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 20, ('InnerTuple_icons', 60, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 6, ('InnerTuple_icons', 20, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 16, ('InnerTuple_icons', 44, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', ('InnerTuple_icons', 3, ('InnerTuple_icons', 5, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 6, ('InnerTuple_icons', 7, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 4, ('InnerTuple_icons', 11, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 3, ('InnerTuple_icons', 12, ('InnerTuple_inil',))), ('Tuple_tnil',))))))(('Tuple_tcons', ('InnerTuple_icons', 8, ('InnerTuple_icons', 9, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 5, ('InnerTuple_icons', 11, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 3, ('InnerTuple_icons', 3, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 9, ('InnerTuple_icons', 5, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) == ('Tuple_tcons', ('InnerTuple_icons', 24, ('InnerTuple_icons', 45, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 30, ('InnerTuple_icons', 77, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 12, ('InnerTuple_icons', 33, ('InnerTuple_inil',))), ('Tuple_tcons', ('InnerTuple_icons', 27, ('InnerTuple_icons', 60, ('InnerTuple_inil',))), ('Tuple_tnil',)))))) else 1))"
 
 @hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup1:PyTuple) (test_tup2:PyTuple) : PyTuple = (?hole : PyTuple)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple = (?hole : Tuple)
