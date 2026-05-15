@@ -29,6 +29,8 @@ from z3.z3types import Z3Exception
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon_rs import ple_unfold_fixpoint as ple_unfold_fixpoint
+from aeon_rs import uncurry as uncurry
+from aeon_rs import unrefine_type as unrefine_type
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
@@ -43,7 +45,7 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
-from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
+from aeon.core.types import t_bool, t_int, t_float, t_set, t_string
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import alpha_key
@@ -523,54 +525,9 @@ def get_sort(base: Type) -> SortRef:
             raise Exception(f"SMT sort of {base} not implemented.")
 
 
-def unrefine_type(base: Type):
-    """Removes refinements from type."""
-    match base:
-        case RefinedType(_, ty, _):
-            return ty
-        case AbstractionType(name, aty, rty):
-            return AbstractionType(name, unrefine_type(aty), unrefine_type(rty))
-        case TypePolymorphism(name, kind, body):
-            return TypePolymorphism(name, kind, unrefine_type(body))
-        case TypeConstructor(name, args):
-            return TypeConstructor(name, [unrefine_type(a) for a in args])
-
-        case _:
-            return base
-
-
-def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstructor]:
-    current: Type = unrefine_type(base)
-    inputs = []
-    vars_to_remove = []
-
-    while isinstance(current, TypePolymorphism):
-        vars_to_remove.append(current.name)
-        current = current.body
-
-    while isinstance(current, AbstractionType):
-        match current.var_type:
-            case TypeConstructor(_, []):
-                inputs.append(current.var_type)
-            case TypeConstructor(_, _):
-                inputs.append(t_int)
-            case Top():
-                inputs.append(t_unit)
-            case TypeVar(name):
-                if name in vars_to_remove:
-                    inputs.append(t_int)
-                else:
-                    inputs.append(TypeConstructor(name))
-            case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
-                inputs.append(t_int)
-            case _:
-                assert False, f"Unknown SMT type {current.var_type} in {base}."
-        current = current.type
-
-    if isinstance(current, Top):
-        current = t_unit
-    assert isinstance(current, TypeConstructor), f"Unknown SMT type {current} in {base}."
-    return (inputs, current)
+# unrefine_type and uncurry are implemented in the Rust core
+# (aeon_rs.unrefine_type / aeon_rs.uncurry, imported above) — pure, z3-free
+# Type walks feeding make_variable / mk_funs.
 
 
 _make_variable_cache: dict[tuple[str, int], Any] = {}

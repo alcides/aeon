@@ -15,6 +15,7 @@ mod liquid;
 mod loc;
 mod name;
 mod ple;
+mod smt_helpers;
 mod substitutions;
 mod sugar;
 mod term_subst;
@@ -136,8 +137,10 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<sugar::Definition>()?;
     m.add_class::<sugar::Program>()?;
 
-    // SMT encoder — PLE unfolding (z3-free slice)
+    // SMT encoder — z3-free slices
     m.add_function(wrap_pyfunction!(ple::ple_unfold_fixpoint, m)?)?;
+    m.add_function(wrap_pyfunction!(smt_helpers::unrefine_type, m)?)?;
+    m.add_function(wrap_pyfunction!(smt_helpers::uncurry, m)?)?;
 
     Ok(())
 }
