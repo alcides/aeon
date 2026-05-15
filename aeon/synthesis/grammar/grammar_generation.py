@@ -85,9 +85,7 @@ classType = TypingType[HasGetCore]
 
 
 def is_valid_class_name(class_name: str) -> bool:
-    return class_name not in prelude_ops and not class_name.startswith(
-        ("_anf_", "target"),
-    )
+    return class_name not in prelude_ops and not class_name.startswith("target")
 
 
 ae_top = type("ae_top", (ABC,), {})

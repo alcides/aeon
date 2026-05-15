@@ -1,11 +1,9 @@
-from typing import Callable
-
 from aeon.sugar.program import SApplication, SLiteral, STerm, SVar
 from aeon.sugar.stypes import STypeConstructor
 from aeon.utils.name import Name
 
 
-def mk_binop(fresh: Callable[[], str], op: Name, a1: STerm, a2: STerm) -> STerm:
+def mk_binop(op: Name, a1: STerm, a2: STerm) -> STerm:
     return SApplication(SApplication(SVar(op), a1), a2)
 
 
