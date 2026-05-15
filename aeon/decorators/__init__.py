@@ -4,7 +4,7 @@ There are two *registration* phases (usage syntax is always ``@name(...)``):
 
 - **Sugar** (default): runs on the surface ``Definition`` during desugaring,
   before elaboration and typechecking.
-- **Core**: runs after lowering to core, ANF conversion, and typechecking; see
+- **Core**: runs after lowering to core and typechecking; see
   ``aeon.synthesis.core_decorators`` (registry ``core_decorators_environment``) and
   ``apply_core_decorators_phase``.
 """

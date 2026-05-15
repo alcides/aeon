@@ -653,11 +653,6 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             simplified_body = normalize_term(body, context, seen)
             return SAbstraction(var_name=var_name, body=simplified_body)
         case SLet(var_name=var_name, var_value=var_value, body=body):
-            if var_name.pretty() == "anf":
-                context_copy = context.copy()
-                context_copy[var_name] = normalize_term(var_value, context, seen)
-                simplified_body = normalize_term(body, context_copy, seen)
-                return simplified_body
             match body:
                 case SHole(name=name):
                     return SLet(var_name=name, var_value=normalize_term(var_value, context, seen), body=SVar(name=name))
@@ -668,11 +663,6 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                         body=normalize_term(body, context, seen),
                     )
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=db):
-            if var_name.pretty() == "anf":
-                context_copy = context.copy()
-                context_copy[var_name] = normalize_term(var_value, context, seen)
-                simplified_body = normalize_term(body, context_copy, seen)
-                return simplified_body
             match body:
                 case SHole(name=name):
                     return SRec(

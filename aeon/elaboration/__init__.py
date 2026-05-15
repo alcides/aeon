@@ -332,15 +332,11 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             match nfun_type:
                 case SAbstractionType(_, arg_type, return_type, loc):
                     narg = elaborate_check(ctx, arg, arg_type)
-                    match narg:
-                        case SLiteral(_) | SVar(_) | SAbstraction(_, _):
-                            return SApplication(nfun, narg), return_type
-                        case _:
-                            nname = Name("_anf", fresh_counter.fresh())
-                            return (
-                                SRec(nname, arg_type, narg, SApplication(nfun, SVar(nname)), decreasing_by=(), loc=loc),
-                                return_type,
-                            )
+                    # No ANF lift: non-trivial arguments are left in place.
+                    # The core typechecker's `synth(Application)` introduces a
+                    # Form B existential binder for them (see typeinfer.py),
+                    # so there is no need to name the argument here.
+                    return SApplication(nfun, narg), return_type
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:

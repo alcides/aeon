@@ -60,22 +60,27 @@ def test_simplify_constraint_implication2():
 
 
 def test_simplify_constraint_synthesized_var():
-    """Synthesized (ANF) variables with only equality are substituted away."""
-    anf_name = Name("anf", 1)
+    """Synthesized existential binders (`_y`) with only equality are substituted away.
+
+    `synth(Application)` introduces `_y` binders for non-trivial arguments
+    (the Form B replacement for ANF's `_anf` let-bindings); when such a binder
+    carries only an equality, `simplify_constraint` substitutes it away.
+    """
+    y_name = Name("_y", 1)
     x_name = Name("x", 0)
     z_name = Name("z", 1)
 
-    # forall anf: anf == x, forall z: z == anf + 1, x > 0
-    pred_anf = bind_lq(parse_liquid("anf == x"), [("anf", anf_name), ("x", x_name)])
-    pred_z = bind_lq(parse_liquid("z == anf + 1"), [("z", z_name), ("anf", anf_name), ("x", x_name)])
+    # forall _y: _y == x, forall z: z == _y + 1, x > 0
+    pred_y = bind_lq(parse_liquid("_y == x"), [("_y", y_name), ("x", x_name)])
+    pred_z = bind_lq(parse_liquid("z == _y + 1"), [("z", z_name), ("_y", y_name), ("x", x_name)])
     concl = bind_lq(parse_liquid("x > 0"), [("x", x_name)])
 
     inner = Implication(z_name, t_int, pred_z, LiquidConstraint(concl))
-    c = Implication(anf_name, t_int, pred_anf, inner)
+    c = Implication(y_name, t_int, pred_y, inner)
 
     r = simplify_constraint(c)
 
-    # Should become: forall z: z == x + 1, x > 0 (anf substituted by x)
+    # Should become: forall z: z == x + 1, x > 0 (_y substituted by x)
     expected_pred_z = bind_lq(parse_liquid("z == x + 1"), [("z", z_name), ("x", x_name)])
     expected = Implication(z_name, t_int, expected_pred_z, LiquidConstraint(concl))
     assert r == expected, f"Got {r}, expected {expected}"

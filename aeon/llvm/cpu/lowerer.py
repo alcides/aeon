@@ -167,7 +167,7 @@ class CPUFunctionCallValidationStep(ValidationStep):
     def validate(self, t: Term, ctx: ValidationContext) -> None:
         assert isinstance(ctx, CPUValidationContext)
         match t:
-            case Var(name) if not name.name.startswith("anf"):
+            case Var(name):
                 self._validate_var_call(name, ctx)
             case Application(fun, arg):
                 self.validate(fun, ctx)
@@ -325,29 +325,6 @@ class CPULLVMLowerer(LLVMLowerer):
         if isinstance(target, LLVMCall):
             return self._get_target_name(target.target)
         return ""
-
-    def _is_inlinable_anf(self, name: Name, val: LLVMTerm) -> bool:
-        if not name.name.startswith("anf"):
-            return False
-        is_partial = isinstance(val, LLVMCall) and isinstance(val.type, LLVMFunctionType)
-        target = self._get_target_name(val) if isinstance(val, LLVMVar) else ""
-        if isinstance(val, LLVMCall):
-            target = self._get_target_name(val.target)
-        # Strip module prefix for builtin lookup
-        bare_target = target.split("_", 1)[1] if "_" in target else target
-        is_op = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
-            target in BINARY_OPS or target in UNARY_OPS or bare_target in BINARY_OPS or bare_target in UNARY_OPS
-        )
-        is_vec = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
-            target in (VECTOR_OPERATIONS | {"set", "get"}) or bare_target in (VECTOR_OPERATIONS | {"set", "get"})
-        )
-        _MATH_BUILTINS = {"pow", "powf", "sqrt", "sqrtf", "sin", "cos", "exp", "log"}
-        is_math = (isinstance(val, LLVMVar) or (isinstance(val, LLVMCall) and is_partial)) and (
-            target in _MATH_BUILTINS or bare_target in _MATH_BUILTINS
-        )
-        if is_math and is_partial:
-            return False
-        return is_partial or is_op or is_vec or is_math
 
     def _lower_as_standalone(
         self,
@@ -704,16 +681,9 @@ class CPULLVMLowerer(LLVMLowerer):
             lowered_val.name = name
         new_ty_env = {**type_env, name: lowered_val.type if lowered_val else LLVMInt}
         new_env = env.copy()
-        if lowered_val and self._is_inlinable_anf(name, lowered_val):
-            new_env[name] = lowered_val
-        else:
-            new_env[name] = LLVMVar(new_ty_env[name], name)
+        new_env[name] = LLVMVar(new_ty_env[name], name)
         lowered_body = self._lower_term(body, expected, new_ty_env, new_env, allowed, in_vector_op=in_vec)
-        return (
-            lowered_body
-            if self._is_inlinable_anf(name, lowered_val)
-            else LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
-        )
+        return LLVMLet(lowered_body.type, name, lowered_val, lowered_body)
 
     def _lower_rec(
         self,

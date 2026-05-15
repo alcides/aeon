@@ -135,16 +135,16 @@ class AeonDriver:
                 self.cfg.synthesis_ui,
             )
 
-            core_ast_anf: Term = self.core
+            synthesized_core: Term = self.core
             for k, v in mapping.items():
                 if v is not None:
-                    core_ast_anf = substitution(core_ast_anf, v, k)
+                    synthesized_core = substitution(synthesized_core, v, k)
 
             sterm_mapping: dict[Name, STerm] = {k: lift(v) for k, v in mapping.items() if v is not None}
 
-            self.cfg.synthesis_ui.display_results(core_ast_anf, sterm_mapping, self.cfg.synthesis_format)
+            self.cfg.synthesis_ui.display_results(synthesized_core, sterm_mapping, self.cfg.synthesis_format)
 
-            return lift(core_ast_anf)
+            return lift(synthesized_core)
 
     def pretty_print(self, filename: str = None, should_be_fixed: bool = False) -> None:
         aeon_code = read_file(filename)

@@ -314,8 +314,9 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     if len(type_formals) != len(formals):
         return LiquidConstraint(LiquidLiteralBool(False))
     entry_refs = entry_refinement_liquids(rec.var_type, formals, type_formals)
-    # ANF introduces `let anf = …` around sub-expressions; inlining exposes call
-    # arguments in terms of parameters so liquefy does not mention ANF temps.
+    # Inline let-bindings so call arguments are expressed in terms of the
+    # function's parameters; otherwise liquefy would mention intermediate
+    # let-bound temporaries instead.
     inner = inline_lets(inner)
     arity = len(formals)
     inner_ctx: TypingContext | None = None
