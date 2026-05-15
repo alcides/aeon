@@ -15,6 +15,7 @@ mod liquid;
 mod loc;
 mod name;
 mod ple;
+mod smt_encode;
 mod smt_helpers;
 mod substitutions;
 mod sugar;
@@ -154,6 +155,10 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vcs::alpha_key, m)?)?;
     m.add_function(wrap_pyfunction!(vcs::variables_in_liq, m)?)?;
     m.add_function(wrap_pyfunction!(vcs::variables_free_in, m)?)?;
+
+    // SMT encoder — pure flatten helpers (still z3-free)
+    m.add_function(wrap_pyfunction!(smt_encode::specialize_liquid_term, m)?)?;
+    m.add_function(wrap_pyfunction!(smt_encode::rename_constraint, m)?)?;
 
     Ok(())
 }

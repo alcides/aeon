@@ -29,6 +29,8 @@ from z3.z3types import Z3Exception
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon_rs import ple_unfold_fixpoint as ple_unfold_fixpoint
+from aeon_rs import rename_constraint as rename_constraint
+from aeon_rs import specialize_liquid_term as _specialize_liquid_term
 from aeon_rs import uncurry as uncurry
 from aeon_rs import unrefine_type as unrefine_type
 
@@ -224,60 +226,9 @@ def _specialization_name(base: str, concrete: tuple[str, ...]) -> str:
     return f"{base}__spec__{'__'.join(concrete)}"
 
 
-def _specialize_liquid_term(
-    t: LiquidTerm,
-    functions: dict[str, AbstractionType],
-    variables: dict[str, TypeConstructor],
-    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
-    specializations: dict[tuple[str, tuple[str, ...]], str],
-) -> tuple[LiquidTerm, dict[str, AbstractionType], dict[str, tuple[tuple[Name, ...], LiquidTerm]]]:
-    if not isinstance(t, LiquidApp):
-        return t, functions, reflected_functions
-
-    nfuncs = functions
-    nref = reflected_functions
-    nargs: list[LiquidTerm] = []
-    for a in t.args:
-        sa, nfuncs, nref = _specialize_liquid_term(a, nfuncs, variables, nref, specializations)
-        nargs.append(sa)
-
-    fname = str(t.fun)
-    if fname not in nfuncs:
-        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
-
-    fty = nfuncs[fname]
-    cur: Type = fty
-    subst: dict[str, TypeConstructor] = {}
-    for arg in nargs:
-        if not isinstance(cur, AbstractionType):
-            break
-        actual = _term_base_type(arg, variables)
-        expected = cur.var_type
-        if (
-            isinstance(expected, TypeConstructor)
-            and expected.name.name[:1].islower()
-            and expected.name.name not in {"Int", "Bool", "Float", "String", "Unit", "Top"}
-            and actual is not None
-        ):
-            subst[expected.name.name] = actual
-        cur = cur.type
-
-    if not subst:
-        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
-
-    concrete_sig = tuple(sorted(str(v.name) for v in subst.values()))
-    skey = (fname, concrete_sig)
-    if skey in specializations:
-        sname = specializations[skey]
-    else:
-        sname = _specialization_name(fname, concrete_sig)
-        nty = _specialize_type(fty, subst)
-        assert isinstance(nty, AbstractionType)
-        nfuncs = {**nfuncs, sname: nty}
-        if fname in nref:
-            nref = {**nref, sname: nref[fname]}
-        specializations[skey] = sname
-    return LiquidApp(Name(sname, 0), nargs, loc=t.loc), nfuncs, nref
+# _specialize_liquid_term is implemented in the Rust core (aeon_rs.specialize_liquid_term,
+# imported above). _specialization_name, _specialize_type, and _term_base_type are now
+# private to that Rust implementation.
 
 
 def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTContext:
@@ -323,31 +274,8 @@ class CanonicConstraint:
         self.conclusion = pos
 
 
-def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
-    """Renames a binder within the constraint, to make it is unique."""
-    match c:
-        case LiquidConstraint(expr):
-            nexpr = substitution_in_liquid(expr, LiquidVar(new_name), old_name)
-            return LiquidConstraint(expr=nexpr)
-        case Conjunction(c1, c2):
-            return Conjunction(rename_constraint(c1, old_name, new_name), rename_constraint(c2, old_name, new_name))
-        case Implication(name, base, pred, seq):
-            if name == new_name:
-                return c
-            else:
-                npred = substitution_in_liquid(pred, LiquidVar(new_name), old_name)
-                nseq = rename_constraint(seq, old_name, new_name)
-                return Implication(name, base, npred, nseq)
-        case UninterpretedFunctionDeclaration(name, absty, seq):
-            nseq = rename_constraint(seq, old_name, new_name)
-            return UninterpretedFunctionDeclaration(name, absty, nseq)
-        case ReflectedFunctionDeclaration(name, absty, params, body, seq):
-            nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
-            nparams = tuple(new_name if p == old_name else p for p in params)
-            nseq = rename_constraint(seq, old_name, new_name)
-            return ReflectedFunctionDeclaration(name, absty, nparams, nbody, nseq)
-        case _:
-            assert False, f"Unexpected case {c} ({type(c)})"
+# rename_constraint is implemented in the Rust core (aeon_rs.rename_constraint,
+# imported above).
 
 
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:

@@ -212,3 +212,65 @@ pub fn new_liquid_horn_application(
 ) -> PyResult<PyObject> {
     Ok(Py::new(py, (LiquidHornApplication { name, argtypes, loc }, LiquidTerm))?.into_any())
 }
+
+// -- Constraint constructors -------------------------------------------------
+
+use crate::vcs::{
+    Conjunction, Constraint, Implication, LiquidConstraint, ReflectedFunctionDeclaration,
+    UninterpretedFunctionDeclaration,
+};
+
+pub fn new_liquid_constraint(
+    py: Python<'_>,
+    expr: PyObject,
+    loc: Option<PyObject>,
+) -> PyResult<PyObject> {
+    Ok(Py::new(py, (LiquidConstraint { expr, loc }, Constraint))?.into_any())
+}
+
+pub fn new_conjunction(
+    py: Python<'_>,
+    c1: PyObject,
+    c2: PyObject,
+    loc: Option<PyObject>,
+) -> PyResult<PyObject> {
+    Ok(Py::new(py, (Conjunction { c1, c2, loc }, Constraint))?.into_any())
+}
+
+pub fn new_implication(
+    py: Python<'_>,
+    name: Py<Name>,
+    base: PyObject,
+    pred: PyObject,
+    seq: PyObject,
+    loc: Option<PyObject>,
+) -> PyResult<PyObject> {
+    Ok(Py::new(py, (Implication { name, base, pred, seq, loc }, Constraint))?.into_any())
+}
+
+pub fn new_uninterpreted_function_declaration(
+    py: Python<'_>,
+    name: Py<Name>,
+    type_: PyObject,
+    seq: PyObject,
+) -> PyResult<PyObject> {
+    Ok(Py::new(py, (UninterpretedFunctionDeclaration { name, type_, seq }, Constraint))?.into_any())
+}
+
+pub fn new_reflected_function_declaration(
+    py: Python<'_>,
+    name: Py<Name>,
+    type_: PyObject,
+    params: Py<PyTuple>,
+    body: PyObject,
+    seq: PyObject,
+) -> PyResult<PyObject> {
+    Ok(Py::new(
+        py,
+        (
+            ReflectedFunctionDeclaration { name, type_, params, body, seq },
+            Constraint,
+        ),
+    )?
+    .into_any())
+}
