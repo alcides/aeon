@@ -6,6 +6,8 @@ from time import perf_counter
 
 from loguru import logger
 
+import aeon.logger.logger  # noqa: F401  — registers custom levels (TIME etc.) at import.
+
 
 def measure(func):
     @wraps(func)

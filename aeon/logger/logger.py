@@ -13,22 +13,31 @@ def levels_filter(levels):
     return filter
 
 
-def setup_logger():
-    for name, kwargs in [
-        ("TYPECHECKER", {"no": 35, "color": "<magenta>", "icon": "🔍"}),
-        ("SYNTH_TYPE", {"no": 36, "color": "<magenta>"}),
-        ("CONSTRAINT", {"no": 37, "color": "<cyan>", "icon": "🔒"}),
-        ("SYNTHESIZER", {"no": 38, "color": "<red>"}),
-        ("TIME", {"no": 39, "color": "<green>"}),
-    ]:
+_CUSTOM_LEVELS = [
+    ("TYPECHECKER", {"no": 35, "color": "<magenta>", "icon": "🔍"}),
+    ("SYNTH_TYPE", {"no": 36, "color": "<magenta>"}),
+    ("CONSTRAINT", {"no": 37, "color": "<cyan>", "icon": "🔒"}),
+    ("SYNTHESIZER", {"no": 38, "color": "<red>"}),
+    ("TIME", {"no": 39, "color": "<green>"}),
+]
+
+
+def _register_levels():
+    for name, kwargs in _CUSTOM_LEVELS:
         try:
             logger.level(name, **kwargs)
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
-    # Setup the logger
+
+# Eagerly register at import so library consumers (tests, LSP, benchmarks)
+# can use these levels without first calling setup_logger().
+_register_levels()
+
+
+def setup_logger():
+    _register_levels()
     logger.remove()
-    # logger.add(sys.stderr, level="DEBUG")
     return logger
 
 
