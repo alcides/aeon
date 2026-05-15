@@ -21,6 +21,7 @@ mod sugar;
 mod term_subst;
 mod terms;
 mod types;
+mod vcs;
 
 #[pymodule]
 fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -141,6 +142,18 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ple::ple_unfold_fixpoint, m)?)?;
     m.add_function(wrap_pyfunction!(smt_helpers::unrefine_type, m)?)?;
     m.add_function(wrap_pyfunction!(smt_helpers::uncurry, m)?)?;
+
+    // Verification conditions (vcs) — Constraint hierarchy + alpha_key
+    m.add_class::<vcs::Constraint>()?;
+    m.add_class::<vcs::LiquidConstraint>()?;
+    m.add_class::<vcs::Conjunction>()?;
+    m.add_class::<vcs::UninterpretedFunctionDeclaration>()?;
+    m.add_class::<vcs::ReflectedFunctionDeclaration>()?;
+    m.add_class::<vcs::Implication>()?;
+    m.add_class::<vcs::TypeVarDeclaration>()?;
+    m.add_function(wrap_pyfunction!(vcs::alpha_key, m)?)?;
+    m.add_function(wrap_pyfunction!(vcs::variables_in_liq, m)?)?;
+    m.add_function(wrap_pyfunction!(vcs::variables_free_in, m)?)?;
 
     Ok(())
 }
