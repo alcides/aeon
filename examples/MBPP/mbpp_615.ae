@@ -1,0 +1,20 @@
+# MBPP task 615
+# Write a function which takes a tuple of tuples and returns the average value for each tuple as a list.
+#
+# Synthesis target: average_tuple : Tuple -> List
+
+type List
+
+inductive InnerTuple
+| inil  : InnerTuple
+| icons (hd:Int) (tl:InnerTuple) : InnerTuple
+
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:InnerTuple) (tl:Tuple) : Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> List) : Float = native "float((0 if (f(('Tuple_tcons', ('InnerTuple_icons', 10, ('InnerTuple_icons', 10, ('InnerTuple_icons', 10, ('InnerTuple_icons', 12, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 30, ('InnerTuple_icons', 45, ('InnerTuple_icons', 56, ('InnerTuple_icons', 45, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 81, ('InnerTuple_icons', 80, ('InnerTuple_icons', 39, ('InnerTuple_icons', 32, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 1, ('InnerTuple_icons', 2, ('InnerTuple_icons', 3, ('InnerTuple_icons', 4, ('InnerTuple_inil',))))), ('Tuple_tnil',)))))) == [30.5, 34.25, 27.0, 23.25]) else 1) + (0 if (f(('Tuple_tcons', ('InnerTuple_icons', 1, ('InnerTuple_icons', 1, ('InnerTuple_icons', -5, ('InnerTuple_inil',)))), ('Tuple_tcons', ('InnerTuple_icons', 30, ('InnerTuple_icons', -15, ('InnerTuple_icons', 56, ('InnerTuple_inil',)))), ('Tuple_tcons', ('InnerTuple_icons', 81, ('InnerTuple_icons', -60, ('InnerTuple_icons', -39, ('InnerTuple_inil',)))), ('Tuple_tcons', ('InnerTuple_icons', -10, ('InnerTuple_icons', 2, ('InnerTuple_icons', 3, ('InnerTuple_inil',)))), ('Tuple_tnil',)))))) == [25.5, -18.0, 3.75]) else 1) + (0 if (f(('Tuple_tcons', ('InnerTuple_icons', 100, ('InnerTuple_icons', 100, ('InnerTuple_icons', 100, ('InnerTuple_icons', 120, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 300, ('InnerTuple_icons', 450, ('InnerTuple_icons', 560, ('InnerTuple_icons', 450, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 810, ('InnerTuple_icons', 800, ('InnerTuple_icons', 390, ('InnerTuple_icons', 320, ('InnerTuple_inil',))))), ('Tuple_tcons', ('InnerTuple_icons', 10, ('InnerTuple_icons', 20, ('InnerTuple_icons', 30, ('InnerTuple_icons', 40, ('InnerTuple_inil',))))), ('Tuple_tnil',)))))) == [305.0, 342.5, 270.0, 232.5]) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (nums:Tuple) : List = (?hole : List)

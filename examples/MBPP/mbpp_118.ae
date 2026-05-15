@@ -1,0 +1,12 @@
+# MBPP task 118
+# Write a function to convert a string to a list of strings split on the space character.
+#
+# Synthesis target: string_to_list : String -> List
+
+type List
+
+def mbpp_fitness (f:(x0:String) -> List) : Float = native "float((0 if (f('python programming') == ['python', 'programming']) else 1) + (0 if (f('lists tuples strings') == ['lists', 'tuples', 'strings']) else 1) + (0 if (f('write a program') == ['write', 'a', 'program']) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (string:String) : List = (?hole : List)

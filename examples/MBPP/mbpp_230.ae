@@ -1,0 +1,10 @@
+# MBPP task 230
+# Write a function that takes in a string and character, replaces blank spaces in the string with the character, and returns the string.
+#
+# Synthesis target: replace_blank : String -> String -> String
+
+def mbpp_fitness (f:(x0:String) -> (x1:String) -> String) : Float = native "float((0 if (f('hello people')('@') == 'hello@people') else 1) + (0 if (f('python program language')('$') == 'python$program$language') else 1) + (0 if (f('blank space')('-') == 'blank-space') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (str1:String) (char:String) : String = (?hole : String)

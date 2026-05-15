@@ -1,0 +1,16 @@
+# MBPP task 88
+# Write a function to get the frequency of all the elements in a list, returned as a dictionary.
+#
+# Synthesis target: freq_count : List -> Dict
+
+type List
+
+inductive Dict
+| dnil : Dict
+| dcons (key:Int) (val:Int) (rest:Dict) : Dict
+
+def mbpp_fitness (f:(x0:List) -> Dict) : Float = native "float((0 if (f([10, 10, 10, 10, 20, 20, 20, 20, 40, 40, 50, 50, 30]) == ('Dict_dcons', 10, 4, ('Dict_dcons', 20, 4, ('Dict_dcons', 40, 2, ('Dict_dcons', 50, 2, ('Dict_dcons', 30, 1, ('Dict_dnil',))))))) else 1) + (0 if (f([1, 2, 3, 4, 3, 2, 4, 1, 3, 1, 4]) == ('Dict_dcons', 1, 3, ('Dict_dcons', 2, 2, ('Dict_dcons', 3, 3, ('Dict_dcons', 4, 3, ('Dict_dnil',)))))) else 1) + (0 if (f([5, 6, 7, 4, 9, 10, 4, 5, 6, 7, 9, 5]) == ('Dict_dcons', 10, 1, ('Dict_dcons', 5, 3, ('Dict_dcons', 6, 2, ('Dict_dcons', 7, 2, ('Dict_dcons', 4, 2, ('Dict_dcons', 9, 2, ('Dict_dnil',)))))))) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (list1:List) : Dict = (?hole : Dict)

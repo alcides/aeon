@@ -1,0 +1,12 @@
+# MBPP task 133
+# Write a function to calculate the sum of the negative numbers of a given list of numbers.
+#
+# Synthesis target: sum_negativenum : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([2, 4, -6, -9, 11, -12, 14, -5, 17]) == -32) else 1) + (0 if (f([10, 15, -14, 13, -18, 12, -20]) == -52) else 1) + (0 if (f([19, -65, 57, 39, 152, -639, 121, 44, 90, -190]) == -894) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (nums:List) : Int = (?hole : Int)

@@ -1,0 +1,10 @@
+# MBPP task 295
+# Write a function to return the sum of all divisors of a number.
+#
+# Synthesis target: sum_div : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(8) == 7) else 1) + (0 if (f(12) == 16) else 1) + (0 if (f(7) == 1) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (number:Int) : Int = (?hole : Int)

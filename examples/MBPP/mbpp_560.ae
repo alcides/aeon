@@ -1,0 +1,14 @@
+# MBPP task 560
+# Write a function to find the union of the elements of two given tuples and output them in sorted order.
+#
+# Synthesis target: union_elements : Tuple -> Tuple -> Tuple
+
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:Int) (tl:Tuple) : Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float = native "float((0 if (f(('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',))))))(('Tuple_tcons', 5, ('Tuple_tcons', 7, ('Tuple_tcons', 4, ('Tuple_tcons', 10, ('Tuple_tnil',)))))) == ('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 10, ('Tuple_tnil',)))))))) else 1) + (0 if (f(('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tnil',))))))(('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',)))))) == ('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',)))))))) else 1) + (0 if (f(('Tuple_tcons', 11, ('Tuple_tcons', 12, ('Tuple_tcons', 13, ('Tuple_tcons', 14, ('Tuple_tnil',))))))(('Tuple_tcons', 13, ('Tuple_tcons', 15, ('Tuple_tcons', 16, ('Tuple_tcons', 17, ('Tuple_tnil',)))))) == ('Tuple_tcons', 11, ('Tuple_tcons', 12, ('Tuple_tcons', 13, ('Tuple_tcons', 14, ('Tuple_tcons', 15, ('Tuple_tcons', 16, ('Tuple_tcons', 17, ('Tuple_tnil',))))))))) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple = (?hole : Tuple)

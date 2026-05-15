@@ -1,0 +1,16 @@
+# MBPP task 70
+# Write a function to find whether all the given tuples have equal length or not.
+#
+# Synthesis target: get_equal : List -> Bool
+
+type List
+
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:Int) (tl:Tuple) : Tuple
+
+def mbpp_fitness (f:(x0:List) -> Bool) : Float = native "float((0 if (f([(11, 22, 33), (44, 55, 66)]) == True) else 1) + (0 if (f([(1, 2, 3), (4, 5, 6, 7)]) == False) else 1) + (0 if (f([(1, 2), (3, 4)]) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (Input:List) : Bool = (?hole : Bool)

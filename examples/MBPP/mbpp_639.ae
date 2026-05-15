@@ -1,0 +1,12 @@
+# MBPP task 639
+# Write a function to sum the length of the names of a given list of names after removing the names that start with a lowercase letter.
+#
+# Synthesis target: sample_nam : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f(['sally', 'Dylan', 'rebecca', 'Diana', 'Joanne', 'keith']) == 16) else 1) + (0 if (f(['php', 'res', 'Python', 'abcd', 'Java', 'aaa']) == 10) else 1) + (0 if (f(['abcd', 'Python', 'abba', 'aba']) == 6) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (sample_names:List) : Int = (?hole : Int)

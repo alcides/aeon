@@ -1,0 +1,10 @@
+# MBPP task 771
+# Write a function to check if the given expression is balanced or not. https://www.geeksforgeeks.org/check-for-balanced-parentheses-in-an-expression/
+#
+# Synthesis target: check_expression : String -> Bool
+
+def mbpp_fitness (f:(x0:String) -> Bool) : Float = native "float((0 if (f('{()}[{}]') == True) else 1) + (0 if (f('{()}[{]') == False) else 1) + (0 if (f('{()}[{}][]({})') == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (exp:String) : Bool = (?hole : Bool)

@@ -1,0 +1,12 @@
+# MBPP task 568
+# Write a function to create a list of N empty dictionaries.
+#
+# Synthesis target: empty_list : Int -> List
+
+type List
+
+def mbpp_fitness (f:(x0:Int) -> List) : Float = native "float((0 if (f(5) == [{}, {}, {}, {}, {}]) else 1) + (0 if (f(6) == [{}, {}, {}, {}, {}, {}]) else 1) + (0 if (f(7) == [{}, {}, {}, {}, {}, {}, {}]) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (length:Int) : List = (?hole : List)

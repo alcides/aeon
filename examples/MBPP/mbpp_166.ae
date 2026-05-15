@@ -1,0 +1,12 @@
+# MBPP task 166
+# Write a function that counts the number of pairs of integers in a list that xor to an even number.
+#
+# Synthesis target: find_even_pair : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([5, 4, 7, 2, 1]) == 4) else 1) + (0 if (f([7, 2, 8, 1, 0, 5, 11]) == 9) else 1) + (0 if (f([1, 2, 3]) == 1) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (A:List) : Int = (?hole : Int)

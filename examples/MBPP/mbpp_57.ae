@@ -1,0 +1,12 @@
+# MBPP task 57
+# Write a python function to find the largest number that can be formed with the given list of digits.
+#
+# Synthesis target: find_Max_Num : List -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([1, 2, 3]) == 321) else 1) + (0 if (f([4, 5, 6, 1]) == 6541) else 1) + (0 if (f([1, 2, 3, 9]) == 9321) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (arr:List) : Int = (?hole : Int)

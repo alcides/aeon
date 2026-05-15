@@ -1,0 +1,10 @@
+# MBPP task 604
+# Write a function to reverse words seperated by spaces in a given string.
+#
+# Synthesis target: reverse_words : String -> String
+
+def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('python program') == 'program python') else 1) + (0 if (f('java language') == 'language java') else 1) + (0 if (f('indian man') == 'man indian') else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (s:String) : String = (?hole : String)

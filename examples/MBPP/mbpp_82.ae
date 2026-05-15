@@ -1,0 +1,10 @@
+# MBPP task 82
+# Write a function to find the volume of a sphere.
+#
+# Synthesis target: volume_sphere : Int -> Float
+
+def mbpp_fitness (f:(x0:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(10), 4188.790204786391, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(25), 65449.84694978735, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(20), 33510.32163829113, rel_tol=0.001)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (r:Int) : Float = (?hole : Float)

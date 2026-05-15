@@ -1,0 +1,10 @@
+# MBPP task 276
+# Write a function that takes in the radius and height of a cylinder and returns the the volume.
+#
+# Synthesis target: volume_cylinder : Int -> Int -> Float
+
+def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(10)(5), 1570.7500000000002, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4)(5), 251.32000000000002, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4)(10), 502.64000000000004, rel_tol=0.001)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (r:Int) (h:Int) : Float = (?hole : Float)

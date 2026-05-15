@@ -1,0 +1,10 @@
+# MBPP task 163
+# Write a function to calculate the area of a regular polygon given the length and number of its sides.
+#
+# Synthesis target: area_polygon : Int -> Int -> Float
+
+def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(4)(20), 400.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(10)(15), 1731.197, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(9)(7), 302.909, rel_tol=0.001)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (s:Int) (l:Int) : Float = (?hole : Float)

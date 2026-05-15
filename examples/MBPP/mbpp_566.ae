@@ -1,0 +1,10 @@
+# MBPP task 566
+# Write a function to get the sum of the digits of a non-negative integer.
+#
+# Synthesis target: sum_digits : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(345) == 12) else 1) + (0 if (f(12) == 3) else 1) + (0 if (f(97) == 16) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (n:Int) : Int = (?hole : Int)

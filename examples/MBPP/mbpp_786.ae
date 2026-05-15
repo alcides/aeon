@@ -1,0 +1,12 @@
+# MBPP task 786
+# Write a function to locate the right insertion point for a specified value in sorted order.
+#
+# Synthesis target: right_insertion : List -> Int -> Int
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Int) : Float = native "float((0 if (f([1, 2, 4, 5])(6) == 4) else 1) + (0 if (f([1, 2, 4, 5])(3) == 2) else 1) + (0 if (f([1, 2, 4, 5])(7) == 4) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (a:List) (x:Int) : Int = (?hole : Int)

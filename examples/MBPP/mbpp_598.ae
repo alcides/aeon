@@ -1,0 +1,10 @@
+# MBPP task 598
+# Write a function to check whether the given number is armstrong or not.
+#
+# Synthesis target: armstrong_number : Int -> Bool
+
+def mbpp_fitness (f:(x0:Int) -> Bool) : Float = native "float((0 if (f(153) == True) else 1) + (0 if (f(259) == False) else 1) + (0 if (f(4458) == False) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (number:Int) : Bool = (?hole : Bool)

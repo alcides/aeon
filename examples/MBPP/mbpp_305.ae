@@ -1,0 +1,16 @@
+# MBPP task 305
+# Write a function to return two words from a list of words starting with letter 'p'.
+#
+# Synthesis target: start_withp : List -> Tuple
+
+type List
+
+inductive Tuple
+| tnil  : Tuple
+| tcons (hd:String) (tl:Tuple) : Tuple
+
+def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f(['Python PHP', 'Java JavaScript', 'c c++']) == ('Tuple_tcons', 'Python', ('Tuple_tcons', 'PHP', ('Tuple_tnil',)))) else 1) + (0 if (f(['Python Programming', 'Java Programming']) == ('Tuple_tcons', 'Python', ('Tuple_tcons', 'Programming', ('Tuple_tnil',)))) else 1) + (0 if (f(['Pqrst Pqr', 'qrstuv']) == ('Tuple_tcons', 'Pqrst', ('Tuple_tcons', 'Pqr', ('Tuple_tnil',)))) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (words:List) : Tuple = (?hole : Tuple)

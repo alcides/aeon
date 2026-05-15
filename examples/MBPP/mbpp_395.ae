@@ -1,0 +1,14 @@
+# MBPP task 395
+# Write a python function to find the first non-repeated character in a given string.
+#
+# Synthesis target: first_non_repeating_character : String -> (Maybe String)
+
+inductive Maybe a
+| none : (Maybe a)
+| just (v:a) : (Maybe a)
+
+def mbpp_fitness (f:(x0:String) -> (Maybe String)) : Float = native "float((0 if (f('abcabc') == ('Maybe_none',)) else 1) + (0 if (f('abc') == ('Maybe_just', 'a')) else 1) + (0 if (f('ababc') == ('Maybe_just', 'c')) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (str1:String) : (Maybe String) = (?hole : (Maybe String))

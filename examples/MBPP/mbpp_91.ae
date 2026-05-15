@@ -1,0 +1,12 @@
+# MBPP task 91
+# Write a function to check if a string is present as a substring in a given list of string values.
+#
+# Synthesis target: find_substring : List -> String -> Bool
+
+type List
+
+def mbpp_fitness (f:(x0:List) -> (x1:String) -> Bool) : Float = native "float((0 if (f(['red', 'black', 'white', 'green', 'orange'])('ack') == True) else 1) + (0 if (f(['red', 'black', 'white', 'green', 'orange'])('abc') == False) else 1) + (0 if (f(['red', 'black', 'white', 'green', 'orange'])('ange') == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (str1:List) (sub_str:String) : Bool = (?hole : Bool)

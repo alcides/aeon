@@ -1,0 +1,10 @@
+# MBPP task 85
+# Write a function to find the surface area of a sphere.
+#
+# Synthesis target: surfacearea_sphere : Int -> Float
+
+def mbpp_fitness (f:(x0:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(10), 1256.6370614359173, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(15), 2827.4333882308138, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(20), 5026.548245743669, rel_tol=0.001)) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (r:Int) : Float = (?hole : Float)

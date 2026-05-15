@@ -1,0 +1,10 @@
+# MBPP task 244
+# Write a python function to find the next perfect square greater than a given number.
+#
+# Synthesis target: next_Perfect_Square : Int -> Int
+
+def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(35) == 36) else 1) + (0 if (f(6) == 9) else 1) + (0 if (f(9) == 16) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (N:Int) : Int = (?hole : Int)

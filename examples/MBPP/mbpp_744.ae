@@ -1,0 +1,17 @@
+# MBPP task 744
+# Write a function to check if the given tuple has any none value or not.
+#
+# Synthesis target: check_none : Tuple -> Bool
+
+inductive Maybe a
+| none : (Maybe a)
+| just (v:a) : (Maybe a)
+
+inductive Tuple
+| mk (a0:Int) (a1:Int) (a2:Int) (a3:Int) (a4:(Maybe Int)) : Tuple
+
+def mbpp_fitness (f:(x0:Tuple) -> Bool) : Float = native "float((0 if (f(('Tuple_mk', 10, 4, 5, 6, ('Maybe_none',))) == True) else 1) + (0 if (f(('Tuple_mk', 7, 8, 9, 11, ('Maybe_just', 14))) == False) else 1) + (0 if (f(('Tuple_mk', 1, 2, 3, 4, ('Maybe_none',))) == True) else 1))"
+
+@hide(mbpp_fitness)
+@minimize_float(mbpp_fitness synth)
+def synth (test_tup:Tuple) : Bool = (?hole : Bool)
