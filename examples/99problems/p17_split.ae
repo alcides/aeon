@@ -1,0 +1,12 @@
+# Problem 17: Split a list into two parts at the given position.
+# Refinement: n must be a valid split point (0 <= n <= size l).
+
+open List
+
+def split (l: (List Int)) (n: {k:Int | k >= 0 && k <= List_size l}) : (List (List Int)) =
+    native "[l[:n], l[n:]]"
+
+def main (args:Int) : Unit =
+    a : {x:(List Int) | List_size x == 5} =
+        List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5;
+    print (split a 2)

@@ -744,24 +744,19 @@ def expand_inductive_decls(p: Program) -> Program:
                         rty = SAbstractionType(aname, aty, rty, multiplicity=m)
                     return rty
 
-                def handler_expr(cname: Name, cargs: list[tuple[Name, SType]]) -> str:
-                    # ``this`` is the runtime tuple ('<Type>_<cons>', arg1, ...).
-                    call = f"case_{cname.name}"
-                    for i in range(len(cargs)):
-                        call += f"(this[{i + 1}])"
-                    return call
+                # Emit the recursor body as a Python *expression* (chain of
+                # conditional expressions) rather than a `match` statement,
+                # so it round-trips cleanly through `eval` at runtime.
+                def branch_for(cname: Name, cargs: list[tuple[Name, SType]]) -> tuple[str, str]:
+                    body = f"case_{cname.name}" + "".join(f"(this[{i + 1}])" for i in range(len(cargs)))
+                    guard = f"this[0] == '{key_for(name, cname)}'"
+                    return body, guard
 
-                # The evaluator runs ``native`` strings through ``eval``, which
-                # cannot execute a ``match`` statement, so the eliminator is
-                # emitted as a lazy conditional expression instead. The final
-                # constructor is the ``else`` branch: the type checker
-                # guarantees ``this`` is a valid constructor of this type.
-                rec_expr = handler_expr(constructors[-1].name, constructors[-1].args)
-                for cons in reversed(constructors[:-1]):
-                    rec_expr = (
-                        f"({handler_expr(cons.name, cons.args)} "
-                        f"if this[0] == '{key_for(name, cons.name)}' else {rec_expr})"
-                    )
+                branches = [branch_for(cons.name, cons.args) for cons in constructors]
+                # Catchall raises via a generator-throw trick so it remains an expression.
+                rec_expr = "(_ for _ in ()).throw(Exception('Invalid constructor'))"
+                for body, guard in reversed(branches):
+                    rec_expr = f"({body} if {guard} else {rec_expr})"
                 rec_body: STerm = SApplication(SVar(Name("native", 0)), SLiteral(rec_expr, st_string))
 
                 foralls: list[tuple[Name, Kind]] = [(a, BaseKind()) for a in args]

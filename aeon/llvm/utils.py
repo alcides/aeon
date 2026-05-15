@@ -23,7 +23,7 @@ UNARY_OPS = {"!", "-"}
 
 
 def validate_ops(op: str):
-    if not op.startswith("anf") and op not in BINARY_OPS and op not in UNARY_OPS:
+    if op not in BINARY_OPS and op not in UNARY_OPS:
         raise LLVMValidationError(f"LLVM Backend does not support operation {op}")
 
 

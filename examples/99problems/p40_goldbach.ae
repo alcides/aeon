@@ -1,0 +1,12 @@
+# Problem 40: Goldbach's conjecture.
+# Every even integer > 2 can be written as the sum of two primes.
+# Returns a 2-element list [p, q] with p + q = n, p and q prime.
+
+open List
+
+def goldbach (n: {x:Int | x > 2 && x % 2 == 0}) : (List Int) =
+    native "[[p, n - p] for p in range(2, n) if all(p % d != 0 for d in range(2, int(p ** 0.5) + 1)) and all((n - p) % d != 0 for d in range(2, int((n - p) ** 0.5) + 1))][0]"
+
+def main (args:Int) : Unit =
+    _ = print (goldbach 28);
+    print (goldbach 100)

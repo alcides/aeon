@@ -1,0 +1,13 @@
+# Problem 13: Run-length encoding (direct version).
+# Same result as Problem 10 but built directly with a fold, not groupby.
+
+open List
+
+def functools : Unit = native_import "functools"
+
+def encode_direct (l: (List Int)) : (List (List Int)) =
+    native "functools.reduce(lambda acc, x: acc + [[1, x]] if not acc or acc[-1][1] != x else acc[:-1] + [[acc[-1][0]+1, x]], l, [])"
+
+def main (args:Int) : Unit =
+    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 1) 1) 2) 3) 3;
+    print (encode_direct a)

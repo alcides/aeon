@@ -1,0 +1,42 @@
+# Archery puzzle  (Sam Loyd)
+# Adapted from https://www.hakank.org/z3/archery_puzzle.py
+#
+# "How close can the young archer come to scoring a total of 100 - using
+#  as many arrows as she pleases. The targets are: 16, 17, 23, 24, 39, 40"
+#
+# Variables a..f are the (non-negative) number of arrows on each target.
+# Each count is constrained to [0, 10] (more than enough to reach 100).
+#
+# The synthesizer minimizes |100 - total| so it must drive the score
+# as close to 100 as possible.
+
+inductive Archery
+| mk (a: Int | a >= 0 && a <= 10)
+     (b: Int | b >= 0 && b <= 10)
+     (c: Int | c >= 0 && c <= 10)
+     (d: Int | d >= 0 && d <= 10)
+     (e: Int | e >= 0 && e <= 10)
+     (f: Int | f >= 0 && f <= 10)
+   : {s:Archery |
+        (t16 s == a) && (t17 s == b) && (t23 s == c) &&
+        (t24 s == d) && (t39 s == e) && (t40 s == f)}
++ t16 (s:Archery) : Int
++ t17 (s:Archery) : Int
++ t23 (s:Archery) : Int
++ t24 (s:Archery) : Int
++ t39 (s:Archery) : Int
++ t40 (s:Archery) : Int
+
+def abs (x:Int) : {r:Int | r >= 0} = if x >= 0 then x else 0 - x;
+
+def score (s:Archery) : Int =
+    match s with
+    | mk a b c d e f =>
+        a * 16 + b * 17 + c * 23 + d * 24 + e * 39 + f * 40;
+
+@hide(score, abs)
+@minimize_int(abs (100 - score archery_hole))
+def archery_hole : {s:Archery |
+    (t16 s >= 0) && (t17 s >= 0) && (t23 s >= 0) &&
+    (t24 s >= 0) && (t39 s >= 0) && (t40 s >= 0)
+} = ?hole

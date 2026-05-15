@@ -223,8 +223,14 @@ def used_variables(c: LiquidTerm) -> set[Name]:
 
 
 def is_synthesized_name(name: Name) -> bool:
-    """Returns True if the variable is ANF/synthesized (anf, _anf)."""
-    return name.name in ("anf", "_anf")
+    """Returns True if the variable is a synthesized Form B existential binder.
+
+    `synth(Application)` introduces `_y` binders for non-trivial arguments
+    (replacing the old ANF `_anf` let-bindings). When such a binder only
+    carries an equality refinement, `simplify_constraint` can substitute it
+    away to keep the SMT query small.
+    """
+    return name.name == "_y"
 
 
 def simplify_constraint(c: Constraint) -> Constraint:
@@ -251,7 +257,7 @@ def simplify_constraint(c: Constraint) -> Constraint:
             if pred == LiquidLiteralBool(True) and seq == LiquidConstraint(LiquidLiteralBool(True)):
                 return seq
 
-            # Remove synthesized (ANF) variables that only have equality: forall v: v == expr => seq
+            # Remove synthesized existential binders that only have equality: forall v: v == expr => seq
             if is_synthesized_name(iname) and isinstance(pred, LiquidApp) and pred.fun == Name("==", 0):
                 if pred.args[0] == LiquidVar(iname):
                     rep = pred.args[1]

@@ -668,9 +668,7 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidLiteralString(s):
             # Z3 auto-casts Python int/bool/float into its sorts when a literal
             # appears as an argument, but Python `str` does not auto-cast to
-            # Z3's String sort. Convert explicitly. (Previously hidden because
-            # ANF hoisted every literal into a let-bound name, so the literal
-            # only ever reached SMT through the typed `variables` dict.)
+            # Z3's String sort, so convert explicitly.
             return StringVal(s)
         case LiquidVar(name):
             sname = str(name)

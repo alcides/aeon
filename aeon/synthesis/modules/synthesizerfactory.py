@@ -1,5 +1,6 @@
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
@@ -34,5 +35,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return TDSynSynthesizer(mode="random")
         case "tactics":
             return TacticRandomSynthesizer()
+        case "lta":
+            return LTASynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"

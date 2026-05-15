@@ -1,0 +1,9 @@
+# Problem 31: Determine whether a given integer (>= 2) is prime.
+
+def isPrime (n: {x:Int | x >= 2}) : Bool =
+    native "all(n % i != 0 for i in range(2, int(n ** 0.5) + 1))"
+
+def main (args:Int) : Unit =
+    _ = print (isPrime 7);
+    _ = print (isPrime 9);
+    print (isPrime 97)

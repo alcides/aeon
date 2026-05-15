@@ -1,8 +1,7 @@
 """Decorators registered with ``DecoratorPhase.CORE`` (see ``aeon.decorators``).
 
-These run after elaboration, lowering, ANF conversion, and typechecking. The
-surface syntax is unchanged: ``@name(...)`` — only the Python registration picks
-the phase.
+These run after elaboration, lowering, and typechecking. The surface syntax is
+unchanged: ``@name(...)`` — only the Python registration picks the phase.
 """
 
 from __future__ import annotations

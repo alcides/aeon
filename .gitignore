@@ -147,3 +147,6 @@ path/
 logs/
 csv/
 uv.lock
+
+# Vericoding benchmark on-demand cache (.ae and .dfy task files)
+benchmarks/vericoding/.cache/

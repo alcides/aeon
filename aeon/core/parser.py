@@ -37,15 +37,6 @@ from aeon.utils.name import Name
 
 
 class TreeToCore(Transformer):
-    counter: int
-
-    def __init__(self, start_counter=0):
-        self.counter = start_counter
-
-    def fresh(self) -> Name:
-        self.counter += 1
-        return Name("anf", self.counter)
-
     def same(self, args):
         return args[0]
 
@@ -79,7 +70,7 @@ class TreeToCore(Transformer):
     def minus(self, args):
         if isinstance(args[0], Literal) and args[0].type == t_int:
             return Literal(-args[0].value, args[0].type)
-        return mk_binop(lambda: self.fresh(), "-", i0, args[0])
+        return mk_binop("-", i0, args[0])
 
     def let_e(self, args):
         return Let(Name(args[0]), args[1], args[2])
@@ -136,7 +127,7 @@ class TreeToCore(Transformer):
         return self.binop(args, "%")
 
     def binop(self, args, op):
-        return mk_binop(lambda: self.fresh(), op, args[0], args[1])
+        return mk_binop(op, args[0], args[1])
 
     def application_e(self, args):
         return Application(args[0], args[1])
@@ -194,9 +185,9 @@ def _get_cached_parser(rule: str) -> Lark:
     return _parser_cache[rule]
 
 
-def mk_parser(rule="start", start_counter=0):
+def mk_parser(rule="start"):
     parser = _get_cached_parser(rule)
-    transf = TreeToCore(start_counter)
+    transf = TreeToCore()
 
     def parse(s: str):
         tree = parser.parse(s)
