@@ -8,7 +8,7 @@ from aeon.utils.name import Name
 
 
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import InvalidFitness, Synthesizer
 
 from aeon.decorators.api import Metadata
 
@@ -48,7 +48,13 @@ def create_problem(
             assert isinstance(p, Term)
             if not validate(p):
                 raise InvalidFitnessException()
-            return evaluate(p)
+            try:
+                return evaluate(p)
+            except InvalidFitness:
+                # Translate the backend-neutral exception raised by the
+                # Aeon evaluator into geneticengine's own "drop this
+                # candidate" sentinel.
+                raise InvalidFitnessException()
 
         return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
     else:

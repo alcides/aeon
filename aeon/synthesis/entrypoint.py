@@ -6,7 +6,6 @@ from typing import Callable
 from typing import TypeAlias
 
 import multiprocess as mp
-from geneticengine.problems import InvalidFitnessException
 from loguru import logger
 
 import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZER etc.) at import.
@@ -24,7 +23,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
-from aeon.synthesis.api import ErrorInSynthesis, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import ErrorInSynthesis, InvalidFitness, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -66,9 +65,10 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
             # for ``@maximize_*`` and "infinitely bad" for ``@minimize_*``
             # at the same time — a hybrid the Pareto front cannot dominate,
             # so a single crash would lock in as "Best" forever (issue
-            # #120). Raise ``InvalidFitnessException`` instead so the
-            # search drops the candidate cleanly.
-            raise InvalidFitnessException()
+            # #120). Raise the backend-neutral ``InvalidFitness`` instead;
+            # synthesizer adapters translate it into their search
+            # framework's notion of "drop this candidate".
+            raise InvalidFitness()
 
     return fitness
 
@@ -97,7 +97,7 @@ def make_evaluator(
                 results = [ev(program) for ev in evaluators]
                 assert isinstance(results, list)
                 result_queue.put(("ok", results))
-            except InvalidFitnessException:
+            except InvalidFitness:
                 result_queue.put(("invalid", None))
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
@@ -126,7 +126,7 @@ def make_evaluator(
         if kind == "ok":
             return payload
         if kind == "invalid":
-            raise InvalidFitnessException()
+            raise InvalidFitness()
         raise ErrorInSynthesis(Exception(payload), msg=str(payload))
 
     return evaluate
