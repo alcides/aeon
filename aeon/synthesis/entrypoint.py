@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import sys
 import time
 from typing import Any, Optional
 from typing import Callable
 from typing import TypeAlias
 
 import multiprocess as mp
+from geneticengine.problems import InvalidFitnessException
 from loguru import logger
 
 import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZER etc.) at import.
@@ -61,7 +61,11 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
                 return measure_energy(lambda: eval(program_for_fitness, ectx))
             return eval(program_for_fitness, ectx)
         except Exception:
-            return sys.maxsize
+            # A candidate that crashes mid-evaluation has no
+            # well-defined fitness; surface it as invalid so the
+            # search drops it rather than letting a sentinel value
+            # dominate one objective and tank another (issue #120).
+            raise InvalidFitnessException()
 
     return fitness
 
@@ -86,11 +90,15 @@ def make_evaluator(
         """Function to run in a separate process and places the result in a Queue."""
         start = time.time()
         try:
-            results = [ev(program) for ev in evaluators]
-            assert isinstance(results, list)
-            result_queue.put(results)
+            try:
+                results = [ev(program) for ev in evaluators]
+                assert isinstance(results, list)
+                result_queue.put(("ok", results))
+            except InvalidFitnessException:
+                result_queue.put(("invalid", None))
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
+            result_queue.put(("error", f"{type(e).__name__}: {e}"))
             raise ErrorInSynthesis(e, msg=f"Failed in the fitness function: {e}, {type(e)}")
         finally:
             end = time.time()
@@ -108,9 +116,13 @@ def make_evaluator(
             eval_process.terminate()
             eval_process.join()
             raise TimeoutInEvaluationException()
-        else:
-            fitness_values = result_queue.get()
-            return fitness_values
+        msg = result_queue.get()
+        kind, payload = msg
+        if kind == "ok":
+            return payload
+        if kind == "invalid":
+            raise InvalidFitnessException()
+        raise ErrorInSynthesis(Exception(payload), msg=str(payload))
 
     return evaluate
 

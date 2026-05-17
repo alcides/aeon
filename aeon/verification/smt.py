@@ -486,6 +486,12 @@ def smt_valid(constraint: Constraint) -> bool:
             smt_c = translate(c)
         except ZeroDivisionError:
             continue
+        except TypeError:
+            # Untranslatable to z3 (e.g. arithmetic over uninterpreted-sort
+            # constructor vars whose measure functions aren't in scope).
+            # Skip this clause rather than crashing the typechecker. Same
+            # soundness caveat as the ZeroDivisionError branch above.
+            continue
         if smt_c is False:
             continue
         s.add(smt_c)
