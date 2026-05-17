@@ -1010,10 +1010,14 @@ def handle_imports(
         rec_q: QualifiedScope = {}
         rec_u: UnqualifiedScope = {}
         if import_p.imports:
+            # Recurse with empty accumulators: the parent module's own defs and
+            # type_decls are added below by the outer iteration, so passing
+            # them in would double-include them (once unprefixed via
+            # ``defs_recursive``, once module-prefixed via ``prefixed_definitions``).
             defs_recursive, type_decls_recursive, rec_inductives, rec_q, rec_u = handle_imports(
                 import_p.imports,
-                import_p.definitions,
-                import_p.type_decls,
+                [],
+                [],
                 _seen_modules=seen_modules,
             )
             qualified_scope.update(rec_q)
