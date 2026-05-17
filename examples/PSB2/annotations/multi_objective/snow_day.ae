@@ -1,15 +1,28 @@
-open Math
+# Snow Day (HW): Given an integer number of hours and 3 floats
+# representing the snow currently on the ground, the rate of
+# snowfall, and the proportion of snow melting per hour, return
+# the amount of snow on the ground after the given number of hours.
+# input  : integer in [0, 20],
+#          float   in [0.0, 20.0],
+#          float   in [0.0, 10.0],
+#          float   in [0.0, 1.0]
+# output : float
+
 import PSB2 (extract_train_data, load_dataset)
+open List
 
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def train : TrainData = extract_train_data (load_dataset "snow-day" 200 200)
 
-def train: TrainData = extract_train_data (load_dataset "snow-day" 200 200)
-def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float) -> (c: Float) -> (d: Float) -> Float)  -> List  =  \data -> \func -> native "[abs(func(x[0])(x[1])(x[2])(x[3]) - y[0]) for x , y in data]"
+def calculate_snow_day_errors : (train: TrainData) -> (f: (a: {x:Int   |  0   <= x && x <= 20})
+                                                       -> (b: {y:Float |  0.0 <= y && y <= 20.0})
+                                                       -> (c: {z:Float |  0.0 <= z && z <= 10.0})
+                                                       -> (d: {w:Float |  0.0 <= w && w <= 1.0})
+                                                       -> Float) -> (List Float) =
+    \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
 
-
-@hide(extract_train_data,
-            load_dataset,
-            train,
-            calculate_snow_day_errors)
+@hide(extract_train_data, load_dataset, train, calculate_snow_day_errors)
 @multi_minimize_float(calculate_snow_day_errors train synth, 1)
-def synth ( n :Int) (m :Float) (t :Float) (p :Float) : Float = (?hole:Float)
+def synth (n : {x:Int   |  0   <= x && x <= 20})
+          (m : {a:Float |  0.0 <= a && a <= 20.0})
+          (t : {b:Float |  0.0 <= b && b <= 10.0})
+          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} = (?hole: {r:Float | 0.0 <= r});

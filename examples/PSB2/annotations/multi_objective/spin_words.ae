@@ -1,20 +1,18 @@
-import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_str_list_errors, get_sw_synth_values, unpack_train_data, load_dataset)
-type List
+# Spin Words: Given a string of one or more words (separated by single spaces),
+# return the string with each word of 5 or more letters reversed.
+# input  : string of length [1, 100], words 1-15 chars from [A-Za-z]
+# output : string of the same length
 
-def String_len : (i:String) -> Int = \i -> native "len(i)"
-def String_list_to_String : (l:List) -> String = \l -> native "' '.join(l)"
-def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
-def String_split : (i:String) -> (j:String) -> List = \i -> \j -> native "i.split(j)"
-def String_reverse : (i:String) -> String = \i -> native "i[::-1]"
+import PSB2 (extract_train_data, load_dataset)
+open List
 
-def train: TrainData = extract_train_data (load_dataset "spin-words" 200 200)
+def String_len (s: String) : Int = native "len(s)"
 
-def calculate_spin_words_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def train : TrainData = extract_train_data (load_dataset "spin-words" 200 200)
 
-@hide(extract_train_data,
-            unpack_train_data,
-            load_dataset,
-            calculate_spin_words_errors,
-            train )
-@multi_minimize_float(calculate_spin_words_errors train synth, 1)
-def synth (phrase: String) : String = (?hole:String)
+def calculate_spin_words_errors : (train: TrainData) -> (f: (a: {x:String | 1 <= String_len x && String_len x <= 100}) -> String) -> (List Int) =
+    \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
+
+@hide(extract_train_data, load_dataset, train, calculate_spin_words_errors, String_len)
+@multi_minimize_int(calculate_spin_words_errors train synth, 1)
+def synth (phrase : {x:String | 1 <= String_len x && String_len x <= 100}) : String = (?hole: String);

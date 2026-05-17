@@ -1,36 +1,23 @@
-import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_list_errors, get_mm_synth_values, unpack_train_data, load_dataset)
+# Mastermind: Given two strings of length 4 (the secret code and the guess),
+# return a 2-element list of integers: [black, white] where black is the
+# number of exactly-correct positions, and white is the number of correct
+# colors in wrong positions.
+# input  : two strings of length 4
+# output : list of 2 integers
 
-type List
-type Counter
+import PSB2 (extract_train_data, load_dataset)
+open List
 
-def itertools : Unit = native_import "itertools"
-def collections : Unit = native_import "collections"
+def String_len (s: String) : Int = native "len(s)"
 
-def Zip : (xs:List) -> (ys:List) -> List = \xs -> \ys -> native "list(zip(xs, ys))"
-def Map : (f: (s:List) -> String) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
-def Map_bool : (f: (s:List) -> Int) -> (l:List) -> List = \f -> \xs -> native "list(map(f, xs))"
+def train : TrainData = extract_train_data (load_dataset "mastermind" 200 200)
 
-def String_eq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
-def List_sum : (l:List) -> Int = \xs -> native "sum(xs)"
-def String_toList : (s:String) -> List = \s -> native "list(s)"
-def String_Zip : (xs:String) -> (ys:String) -> List = \xs -> \ys -> native "(zip(xs, ys))"
-def List_get_fst : (s: List) -> String = \s -> native "s[0]"
-def List_get_snd : (s: List) -> String = \s -> native "s[1]"
-def String_neq : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i != j";
-def Filter :  (f: (s:List) -> Bool) -> (l:List) -> List = \f -> \xs -> native "[x for x in xs if f(x)]"
-def Counter : (l:List) -> Counter = \xs -> native "collections.Counter(xs)"
-def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter = \c1 -> \c2 -> native "c1 & c2"
-def Counter_values : (c:Counter) -> List = \c -> native "list(c.values())"
-def Tuple : (a:Int) -> (b:Int) -> List = \a -> \b -> native "[a,b]"
+def calculate_mastermind_errors : (train: TrainData) -> (f: (a: {x:String | String_len x == 4})
+                                                          -> (b: {y:String | String_len y == 4})
+                                                          -> (List Int)) -> (List Int) =
+    \data -> \func -> native "[(lambda output, correct: (abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0][0])(x[0][1]), x[1]) for x in data]"
 
-def train: TrainData = extract_train_data (load_dataset "mastermind" 200 200)
-
-def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:String) -> List ) -> List  =  \data -> \func -> native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
-
-
-@hide(extract_train_data,
-            load_dataset,
-            calculate_mastermind_errors,
-            train)
-@multi_minimize_float(calculate_mastermind_errors train synth, 2)
-def synth ( code : String) (guess: String ) : List = (?hole:List)
+@hide(extract_train_data, load_dataset, train, calculate_mastermind_errors, String_len)
+@multi_minimize_int(calculate_mastermind_errors train synth, 1)
+def synth (code  : {x:String | String_len x == 4})
+          (guess : {y:String | String_len y == 4}) : (List Int) = (?hole: (List Int));

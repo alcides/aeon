@@ -1,13 +1,16 @@
+# GCD: Given two positive integers, return their greatest common divisor.
+# input  : 2 integers in [1, 1000000]
+# output : integer in [1, 1000000]
+
 import PSB2 (extract_train_data, load_dataset)
+open List
 
-def train: TrainData = extract_train_data (load_dataset "gcd" 200 200)
+def train : TrainData = extract_train_data (load_dataset "gcd" 200 200)
 
-def calculate_gcd_errors : (train : TrainData) -> (f:(a: Int) -> (b: Int) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0])(x[1]) - y[0]) for x, y  in data]"
+def calculate_gcd_errors : (train: TrainData) -> (f: (a: {x:Int | 1 <= x && x <= 1000000}) -> (b: {y:Int | 1 <= y && y <= 1000000}) -> Int) -> (List Int) =
+    \data -> \func -> native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
 
-@hide(extract_train_data,
-            load_dataset,
-            train,
-            calculate_fuel_cost_errors)
-#@allow_recursion
-@multi_minimize_float(calculate_gcd_errors train synth, 1)
-def synth (n:Int) (z:Int) : Int = (?hole: Int)
+@hide(extract_train_data, load_dataset, train, calculate_gcd_errors)
+@multi_minimize_int(calculate_gcd_errors train synth, 1)
+def synth (n : {x:Int | 1 <= x && x <= 1000000})
+          (z : {y:Int | 1 <= y && y <= 1000000}) : {r:Int | 1 <= r} = (?hole: {r:Int | 1 <= r});
