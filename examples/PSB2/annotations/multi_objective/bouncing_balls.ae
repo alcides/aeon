@@ -1,19 +1,21 @@
-open Math
+# Bouncing Balls: Given a starting height, a height after the first bounce,
+# and a number of bounces, return the total distance the ball travels.
+# input  : float in [1.0, 100.0], float in [1.0, 100.0], int in [1, 20]
+# output : float
 
 import PSB2 (extract_train_data, load_dataset)
+open List
 
-type List
+def train : TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200)
 
-def calculate_bouncing_balls_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> List  =  \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]"
+def calculate_bouncing_balls_errors : (train: TrainData) -> (f: (a: {x:Float | 1.0 <= x && x <= 100.0})
+                                                              -> (b: {y:Float | 1.0 <= y && y <= 100.0})
+                                                              -> (c: {z:Int   | 1   <= z && z <= 20})
+                                                              -> Float) -> (List Float) =
+    \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]"
 
-def isZero : (n: Int) -> Bool = \n -> n == 0;
-
-def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200)
-
-@hide(extract_train_data,
-            load_dataset,
-            train,
-            calculate_bouncing_balls_errors)
+@hide(extract_train_data, load_dataset, train, calculate_bouncing_balls_errors)
 @multi_minimize_float(calculate_bouncing_balls_errors train synth, 1)
-def synth (a:Float) (b:Float) (c:Int) : Float
-    = (?hole: Float);
+def synth (a : {x:Float | 1.0 <= x && x <= 100.0})
+          (b : {y:Float | 1.0 <= y && y <= 100.0})
+          (c : {z:Int   | 1   <= z && z <= 20}) : {r:Float | 0.0 <= r} = (?hole: {r:Float | 0.0 <= r});

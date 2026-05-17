@@ -1,26 +1,24 @@
+# Substitution Cipher: Given two strings of the same length specifying a
+# character substitution alphabet (a -> b), and a third string (the message),
+# return the message with characters substituted according to the mapping.
+# input  : three strings of length [0, 26], len(b) == len(a)
+# output : string
+
 import PSB2 (extract_train_data, load_dataset)
-type List
-type Zip
-type Dict
+open List
 
-def Zip_String_String : (l1: String) -> (l2: String) -> Zip = \xs -> \ys -> native "zip(xs, ys)"
-def Dict_zip : (l: Zip) -> Dict = \xs -> native "dict(xs)"
-def String_list_to_String : (l:List) -> String = \l -> native "''.join(l)"
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = \d -> \k -> \y -> native "d.get(k, y)"
+def String_len (s: String) : Int = native "len(s)"
 
+def train : TrainData = extract_train_data (load_dataset "substitution-cipher" 200 200)
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = \f -> \xs -> native "map(f, xs)"
+def calculate_cipher_errors : (train: TrainData) -> (f: (a: {x:String | 0 <= String_len x && String_len x <= 26})
+                                                      -> (b: {y:String | String_len y == String_len a})
+                                                      -> (c: {z:String | 0 <= String_len z && String_len z <= 26})
+                                                      -> String) -> (List Int) =
+    \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0][0])(x[0][1])(x[0][2]), x[1][0]) for x in data]"
 
-
-def train: TrainData = extract_train_data (load_dataset "substitution-cipher" 200 200)
-
-def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]"
-
-
-
-@hide(extract_train_data,
-            load_dataset,
-            calculate_square_digits_errors,
-            train)
-@multi_minimize_float(calculate_cipher_errors train synth, 1)
-def synth (cipher_from: String) (cypher_to: String) (msg: String) : String = (?hole:String)
+@hide(extract_train_data, load_dataset, train, calculate_cipher_errors, String_len)
+@multi_minimize_int(calculate_cipher_errors train synth, 1)
+def synth (cipher_from : {x:String | 0 <= String_len x && String_len x <= 26})
+          (cypher_to   : {y:String | String_len y == String_len cipher_from})
+          (msg         : {z:String | 0 <= String_len z && String_len z <= 26}) : String = (?hole: String);
