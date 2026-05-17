@@ -8,7 +8,7 @@ from aeon.utils.name import Name
 
 
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.synthesis.api import InvalidFitness, Synthesizer
+from aeon.synthesis.api import InvalidIndividualException, Synthesizer
 
 from aeon.decorators.api import Metadata
 
@@ -50,7 +50,7 @@ def create_problem(
                 raise InvalidFitnessException()
             try:
                 return evaluate(p)
-            except InvalidFitness:
+            except InvalidIndividualException:
                 # Translate the backend-neutral exception raised by the
                 # Aeon evaluator into geneticengine's own "drop this
                 # candidate" sentinel.

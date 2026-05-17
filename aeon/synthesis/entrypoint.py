@@ -23,7 +23,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
-from aeon.synthesis.api import ErrorInSynthesis, InvalidFitness, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -65,10 +65,11 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
             # for ``@maximize_*`` and "infinitely bad" for ``@minimize_*``
             # at the same time — a hybrid the Pareto front cannot dominate,
             # so a single crash would lock in as "Best" forever (issue
-            # #120). Raise the backend-neutral ``InvalidFitness`` instead;
-            # synthesizer adapters translate it into their search
-            # framework's notion of "drop this candidate".
-            raise InvalidFitness()
+            # #120). Raise the backend-neutral
+            # ``InvalidIndividualException`` instead; synthesizer adapters
+            # translate it into their search framework's notion of "drop
+            # this candidate".
+            raise InvalidIndividualException()
 
     return fitness
 
@@ -97,7 +98,7 @@ def make_evaluator(
                 results = [ev(program) for ev in evaluators]
                 assert isinstance(results, list)
                 result_queue.put(("ok", results))
-            except InvalidFitness:
+            except InvalidIndividualException:
                 result_queue.put(("invalid", None))
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
@@ -126,7 +127,7 @@ def make_evaluator(
         if kind == "ok":
             return payload
         if kind == "invalid":
-            raise InvalidFitness()
+            raise InvalidIndividualException()
         raise ErrorInSynthesis(Exception(payload), msg=str(payload))
 
     return evaluate

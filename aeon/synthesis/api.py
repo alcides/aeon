@@ -30,7 +30,7 @@ class ErrorInSynthesis(SynthesisError):
         self.msg = msg
 
 
-class InvalidFitness(SynthesisError):
+class InvalidIndividualException(SynthesisError):
     """Raised by an evaluator when a candidate has no well-defined fitness
     (e.g. its evaluation throws). Backend-neutral: synthesizer adapters are
     responsible for translating this into whatever notion of "invalid
