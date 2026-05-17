@@ -17,6 +17,24 @@ from aeon.decorators.api import Metadata
 from aeon.llvm.core import LLVMPipeline
 
 real_eval = eval
+real_exec = exec
+
+
+def _native_eval(source: str, env: dict[str, Any]) -> Any:
+    """Run a Python snippet from a `native` FFI call and return its result.
+
+    Most snippets are expressions (e.g. `len(xs) + 1`). The inductive-type
+    recursor desugars to a `match` statement with `return` arms, which
+    `eval` can't run — wrap it in a generated function and call it.
+    """
+    try:
+        return real_eval(source, env)
+    except SyntaxError:
+        indented = "\n".join("    " + line for line in source.splitlines())
+        wrapped = f"def __aeon_native__():\n{indented}\n"
+        locals_ns: dict[str, Any] = {}
+        real_exec(wrapped, env, locals_ns)
+        return locals_ns["__aeon_native__"]()
 
 
 class EvaluationContext:
@@ -78,7 +96,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
                 python_ctx = {str(name): v for name, v in globals().items()}
                 python_ctx.update({str(name.name): v for name, v in ctx.variables.items()})
-                e = real_eval(argv, python_ctx)
+                e = _native_eval(argv, python_ctx)
             else:
                 e = f(argv)
             if is_native_import(fun):

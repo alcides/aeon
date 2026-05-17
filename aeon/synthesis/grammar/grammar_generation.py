@@ -57,6 +57,28 @@ APP_WEIGHT = 1000
 ABS_WEIGHT = 100
 
 
+def strip_refinements_keep_arg_refinements(ty: Type) -> Type:
+    """Like ``refined_to_unrefined_type`` but preserves refinements on the
+    argument positions of an abstraction chain.
+
+    Refinements on inductive-constructor argument positions (e.g.
+    ``Chunk_hill_chunk : {x:Int | x >= 5 && x <= 95} -> ... -> Chunk``)
+    are the only signal the grammar generator has for sampling ints within
+    the constructor's required range. Stripping them away makes the search
+    plug random ints from the global ``[-1, 256]`` default into refined
+    slots, which almost never type-checks.
+    """
+    if isinstance(ty, RefinedType):
+        return ty.type
+    if isinstance(ty, AbstractionType):
+        return AbstractionType(
+            ty.var_name,
+            ty.var_type,
+            strip_refinements_keep_arg_refinements(ty.type),
+        )
+    return ty
+
+
 def extract_class_name(class_name: str) -> str:
     prefixes = [
         "var_",
@@ -193,8 +215,11 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
     Each node:
     - Uses a metahandler (e.g. IntRange(1, 99)) so the enumerative search only
       iterates values that satisfy the refinement.
-    - Inherits from the BASE type's grammar class (e.g. æInt) so it is a direct
-      alternative for that class in the grammar — no refined abstract class needed.
+    - Inherits from the refined type's grammar class, which itself inherits
+      from the base type's class. The literal thus fills both refined-typed
+      slots (e.g. ``Chunk_hill_chunk``'s ``{x:Int|5..95}`` arg) AND base-typed
+      slots (plain ``Int`` holes) — geneticengine considers any transitive
+      subclass a valid alternative.
     - Returns a Literal with the base (unrefined) type from get_core() so the
       type checker can handle it correctly.
     """
@@ -202,8 +227,12 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
     result = []
     for aeon_ty in ref_types:
         base_type = aeon_ty.type
-        # Parent is the BASE type's class (e.g. æInt), not the refined abstract class.
-        parent_class = type_info[base_type]
+        # Parent is the refined type's own abstract class so this literal can
+        # fill positions typed exactly as the refined type (constructor args,
+        # function params with refinements). The refined abstract class in
+        # turn inherits from the base, so this also remains an alternative
+        # for plain base-typed slots.
+        parent_class = type_info[aeon_ty]
         metahandler = refined_type_to_metahandler(aeon_ty)
         if metahandler is None:
             continue
@@ -626,8 +655,12 @@ def gen_grammar_nodes(
     poly_ctx_vars = [(vn, vt) for (vn, vt) in ctx_vars if isinstance(vt, TypePolymorphism)]
     mono_ctx_vars = [(vn, vt) for (vn, vt) in ctx_vars if not isinstance(vt, TypePolymorphism)]
 
-    # Strip refinements from monomorphic variable types
-    ctx_vars_unrefined = [(var_name, refined_to_unrefined_type(var_ty)) for (var_name, var_ty) in mono_ctx_vars]
+    # Strip refinements from the return positions of monomorphic variable
+    # types but keep them on argument positions so the grammar can sample
+    # values within each argument's refinement bounds.
+    ctx_vars_unrefined = [
+        (var_name, strip_refinements_keep_arg_refinements(var_ty)) for (var_name, var_ty) in mono_ctx_vars
+    ]
 
     # Collect types that are used as type arguments to parameterized constructors.
     # These are the only types we need to instantiate forall-bound variables with.
@@ -641,7 +674,7 @@ def gen_grammar_nodes(
     monomorphized: list[tuple[Name, Type, list[Type]]] = []
     for vn, vt in poly_ctx_vars:
         for mono_body, type_apps in monomorphize_poly_type(vt, instantiation_types):
-            mono_body_unrefined = refined_to_unrefined_type(mono_body)
+            mono_body_unrefined = strip_refinements_keep_arg_refinements(mono_body)
             monomorphized.append((vn, mono_body_unrefined, type_apps))
 
     # Collect types from monomorphized vars
