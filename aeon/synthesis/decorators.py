@@ -107,7 +107,7 @@ def multi_minimize_float(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects a single argument (the body of the definition)."""
+    """Minimize a fitness function that returns ``(List Float)`` of per-objective errors."""
     assert len(decorator.macro_args) == 2, "multi_minimize_float decorator expects two arguments"
     assert isinstance(decorator.macro_args[1], SLiteral)
     assert isinstance(decorator.macro_args[1].value, int), "multi_minimize_float decorator expects an integer argument"
@@ -116,7 +116,27 @@ def multi_minimize_float(
         [decorator.macro_args[0]],
         fun,
         metadata,
-        STypeConstructor(Name("List", 0)),
+        STypeConstructor(Name("List", 0), [st_float]),
+        minimize=True,
+        length=number_of_objectives,
+    )
+
+
+def multi_minimize_int(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Minimize a fitness function that returns ``(List Int)`` of per-objective errors."""
+    assert len(decorator.macro_args) == 2, "multi_minimize_int decorator expects two arguments"
+    assert isinstance(decorator.macro_args[1], SLiteral)
+    assert isinstance(decorator.macro_args[1].value, int), "multi_minimize_int decorator expects an integer argument"
+    number_of_objectives = decorator.macro_args[1].value
+    return make_optimizer(
+        [decorator.macro_args[0]],
+        fun,
+        metadata,
+        STypeConstructor(Name("List", 0), [st_int]),
         minimize=True,
         length=number_of_objectives,
     )

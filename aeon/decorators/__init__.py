@@ -34,6 +34,7 @@ from aeon.synthesis.decorators import (
     minimize_float,
     minimize_int,
     multi_minimize_float,
+    multi_minimize_int,
     prompt,
 )
 from aeon.typechecking.context import TypingContext
@@ -45,6 +46,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "minimize_float": minimize_float,
     "maximize_float": maximize_float,
     "multi_minimize_float": multi_minimize_float,
+    "multi_minimize_int": multi_minimize_int,
     "hide": hide,
     "hide_types": hide_types,
     "allow_recursion": allow_recursion,
