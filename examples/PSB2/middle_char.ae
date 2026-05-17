@@ -1,0 +1,18 @@
+# Middle Character: Given a string, return the middle character. If the
+# length is odd, return one character; if even, return the two middle ones.
+# input  : string of length [1, 100] (printable ASCII)
+# output : string of length 1 or 2
+
+import PSB2 (extract_train_data, load_dataset)
+open List
+
+def String_len (s: String) : Int = native "len(s)"
+
+def train : TrainData = extract_train_data (load_dataset "middle-character" 200 200)
+
+def calculate_middle_char_errors : (train: TrainData) -> (f: (a: {x:String | 1 <= String_len x && String_len x <= 100}) -> String) -> (List Int) =
+    \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
+
+@hide(extract_train_data, load_dataset, train, calculate_middle_char_errors, String_len)
+@multi_minimize_int(calculate_middle_char_errors train synth, 1)
+def synth (s : {x:String | 1 <= String_len x && String_len x <= 100}) : String = (?hole: String);
