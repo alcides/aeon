@@ -347,10 +347,18 @@ class ImportAe(Node):
 class TypeDecl(Node):
     name: Name
     args: list[Name] = field(default_factory=list)
+    rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"type {self.name};"
+        args = " ".join(str(arg) for arg in self.args)
+        rfs = " ".join(f"forall <{n}:{s} -> Bool>" for (n, s) in self.rforalls)
+        head = f"type {self.name}"
+        if args:
+            head += f" {args}"
+        if rfs:
+            head += f" {rfs}"
+        return f"{head};"
 
 
 @dataclass

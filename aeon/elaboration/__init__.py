@@ -186,16 +186,47 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
 
 
+def _resolve_uvars(ty: SType) -> SType:
+    """Replace every ``UnificationVar`` inside ``ty`` with its first concrete bound.
+
+    Two ``STypeConstructor``s built around different unification variables (each
+    pointing at the same concrete type) compare unequal because the variables
+    themselves differ. This helper produces a structurally-comparable surface for
+    ``unify_single`` so the equality check no longer trips on phantom UVars.
+    """
+    match ty:
+        case UnificationVar(_, lower, upper):
+            for cand in lower + upper:
+                resolved = _resolve_uvars(cand)
+                if not isinstance(resolved, UnificationVar):
+                    return resolved
+            return ty
+        case STypeConstructor(name, args, loc=loc):
+            return STypeConstructor(name, [_resolve_uvars(a) for a in args], loc=loc)
+        case SRefinedType(name, inner, ref, loc=loc):
+            return SRefinedType(name, _resolve_uvars(inner), ref, loc=loc)
+        case SAbstractionType(vname, vty, rty, loc=loc):
+            return SAbstractionType(vname, _resolve_uvars(vty), _resolve_uvars(rty), loc=loc)
+        case STypePolymorphism(name, kind, body, loc=loc):
+            return STypePolymorphism(name, kind, _resolve_uvars(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc=loc):
+            return SRefinementPolymorphism(name, _resolve_uvars(sort), _resolve_uvars(body), loc=loc)
+        case _:
+            return ty
+
+
 def unify_single(vname: str, xs: list[SType]) -> SType:
     match [x for x in xs if x != st_top]:
         case []:
             return st_unit
         case other:
-            fst = other[0]
-            for snd in other[1:]:
-                if snd != fst:
-                    raise UnificationFailedError(vname, fst, snd)
-            return fst
+            resolved = [_resolve_uvars(x) for x in other]
+            fst_r = resolved[0]
+            fst_original = other[0]
+            for snd, snd_r in zip(other[1:], resolved[1:]):
+                if snd_r != fst_r:
+                    raise UnificationFailedError(vname, fst_original, snd)
+            return fst_r
 
 
 def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) -> SType:
@@ -418,16 +449,24 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
     return (c, s)
 
 
-def extract_direction(ty: SType) -> set[SType]:
+def extract_direction(ty: SType) -> list[SType]:
+    """Collect resolved types reachable from ``ty`` (dropping ``UnificationVar`` shells).
+
+    Returns a list, not a set: nested ``STypeConstructor`` instances may transitively
+    contain unhashable ``UnificationVar``s, which makes them unhashable. Duplicates
+    are pruned by structural equality.
+    """
     assert isinstance(ty, SType)
     match ty:
         case UnificationVar(_, lower, upper):
-            r: set = set()
+            r: list[SType] = []
             for t in lower + upper:
-                r = r.union(extract_direction(t))
+                for sub in extract_direction(t):
+                    if sub not in r:
+                        r.append(sub)
             return r
         case _:
-            return set([ty])
+            return [ty]
 
 
 def replace_unification_variables(

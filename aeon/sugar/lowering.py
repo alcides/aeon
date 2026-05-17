@@ -286,6 +286,10 @@ def monomorphic_type(ty: Type) -> AbstractionType:
     match ty:
         case TypePolymorphism(name, _, body):
             return monomorphic_type(substitute_vartype(body, t_int, name))
+        case RefinementPolymorphism(_, _, body):
+            # Refinement polymorphism is erased for the purposes of monomorphic uninterpreted
+            # binders — the abstract predicate doesn't affect the SMT shape we hand out here.
+            return monomorphic_type(body)
         case AbstractionType(_, _, _):
             return ty
         case _:
@@ -302,8 +306,9 @@ def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
             return UninterpretedBinder(name, concrete_absty)
         case ElabTypeVarBinder(name, kind):
             return TypeBinder(name, kind)
-        case ElabTypeDecl(name, args):
-            return TypeConstructorBinder(name, args)
+        case ElabTypeDecl(name, args, rforalls):
+            rfs = [(n, type_to_core(s)) for (n, s) in rforalls]
+            return TypeConstructorBinder(name, args, rfs)
         case _:
             assert False, f"{e} not supported in Core."
 

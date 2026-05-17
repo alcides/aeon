@@ -116,8 +116,15 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 except Exception:
                     pass
 
-            if isinstance(var_value, Abstraction):
-                fun = var_value
+            # Peel off TypeAbstraction/RefinementAbstraction wrappers introduced by
+            # elaboration so the recursion-tying trick still applies to polymorphic
+            # functions (e.g. ``def length : forall a, ... = \\l -> ... (length tl) ...``).
+            inner_value = var_value
+            while isinstance(inner_value, (TypeAbstraction, RefinementAbstraction)):
+                inner_value = inner_value.body
+
+            if isinstance(inner_value, Abstraction):
+                fun = inner_value
 
                 def v(x):
                     return eval(

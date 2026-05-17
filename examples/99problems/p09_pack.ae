@@ -1,12 +1,12 @@
 # Problem 9: Pack consecutive duplicates of list elements into sublists.
 
-open List
+open Array
 
 def itertools : Unit = native_import "itertools"
 
-def pack (l: (List Int)) : (List (List Int)) =
+def pack (l: (Array Int)) : (Array (Array Int)) =
     native "[list(g) for k, g in itertools.groupby(l)]"
 
 def main (args:Int) : Unit =
-    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 1) 1) 2) 3) 3;
+    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 1) 2) 3) 3;
     print (pack a)

@@ -1,4 +1,4 @@
-open List
+open Array
 
 type Path
 
@@ -91,11 +91,11 @@ def mkdirAll (p: Path) : Unit = native "p.mkdir(parents=True, exist_ok=True)"
 
 # Lists immediate children of p as a list of names. Raises if p is not
 # a directory.
-def listDir (p: Path) : (List String) =
+def listDir (p: Path) : (Array String) =
     native "[child.name for child in p.iterdir()]"
 
 # Returns paths matching pattern relative to p (e.g. "*.py").
-def glob (p: Path) (pattern: {s:String | s != ""}) : (List Path) =
+def glob (p: Path) (pattern: {s:String | s != ""}) : (Array Path) =
     native "list(p.glob(pattern))"
 
 # ── Mutations ──────────────────────────────────────────────────────────

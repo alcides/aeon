@@ -1,19 +1,14 @@
 open List
 
-def consume : (l: {x:(List Int) | List.size x == 1}) -> Int = \n -> 0;
-def consume : (l:(List Int) | List.size l == 1) -> Int = \n -> 0;
+def consume : (l:(List Int)) -> Int = \n -> 0;
 
-# def neg1 : Int = consume(List.new)
-
-# def neg2: Int = consume(List.append(List.append(List.new)(1))(1))
-
-def pos : Int = consume (List.append (List.new[Int]) 1)
+def pos : Int = consume (List.snoc (List.nil[Int]) 1)
 
 def main (x:Int) : Unit =
-    empty = List.new[Int];
-    one = List.append empty 3;
-    two = List.append one 2;
-    three : (List Int) = List.append two 1;
+    nil0 : (List Int) = List.nil[Int];
+    one : (List Int) = List.snoc nil0 3;
+    two : (List Int) = List.snoc one 2;
+    three : (List Int) = List.snoc two 1;
     plus : (x:Int) -> (y: Int) -> Int = (\x -> \y -> x + y);
-    v : Int = (List.recursive three 0 plus);
+    v : Int = (List.foldr plus 0 three);
     print v;

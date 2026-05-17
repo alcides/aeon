@@ -1,16 +1,16 @@
 # Problem 23: Select n random elements from a list (without replacement).
 # Refinement: n must be at most the size of the list; output has size n.
 
-open List
+open Array
 
 def random : Unit = native_import "random"
 
-def rndSelect (l: (List Int)) (n: {k:Int | k >= 0 && k <= List_size l}) :
-        {r:(List Int) | List_size r == n} =
+def rndSelect (l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array_size l}) :
+        {r:(Array Int) | Array_size r == n} =
     native "random.sample(l, n)"
 
 def main (args:Int) : Unit =
     _ = native "random.seed(42)";
-    a : {x:(List Int) | List_size x == 6} =
-        List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5) 6;
+    a : {x:(Array Int) | Array_size x == 6} =
+        Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6;
     print (rndSelect a 3)

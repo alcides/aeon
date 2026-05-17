@@ -68,13 +68,18 @@ class TypeBinder(TypingContextEntry):
 class TypeConstructorBinder(TypingContextEntry):
     name: Name
     args: list[Name]  # cant hash
+    rforalls: list[tuple[Name, Type]] = field(default_factory=list)
 
     def __repr__(self):
         if self.args:
             argsf = "(" + ", ".join(map(str, self.args)) + ")"
         else:
             argsf = ""
-        return f"type {self.name}{argsf}"
+        if self.rforalls:
+            rfs = " " + " ".join(f"forall <{n}:{s} -> Bool>" for (n, s) in self.rforalls)
+        else:
+            rfs = ""
+        return f"type {self.name}{argsf}{rfs}"
 
     def __hash__(self):
         return hash(self.name) + hash(tuple(self.args))

@@ -34,6 +34,7 @@ class ElabTypeVarBinder(ElabTypingContextEntry):
 class ElabTypeDecl(ElabTypingContextEntry):
     name: Name
     args: list[Name]
+    rforalls: list[tuple[Name, SType]] = field(default_factory=list)
 
 
 @dataclass
@@ -79,7 +80,8 @@ def build_typing_context(
     if constructor_defs is None:
         constructor_defs = {}
     return ElaborationTypingContext(
-        [ElabVariableBinder(name, ls[name]) for name in ls] + [ElabTypeDecl(td.name, td.args) for td in tdecl],
+        [ElabVariableBinder(name, ls[name]) for name in ls]
+        + [ElabTypeDecl(td.name, td.args, td.rforalls) for td in tdecl],
         constructor_to_type,
         constructor_defs,
     )

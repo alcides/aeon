@@ -1,11 +1,11 @@
 # Problem 16: Drop every N'th element from a list.
 # n must be at least 1 to make sense.
 
-open List
+open Array
 
-def drop_every (l: (List Int)) (n: {k:Int | k >= 1}) : (List Int) =
+def drop_every (l: (Array Int)) (n: {k:Int | k >= 1}) : (Array Int) =
     native "[x for i, x in enumerate(l) if (i + 1) % n != 0]"
 
 def main (args:Int) : Unit =
-    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
+    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
     print (drop_every a 3)
