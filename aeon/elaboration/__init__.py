@@ -139,11 +139,18 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
         case (_, SRefinedType(_, ty, _)):
             return unify(ctx, sub, ty)
         case (UnificationVar(_, _, _), _):
+            # Skip if this exact bound is already recorded — propagation is
+            # idempotent, and re-adding lets two-way ``?X <: ?Y`` / ``?Y <: ?X``
+            # cycles diverge through the cross-iteration below.
+            if any(u is sup for u in sub.upper):
+                return []
             sub.upper.append(sup)
             for l in sub.lower:
                 unify(ctx, l, sup)
             return []
         case (_, UnificationVar(_, _, _)):
+            if any(s is sub for s in sup.lower):
+                return []
             sup.lower.append(sub)
             for u in sup.upper:
                 unify(ctx, sub, u)
