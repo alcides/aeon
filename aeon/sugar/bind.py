@@ -255,6 +255,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     # Register all declared type names first so they are treated as concrete
     # types (not free type variables) throughout the rest of the program.
     for td in p.type_decls:
+        name, nsubs = check_type_decl_name(td.name, nsubs)
         targs = []
         for aname in td.args:
             nname, nsubs = check_name(aname, nsubs)
