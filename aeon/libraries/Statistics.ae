@@ -1,4 +1,4 @@
-open Array
+open List
 
 # ─── Uninterpreted refinement-language symbols ─────────────────────────
 # These live in the refinement language so Z3 can reason about them as
@@ -6,20 +6,20 @@ open Array
 # them via refined return types.
 
 # Fraction of xs strictly below threshold t.
-def fracBelow : (xs: (Array Float)) -> (t: Float) -> Float := uninterpreted
+def fracBelow : (xs: (List Float)) -> (t: Float) -> Float = uninterpreted
 
 # Fraction of xs strictly above threshold t.
-def fracAbove : (xs: (Array Float)) -> (t: Float) -> Float := uninterpreted
+def fracAbove : (xs: (List Float)) -> (t: Float) -> Float = uninterpreted
 
 # Fraction of xs in the open interval (lo, hi).
-def fracBetween : (xs: (Array Float)) -> (lo: Float) -> (hi: Float) -> Float := uninterpreted
+def fracBetween : (xs: (List Float)) -> (lo: Float) -> (hi: Float) -> Float = uninterpreted
 
 # Sample summary statistics as abstract symbols.
-def sampleMean : (xs: (Array Float)) -> Float := uninterpreted
-def sampleVar  : (xs: (Array Float)) -> Float := uninterpreted
-def sampleStd  : (xs: (Array Float)) -> Float := uninterpreted
-def sampleMin  : (xs: (Array Float)) -> Float := uninterpreted
-def sampleMax  : (xs: (Array Float)) -> Float := uninterpreted
+def sampleMean : (xs: (List Float)) -> Float = uninterpreted
+def sampleVar  : (xs: (List Float)) -> Float = uninterpreted
+def sampleStd  : (xs: (List Float)) -> Float = uninterpreted
+def sampleMin  : (xs: (List Float)) -> Float = uninterpreted
+def sampleMax  : (xs: (List Float)) -> Float = uninterpreted
 
 # ─── Axioms (encoded as native no-op castings) ─────────────────────────
 # Each helper is a runtime no-op (returns its input); the return refinement
@@ -30,31 +30,31 @@ def widenBelow
     (1 xs: {x: (Array Float) | Array.size x > 0})
     (t1: Float)
     (t2: {t: Float | t >= t1})
-    : {r: (Array Float) | Array.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
-    := native "xs"
+    : {r: (List Float) | List.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
+    = native "xs"
 
 # Monotonicity above:  t1 <= t2  ⇒  fracAbove xs t1 >= fracAbove xs t2.
 def widenAbove
     (1 xs: {x: (Array Float) | Array.size x > 0})
     (t1: Float)
     (t2: {t: Float | t <= t1})
-    : {r: (Array Float) | Array.size r > 0 && fracAbove r t2 >= fracAbove xs t1}
-    := native "xs"
+    : {r: (List Float) | List.size r > 0 && fracAbove r t2 >= fracAbove xs t1}
+    = native "xs"
 
 # Complement at a non-atomic point:  fracBelow + fracAbove = 1.
 def belowComplement
     (1 xs: {x: (Array Float) | Array.size x > 0})
     (t: Float)
-    : {r: (Array Float) | Array.size r > 0 && ((fracBelow r t) = (1.0 - fracAbove xs t))}
-    := native "xs"
+    : {r: (List Float) | List.size r > 0 && ((fracBelow r t) == (1.0 - fracAbove xs t))}
+    = native "xs"
 
 # Between bound: fracBetween lo hi >= fracBelow hi - fracBelow lo (slack covers atoms).
 def betweenFromBelow
     (1 xs: {x: (Array Float) | Array.size x > 0})
     (lo: Float)
     (hi: {h: Float | h >= lo})
-    : {r: (Array Float) | Array.size r > 0 && fracBetween r lo hi >= fracBelow xs hi - fracBelow xs lo}
-    := native "xs"
+    : {r: (List Float) | List.size r > 0 && fracBetween r lo hi >= fracBelow xs hi - fracBelow xs lo}
+    = native "xs"
 
 # ─── Runtime statistics ────────────────────────────────────────────────
 

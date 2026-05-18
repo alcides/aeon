@@ -1,7 +1,7 @@
 # Problem 4: Find the number of elements of a list.
 # The result is exactly the abstract size of the list (refinement-tracked).
 
-open Array
+open List
 
 def Array.len (1 l: (Array a)) : {n:Int | n = Array.size l} := l.length
 

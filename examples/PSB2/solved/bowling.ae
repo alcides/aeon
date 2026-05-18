@@ -12,7 +12,7 @@ def String_get (l:String) (i:Int) : String := native "l[i]"
 def String_to_int (s:String) : Int := native "int(s)"
 def String_eq (s:String) (s2:String) : Bool := native "s == s2";
 
-def List_range_step (start:Int) (end:Int) (step:Int) : (Array Int) := native "list(range(start, end, step))"
+def List_range_step (start:Int) (end:Int) (step:Int) : List = native "list(range(start, end, step))"
 
  def convert_bowling(score: String) : Int := if score.eq "X" then
     10

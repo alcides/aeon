@@ -1,4 +1,4 @@
-open Array
+open List
 open Map
 
 def sys : Unit := native_import "sys"

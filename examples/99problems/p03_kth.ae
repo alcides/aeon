@@ -1,7 +1,7 @@
 # Problem 3: Find the K'th element of a list (0-indexed).
 # Refinement enforces that k is a valid index.
 
-open Array
+open List
 
 def kth (1 l: (Array a)) (k: {n:Int | n >= 0 && n < Array.size l}) : a := native "l[k]"
 

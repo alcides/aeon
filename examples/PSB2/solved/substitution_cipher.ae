@@ -1,4 +1,4 @@
-import Array
+type List
 type Zip
 type Dict
 
@@ -8,7 +8,7 @@ def String_list_to_String : (1 l:(Array Int)) -> String := fun l => native "''.j
 def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d => fun k => fun y => native "d.get(k, y)"
 
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
+def Map_String_String: (function: (a:String) -> String) -> (l: String) -> List = \f -> \xs -> native "map(f, xs)"
 
 def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String := cipher_dict: Dict := Dict_zip (Zip_String_String cipher_from cypher_to);
  mapper : (x:String) -> String := fun x => cipher_dict.get x x;

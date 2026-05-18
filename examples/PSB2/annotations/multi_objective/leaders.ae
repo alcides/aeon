@@ -1,6 +1,5 @@
 import PSB2 (extract_train_data, load_dataset)
-import Array
-def itertools : Unit := native_import "itertools"
+type List
 
 def List_reversed: (1 l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
 def List_new (_: Unit) : (Array Int)  := native "[]"

@@ -1,4 +1,4 @@
-open Array
+open List
 open Math
 
 # ─── Probabilistic refinement scaffolding ──────────────────────────────
@@ -14,8 +14,8 @@ def widenThreshold
     (1 xs: {x: (Array Float) | Array.size x > 0})
     (t1: Float)
     (t2: {t: Float | t >= t1})
-    : {r: (Array Float) | Array.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
-    := native "xs"
+    : {r: (List Float) | List.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
+    = native "xs"
 
 # ─── Producer: normal samples around (a, b) ────────────────────────────
 
@@ -25,8 +25,8 @@ def normalSample
     (a: Float)
     (b: {y: Float | y > 0.0})
     (n: {m: Int | m > 0})
-    : { xs: (Array Float)
-      | Array.size xs > 0
+    : { xs: (List Float)
+      | List.size xs > 0
         && fracBelow xs (a + 2.33 * b) >= 0.99 }
     := native "list(__import__('numpy').random.normal(a, b, n))"
 

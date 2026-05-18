@@ -1,7 +1,7 @@
 # Problem 14: Duplicate the elements of a list.
 # Refinement: the output has exactly twice the size of the input.
 
-open Array
+open List
 
 def duplicate (1 l: (Array Int)) : {r:(Array Int) | Array.size r = 2 * Array.size l} :=
     native "[x for x in l for _ in range(2)]"

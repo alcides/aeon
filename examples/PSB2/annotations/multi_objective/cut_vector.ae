@@ -1,9 +1,8 @@
 import PSB2 (extract_train_data, load_dataset)
 
-import Array
-def itertools : Unit := native_import "itertools"
+type List
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
+def itertools : Unit = native_import "itertools"
 
 def List_slice : (1 i:(Array Int)) -> (j:Int) -> (l:Int)-> (Array Int) := fun i => fun j => fun l => native "i[j:l]"
 def List_remove_last : (1 i:(Array Int)) -> (Array Int) := fun i => native "i[:-1]"

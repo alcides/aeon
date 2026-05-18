@@ -1,3 +1,12 @@
+"""Constraint helpers — pure re-export of the Rust core.
+
+Implementations live in ``aeon-rs/src/helpers.rs``. The string-overloaded
+test helpers (``parse_liquid`` / string-form ``imp`` / string-form ``end``)
+moved to ``tests/_parser_helpers.py`` because they need the lark-based
+parser, which would otherwise drag a Python dependency back into this
+module.
+"""
+
 from __future__ import annotations
 
 from functools import reduce

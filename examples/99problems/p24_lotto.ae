@@ -1,12 +1,12 @@
 # Problem 24: Draw n different random numbers from the set 1..m (a lotto draw).
 # Refinement: n must not exceed m; output has size n.
 
-open Array
+open List
 
 def random : Unit := native_import "random"
 
 def lotto (n: {k:Int | k >= 0}) (m: {x:Int | x >= n}) :
-        {r:(Array Int) | Array.size r = n} :=
+        {r:(List Int) | List_size r == n} =
     native "random.sample(range(1, m + 1), n)"
 
 def main (args:Int) : Unit :=

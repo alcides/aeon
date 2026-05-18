@@ -1,7 +1,6 @@
-import Array
-def String_len : (i:String) -> Int := fun i => native "len(i)"
+type List
 
-def Range: (start : Int) -> (stop : Int) -> (step : Int) -> (Array Int) := fun start => fun stop => fun step => native "list(range(start, stop, step ))"
+def String_len : (i:String) -> Int = \i -> native "len(i)"
 
 def Filter :  (f: (s:Int) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
 

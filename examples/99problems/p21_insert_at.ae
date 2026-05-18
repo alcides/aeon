@@ -1,7 +1,7 @@
 # Problem 21: Insert an element at a given position into a list (0-indexed).
 # Refinement: position is in range, output size is exactly one larger.
 
-open Array
+open List
 
 def insert_at (x: Int) (1 l: (Array Int)) (k: {n:Int | n >= 0 && n <= Array.size l}) :
         {r:(Array Int) | Array.size r = Array.size l + 1} :=

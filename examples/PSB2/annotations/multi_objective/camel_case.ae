@@ -1,9 +1,7 @@
 import PSB2 (psb2_aeon, extract_train_data, load_dataset)
-import Array
-def calculate_camel_case_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
+type List
 
-def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep => native "s.split(sep)"
-def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
+def calculate_camel_case_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
 
 def Map_string_string : (f: (s:String) -> String) -> (l:String) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 def Map_string_list : (f: (s:String) -> String) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"

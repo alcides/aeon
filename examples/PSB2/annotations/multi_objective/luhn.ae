@@ -1,6 +1,6 @@
 import PSB2 (extract_train_data, load_dataset)
 
-import Array
+type List
 type Range
 type Map
 
@@ -15,7 +15,7 @@ def sum : (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
 def List_map_List_Range : (function:(a: Int) -> (b:Int) -> Int)
                         -> (1 l:(Array Int))
                         -> (r:Range)
-                        -> (Array Int) := fun f => fun xs => fun r => native "list(map(lambda x, y:f(x)(y), xs, r))";
+                        -> List = \f -> \xs -> \r -> native "list(map(lambda x, y:f(x)(y), xs, r))";
 
 def List_map_List : (function:(a: Int) -> Int)
                         -> (1 l:(Array Int))

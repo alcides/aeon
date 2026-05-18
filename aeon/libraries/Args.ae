@@ -1,4 +1,4 @@
-open Array
+open List
 
 type Parser
 type ParsedArgs

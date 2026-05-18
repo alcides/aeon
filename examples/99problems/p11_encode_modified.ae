@@ -2,7 +2,7 @@
 # Singletons are kept as a 1-element list [value]; groups become [count, value].
 # This approximates Lean's ``Either α (Nat × α)`` using a length-1 or length-2 list.
 
-open Array
+open List
 
 def itertools : Unit := native_import "itertools"
 

@@ -1,7 +1,7 @@
 # Problem 10: Run-length encoding of a list.
 # Each group is encoded as a [count, value] pair represented as a 2-element list.
 
-open Array
+open List
 
 def itertools : Unit := native_import "itertools"
 

@@ -1,5 +1,9 @@
+"""Liquid (refinement) type checker — pure re-export of the Rust core.
+
+Implementations live in ``aeon-rs/src/liquid_check.rs``.
+"""
+
 from __future__ import annotations
-from dataclasses import dataclass
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool

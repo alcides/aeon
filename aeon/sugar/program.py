@@ -1,3 +1,9 @@
+"""Surface (sugar) AST: STerm hierarchy + the Node declaration hierarchy.
+
+Re-exports the Rust core (aeon_rs). The classes mirror what was previously
+defined here as Python dataclasses.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

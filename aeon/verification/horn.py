@@ -1,53 +1,45 @@
+"""Horn-clause solver — pure re-export of the Rust core.
+
+Implementation lives in ``aeon-rs/src/horn.rs``. The qualifier-candidate
+path used to call back into Python's ``aeon.typechecking.liquid`` and
+``aeon.typechecking.qualifiers``; those are now Rust too
+(``liquid_check.rs`` / ``qualifiers.rs``), so the call-back path is
+Rust-to-Rust end-to-end. The only Python data still read at runtime
+is ``aeon.core.liquid_ops.liquid_prelude`` (the built-in operator type
+signatures), which stays in Python for now.
+"""
+
 from __future__ import annotations
 
-from functools import reduce
-from typing import Any, Generator
+from typing import TypeAlias
 
-from aeon.core.types import builtin_core_types
-from aeon.core.liquid import LiquidApp
-from aeon.core.types import LiquidHornApplication, TypeConstructor
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.liquid import LiquidLiteralUnit
-from aeon.core.liquid import LiquidLiteralFloat
-from aeon.core.liquid import LiquidLiteralInt
-from aeon.core.liquid import LiquidLiteralString
+from aeon_rs import adapt_qualifier_to_hole as adapt_qualifier_to_hole
+from aeon_rs import apply as apply
+from aeon_rs import build_qualifier_candidates as build_qualifier_candidates
+from aeon_rs import apply_constraint as apply_constraint
+from aeon_rs import apply_liquid as apply_liquid
+from aeon_rs import build_initial_assignment as build_initial_assignment
+from aeon_rs import contains_horn as contains_horn
+from aeon_rs import contains_horn_constraint as contains_horn_constraint
+from aeon_rs import extract_components_of_imp as extract_components_of_imp
+from aeon_rs import fill_horn_arguments as fill_horn_arguments
+from aeon_rs import fixpoint as fixpoint
+from aeon_rs import flat as flat
+from aeon_rs import fresh as fresh
+from aeon_rs import get_possible_args as get_possible_args
+from aeon_rs import has_k_head as has_k_head
+from aeon_rs import merge_assignments as merge_assignments
+from aeon_rs import mk_arg as mk_arg
+from aeon_rs import obtain_holes as obtain_holes
+from aeon_rs import obtain_holes_constraint as obtain_holes_constraint
+from aeon_rs import smt_base_type as smt_base_type
+from aeon_rs import solve as solve
+from aeon_rs import split as split
+from aeon_rs import weaken as weaken
+from aeon_rs import wellformed_horn as wellformed_horn
+
 from aeon.core.liquid import LiquidTerm
-from aeon.core.liquid import LiquidVar
-from aeon.core.liquid_ops import mk_liquid_and
-from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import AbstractionType
-from aeon.core.types import ExistentialType
-from aeon.core.types import RefinedType
-from aeon.core.types import t_bool
-from aeon.core.types import Top
-from aeon.core.types import Type
-from aeon.core.types import TypePolymorphism
-from aeon.core.types import RefinementPolymorphism
-from aeon.core.types import TypeVar
-from aeon.core.liquid_ops import liquid_prelude
-from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
-from aeon.typechecking.liquid import (
-    LiquidTypeCheckException,
-    LiquidTypeCheckingContext,
-    check_liquid,
-    liquid_admissible,
-    lower_abstraction_type,
-    lower_context,
-    type_infer_liquid,
-)
-from aeon.typechecking.qualifiers import extract_qualifier_atoms
-from aeon.verification.helpers import constraint_builder
-from aeon.verification.helpers import end
-from aeon.verification.helpers import imp
-from aeon.verification.smt import smt_valid
-from aeon.verification.vcs import Conjunction
-from aeon.verification.vcs import Constraint
-from aeon.verification.vcs import Implication
-from aeon.verification.vcs import LiquidConstraint
-from aeon.verification.vcs import ReflectedFunctionDeclaration
-from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from aeon.utils.name import Name, fresh_counter
+from aeon.utils.name import Name
 
 Assignment = dict[Name, list[LiquidTerm]]
 

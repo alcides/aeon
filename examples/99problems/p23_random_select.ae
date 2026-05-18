@@ -1,7 +1,7 @@
 # Problem 23: Select n random elements from a list (without replacement).
 # Refinement: n must be at most the size of the list; output has size n.
 
-open Array
+open List
 
 def random : Unit := native_import "random"
 

@@ -1,11 +1,7 @@
-from abc import ABC
-from dataclasses import dataclass, field
-from typing import MutableSequence
+"""Elaboration typing context — pure re-export of the Rust core
+(``aeon-rs/src/elabctx.rs``)."""
 
-from aeon.core.types import Kind
-from aeon.sugar.program import TypeDecl
-from aeon.sugar.stypes import SType
-from aeon.utils.name import Name, fresh_counter
+from __future__ import annotations
 
 
 class ElabTypingContextEntry(ABC):

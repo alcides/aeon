@@ -1,59 +1,12 @@
-from typing import MutableSequence
-from aeon.elaboration.context import (
-    ElabTypingContextEntry,
-    ElabVariableBinder,
-    ElaborationTypingContext,
-    ElabUninterpretedBinder,
-    ElabTypeVarBinder,
-    ElabTypeDecl,
-)
-from aeon.sugar.program import (
-    Decorator,
-    Definition,
-    InductiveDecl,
-    Program,
-    SAbstraction,
-    SAnonConstructor,
-    SMethodSelector,
-    SAnnotation,
-    SApplication,
-    SHole,
-    SImplicitRefinementHole,
-    SBy,
-    SIf,
-    SMatch,
-    SLet,
-    SLiteral,
-    SQualifiedVar,
-    SRec,
-    SRefinementAbstraction,
-    SRefinementApplication,
-    STerm,
-    STypeAbstraction,
-    STypeApplication,
-    SVar,
-    TypeDecl,
-)
-from aeon.sugar.stypes import (
-    SAbstractionType,
-    SRefinedType,
-    SRefinementPolymorphism,
-    SType,
-    STypeConstructor,
-    STypePolymorphism,
-    STypeVar,
-    builtin_types,
-)
-from aeon.utils.name import Name, fresh_counter
+"""Name-resolution / binding pass for sugar AST — pure re-export of the
+Rust core (``aeon-rs/src/bind.rs``)."""
 
-RenamingSubstitions = list[tuple[str, Name]]
+from __future__ import annotations
 
+from aeon_rs import bind, bind_program, py_bind_ectx, py_bind_sterm
 
-def get_last_id(x: str, subs: RenamingSubstitions) -> Name | None:
-    for sub, v in subs[::-1]:
-        if x == sub:
-            return v
-    return None
+bind_ectx = py_bind_ectx
+bind_sterm = py_bind_sterm
 
 
 def check_name(name: Name, subs: RenamingSubstitions) -> tuple[Name, RenamingSubstitions]:

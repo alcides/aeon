@@ -1,7 +1,7 @@
 # Problem 20: Remove the K'th element from a list (0-indexed).
 # Refinement: k is a valid index, and output has size one less than input.
 
-open Array
+open List
 
 def remove_at (1 l: (Array Int)) (k: {x:Int | x >= 0 && x < Array.size l}) :
         {r:(Array Int) | Array.size r = Array.size l - 1} :=

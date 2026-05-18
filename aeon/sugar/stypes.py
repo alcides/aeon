@@ -1,5 +1,17 @@
-from abc import ABC
-from dataclasses import dataclass, field
+"""Surface-level type representation. Re-exports the Rust core (aeon_rs)
+plus the Python-side `get_type_vars` helper and the `builtin_types` list.
+"""
+
+from __future__ import annotations
+
+from aeon_rs import SAbstractionType as SAbstractionType
+from aeon_rs import SRefinedType as SRefinedType
+from aeon_rs import SRefinementPolymorphism as SRefinementPolymorphism
+from aeon_rs import SType as SType
+from aeon_rs import STypeConstructor as STypeConstructor
+from aeon_rs import STypePolymorphism as STypePolymorphism
+from aeon_rs import STypeVar as STypeVar
+
 from functools import reduce
 
 from aeon.core.multiplicity import Multiplicity, MOmega

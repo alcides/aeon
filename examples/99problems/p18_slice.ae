@@ -1,7 +1,7 @@
 # Problem 18: Extract a slice from a list.
 # Given indices i and k (1-indexed, inclusive), return l[i..k].
 
-open Array
+open List
 
 def slice (1 l: (Array Int))
           (i: {x:Int | x >= 1 && x <= Array.size l})

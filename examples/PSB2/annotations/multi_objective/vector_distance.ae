@@ -1,9 +1,10 @@
 import PSB2 (extract_train_data, load_dataset)
-import Array
-def math : Unit := native_import "math"
-def Math_sqrt_Float : (i:Float) -> Float := fun i => native "math.sqrt(i)"
-def Math_pow : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "i ** j"
-def Math_pow_Float : (i:Float) -> (j:Float) -> Float := fun i => fun j => native "i ** j"
+type List
+
+def math : Unit = native_import "math"
+def Math_sqrt_Float : (i:Float) -> Float = \i -> native "math.sqrt(i)"
+def Math_pow : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "i ** j"
+def Math_pow_Float : (i:Float) -> (j:Float) -> Float = \i -> \j -> native "i ** j"
 
 def Map_Float_Float_Float_List_List: (function: (a: Float) -> (b: Float) -> Float) ->
                                (1 l: (Array Int)) ->
@@ -22,7 +23,7 @@ def List_append_float (1 l:(Array Int)) (i: Float) : {l2:(Array Int) | List_size
 
 def train: TrainData := extract_train_data (load_dataset "vector-distance" 200 200)
 
-def input_list : (Array Int) := get_input_list (unpack_train_data train)
+def input_list : List = get_input_list (unpack_train_data train)
 
 def expected_values : (Array Int) := get_output_list (unpack_train_data train)
 def flatten_list : (1 t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"

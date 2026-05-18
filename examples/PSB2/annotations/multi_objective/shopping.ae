@@ -1,5 +1,5 @@
 import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_list_errors, get_shop_synth_values, unpack_train_data, load_dataset)
-import Array
+type List
 type Map
 
 def List_size: (1 l:(Array Int)) -> Int := uninterpreted
