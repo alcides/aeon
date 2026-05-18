@@ -14,6 +14,7 @@ from aeon.core.liquid import (
 )
 from aeon.core.types import (
     AbstractionType,
+    ExistentialType,
     LiquidHornApplication,
     RefinedType,
     TypeConstructor,
@@ -285,6 +286,27 @@ def test_lower_context_refined_var():
     lctx = lower_context(ctx)
     assert x in lctx.variables
     assert lctx.variables[x] == t_int
+
+
+def test_lower_context_existential_var():
+    """Form B ``ExistentialType`` bindings should be peeled — the binders
+    inside become independent variables and the body provides the outer
+    variable's bare type. Previously ``lower_context`` raised
+    ``AssertionError("Unknown context type …")`` whenever the typing
+    context held an existential binding (introduced when ANF was replaced
+    with Form B in #226), which propagated as a ``CoreWellformnessError``
+    during synthesis whenever a refinement type was checked."""
+    ctx = TypingContext()
+    inner_binder = Name("inner")
+    inner_refined = RefinedType(Name("v"), t_int, LiquidLiteralBool(True))
+    body = TypeConstructor(Name("String", 0))
+    ty = ExistentialType(((inner_binder, inner_refined),), body)
+    ctx = ctx.with_var(x, ty)
+    lctx = lower_context(ctx)
+    assert x in lctx.variables
+    assert lctx.variables[x] == body
+    assert inner_binder in lctx.variables
+    assert lctx.variables[inner_binder] == t_int
 
 
 # ---------------------------------------------------------------------------
