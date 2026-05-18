@@ -1,8 +1,8 @@
 # Solve Boolean: Given a string representing a boolean expression with
-# 't', 'f', '|', and '&' (no operator precedence: left-to-right), evaluate
-# the expression and return the result as a Bool.
-# input  : string of length [1, 30]
-# output : Bool
+# characters 't', 'f', '&' (AND), '|' (OR), evaluate left-to-right
+# (no precedence, no parentheses) and return the resulting boolean.
+# input  : string of length [1, 30] in {'t','f','&','|'}
+# output : boolean
 
 import PSB2 (extract_train_data, load_dataset)
 open List

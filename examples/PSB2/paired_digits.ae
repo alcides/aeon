@@ -1,7 +1,7 @@
-# Paired Digits: Given a string of digits, return the sum of all pairs of
-# adjacent equal digits' values.
-# input  : string of length [2, 20] of digits
-# output : integer
+# Paired Digits: Given a string of digits, sum each digit that equals the
+# digit immediately following it.
+# input  : string of length [2, 20] of digits 0-9
+# output : integer in [0, 180]
 
 import PSB2 (extract_train_data, load_dataset)
 open List
@@ -15,4 +15,4 @@ def calculate_paired_digits_errors : (train: TrainData) -> (f: (a: {x:String | 2
 
 @hide(extract_train_data, load_dataset, train, calculate_paired_digits_errors, String_len)
 @multi_minimize_int(calculate_paired_digits_errors train synth, 1)
-def synth (nums : {x:String | 2 <= String_len x && String_len x <= 20}) : {r:Int | 0 <= r} = (?hole: {r:Int | 0 <= r});
+def synth (s : {x:String | 2 <= String_len x && String_len x <= 20}) : {r:Int | 0 <= r && r <= 180} = (?hole: {r:Int | 0 <= r && r <= 180});
