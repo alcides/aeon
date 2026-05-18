@@ -40,6 +40,7 @@ from aeon.sugar.stypes import (
     STypeConstructor,
     STypePolymorphism,
     STypeVar,
+    builtin_types,
 )
 from aeon.utils.name import Name, fresh_counter
 
@@ -59,6 +60,17 @@ def check_name(name: Name, subs: RenamingSubstitions) -> tuple[Name, RenamingSub
         return nname, subs + [(name.name, nname)]
     else:
         return name, subs + [(name.name, name)]
+
+
+def check_type_decl_name(name: Name, subs: RenamingSubstitions) -> tuple[Name, RenamingSubstitions]:
+    """Bind a type declaration's name. Re-declarations of builtin types
+    (e.g. `type String` in libraries/String.ae) bind to the builtin's id (0)
+    so all references — prelude signatures, literals, user code — share a
+    single canonical Name for the type."""
+    if name.id == -1 and name.name in builtin_types:
+        nname = Name(name.name, 0)
+        return nname, subs + [(name.name, nname)]
+    return check_name(name, subs)
 
 
 def apply_subs_name(subs: RenamingSubstitions, name: Name) -> Name:
@@ -85,7 +97,7 @@ def bind_ectx(
                 name, subs = check_name(name, subs)
                 e = ElabTypeVarBinder(name, kind)
             case ElabTypeDecl(name, args, rforalls):
-                name, subs = check_name(name, subs)
+                name, subs = check_type_decl_name(name, subs)
                 new_rfs = [(rn, bind_stype(rs, subs)) for (rn, rs) in rforalls]
                 e = ElabTypeDecl(name, args, new_rfs)
             case _:
@@ -125,8 +137,8 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
 
 def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
     match t:
-        case SLiteral(_, _):
-            return t
+        case SLiteral(val, ty, loc=loc):
+            return SLiteral(val, bind_stype(ty, subs), loc=loc)
         case SQualifiedVar():
             return t  # Resolved during desugaring, not during binding
         case SAnonConstructor():
@@ -243,7 +255,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     # Register all declared type names first so they are treated as concrete
     # types (not free type variables) throughout the rest of the program.
     for td in p.type_decls:
-        name, nsubs = check_name(td.name, nsubs)
+        name, nsubs = check_type_decl_name(td.name, nsubs)
         targs = []
         for aname in td.args:
             nname, nsubs = check_name(aname, nsubs)

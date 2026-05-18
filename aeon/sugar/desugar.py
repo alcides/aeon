@@ -412,6 +412,13 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     # inductives plus inductives discovered via imports.
     combined_inductives = list(inductive_decls_snapshot) + list(imported_inductives)
 
+    # Collapse duplicate type declarations sharing a name. When two libraries
+    # declare the "same" name with different arities (e.g. libraries/List.ae's
+    # ``type List a`` and libraries/PSB2.ae's ``type List``), keep the
+    # parametric one; bare uses of the name in either file are expanded with
+    # fresh args below by ``expand_bare_parametric_type_ctors``.
+    type_decls = _dedupe_type_decls(type_decls)
+
     # Register inductive constructors for qualified access (e.g. IntList.cons)
     # and build constructor_to_type / constructor_defs mappings
     constructor_to_type: dict[str, Name] = {}
@@ -435,6 +442,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs, metadata = apply_decorators_in_definitions(defs)
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
 
+    defs = expand_bare_parametric_type_ctors(defs, type_decls)
     defs = introduce_forall_in_types(defs, type_decls)
     defs = introduce_rforall_in_types(defs)
 
@@ -810,6 +818,213 @@ def expand_inductive_decls(p: Program) -> Program:
     return Program(p.imports, p.type_decls + tds, [], defs + p.definitions)
 
 
+def _dedupe_type_decls(decls: list[TypeDecl]) -> list[TypeDecl]:
+    """Collapse type declarations that share a name. Preference goes to the
+    one with more args, so a parametric ``type List a`` wins over a bare
+    ``type List``."""
+    by_name: dict[str, TypeDecl] = {}
+    order: list[str] = []
+    for td in decls:
+        existing = by_name.get(td.name.name)
+        if existing is None:
+            by_name[td.name.name] = td
+            order.append(td.name.name)
+        elif len(td.args) > len(existing.args):
+            by_name[td.name.name] = td
+    return [by_name[n] for n in order]
+
+
+def _expand_bare_parametric_type_ctors_in_stype(
+    ty: SType,
+    parametric: dict[str, TypeDecl],
+    cache: dict[str, STypeConstructor],
+) -> SType:
+    """Expand bare references to parametric type constructors with fresh type
+    variables. With ``type List a`` in scope, a bare ``List`` used as a type
+    becomes ``(List _a<n>)``. Each definition shares one fresh-arg tuple per
+    parametric type (via ``cache``), so all bare ``List`` occurrences within
+    one signature refer to the same element type."""
+
+    def get_replacement(tname: str) -> STypeConstructor:
+        if tname not in cache:
+            td = parametric[tname]
+            fresh_args: list[SType] = [STypeVar(Name(f"_{a.name}", fresh_counter.fresh())) for a in td.args]
+            cache[tname] = STypeConstructor(td.name, fresh_args)
+        return cache[tname]
+
+    def rec(t: SType) -> SType:
+        return _expand_bare_parametric_type_ctors_in_stype(t, parametric, cache)
+
+    match ty:
+        case STypeVar(name) if name.name in parametric:
+            return get_replacement(name.name)
+        case STypeVar(_):
+            return ty
+        case STypeConstructor(name, args, loc):
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
+        case SAbstractionType(vname, vty, rty, loc):
+            return SAbstractionType(vname, rec(vty), rec(rty), loc=loc, multiplicity=ty.multiplicity)
+        case SRefinedType(name, ity, ref, loc):
+            return SRefinedType(name, rec(ity), ref, loc=loc)
+        case STypePolymorphism(name, kind, body, loc):
+            return STypePolymorphism(name, kind, rec(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
+        case _:
+            return ty
+
+
+def _expand_bare_parametric_type_ctors_in_sterm(
+    t: STerm,
+    parametric: dict[str, TypeDecl],
+    cache: dict[str, STypeConstructor],
+) -> STerm:
+    """Walk an STerm and expand bare parametric type constructors in any
+    embedded SType. Uses a shared cache so all bare ``List`` occurrences
+    within one definition share the same fresh type-variable args."""
+
+    def rec_ty(ty: SType) -> SType:
+        return _expand_bare_parametric_type_ctors_in_stype(ty, parametric, cache)
+
+    def rec(node: STerm) -> STerm:
+        return _expand_bare_parametric_type_ctors_in_sterm(node, parametric, cache)
+
+    match t:
+        case SLiteral(val, ty, loc):
+            return SLiteral(val, rec_ty(ty), loc=loc)
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(rec(expr), rec_ty(ty), loc=loc)
+        case SApplication(fun, arg, loc):
+            return SApplication(rec(fun), rec(arg), loc=loc)
+        case SAbstraction(name, body, loc):
+            return SAbstraction(name, rec(body), loc=loc)
+        case SLet(name, val, body, loc):
+            return SLet(name, rec(val), rec(body), loc=loc, multiplicity=t.multiplicity)
+        case SRec(name, ty, val, body, decreasing_by, loc):
+            return SRec(
+                name,
+                rec_ty(ty),
+                rec(val),
+                rec(body),
+                decreasing_by=tuple(rec(m) for m in decreasing_by),
+                loc=loc,
+                multiplicity=t.multiplicity,
+            )
+        case SIf(cond, then, otherwise, loc):
+            return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case STypeApplication(body, ty, loc):
+            return STypeApplication(rec(body), rec_ty(ty), loc=loc)
+        case STypeAbstraction(name, kind, body, loc):
+            return STypeAbstraction(name, kind, rec(body), loc=loc)
+        case SRefinementAbstraction(name, sort, body, loc):
+            return SRefinementAbstraction(name, rec_ty(sort), rec(body), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(rec(body), rec(refinement), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        body=rec(br.body),
+                        qualifier=br.qualifier,
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case _:
+            return t
+
+
+def expand_bare_parametric_type_ctors(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
+    parametric = {td.name.name: td for td in type_decls if td.args}
+    if not parametric:
+        return defs
+    ndefs: list[Definition] = []
+    for d in defs:
+        cache: dict[str, STypeConstructor] = {}
+        new_args = [(n, _expand_bare_parametric_type_ctors_in_stype(t, parametric, cache)) for n, t in d.args]
+        new_rtype = _expand_bare_parametric_type_ctors_in_stype(d.type, parametric, cache)
+        new_body = _expand_bare_parametric_type_ctors_in_sterm(d.body, parametric, cache)
+        ndefs.append(
+            Definition(
+                d.name,
+                d.foralls,
+                new_args,
+                new_rtype,
+                new_body,
+                d.decorators,
+                d.rforalls,
+                d.decreasing_by,
+                d.loc,
+                arg_multiplicities=d.arg_multiplicities,
+            )
+        )
+    return ndefs
+
+
+def _collect_type_vars_in_sterm(t: STerm, acc: set[STypeVar], bound: set[Name]) -> None:
+    """Walk an STerm and collect every free STypeVar (i.e. not bound by an
+    enclosing ``STypeAbstraction``) that appears inside an embedded SType.
+    Used by ``introduce_forall_in_types`` so type variables introduced inside
+    a definition's body (e.g. by ``expand_bare_parametric_type_ctors`` on
+    ``actual_values : List = …``) get promoted to the surrounding
+    definition's forall list."""
+
+    def rec(node: STerm) -> None:
+        _collect_type_vars_in_sterm(node, acc, bound)
+
+    def add_free(ty: SType) -> None:
+        for tv in get_type_vars(ty):
+            if tv.name not in bound:
+                acc.add(tv)
+
+    match t:
+        case SLiteral(_, ty, _):
+            add_free(ty)
+        case SAnnotation(expr, ty, _):
+            add_free(ty)
+            rec(expr)
+        case SApplication(fun, arg, _):
+            rec(fun)
+            rec(arg)
+        case SAbstraction(_, body, _):
+            rec(body)
+        case SLet(_, val, body, _):
+            rec(val)
+            rec(body)
+        case SRec(_, ty, val, body, decreasing_by, _):
+            add_free(ty)
+            rec(val)
+            rec(body)
+            for m in decreasing_by:
+                rec(m)
+        case SIf(cond, then, otherwise, _):
+            rec(cond)
+            rec(then)
+            rec(otherwise)
+        case STypeApplication(body, ty, _):
+            add_free(ty)
+            rec(body)
+        case STypeAbstraction(tname, _, body, _):
+            _collect_type_vars_in_sterm(body, acc, bound | {tname})
+        case SRefinementAbstraction(_, sort, body, _):
+            add_free(sort)
+            rec(body)
+        case SRefinementApplication(body, refinement, _):
+            rec(body)
+            rec(refinement)
+        case SMatch(scrutinee, branches, _):
+            rec(scrutinee)
+            for br in branches:
+                rec(br.body)
+        case _:
+            return
+
+
 def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
     types = [td.name for td in type_decls]
     ndefs = []
@@ -820,13 +1035,16 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
 
                 bound_tvars = {n for n, _ in foralls}
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
+                free_tvars: set[STypeVar] = set()
                 for ty in tlst:
-                    for t in get_type_vars(ty):
-                        tname = t.name
-                        if tname not in types and tname not in bound_tvars:
-                            entry = (tname, BaseKind())
-                            if entry not in new_foralls:
-                                new_foralls.append(entry)
+                    free_tvars.update(get_type_vars(ty))
+                _collect_type_vars_in_sterm(body, free_tvars, set(bound_tvars))
+                for t in free_tvars:
+                    tname = t.name
+                    if tname not in types and tname not in bound_tvars:
+                        entry = (tname, BaseKind())
+                        if entry not in new_foralls:
+                            new_foralls.append(entry)
                 ndefs.append(
                     Definition(
                         name,
@@ -1010,10 +1228,14 @@ def handle_imports(
         rec_q: QualifiedScope = {}
         rec_u: UnqualifiedScope = {}
         if import_p.imports:
+            # Recurse with empty accumulators: the parent module's own defs and
+            # type_decls are added below by the outer iteration, so passing
+            # them in would double-include them (once unprefixed via
+            # ``defs_recursive``, once module-prefixed via ``prefixed_definitions``).
             defs_recursive, type_decls_recursive, rec_inductives, rec_q, rec_u = handle_imports(
                 import_p.imports,
-                import_p.definitions,
-                import_p.type_decls,
+                [],
+                [],
                 _seen_modules=seen_modules,
             )
             qualified_scope.update(rec_q)
