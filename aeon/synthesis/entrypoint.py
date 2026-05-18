@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 import time
 from typing import Any, Optional
 from typing import Callable
@@ -24,7 +23,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
-from aeon.synthesis.api import ErrorInSynthesis, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -61,7 +60,16 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
                 return measure_energy(lambda: eval(program_for_fitness, ectx))
             return eval(program_for_fitness, ectx)
         except Exception:
-            return sys.maxsize
+            # A candidate that crashes mid-evaluation has no well-defined
+            # fitness. Returning ``sys.maxsize`` made it "infinitely good"
+            # for ``@maximize_*`` and "infinitely bad" for ``@minimize_*``
+            # at the same time — a hybrid the Pareto front cannot dominate,
+            # so a single crash would lock in as "Best" forever (issue
+            # #120). Raise the backend-neutral
+            # ``InvalidIndividualException`` instead; synthesizer adapters
+            # translate it into their search framework's notion of "drop
+            # this candidate".
+            raise InvalidIndividualException()
 
     return fitness
 
@@ -86,11 +94,18 @@ def make_evaluator(
         """Function to run in a separate process and places the result in a Queue."""
         start = time.time()
         try:
-            results = [ev(program) for ev in evaluators]
-            assert isinstance(results, list)
-            result_queue.put(results)
+            try:
+                results = [ev(program) for ev in evaluators]
+                assert isinstance(results, list)
+                result_queue.put(("ok", results))
+            except InvalidIndividualException:
+                result_queue.put(("invalid", None))
         except Exception as e:
             logger.log("SYNTHESIZER", f"Failed in the fitness function: {e}, {type(e)}")
+            # Make sure the parent isn't left blocked on ``result_queue.get()``
+            # if an unexpected exception escapes — propagate it as a typed
+            # message so the parent re-raises ``ErrorInSynthesis``.
+            result_queue.put(("error", f"{type(e).__name__}: {e}"))
             raise ErrorInSynthesis(e, msg=f"Failed in the fitness function: {e}, {type(e)}")
         finally:
             end = time.time()
@@ -108,9 +123,12 @@ def make_evaluator(
             eval_process.terminate()
             eval_process.join()
             raise TimeoutInEvaluationException()
-        else:
-            fitness_values = result_queue.get()
-            return fitness_values
+        kind, payload = result_queue.get()
+        if kind == "ok":
+            return payload
+        if kind == "invalid":
+            raise InvalidIndividualException()
+        raise ErrorInSynthesis(Exception(payload), msg=str(payload))
 
     return evaluate
 

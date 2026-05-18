@@ -30,6 +30,14 @@ class ErrorInSynthesis(SynthesisError):
         self.msg = msg
 
 
+class InvalidIndividualException(SynthesisError):
+    """Raised by an evaluator when a candidate has no well-defined fitness
+    (e.g. its evaluation throws). Backend-neutral: synthesizer adapters are
+    responsible for translating this into whatever notion of "invalid
+    candidate" their search framework uses.
+    """
+
+
 class Synthesizer(ABC):
     def synthesize(
         self,
