@@ -1,11 +1,11 @@
 # Problem 5: Reverse a list.
 # Refinement: output has the same size as input.
 
-open List
+open Array
 
-def myReverse (l: (List a)) : {r:(List a) | List.size r == List.size l} = native "l[::-1]"
+def myReverse (l: (Array a)) : {r:(Array a) | Array.size r == Array.size l} = native "l[::-1]"
 
 def main (args:Int) : Unit =
-    xs = List.append (List.append (List.append (List.new[Int]) 1) 2) 3;
-    rs : (List Int) = myReverse xs;
+    xs = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3;
+    rs : (Array Int) = myReverse xs;
     print rs;

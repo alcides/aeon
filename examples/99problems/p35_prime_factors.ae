@@ -1,11 +1,11 @@
 # Problem 35: Determine the prime factors of a given positive integer.
 # Returns the factors in ascending order, with multiplicity.
 
-open List
+open Array
 
 def sympy : Unit = native_import "sympy"
 
-def primeFactors (n: {x:Int | x >= 2}) : (List Int) =
+def primeFactors (n: {x:Int | x >= 2}) : (Array Int) =
     native "sympy.factorint(n, multiple=True)"
 
 def main (args:Int) : Unit =

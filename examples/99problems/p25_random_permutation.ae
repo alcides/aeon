@@ -1,14 +1,14 @@
 # Problem 25: Generate a random permutation of the elements of a list.
 # Refinement: output has the same size as input.
 
-open List
+open Array
 
 def random : Unit = native_import "random"
 
-def rndPermutation (l: (List Int)) : {r:(List Int) | List_size r == List_size l} =
+def rndPermutation (l: (Array Int)) : {r:(Array Int) | Array_size r == Array_size l} =
     native "random.sample(l, len(l))"
 
 def main (args:Int) : Unit =
     _ = native "random.seed(7)";
-    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5;
+    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5;
     print (rndPermutation a)

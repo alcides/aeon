@@ -2,13 +2,13 @@
 # Singletons are kept as a 1-element list [value]; groups become [count, value].
 # This approximates Lean's ``Either α (Nat × α)`` using a length-1 or length-2 list.
 
-open List
+open Array
 
 def itertools : Unit = native_import "itertools"
 
-def encode_modified (l: (List Int)) : (List (List Int)) =
+def encode_modified (l: (Array Int)) : (Array (Array Int)) =
     native "[(lambda gl: [k] if len(gl) == 1 else [len(gl), k])(list(g)) for k, g in itertools.groupby(l)]"
 
 def main (args:Int) : Unit =
-    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 1) 1) 2) 3) 3;
+    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 1) 2) 3) 3;
     print (encode_modified a)

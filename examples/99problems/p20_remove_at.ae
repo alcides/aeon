@@ -1,13 +1,13 @@
 # Problem 20: Remove the K'th element from a list (0-indexed).
 # Refinement: k is a valid index, and output has size one less than input.
 
-open List
+open Array
 
-def remove_at (l: (List Int)) (k: {x:Int | x >= 0 && x < List_size l}) :
-        {r:(List Int) | List_size r == List_size l - 1} =
+def remove_at (l: (Array Int)) (k: {x:Int | x >= 0 && x < Array_size l}) :
+        {r:(Array Int) | Array_size r == Array_size l - 1} =
     native "l[:k] + l[k+1:]"
 
 def main (args:Int) : Unit =
-    a : {x:(List Int) | List_size x == 5} =
-        List.append (List.append (List.append (List.append (List.append (List.new[Int]) 10) 20) 30) 40) 50;
+    a : {x:(Array Int) | Array_size x == 5} =
+        Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 10) 20) 30) 40) 50;
     print (remove_at a 2)

@@ -1,11 +1,11 @@
 # Problem 15: Replicate the elements of a list a given number of times.
 # Refinement: the output has size n * input_size.
 
-open List
+open Array
 
-def replicate (l: (List Int)) (n: {k:Int | k >= 0}) : {r:(List Int) | List.size r == n * List.size l} =
+def replicate (l: (Array Int)) (n: {k:Int | k >= 0}) : {r:(Array Int) | Array.size r == n * Array.size l} =
     native "[x for x in l for _ in range(n)]"
 
 def main (args:Int) : Unit =
-    a : (List Int) = List.append (List.append (List.new[Int]) 1) 2;
+    a : (Array Int) = Array.append (Array.append (Array.new[Int]) 1) 2;
     print (replicate a 3)

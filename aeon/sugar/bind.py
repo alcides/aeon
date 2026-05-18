@@ -84,9 +84,10 @@ def bind_ectx(
             case ElabTypeVarBinder(name, kind):
                 name, subs = check_name(name, subs)
                 e = ElabTypeVarBinder(name, kind)
-            case ElabTypeDecl(name, args):
+            case ElabTypeDecl(name, args, rforalls):
                 name, subs = check_name(name, subs)
-                e = ElabTypeDecl(name, args)
+                new_rfs = [(rn, bind_stype(rs, subs)) for (rn, rs) in rforalls]
+                e = ElabTypeDecl(name, args, new_rfs)
             case _:
                 assert False, f"{entry} not yet supported in bind."
         nentries.append(e)
@@ -243,7 +244,15 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
     # types (not free type variables) throughout the rest of the program.
     for td in p.type_decls:
         name, nsubs = check_name(td.name, nsubs)
-        type_decls.append(TypeDecl(name, td.args, loc=td.loc))
+        targs = []
+        for aname in td.args:
+            nname, nsubs = check_name(aname, nsubs)
+            targs.append(nname)
+        trfs = []
+        for pname, psort in td.rforalls:
+            nname, nsubs = check_name(pname, nsubs)
+            trfs.append((nname, bind_stype(psort, nsubs)))
+        type_decls.append(TypeDecl(name, targs, trfs, loc=td.loc))
     for ind in p.inductive_decls:
         name, nsubs = check_name(ind.name, nsubs)
         iargs = []

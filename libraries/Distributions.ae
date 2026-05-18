@@ -11,7 +11,7 @@
 #
 # Constants are CDF-inverse evaluations (z-scores, ln(1-p), etc.) hardcoded.
 
-open List
+open Array
 open Math
 open Statistics
 
@@ -22,8 +22,8 @@ def normalSample
     (mu: Float)
     (sigma: {s: Float | s > 0.0})
     (n: {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracBelow xs (mu + 2.33 * sigma)  >= 0.99
         && fracBelow xs (mu + 1.645 * sigma) >= 0.95
         && fracBelow xs (mu + 1.282 * sigma) >= 0.90
@@ -37,8 +37,8 @@ def normalSample
 
 def standardNormalSample
     (n: {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracBelow xs 2.33  >= 0.99
         && fracBelow xs 1.645 >= 0.95
         && fracBelow xs 1.282 >= 0.90
@@ -55,8 +55,8 @@ def uniformSample
     (a: Float)
     (b: {bb: Float | bb > a})
     (n: {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs a >= 1.0
         && fracBelow xs b >= 1.0
         && fracBelow xs (a + 0.99 * (b - a)) >= 0.99
@@ -72,8 +72,8 @@ def uniformSample
 def exponentialSample
     (lam: {l: Float | l > 0.0})
     (n: {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && fracBelow xs (4.6052 / lam) >= 0.99
         && fracBelow xs (2.9957 / lam) >= 0.95
@@ -88,8 +88,8 @@ def betaSample
     (alpha: {a: Float | a > 0.0})
     (beta:  {b: Float | b > 0.0})
     (n:     {m: Int   | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && fracBelow xs 1.0 >= 1.0
         && ((sampleMean xs) == (alpha / (alpha + beta))) }
@@ -102,8 +102,8 @@ def gammaSample
     (k:     {kk: Float | kk > 0.0})
     (theta: {th: Float | th > 0.0})
     (n:     {m:  Int   | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && ((sampleMean xs) == (k * theta))
         && ((sampleVar  xs) == (k * (theta * theta))) }
@@ -115,8 +115,8 @@ def gammaSample
 def chiSquaredSample
     (k: {kk: Int | kk > 0})
     (n: {m: Int  | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0 }
     = native "list(__import__('numpy').random.chisquare(k, n))"
 
@@ -126,8 +126,8 @@ def chiSquaredSample
 def bernoulliSample
     (p: {pp: Float | pp >= 0.0 && pp <= 1.0})
     (n: {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracBelow xs 0.5 >= (1.0 - p)
         && fracAbove xs 0.5 >= p
         && fracBelow xs 1.5 >= 1.0
@@ -141,8 +141,8 @@ def binomialSample
     (trials: {t: Int | t > 0})
     (p:      {pp: Float | pp >= 0.0 && pp <= 1.0})
     (n:      {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
     = native "list(map(float, __import__('numpy').random.binomial(trials, p, n)))"
 
@@ -152,8 +152,8 @@ def binomialSample
 def poissonSample
     (lam: {l: Float | l > 0.0})
     (n:   {m: Int | m > 0})
-    : { xs: (List Float)
-      | List.size xs > 0
+    : { xs: (Array Float)
+      | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0
         && ((sampleMean xs) == lam) }
     = native "list(map(float, __import__('numpy').random.poisson(lam, n)))"

@@ -1,15 +1,15 @@
 # Problem 7: Flatten a nested list one level deep.
-# Aeon lists are homogeneous, so we flatten a List of Lists into a single List.
+# Aeon lists are homogeneous, so we flatten a List of Lists into a single Array.
 
-open List
+open Array
 
-def flatten (l: (List (List Int))) : (List Int) = native "[x for sub in l for x in sub]"
+def flatten (l: (Array (Array Int))) : (Array Int) = native "[x for sub in l for x in sub]"
 
 def main (args:Int) : Unit =
-    a : (List Int) = List.append (List.append (List.new[Int]) 1) 2;
-    b : (List Int) = List.append (List.new[Int]) 3;
-    c : (List Int) = List.append (List.append (List.new[Int]) 4) 5;
-    n1 : (List (List Int)) = List.append (List.new[(List Int)]) a;
-    n2 : (List (List Int)) = List.append n1 b;
-    nested : (List (List Int)) = List.append n2 c;
+    a : (Array Int) = Array.append (Array.append (Array.new[Int]) 1) 2;
+    b : (Array Int) = Array.append (Array.new[Int]) 3;
+    c : (Array Int) = Array.append (Array.append (Array.new[Int]) 4) 5;
+    n1 : (Array (Array Int)) = Array.append (Array.new[(Array Int)]) a;
+    n2 : (Array (Array Int)) = Array.append n1 b;
+    nested : (Array (Array Int)) = Array.append n2 c;
     print (flatten nested)

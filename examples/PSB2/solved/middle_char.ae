@@ -1,5 +1,4 @@
-type List
-
+import Array
 def math : Unit = native_import "math"
 def Math_floor : (i:Float) -> Int = \i -> native "math.floor(i)"
 def Math_toFloat : (i:Int) -> Float = \i -> native "float(i)"

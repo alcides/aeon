@@ -404,13 +404,19 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
         else:
             file_imports.append(imp)
 
-    defs, type_decls, qualified_scope, unqualified_scope = handle_imports(file_imports, defs, type_decls)
+    defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports(
+        file_imports, defs, type_decls
+    )
+
+    # Folded snapshot used to lower `match` expressions everywhere — main module's
+    # inductives plus inductives discovered via imports.
+    combined_inductives = list(inductive_decls_snapshot) + list(imported_inductives)
 
     # Register inductive constructors for qualified access (e.g. IntList.cons)
     # and build constructor_to_type / constructor_defs mappings
     constructor_to_type: dict[str, Name] = {}
     constructor_defs: dict[str, Name] = {}
-    for decl in inductive_decls_snapshot:
+    for decl in combined_inductives:
         for cons in decl.constructors:
             prefixed = Name(f"{decl.name.name}_{cons.name.name}", cons.name.id)
             qualified_scope[(decl.name.name, cons.name.name)] = prefixed
@@ -440,7 +446,8 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
     )
     # Lower match expressions (Lean syntax) into the generated inductive eliminators.
-    prog = lower_match_to_inductive_rec(prog, inductive_decls_snapshot)
+    # Use the folded snapshot so matches inside imported library bodies are also lowered.
+    prog = lower_match_to_inductive_rec(prog, combined_inductives)
     return DesugaredProgram(prog, etctx, metadata, constructor_to_type, constructor_defs)
 
 
@@ -685,7 +692,7 @@ def expand_inductive_decls(p: Program) -> Program:
     for decl in p.inductive_decls:
         match decl:
             case InductiveDecl(name, args, dtype_rfs, constructors, measures, loc):
-                tds.append(TypeDecl(name, args))
+                tds.append(TypeDecl(name, args, list(dtype_rfs)))
 
                 for measure in measures:
                     match measure:
@@ -960,27 +967,76 @@ def handle_imports(
     imports: list[ImportAe],
     defs: list[Definition],
     type_decls: list[TypeDecl],
-) -> tuple[list[Definition], list[TypeDecl], QualifiedScope, UnqualifiedScope]:
+    _seen_modules: dict[str, QualifiedScope] | None = None,
+) -> tuple[list[Definition], list[TypeDecl], list[InductiveDecl], QualifiedScope, UnqualifiedScope]:
     qualified_scope: QualifiedScope = {}
     unqualified_scope: UnqualifiedScope = {}
+    imported_inductives: list[InductiveDecl] = []
+    # Track already-processed modules along with the qualified entries they
+    # contributed, so we can re-expose them through ``open`` / selective
+    # imports without re-emitting their definitions. Without this, the same
+    # module imported via multiple edges (e.g. user ``import List`` plus a
+    # library ``open List``) would duplicate every cons / nil constructor in
+    # ``imported_inductives``, and the elaborator would fail to unify two
+    # structurally-identical ``List Int`` types built from different (but
+    # identically-bound) unification variables.
+    seen_modules: dict[str, QualifiedScope] = {} if _seen_modules is None else _seen_modules
 
     for imp in imports[::-1]:
+        if imp.module_path in seen_modules:
+            # Re-expose the already-known qualified entries so they remain
+            # visible through this import edge, and extend the unqualified
+            # scope if this re-import asked for ``open`` / selective access.
+            prior_q = seen_modules[imp.module_path]
+            for (qual, bare), internal_name in prior_q.items():
+                qualified_scope[(qual, bare)] = internal_name
+                if imp.is_open or (imp.selected_names and bare in imp.selected_names):
+                    unqualified_scope[bare] = internal_name
+            continue
+        seen_modules[imp.module_path] = {}
         import_p = _resolve_import(imp)
+        # Infer datatype-level abstract refinement parameters before snapshotting so
+        # `lower_match_to_inductive_rec` sees the same constructor signatures as the
+        # expanded versions.
+        import_p = infer_inductive_rforall_decls(import_p)
+        # Capture inductive declarations before expansion so they can be used to lower
+        # match expressions in this library's bodies.
+        imported_inductives.extend(import_p.inductive_decls)
         # Expand inductive declarations so constructors and eliminators become definitions.
         import_p = expand_inductive_decls(import_p)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
         type_decls_recursive: list[TypeDecl] = []
+        rec_q: QualifiedScope = {}
+        rec_u: UnqualifiedScope = {}
         if import_p.imports:
-            defs_recursive, type_decls_recursive, rec_q, rec_u = handle_imports(
+            defs_recursive, type_decls_recursive, rec_inductives, rec_q, rec_u = handle_imports(
                 import_p.imports,
                 import_p.definitions,
                 import_p.type_decls,
+                _seen_modules=seen_modules,
             )
             qualified_scope.update(rec_q)
             unqualified_scope.update(rec_u)
+            imported_inductives.extend(rec_inductives)
 
         module_name = imp.module_path.split(".")[-1]
+
+        # First pass: build a *local* scope that maps every bare name in this
+        # library to its prefixed internal name. This lets a library's
+        # definition body refer to its siblings by their bare names, even when
+        # the consumer imports the library without `open`. Seed it with the
+        # scopes from this library's own imports so that qualified names like
+        # ``List.size`` resolve when the library uses them in its bodies.
+        local_qualified: QualifiedScope = dict(rec_q)
+        local_unqualified: UnqualifiedScope = dict(rec_u)
+        for d in import_p_definitions:
+            if _is_native_import_def(d):
+                continue
+            bare = _bare_name(module_name, d.name.name)
+            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            local_qualified[(module_name, bare)] = internal_name
+            local_unqualified[bare] = internal_name
 
         # Re-prefix definitions with module name to avoid name collisions in the let-chain.
         # E.g. Color's "mk" becomes "Color_mk", Image's "mk" becomes "Image_mk".
@@ -995,23 +1051,29 @@ def handle_imports(
                 continue
             # Build the internal name: module_name + "_" + bare
             internal_name = Name(f"{module_name}_{bare}", d.name.id)
-            # Create a copy of the definition with the prefixed name
+            # Rewrite intra-module references in the body and type signatures.
+            resolved_d = resolve_qualified_names_in_definition(d, local_qualified, local_unqualified)
+            # Create a copy of the definition with the prefixed name. ``resolved_d`` carries
+            # the body/types with intra-module bare-name references already rewritten to the
+            # internal prefixed names, so calls like ``empty`` -> ``length`` resolve under
+            # plain ``import Lib`` (not just ``open Lib``).
             prefixed_d = Definition(
                 internal_name,
-                d.foralls,
-                d.args,
-                d.type,
-                d.body,
-                d.decorators,
-                d.rforalls,
-                d.decreasing_by,
-                d.loc,
-                arg_multiplicities=d.arg_multiplicities,
+                resolved_d.foralls,
+                resolved_d.args,
+                resolved_d.type,
+                resolved_d.body,
+                resolved_d.decorators,
+                resolved_d.rforalls,
+                resolved_d.decreasing_by,
+                resolved_d.loc,
+                arg_multiplicities=resolved_d.arg_multiplicities,
             )
             prefixed_definitions.append(prefixed_d)
 
             # Register for qualified access: Module.bare -> internal_name
             qualified_scope[(module_name, bare)] = internal_name
+            seen_modules[imp.module_path][(module_name, bare)] = internal_name
 
             if imp.is_open:
                 unqualified_scope[bare] = internal_name
@@ -1021,7 +1083,7 @@ def handle_imports(
 
         defs = defs_recursive + prefixed_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
-    return defs, type_decls, qualified_scope, unqualified_scope
+    return defs, type_decls, imported_inductives, qualified_scope, unqualified_scope
 
 
 def apply_decorators_in_program(prog: Program) -> Program:

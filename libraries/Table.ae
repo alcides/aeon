@@ -1,7 +1,7 @@
 # Table is a list of dicts, where each dict represents a row, with keys corresponding to column names
 # and values to the respective entries in the table
 
-open List
+open Array
 
 type Table
 type Row
@@ -23,7 +23,7 @@ def to_csv(table: Table) (path: String): Unit =
 # Returns the list of column names in the table.
 # table: the table to inspect
 # returns: list of column names
-def columns(table: Table): (List String) =
+def columns(table: Table): (Array String) =
     native "list(table[0].keys()) if len(table) > 0 else []"
 
 
@@ -31,7 +31,7 @@ def columns(table: Table): (List String) =
 # table: the table to select from
 # columns: columns to select
 # returns: new table with only the selected columns
-def select(table: Table) (columns: (List String)): Table =
+def select(table: Table) (columns: (Array String)): Table =
     native "[{col: row[col] for col in columns} for row in table]"
 
 
@@ -57,7 +57,7 @@ def map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
 # column: column to summarize
 # f: summary function (e.g., sum, mean)
 # returns: result of the summary function
-def summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b =
+def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b =
     native "f([row[column] for row in table])"
 
 
@@ -66,7 +66,7 @@ def summary(table: Table) (column: String) (f: (a: (List Int)) -> b): b =
 # table: the table to group
 # column: column to group by
 # returns: list of tables, each corresponding to a group
-def group_by(table: Table) (column: String): (List Table) =
+def group_by(table: Table) (column: String): (Array Table) =
     native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.group_by(table, column)"
 
 
@@ -92,5 +92,5 @@ def pivot(table: Table) (index: String) (columns: String) (values: String): Tabl
 # var_name: name for the new variable column
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
-def melt(table: Table) (id_vars: (List String)) (value_vars: (List String)) (var_name: String) (value_name: String): Table =
+def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table =
     native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
