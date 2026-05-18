@@ -16,6 +16,7 @@ pyo3 = { version = "0.22", features = ["extension-module", "abi3-py310"] }
 # `Context<'ctx>` lifetimes are erased by leaking a single process-wide
 # Context in smt_z3.rs; everything is then `'static`.
 z3 = "0.12"
+rand = { version = "0.8", features = ["small_rng"] }
 
 [profile.release]
 opt-level = 3
