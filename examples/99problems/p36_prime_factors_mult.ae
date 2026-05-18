@@ -1,11 +1,11 @@
 # Problem 36: Prime factors with multiplicity.
 # Each [prime, exponent] pair is represented as a 2-element list of Ints.
 
-open Array
+open List
 
 def sympy : Unit := native_import "sympy"
 
-def primeFactorsMult (n: {x:Int | x >= 2}) : (Array (Array Int)) :=
+def primeFactorsMult (n: {x:Int | x >= 2}) : (List (List Int)) =
     native "[[p, e] for p, e in sorted(sympy.factorint(n).items())]"
 
 def main (args:Int) : Unit :=

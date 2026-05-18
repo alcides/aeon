@@ -1,12 +1,12 @@
 # Problem 41: Goldbach decomposition for every even number in a range.
 # Returns a list of [n, p, q] entries.
 
-open Array
+open List
 
 def isPrime (n: Int) : Bool :=
     native "n >= 2 and all(n % d != 0 for d in range(2, int(n ** 0.5) + 1))"
 
-def goldbachList (low: {a:Int | a >= 2}) (high: {b:Int | b >= low}) : (Array (Array Int)) :=
+def goldbachList (low: {a:Int | a >= 2}) (high: {b:Int | b >= low}) : (List (List Int)) =
     native "[(lambda nn: (lambda p: [nn, p, nn - p])(next(p for p in range(2, nn) if all(p % d != 0 for d in range(2, int(p ** 0.5) + 1)) and all((nn - p) % d != 0 for d in range(2, int((nn - p) ** 0.5) + 1)))))(n) for n in range(low if low % 2 == 0 else low + 1, high + 1, 2) if n > 2]"
 
 def main (args:Int) : Unit :=

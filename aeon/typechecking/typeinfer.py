@@ -1,6 +1,7 @@
+"""Bidirectional refinement type checker — pure re-export of the Rust core
+(``aeon-rs/src/typeinfer.rs``)."""
+
 from __future__ import annotations
-from dataclasses import replace
-from typing import Iterable
 
 from loguru import logger
 

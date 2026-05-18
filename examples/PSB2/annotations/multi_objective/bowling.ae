@@ -1,15 +1,16 @@
 import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_bowling_synth_values, unpack_train_data, calculate_bowling_errors, load_dataset)
 
 
-import Array
-#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  =  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+type List
 
-def List_sum : (l:(Array Int)) -> Int := fun x => native "sum(x)"
+#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+
+def List_sum : (l:List) -> Int = \x -> native "sum(x)"
 
 def List_map: (function: (a: Int) -> Int) ->
-                               (l: (Array Int)) ->
-                               (Array Int) :=
-    fun f => fun xs => native "list(map(f, xs))";
+                               (l: List) ->
+                               List =
+    \f -> \xs -> native "list(map(f, xs))";
 
 
 def String_replace : (s:String) -> (t:String) -> (rep:String) -> String := fun x => fun y => fun z => native "x.replace(y, z)"
@@ -18,7 +19,7 @@ def String_get : (l:String) -> (i:Int) -> String := fun l => fun i => native "l[
 def String_to_int : (s:String) -> Int := fun s => native "int(s)"
 def String_eq : (s:String) -> (s2:String) -> Bool := fun s => fun s2 => native "s == s2";
 
-def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> (Array Int) := fun s => fun e => fun st => native "list(range(s, e, st))"
+def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = \s -> \e -> \st -> native "list(range(s, e, st))"
 
 def const1 : String := "X"
 def const2 : String := "/"

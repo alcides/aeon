@@ -1,4 +1,4 @@
-open Array
+open List
 open Map
 
 def sys : Unit := native_import "sys"
@@ -8,10 +8,10 @@ def os : Unit := native_import "os"
 
 # The list of command-line arguments. argv[0] is the program name, so
 # the list is always non-empty.
-def argv : {l: (Array String) | Array.size l >= 1} := native "sys.argv"
+def argv : {l: (List String) | List.size l >= 1} = native "sys.argv"
 
 # Command-line arguments without the program name. May be empty.
-def args : (Array String) := native "sys.argv[1:]"
+def args : (List String) = native "sys.argv[1:]"
 
 # The number of command-line arguments. Always >= 1 (argv[0] is the program).
 def argc : {x:Int | x >= 1} := native "len(sys.argv)"

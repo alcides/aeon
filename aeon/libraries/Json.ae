@@ -1,4 +1,4 @@
-open Array
+open List
 
 type Json
 
@@ -80,7 +80,7 @@ def mkFloat (f: Float) : Json := native "f"
 
 def mkString (s: String) : Json := native "s"
 
-def mkArray (xs: (Array Json)) : Json := native "list(xs)"
+def mkArray (xs: (List Json)) : Json = native "list(xs)"
 
 # An empty JSON object. Use setKey to populate.
 def mkObject : Json := native "{}"
