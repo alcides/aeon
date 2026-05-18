@@ -1,14 +1,15 @@
 import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_str_list_errors, get_sw_synth_values, unpack_train_data, load_dataset)
-import Array
+type List
+
 def String_len : (i:String) -> Int = \i -> native "len(i)"
-def String_list_to_String : (l:(Array Int)) -> String = \l -> native "' '.join(l)"
-def map_String_String_List : (function:(a: String) -> String) -> (l: (Array Int)) -> (Array Int) = \f -> \xs -> native "map(f, xs)"
-def String_split : (i:String) -> (j:String) -> (Array Int) = \i -> \j -> native "i.split(j)"
+def String_list_to_String : (l:List) -> String = \l -> native "' '.join(l)"
+def map_String_String_List : (function:(a: String) -> String) -> (l: List) -> List = \f -> \xs -> native "map(f, xs)"
+def String_split : (i:String) -> (j:String) -> List = \i -> \j -> native "i.split(j)"
 def String_reverse : (i:String) -> String = \i -> native "i[::-1]"
 
 def train: TrainData = extract_train_data (load_dataset "spin-words" 200 200)
 
-def calculate_spin_words_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def calculate_spin_words_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 @hide(extract_train_data,
             unpack_train_data,

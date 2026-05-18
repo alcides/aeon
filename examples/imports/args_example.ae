@@ -1,5 +1,5 @@
 open Args
-open Array
+open List
 
 # Build a parser with a flag and an option-with-default. We use parseList
 # with an explicit empty argv so the example runs cleanly under
@@ -10,7 +10,7 @@ def parser : Parser =
     p1 : Parser = Args.addOption p0 "greeting" "Hello" "what to say";
     Args.addFlag p1 "uppercase" "shout instead of say"
 
-def emptyArgs : (Array String) = native "[]"
+def emptyArgs : (List String) = native "[]"
 
 def main (_:Int) : Unit =
     a : ParsedArgs = Args.parseList parser emptyArgs;

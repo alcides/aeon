@@ -1,14 +1,14 @@
 # Problem 6: Detect whether a list is a palindrome.
 # A list is a palindrome if it reads the same forwards and backwards.
 
-open Array
+open List
 
-def listEq (xs: (Array Int)) (ys: (Array Int)) : Bool = native "xs == ys"
+def listEq (xs: (List Int)) (ys: (List Int)) : Bool = native "xs == ys"
 
-def isPalindrome (l: (Array Int)) : Bool = listEq l (Array.reversed l)
+def isPalindrome (l: (List Int)) : Bool = listEq l (List.reversed l)
 
 def main (args:Int) : Unit =
-    pal = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 1;
-    notpal = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3;
+    pal = List.append (List.append (List.append (List.new[Int]) 1) 2) 1;
+    notpal = List.append (List.append (List.append (List.new[Int]) 1) 2) 3;
     _ = print (isPalindrome pal);
     print (isPalindrome notpal)

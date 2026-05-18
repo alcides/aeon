@@ -1,9 +1,11 @@
-import Array
-def List_sum (l:(Array Int)) : Int = native "sum(l)"
+type List
+
+
+def List_sum (l:List) : Int = native "sum(l)"
 
 def List_map (f: (a: Int) -> Int)
-             (xs: (Array Int)) :
-              (Array Int) = native "list(map(f, xs))";
+             (xs: List) :
+              List = native "list(map(f, xs))";
 
 
 def String_replace (s:String) (t:String) (rep:String) : String = native "s.replace(t, rep)"
@@ -12,7 +14,7 @@ def String_get (l:String) (i:Int) : String = native "l[i]"
 def String_to_int (s:String) : Int = native "int(s)"
 def String_eq (s:String) (s2:String) : Bool = native "s == s2";
 
-def List_range_step (start:Int) (end:Int) (step:Int) : (Array Int) = native "list(range(start, end, step))"
+def List_range_step (start:Int) (end:Int) (step:Int) : List = native "list(range(start, end, step))"
 
  def convert_bowling(score: String) : Int = if String_eq score "X" then
     10
@@ -46,9 +48,9 @@ def create_mapper (scores:String) (i:Int) : Int = current : String = String_get 
 
 def bowling_score (scores: String) : Int = scores_right_size = String_replace scores "X" "X_";
     scores_zero = String_replace scores_right_size "-" "0";
-    r : (Array Int) = List_range_step 0 20 2;
+    r : List = List_range_step 0 20 2;
     mapper : (i:Int) -> Int = create_mapper scores_zero;
-    components : (Array Int) = List_map mapper r;
+    components : List = List_map mapper r;
     List_sum components;
 
 def main (args:Int) : Unit = example : String = "23232323232323232323"; # 50

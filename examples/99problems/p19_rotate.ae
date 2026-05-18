@@ -1,11 +1,11 @@
 # Problem 19: Rotate a list n positions to the left.
 # Refinement: output has the same size as input. Negative n rotates right.
 
-open Array
+open List
 
-def rotate (l: (Array Int)) (n: Int) : {r:(Array Int) | Array_size r == Array_size l} =
+def rotate (l: (List Int)) (n: Int) : {r:(List Int) | List_size r == List_size l} =
     native "l[n % len(l):] + l[:n % len(l)] if l else l"
 
 def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
+    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
     print (rotate a 3)

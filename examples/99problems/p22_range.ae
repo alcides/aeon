@@ -1,9 +1,9 @@
 # Problem 22: Create a list containing all integers within a given range.
 # Refinement: when low <= high, the output size is exactly (high - low + 1).
 
-open Array
+open List
 
-def intRange (low: Int) (high: {n:Int | n >= low}) : {r:(Array Int) | Array_size r == high - low + 1} =
+def intRange (low: Int) (high: {n:Int | n >= low}) : {r:(List Int) | List_size r == high - low + 1} =
     native "list(range(low, high + 1))"
 
 def main (args:Int) : Unit =

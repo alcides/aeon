@@ -1,4 +1,4 @@
-open Array
+open List
 
 type String
 
@@ -47,7 +47,7 @@ def replace(i: String) (j: {s: String | len s > 0}) (l: String): String = native
 # i: input string
 # j: separator string (non-empty)
 # returns: list of substrings
-def split(i: String) (j: {s: String | len s > 0}): (Array String) = native "i.split(j)"
+def split(i: String) (j: {s: String | len s > 0}): (List String) = native "i.split(j)"
 
 # Concatenates two strings.
 # i: first string
@@ -114,4 +114,4 @@ def isEmpty(i: String): Bool = native "i == ''"
 # Splits the string into a list of characters.
 # i: input string
 # returns: list of single-character strings
-def toCharList(i: String): (Array String) = native "list(i)"
+def toCharList(i: String): (List String) = native "list(i)"

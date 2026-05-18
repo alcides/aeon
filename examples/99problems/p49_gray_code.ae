@@ -1,9 +1,9 @@
 # Problem 49: Generate Gray codes of length n.
 # Output has 2^n strings, each of length n.
 
-open Array
+open List
 
-def gray (n: {x:Int | x >= 1 && x <= 20}) : (Array String) =
+def gray (n: {x:Int | x >= 1 && x <= 20}) : (List String) =
     native "[bin(i ^ (i >> 1))[2:].zfill(n) for i in range(2 ** n)]"
 
 def main (args:Int) : Unit =

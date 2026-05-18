@@ -413,14 +413,11 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def type_decl(self, meta, args):
-        rforalls = ensure_list(args[1]) if len(args) > 1 else []
-        return TypeDecl(Name(args[0]), [], rforalls, loc=self._loc(meta))
+        return TypeDecl(Name(args[0]), [], loc=self._loc(meta))
 
     @v_args(meta=True)
     def type_constructor_decl(self, meta, args):
-        # Last arg is the (possibly empty) inductive_rforalls list; preceding args are the type params.
-        rforalls = ensure_list(args[-1]) if len(args) > 1 else []
-        return TypeDecl(Name(args[0]), [Name(i) for i in args[1:-1]], rforalls, loc=self._loc(meta))
+        return TypeDecl(Name(args[0]), [Name(i) for i in args[1:]], loc=self._loc(meta))
 
     def inductive_rforall_binding(self, args):
         return (Name(args[0]), args[1])

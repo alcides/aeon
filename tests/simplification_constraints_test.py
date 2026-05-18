@@ -5,7 +5,7 @@ from aeon.utils.name import Name
 
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import t_int
-from aeon.verification.helpers import parse_liquid
+from tests._parser_helpers import parse_liquid
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.helpers import simplify_expr
 from aeon.verification.helpers import split_or_disjuncts

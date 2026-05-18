@@ -1,4 +1,4 @@
-open Array
+open List
 
 type Parser
 type ParsedArgs
@@ -40,7 +40,7 @@ def addFloatOption (p: Parser) (name: {s:String | s != ""}) (default: Float) (he
     native "(p.add_argument('--' + name, type=float, default=default, help=help), p)[1]"
 
 # Adds an optional argument restricted to a non-empty list of choices.
-def addChoice (p: Parser) (name: {s:String | s != ""}) (options: {l: (Array String) | Array.size l > 0}) (default: String) (help: String) : Parser =
+def addChoice (p: Parser) (name: {s:String | s != ""}) (options: {l: (List String) | List.size l > 0}) (default: String) (help: String) : Parser =
     native "(p.add_argument('--' + name, default=default, choices=options, help=help), p)[1]"
 
 # ── Parsing ────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ def parse (p: Parser) : ParsedArgs =
     native "p.parse_args()"
 
 # Parses an explicit list of strings. Useful for tests and embedding.
-def parseList (p: Parser) (xs: (Array String)) : ParsedArgs =
+def parseList (p: Parser) (xs: (List String)) : ParsedArgs =
     native "p.parse_args(xs)"
 
 # ── Reading parsed values ──────────────────────────────────────────────

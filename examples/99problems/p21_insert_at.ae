@@ -1,13 +1,13 @@
 # Problem 21: Insert an element at a given position into a list (0-indexed).
 # Refinement: position is in range, output size is exactly one larger.
 
-open Array
+open List
 
-def insert_at (x: Int) (l: (Array Int)) (k: {n:Int | n >= 0 && n <= Array_size l}) :
-        {r:(Array Int) | Array_size r == Array_size l + 1} =
+def insert_at (x: Int) (l: (List Int)) (k: {n:Int | n >= 0 && n <= List_size l}) :
+        {r:(List Int) | List_size r == List_size l + 1} =
     native "l[:k] + [x] + l[k:]"
 
 def main (args:Int) : Unit =
-    a : {x:(Array Int) | Array_size x == 4} =
-        Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 4) 5;
+    a : {x:(List Int) | List_size x == 4} =
+        List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 4) 5;
     print (insert_at 3 a 2)

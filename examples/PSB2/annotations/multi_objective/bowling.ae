@@ -1,14 +1,15 @@
 import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_bowling_synth_values, unpack_train_data, calculate_bowling_errors, load_dataset)
 
 
-import Array
-#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+type List
 
-def List_sum : (l:(Array Int)) -> Int = \x -> native "sum(x)"
+#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> List  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+
+def List_sum : (l:List) -> Int = \x -> native "sum(x)"
 
 def List_map: (function: (a: Int) -> Int) ->
-                               (l: (Array Int)) ->
-                               (Array Int) =
+                               (l: List) ->
+                               List =
     \f -> \xs -> native "list(map(f, xs))";
 
 
@@ -18,7 +19,7 @@ def String_get : (l:String) -> (i:Int) -> String = \l -> \i -> native "l[i]"
 def String_to_int : (s:String) -> Int = \s -> native "int(s)"
 def String_eq : (s:String) -> (s2:String) -> Bool = \s -> \s2 -> native "s == s2";
 
-def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> (Array Int) = \s -> \e -> \st -> native "list(range(s, e, st))"
+def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> List = \s -> \e -> \st -> native "list(range(s, e, st))"
 
 def const1 : String = "X"
 def const2 : String = "/"

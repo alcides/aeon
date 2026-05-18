@@ -1,0 +1,25 @@
+# Tell z3-sys's bindgen step where to find z3.h on common install layouts.
+#
+# Set when running `cargo build` / `maturin develop` from this directory.
+# Users with z3 in a non-standard location can override via the env var:
+#
+#     BINDGEN_EXTRA_CLANG_ARGS="-I/path/to/z3/include" cargo build
+#
+# Detection order matches the build script: Homebrew (Apple Silicon),
+# /usr/local (Intel macOS / manual), and /usr (Debian/Ubuntu apt).
+
+[env]
+BINDGEN_EXTRA_CLANG_ARGS = { value = "-I/opt/homebrew/include -I/usr/local/include -I/usr/include", force = false }
+
+# Help the linker find libz3 on common install layouts.
+[target.aarch64-apple-darwin]
+rustflags = ["-L/opt/homebrew/lib", "-L/usr/local/lib"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-L/usr/local/lib", "-L/opt/homebrew/lib"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-L/usr/lib", "-L/usr/local/lib"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-L/usr/lib", "-L/usr/local/lib"]

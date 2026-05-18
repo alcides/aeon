@@ -1,11 +1,11 @@
 # Problem 8: Eliminate consecutive duplicates of list elements.
 # The compressed list cannot grow.
 
-open Array
+open List
 
-def compress (l: (Array Int)) : {r:(Array Int) | Array.size r <= Array.size l} =
+def compress (l: (List Int)) : {r:(List Int) | List.size r <= List.size l} =
     native "[x for i, x in enumerate(l) if i == 0 or x != l[i-1]]"
 
 def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 2) 3) 3;
+    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 1) 2) 3) 3;
     print (compress a)

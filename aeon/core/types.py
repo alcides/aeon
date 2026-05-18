@@ -1,222 +1,33 @@
+"""Type hierarchy. Re-exports the Rust core (aeon_rs) plus Python-side
+helpers and module-level constants that stay in Python.
+"""
+
 from __future__ import annotations
 
-from abc import ABC
-from dataclasses import dataclass, field
+from aeon_rs import AbstractionType as AbstractionType
+from aeon_rs import BaseKind as BaseKind
+from aeon_rs import ExistentialType as ExistentialType
+from aeon_rs import Kind as Kind
+from aeon_rs import LiquidHornApplication as LiquidHornApplication
+from aeon_rs import RefinedType as RefinedType
+from aeon_rs import RefinementPolymorphism as RefinementPolymorphism
+from aeon_rs import StarKind as StarKind
+from aeon_rs import Top as Top
+from aeon_rs import Type as Type
+from aeon_rs import TypeConstructor as TypeConstructor
+from aeon_rs import TypePolymorphism as TypePolymorphism
+from aeon_rs import TypeVar as TypeVar
 
-from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
-from aeon.core.liquid import LiquidHole
-from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.liquid import LiquidTerm
-from aeon.core.multiplicity import Multiplicity, MOmega
-from aeon.utils.location import Location, SynthesizedLocation
+from aeon.core.liquid import (
+    LiquidHole,
+    LiquidLiteralBool,
+    LiquidTerm,
+    liquid_free_vars,
+)
+from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import fresh_counter, Name
 
-
-# TODO: convert to ENUM
-class Kind(ABC):
-    def __repr__(self):
-        return str(self)
-
-
-class BaseKind(Kind):
-    def __eq__(self, o):
-        return self.__class__ == o.__class__
-
-    def __str__(self):
-        return "Β"
-
-    def __hash__(self):
-        return super().__hash__()
-
-
-class StarKind(Kind):
-    def __eq__(self, o):
-        return self.__class__ == o.__class__
-
-    def __str__(self):
-        return "★"
-
-    def __hash__(self):
-        return super().__hash__()
-
-
-class Type(ABC):
-    loc: Location
-
-
-@dataclass
-class TypeVar(Type):
-    name: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __post_init__(self):
-        if self.name.name in ["Int", "Bool"]:
-            assert False
-
-    def __repr__(self):
-        return f"{self.name}"
-
-    def __eq__(self, other):
-        return type(other) is TypeVar and other.name == self.name
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-
-class Top(Type):
-    def __repr__(self):
-        return "⊤"
-
-    def __eq__(self, other):
-        return type(other) is Top
-
-    def __str__(self):
-        return repr(self)
-
-    def __hash__(self) -> int:
-        return hash("Top")
-
-
-@dataclass
-class AbstractionType(Type):
-    var_name: Name
-    var_type: Type
-    type: Type
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-    multiplicity: Multiplicity = MOmega
-
-    def __repr__(self):
-        prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
-        return f"({prefix}{self.var_name}:{self.var_type}) -> {self.type}"
-
-    def __eq__(self, other):
-        return (
-            type(other) is AbstractionType
-            and self.var_name == other.var_name
-            and self.var_type == other.var_type
-            and self.type == other.type
-            and self.multiplicity is other.multiplicity
-        )
-
-    def __hash__(self) -> int:
-        return hash(self.var_name) + hash(self.var_type) + hash(self.type) + hash(self.multiplicity)
-
-
-@dataclass
-class RefinedType(Type):
-    name: Name
-    type: TypeConstructor | TypeVar
-    refinement: LiquidTerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{{ {self.name}:{self.type} | {self.refinement} }}"
-
-    def __eq__(self, other):
-        return (
-            type(other) is RefinedType
-            and self.name == other.name
-            and self.type == other.type
-            and self.refinement == other.refinement
-        )
-
-    def __hash__(self) -> int:
-        return hash(self.name) + hash(self.type) + hash(self.refinement)
-
-
-@dataclass
-class TypePolymorphism(Type):
-    name: Name  # alpha
-    kind: Kind
-    body: Type
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __str__(self):
-        return f"forall {self.name}:{self.kind}, {self.body}"
-
-    def __hash__(self) -> int:
-        return hash(self.name) + hash(self.kind) + hash(self.body)
-
-
-@dataclass
-class RefinementPolymorphism(Type):
-    name: Name
-    sort: Type
-    body: Type
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __str__(self):
-        return f"forall <{self.name}:{self.sort} -> Bool>, {self.body}"
-
-    def __hash__(self) -> int:
-        return hash(self.name) + hash(self.sort) + hash(self.body)
-
-
-@dataclass
-class TypeConstructor(Type):
-    name: Name
-    args: list[Type] = field(default_factory=list)
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __str__(self):
-        args = ", ".join(str(a) for a in self.args)
-        return f"{self.name} {args}"
-
-    def __eq__(self, other):
-        return type(other) is TypeConstructor and other.name == self.name and self.args == other.args
-
-    def __hash__(self) -> int:
-        return hash(self.name) + sum(hash(a) for a in self.args)
-
-
-@dataclass
-class ExistentialType(Type):
-    """Form B: a type wrapped with a list of existential binders.
-
-    Each binder ``(name, ty)`` records that ``name`` is some witness of type
-    ``ty`` (typically a ``RefinedType`` carrying everything we know about the
-    value). The ``body`` is bare — a ``TypeConstructor``, ``TypeVar``, or
-    ``AbstractionType`` — never another ``RefinedType`` and never another
-    ``ExistentialType`` (binders are flat: nested existentials collapse).
-
-    Lives at the top of a type only; transformations should peel and replace
-    binders rather than nest them.
-    """
-
-    binders: tuple[tuple[Name, Type], ...]
-    body: Type
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __post_init__(self):
-        # Bodies must not themselves carry binders — flatten in constructors.
-        assert not isinstance(self.body, ExistentialType), (
-            "ExistentialType bodies must be flat; flatten via `with_binders`."
-        )
-
-    def __str__(self):
-        bs = "; ".join(f"{n}:{t}" for (n, t) in self.binders)
-        return f"[{bs}] {self.body}"
-
-    def __eq__(self, other):
-        return isinstance(other, ExistentialType) and self.binders == other.binders and self.body == other.body
-
-    def __hash__(self) -> int:
-        return hash(tuple(self.binders)) + hash(self.body)
-
-
-def with_binders(extra: tuple[tuple[Name, Type], ...], ty: Type) -> Type:
-    """Smart constructor: prepend ``extra`` binders, flattening any existing
-    ``ExistentialType`` so the result is at most one wrapper deep."""
-    if not extra:
-        return ty
-    if isinstance(ty, ExistentialType):
-        return ExistentialType(tuple(extra) + tuple(ty.binders), ty.body, loc=ty.loc)
-    return ExistentialType(tuple(extra), ty, loc=getattr(ty, "loc", SynthesizedLocation("default")))
-
-
 # Default type constructors
-
-
 t_unit = TypeConstructor(Name("Unit", 0), [])
 t_bool = TypeConstructor(Name("Bool", 0), [])
 t_int = TypeConstructor(Name("Int", 0), [])
@@ -230,53 +41,21 @@ builtin_core_types = [t_unit, t_bool, t_int, t_float, t_string, t_set, t_tensor,
 
 top = Top()
 
-
-# This class is here to prevent circular imports.
-
-
-@dataclass
-class LiquidHornApplication(LiquidTerm):
-    name: Name
-    argtypes: list[tuple[LiquidTerm, TypeConstructor | TypeVar]]
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __post_init__(self):
-        assert isinstance(self.name, Name)
-        for term, ty in self.argtypes:
-            match term:
-                case LiquidLiteralBool(_):
-                    assert ty == TypeConstructor(Name("Bool", 0))
-                case LiquidLiteralInt(_):
-                    assert ty == TypeConstructor(Name("Int", 0))
-                case LiquidLiteralFloat(_):
-                    assert ty == TypeConstructor(Name("Float", 0))
-                case LiquidLiteralString(_):
-                    assert ty == TypeConstructor(Name("String", 0))
-
-    def __repr__(self):
-        j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])
-        return f"?{self.name}({j})"
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidHornApplication) and other.name == self.name
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-
 liq_true = LiquidLiteralBool(True)
 
 
-def extract_parts(t: Type) -> tuple[Name, TypeConstructor | TypeVar, LiquidTerm]:
-    assert (
-        isinstance(t, TypeConstructor)
-        or isinstance(t, RefinedType)
-        or isinstance(
-            t,
-            TypeVar,
-        )
-        or isinstance(t, TypeConstructor)
-    )
+def with_binders(extra: tuple[tuple[Name, Type], ...], ty: Type) -> Type:
+    """Smart constructor: prepend ``extra`` binders, flattening any existing
+    ``ExistentialType`` so the result is at most one wrapper deep."""
+    if not extra:
+        return ty
+    if isinstance(ty, ExistentialType):
+        return ExistentialType(tuple(extra) + tuple(ty.binders), ty.body, loc=ty.loc)
+    return ExistentialType(tuple(extra), ty, loc=getattr(ty, "loc", SynthesizedLocation("default")))
+
+
+def extract_parts(t: Type) -> tuple[Name, "TypeConstructor | TypeVar", LiquidTerm]:
+    assert isinstance(t, TypeConstructor) or isinstance(t, RefinedType) or isinstance(t, TypeVar)
     match t:
         case RefinedType(name, ity, ref):
             return (name, ity, ref)
@@ -300,7 +79,7 @@ def is_bare(t: Type) -> bool:
 
 
 def base(ty: Type) -> Type:
-    """Returns the base type of a Refined Type"""
+    """Returns the base type of a Refined Type."""
     if isinstance(ty, RefinedType):
         return ty.type
     return ty
@@ -352,13 +131,4 @@ def get_type_vars(t: Type) -> set[TypeVar]:
         assert False, f"Unable to extract {t} ({type(t)})"
 
 
-def refined_to_unrefined_type(ty: Type) -> Type:
-    if isinstance(ty, RefinedType):
-        return ty.type
-    if isinstance(ty, AbstractionType):
-        return AbstractionType(
-            ty.var_name,
-            refined_to_unrefined_type(ty.var_type),
-            refined_to_unrefined_type(ty.type),
-        )
-    return ty
+from aeon_rs import refined_to_unrefined_type as refined_to_unrefined_type  # noqa: E402

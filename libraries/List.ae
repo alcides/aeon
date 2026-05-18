@@ -1,71 +1,76 @@
-# Linked list — an inductive datatype with the standard ``nil`` / ``cons``
-# constructors and a length measure.
-#
-# ``List`` is parameterised by:
-#  * its element type ``a``;
-#  * an abstract refinement ``p`` (Liquid Haskell-style ``data List a <p>``)
-#    that every element of the list satisfies. The refinement flows through
-#    every constructor: a value can only enter the list if it satisfies ``p``.
-inductive List a forall <p : a -> Bool>
-| nil : {l: (List a) | size l == 0}
-| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l == size tl + 1}
-+ size (l: (List a)) : Int
+type List a
+
+def functools : Unit = native_import "functools"
+
+# Returns the size (length) of the list.
+def size: (l:(List a)) -> Int = uninterpreted
+
+# Returns the length of the list.
+# l: list
+# returns: number of elements in the list
+def length (l:(List a)) : {x:Int | x == List.size l} = native "len(l)"
+
+# Creates a new empty list.
+# returns: an empty list
+def new : {x:(List a) | List.size x == 0} = native "[]" ;
+
+# Appends an item to the end of the list.
+# l: list
+# i: item to append
+# returns: new list with item appended
+def append (l:(List a)) (i: a) : {l2:(List a) | List.size l2 == (List.size l) + 1} = native "l + [i]"
+
+# Prepends an item to the start of the list.
+# l: list
+# i: item to prepend
+# returns: new list with item prepended
+def cons (l:(List a)) (i:a) : {l2:(List a) | List.size l2 == (List.size l) + 1} = native "[i] + l"
+
+# Applies a recursive reduction over the list.
+# l: list
+# cb: initial value
+# rec: recursive function
+# returns: result of reduction
+def recursive (l:(List a)) (cb:b) (rec:(v:a) -> (o:b) -> b) : b = native "functools.reduce(lambda seed, next: rec(next)(seed), l, cb)"
+
+# Returns the sum of the list.
+# l: list of numbers
+# returns: sum of elements
+def sum (l:(List Int)) : Int = native "sum(l)"
+
+# Returns the first element of a non-empty list.
+# l: non-empty list
+# returns: first element
+def head (l: {x:(List a) | List.size x > 0 }) : a = native "l[0]"
+
+# Maps a function over the list.
+# f: function to apply
+# l: list
+# returns: new list with function applied to each element
+def map (f: (v:a) -> b) (l:(List a)) : (List b) = native "list(map(f, l))"
+
+# Returns a reversed copy of the list.
+# l: list
+# returns: reversed list
+def reversed (l: (List a)) : (List a) = native "l[::-1]"
+
+def empty (l: (List a)) : {x:Bool | x == ((List.size l) == 0)} = (List.length l) == 0
 
 
-# Length of the list (counted by recursion).
-def length (l: (List a)) : Int =
-    match l with
-    | nil => 0
-    | cons hd tl => 1 + (length tl);
+# def List_tail:(l:{x:(List a) | size x > 0 }) -> {l2:(List a) | size l2 ==  (size l) - 1 }  = \xs -> native "xs[1:]"
 
+# def List_last: (l:{x:(List a) | size x > 0 }) -> a = \xs -> native "xs[-1]"
 
-# True when the list is empty.
-def empty (l: (List a)) : Bool =
-    match l with
-    | nil => true
-    | cons hd tl => false;
+# def List_get: (l:{x:(List a) | size x > 0 }) -> (i:{y:Int | (y >= 0) && y < size l}) -> a = \xs -> \i -> native "xs[i]"
 
+# def List_elem: (l:(List a)) -> (i:a) -> Bool = \xs -> \x -> native "x in xs"
 
-# Append two lists.
-def append (xs: (List a)) (ys: (List a)) : (List a) =
-    match xs with
-    | nil => ys
-    | cons hd tl => cons hd (append tl ys);
+# def List_remove: (l:{x:(List a) | size x > 0 }) -> (i:a) -> {y:(List a) | size y == (size l) - 1 } = \xs -> \x -> native "[elem for elem in xs if elem != x]"
 
+# def List_extends: (l:(List a))->(l2:(List a))-> {x:(List a) | size x == (size l + size l2) } = \xs -> \ys -> native "xs + ys"
 
-# Map a function over the list.
-def map (f: (x:a) -> b) (l: (List a)) : (List b) =
-    match l with
-    | nil => nil
-    | cons hd tl => cons (f hd) (map f tl);
+# def List_sort: (l:(List a)) -> {x:(List a) | size x == size l } = \xs -> native "sorted(xs, key=lambda x: x)"
 
+# def List_count:(l:(List a)) -> (i:a) -> Int= \xs -> \x -> native "xs.count(x)"
 
-# Right fold: ``foldr f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.
-def foldr (f: (x:a) -> (acc:b) -> b) (z: b) (l: (List a)) : b =
-    match l with
-    | nil => z
-    | cons hd tl => f hd (foldr f z tl);
-
-
-# Reverse helper: prepends elements of ``xs`` onto ``acc``.
-def reverse_acc (xs: (List a)) (acc: (List a)) : (List a) =
-    match xs with
-    | nil => acc
-    | cons hd tl => reverse_acc tl (cons hd acc);
-
-
-# Reverse a list.
-def reversed (l: (List a)) : (List a) =
-    reverse_acc l nil;
-
-
-# Append a value at the back of the list (snoc).
-def snoc (l: (List a)) (x: a) : (List a) =
-    append l (cons x nil);
-
-
-# Sum of a list of integers.
-def sum (l: (List Int)) : Int =
-    match l with
-    | nil => 0
-    | cons hd tl => hd + (sum tl);
+# def List_index:(l:(List a)) -> (i:a) -> {y:Int | (y >= 0) && y < size l}= \xs -> \x -> native "xs.index(x)"

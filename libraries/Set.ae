@@ -48,4 +48,4 @@ def difference: (s1:(Set a)) -> (s2:(Set a)) -> (Set a) = native "s1 - s2"
 # Returns the list of elements in the set.
 # s: set
 # returns: list of elements
-def toList: (s:(Set a)) -> (Array a) = native "list(s)"
+def toList: (s:(Set a)) -> (List a) = native "list(s)"

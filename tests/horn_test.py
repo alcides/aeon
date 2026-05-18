@@ -5,7 +5,8 @@ from aeon.core.types import LiquidHornApplication
 from aeon.core.types import RefinedType
 from aeon.core.types import t_int
 from aeon.utils.ctx_helpers import build_context
-from aeon.verification.helpers import conj, constraint_builder, end, imp, parse_liquid
+from aeon.verification.helpers import conj, constraint_builder
+from tests._parser_helpers import end, imp, parse_liquid
 from aeon.verification.helpers import simplify_constraint_fixpoint
 from aeon.verification.horn import build_initial_assignment
 from aeon.verification.horn import flat
