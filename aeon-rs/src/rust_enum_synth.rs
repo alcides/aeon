@@ -104,6 +104,48 @@ fn return_base(py: Python<'_>, ty: PyObject) -> PyObject {
     }
 }
 
+/// True iff the type variable `tv_name` appears in the final return
+/// position of `inner` (so we *must* instantiate it to the target type
+/// for the application to land on the goal type). If the type variable
+/// is referenced only in the arguments, it's free and can be
+/// instantiated to anything we have values of.
+fn tv_in_return(py: Python<'_>, inner: &PyObject, tv_name: &Py<Name>) -> bool {
+    let ret = return_base(py, inner.clone_ref(py));
+    let b = ret.bind(py);
+    if let Ok(tv) = b.downcast::<TypeVar>() {
+        let tv_b = tv.borrow();
+        let n = tv_b.name.borrow(py);
+        let target = tv_name.borrow(py);
+        return n.name == target.name && n.id == target.id;
+    }
+    false
+}
+
+/// Build a concrete TypeConstructor with the given builtin name (Int,
+/// Bool, Float, String, Set). No args.
+fn mk_concrete(py: Python<'_>, name: &str) -> PyResult<PyObject> {
+    let n = Py::new(py, Name { name: name.to_string(), id: 0 })?;
+    Ok(Py::new(
+        py,
+        (
+            TypeConstructor { name: n, args: PyList::empty_bound(py).unbind(), loc: crate::loc::default_location(py) },
+            Type,
+        ),
+    )?
+    .into_any())
+}
+
+/// Pool of concrete types we'll consider when instantiating a free
+/// (return-irrelevant) polymorphic type variable. Choosing here is
+/// what makes `==`, `!=`, `<`, `<=`, `>`, `>=`, `print`, and `$` usable
+/// at every primitive type, not just the goal type.
+const CONCRETE_POOL: &[&str] = &["Int", "Bool", "Float", "String", "Set"];
+
+fn random_concrete_type(py: Python<'_>, rng: &mut SmallRng) -> PyResult<PyObject> {
+    let n = CONCRETE_POOL[rng.gen_range(0..CONCRETE_POOL.len())];
+    mk_concrete(py, n)
+}
+
 /// Returns the name of a TypeConstructor (e.g. "Int", "Bool"), or None.
 fn tc_name(py: Python<'_>, ty: &PyObject) -> Option<String> {
     let b = ty.bind(py);
@@ -182,6 +224,34 @@ fn random_int_literal(py: Python<'_>, rng: &mut SmallRng) -> PyResult<PyObject> 
 fn random_bool_literal(py: Python<'_>, rng: &mut SmallRng) -> PyResult<PyObject> {
     let v = rng.gen_bool(0.5);
     let name = Py::new(py, Name { name: "Bool".to_string(), id: 0 })?;
+    let ty = Py::new(
+        py,
+        (
+            TypeConstructor { name, args: PyList::empty_bound(py).unbind(), loc: crate::loc::default_location(py) },
+            Type,
+        ),
+    )?;
+    Ok(Py::new(
+        py,
+        (
+            Literal {
+                value: v.into_py(py),
+                type_: ty.into_any(),
+                loc: crate::loc::default_location(py),
+            },
+            Term,
+        ),
+    )?
+    .into_any())
+}
+
+fn random_string_literal(py: Python<'_>, rng: &mut SmallRng) -> PyResult<PyObject> {
+    // A small bag of distinguished strings: empty, single chars, and a
+    // few common words. Random search benefits more from a curated
+    // alphabet than from arbitrary garbage.
+    let candidates: &[&str] = &["", "a", "b", "c", "x", "y", "hello", "world", "foo", "bar"];
+    let v = candidates[rng.gen_range(0..candidates.len())].to_string();
+    let name = Py::new(py, Name { name: "String".to_string(), id: 0 })?;
     let ty = Py::new(
         py,
         (
@@ -358,6 +428,7 @@ fn gen_term(g: &mut GenCtx<'_>, ty: PyObject, depth: u32) -> PyResult<PyObject> 
                 "Int" => return random_int_literal(py, g.rng),
                 "Bool" => return random_bool_literal(py, g.rng),
                 "Float" => return random_float_literal(py, g.rng),
+                "String" => return random_string_literal(py, g.rng),
                 _ => {}
             }
         }
@@ -375,10 +446,19 @@ fn gen_term(g: &mut GenCtx<'_>, ty: PyObject, depth: u32) -> PyResult<PyObject> 
     // Try a context variable whose return type matches; if it's a
     // function, build an application chain by filling its args.
     if let Some((vname, vty)) = random_var_of_type(g, &ty) {
-        // Peel outer `forall` quantifiers and instantiate each with the
-        // stripped target type, emitting one `TypeApplication` per
-        // forall.  After this pass, `inst_ty` is monomorphic over the
-        // target.
+        // Peel outer `forall` quantifiers. For each bound type variable
+        // we decide between two instantiations:
+        //   * If the variable appears in the return position of the
+        //     inner type, we *must* set it to the target — that's how
+        //     the application's result lands on the goal type. (Used
+        //     for the arithmetic operators `+ - * /` whose
+        //     `forall a. a -> a -> a` signature ties argument and
+        //     return types together.)
+        //   * Otherwise the variable is argument-only and can be any
+        //     concrete primitive (`Int`, `Bool`, `Float`, `String`,
+        //     `Set`). This is what lets `==`, `!=`, `<` and friends
+        //     (`forall a. a -> a -> Bool`) generate comparisons at any
+        //     primitive type, not just the goal type.
         let inst_target = strip_to_base(py, ty.clone_ref(py));
         let mut inst_ty = vty.clone_ref(py);
         let mut term = mk_var(g, vname)?;
@@ -389,19 +469,24 @@ fn gen_term(g: &mut GenCtx<'_>, ty: PyObject, depth: u32) -> PyResult<PyObject> 
                 let tv_name = tp.name.clone_ref(py);
                 let body = tp.body.clone_ref(py);
                 drop(tp);
+                let inst = if tv_in_return(py, &body, &tv_name) {
+                    inst_target.clone_ref(py)
+                } else {
+                    random_concrete_type(py, g.rng)?
+                };
                 term = Py::new(
                     py,
                     (
                         TypeApplication {
                             body: term,
-                            type_: inst_target.clone_ref(py),
+                            type_: inst.clone_ref(py),
                             loc: crate::loc::default_location(py),
                         },
                         Term,
                     ),
                 )?
                 .into_any();
-                inst_ty = substitute_vartype(py, body, inst_target.clone_ref(py), tv_name)?;
+                inst_ty = substitute_vartype(py, body, inst, tv_name)?;
             } else {
                 break;
             }
