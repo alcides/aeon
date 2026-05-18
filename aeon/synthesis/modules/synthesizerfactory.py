@@ -6,6 +6,7 @@ from aeon.synthesis.modules.llm import LLMSynthesizer
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+from aeon.synthesis.modules.rust_enum import RustEnumSynthesizerWrapper
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -37,5 +38,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return TacticRandomSynthesizer()
         case "lta":
             return LTASynthesizer()
+        case "rust_enum":
+            return RustEnumSynthesizerWrapper()
         case _:
             assert False, f"Not supported synthesizer with name {module}"

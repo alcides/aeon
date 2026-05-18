@@ -40,6 +40,7 @@ mod ple;
 mod pprint_helpers;
 mod prelude_consts;
 mod qualifiers;
+mod rust_enum_synth;
 mod smt_ctx;
 mod smt_encode;
 mod smt_flatten;
@@ -494,6 +495,9 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("EQUALITY_OPERATORS", prelude_consts::get_equality_operators(m.py()))?;
     m.add("ALL_OPS", prelude_consts::get_all_ops(m.py()))?;
     m.add("native_types", prelude_consts::get_native_types(m.py()))?;
+
+    // Random-enumerative synthesizer with Pareto-front tracking.
+    m.add_class::<rust_enum_synth::RustEnumSynthesizer>()?;
 
     // Decorator infrastructure (aeon.decorators).
     m.add_function(wrap_pyfunction!(decorators::metadata_update, m)?)?;
