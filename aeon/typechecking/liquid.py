@@ -10,6 +10,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import (
     AbstractionType,
+    ExistentialType,
     LiquidHornApplication,
     RefinedType,
     RefinementPolymorphism,
@@ -101,34 +102,42 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
 
+    def add_variable(name: Name, ty: Type) -> None:
+        """Record a variable binding for liquid lookup. ``ExistentialType``
+        wrappers are peeled — each ``(bn, bt)`` binder inside is registered
+        recursively as if it were its own ``VariableBinder``, then the bare
+        body is handled. This mirrors what ``wellformed`` does and lets
+        refinements over Form B existentials reach the SMT context."""
+        match ty:
+            case ExistentialType(binders, body):
+                for bn, bt in binders:
+                    add_variable(bn, bt)
+                add_variable(name, body)
+            case TypeConstructor(_) | TypeConstructor(_, _):
+                variables[name] = ty
+            case TypeVar(tvname):
+                known_types.append(tvname)
+                variables[name] = ty
+            case RefinedType(_, TypeConstructor(_) as bt, _) | RefinedType(_, TypeConstructor(_, _) as bt, _):
+                variables[name] = bt
+            case RefinedType(_, TypeVar(tvname) as bt, _):
+                known_types.append(tvname)
+                variables[name] = bt
+            case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _) | AbstractionType(_, _, _):
+                functions[name] = lower_abstraction_type(ty)
+            case _:
+                assert False, f"Unsupported variable binder type {ty} ({type(ty)})"
+
     for entry in ctx.entries[::-1]:
         match entry:
-            case VariableBinder(name, TypeConstructor(_) as bt):
-                variables[name] = bt
-            case VariableBinder(name, TypeConstructor(_, _) as bt):
-                variables[name] = bt
-            case VariableBinder(name, TypeVar(tvname)):
-                known_types.append(tvname)
-                variables[name] = TypeVar(tvname)
-            case VariableBinder(name, TypePolymorphism(_, _, _) as ty):
-                functions[name] = lower_abstraction_type(ty)
-            case VariableBinder(name, RefinementPolymorphism(_, _, _) as ty):
-                functions[name] = lower_abstraction_type(ty)
+            case VariableBinder(name, ty):
+                add_variable(name, ty)
             case TypeBinder(name, _):
                 known_types.append(name)
-            case UninterpretedBinder(name, AbstractionType(_, _, _) as ty) | VariableBinder(
-                name, AbstractionType(_, _, _) as ty
-            ):
+            case UninterpretedBinder(name, AbstractionType(_, _, _) as ty):
                 functions[name] = lower_abstraction_type(ty)
             case UninterpretedBinder(name, TypePolymorphism(_, _, AbstractionType(_, _, _)) as ty):
                 functions[name] = lower_abstraction_type(ty)
-            case VariableBinder(name, RefinedType(_, TypeConstructor(_) as bt, _)):
-                variables[name] = bt
-            case VariableBinder(name, RefinedType(_, TypeConstructor(_, _) as bt, _)):
-                variables[name] = bt
-            case VariableBinder(name, RefinedType(_, TypeVar(tvname) as bt, _)):
-                known_types.append(tvname)
-                variables[name] = bt
             case TypeConstructorBinder(_, _):
                 pass
             case _:
