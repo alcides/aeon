@@ -44,10 +44,12 @@ class ElaborationTypingContext:
     constructor_defs: dict[str, Name] = field(default_factory=dict)
 
     def type_of(self, name: Name):
-        """Returns the type of the variable name."""
+        """Returns the type of the variable name. Looks up regular bindings
+        and uninterpreted-def bindings (uninterpreted measures like Array's
+        ``size`` show up in the latter)."""
         for entry in self.entries[::-1]:
             match entry:
-                case ElabVariableBinder(bname, ty):
+                case ElabVariableBinder(bname, ty) | ElabUninterpretedBinder(bname, ty):
                     if bname.name == name.name:
                         return ty
         return None

@@ -15,7 +15,13 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, TypePolymorphism, TypeVar, refined_to_unrefined_type
+from aeon.core.types import (
+    AbstractionType,
+    RefinementPolymorphism,
+    TypePolymorphism,
+    TypeVar,
+    refined_to_unrefined_type,
+)
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
@@ -116,6 +122,15 @@ def get_holes_info(
                     )
                 case _:
                     assert False, "TypeAbstraction does not have the TypePolymorphism type."
+        case RefinementAbstraction(name=_, sort=_, body=body):
+            # The refinement parameter is solved by Horn inference, not GP
+            # synthesis. Walk under the binder with the inner type.
+            inner_ty = ty.body if isinstance(ty, RefinementPolymorphism) else ty
+            return get_holes_info(ctx, body, inner_ty, targets, refined_types)
+        case RefinementApplication(body=body, refinement=_):
+            # Implicit refinement application — synthesis ignores the
+            # refinement (Horn solves it) and recurses into the function.
+            return get_holes_info(ctx, body, ty, targets, refined_types)
 
         case _:
             assert False, f"Could not infer the type of {t} for synthesis."
