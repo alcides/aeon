@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import NamedTuple
 
+import aeon
 from aeon.core.multiplicity import MOmega, Multiplicity
 from aeon.core.types import BaseKind, Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
@@ -1422,13 +1423,51 @@ def clear_import_cache() -> None:
     _currently_importing.clear()
 
 
+def _get_package_libraries_dir() -> Path | None:
+    """Return the path to the libraries directory in the installed aeon package.
+
+    This allows importing standard library modules (List, Math, etc.) when running
+    aeon on files outside the project directory.
+
+    Returns:
+        Path to libraries directory if it exists, None otherwise.
+    """
+    try:
+        # Get the parent directory of the aeon package
+        # For editable installs: /workspace/aeon -> /workspace/libraries
+        # For regular installs: site-packages/aeon -> site-packages/../libraries
+        aeon_package_dir = Path(aeon.__file__).parent.parent
+        libraries_dir = aeon_package_dir / "libraries"
+        if libraries_dir.exists() and libraries_dir.is_dir():
+            return libraries_dir
+    except Exception:
+        pass
+    return None
+
+
 def _resolve_import(imp: ImportAe) -> Program:
-    """Imports a given module path, following the precedence rules of current folder,
-    AEONPATH. Results are cached by resolved file path."""
+    """Imports a given module path, following the precedence rules:
+    1. Current working directory (for relative imports)
+    2. Current working directory + /libraries (backward compatibility)
+    3. Package installation libraries/ directory (standard library)
+    4. AEONPATH directories (user-defined paths)
+
+    Results are cached by resolved file path."""
     path = imp.file_path
-    possible_containers = (
-        [Path.cwd()] + [Path.cwd() / "libraries"] + [Path(s) for s in os.environ.get("AEONPATH", ";").split(";") if s]
-    )
+
+    # Build search path with precedence order
+    possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
+
+    # Add package libraries directory for standard library imports
+    pkg_libs = _get_package_libraries_dir()
+    if pkg_libs:
+        possible_containers.append(pkg_libs)
+
+    # Add AEONPATH directories
+    aeonpath = os.environ.get("AEONPATH", "")
+    if aeonpath:
+        possible_containers.extend([Path(s) for s in aeonpath.split(";") if s])
+
     for container in possible_containers:
         file = container / f"{path}"
         if file.exists():
