@@ -1,6 +1,11 @@
-# Aeon Programming language
+# Aeon Programming Language
 
-Aeon is a programming that with a focus on Liquid Types. Liquid types allow developers to be more specific and annotate their types with a predicate.
+**Aeon** is a statically-typed functional language built around two ideas that usually live in separate research papers:
+
+1. **Liquid (refinement) types** — types that carry a logical predicate, so the compiler can rule out whole classes of bugs (negative balances, off-by-one errors, division by zero, ...) before the program ever runs. The proof obligations are discharged by an SMT solver (z3).
+2. **Program synthesis** — anywhere you would write a value, you can write `?hole` instead. Aeon then searches for an expression that satisfies the surrounding type, optionally minimising or maximising a cost function. Several synthesizers are available (genetic programming, enumerative, SMT-guided, LLM-based, ...).
+
+The two features feed each other: stronger types make synthesis precise (the synthesizer only proposes solutions the type system accepts), and synthesis lets you write *specifications* and let the machine fill in the *implementation*.
 
 ```
 let age : Int = 25;
@@ -8,9 +13,57 @@ let age : {age:Int | age > 0} = 25;
 let age : {age:Int | age >= 18 && age < 130} = 25;
 ```
 
-In Aeon, all three declarations are valid, and each more specific than the previous. Liquid Types restrict the domain of values and functions, support assertions in the source code, and can statically catch violations at compile time.
+All three declarations are valid, and each is more specific than the previous. Liquid types restrict the domain of values and functions, support assertions in the source code, and statically catch violations at compile time.
 
-There are other languages with Liquid Types, such as [LiquidHaskell](https://ucsd-progsys.github.io/liquidhaskell/), [LiquidJava](https://catarinagamboa.github.io/liquidjava.html), or Rust with [Flux](https://flux-rs.github.io/flux/). But while these languages add liquid types to an existing language, aeon is built with support from liquid types from the start.
+Other languages with liquid types — [LiquidHaskell](https://ucsd-progsys.github.io/liquidhaskell/), [LiquidJava](https://catarinagamboa.github.io/liquidjava.html), or Rust with [Flux](https://flux-rs.github.io/flux/) — bolt liquid types onto an existing language. Aeon was designed around them from the start, which is what allows synthesis to be deeply integrated as well.
+
+## A complete example: types prove safety, synthesis fills the gap
+
+The function below carries its full specification in its type:
+
+* The **preconditions** say `price` is non-negative and `pct` is a real percentage (0–100).
+* The **postcondition** says the discounted price is non-negative and never exceeds the original.
+
+```
+def apply_discount (price : Int | price >= 0)
+                   (pct   : Int | pct >= 0 && pct <= 100)
+                 : {r : Int | r >= 0 && r <= price} =
+    price - (price * pct / 100);
+```
+
+If the body ever violated those constraints (say, we accidentally wrote `price + pct`), Aeon rejects the program at compile time — no test required, no runtime check inserted.
+
+Now suppose we don't know *the answer*, but we do know *what makes an answer valid*. How small can the yearly deposit be if we want to reach \$10,000 in 20 years at ~1% interest (compound factor ≈ 21.9)? We write the specification and leave a hole:
+
+```
+@minimize_int(deposit)
+def deposit : {d : Int | d > 0 && d * 21900 >= 10000000} = ?hole;
+```
+
+Running this with `uv run python -m aeon --budget 10 -s gp file.ae`, Aeon searches for an integer that satisfies the predicate and is as small as possible — landing on `457` (since `457 * 21900 = 10_008_300`).
+
+The same machinery scales up: holes can appear inside functions, take arguments, and be guided by training data (`@csv_file`), runtime energy use (`@minimize_energy`), or natural-language prompts (`@prompt`, used by the `llm` backend).
+
+## Important concepts when learning Aeon
+
+The list below covers the ideas you'll meet first, with just enough context to get oriented.
+
+| Concept | What it means in Aeon |
+|---|---|
+| **Refinement types** | Types can carry a logical predicate: `{x:Int \| x > 0}` is the type of positive integers. Preconditions and postconditions live in the type itself and are checked statically by an SMT solver. |
+| **Specifications as types** | A function's contract is its type. Once `withdraw : (balance:Int \| balance >= 0) -> (amount:Int \| amount <= balance) -> {r:Int \| r >= 0}` type-checks, the contract is proved — no runtime assertion, no test required. |
+| **Immutability** | There is no assignment. `let x = 5` introduces a fresh binding for `x` in the scope that follows; the binding cannot be updated in place. |
+| **Currying and space application** | Multi-argument functions are nested single-argument functions. You apply them with whitespace: `add 2 3` is `(add 2) 3`. Partial application is automatic. |
+| **Expression-oriented** | Every construct is an expression and returns a value, including `if ... then ... else`. The last expression of a block is the block's value, so there is no separate `return` statement. |
+| **No exceptions, no `null`** | Errors are not raised. Failure is modelled with inductive types (`Maybe a`, `Either a b`) or, when possible, ruled out by refinement types so the failure case becomes unrepresentable. |
+| **Inductive types and pattern matching** | Data is defined with `inductive` (a sum of named constructors, each carrying typed fields), and destructured with `match ... with`. All constructors must be covered. |
+| **Functional, not object-oriented** | There are no classes, methods, or inheritance — only functions and inductive types. Behaviour is composed by passing functions, not by overriding. |
+| **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site, e.g. `id[Int]`. Type abstractions in the body use `Λ` (capital lambda). |
+| **Parametric refinements** | A function can be polymorphic over a refinement *predicate*, not just over a type. This lets one definition preserve whatever invariant the caller's arguments happen to satisfy. |
+| **Synthesis is a language feature** | `?hole` is a legal expression. The compiler can search for an expression of the surrounding type, optionally guided by `@minimize` / `@maximize` decorators, training data, or natural-language prompts. |
+| **Surface syntax** | Top-level definitions use `def`; local bindings use `let`. Function types use `->`. Comments begin with `#`. |
+| **Entry point** | A function `main` returning `Unit` is the program's entry point. Side effects come from primitives like `print` or through the FFI. |
+| **Python FFI** | Aeon is implemented as a Python interpreter, so it ships with a direct bridge to Python: `native "expr"` evaluates a Python expression, and `native_import "module"` pulls in a Python module (numpy, sklearn, etc.). The bridge is not statically type-checked, so an incorrect annotation surfaces at runtime. |
 
 ## The Aeon interpreter
 

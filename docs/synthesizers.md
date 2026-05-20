@@ -89,6 +89,49 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 ---
 
+### `tdsyn` / `tdsyn_enumerative` — Type-Directed Synthesis (BFS)
+
+Top-down, type-directed synthesizer that grows a partial AST by applying **backward** and **forward** actions to each open hole. Subtyping queries are discharged by an SMT solver, and when every remaining hole is a base-type leaf the synthesizer asks z3 to solve them all in one shot.
+
+Search is breadth-first over partial ASTs (capped by a depth bound). When the worklist is exhausted, the search restarts with a shuffled expansion order so that subsequent iterations explore different term shapes until the budget runs out. If no optimization goals are present, the first valid term is returned; otherwise the best-scoring term across iterations wins.
+
+---
+
+### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
+
+Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs independent random walks from the initial hole. Each walk repeatedly picks a random open hole and a random candidate expansion, falling back to SMT completion when only base-type leaves remain. Lighter than the BFS mode, useful when the term space is wide and shallow.
+
+---
+
+### `tactics` — Random Tactic Search
+
+A Lean-style tactic synthesizer. The proof obligation (the hole's goal type in its typing context) is reduced step by step by repeatedly choosing a random open hole and a random tactic from:
+
+- `apply?` — apply a function from context, leaving holes for its arguments
+- `assumption` — close the hole with a matching binding from context
+- `constructor` — apply an inductive-type constructor
+- `inst` — instantiate a type or refinement parameter
+- `choose_literal` — pick a base-type literal
+- `by_cases` — split on a boolean
+- `split` — split a conjunction in the goal
+
+Each iteration starts a fresh walk (up to 20 tactic steps); walks that fail to close all holes are abandoned. When optimization goals are present, the best-scoring closed walk across the budget is returned.
+
+---
+
+### `lta` — Liquid Tree Automata
+
+Component-based synthesis via Liquid Tree Automata (Algorithm 1 of the LTA paper). An automaton is seeded from the library functions in scope, the parameters of the goal type, and a minimal set of constants. It is then iteratively expanded by an explore-reduce-check loop:
+
+1. **Transition** — one round of E-app expansion pairs every function state with every argument state.
+2. **Prune** — drops states whose refinements are unsatisfiable.
+3. **Similarity / Minimize** — collapses observationally equivalent states.
+4. **Goal check** — Q-goal transitions try to connect candidate states to the goal type; a non-empty final state yields a candidate term.
+
+Polymorphic library functions are kept as cyclic *template* states and finitely unrolled into monomorphic instantiations against a small type universe. The expansion is depth-bounded (default `max_depth = 4`).
+
+---
+
 ## Choosing a Synthesizer
 
 | Synthesizer     | Strategy         | Best for |
@@ -102,3 +145,7 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
+| `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
+| `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
+| `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
+| `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
