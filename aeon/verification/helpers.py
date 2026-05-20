@@ -6,6 +6,9 @@ from typing import Generator, cast
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralFloat
+from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
@@ -132,6 +135,27 @@ def is_used(n: Name, c: Constraint) -> bool:
             assert False, f"Unsupported Constraint: {c}"
 
 
+def flatten_conjuncts(expr: LiquidTerm) -> list[LiquidTerm]:
+    """Flattens a conjunction into a list of conjuncts."""
+    match expr:
+        case LiquidApp(fun=f, args=[a0, a1]) if f == Name("&&", 0):
+            return flatten_conjuncts(a0) + flatten_conjuncts(a1)
+        case LiquidLiteralBool(True):
+            return []
+        case _:
+            return [expr]
+
+
+def rebuild_conjunction(conjuncts: list[LiquidTerm]) -> LiquidTerm:
+    """Rebuilds a conjunction from a list of conjuncts."""
+    if not conjuncts:
+        return LiquidLiteralBool(True)
+    result = conjuncts[0]
+    for c in conjuncts[1:]:
+        result = LiquidApp(Name("&&", 0), [result, c])
+    return result
+
+
 def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
     """Simplifies a liquid term by reducing it."""
     match expr:
@@ -233,6 +257,45 @@ def is_synthesized_name(name: Name) -> bool:
     return name.name == "_y"
 
 
+def liquid_terms_alpha_equal(t1: LiquidTerm, t2: LiquidTerm) -> bool:
+    """Checks if two liquid terms are alpha-equivalent (structurally equal ignoring name IDs)."""
+    match (t1, t2):
+        case (LiquidLiteralBool(b1), LiquidLiteralBool(b2)):
+            return b1 == b2
+        case (LiquidLiteralInt(i1), LiquidLiteralInt(i2)):
+            return i1 == i2
+        case (LiquidLiteralFloat(f1), LiquidLiteralFloat(f2)):
+            return f1 == f2
+        case (LiquidLiteralString(s1), LiquidLiteralString(s2)):
+            return s1 == s2
+        case (LiquidVar(n1), LiquidVar(n2)):
+            return n1.name == n2.name and n1.id == n2.id
+        case (LiquidApp(fun1, args1), LiquidApp(fun2, args2)):
+            if fun1.name != fun2.name or len(args1) != len(args2):
+                return False
+            return all(liquid_terms_alpha_equal(a1, a2) for a1, a2 in zip(args1, args2))
+        case _:
+            return False
+
+
+def simplify_implication_conclusion(pred: LiquidTerm, conclusion: LiquidTerm) -> LiquidTerm:
+    """Simplifies the conclusion of an implication by removing conjuncts that are already in the premise.
+
+    Example: premise: a > 0, conclusion: a > 0 && b > 0 => simplified to: b > 0
+    """
+    premise_conjuncts = flatten_conjuncts(pred)
+    conclusion_conjuncts = flatten_conjuncts(conclusion)
+
+    # Remove conclusion conjuncts that are already present in the premise
+    simplified_conjuncts = [
+        conc
+        for conc in conclusion_conjuncts
+        if not any(liquid_terms_alpha_equal(conc, prem) for prem in premise_conjuncts)
+    ]
+
+    return rebuild_conjunction(simplified_conjuncts)
+
+
 def simplify_constraint(c: Constraint) -> Constraint:
     """Converts a constraint into an equivalent one, by reducing it to
     equivalent expressions."""
@@ -288,9 +351,21 @@ def simplify_constraint(c: Constraint) -> Constraint:
             cont = simplify_constraint(seq)
             s = simplify_expr(pred)
 
+            # Track whether the bound variable was used in the original conclusion
+            iname_used_in_original = is_used(iname, cont)
+
+            # Simplify the conclusion in the innermost constraint if it's a LiquidConstraint
+            if isinstance(cont, LiquidConstraint):
+                simplified_conclusion = simplify_implication_conclusion(s, cont.expr)
+                # Only update if simplification changed something
+                if simplified_conclusion != cont.expr:
+                    cont = LiquidConstraint(simplify_expr(simplified_conclusion), loc=cont.loc)
+
             other_used_vars = [x for x in used_variables(s) if x != iname]
-            if not is_used(iname, cont) and not other_used_vars:
-                return seq
+            # If the variable was not used in the original conclusion and there are no other free vars in premise,
+            # we can drop the implication (the premise becomes irrelevant)
+            if not iname_used_in_original and not other_used_vars:
+                return cont
 
             return Implication(iname, base, s, cont, loc=iloc)
         case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
