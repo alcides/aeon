@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Args - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Args</h1>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Parser⁵">Parser⁵</a></li>
+                        <li><a href="#type-ParsedArgs⁶">ParsedArgs⁶</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-argparse⁷">argparse⁷</a></li>
+                        <li><a href="#func-newParser⁸">newParser⁸</a></li>
+                        <li><a href="#func-addArg¹⁰">addArg¹⁰</a></li>
+                        <li><a href="#func-addIntArg¹⁵">addIntArg¹⁵</a></li>
+                        <li><a href="#func-addFloatArg²⁰">addFloatArg²⁰</a></li>
+                        <li><a href="#func-addFlag²⁵">addFlag²⁵</a></li>
+                        <li><a href="#func-addOption³⁰">addOption³⁰</a></li>
+                        <li><a href="#func-addIntOption³⁶">addIntOption³⁶</a></li>
+                        <li><a href="#func-addFloatOption⁴²">addFloatOption⁴²</a></li>
+                        <li><a href="#func-addChoice⁴⁸">addChoice⁴⁸</a></li>
+                        <li><a href="#func-parse⁵⁶">parse⁵⁶</a></li>
+                        <li><a href="#func-parseList⁵⁸">parseList⁵⁸</a></li>
+                        <li><a href="#func-getString⁶¹">getString⁶¹</a></li>
+                        <li><a href="#func-getInt⁶⁵">getInt⁶⁵</a></li>
+                        <li><a href="#func-getFloat⁶⁹">getFloat⁶⁹</a></li>
+                        <li><a href="#func-getBool⁷³">getBool⁷³</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Parser⁵">
+            <div class="item-header">
+                <span class="item-name">Parser⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Parser⁵</div>
+        </div>
+        <div class="item" id="type-ParsedArgs⁶">
+            <div class="item-header">
+                <span class="item-name">ParsedArgs⁶</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type ParsedArgs⁶</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-argparse⁷">
+            <div class="item-header">
+                <span class="item-name">argparse⁷</span>
+            </div>
+            <div class="signature">def argparse⁷ : Unit </div>
+        </div>
+        <div class="item" id="func-newParser⁸">
+            <div class="item-header">
+                <span class="item-name">newParser⁸</span>
+            </div>
+            <div class="comment">Creates a new argument parser with a description shown in --help output.</div>
+            <div class="signature">def newParser⁸ (description⁹: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addArg¹⁰">
+            <div class="item-header">
+                <span class="item-name">addArg¹⁰</span>
+            </div>
+            <div class="comment">Adds a required positional string argument.</div>
+            <div class="signature">def addArg¹⁰ (p¹¹: &#x27;Parser⁵), (name¹²: {s¹³ : String  | ((!= s¹³) &quot;&quot;) }), (help¹⁴: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addIntArg¹⁵">
+            <div class="item-header">
+                <span class="item-name">addIntArg¹⁵</span>
+            </div>
+            <div class="comment">Adds a required positional integer argument.</div>
+            <div class="signature">def addIntArg¹⁵ (p¹⁶: &#x27;Parser⁵), (name¹⁷: {s¹⁸ : String  | ((!= s¹⁸) &quot;&quot;) }), (help¹⁹: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addFloatArg²⁰">
+            <div class="item-header">
+                <span class="item-name">addFloatArg²⁰</span>
+            </div>
+            <div class="comment">Adds a required positional float argument.</div>
+            <div class="signature">def addFloatArg²⁰ (p²¹: &#x27;Parser⁵), (name²²: {s²³ : String  | ((!= s²³) &quot;&quot;) }), (help²⁴: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addFlag²⁵">
+            <div class="item-header">
+                <span class="item-name">addFlag²⁵</span>
+            </div>
+            <div class="comment">Adds an optional boolean flag (e.g. --verbose). Defaults to false.</div>
+            <div class="signature">def addFlag²⁵ (p²⁶: &#x27;Parser⁵), (name²⁷: {s²⁸ : String  | ((!= s²⁸) &quot;&quot;) }), (help²⁹: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addOption³⁰">
+            <div class="item-header">
+                <span class="item-name">addOption³⁰</span>
+            </div>
+            <div class="comment">Adds an optional string option, e.g. --output FILE.</div>
+            <div class="signature">def addOption³⁰ (p³¹: &#x27;Parser⁵), (name³²: {s³³ : String  | ((!= s³³) &quot;&quot;) }), (default³⁴: String ), (help³⁵: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addIntOption³⁶">
+            <div class="item-header">
+                <span class="item-name">addIntOption³⁶</span>
+            </div>
+            <div class="comment">Adds an optional integer option.</div>
+            <div class="signature">def addIntOption³⁶ (p³⁷: &#x27;Parser⁵), (name³⁸: {s³⁹ : String  | ((!= s³⁹) &quot;&quot;) }), (default⁴⁰: Int ), (help⁴¹: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addFloatOption⁴²">
+            <div class="item-header">
+                <span class="item-name">addFloatOption⁴²</span>
+            </div>
+            <div class="comment">Adds an optional float option.</div>
+            <div class="signature">def addFloatOption⁴² (p⁴³: &#x27;Parser⁵), (name⁴⁴: {s⁴⁵ : String  | ((!= s⁴⁵) &quot;&quot;) }), (default⁴⁶: Float ), (help⁴⁷: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-addChoice⁴⁸">
+            <div class="item-header">
+                <span class="item-name">addChoice⁴⁸</span>
+            </div>
+            <div class="comment">Adds an optional argument restricted to a non-empty list of choices.</div>
+            <div class="signature">def addChoice⁴⁸ (p⁴⁹: &#x27;Parser⁵), (name⁵⁰: {s⁵¹ : String  | ((!= s⁵¹) &quot;&quot;) }), (options⁵²: {l⁵³ : Array? String  | ((&gt; (Array.size? l⁵³)) 0) }), (default⁵⁴: String ), (help⁵⁵: String ) : &#x27;Parser⁵</div>
+        </div>
+        <div class="item" id="func-parse⁵⁶">
+            <div class="item-header">
+                <span class="item-name">parse⁵⁶</span>
+            </div>
+            <div class="comment">Parses sys.argv[1:] using the configured parser. argparse will call
+sys.exit on parse error or when --help is passed.</div>
+            <div class="signature">def parse⁵⁶ (p⁵⁷: &#x27;Parser⁵) : &#x27;ParsedArgs⁶</div>
+        </div>
+        <div class="item" id="func-parseList⁵⁸">
+            <div class="item-header">
+                <span class="item-name">parseList⁵⁸</span>
+            </div>
+            <div class="comment">Parses an explicit list of strings. Useful for tests and embedding.</div>
+            <div class="signature">def parseList⁵⁸ (p⁵⁹: &#x27;Parser⁵), (xs⁶⁰: Array? String ) : &#x27;ParsedArgs⁶</div>
+        </div>
+        <div class="item" id="func-getString⁶¹">
+            <div class="item-header">
+                <span class="item-name">getString⁶¹</span>
+            </div>
+            <div class="comment">Reads a string value by name.</div>
+            <div class="signature">def getString⁶¹ (a⁶²: &#x27;ParsedArgs⁶), (name⁶³: {s⁶⁴ : String  | ((!= s⁶⁴) &quot;&quot;) }) : String </div>
+        </div>
+        <div class="item" id="func-getInt⁶⁵">
+            <div class="item-header">
+                <span class="item-name">getInt⁶⁵</span>
+            </div>
+            <div class="comment">Reads an integer value by name.</div>
+            <div class="signature">def getInt⁶⁵ (a⁶⁶: &#x27;ParsedArgs⁶), (name⁶⁷: {s⁶⁸ : String  | ((!= s⁶⁸) &quot;&quot;) }) : Int </div>
+        </div>
+        <div class="item" id="func-getFloat⁶⁹">
+            <div class="item-header">
+                <span class="item-name">getFloat⁶⁹</span>
+            </div>
+            <div class="comment">Reads a float value by name.</div>
+            <div class="signature">def getFloat⁶⁹ (a⁷⁰: &#x27;ParsedArgs⁶), (name⁷¹: {s⁷² : String  | ((!= s⁷²) &quot;&quot;) }) : Float </div>
+        </div>
+        <div class="item" id="func-getBool⁷³">
+            <div class="item-header">
+                <span class="item-name">getBool⁷³</span>
+            </div>
+            <div class="comment">Reads a boolean flag value by name.</div>
+            <div class="signature">def getBool⁷³ (a⁷⁴: &#x27;ParsedArgs⁶), (name⁷⁵: {s⁷⁶ : String  | ((!= s⁷⁶) &quot;&quot;) }) : Bool </div>
+        </div>
+    </div>
+</body>
+</html>

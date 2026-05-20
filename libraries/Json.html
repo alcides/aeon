@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Json - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Json</h1>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Json⁵">Json⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-json⁶">json⁶</a></li>
+                        <li><a href="#func-parse⁷">parse⁷</a></li>
+                        <li><a href="#func-parseFile¹⁰">parseFile¹⁰</a></li>
+                        <li><a href="#func-stringify¹³">stringify¹³</a></li>
+                        <li><a href="#func-stringifyPretty¹⁶">stringifyPretty¹⁶</a></li>
+                        <li><a href="#func-writeFile¹⁹">writeFile¹⁹</a></li>
+                        <li><a href="#func-isNull²³">isNull²³</a></li>
+                        <li><a href="#func-isBool²⁵">isBool²⁵</a></li>
+                        <li><a href="#func-isNumber²⁷">isNumber²⁷</a></li>
+                        <li><a href="#func-isString²⁹">isString²⁹</a></li>
+                        <li><a href="#func-isArray³¹">isArray³¹</a></li>
+                        <li><a href="#func-isObject³³">isObject³³</a></li>
+                        <li><a href="#func-asBool³⁵">asBool³⁵</a></li>
+                        <li><a href="#func-asInt³⁷">asInt³⁷</a></li>
+                        <li><a href="#func-asFloat³⁹">asFloat³⁹</a></li>
+                        <li><a href="#func-asString⁴¹">asString⁴¹</a></li>
+                        <li><a href="#func-has⁴³">has⁴³</a></li>
+                        <li><a href="#func-get⁴⁶">get⁴⁶</a></li>
+                        <li><a href="#func-length⁴⁹">length⁴⁹</a></li>
+                        <li><a href="#func-at⁵²">at⁵²</a></li>
+                        <li><a href="#func-mkNull⁵⁶">mkNull⁵⁶</a></li>
+                        <li><a href="#func-mkBool⁵⁷">mkBool⁵⁷</a></li>
+                        <li><a href="#func-mkInt⁵⁹">mkInt⁵⁹</a></li>
+                        <li><a href="#func-mkFloat⁶¹">mkFloat⁶¹</a></li>
+                        <li><a href="#func-mkString⁶³">mkString⁶³</a></li>
+                        <li><a href="#func-mkArray⁶⁵">mkArray⁶⁵</a></li>
+                        <li><a href="#func-mkObject⁶⁷">mkObject⁶⁷</a></li>
+                        <li><a href="#func-setKey⁶⁸">setKey⁶⁸</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Json⁵">
+            <div class="item-header">
+                <span class="item-name">Json⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Json⁵</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-json⁶">
+            <div class="item-header">
+                <span class="item-name">json⁶</span>
+            </div>
+            <div class="signature">def json⁶ : Unit </div>
+        </div>
+        <div class="item" id="func-parse⁷">
+            <div class="item-header">
+                <span class="item-name">parse⁷</span>
+            </div>
+            <div class="comment">Parses a JSON string. Raises at runtime on malformed input.
+s: non-empty JSON source</div>
+            <div class="signature">def parse⁷ (s⁸: {x⁹ : String  | ((!= x⁹) &quot;&quot;) }) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-parseFile¹⁰">
+            <div class="item-header">
+                <span class="item-name">parseFile¹⁰</span>
+            </div>
+            <div class="comment">Parses a JSON file at path.
+path: non-empty file path</div>
+            <div class="signature">def parseFile¹⁰ (path¹¹: {p¹² : String  | ((!= p¹²) &quot;&quot;) }) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-stringify¹³">
+            <div class="item-header">
+                <span class="item-name">stringify¹³</span>
+            </div>
+            <div class="comment">Serializes a Json value to its string form. The result is always
+non-empty (json.dumps(None) yields &quot;null&quot;).</div>
+            <div class="signature">def stringify¹³ (j¹⁴: &#x27;Json⁵) : {s¹⁵ : String  | ((!= s¹⁵) &quot;&quot;) }</div>
+        </div>
+        <div class="item" id="func-stringifyPretty¹⁶">
+            <div class="item-header">
+                <span class="item-name">stringifyPretty¹⁶</span>
+            </div>
+            <div class="comment">Pretty-prints a Json value with 2-space indentation. Always non-empty.</div>
+            <div class="signature">def stringifyPretty¹⁶ (j¹⁷: &#x27;Json⁵) : {s¹⁸ : String  | ((!= s¹⁸) &quot;&quot;) }</div>
+        </div>
+        <div class="item" id="func-writeFile¹⁹">
+            <div class="item-header">
+                <span class="item-name">writeFile¹⁹</span>
+            </div>
+            <div class="comment">Writes a Json value to a file.
+path: non-empty file path</div>
+            <div class="signature">def writeFile¹⁹ (path²⁰: {p²¹ : String  | ((!= p²¹) &quot;&quot;) }), (j²²: &#x27;Json⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-isNull²³">
+            <div class="item-header">
+                <span class="item-name">isNull²³</span>
+            </div>
+            <div class="signature">def isNull²³ (j²⁴: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isBool²⁵">
+            <div class="item-header">
+                <span class="item-name">isBool²⁵</span>
+            </div>
+            <div class="signature">def isBool²⁵ (j²⁶: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isNumber²⁷">
+            <div class="item-header">
+                <span class="item-name">isNumber²⁷</span>
+            </div>
+            <div class="signature">def isNumber²⁷ (j²⁸: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isString²⁹">
+            <div class="item-header">
+                <span class="item-name">isString²⁹</span>
+            </div>
+            <div class="signature">def isString²⁹ (j³⁰: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isArray³¹">
+            <div class="item-header">
+                <span class="item-name">isArray³¹</span>
+            </div>
+            <div class="signature">def isArray³¹ (j³²: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isObject³³">
+            <div class="item-header">
+                <span class="item-name">isObject³³</span>
+            </div>
+            <div class="signature">def isObject³³ (j³⁴: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-asBool³⁵">
+            <div class="item-header">
+                <span class="item-name">asBool³⁵</span>
+            </div>
+            <div class="signature">def asBool³⁵ (j³⁶: &#x27;Json⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-asInt³⁷">
+            <div class="item-header">
+                <span class="item-name">asInt³⁷</span>
+            </div>
+            <div class="signature">def asInt³⁷ (j³⁸: &#x27;Json⁵) : Int </div>
+        </div>
+        <div class="item" id="func-asFloat³⁹">
+            <div class="item-header">
+                <span class="item-name">asFloat³⁹</span>
+            </div>
+            <div class="signature">def asFloat³⁹ (j⁴⁰: &#x27;Json⁵) : Float </div>
+        </div>
+        <div class="item" id="func-asString⁴¹">
+            <div class="item-header">
+                <span class="item-name">asString⁴¹</span>
+            </div>
+            <div class="signature">def asString⁴¹ (j⁴²: &#x27;Json⁵) : String </div>
+        </div>
+        <div class="item" id="func-has⁴³">
+            <div class="item-header">
+                <span class="item-name">has⁴³</span>
+            </div>
+            <div class="comment">Returns true if j is an object containing key.</div>
+            <div class="signature">def has⁴³ (j⁴⁴: &#x27;Json⁵), (key⁴⁵: String ) : Bool </div>
+        </div>
+        <div class="item" id="func-get⁴⁶">
+            <div class="item-header">
+                <span class="item-name">get⁴⁶</span>
+            </div>
+            <div class="comment">Looks up a key in a JSON object. Raises at runtime if j is not an
+object or key is absent.</div>
+            <div class="signature">def get⁴⁶ (j⁴⁷: &#x27;Json⁵), (key⁴⁸: String ) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-length⁴⁹">
+            <div class="item-header">
+                <span class="item-name">length⁴⁹</span>
+            </div>
+            <div class="comment">Returns the length of an array (or string/object). Raises if j has no len.</div>
+            <div class="signature">def length⁴⁹ (j⁵⁰: &#x27;Json⁵) : {x⁵¹ : Int  | ((&gt;= x⁵¹) 0) }</div>
+        </div>
+        <div class="item" id="func-at⁵²">
+            <div class="item-header">
+                <span class="item-name">at⁵²</span>
+            </div>
+            <div class="comment">Indexes into a JSON array. Raises at runtime if i is out of range.</div>
+            <div class="signature">def at⁵² (j⁵³: &#x27;Json⁵), (i⁵⁴: {x⁵⁵ : Int  | ((&gt;= x⁵⁵) 0) }) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkNull⁵⁶">
+            <div class="item-header">
+                <span class="item-name">mkNull⁵⁶</span>
+            </div>
+            <div class="signature">def mkNull⁵⁶ : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkBool⁵⁷">
+            <div class="item-header">
+                <span class="item-name">mkBool⁵⁷</span>
+            </div>
+            <div class="signature">def mkBool⁵⁷ (b⁵⁸: Bool ) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkInt⁵⁹">
+            <div class="item-header">
+                <span class="item-name">mkInt⁵⁹</span>
+            </div>
+            <div class="signature">def mkInt⁵⁹ (i⁶⁰: Int ) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkFloat⁶¹">
+            <div class="item-header">
+                <span class="item-name">mkFloat⁶¹</span>
+            </div>
+            <div class="signature">def mkFloat⁶¹ (f⁶²: Float ) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkString⁶³">
+            <div class="item-header">
+                <span class="item-name">mkString⁶³</span>
+            </div>
+            <div class="signature">def mkString⁶³ (s⁶⁴: String ) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkArray⁶⁵">
+            <div class="item-header">
+                <span class="item-name">mkArray⁶⁵</span>
+            </div>
+            <div class="signature">def mkArray⁶⁵ (xs⁶⁶: Array? &#x27;Json⁵) : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-mkObject⁶⁷">
+            <div class="item-header">
+                <span class="item-name">mkObject⁶⁷</span>
+            </div>
+            <div class="comment">An empty JSON object. Use setKey to populate.</div>
+            <div class="signature">def mkObject⁶⁷ : &#x27;Json⁵</div>
+        </div>
+        <div class="item" id="func-setKey⁶⁸">
+            <div class="item-header">
+                <span class="item-name">setKey⁶⁸</span>
+            </div>
+            <div class="comment">Returns a new object with key set to value. Raises at runtime if j is
+not an object.</div>
+            <div class="signature">def setKey⁶⁸ (j⁶⁹: &#x27;Json⁵), (key⁷⁰: String ), (value⁷¹: &#x27;Json⁵) : &#x27;Json⁵</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributions - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Distributions</h1>
+        <div class="header-comment">Distributions.ae
+
+Probability distribution producers paired with quantile-bound postulates.
+Refinement-language predicates (fracBelow, fracAbove, sampleMean, ...) and
+their monotonicity axioms (widenBelow, widenAbove, ...) live in Statistics.
+
+Each producer is `native` (numpy under the hood). Its return refinement
+is a *postulate* asserting the true distributional quantiles. For finite
+samples these are expected-value claims; we treat them as trusted facts
+since the FFI is on the user&#x27;s honor.
+
+Constants are CDF-inverse evaluations (z-scores, ln(1-p), etc.) hardcoded.
+─── Normal distribution N(mu, sigma) ──────────────────────────────────
+z-scores: 1.282 (90%), 1.645 (95%), 2.33 (99%).</div>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+            <code>open Math;</code>
+            <code>open Statistics;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-normalSample⁵">normalSample⁵</a></li>
+                        <li><a href="#func-standardNormalSample¹²">standardNormalSample¹²</a></li>
+                        <li><a href="#func-uniformSample¹⁶">uniformSample¹⁶</a></li>
+                        <li><a href="#func-exponentialSample²³">exponentialSample²³</a></li>
+                        <li><a href="#func-betaSample²⁹">betaSample²⁹</a></li>
+                        <li><a href="#func-gammaSample³⁷">gammaSample³⁷</a></li>
+                        <li><a href="#func-chiSquaredSample⁴⁵">chiSquaredSample⁴⁵</a></li>
+                        <li><a href="#func-bernoulliSample⁵¹">bernoulliSample⁵¹</a></li>
+                        <li><a href="#func-binomialSample⁵⁷">binomialSample⁵⁷</a></li>
+                        <li><a href="#func-poissonSample⁶⁵">poissonSample⁶⁵</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-normalSample⁵">
+            <div class="item-header">
+                <span class="item-name">normalSample⁵</span>
+            </div>
+            <div class="signature">def normalSample⁵ (mu⁶: Float ), (sigma⁷: {s⁸ : Float  | ((&gt; s⁸) 0.0) }), (n⁹: {m¹⁰ : Int  | ((&gt; m¹⁰) 0) }) : {xs¹¹ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs¹¹)) 0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹¹) ((+ mu⁶) ((* 2.33) sigma⁷)))) 0.99)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹¹) ((+ mu⁶) ((* 1.645) sigma⁷)))) 0.95)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹¹) ((+ mu⁶) ((* 1.282) sigma⁷)))) 0.9)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹¹) mu⁶)) 0.5)) ((&amp;&amp; ((&gt;= ((fracAbove? xs¹¹) ((- mu⁶) ((* 1.282) sigma⁷)))) 0.9)) ((&amp;&amp; ((&gt;= ((fracAbove? xs¹¹) ((- mu⁶) ((* 1.645) sigma⁷)))) 0.95)) ((&gt;= ((fracAbove? xs¹¹) ((- mu⁶) ((* 2.33) sigma⁷)))) 0.99)))))))) }</div>
+        </div>
+        <div class="item" id="func-standardNormalSample¹²">
+            <div class="item-header">
+                <span class="item-name">standardNormalSample¹²</span>
+            </div>
+            <div class="signature">def standardNormalSample¹² (n¹³: {m¹⁴ : Int  | ((&gt; m¹⁴) 0) }) : {xs¹⁵ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs¹⁵)) 0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹⁵) 2.33)) 0.99)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹⁵) 1.645)) 0.95)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹⁵) 1.282)) 0.9)) ((&amp;&amp; ((&gt;= ((fracBelow? xs¹⁵) 0.0)) 0.5)) ((&amp;&amp; ((&gt;= ((fracAbove? xs¹⁵) 0.0)) 0.5)) ((&amp;&amp; ((&gt;= ((fracAbove? xs¹⁵) ((- 0.0) 1.282))) 0.9)) ((&gt;= ((fracAbove? xs¹⁵) ((- 0.0) 2.33))) 0.99)))))))) }</div>
+        </div>
+        <div class="item" id="func-uniformSample¹⁶">
+            <div class="item-header">
+                <span class="item-name">uniformSample¹⁶</span>
+            </div>
+            <div class="signature">def uniformSample¹⁶ (a¹⁷: Float ), (b¹⁸: {bb¹⁹ : Float  | ((&gt; bb¹⁹) a¹⁷) }), (n²⁰: {m²¹ : Int  | ((&gt; m²¹) 0) }) : {xs²² : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs²²)) 0)) ((&amp;&amp; ((&gt;= ((fracAbove? xs²²) a¹⁷)) 1.0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²²) b¹⁸)) 1.0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²²) ((+ a¹⁷) ((* 0.99) ((- b¹⁸) a¹⁷))))) 0.99)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²²) ((+ a¹⁷) ((* 0.95) ((- b¹⁸) a¹⁷))))) 0.95)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²²) ((+ a¹⁷) ((* 0.5) ((- b¹⁸) a¹⁷))))) 0.5)) ((&gt;= ((fracBelow? xs²²) ((+ a¹⁷) ((* 0.1) ((- b¹⁸) a¹⁷))))) 0.1))))))) }</div>
+        </div>
+        <div class="item" id="func-exponentialSample²³">
+            <div class="item-header">
+                <span class="item-name">exponentialSample²³</span>
+            </div>
+            <div class="signature">def exponentialSample²³ (lam²⁴: {l²⁵ : Float  | ((&gt; l²⁵) 0.0) }), (n²⁶: {m²⁷ : Int  | ((&gt; m²⁷) 0) }) : {xs²⁸ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs²⁸)) 0)) ((&amp;&amp; ((&gt;= ((fracAbove? xs²⁸) 0.0)) 1.0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²⁸) ((/ 4.6052) lam²⁴))) 0.99)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²⁸) ((/ 2.9957) lam²⁴))) 0.95)) ((&amp;&amp; ((&gt;= ((fracBelow? xs²⁸) ((/ 2.3026) lam²⁴))) 0.9)) ((&gt;= ((fracBelow? xs²⁸) ((/ 0.6931) lam²⁴))) 0.5)))))) }</div>
+        </div>
+        <div class="item" id="func-betaSample²⁹">
+            <div class="item-header">
+                <span class="item-name">betaSample²⁹</span>
+            </div>
+            <div class="signature">def betaSample²⁹ (alpha³⁰: {a³¹ : Float  | ((&gt; a³¹) 0.0) }), (beta³²: {b³³ : Float  | ((&gt; b³³) 0.0) }), (n³⁴: {m³⁵ : Int  | ((&gt; m³⁵) 0) }) : {xs³⁶ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs³⁶)) 0)) ((&amp;&amp; ((&gt;= ((fracAbove? xs³⁶) 0.0)) 1.0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs³⁶) 1.0)) 1.0)) ((== (sampleMean? xs³⁶)) ((/ alpha³⁰) ((+ alpha³⁰) beta³²)))))) }</div>
+        </div>
+        <div class="item" id="func-gammaSample³⁷">
+            <div class="item-header">
+                <span class="item-name">gammaSample³⁷</span>
+            </div>
+            <div class="signature">def gammaSample³⁷ (k³⁸: {kk³⁹ : Float  | ((&gt; kk³⁹) 0.0) }), (theta⁴⁰: {th⁴¹ : Float  | ((&gt; th⁴¹) 0.0) }), (n⁴²: {m⁴³ : Int  | ((&gt; m⁴³) 0) }) : {xs⁴⁴ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs⁴⁴)) 0)) ((&amp;&amp; ((&gt;= ((fracAbove? xs⁴⁴) 0.0)) 1.0)) ((&amp;&amp; ((== (sampleMean? xs⁴⁴)) ((* k³⁸) theta⁴⁰))) ((== (sampleVar? xs⁴⁴)) ((* k³⁸) ((* theta⁴⁰) theta⁴⁰)))))) }</div>
+        </div>
+        <div class="item" id="func-chiSquaredSample⁴⁵">
+            <div class="item-header">
+                <span class="item-name">chiSquaredSample⁴⁵</span>
+            </div>
+            <div class="signature">def chiSquaredSample⁴⁵ (k⁴⁶: {kk⁴⁷ : Int  | ((&gt; kk⁴⁷) 0) }), (n⁴⁸: {m⁴⁹ : Int  | ((&gt; m⁴⁹) 0) }) : {xs⁵⁰ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs⁵⁰)) 0)) ((&gt;= ((fracAbove? xs⁵⁰) 0.0)) 1.0)) }</div>
+        </div>
+        <div class="item" id="func-bernoulliSample⁵¹">
+            <div class="item-header">
+                <span class="item-name">bernoulliSample⁵¹</span>
+            </div>
+            <div class="signature">def bernoulliSample⁵¹ (p⁵²: {pp⁵³ : Float  | ((&amp;&amp; ((&gt;= pp⁵³) 0.0)) ((&lt;= pp⁵³) 1.0)) }), (n⁵⁴: {m⁵⁵ : Int  | ((&gt; m⁵⁵) 0) }) : {xs⁵⁶ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs⁵⁶)) 0)) ((&amp;&amp; ((&gt;= ((fracBelow? xs⁵⁶) 0.5)) ((- 1.0) p⁵²))) ((&amp;&amp; ((&gt;= ((fracAbove? xs⁵⁶) 0.5)) p⁵²)) ((&amp;&amp; ((&gt;= ((fracBelow? xs⁵⁶) 1.5)) 1.0)) ((&gt;= ((fracAbove? xs⁵⁶) ((- 0.0) 0.5))) 1.0))))) }</div>
+        </div>
+        <div class="item" id="func-binomialSample⁵⁷">
+            <div class="item-header">
+                <span class="item-name">binomialSample⁵⁷</span>
+            </div>
+            <div class="signature">def binomialSample⁵⁷ (trials⁵⁸: {t⁵⁹ : Int  | ((&gt; t⁵⁹) 0) }), (p⁶⁰: {pp⁶¹ : Float  | ((&amp;&amp; ((&gt;= pp⁶¹) 0.0)) ((&lt;= pp⁶¹) 1.0)) }), (n⁶²: {m⁶³ : Int  | ((&gt; m⁶³) 0) }) : {xs⁶⁴ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs⁶⁴)) 0)) ((&gt;= ((fracAbove? xs⁶⁴) ((- 0.0) 0.5))) 1.0)) }</div>
+        </div>
+        <div class="item" id="func-poissonSample⁶⁵">
+            <div class="item-header">
+                <span class="item-name">poissonSample⁶⁵</span>
+            </div>
+            <div class="signature">def poissonSample⁶⁵ (lam⁶⁶: {l⁶⁷ : Float  | ((&gt; l⁶⁷) 0.0) }), (n⁶⁸: {m⁶⁹ : Int  | ((&gt; m⁶⁹) 0) }) : {xs⁷⁰ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? xs⁷⁰)) 0)) ((&amp;&amp; ((&gt;= ((fracAbove? xs⁷⁰) ((- 0.0) 0.5))) 1.0)) ((== (sampleMean? xs⁷⁰)) lam⁶⁶))) }</div>
+        </div>
+    </div>
+</body>
+</html>

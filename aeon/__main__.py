@@ -13,6 +13,7 @@ from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.utils.pprint import pretty_print_sterm
+from aeon.documentation import generate_documentation
 
 sys.setrecursionlimit(10000)
 
@@ -105,6 +106,12 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Uses a pretty print version of the code to reformat it",
     )
 
+    parser.add_argument(
+        "--doc",
+        action="store_true",
+        help="Generate HTML documentation from the source file",
+    )
+
 
 def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
@@ -150,6 +157,12 @@ def main() -> None:
     if hasattr(args, "language_server_mode"):
         aeon_lsp = AeonLanguageServer(driver)
         aeon_lsp.start(args.tcp)
+        sys.exit(0)
+
+    if hasattr(args, "doc") and args.doc:
+        output_path = args.filename.replace(".ae", ".html")
+        generate_documentation(args.filename, output_path)
+        print(f"Documentation generated: {output_path}")
         sys.exit(0)
 
     errors = driver.parse(args.filename)

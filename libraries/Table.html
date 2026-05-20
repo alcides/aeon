@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Table</h1>
+        <div class="header-comment">Table is a list of dicts, where each dict represents a row, with keys corresponding to column names
+and values to the respective entries in the table</div>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Table⁵">Table⁵</a></li>
+                        <li><a href="#type-Row⁶">Row⁶</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-from_csv⁷">from_csv⁷</a></li>
+                        <li><a href="#func-to_csv⁹">to_csv⁹</a></li>
+                        <li><a href="#func-columns¹²">columns¹²</a></li>
+                        <li><a href="#func-select¹⁴">select¹⁴</a></li>
+                        <li><a href="#func-filter¹⁷">filter¹⁷</a></li>
+                        <li><a href="#func-map_column²¹">map_column²¹</a></li>
+                        <li><a href="#func-summary²⁶">summary²⁶</a></li>
+                        <li><a href="#func-group_by³¹">group_by³¹</a></li>
+                        <li><a href="#func-pivot³⁴">pivot³⁴</a></li>
+                        <li><a href="#func-melt³⁹">melt³⁹</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Table⁵">
+            <div class="item-header">
+                <span class="item-name">Table⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Table⁵</div>
+        </div>
+        <div class="item" id="type-Row⁶">
+            <div class="item-header">
+                <span class="item-name">Row⁶</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Row⁶</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-from_csv⁷">
+            <div class="item-header">
+                <span class="item-name">from_csv⁷</span>
+            </div>
+            <div class="comment">Reads a CSV file and returns a Table.
+path: path to the CSV file
+returns: table loaded from the CSV file</div>
+            <div class="signature">def from_csv⁷ (path⁸: String ) : &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-to_csv⁹">
+            <div class="item-header">
+                <span class="item-name">to_csv⁹</span>
+            </div>
+            <div class="comment">Writes a Table to a CSV file.
+table: the table to write
+path: path to the output CSV file</div>
+            <div class="signature">def to_csv⁹ (table¹⁰: &#x27;Table⁵), (path¹¹: String ) : Unit </div>
+        </div>
+        <div class="item" id="func-columns¹²">
+            <div class="item-header">
+                <span class="item-name">columns¹²</span>
+            </div>
+            <div class="comment">Returns the list of column names in the table.
+table: the table to inspect
+returns: list of column names</div>
+            <div class="signature">def columns¹² (table¹³: &#x27;Table⁵) : Array? String </div>
+        </div>
+        <div class="item" id="func-select¹⁴">
+            <div class="item-header">
+                <span class="item-name">select¹⁴</span>
+            </div>
+            <div class="comment">Selects a subset of columns from the table.
+table: the table to select from
+columns: columns to select
+returns: new table with only the selected columns</div>
+            <div class="signature">def select¹⁴ (table¹⁵: &#x27;Table⁵), (columns¹⁶: Array? String ) : &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-filter¹⁷">
+            <div class="item-header">
+                <span class="item-name">filter¹⁷</span>
+            </div>
+            <div class="comment">Filters rows in the table using a predicate function.
+table: the table to filter
+predicate: function to decide if a row is kept
+returns: filtered table</div>
+            <div class="signature">def filter¹⁷ (table¹⁸: &#x27;Table⁵), (predicate¹⁹: (row²⁰ : &#x27;Row⁶) -&gt; Bool ) : &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-map_column²¹">
+            <div class="item-header">
+                <span class="item-name">map_column²¹</span>
+            </div>
+            <div class="comment">Applies a function to a column in all rows.
+table: the table to modify
+column: column to modify
+f: function to apply to each value in the column
+returns: table with updated column values</div>
+            <div class="signature">def map_column²¹ (table²²: &#x27;Table⁵), (column²³: String ), (f²⁴: (a²⁵ : &#x27;t?) -&gt; &#x27;b?) : &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-summary²⁶">
+            <div class="item-header">
+                <span class="item-name">summary²⁶</span>
+            </div>
+            <div class="comment">Applies a summary function to a column in the table.
+table: the table to summarize
+column: column to summarize
+f: summary function (e.g., sum, mean)
+returns: result of the summary function</div>
+            <div class="signature">def summary²⁶ (table²⁷: &#x27;Table⁵), (column²⁸: String ), (f²⁹: (a³⁰ : Array? Int ) -&gt; &#x27;b?) : &#x27;b?</div>
+        </div>
+        <div class="item" id="func-group_by³¹">
+            <div class="item-header">
+                <span class="item-name">group_by³¹</span>
+            </div>
+            <div class="comment">Groups the table by a column, returning a list of tables (one per group).
+- For each unique value in the specified column, creates a group (table) of all rows with that value.
+table: the table to group
+column: column to group by
+returns: list of tables, each corresponding to a group</div>
+            <div class="signature">def group_by³¹ (table³²: &#x27;Table⁵), (column³³: String ) : Array? &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-pivot³⁴">
+            <div class="item-header">
+                <span class="item-name">pivot³⁴</span>
+            </div>
+            <div class="comment">Pivots a table: turns unique values from one column into new columns.
+- For each unique value in the `index` column of the input table, create a row in the output table.
+- For each unique value in the `columns` column, create a new column in the output table.
+- For each original row, place its value from the `values` column at the intersection defined by its `index` and `columns` values.
+table: the table to pivot
+index: column to use as row index
+columns: column whose unique values become new columns
+values: column to fill values from
+returns: reshaped table (list of dicts)</div>
+            <div class="signature">def pivot³⁴ (table³⁵: &#x27;Table⁵), (index³⁶: String ), (columns³⁷: String ), (values³⁸: String ) : &#x27;Table⁵</div>
+        </div>
+        <div class="item" id="func-melt³⁹">
+            <div class="item-header">
+                <span class="item-name">melt³⁹</span>
+            </div>
+            <div class="comment">Melts a table: turns columns into rows (unpivot).
+- For each row in the input table, and for each column in value_vars, creates a new row.
+- The new row contains all id_vars, the name of the melted column, and its value.
+table: the table to melt
+id_vars: columns to keep as identifiers
+value_vars: columns to unpivot
+var_name: name for the new variable column
+value_name: name for the new value column
+returns: reshaped table (list of dicts)</div>
+            <div class="signature">def melt³⁹ (table⁴⁰: &#x27;Table⁵), (id_vars⁴¹: Array? String ), (value_vars⁴²: Array? String ), (var_name⁴³: String ), (value_name⁴⁴: String ) : &#x27;Table⁵</div>
+        </div>
+    </div>
+</body>
+</html>

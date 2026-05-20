@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Map</h1>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Map⁵">Map⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-size⁸">size⁸</a></li>
+                        <li><a href="#func-new¹⁰">new¹⁰</a></li>
+                        <li><a href="#func-set¹²">set¹²</a></li>
+                        <li><a href="#func-get¹⁶">get¹⁶</a></li>
+                        <li><a href="#func-has¹⁹">has¹⁹</a></li>
+                        <li><a href="#func-delete²²">delete²²</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Map⁵">
+            <div class="item-header">
+                <span class="item-name">Map⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Map⁵ k⁶ v⁷</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-size⁸">
+            <div class="item-header">
+                <span class="item-name">size⁸</span>
+            </div>
+            <div class="comment">Returns the size (number of entries) of the map.</div>
+            <div class="signature">def size⁸ : (m⁹ : Map⁵ &#x27;k⁶, &#x27;v⁷) -&gt; Int </div>
+        </div>
+        <div class="item" id="func-new¹⁰">
+            <div class="item-header">
+                <span class="item-name">new¹⁰</span>
+            </div>
+            <div class="comment">Creates a new empty map.</div>
+            <div class="signature">def new¹⁰ : {m¹¹ : Map⁵ &#x27;k⁶, &#x27;v⁷ | ((== (Map.size? m¹¹)) 0) }</div>
+        </div>
+        <div class="item" id="func-set¹²">
+            <div class="item-header">
+                <span class="item-name">set¹²</span>
+            </div>
+            <div class="comment">Sets the value for a key in the map.
+m: map
+k: key
+v: value
+returns: new map with key set to value</div>
+            <div class="signature">def set¹² (m¹³: Map⁵ &#x27;k⁶, &#x27;v⁷), (key¹⁴: &#x27;k⁶), (value¹⁵: &#x27;v⁷) : Map⁵ &#x27;k⁶, &#x27;v⁷</div>
+        </div>
+        <div class="item" id="func-get¹⁶">
+            <div class="item-header">
+                <span class="item-name">get¹⁶</span>
+            </div>
+            <div class="comment">Gets the value for a key in the map.
+m: map
+k: key
+returns: value for key, or default if not found</div>
+            <div class="signature">def get¹⁶ (m¹⁷: Map⁵ &#x27;k⁶, &#x27;v⁷), (key¹⁸: &#x27;k⁶) : &#x27;v⁷</div>
+        </div>
+        <div class="item" id="func-has¹⁹">
+            <div class="item-header">
+                <span class="item-name">has¹⁹</span>
+            </div>
+            <div class="comment">Checks if the map contains a key.
+m: map
+k: key
+returns: true if key is in map</div>
+            <div class="signature">def has¹⁹ (m²⁰: Map⁵ &#x27;k⁶, &#x27;v⁷), (key²¹: &#x27;k⁶) : Bool </div>
+        </div>
+        <div class="item" id="func-delete²²">
+            <div class="item-header">
+                <span class="item-name">delete²²</span>
+            </div>
+            <div class="comment">Removes a key from the map.
+m: map
+k: key
+returns: new map with key removed</div>
+            <div class="signature">def delete²² (m²³: Map⁵ &#x27;k⁶, &#x27;v⁷), (key²⁴: &#x27;k⁶) : Map⁵ &#x27;k⁶, &#x27;v⁷</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Learning</h1>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Dataset⁵">Dataset⁵</a></li>
+                        <li><a href="#type-Model⁶">Model⁶</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-np⁷">np⁷</a></li>
+                        <li><a href="#func-skl⁸">skl⁸</a></li>
+                        <li><a href="#func-imblearn⁹">imblearn⁹</a></li>
+                        <li><a href="#func-is_balanced¹⁰">is_balanced¹⁰</a></li>
+                        <li><a href="#func-load_dataset¹²">load_dataset¹²</a></li>
+                        <li><a href="#func-split_dataset_training¹⁴">split_dataset_training¹⁴</a></li>
+                        <li><a href="#func-split_dataset_testing¹⁹">split_dataset_testing¹⁹</a></li>
+                        <li><a href="#func-train_random_forest²⁴">train_random_forest²⁴</a></li>
+                        <li><a href="#func-train_multinomial_nb²⁷">train_multinomial_nb²⁷</a></li>
+                        <li><a href="#func-train_complement_nb³⁰">train_complement_nb³⁰</a></li>
+                        <li><a href="#func-smote_oversample³³">smote_oversample³³</a></li>
+                        <li><a href="#func-predict³⁶">predict³⁶</a></li>
+                        <li><a href="#func-score³⁹">score³⁹</a></li>
+                        <li><a href="#func-confusion_matrix⁴²">confusion_matrix⁴²</a></li>
+                        <li><a href="#func-standard_scale⁴⁵">standard_scale⁴⁵</a></li>
+                        <li><a href="#func-minmax_scale⁴⁷">minmax_scale⁴⁷</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Dataset⁵">
+            <div class="item-header">
+                <span class="item-name">Dataset⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Dataset⁵</div>
+        </div>
+        <div class="item" id="type-Model⁶">
+            <div class="item-header">
+                <span class="item-name">Model⁶</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Model⁶</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-np⁷">
+            <div class="item-header">
+                <span class="item-name">np⁷</span>
+            </div>
+            <div class="signature">def np⁷ : Unit </div>
+        </div>
+        <div class="item" id="func-skl⁸">
+            <div class="item-header">
+                <span class="item-name">skl⁸</span>
+            </div>
+            <div class="signature">def skl⁸ : Unit </div>
+        </div>
+        <div class="item" id="func-imblearn⁹">
+            <div class="item-header">
+                <span class="item-name">imblearn⁹</span>
+            </div>
+            <div class="signature">def imblearn⁹ : Unit </div>
+        </div>
+        <div class="item" id="func-is_balanced¹⁰">
+            <div class="item-header">
+                <span class="item-name">is_balanced¹⁰</span>
+            </div>
+            <div class="comment">Returns true if the dataset is balanced.</div>
+            <div class="signature">def is_balanced¹⁰ : (ds¹¹ : &#x27;Dataset⁵) -&gt; Bool </div>
+        </div>
+        <div class="item" id="func-load_dataset¹²">
+            <div class="item-header">
+                <span class="item-name">load_dataset¹²</span>
+            </div>
+            <div class="comment">Loads a dataset from a file.</div>
+            <div class="signature">def load_dataset¹² (filename¹³: String ) : &#x27;Dataset⁵</div>
+        </div>
+        <div class="item" id="func-split_dataset_training¹⁴">
+            <div class="item-header">
+                <span class="item-name">split_dataset_training¹⁴</span>
+            </div>
+            <div class="comment">Splits a dataset into two parts according to the given fraction.</div>
+            <div class="signature">def split_dataset_training¹⁴ (original¹⁵: &#x27;Dataset⁵), (fraction¹⁶: {f¹⁷ : Float  | ((&amp;&amp; ((&lt;= 0.0) f¹⁷)) ((&lt;= f¹⁷) 1.0)) }) : {training¹⁸ : &#x27;Dataset⁵ | ((== (is_balanced¹⁰ training¹⁸)) (is_balanced¹⁰ original¹⁵)) }</div>
+        </div>
+        <div class="item" id="func-split_dataset_testing¹⁹">
+            <div class="item-header">
+                <span class="item-name">split_dataset_testing¹⁹</span>
+            </div>
+            <div class="comment">Splits a dataset into two parts according to the given fraction.</div>
+            <div class="signature">def split_dataset_testing¹⁹ (original²⁰: &#x27;Dataset⁵), (fraction²¹: {f²² : Float  | ((&amp;&amp; ((&lt;= 0.0) f²²)) ((&lt;= f²²) 1.0)) }) : {testing²³ : &#x27;Dataset⁵ | ((== (is_balanced¹⁰ testing²³)) (is_balanced¹⁰ original²⁰)) }</div>
+        </div>
+        <div class="item" id="func-train_random_forest²⁴">
+            <div class="item-header">
+                <span class="item-name">train_random_forest²⁴</span>
+            </div>
+            <div class="comment">Trains a random forest model on a balanced dataset.</div>
+            <div class="signature">def train_random_forest²⁴ (dataset²⁵: {training_dataset²⁶ : &#x27;Dataset⁵ | (is_balanced¹⁰ training_dataset²⁶) }) : &#x27;Model⁶</div>
+        </div>
+        <div class="item" id="func-train_multinomial_nb²⁷">
+            <div class="item-header">
+                <span class="item-name">train_multinomial_nb²⁷</span>
+            </div>
+            <div class="comment">Trains a random forest model on a balanced dataset.</div>
+            <div class="signature">def train_multinomial_nb²⁷ (dataset²⁸: {training_dataset²⁹ : &#x27;Dataset⁵ | (is_balanced¹⁰ training_dataset²⁹) }) : &#x27;Model⁶</div>
+        </div>
+        <div class="item" id="func-train_complement_nb³⁰">
+            <div class="item-header">
+                <span class="item-name">train_complement_nb³⁰</span>
+            </div>
+            <div class="comment">Trains a random forest model on a balanced dataset.</div>
+            <div class="signature">def train_complement_nb³⁰ (dataset³¹: {training_dataset³² : &#x27;Dataset⁵ | ((== (is_balanced¹⁰ training_dataset³²)) False) }) : &#x27;Model⁶</div>
+        </div>
+        <div class="item" id="func-smote_oversample³³">
+            <div class="item-header">
+                <span class="item-name">smote_oversample³³</span>
+            </div>
+            <div class="comment">Applies SMOTE oversampling to balance the dataset.</div>
+            <div class="signature">def smote_oversample³³ (ds³⁴: &#x27;Dataset⁵) : {ds2³⁵ : &#x27;Dataset⁵ | (is_balanced¹⁰ ds2³⁵) }</div>
+        </div>
+        <div class="item" id="func-predict³⁶">
+            <div class="item-header">
+                <span class="item-name">predict³⁶</span>
+            </div>
+            <div class="comment">Predicts labels for the given dataset using the trained model.</div>
+            <div class="signature">def predict³⁶ (model³⁷: &#x27;Model⁶), (ds³⁸: &#x27;Dataset⁵) : &#x27;List?</div>
+        </div>
+        <div class="item" id="func-score³⁹">
+            <div class="item-header">
+                <span class="item-name">score³⁹</span>
+            </div>
+            <div class="comment">Returns the accuracy score of the model on the given dataset.</div>
+            <div class="signature">def score³⁹ (model⁴⁰: &#x27;Model⁶), (ds⁴¹: &#x27;Dataset⁵) : Float </div>
+        </div>
+        <div class="item" id="func-confusion_matrix⁴²">
+            <div class="item-header">
+                <span class="item-name">confusion_matrix⁴²</span>
+            </div>
+            <div class="comment">Returns the confusion matrix for predictions on the dataset.</div>
+            <div class="signature">def confusion_matrix⁴² (model⁴³: &#x27;Model⁶), (ds⁴⁴: &#x27;Dataset⁵) : &#x27;List?</div>
+        </div>
+        <div class="item" id="func-standard_scale⁴⁵">
+            <div class="item-header">
+                <span class="item-name">standard_scale⁴⁵</span>
+            </div>
+            <div class="comment">Applies standard scaling (zero mean, unit variance) to the dataset features.</div>
+            <div class="signature">def standard_scale⁴⁵ (ds⁴⁶: &#x27;Dataset⁵) : &#x27;Dataset⁵</div>
+        </div>
+        <div class="item" id="func-minmax_scale⁴⁷">
+            <div class="item-header">
+                <span class="item-name">minmax_scale⁴⁷</span>
+            </div>
+            <div class="comment">Applies min-max scaling to the dataset features.</div>
+            <div class="signature">def minmax_scale⁴⁷ (ds⁴⁸: &#x27;Dataset⁵) : &#x27;Dataset⁵</div>
+        </div>
+    </div>
+</body>
+</html>

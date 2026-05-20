@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>String - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>String</h1>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-String">String</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-len⁵">len⁵</a></li>
+                        <li><a href="#func-intToString⁷">intToString⁷</a></li>
+                        <li><a href="#func-equal⁹">equal⁹</a></li>
+                        <li><a href="#func-slice¹⁴">slice¹⁴</a></li>
+                        <li><a href="#func-upper²³">upper²³</a></li>
+                        <li><a href="#func-lower²⁶">lower²⁶</a></li>
+                        <li><a href="#func-replace²⁹">replace²⁹</a></li>
+                        <li><a href="#func-split³⁴">split³⁴</a></li>
+                        <li><a href="#func-concat³⁸">concat³⁸</a></li>
+                        <li><a href="#func-startsWith⁴¹">startsWith⁴¹</a></li>
+                        <li><a href="#func-endsWith⁴⁴">endsWith⁴⁴</a></li>
+                        <li><a href="#func-indexOf⁴⁷">indexOf⁴⁷</a></li>
+                        <li><a href="#func-lastIndexOf⁵⁰">lastIndexOf⁵⁰</a></li>
+                        <li><a href="#func-contains⁵³">contains⁵³</a></li>
+                        <li><a href="#func-trim⁵⁶">trim⁵⁶</a></li>
+                        <li><a href="#func-trimLeft⁵⁸">trimLeft⁵⁸</a></li>
+                        <li><a href="#func-trimRight⁶⁰">trimRight⁶⁰</a></li>
+                        <li><a href="#func-repeat⁶²">repeat⁶²</a></li>
+                        <li><a href="#func-isEmpty⁶⁶">isEmpty⁶⁶</a></li>
+                        <li><a href="#func-toCharList⁶⁸">toCharList⁶⁸</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-String">
+            <div class="item-header">
+                <span class="item-name">String</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type String</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-len⁵">
+            <div class="item-header">
+                <span class="item-name">len⁵</span>
+            </div>
+            <div class="comment">Returns the length of the string.
+i: input string
+returns: number of characters in the string</div>
+            <div class="signature">def len⁵ (i⁶: String ) : Int </div>
+        </div>
+        <div class="item" id="func-intToString⁷">
+            <div class="item-header">
+                <span class="item-name">intToString⁷</span>
+            </div>
+            <div class="comment">Converts an integer to a string.
+i: integer
+returns: string representation of the integer</div>
+            <div class="signature">def intToString⁷ (i⁸: Int ) : String </div>
+        </div>
+        <div class="item" id="func-equal⁹">
+            <div class="item-header">
+                <span class="item-name">equal⁹</span>
+            </div>
+            <div class="comment">Checks if two strings are equal.
+i: first string
+j: second string
+returns: true if strings are equal, false otherwise</div>
+            <div class="signature">def equal⁹ : (i¹⁰ : String ) -&gt; (j¹¹ : String ) -&gt; Bool </div>
+        </div>
+        <div class="item" id="func-slice¹⁴">
+            <div class="item-header">
+                <span class="item-name">slice¹⁴</span>
+            </div>
+            <div class="comment">Returns a substring (slice) of the string from index j to l (exclusive).
+i: input string
+j: start index (&gt;= 0, &lt; length of i)
+l: end index (&gt;= j, &lt;= length of i)
+returns: substring from j to l</div>
+            <div class="signature">def slice¹⁴ : (i¹⁵ : String ) -&gt; (j¹⁶ : {x¹⁷ : Int  | ((&amp;&amp; ((&gt;= x¹⁷) 0)) ((&lt; x¹⁷) (len⁵ i¹⁵))) }) -&gt; (l¹⁸ : {y¹⁹ : Int  | ((&amp;&amp; ((&gt;= y¹⁹) j¹⁶)) ((&lt;= y¹⁹) (len⁵ i¹⁵))) }) -&gt; String </div>
+        </div>
+        <div class="item" id="func-upper²³">
+            <div class="item-header">
+                <span class="item-name">upper²³</span>
+            </div>
+            <div class="comment">Converts the string to uppercase.
+i: input string
+returns: uppercase version of the string</div>
+            <div class="signature">def upper²³ : (i²⁴ : String ) -&gt; String </div>
+        </div>
+        <div class="item" id="func-lower²⁶">
+            <div class="item-header">
+                <span class="item-name">lower²⁶</span>
+            </div>
+            <div class="comment">Converts the string to lowercase.
+i: input string
+returns: lowercase version of the string</div>
+            <div class="signature">def lower²⁶ : (i²⁷ : String ) -&gt; String </div>
+        </div>
+        <div class="item" id="func-replace²⁹">
+            <div class="item-header">
+                <span class="item-name">replace²⁹</span>
+            </div>
+            <div class="comment">Replaces all occurrences of substring j with l in string i.
+i: input string
+j: substring to replace (non-empty)
+l: replacement string
+returns: new string with replacements</div>
+            <div class="signature">def replace²⁹ (i³⁰: String ), (j³¹: {s³² : String  | ((&gt; (len⁵ s³²)) 0) }), (l³³: String ) : String </div>
+        </div>
+        <div class="item" id="func-split³⁴">
+            <div class="item-header">
+                <span class="item-name">split³⁴</span>
+            </div>
+            <div class="comment">Splits the string by the given separator.
+i: input string
+j: separator string (non-empty)
+returns: list of substrings</div>
+            <div class="signature">def split³⁴ (i³⁵: String ), (j³⁶: {s³⁷ : String  | ((&gt; (len⁵ s³⁷)) 0) }) : Array? String </div>
+        </div>
+        <div class="item" id="func-concat³⁸">
+            <div class="item-header">
+                <span class="item-name">concat³⁸</span>
+            </div>
+            <div class="comment">Concatenates two strings.
+i: first string
+j: second string
+returns: concatenated string</div>
+            <div class="signature">def concat³⁸ (i³⁹: String ), (j⁴⁰: String ) : String </div>
+        </div>
+        <div class="item" id="func-startsWith⁴¹">
+            <div class="item-header">
+                <span class="item-name">startsWith⁴¹</span>
+            </div>
+            <div class="comment">Checks if the string starts with the given prefix.
+i: input string
+prefix: prefix string
+returns: true if i starts with prefix</div>
+            <div class="signature">def startsWith⁴¹ (i⁴²: String ), (prefix⁴³: String ) : Bool </div>
+        </div>
+        <div class="item" id="func-endsWith⁴⁴">
+            <div class="item-header">
+                <span class="item-name">endsWith⁴⁴</span>
+            </div>
+            <div class="comment">Checks if the string ends with the given suffix.
+i: input string
+suffix: suffix string
+returns: true if i ends with suffix</div>
+            <div class="signature">def endsWith⁴⁴ (i⁴⁵: String ), (suffix⁴⁶: String ) : Bool </div>
+        </div>
+        <div class="item" id="func-indexOf⁴⁷">
+            <div class="item-header">
+                <span class="item-name">indexOf⁴⁷</span>
+            </div>
+            <div class="comment">Finds the first index of substring sub in i, or -1 if not found.
+i: input string
+sub: substring to find
+returns: index of first occurrence or -1</div>
+            <div class="signature">def indexOf⁴⁷ (i⁴⁸: String ), (sub⁴⁹: String ) : Int </div>
+        </div>
+        <div class="item" id="func-lastIndexOf⁵⁰">
+            <div class="item-header">
+                <span class="item-name">lastIndexOf⁵⁰</span>
+            </div>
+            <div class="comment">Finds the last index of substring sub in i, or -1 if not found.
+i: input string
+sub: substring to find
+returns: index of last occurrence or -1</div>
+            <div class="signature">def lastIndexOf⁵⁰ (i⁵¹: String ), (sub⁵²: String ) : Int </div>
+        </div>
+        <div class="item" id="func-contains⁵³">
+            <div class="item-header">
+                <span class="item-name">contains⁵³</span>
+            </div>
+            <div class="comment">Checks if the string contains the given substring.
+i: input string
+sub: substring to check
+returns: true if sub is in i</div>
+            <div class="signature">def contains⁵³ (i⁵⁴: String ), (sub⁵⁵: String ) : Bool </div>
+        </div>
+        <div class="item" id="func-trim⁵⁶">
+            <div class="item-header">
+                <span class="item-name">trim⁵⁶</span>
+            </div>
+            <div class="comment">Removes whitespace from both ends of the string.
+i: input string
+returns: trimmed string</div>
+            <div class="signature">def trim⁵⁶ (i⁵⁷: String ) : String </div>
+        </div>
+        <div class="item" id="func-trimLeft⁵⁸">
+            <div class="item-header">
+                <span class="item-name">trimLeft⁵⁸</span>
+            </div>
+            <div class="comment">Removes whitespace from the left end of the string.
+i: input string
+returns: left-trimmed string</div>
+            <div class="signature">def trimLeft⁵⁸ (i⁵⁹: String ) : String </div>
+        </div>
+        <div class="item" id="func-trimRight⁶⁰">
+            <div class="item-header">
+                <span class="item-name">trimRight⁶⁰</span>
+            </div>
+            <div class="comment">Removes whitespace from the right end of the string.
+i: input string
+returns: right-trimmed string</div>
+            <div class="signature">def trimRight⁶⁰ (i⁶¹: String ) : String </div>
+        </div>
+        <div class="item" id="func-repeat⁶²">
+            <div class="item-header">
+                <span class="item-name">repeat⁶²</span>
+            </div>
+            <div class="comment">Repeats the string n times.
+i: input string
+n: number of repetitions (&gt;= 0)
+returns: repeated string</div>
+            <div class="signature">def repeat⁶² (i⁶³: String ), (n⁶⁴: {x⁶⁵ : Int  | ((&gt;= x⁶⁵) 0) }) : String </div>
+        </div>
+        <div class="item" id="func-isEmpty⁶⁶">
+            <div class="item-header">
+                <span class="item-name">isEmpty⁶⁶</span>
+            </div>
+            <div class="comment">Returns true if the string is empty.
+i: input string
+returns: true if i is empty</div>
+            <div class="signature">def isEmpty⁶⁶ (i⁶⁷: String ) : Bool </div>
+        </div>
+        <div class="item" id="func-toCharList⁶⁸">
+            <div class="item-header">
+                <span class="item-name">toCharList⁶⁸</span>
+            </div>
+            <div class="comment">Splits the string into a list of characters.
+i: input string
+returns: list of single-character strings</div>
+            <div class="signature">def toCharList⁶⁸ (i⁶⁹: String ) : Array? String </div>
+        </div>
+    </div>
+</body>
+</html>

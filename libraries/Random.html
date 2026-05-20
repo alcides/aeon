@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Random</h1>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-random⁵">random⁵</a></li>
+                        <li><a href="#func-seed⁶">seed⁶</a></li>
+                        <li><a href="#func-randint⁸">randint⁸</a></li>
+                        <li><a href="#func-random¹²">random¹²</a></li>
+                        <li><a href="#func-uniform¹⁵">uniform¹⁵</a></li>
+                        <li><a href="#func-choice¹⁹">choice¹⁹</a></li>
+                        <li><a href="#func-shuffle²²">shuffle²²</a></li>
+                        <li><a href="#func-sample²⁴">sample²⁴</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-random⁵">
+            <div class="item-header">
+                <span class="item-name">random⁵</span>
+            </div>
+            <div class="signature">def random⁵ : Unit </div>
+        </div>
+        <div class="item" id="func-seed⁶">
+            <div class="item-header">
+                <span class="item-name">seed⁶</span>
+            </div>
+            <div class="comment">Seeds the random number generator.</div>
+            <div class="signature">def seed⁶ (seed⁷: Int ) : Unit </div>
+        </div>
+        <div class="item" id="func-randint⁸">
+            <div class="item-header">
+                <span class="item-name">randint⁸</span>
+            </div>
+            <div class="comment">Returns a random integer N such that a &lt;= N &lt;= b.</div>
+            <div class="signature">def randint⁸ (a⁹: Int ), (b¹⁰: Int ) : {r¹¹ : Int  | ((&amp;&amp; ((&gt;= r¹¹) a⁹)) ((&lt;= r¹¹) b¹⁰)) }</div>
+        </div>
+        <div class="item" id="func-random¹²">
+            <div class="item-header">
+                <span class="item-name">random¹²</span>
+            </div>
+            <div class="comment">Returns a random float in the range [0.0, 1.0). Thunked to defer evaluation.</div>
+            <div class="signature">def random¹² (_¹³: Unit ) : {r¹⁴ : Float  | ((&amp;&amp; ((&gt;= r¹⁴) 0.0)) ((&lt; r¹⁴) 1.0)) }</div>
+        </div>
+        <div class="item" id="func-uniform¹⁵">
+            <div class="item-header">
+                <span class="item-name">uniform¹⁵</span>
+            </div>
+            <div class="comment">Returns a random float N such that a &lt;= N &lt; b.</div>
+            <div class="signature">def uniform¹⁵ (a¹⁶: Float ), (b¹⁷: Float ) : {r¹⁸ : Float  | ((&amp;&amp; ((&gt;= r¹⁸) a¹⁶)) ((&lt; r¹⁸) b¹⁷)) }</div>
+        </div>
+        <div class="item" id="func-choice¹⁹">
+            <div class="item-header">
+                <span class="item-name">choice¹⁹</span>
+            </div>
+            <div class="comment">Returns a random element from a non-empty list.</div>
+            <div class="signature">def choice¹⁹ (xs²⁰: {l²¹ : Array? &#x27;a¹⁶ | ((&gt; (Array.size? l²¹)) 0) }) : &#x27;a¹⁶</div>
+        </div>
+        <div class="item" id="func-shuffle²²">
+            <div class="item-header">
+                <span class="item-name">shuffle²²</span>
+            </div>
+            <div class="comment">Shuffles a list in place.</div>
+            <div class="signature">def shuffle²² (xs²³: Array? &#x27;a¹⁶) : Unit </div>
+        </div>
+        <div class="item" id="func-sample²⁴">
+            <div class="item-header">
+                <span class="item-name">sample²⁴</span>
+            </div>
+            <div class="comment">Returns a k length list of unique elements chosen from the population sequence.</div>
+            <div class="signature">def sample²⁴ (k²⁵: Int ), (xs²⁶: {l²⁷ : Array? &#x27;a¹⁶ | ((&gt;= (Array.size? l²⁷)) k²⁵) }) : {l²⁸ : Array? &#x27;a¹⁶ | ((== (Array.size? l²⁸)) k²⁵) }</div>
+        </div>
+    </div>
+</body>
+</html>

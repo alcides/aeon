@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Set</h1>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Set">Set</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-size⁶">size⁶</a></li>
+                        <li><a href="#func-contains⁸">contains⁸</a></li>
+                        <li><a href="#func-new¹¹">new¹¹</a></li>
+                        <li><a href="#func-add¹³">add¹³</a></li>
+                        <li><a href="#func-has¹⁷">has¹⁷</a></li>
+                        <li><a href="#func-remove²⁰">remove²⁰</a></li>
+                        <li><a href="#func-union²⁴">union²⁴</a></li>
+                        <li><a href="#func-intersection²⁷">intersection²⁷</a></li>
+                        <li><a href="#func-difference³⁰">difference³⁰</a></li>
+                        <li><a href="#func-toList³³">toList³³</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Set">
+            <div class="item-header">
+                <span class="item-name">Set</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Set a⁵</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-size⁶">
+            <div class="item-header">
+                <span class="item-name">size⁶</span>
+            </div>
+            <div class="comment">Returns the size (number of elements) of the set.</div>
+            <div class="signature">def size⁶ : (s⁷ : Set &#x27;a⁵) -&gt; Int </div>
+        </div>
+        <div class="item" id="func-contains⁸">
+            <div class="item-header">
+                <span class="item-name">contains⁸</span>
+            </div>
+            <div class="comment">Returns whether the set contains an element.</div>
+            <div class="signature">def contains⁸ : (s⁹ : Set &#x27;a⁵) -&gt; (x¹⁰ : &#x27;a⁵) -&gt; Bool </div>
+        </div>
+        <div class="item" id="func-new¹¹">
+            <div class="item-header">
+                <span class="item-name">new¹¹</span>
+            </div>
+            <div class="comment">Creates a new empty set.</div>
+            <div class="signature">def new¹¹ : {s¹² : Set &#x27;a⁵ | ((== (size⁶ s¹²)) 0) }</div>
+        </div>
+        <div class="item" id="func-add¹³">
+            <div class="item-header">
+                <span class="item-name">add¹³</span>
+            </div>
+            <div class="comment">Adds an element to the set.
+s: set
+x: element to add
+returns: new set with element added</div>
+            <div class="signature">def add¹³ : (s¹⁴ : Set &#x27;a⁵) -&gt; (x¹⁵ : &#x27;a⁵) -&gt; {s2¹⁶ : Set &#x27;a⁵ | ((&gt;= (size⁶ s2¹⁶)) (size⁶ s¹⁴)) }</div>
+        </div>
+        <div class="item" id="func-has¹⁷">
+            <div class="item-header">
+                <span class="item-name">has¹⁷</span>
+            </div>
+            <div class="comment">Checks if the set contains an element.
+s: set
+x: element to check
+returns: true if element is in set</div>
+            <div class="signature">def has¹⁷ : (s¹⁸ : Set &#x27;a⁵) -&gt; (x¹⁹ : &#x27;a⁵) -&gt; Bool </div>
+        </div>
+        <div class="item" id="func-remove²⁰">
+            <div class="item-header">
+                <span class="item-name">remove²⁰</span>
+            </div>
+            <div class="comment">Removes an element from the set.
+s: set
+x: element to remove
+returns: new set with element removed</div>
+            <div class="signature">def remove²⁰ : (s²¹ : Set &#x27;a⁵) -&gt; (x²² : {el²³ : &#x27;a⁵ | ((contains⁸ s²¹) el²³) }) -&gt; Set &#x27;a⁵</div>
+        </div>
+        <div class="item" id="func-union²⁴">
+            <div class="item-header">
+                <span class="item-name">union²⁴</span>
+            </div>
+            <div class="comment">Returns the union of two sets.
+s1: set
+s2: set
+returns: union of s1 and s2</div>
+            <div class="signature">def union²⁴ : (s1²⁵ : Set &#x27;a⁵) -&gt; (s2²⁶ : Set &#x27;a⁵) -&gt; Set &#x27;a⁵</div>
+        </div>
+        <div class="item" id="func-intersection²⁷">
+            <div class="item-header">
+                <span class="item-name">intersection²⁷</span>
+            </div>
+            <div class="comment">Returns the intersection of two sets.
+s1: set
+s2: set
+returns: intersection of s1 and s2</div>
+            <div class="signature">def intersection²⁷ : (s1²⁸ : Set &#x27;a⁵) -&gt; (s2²⁹ : Set &#x27;a⁵) -&gt; Set &#x27;a⁵</div>
+        </div>
+        <div class="item" id="func-difference³⁰">
+            <div class="item-header">
+                <span class="item-name">difference³⁰</span>
+            </div>
+            <div class="comment">Returns the difference of two sets.
+s1: set
+s2: set
+returns: elements in s1 but not in s2</div>
+            <div class="signature">def difference³⁰ : (s1³¹ : Set &#x27;a⁵) -&gt; (s2³² : Set &#x27;a⁵) -&gt; Set &#x27;a⁵</div>
+        </div>
+        <div class="item" id="func-toList³³">
+            <div class="item-header">
+                <span class="item-name">toList³³</span>
+            </div>
+            <div class="comment">Returns the list of elements in the set.
+s: set
+returns: list of elements</div>
+            <div class="signature">def toList³³ : (s³⁴ : Set &#x27;a⁵) -&gt; Array? &#x27;a⁵</div>
+        </div>
+    </div>
+</body>
+</html>

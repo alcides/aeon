@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Math</h1>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-math⁵">math⁵</a></li>
+                        <li><a href="#func-PI⁶">PI⁶</a></li>
+                        <li><a href="#func-E⁷">E⁷</a></li>
+                        <li><a href="#func-TAU⁸">TAU⁸</a></li>
+                        <li><a href="#func-INF⁹">INF⁹</a></li>
+                        <li><a href="#func-toFloat¹⁰">toFloat¹⁰</a></li>
+                        <li><a href="#func-toInt¹²">toInt¹²</a></li>
+                        <li><a href="#func-min¹⁴">min¹⁴</a></li>
+                        <li><a href="#func-max¹⁷">max¹⁷</a></li>
+                        <li><a href="#func-abs²⁰">abs²⁰</a></li>
+                        <li><a href="#func-pow²³">pow²³</a></li>
+                        <li><a href="#func-floor_division²⁷">floor_division²⁷</a></li>
+                        <li><a href="#func-gcd³¹">gcd³¹</a></li>
+                        <li><a href="#func-lcm³⁵">lcm³⁵</a></li>
+                        <li><a href="#func-factorial³⁹">factorial³⁹</a></li>
+                        <li><a href="#func-comb⁴³">comb⁴³</a></li>
+                        <li><a href="#func-perm⁴⁹">perm⁴⁹</a></li>
+                        <li><a href="#func-minf⁵⁵">minf⁵⁵</a></li>
+                        <li><a href="#func-maxf⁵⁸">maxf⁵⁸</a></li>
+                        <li><a href="#func-absf⁶¹">absf⁶¹</a></li>
+                        <li><a href="#func-powf⁶⁴">powf⁶⁴</a></li>
+                        <li><a href="#func-remainder⁶⁷">remainder⁶⁷</a></li>
+                        <li><a href="#func-fmod⁷¹">fmod⁷¹</a></li>
+                        <li><a href="#func-round⁷⁵">round⁷⁵</a></li>
+                        <li><a href="#func-ceil⁷⁷">ceil⁷⁷</a></li>
+                        <li><a href="#func-floor⁷⁹">floor⁷⁹</a></li>
+                        <li><a href="#func-trunc⁸¹">trunc⁸¹</a></li>
+                        <li><a href="#func-sqrt⁸³">sqrt⁸³</a></li>
+                        <li><a href="#func-sqrtf⁸⁷">sqrtf⁸⁷</a></li>
+                        <li><a href="#func-isqrt⁹¹">isqrt⁹¹</a></li>
+                        <li><a href="#func-cbrt⁹⁵">cbrt⁹⁵</a></li>
+                        <li><a href="#func-exp⁹⁷">exp⁹⁷</a></li>
+                        <li><a href="#func-expm1¹⁰⁰">expm1¹⁰⁰</a></li>
+                        <li><a href="#func-exp2¹⁰²">exp2¹⁰²</a></li>
+                        <li><a href="#func-log¹⁰⁵">log¹⁰⁵</a></li>
+                        <li><a href="#func-log10¹⁰⁸">log10¹⁰⁸</a></li>
+                        <li><a href="#func-log2¹¹¹">log2¹¹¹</a></li>
+                        <li><a href="#func-log1p¹¹⁴">log1p¹¹⁴</a></li>
+                        <li><a href="#func-sin¹¹⁷">sin¹¹⁷</a></li>
+                        <li><a href="#func-cos¹¹⁹">cos¹¹⁹</a></li>
+                        <li><a href="#func-tan¹²¹">tan¹²¹</a></li>
+                        <li><a href="#func-asin¹²³">asin¹²³</a></li>
+                        <li><a href="#func-acos¹²⁶">acos¹²⁶</a></li>
+                        <li><a href="#func-atan¹²⁹">atan¹²⁹</a></li>
+                        <li><a href="#func-atan2¹³¹">atan2¹³¹</a></li>
+                        <li><a href="#func-radians¹³⁴">radians¹³⁴</a></li>
+                        <li><a href="#func-degrees¹³⁶">degrees¹³⁶</a></li>
+                        <li><a href="#func-hypot¹³⁸">hypot¹³⁸</a></li>
+                        <li><a href="#func-sinh¹⁴²">sinh¹⁴²</a></li>
+                        <li><a href="#func-cosh¹⁴⁴">cosh¹⁴⁴</a></li>
+                        <li><a href="#func-tanh¹⁴⁷">tanh¹⁴⁷</a></li>
+                        <li><a href="#func-asinh¹⁴⁹">asinh¹⁴⁹</a></li>
+                        <li><a href="#func-acosh¹⁵¹">acosh¹⁵¹</a></li>
+                        <li><a href="#func-atanh¹⁵⁵">atanh¹⁵⁵</a></li>
+                        <li><a href="#func-erf¹⁵⁸">erf¹⁵⁸</a></li>
+                        <li><a href="#func-erfc¹⁶⁰">erfc¹⁶⁰</a></li>
+                        <li><a href="#func-lgamma¹⁶²">lgamma¹⁶²</a></li>
+                        <li><a href="#func-gamma¹⁶⁴">gamma¹⁶⁴</a></li>
+                        <li><a href="#func-isfinite¹⁶⁸">isfinite¹⁶⁸</a></li>
+                        <li><a href="#func-isinf¹⁷⁰">isinf¹⁷⁰</a></li>
+                        <li><a href="#func-isnan¹⁷²">isnan¹⁷²</a></li>
+                        <li><a href="#func-sign¹⁷⁴">sign¹⁷⁴</a></li>
+                        <li><a href="#func-signf¹⁷⁷">signf¹⁷⁷</a></li>
+                        <li><a href="#func-clamp¹⁸⁰">clamp¹⁸⁰</a></li>
+                        <li><a href="#func-clampf¹⁸⁶">clampf¹⁸⁶</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-math⁵">
+            <div class="item-header">
+                <span class="item-name">math⁵</span>
+            </div>
+            <div class="signature">def math⁵ : Unit </div>
+        </div>
+        <div class="item" id="func-PI⁶">
+            <div class="item-header">
+                <span class="item-name">PI⁶</span>
+            </div>
+            <div class="comment">The value of PI.</div>
+            <div class="signature">def PI⁶ : Float </div>
+        </div>
+        <div class="item" id="func-E⁷">
+            <div class="item-header">
+                <span class="item-name">E⁷</span>
+            </div>
+            <div class="comment">The value of Euler&#x27;s number e.</div>
+            <div class="signature">def E⁷ : Float </div>
+        </div>
+        <div class="item" id="func-TAU⁸">
+            <div class="item-header">
+                <span class="item-name">TAU⁸</span>
+            </div>
+            <div class="comment">The value of tau (2 * PI).</div>
+            <div class="signature">def TAU⁸ : Float </div>
+        </div>
+        <div class="item" id="func-INF⁹">
+            <div class="item-header">
+                <span class="item-name">INF⁹</span>
+            </div>
+            <div class="comment">Positive infinity.</div>
+            <div class="signature">def INF⁹ : Float </div>
+        </div>
+        <div class="item" id="func-toFloat¹⁰">
+            <div class="item-header">
+                <span class="item-name">toFloat¹⁰</span>
+            </div>
+            <div class="comment">Converts an integer to a float.</div>
+            <div class="signature">def toFloat¹⁰ (i¹¹: Int ) : Float </div>
+        </div>
+        <div class="item" id="func-toInt¹²">
+            <div class="item-header">
+                <span class="item-name">toInt¹²</span>
+            </div>
+            <div class="comment">Converts a float to an integer (truncates towards zero).</div>
+            <div class="signature">def toInt¹² (i¹³: Float ) : Int </div>
+        </div>
+        <div class="item" id="func-min¹⁴">
+            <div class="item-header">
+                <span class="item-name">min¹⁴</span>
+            </div>
+            <div class="comment">Returns the minimum of two integers.</div>
+            <div class="signature">def min¹⁴ (i¹⁵: Int ), (j¹⁶: Int ) : Int </div>
+        </div>
+        <div class="item" id="func-max¹⁷">
+            <div class="item-header">
+                <span class="item-name">max¹⁷</span>
+            </div>
+            <div class="comment">Returns the maximum of two integers.</div>
+            <div class="signature">def max¹⁷ (i¹⁸: Int ), (j¹⁹: Int ) : Int </div>
+        </div>
+        <div class="item" id="func-abs²⁰">
+            <div class="item-header">
+                <span class="item-name">abs²⁰</span>
+            </div>
+            <div class="comment">Returns the absolute value of an integer.</div>
+            <div class="signature">def abs²⁰ (i²¹: Int ) : {v²² : Int  | ((&gt;= v²²) 0) }</div>
+        </div>
+        <div class="item" id="func-pow²³">
+            <div class="item-header">
+                <span class="item-name">pow²³</span>
+            </div>
+            <div class="comment">Raises an integer to the power of a non-negative integer.</div>
+            <div class="signature">def pow²³ (i²⁴: Int ), (j²⁵: {v²⁶ : Int  | ((&gt;= v²⁶) 0) }) : Int </div>
+        </div>
+        <div class="item" id="func-floor_division²⁷">
+            <div class="item-header">
+                <span class="item-name">floor_division²⁷</span>
+            </div>
+            <div class="comment">Performs integer division (floor division). Divisor must be nonzero.</div>
+            <div class="signature">def floor_division²⁷ (i²⁸: Int ), (j²⁹: {v³⁰ : Int  | ((!= v³⁰) 0) }) : Int </div>
+        </div>
+        <div class="item" id="func-gcd³¹">
+            <div class="item-header">
+                <span class="item-name">gcd³¹</span>
+            </div>
+            <div class="comment">Returns the greatest common divisor of two integers.</div>
+            <div class="signature">def gcd³¹ (i³²: Int ), (j³³: Int ) : {v³⁴ : Int  | ((&gt;= v³⁴) 0) }</div>
+        </div>
+        <div class="item" id="func-lcm³⁵">
+            <div class="item-header">
+                <span class="item-name">lcm³⁵</span>
+            </div>
+            <div class="comment">Returns the least common multiple of two integers.</div>
+            <div class="signature">def lcm³⁵ (i³⁶: Int ), (j³⁷: Int ) : {v³⁸ : Int  | ((&gt;= v³⁸) 0) }</div>
+        </div>
+        <div class="item" id="func-factorial³⁹">
+            <div class="item-header">
+                <span class="item-name">factorial³⁹</span>
+            </div>
+            <div class="comment">Returns the factorial of a non-negative integer.</div>
+            <div class="signature">def factorial³⁹ (i⁴⁰: {v⁴¹ : Int  | ((&gt;= v⁴¹) 0) }) : {v⁴² : Int  | ((&gt;= v⁴²) 1) }</div>
+        </div>
+        <div class="item" id="func-comb⁴³">
+            <div class="item-header">
+                <span class="item-name">comb⁴³</span>
+            </div>
+            <div class="comment">Returns n choose k (binomial coefficient).</div>
+            <div class="signature">def comb⁴³ (n⁴⁴: {v⁴⁵ : Int  | ((&gt;= v⁴⁵) 0) }), (k⁴⁶: {v⁴⁷ : Int  | ((&gt;= v⁴⁷) 0) }) : {v⁴⁸ : Int  | ((&gt;= v⁴⁸) 0) }</div>
+        </div>
+        <div class="item" id="func-perm⁴⁹">
+            <div class="item-header">
+                <span class="item-name">perm⁴⁹</span>
+            </div>
+            <div class="comment">Returns n permute k (number of permutations).</div>
+            <div class="signature">def perm⁴⁹ (n⁵⁰: {v⁵¹ : Int  | ((&gt;= v⁵¹) 0) }), (k⁵²: {v⁵³ : Int  | ((&gt;= v⁵³) 0) }) : {v⁵⁴ : Int  | ((&gt;= v⁵⁴) 0) }</div>
+        </div>
+        <div class="item" id="func-minf⁵⁵">
+            <div class="item-header">
+                <span class="item-name">minf⁵⁵</span>
+            </div>
+            <div class="comment">Returns the minimum of two floats.</div>
+            <div class="signature">def minf⁵⁵ (i⁵⁶: Float ), (j⁵⁷: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-maxf⁵⁸">
+            <div class="item-header">
+                <span class="item-name">maxf⁵⁸</span>
+            </div>
+            <div class="comment">Returns the maximum of two floats.</div>
+            <div class="signature">def maxf⁵⁸ (i⁵⁹: Float ), (j⁶⁰: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-absf⁶¹">
+            <div class="item-header">
+                <span class="item-name">absf⁶¹</span>
+            </div>
+            <div class="comment">Returns the absolute value of a float.</div>
+            <div class="signature">def absf⁶¹ (i⁶²: Float ) : {v⁶³ : Float  | ((&gt;= v⁶³) 0.0) }</div>
+        </div>
+        <div class="item" id="func-powf⁶⁴">
+            <div class="item-header">
+                <span class="item-name">powf⁶⁴</span>
+            </div>
+            <div class="comment">Raises a float to the power of another float.</div>
+            <div class="signature">def powf⁶⁴ (i⁶⁵: Float ), (j⁶⁶: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-remainder⁶⁷">
+            <div class="item-header">
+                <span class="item-name">remainder⁶⁷</span>
+            </div>
+            <div class="comment">Returns the remainder of i / j (IEEE 754 style).</div>
+            <div class="signature">def remainder⁶⁷ (i⁶⁸: Float ), (j⁶⁹: {v⁷⁰ : Float  | ((!= v⁷⁰) 0.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-fmod⁷¹">
+            <div class="item-header">
+                <span class="item-name">fmod⁷¹</span>
+            </div>
+            <div class="comment">Returns the float modulo.</div>
+            <div class="signature">def fmod⁷¹ (i⁷²: Float ), (j⁷³: {v⁷⁴ : Float  | ((!= v⁷⁴) 0.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-round⁷⁵">
+            <div class="item-header">
+                <span class="item-name">round⁷⁵</span>
+            </div>
+            <div class="comment">Rounds a float to the nearest integer.</div>
+            <div class="signature">def round⁷⁵ (i⁷⁶: Float ) : Int </div>
+        </div>
+        <div class="item" id="func-ceil⁷⁷">
+            <div class="item-header">
+                <span class="item-name">ceil⁷⁷</span>
+            </div>
+            <div class="comment">Returns the ceiling of a float as an integer.</div>
+            <div class="signature">def ceil⁷⁷ (i⁷⁸: Float ) : Int </div>
+        </div>
+        <div class="item" id="func-floor⁷⁹">
+            <div class="item-header">
+                <span class="item-name">floor⁷⁹</span>
+            </div>
+            <div class="comment">Returns the floor of a float as an integer.</div>
+            <div class="signature">def floor⁷⁹ (i⁸⁰: Float ) : Int </div>
+        </div>
+        <div class="item" id="func-trunc⁸¹">
+            <div class="item-header">
+                <span class="item-name">trunc⁸¹</span>
+            </div>
+            <div class="comment">Truncates a float to an integer (towards zero).</div>
+            <div class="signature">def trunc⁸¹ (i⁸²: Float ) : Int </div>
+        </div>
+        <div class="item" id="func-sqrt⁸³">
+            <div class="item-header">
+                <span class="item-name">sqrt⁸³</span>
+            </div>
+            <div class="comment">Returns the square root of a non-negative integer as a float.</div>
+            <div class="signature">def sqrt⁸³ (i⁸⁴: {v⁸⁵ : Int  | ((&gt;= v⁸⁵) 0) }) : {v⁸⁶ : Float  | ((&gt;= v⁸⁶) 0.0) }</div>
+        </div>
+        <div class="item" id="func-sqrtf⁸⁷">
+            <div class="item-header">
+                <span class="item-name">sqrtf⁸⁷</span>
+            </div>
+            <div class="comment">Returns the square root of a non-negative float.</div>
+            <div class="signature">def sqrtf⁸⁷ (i⁸⁸: {v⁸⁹ : Float  | ((&gt;= v⁸⁹) 0.0) }) : {v⁹⁰ : Float  | ((&gt;= v⁹⁰) 0.0) }</div>
+        </div>
+        <div class="item" id="func-isqrt⁹¹">
+            <div class="item-header">
+                <span class="item-name">isqrt⁹¹</span>
+            </div>
+            <div class="comment">Returns the integer square root of a non-negative integer.</div>
+            <div class="signature">def isqrt⁹¹ (i⁹²: {v⁹³ : Int  | ((&gt;= v⁹³) 0) }) : {v⁹⁴ : Int  | ((&gt;= v⁹⁴) 0) }</div>
+        </div>
+        <div class="item" id="func-cbrt⁹⁵">
+            <div class="item-header">
+                <span class="item-name">cbrt⁹⁵</span>
+            </div>
+            <div class="comment">Returns the cube root of a float.</div>
+            <div class="signature">def cbrt⁹⁵ (i⁹⁶: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-exp⁹⁷">
+            <div class="item-header">
+                <span class="item-name">exp⁹⁷</span>
+            </div>
+            <div class="comment">Returns e raised to the power of the given float.</div>
+            <div class="signature">def exp⁹⁷ (i⁹⁸: Float ) : {v⁹⁹ : Float  | ((&gt; v⁹⁹) 0.0) }</div>
+        </div>
+        <div class="item" id="func-expm1¹⁰⁰">
+            <div class="item-header">
+                <span class="item-name">expm1¹⁰⁰</span>
+            </div>
+            <div class="comment">Returns e**x - 1, more precise for small x.</div>
+            <div class="signature">def expm1¹⁰⁰ (i¹⁰¹: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-exp2¹⁰²">
+            <div class="item-header">
+                <span class="item-name">exp2¹⁰²</span>
+            </div>
+            <div class="comment">Returns 2 raised to the power of the given float.</div>
+            <div class="signature">def exp2¹⁰² (i¹⁰³: Float ) : {v¹⁰⁴ : Float  | ((&gt; v¹⁰⁴) 0.0) }</div>
+        </div>
+        <div class="item" id="func-log¹⁰⁵">
+            <div class="item-header">
+                <span class="item-name">log¹⁰⁵</span>
+            </div>
+            <div class="comment">Returns the natural logarithm (base e) of a positive float.</div>
+            <div class="signature">def log¹⁰⁵ (i¹⁰⁶: {v¹⁰⁷ : Float  | ((&gt; v¹⁰⁷) 0.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-log10¹⁰⁸">
+            <div class="item-header">
+                <span class="item-name">log10¹⁰⁸</span>
+            </div>
+            <div class="comment">Returns the base-10 logarithm of a positive float.</div>
+            <div class="signature">def log10¹⁰⁸ (i¹⁰⁹: {v¹¹⁰ : Float  | ((&gt; v¹¹⁰) 0.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-log2¹¹¹">
+            <div class="item-header">
+                <span class="item-name">log2¹¹¹</span>
+            </div>
+            <div class="comment">Returns the base-2 logarithm of a positive float.</div>
+            <div class="signature">def log2¹¹¹ (i¹¹²: {v¹¹³ : Float  | ((&gt; v¹¹³) 0.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-log1p¹¹⁴">
+            <div class="item-header">
+                <span class="item-name">log1p¹¹⁴</span>
+            </div>
+            <div class="comment">Returns log(1 + x), more precise for small x.</div>
+            <div class="signature">def log1p¹¹⁴ (i¹¹⁵: {v¹¹⁶ : Float  | ((&gt; v¹¹⁶) -1.0) }) : Float </div>
+        </div>
+        <div class="item" id="func-sin¹¹⁷">
+            <div class="item-header">
+                <span class="item-name">sin¹¹⁷</span>
+            </div>
+            <div class="comment">Returns the sine of a float (in radians).</div>
+            <div class="signature">def sin¹¹⁷ (i¹¹⁸: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-cos¹¹⁹">
+            <div class="item-header">
+                <span class="item-name">cos¹¹⁹</span>
+            </div>
+            <div class="comment">Returns the cosine of a float (in radians).</div>
+            <div class="signature">def cos¹¹⁹ (i¹²⁰: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-tan¹²¹">
+            <div class="item-header">
+                <span class="item-name">tan¹²¹</span>
+            </div>
+            <div class="comment">Returns the tangent of a float (in radians).</div>
+            <div class="signature">def tan¹²¹ (i¹²²: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-asin¹²³">
+            <div class="item-header">
+                <span class="item-name">asin¹²³</span>
+            </div>
+            <div class="comment">Returns the arc sine of a float in [-1, 1].</div>
+            <div class="signature">def asin¹²³ (i¹²⁴: {v¹²⁵ : Float  | ((&amp;&amp; ((&lt;= -1.0) v¹²⁵)) ((&lt;= v¹²⁵) 1.0)) }) : Float </div>
+        </div>
+        <div class="item" id="func-acos¹²⁶">
+            <div class="item-header">
+                <span class="item-name">acos¹²⁶</span>
+            </div>
+            <div class="comment">Returns the arc cosine of a float in [-1, 1].</div>
+            <div class="signature">def acos¹²⁶ (i¹²⁷: {v¹²⁸ : Float  | ((&amp;&amp; ((&lt;= -1.0) v¹²⁸)) ((&lt;= v¹²⁸) 1.0)) }) : Float </div>
+        </div>
+        <div class="item" id="func-atan¹²⁹">
+            <div class="item-header">
+                <span class="item-name">atan¹²⁹</span>
+            </div>
+            <div class="comment">Returns the arc tangent of a float.</div>
+            <div class="signature">def atan¹²⁹ (i¹³⁰: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-atan2¹³¹">
+            <div class="item-header">
+                <span class="item-name">atan2¹³¹</span>
+            </div>
+            <div class="comment">Returns the arc tangent of sinVal/cosVal, in radians.</div>
+            <div class="signature">def atan2¹³¹ (sinVal¹³²: Float ), (cosVal¹³³: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-radians¹³⁴">
+            <div class="item-header">
+                <span class="item-name">radians¹³⁴</span>
+            </div>
+            <div class="comment">Converts degrees to radians.</div>
+            <div class="signature">def radians¹³⁴ (deg¹³⁵: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-degrees¹³⁶">
+            <div class="item-header">
+                <span class="item-name">degrees¹³⁶</span>
+            </div>
+            <div class="comment">Converts radians to degrees.</div>
+            <div class="signature">def degrees¹³⁶ (rad¹³⁷: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-hypot¹³⁸">
+            <div class="item-header">
+                <span class="item-name">hypot¹³⁸</span>
+            </div>
+            <div class="comment">Returns the Euclidean distance between two 2D points.</div>
+            <div class="signature">def hypot¹³⁸ (x¹³⁹: Float ), (y¹⁴⁰: Float ) : {v¹⁴¹ : Float  | ((&gt;= v¹⁴¹) 0.0) }</div>
+        </div>
+        <div class="item" id="func-sinh¹⁴²">
+            <div class="item-header">
+                <span class="item-name">sinh¹⁴²</span>
+            </div>
+            <div class="comment">Returns the hyperbolic sine.</div>
+            <div class="signature">def sinh¹⁴² (i¹⁴³: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-cosh¹⁴⁴">
+            <div class="item-header">
+                <span class="item-name">cosh¹⁴⁴</span>
+            </div>
+            <div class="comment">Returns the hyperbolic cosine. Result is always &gt;= 1.</div>
+            <div class="signature">def cosh¹⁴⁴ (i¹⁴⁵: Float ) : {v¹⁴⁶ : Float  | ((&gt;= v¹⁴⁶) 1.0) }</div>
+        </div>
+        <div class="item" id="func-tanh¹⁴⁷">
+            <div class="item-header">
+                <span class="item-name">tanh¹⁴⁷</span>
+            </div>
+            <div class="comment">Returns the hyperbolic tangent.</div>
+            <div class="signature">def tanh¹⁴⁷ (i¹⁴⁸: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-asinh¹⁴⁹">
+            <div class="item-header">
+                <span class="item-name">asinh¹⁴⁹</span>
+            </div>
+            <div class="comment">Returns the inverse hyperbolic sine.</div>
+            <div class="signature">def asinh¹⁴⁹ (i¹⁵⁰: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-acosh¹⁵¹">
+            <div class="item-header">
+                <span class="item-name">acosh¹⁵¹</span>
+            </div>
+            <div class="comment">Returns the inverse hyperbolic cosine. Input must be &gt;= 1.</div>
+            <div class="signature">def acosh¹⁵¹ (i¹⁵²: {v¹⁵³ : Float  | ((&gt;= v¹⁵³) 1.0) }) : {v¹⁵⁴ : Float  | ((&gt;= v¹⁵⁴) 0.0) }</div>
+        </div>
+        <div class="item" id="func-atanh¹⁵⁵">
+            <div class="item-header">
+                <span class="item-name">atanh¹⁵⁵</span>
+            </div>
+            <div class="comment">Returns the inverse hyperbolic tangent. Input must be in (-1, 1).</div>
+            <div class="signature">def atanh¹⁵⁵ (i¹⁵⁶: {v¹⁵⁷ : Float  | ((&amp;&amp; ((&lt; -1.0) v¹⁵⁷)) ((&lt; v¹⁵⁷) 1.0)) }) : Float </div>
+        </div>
+        <div class="item" id="func-erf¹⁵⁸">
+            <div class="item-header">
+                <span class="item-name">erf¹⁵⁸</span>
+            </div>
+            <div class="comment">Returns the error function.</div>
+            <div class="signature">def erf¹⁵⁸ (i¹⁵⁹: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-erfc¹⁶⁰">
+            <div class="item-header">
+                <span class="item-name">erfc¹⁶⁰</span>
+            </div>
+            <div class="comment">Returns the complementary error function.</div>
+            <div class="signature">def erfc¹⁶⁰ (i¹⁶¹: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-lgamma¹⁶²">
+            <div class="item-header">
+                <span class="item-name">lgamma¹⁶²</span>
+            </div>
+            <div class="comment">Returns the natural log of the absolute value of the Gamma function.</div>
+            <div class="signature">def lgamma¹⁶² (i¹⁶³: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-gamma¹⁶⁴">
+            <div class="item-header">
+                <span class="item-name">gamma¹⁶⁴</span>
+            </div>
+            <div class="comment">Returns the Gamma function. Input must be positive or non-integer.</div>
+            <div class="signature">def gamma¹⁶⁴ (i¹⁶⁵: {v¹⁶⁶ : Float  | ((&gt; v¹⁶⁶) 0.0) }) : {v¹⁶⁷ : Float  | ((&gt; v¹⁶⁷) 0.0) }</div>
+        </div>
+        <div class="item" id="func-isfinite¹⁶⁸">
+            <div class="item-header">
+                <span class="item-name">isfinite¹⁶⁸</span>
+            </div>
+            <div class="comment">Returns true if the float is finite (not infinity or NaN).</div>
+            <div class="signature">def isfinite¹⁶⁸ (i¹⁶⁹: Float ) : Bool </div>
+        </div>
+        <div class="item" id="func-isinf¹⁷⁰">
+            <div class="item-header">
+                <span class="item-name">isinf¹⁷⁰</span>
+            </div>
+            <div class="comment">Returns true if the float is infinity.</div>
+            <div class="signature">def isinf¹⁷⁰ (i¹⁷¹: Float ) : Bool </div>
+        </div>
+        <div class="item" id="func-isnan¹⁷²">
+            <div class="item-header">
+                <span class="item-name">isnan¹⁷²</span>
+            </div>
+            <div class="comment">Returns true if the float is NaN.</div>
+            <div class="signature">def isnan¹⁷² (i¹⁷³: Float ) : Bool </div>
+        </div>
+        <div class="item" id="func-sign¹⁷⁴">
+            <div class="item-header">
+                <span class="item-name">sign¹⁷⁴</span>
+            </div>
+            <div class="comment">Returns the sign of an integer: -1, 0, or 1.</div>
+            <div class="signature">def sign¹⁷⁴ (i¹⁷⁵: Int ) : {v¹⁷⁶ : Int  | ((&amp;&amp; ((&gt;= v¹⁷⁶) ((- 0) 1))) ((&lt;= v¹⁷⁶) 1)) }</div>
+        </div>
+        <div class="item" id="func-signf¹⁷⁷">
+            <div class="item-header">
+                <span class="item-name">signf¹⁷⁷</span>
+            </div>
+            <div class="comment">Returns the sign of a float: -1, 0, or 1.</div>
+            <div class="signature">def signf¹⁷⁷ (i¹⁷⁸: Float ) : {v¹⁷⁹ : Int  | ((&amp;&amp; ((&gt;= v¹⁷⁹) ((- 0) 1))) ((&lt;= v¹⁷⁹) 1)) }</div>
+        </div>
+        <div class="item" id="func-clamp¹⁸⁰">
+            <div class="item-header">
+                <span class="item-name">clamp¹⁸⁰</span>
+            </div>
+            <div class="comment">Clamps an integer to the range [lo, hi].</div>
+            <div class="signature">def clamp¹⁸⁰ (x¹⁸¹: Int ), (lo¹⁸²: Int ), (hi¹⁸³: {v¹⁸⁴ : Int  | ((&gt;= v¹⁸⁴) lo¹⁸²) }) : {v¹⁸⁵ : Int  | ((&amp;&amp; ((&gt;= v¹⁸⁵) lo¹⁸²)) ((&lt;= v¹⁸⁵) hi¹⁸³)) }</div>
+        </div>
+        <div class="item" id="func-clampf¹⁸⁶">
+            <div class="item-header">
+                <span class="item-name">clampf¹⁸⁶</span>
+            </div>
+            <div class="comment">Clamps a float to the range [lo, hi].</div>
+            <div class="signature">def clampf¹⁸⁶ (x¹⁸⁷: Float ), (lo¹⁸⁸: Float ), (hi¹⁸⁹: {v¹⁹⁰ : Float  | ((&gt;= v¹⁹⁰) lo¹⁸⁸) }) : {v¹⁹¹ : Float  | ((&amp;&amp; ((&gt;= v¹⁹¹) lo¹⁸⁸)) ((&lt;= v¹⁹¹) hi¹⁸⁹)) }</div>
+        </div>
+    </div>
+</body>
+</html>

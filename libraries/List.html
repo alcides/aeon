@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>List</h1>
+        <div class="header-comment">Linked list — an inductive datatype with the standard ``nil`` / ``cons``
+constructors and a length measure.
+
+``List`` is parameterised by:
+* its element type ``a``;
+* an abstract refinement ``p`` (Liquid Haskell-style ``data List a &lt;p&gt;``)
+that every element of the list satisfies. The refinement flows through
+every constructor: a value can only enter the list if it satisfies ``p``.</div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-List⁵">List⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-length¹⁷">length¹⁷</a></li>
+                        <li><a href="#func-empty²¹">empty²¹</a></li>
+                        <li><a href="#func-append²⁵">append²⁵</a></li>
+                        <li><a href="#func-map³⁰">map³⁰</a></li>
+                        <li><a href="#func-foldr³⁶">foldr³⁶</a></li>
+                        <li><a href="#func-reverse_acc⁴⁴">reverse_acc⁴⁴</a></li>
+                        <li><a href="#func-reversed⁴⁹">reversed⁴⁹</a></li>
+                        <li><a href="#func-snoc⁵¹">snoc⁵¹</a></li>
+                        <li><a href="#func-sum⁵⁴">sum⁵⁴</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-List⁵">
+            <div class="item-header">
+                <span class="item-name">List⁵</span>
+                <span class="item-type">(inductive)</span>
+            </div>
+            <div class="comment">Linked list — an inductive datatype with the standard ``nil`` / ``cons``
+constructors and a length measure.
+
+``List`` is parameterised by:
+* its element type ``a``;
+* an abstract refinement ``p`` (Liquid Haskell-style ``data List a &lt;p&gt;``)
+that every element of the list satisfies. The refinement flows through
+every constructor: a value can only enter the list if it satisfies ``p``.</div>
+            <div class="signature">inductive List⁵ a⁶ forall &lt;p⁷:&#x27;a⁶ -&gt; Bool&gt;</div>
+            <h3>Constructors</h3>
+            <div class="constructor">
+                <span class="constructor-name">nil⁸</span> : <code>{l⁹ : List⁵ &#x27;a⁶ | ((== (size? l⁹)) 0) }</code>
+            </div>
+            <div class="constructor">
+                <span class="constructor-name">cons¹⁰</span> : <code>{l¹⁴ : List⁵ &#x27;a⁶ | ((== (size? l¹⁴)) ((+ (size? tl¹³)) 1)) }</code>
+            </div>
+            <h3>Measures</h3>
+            <div class="constructor">
+                <span class="constructor-name">size¹⁵</span> : <code>Int </code>
+            </div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-length¹⁷">
+            <div class="item-header">
+                <span class="item-name">length¹⁷</span>
+            </div>
+            <div class="comment">Length of the list (counted by recursion).</div>
+            <div class="signature">def length¹⁷ (l¹⁸: List⁵ &#x27;a⁶) : Int </div>
+        </div>
+        <div class="item" id="func-empty²¹">
+            <div class="item-header">
+                <span class="item-name">empty²¹</span>
+            </div>
+            <div class="comment">True when the list is empty.</div>
+            <div class="signature">def empty²¹ (l²²: List⁵ &#x27;a⁶) : Bool </div>
+        </div>
+        <div class="item" id="func-append²⁵">
+            <div class="item-header">
+                <span class="item-name">append²⁵</span>
+            </div>
+            <div class="comment">Append two lists.</div>
+            <div class="signature">def append²⁵ (xs²⁶: List⁵ &#x27;a⁶), (ys²⁷: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+        </div>
+        <div class="item" id="func-map³⁰">
+            <div class="item-header">
+                <span class="item-name">map³⁰</span>
+            </div>
+            <div class="comment">Map a function over the list.</div>
+            <div class="signature">def map³⁰ (f³¹: (x³² : &#x27;a⁶) -&gt; &#x27;b?), (l³³: List⁵ &#x27;a⁶) : List⁵ &#x27;b?</div>
+        </div>
+        <div class="item" id="func-foldr³⁶">
+            <div class="item-header">
+                <span class="item-name">foldr³⁶</span>
+            </div>
+            <div class="comment">Right fold: ``foldr f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.</div>
+            <div class="signature">def foldr³⁶ (f³⁷: (x³⁸ : &#x27;a⁶) -&gt; (acc³⁹ : &#x27;b?) -&gt; &#x27;b?), (z⁴⁰: &#x27;b?), (l⁴¹: List⁵ &#x27;a⁶) : &#x27;b?</div>
+        </div>
+        <div class="item" id="func-reverse_acc⁴⁴">
+            <div class="item-header">
+                <span class="item-name">reverse_acc⁴⁴</span>
+            </div>
+            <div class="comment">Reverse helper: prepends elements of ``xs`` onto ``acc``.</div>
+            <div class="signature">def reverse_acc⁴⁴ (xs⁴⁵: List⁵ &#x27;a⁶), (acc⁴⁶: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+        </div>
+        <div class="item" id="func-reversed⁴⁹">
+            <div class="item-header">
+                <span class="item-name">reversed⁴⁹</span>
+            </div>
+            <div class="comment">Reverse a list.</div>
+            <div class="signature">def reversed⁴⁹ (l⁵⁰: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+        </div>
+        <div class="item" id="func-snoc⁵¹">
+            <div class="item-header">
+                <span class="item-name">snoc⁵¹</span>
+            </div>
+            <div class="comment">Append a value at the back of the list (snoc).</div>
+            <div class="signature">def snoc⁵¹ (l⁵²: List⁵ &#x27;a⁶), (x⁵³: &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+        </div>
+        <div class="item" id="func-sum⁵⁴">
+            <div class="item-header">
+                <span class="item-name">sum⁵⁴</span>
+            </div>
+            <div class="comment">Sum of a list of integers.</div>
+            <div class="signature">def sum⁵⁴ (l⁵⁵: List⁵ Int ) : Int </div>
+        </div>
+    </div>
+</body>
+</html>

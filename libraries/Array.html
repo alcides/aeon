@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Array</h1>
+        <div class="header-comment">Flat, contiguous, native-backed sequence with random access.
+
+``Array`` is an opaque type parameterised by:
+* its element type ``a``;
+* an abstract refinement ``p`` (Liquid Haskell-style ``data Array a &lt;p&gt;``)
+that every element of the array satisfies.
+
+The underlying storage is a Python list, so operations are O(1) for
+indexed access and O(n) for prepend.</div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Array⁵">Array⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-functools⁸">functools⁸</a></li>
+                        <li><a href="#func-size⁹">size⁹</a></li>
+                        <li><a href="#func-length¹¹">length¹¹</a></li>
+                        <li><a href="#func-new¹⁴">new¹⁴</a></li>
+                        <li><a href="#func-empty¹⁶">empty¹⁶</a></li>
+                        <li><a href="#func-append¹⁹">append¹⁹</a></li>
+                        <li><a href="#func-cons²⁴">cons²⁴</a></li>
+                        <li><a href="#func-get²⁹">get²⁹</a></li>
+                        <li><a href="#func-set³⁴">set³⁴</a></li>
+                        <li><a href="#func-head⁴¹">head⁴¹</a></li>
+                        <li><a href="#func-reversed⁴⁵">reversed⁴⁵</a></li>
+                        <li><a href="#func-map⁴⁸">map⁴⁸</a></li>
+                        <li><a href="#func-filter⁵⁵">filter⁵⁵</a></li>
+                        <li><a href="#func-reduce⁶¹">reduce⁶¹</a></li>
+                        <li><a href="#func-sum⁶⁸">sum⁶⁸</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Array⁵">
+            <div class="item-header">
+                <span class="item-name">Array⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="comment">Flat, contiguous, native-backed sequence with random access.
+
+``Array`` is an opaque type parameterised by:
+* its element type ``a``;
+* an abstract refinement ``p`` (Liquid Haskell-style ``data Array a &lt;p&gt;``)
+that every element of the array satisfies.
+
+The underlying storage is a Python list, so operations are O(1) for
+indexed access and O(n) for prepend.</div>
+            <div class="signature">type Array⁵ a⁶ forall &lt;p⁷:&#x27;a⁶ -&gt; Bool&gt;</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-functools⁸">
+            <div class="item-header">
+                <span class="item-name">functools⁸</span>
+            </div>
+            <div class="signature">def functools⁸ : Unit </div>
+        </div>
+        <div class="item" id="func-size⁹">
+            <div class="item-header">
+                <span class="item-name">size⁹</span>
+            </div>
+            <div class="comment">Abstract length measure.</div>
+            <div class="signature">def size⁹ : (arr¹⁰ : Array⁵ &#x27;a⁶) -&gt; Int </div>
+        </div>
+        <div class="item" id="func-length¹¹">
+            <div class="item-header">
+                <span class="item-name">length¹¹</span>
+            </div>
+            <div class="comment">Length of the array.</div>
+            <div class="signature">def length¹¹ (arr¹²: Array⁵ &#x27;a⁶) : {n¹³ : Int  | ((== n¹³) (size⁹ arr¹²)) }</div>
+        </div>
+        <div class="item" id="func-new¹⁴">
+            <div class="item-header">
+                <span class="item-name">new¹⁴</span>
+            </div>
+            <div class="comment">Empty array.</div>
+            <div class="signature">def new¹⁴ : {arr¹⁵ : Array⁵ &#x27;a⁶ | ((== (size⁹ arr¹⁵)) 0) }</div>
+        </div>
+        <div class="item" id="func-empty¹⁶">
+            <div class="item-header">
+                <span class="item-name">empty¹⁶</span>
+            </div>
+            <div class="comment">True when the array is empty.</div>
+            <div class="signature">def empty¹⁶ (arr¹⁷: Array⁵ &#x27;a⁶) : {b¹⁸ : Bool  | ((== b¹⁸) ((== (size⁹ arr¹⁷)) 0)) }</div>
+        </div>
+        <div class="item" id="func-append¹⁹">
+            <div class="item-header">
+                <span class="item-name">append¹⁹</span>
+            </div>
+            <div class="comment">Append an element to the back; the value must satisfy the refinement ``p``.</div>
+            <div class="signature">def append¹⁹ (arr²⁰: Array⁵ &#x27;a⁶), (x²¹: {v²² : &#x27;a⁶ | (p⁷ v²²) }) : {r²³ : Array⁵ &#x27;a⁶ | ((== (size⁹ r²³)) ((+ (size⁹ arr²⁰)) 1)) }</div>
+        </div>
+        <div class="item" id="func-cons²⁴">
+            <div class="item-header">
+                <span class="item-name">cons²⁴</span>
+            </div>
+            <div class="comment">Prepend an element to the front; the value must satisfy the refinement ``p``.</div>
+            <div class="signature">def cons²⁴ (arr²⁵: Array⁵ &#x27;a⁶), (x²⁶: {v²⁷ : &#x27;a⁶ | (p⁷ v²⁷) }) : {r²⁸ : Array⁵ &#x27;a⁶ | ((== (size⁹ r²⁸)) ((+ (size⁹ arr²⁵)) 1)) }</div>
+        </div>
+        <div class="item" id="func-get²⁹">
+            <div class="item-header">
+                <span class="item-name">get²⁹</span>
+            </div>
+            <div class="comment">Indexed read; the result is known to satisfy ``p``.</div>
+            <div class="signature">def get²⁹ (arr³⁰: Array⁵ &#x27;a⁶), (i³¹: {n³² : Int  | ((&amp;&amp; ((&gt;= n³²) 0)) ((&lt; n³²) (size⁹ arr³⁰))) }) : {v³³ : &#x27;a⁶ | (p⁷ v³³) }</div>
+        </div>
+        <div class="item" id="func-set³⁴">
+            <div class="item-header">
+                <span class="item-name">set³⁴</span>
+            </div>
+            <div class="comment">Indexed write; preserves length, and the written value must satisfy ``p``.</div>
+            <div class="signature">def set³⁴ (arr³⁵: Array⁵ &#x27;a⁶), (i³⁶: {n³⁷ : Int  | ((&amp;&amp; ((&gt;= n³⁷) 0)) ((&lt; n³⁷) (size⁹ arr³⁵))) }), (x³⁸: {v³⁹ : &#x27;a⁶ | (p⁷ v³⁹) }) : {r⁴⁰ : Array⁵ &#x27;a⁶ | ((== (size⁹ r⁴⁰)) (size⁹ arr³⁵)) }</div>
+        </div>
+        <div class="item" id="func-head⁴¹">
+            <div class="item-header">
+                <span class="item-name">head⁴¹</span>
+            </div>
+            <div class="comment">First element of a non-empty array.</div>
+            <div class="signature">def head⁴¹ (arr⁴²: {arr⁴³ : Array⁵ &#x27;a⁶ | ((&gt; (size⁹ arr⁴³)) 0) }) : {v⁴⁴ : &#x27;a⁶ | (p⁷ v⁴⁴) }</div>
+        </div>
+        <div class="item" id="func-reversed⁴⁵">
+            <div class="item-header">
+                <span class="item-name">reversed⁴⁵</span>
+            </div>
+            <div class="comment">Reversed copy; length is preserved.</div>
+            <div class="signature">def reversed⁴⁵ (arr⁴⁶: Array⁵ &#x27;a⁶) : {r⁴⁷ : Array⁵ &#x27;a⁶ | ((== (size⁹ r⁴⁷)) (size⁹ arr⁴⁶)) }</div>
+        </div>
+        <div class="item" id="func-map⁴⁸">
+            <div class="item-header">
+                <span class="item-name">map⁴⁸</span>
+            </div>
+            <div class="comment">Map a function across the array; length is preserved and the result
+refinement ``q`` is pushed through ``f``.</div>
+            <div class="signature">def map⁴⁸ (f⁴⁹: (x⁵⁰ : {v⁵¹ : &#x27;a⁶ | (p⁷ v⁵¹) }) -&gt; {w⁵² : &#x27;b? | (q? w⁵²) }), (arr⁵³: Array⁵ &#x27;a⁶) : {r⁵⁴ : Array⁵ &#x27;b? | ((== (size⁹ r⁵⁴)) (size⁹ arr⁵³)) }</div>
+        </div>
+        <div class="item" id="func-filter⁵⁵">
+            <div class="item-header">
+                <span class="item-name">filter⁵⁵</span>
+            </div>
+            <div class="comment">Filter an array by ``f``; the length never grows.</div>
+            <div class="signature">def filter⁵⁵ (f⁵⁶: (x⁵⁷ : {v⁵⁸ : &#x27;a⁶ | (p⁷ v⁵⁸) }) -&gt; Bool ), (arr⁵⁹: Array⁵ &#x27;a⁶) : {r⁶⁰ : Array⁵ &#x27;a⁶ | ((&lt;= (size⁹ r⁶⁰)) (size⁹ arr⁵⁹)) }</div>
+        </div>
+        <div class="item" id="func-reduce⁶¹">
+            <div class="item-header">
+                <span class="item-name">reduce⁶¹</span>
+            </div>
+            <div class="comment">Right fold: ``reduce f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.</div>
+            <div class="signature">def reduce⁶¹ (f⁶²: (x⁶³ : {v⁶⁴ : &#x27;a⁶ | (p⁷ v⁶⁴) }) -&gt; (acc⁶⁵ : &#x27;b?) -&gt; &#x27;b?), (z⁶⁶: &#x27;b?), (arr⁶⁷: Array⁵ &#x27;a⁶) : &#x27;b?</div>
+        </div>
+        <div class="item" id="func-sum⁶⁸">
+            <div class="item-header">
+                <span class="item-name">sum⁶⁸</span>
+            </div>
+            <div class="comment">Sum of an Int array.</div>
+            <div class="signature">def sum⁶⁸ (arr⁶⁹: Array⁵ Int ) : Int </div>
+        </div>
+    </div>
+</body>
+</html>

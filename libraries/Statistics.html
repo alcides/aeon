@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Statistics</h1>
+        <div class="header-comment">─── Uninterpreted refinement-language symbols ─────────────────────────
+These live in the refinement language so Z3 can reason about them as
+abstract symbols. Runtime providers below tie concrete values back to
+them via refined return types.
+Fraction of xs strictly below threshold t.</div>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-fracBelow⁵">fracBelow⁵</a></li>
+                        <li><a href="#func-fracAbove⁸">fracAbove⁸</a></li>
+                        <li><a href="#func-fracBetween¹¹">fracBetween¹¹</a></li>
+                        <li><a href="#func-sampleMean¹⁵">sampleMean¹⁵</a></li>
+                        <li><a href="#func-sampleVar¹⁷">sampleVar¹⁷</a></li>
+                        <li><a href="#func-sampleStd¹⁹">sampleStd¹⁹</a></li>
+                        <li><a href="#func-sampleMin²¹">sampleMin²¹</a></li>
+                        <li><a href="#func-sampleMax²³">sampleMax²³</a></li>
+                        <li><a href="#func-widenBelow²⁵">widenBelow²⁵</a></li>
+                        <li><a href="#func-widenAbove³²">widenAbove³²</a></li>
+                        <li><a href="#func-belowComplement³⁹">belowComplement³⁹</a></li>
+                        <li><a href="#func-betweenFromBelow⁴⁴">betweenFromBelow⁴⁴</a></li>
+                        <li><a href="#func-mean⁵¹">mean⁵¹</a></li>
+                        <li><a href="#func-median⁵⁵">median⁵⁵</a></li>
+                        <li><a href="#func-std⁵⁸">std⁵⁸</a></li>
+                        <li><a href="#func-var⁶²">var⁶²</a></li>
+                        <li><a href="#func-min⁶⁶">min⁶⁶</a></li>
+                        <li><a href="#func-max⁷⁰">max⁷⁰</a></li>
+                        <li><a href="#func-sum⁷⁴">sum⁷⁴</a></li>
+                        <li><a href="#func-quantile⁷⁷">quantile⁷⁷</a></li>
+                        <li><a href="#func-prod⁸¹">prod⁸¹</a></li>
+                        <li><a href="#func-cumsum⁸⁴">cumsum⁸⁴</a></li>
+                        <li><a href="#func-cumprod⁸⁷">cumprod⁸⁷</a></li>
+                        <li><a href="#func-quartiles⁹⁰">quartiles⁹⁰</a></li>
+                        <li><a href="#func-unique⁹³">unique⁹³</a></li>
+                        <li><a href="#func-argmax⁹⁶">argmax⁹⁶</a></li>
+                        <li><a href="#func-argmin⁹⁹">argmin⁹⁹</a></li>
+                        <li><a href="#func-percentile¹⁰²">percentile¹⁰²</a></li>
+                        <li><a href="#func-corrcoef¹⁰⁶">corrcoef¹⁰⁶</a></li>
+                        <li><a href="#func-cov¹¹¹">cov¹¹¹</a></li>
+                        <li><a href="#func-proportionBelow¹¹⁶">proportionBelow¹¹⁶</a></li>
+                        <li><a href="#func-proportionAbove¹²¹">proportionAbove¹²¹</a></li>
+                        <li><a href="#func-proportionBetween¹²⁶">proportionBetween¹²⁶</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-fracBelow⁵">
+            <div class="item-header">
+                <span class="item-name">fracBelow⁵</span>
+            </div>
+            <div class="comment">Fraction of xs strictly below threshold t.</div>
+            <div class="signature">def fracBelow⁵ : (xs⁶ : Array? Float ) -&gt; (t⁷ : Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-fracAbove⁸">
+            <div class="item-header">
+                <span class="item-name">fracAbove⁸</span>
+            </div>
+            <div class="comment">Fraction of xs strictly above threshold t.</div>
+            <div class="signature">def fracAbove⁸ : (xs⁹ : Array? Float ) -&gt; (t¹⁰ : Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-fracBetween¹¹">
+            <div class="item-header">
+                <span class="item-name">fracBetween¹¹</span>
+            </div>
+            <div class="comment">Fraction of xs in the open interval (lo, hi).</div>
+            <div class="signature">def fracBetween¹¹ : (xs¹² : Array? Float ) -&gt; (lo¹³ : Float ) -&gt; (hi¹⁴ : Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-sampleMean¹⁵">
+            <div class="item-header">
+                <span class="item-name">sampleMean¹⁵</span>
+            </div>
+            <div class="comment">Sample summary statistics as abstract symbols.</div>
+            <div class="signature">def sampleMean¹⁵ : (xs¹⁶ : Array? Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-sampleVar¹⁷">
+            <div class="item-header">
+                <span class="item-name">sampleVar¹⁷</span>
+            </div>
+            <div class="signature">def sampleVar¹⁷ : (xs¹⁸ : Array? Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-sampleStd¹⁹">
+            <div class="item-header">
+                <span class="item-name">sampleStd¹⁹</span>
+            </div>
+            <div class="signature">def sampleStd¹⁹ : (xs²⁰ : Array? Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-sampleMin²¹">
+            <div class="item-header">
+                <span class="item-name">sampleMin²¹</span>
+            </div>
+            <div class="signature">def sampleMin²¹ : (xs²² : Array? Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-sampleMax²³">
+            <div class="item-header">
+                <span class="item-name">sampleMax²³</span>
+            </div>
+            <div class="signature">def sampleMax²³ : (xs²⁴ : Array? Float ) -&gt; Float </div>
+        </div>
+        <div class="item" id="func-widenBelow²⁵">
+            <div class="item-header">
+                <span class="item-name">widenBelow²⁵</span>
+            </div>
+            <div class="comment">Monotonicity below:  t1 &lt;= t2  ⇒  fracBelow xs t1 &lt;= fracBelow xs t2.</div>
+            <div class="signature">def widenBelow²⁵ (xs²⁶: {x²⁷ : Array? Float  | ((&gt; (Array.size? x²⁷)) 0) }), (t1²⁸: Float ), (t2²⁹: {t³⁰ : Float  | ((&gt;= t³⁰) t1²⁸) }) : {r³¹ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r³¹)) 0)) ((&gt;= ((fracBelow⁵ r³¹) t2²⁹)) ((fracBelow⁵ xs²⁶) t1²⁸))) }</div>
+        </div>
+        <div class="item" id="func-widenAbove³²">
+            <div class="item-header">
+                <span class="item-name">widenAbove³²</span>
+            </div>
+            <div class="comment">Monotonicity above:  t1 &lt;= t2  ⇒  fracAbove xs t1 &gt;= fracAbove xs t2.</div>
+            <div class="signature">def widenAbove³² (xs³³: {x³⁴ : Array? Float  | ((&gt; (Array.size? x³⁴)) 0) }), (t1³⁵: Float ), (t2³⁶: {t³⁷ : Float  | ((&lt;= t³⁷) t1³⁵) }) : {r³⁸ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r³⁸)) 0)) ((&gt;= ((fracAbove⁸ r³⁸) t2³⁶)) ((fracAbove⁸ xs³³) t1³⁵))) }</div>
+        </div>
+        <div class="item" id="func-belowComplement³⁹">
+            <div class="item-header">
+                <span class="item-name">belowComplement³⁹</span>
+            </div>
+            <div class="comment">Complement at a non-atomic point:  fracBelow + fracAbove = 1.</div>
+            <div class="signature">def belowComplement³⁹ (xs⁴⁰: {x⁴¹ : Array? Float  | ((&gt; (Array.size? x⁴¹)) 0) }), (t⁴²: Float ) : {r⁴³ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r⁴³)) 0)) ((== ((fracBelow⁵ r⁴³) t⁴²)) ((- 1.0) ((fracAbove⁸ xs⁴⁰) t⁴²)))) }</div>
+        </div>
+        <div class="item" id="func-betweenFromBelow⁴⁴">
+            <div class="item-header">
+                <span class="item-name">betweenFromBelow⁴⁴</span>
+            </div>
+            <div class="comment">Between bound: fracBetween lo hi &gt;= fracBelow hi - fracBelow lo (slack covers atoms).</div>
+            <div class="signature">def betweenFromBelow⁴⁴ (xs⁴⁵: {x⁴⁶ : Array? Float  | ((&gt; (Array.size? x⁴⁶)) 0) }), (lo⁴⁷: Float ), (hi⁴⁸: {h⁴⁹ : Float  | ((&gt;= h⁴⁹) lo⁴⁷) }) : {r⁵⁰ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r⁵⁰)) 0)) ((&gt;= (((fracBetween¹¹ r⁵⁰) lo⁴⁷) hi⁴⁸)) ((- ((fracBelow⁵ xs⁴⁵) hi⁴⁸)) ((fracBelow⁵ xs⁴⁵) lo⁴⁷)))) }</div>
+        </div>
+        <div class="item" id="func-mean⁵¹">
+            <div class="item-header">
+                <span class="item-name">mean⁵¹</span>
+            </div>
+            <div class="comment">Returns the mean (average) of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: mean of the numbers</div>
+            <div class="signature">def mean⁵¹ (xs⁵²: {x⁵³ : Array? Float  | ((&gt; (Array.size? x⁵³)) 0) }) : {m⁵⁴ : Float  | ((== m⁵⁴) (sampleMean¹⁵ xs⁵²)) }</div>
+        </div>
+        <div class="item" id="func-median⁵⁵">
+            <div class="item-header">
+                <span class="item-name">median⁵⁵</span>
+            </div>
+            <div class="comment">Returns the median (middle value) of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: median of the numbers</div>
+            <div class="signature">def median⁵⁵ (xs⁵⁶: {x⁵⁷ : Array? Float  | ((&gt; (Array.size? x⁵⁷)) 0) }) : Float </div>
+        </div>
+        <div class="item" id="func-std⁵⁸">
+            <div class="item-header">
+                <span class="item-name">std⁵⁸</span>
+            </div>
+            <div class="comment">Returns the sample standard deviation of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: standard deviation</div>
+            <div class="signature">def std⁵⁸ (xs⁵⁹: {x⁶⁰ : Array? Float  | ((&gt; (Array.size? x⁶⁰)) 0) }) : {s⁶¹ : Float  | ((== s⁶¹) (sampleStd¹⁹ xs⁵⁹)) }</div>
+        </div>
+        <div class="item" id="func-var⁶²">
+            <div class="item-header">
+                <span class="item-name">var⁶²</span>
+            </div>
+            <div class="comment">Returns the sample variance of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: variance</div>
+            <div class="signature">def var⁶² (xs⁶³: {x⁶⁴ : Array? Float  | ((&gt; (Array.size? x⁶⁴)) 0) }) : {v⁶⁵ : Float  | ((== v⁶⁵) (sampleVar¹⁷ xs⁶³)) }</div>
+        </div>
+        <div class="item" id="func-min⁶⁶">
+            <div class="item-header">
+                <span class="item-name">min⁶⁶</span>
+            </div>
+            <div class="comment">Returns the minimum value in a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: minimum value</div>
+            <div class="signature">def min⁶⁶ (xs⁶⁷: {x⁶⁸ : Array? Float  | ((&gt; (Array.size? x⁶⁸)) 0) }) : {m⁶⁹ : Float  | ((== m⁶⁹) (sampleMin²¹ xs⁶⁷)) }</div>
+        </div>
+        <div class="item" id="func-max⁷⁰">
+            <div class="item-header">
+                <span class="item-name">max⁷⁰</span>
+            </div>
+            <div class="comment">Returns the maximum value in a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: maximum value</div>
+            <div class="signature">def max⁷⁰ (xs⁷¹: {x⁷² : Array? Float  | ((&gt; (Array.size? x⁷²)) 0) }) : {m⁷³ : Float  | ((== m⁷³) (sampleMax²³ xs⁷¹)) }</div>
+        </div>
+        <div class="item" id="func-sum⁷⁴">
+            <div class="item-header">
+                <span class="item-name">sum⁷⁴</span>
+            </div>
+            <div class="comment">Returns the sum of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: sum of the numbers</div>
+            <div class="signature">def sum⁷⁴ (xs⁷⁵: {x⁷⁶ : Array? Float  | ((&gt; (Array.size? x⁷⁶)) 0) }) : Float </div>
+        </div>
+        <div class="item" id="func-quantile⁷⁷">
+            <div class="item-header">
+                <span class="item-name">quantile⁷⁷</span>
+            </div>
+            <div class="comment">Returns the quantile of a non-empty list of numbers.
+xs: non-empty list of numbers
+q: quantile to compute (between 0 and 1, e.g., 0.25 for Q1, 0.5 for median, 0.75 for Q3)
+returns: quantile value</div>
+            <div class="signature">def quantile⁷⁷ (xs⁷⁸: {x⁷⁹ : Array? Float  | ((&gt; (Array.size? x⁷⁹)) 0) }), (q⁸⁰: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-prod⁸¹">
+            <div class="item-header">
+                <span class="item-name">prod⁸¹</span>
+            </div>
+            <div class="comment">Returns the product of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: product of the numbers</div>
+            <div class="signature">def prod⁸¹ (xs⁸²: {x⁸³ : Array? Float  | ((&gt; (Array.size? x⁸³)) 0) }) : Float </div>
+        </div>
+        <div class="item" id="func-cumsum⁸⁴">
+            <div class="item-header">
+                <span class="item-name">cumsum⁸⁴</span>
+            </div>
+            <div class="comment">Returns the cumulative sum of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: list of cumulative sums</div>
+            <div class="signature">def cumsum⁸⁴ (xs⁸⁵: {x⁸⁶ : Array? Float  | ((&gt; (Array.size? x⁸⁶)) 0) }) : Array? Float </div>
+        </div>
+        <div class="item" id="func-cumprod⁸⁷">
+            <div class="item-header">
+                <span class="item-name">cumprod⁸⁷</span>
+            </div>
+            <div class="comment">Returns the cumulative product of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: list of cumulative products</div>
+            <div class="signature">def cumprod⁸⁷ (xs⁸⁸: {x⁸⁹ : Array? Float  | ((&gt; (Array.size? x⁸⁹)) 0) }) : Array? Float </div>
+        </div>
+        <div class="item" id="func-quartiles⁹⁰">
+            <div class="item-header">
+                <span class="item-name">quartiles⁹⁰</span>
+            </div>
+            <div class="comment">Returns the 1st (Q1), 2nd (median), and 3rd (Q3) quartiles of a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: list [Q1, Q2, Q3]</div>
+            <div class="signature">def quartiles⁹⁰ (xs⁹¹: {x⁹² : Array? Float  | ((&gt; (Array.size? x⁹²)) 0) }) : Array? Float </div>
+        </div>
+        <div class="item" id="func-unique⁹³">
+            <div class="item-header">
+                <span class="item-name">unique⁹³</span>
+            </div>
+            <div class="comment">Returns the unique values in a non-empty list.
+xs: non-empty list of numbers
+returns: list of unique values</div>
+            <div class="signature">def unique⁹³ (xs⁹⁴: {x⁹⁵ : Array? Float  | ((&gt; (Array.size? x⁹⁵)) 0) }) : Array? Float </div>
+        </div>
+        <div class="item" id="func-argmax⁹⁶">
+            <div class="item-header">
+                <span class="item-name">argmax⁹⁶</span>
+            </div>
+            <div class="comment">Returns the index of the maximum value in a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: index of the maximum value</div>
+            <div class="signature">def argmax⁹⁶ (xs⁹⁷: {x⁹⁸ : Array? Float  | ((&gt; (Array.size? x⁹⁸)) 0) }) : Float </div>
+        </div>
+        <div class="item" id="func-argmin⁹⁹">
+            <div class="item-header">
+                <span class="item-name">argmin⁹⁹</span>
+            </div>
+            <div class="comment">Returns the index of the minimum value in a non-empty list of numbers.
+xs: non-empty list of numbers
+returns: index of the minimum value</div>
+            <div class="signature">def argmin⁹⁹ (xs¹⁰⁰: {x¹⁰¹ : Array? Float  | ((&gt; (Array.size? x¹⁰¹)) 0) }) : Float </div>
+        </div>
+        <div class="item" id="func-percentile¹⁰²">
+            <div class="item-header">
+                <span class="item-name">percentile¹⁰²</span>
+            </div>
+            <div class="comment">Returns the percentile of a non-empty list of numbers.
+xs: non-empty list of numbers
+p: percentile to compute (between 0 and 100)
+returns: percentile value</div>
+            <div class="signature">def percentile¹⁰² (xs¹⁰³: {x¹⁰⁴ : Array? Float  | ((&gt; (Array.size? x¹⁰⁴)) 0) }), (p¹⁰⁵: Float ) : Float </div>
+        </div>
+        <div class="item" id="func-corrcoef¹⁰⁶">
+            <div class="item-header">
+                <span class="item-name">corrcoef¹⁰⁶</span>
+            </div>
+            <div class="comment">Returns the correlation coefficient of two non-empty lists of equal length.
+xs: non-empty list of numbers
+ys: non-empty list of numbers, same length as xs
+returns: correlation coefficient</div>
+            <div class="signature">def corrcoef¹⁰⁶ (xs¹⁰⁷: {x¹⁰⁸ : Array? Float  | ((&gt; (Array.size? x¹⁰⁸)) 0) }), (ys¹⁰⁹: {y¹¹⁰ : Array? Float  | ((== (Array.size? y¹¹⁰)) (Array.size? xs¹⁰⁷)) }) : Float </div>
+        </div>
+        <div class="item" id="func-cov¹¹¹">
+            <div class="item-header">
+                <span class="item-name">cov¹¹¹</span>
+            </div>
+            <div class="comment">Returns the covariance of two non-empty lists of equal length.
+xs: non-empty list of numbers
+ys: non-empty list of numbers, same length as xs
+returns: covariance</div>
+            <div class="signature">def cov¹¹¹ (xs¹¹²: {x¹¹³ : Array? Float  | ((&gt; (Array.size? x¹¹³)) 0) }), (ys¹¹⁴: {y¹¹⁵ : Array? Float  | ((== (Array.size? y¹¹⁵)) (Array.size? xs¹¹²)) }) : Float </div>
+        </div>
+        <div class="item" id="func-proportionBelow¹¹⁶">
+            <div class="item-header">
+                <span class="item-name">proportionBelow¹¹⁶</span>
+            </div>
+            <div class="comment">Proportion of values strictly below a threshold.</div>
+            <div class="signature">def proportionBelow¹¹⁶ (xs¹¹⁷: {x¹¹⁸ : Array? Float  | ((&gt; (Array.size? x¹¹⁸)) 0) }), (t¹¹⁹: Float ) : {f¹²⁰ : Float  | ((&amp;&amp; ((== f¹²⁰) ((fracBelow⁵ xs¹¹⁷) t¹¹⁹))) ((&amp;&amp; ((&lt;= 0.0) f¹²⁰)) ((&lt;= f¹²⁰) 1.0))) }</div>
+        </div>
+        <div class="item" id="func-proportionAbove¹²¹">
+            <div class="item-header">
+                <span class="item-name">proportionAbove¹²¹</span>
+            </div>
+            <div class="comment">Proportion of values strictly above a threshold.</div>
+            <div class="signature">def proportionAbove¹²¹ (xs¹²²: {x¹²³ : Array? Float  | ((&gt; (Array.size? x¹²³)) 0) }), (t¹²⁴: Float ) : {f¹²⁵ : Float  | ((&amp;&amp; ((== f¹²⁵) ((fracAbove⁸ xs¹²²) t¹²⁴))) ((&amp;&amp; ((&lt;= 0.0) f¹²⁵)) ((&lt;= f¹²⁵) 1.0))) }</div>
+        </div>
+        <div class="item" id="func-proportionBetween¹²⁶">
+            <div class="item-header">
+                <span class="item-name">proportionBetween¹²⁶</span>
+            </div>
+            <div class="comment">Proportion of values strictly inside the open interval (lo, hi).</div>
+            <div class="signature">def proportionBetween¹²⁶ (xs¹²⁷: {x¹²⁸ : Array? Float  | ((&gt; (Array.size? x¹²⁸)) 0) }), (lo¹²⁹: Float ), (hi¹³⁰: {h¹³¹ : Float  | ((&gt;= h¹³¹) lo¹²⁹) }) : {f¹³² : Float  | ((&amp;&amp; ((== f¹³²) (((fracBetween¹¹ xs¹²⁷) lo¹²⁹) hi¹³⁰))) ((&amp;&amp; ((&lt;= 0.0) f¹³²)) ((&lt;= f¹³²) 1.0))) }</div>
+        </div>
+    </div>
+</body>
+</html>

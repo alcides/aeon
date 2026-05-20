@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Plot</h1>
+        <div class="header-comment">Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.</div>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>import Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Plot⁵">Plot⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-plt⁶">plt⁶</a></li>
+                        <li><a href="#func-new⁷">new⁷</a></li>
+                        <li><a href="#func-add_line⁸">add_line⁸</a></li>
+                        <li><a href="#func-add_scatter¹⁴">add_scatter¹⁴</a></li>
+                        <li><a href="#func-set_title²⁰">set_title²⁰</a></li>
+                        <li><a href="#func-set_xlabel²³">set_xlabel²³</a></li>
+                        <li><a href="#func-set_ylabel²⁶">set_ylabel²⁶</a></li>
+                        <li><a href="#func-show²⁹">show²⁹</a></li>
+                        <li><a href="#func-save³¹">save³¹</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Plot⁵">
+            <div class="item-header">
+                <span class="item-name">Plot⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="comment">Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.</div>
+            <div class="signature">type Plot⁵</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-plt⁶">
+            <div class="item-header">
+                <span class="item-name">plt⁶</span>
+            </div>
+            <div class="signature">def plt⁶ : Unit </div>
+        </div>
+        <div class="item" id="func-new⁷">
+            <div class="item-header">
+                <span class="item-name">new⁷</span>
+            </div>
+            <div class="comment">Creates a new, empty plot.</div>
+            <div class="signature">def new⁷ : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-add_line⁸">
+            <div class="item-header">
+                <span class="item-name">add_line⁸</span>
+            </div>
+            <div class="comment">Adds a line plot to an existing plot object.
+p_old: The existing plot object (Matplotlib Figure instance).
+x_values: List of Floats for the x-coordinates.
+y_values: List of Floats for the y-coordinates.
+color: String representing the color (e.g., &quot;red&quot;, &quot;blue&quot;).
+linestyle: String representing the line style (e.g., &quot;-&quot;, &quot;--&quot;, &quot;:&quot;).
+returns: The plot object, now with the added line.
+(Matplotlib&#x27;s plot modifies in place; we return the same figure object).</div>
+            <div class="signature">def add_line⁸ (p_old⁹: &#x27;Plot⁵), (x_values¹⁰: Array? Float ), (y_values¹¹: Array? Float ), (color¹²: String ), (linestyle¹³: String ) : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-add_scatter¹⁴">
+            <div class="item-header">
+                <span class="item-name">add_scatter¹⁴</span>
+            </div>
+            <div class="comment">Adds a scatter plot to an existing plot object.
+p_old: The existing plot object.
+x_values: List of Floats for the x-coordinates.
+y_values: List of Floats for the y-coordinates.
+color: String representing the color.
+marker: String representing the marker style (e.g., &quot;o&quot;, &quot;x&quot;, &quot;+&quot;).
+returns: The plot object, now with the added scatter plot.</div>
+            <div class="signature">def add_scatter¹⁴ (p_old¹⁵: &#x27;Plot⁵), (x_values¹⁶: Array? Float ), (y_values¹⁷: Array? Float ), (color¹⁸: String ), (marker¹⁹: String ) : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-set_title²⁰">
+            <div class="item-header">
+                <span class="item-name">set_title²⁰</span>
+            </div>
+            <div class="comment">Sets the title of the plot.
+p_old: The existing plot object.
+title_text: The string for the title.
+returns: The plot object with the title set.</div>
+            <div class="signature">def set_title²⁰ (p_old²¹: &#x27;Plot⁵), (title_text²²: String ) : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-set_xlabel²³">
+            <div class="item-header">
+                <span class="item-name">set_xlabel²³</span>
+            </div>
+            <div class="comment">Sets the X-axis label of the plot.
+p_old: The existing plot object.
+label_text: The string for the X-axis label.
+returns: The plot object with the X-axis label set.</div>
+            <div class="signature">def set_xlabel²³ (p_old²⁴: &#x27;Plot⁵), (label_text²⁵: String ) : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-set_ylabel²⁶">
+            <div class="item-header">
+                <span class="item-name">set_ylabel²⁶</span>
+            </div>
+            <div class="comment">Sets the Y-axis label of the plot.
+p_old: The existing plot object.
+label_text: The string for the Y-axis label.
+returns: The plot object with the Y-axis label set.</div>
+            <div class="signature">def set_ylabel²⁶ (p_old²⁷: &#x27;Plot⁵), (label_text²⁸: String ) : &#x27;Plot⁵</div>
+        </div>
+        <div class="item" id="func-show²⁹">
+            <div class="item-header">
+                <span class="item-name">show²⁹</span>
+            </div>
+            <div class="comment">Displays the plot.
+p: The plot object to display.</div>
+            <div class="signature">def show²⁹ (p³⁰: &#x27;Plot⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-save³¹">
+            <div class="item-header">
+                <span class="item-name">save³¹</span>
+            </div>
+            <div class="comment">Saves the plot to a file.
+p: The plot object to save.
+filename: The name of the file (e.g., &quot;myplot.png&quot;).</div>
+            <div class="signature">def save³¹ (p³²: &#x27;Plot⁵), (filename³³: String ) : Unit </div>
+        </div>
+    </div>
+</body>
+</html>

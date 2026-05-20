@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path - Aeon Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .header-comment {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-style: italic;
+        }
+        .imports {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .imports code {
+            display: block;
+            color: #7f8c8d;
+            padding: 2px 0;
+        }
+        .item {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .item-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+        .item-type {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .signature {
+            background: #f1f3f5;
+            padding: 12px;
+            border-left: 3px solid #2980b9;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .comment {
+            color: #555;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-left: 3px solid #27ae60;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .decorators {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .decorator {
+            background: #9b59b6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+        }
+        .constructor {
+            margin-left: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .constructor-name {
+            font-weight: bold;
+            color: #16a085;
+            font-family: 'Courier New', monospace;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 6px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        .type-link {
+            color: #2980b9;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .type-link:hover {
+            text-decoration: underline;
+        }
+        .args-list {
+            margin: 10px 0;
+        }
+        .arg {
+            padding: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Path</h1>
+        <div class="imports">
+            <h3>Imports</h3>
+            <code>open Array;</code>
+        </div>
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#types">Types</a>
+                    <ul>
+                        <li><a href="#type-Path⁵">Path⁵</a></li>
+                    </ul>
+                </li>
+                <li><a href="#functions">Functions</a>
+                    <ul>
+                        <li><a href="#func-pathlib⁶">pathlib⁶</a></li>
+                        <li><a href="#func-shutil⁷">shutil⁷</a></li>
+                        <li><a href="#func-mk⁸">mk⁸</a></li>
+                        <li><a href="#func-cwd¹¹">cwd¹¹</a></li>
+                        <li><a href="#func-home¹³">home¹³</a></li>
+                        <li><a href="#func-toString¹⁵">toString¹⁵</a></li>
+                        <li><a href="#func-parent¹⁷">parent¹⁷</a></li>
+                        <li><a href="#func-name¹⁹">name¹⁹</a></li>
+                        <li><a href="#func-stem²¹">stem²¹</a></li>
+                        <li><a href="#func-suffix²³">suffix²³</a></li>
+                        <li><a href="#func-join²⁵">join²⁵</a></li>
+                        <li><a href="#func-withSuffix²⁹">withSuffix²⁹</a></li>
+                        <li><a href="#func-absolute³²">absolute³²</a></li>
+                        <li><a href="#func-resolve³⁴">resolve³⁴</a></li>
+                        <li><a href="#func-exists³⁶">exists³⁶</a></li>
+                        <li><a href="#func-isFile³⁸">isFile³⁸</a></li>
+                        <li><a href="#func-isDir⁴⁰">isDir⁴⁰</a></li>
+                        <li><a href="#func-isAbsolute⁴²">isAbsolute⁴²</a></li>
+                        <li><a href="#func-isRelative⁴⁴">isRelative⁴⁴</a></li>
+                        <li><a href="#func-read⁴⁶">read⁴⁶</a></li>
+                        <li><a href="#func-write⁴⁸">write⁴⁸</a></li>
+                        <li><a href="#func-appendTo⁵¹">appendTo⁵¹</a></li>
+                        <li><a href="#func-mkdir⁵⁴">mkdir⁵⁴</a></li>
+                        <li><a href="#func-mkdirAll⁵⁶">mkdirAll⁵⁶</a></li>
+                        <li><a href="#func-listDir⁵⁸">listDir⁵⁸</a></li>
+                        <li><a href="#func-glob⁶⁰">glob⁶⁰</a></li>
+                        <li><a href="#func-remove⁶⁴">remove⁶⁴</a></li>
+                        <li><a href="#func-removeDir⁶⁶">removeDir⁶⁶</a></li>
+                        <li><a href="#func-removeAll⁶⁸">removeAll⁶⁸</a></li>
+                        <li><a href="#func-rename⁷⁰">rename⁷⁰</a></li>
+                        <li><a href="#func-copy⁷³">copy⁷³</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <h2 id="types">Types</h2>
+        <div class="item" id="type-Path⁵">
+            <div class="item-header">
+                <span class="item-name">Path⁵</span>
+                <span class="item-type">(type)</span>
+            </div>
+            <div class="signature">type Path⁵</div>
+        </div>
+        <h2 id="functions">Functions</h2>
+        <div class="item" id="func-pathlib⁶">
+            <div class="item-header">
+                <span class="item-name">pathlib⁶</span>
+            </div>
+            <div class="signature">def pathlib⁶ : Unit </div>
+        </div>
+        <div class="item" id="func-shutil⁷">
+            <div class="item-header">
+                <span class="item-name">shutil⁷</span>
+            </div>
+            <div class="signature">def shutil⁷ : Unit </div>
+        </div>
+        <div class="item" id="func-mk⁸">
+            <div class="item-header">
+                <span class="item-name">mk⁸</span>
+            </div>
+            <div class="comment">Builds a Path from a non-empty string.</div>
+            <div class="signature">def mk⁸ (s⁹: {x¹⁰ : String  | ((!= x¹⁰) &quot;&quot;) }) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-cwd¹¹">
+            <div class="item-header">
+                <span class="item-name">cwd¹¹</span>
+            </div>
+            <div class="comment">Returns the current working directory. Thunked so each call returns
+the cwd at call time (which can change after os.chdir).</div>
+            <div class="signature">def cwd¹¹ (_¹²: Unit ) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-home¹³">
+            <div class="item-header">
+                <span class="item-name">home¹³</span>
+            </div>
+            <div class="comment">Returns the current user&#x27;s home directory.</div>
+            <div class="signature">def home¹³ (_¹⁴: Unit ) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-toString¹⁵">
+            <div class="item-header">
+                <span class="item-name">toString¹⁵</span>
+            </div>
+            <div class="comment">Renders a Path to its string form.</div>
+            <div class="signature">def toString¹⁵ (p¹⁶: &#x27;Path⁵) : String </div>
+        </div>
+        <div class="item" id="func-parent¹⁷">
+            <div class="item-header">
+                <span class="item-name">parent¹⁷</span>
+            </div>
+            <div class="comment">The parent directory of p. The parent of a root path is itself.</div>
+            <div class="signature">def parent¹⁷ (p¹⁸: &#x27;Path⁵) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-name¹⁹">
+            <div class="item-header">
+                <span class="item-name">name¹⁹</span>
+            </div>
+            <div class="comment">The final path component (e.g. the filename).</div>
+            <div class="signature">def name¹⁹ (p²⁰: &#x27;Path⁵) : String </div>
+        </div>
+        <div class="item" id="func-stem²¹">
+            <div class="item-header">
+                <span class="item-name">stem²¹</span>
+            </div>
+            <div class="comment">The filename without its suffix (e.g. &quot;report&quot; for &quot;report.txt&quot;).</div>
+            <div class="signature">def stem²¹ (p²²: &#x27;Path⁵) : String </div>
+        </div>
+        <div class="item" id="func-suffix²³">
+            <div class="item-header">
+                <span class="item-name">suffix²³</span>
+            </div>
+            <div class="comment">The file suffix including the leading dot (e.g. &quot;.txt&quot;), or &quot;&quot; if none.</div>
+            <div class="signature">def suffix²³ (p²⁴: &#x27;Path⁵) : String </div>
+        </div>
+        <div class="item" id="func-join²⁵">
+            <div class="item-header">
+                <span class="item-name">join²⁵</span>
+            </div>
+            <div class="comment">Appends a non-empty segment to p, producing a new Path.</div>
+            <div class="signature">def join²⁵ (p²⁶: &#x27;Path⁵), (segment²⁷: {s²⁸ : String  | ((!= s²⁸) &quot;&quot;) }) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-withSuffix²⁹">
+            <div class="item-header">
+                <span class="item-name">withSuffix²⁹</span>
+            </div>
+            <div class="comment">Returns a copy of p with a different suffix. The new suffix must
+start with &quot;.&quot; or be empty (to strip).</div>
+            <div class="signature">def withSuffix²⁹ (p³⁰: &#x27;Path⁵), (newSuffix³¹: String ) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-absolute³²">
+            <div class="item-header">
+                <span class="item-name">absolute³²</span>
+            </div>
+            <div class="comment">Returns the absolute form of p, anchored at the current working dir.</div>
+            <div class="signature">def absolute³² (p³³: &#x27;Path⁵) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-resolve³⁴">
+            <div class="item-header">
+                <span class="item-name">resolve³⁴</span>
+            </div>
+            <div class="comment">Returns the canonical absolute path with symlinks resolved. Raises
+if the path does not exist on Python 3.6+ when strict=True; here we
+default to permissive (strict=False).</div>
+            <div class="signature">def resolve³⁴ (p³⁵: &#x27;Path⁵) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-exists³⁶">
+            <div class="item-header">
+                <span class="item-name">exists³⁶</span>
+            </div>
+            <div class="comment">True if p exists on the filesystem.</div>
+            <div class="signature">def exists³⁶ (p³⁷: &#x27;Path⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isFile³⁸">
+            <div class="item-header">
+                <span class="item-name">isFile³⁸</span>
+            </div>
+            <div class="comment">True if p exists and is a regular file.</div>
+            <div class="signature">def isFile³⁸ (p³⁹: &#x27;Path⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isDir⁴⁰">
+            <div class="item-header">
+                <span class="item-name">isDir⁴⁰</span>
+            </div>
+            <div class="comment">True if p exists and is a directory.</div>
+            <div class="signature">def isDir⁴⁰ (p⁴¹: &#x27;Path⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isAbsolute⁴²">
+            <div class="item-header">
+                <span class="item-name">isAbsolute⁴²</span>
+            </div>
+            <div class="comment">True if p is anchored at a root (has a drive or starts with &quot;/&quot;).</div>
+            <div class="signature">def isAbsolute⁴² (p⁴³: &#x27;Path⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-isRelative⁴⁴">
+            <div class="item-header">
+                <span class="item-name">isRelative⁴⁴</span>
+            </div>
+            <div class="comment">True if p is not absolute.</div>
+            <div class="signature">def isRelative⁴⁴ (p⁴⁵: &#x27;Path⁵) : Bool </div>
+        </div>
+        <div class="item" id="func-read⁴⁶">
+            <div class="item-header">
+                <span class="item-name">read⁴⁶</span>
+            </div>
+            <div class="comment">Reads a text file as a String. Raises if p is not a readable file.</div>
+            <div class="signature">def read⁴⁶ (p⁴⁷: &#x27;Path⁵) : String </div>
+        </div>
+        <div class="item" id="func-write⁴⁸">
+            <div class="item-header">
+                <span class="item-name">write⁴⁸</span>
+            </div>
+            <div class="comment">Writes content to p, overwriting any existing file.</div>
+            <div class="signature">def write⁴⁸ (p⁴⁹: &#x27;Path⁵), (content⁵⁰: String ) : Unit </div>
+        </div>
+        <div class="item" id="func-appendTo⁵¹">
+            <div class="item-header">
+                <span class="item-name">appendTo⁵¹</span>
+            </div>
+            <div class="comment">Appends content to p. Creates the file if it does not exist.</div>
+            <div class="signature">def appendTo⁵¹ (p⁵²: &#x27;Path⁵), (content⁵³: String ) : Unit </div>
+        </div>
+        <div class="item" id="func-mkdir⁵⁴">
+            <div class="item-header">
+                <span class="item-name">mkdir⁵⁴</span>
+            </div>
+            <div class="comment">Creates the directory at p. Raises if p already exists or its parent
+is missing.</div>
+            <div class="signature">def mkdir⁵⁴ (p⁵⁵: &#x27;Path⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-mkdirAll⁵⁶">
+            <div class="item-header">
+                <span class="item-name">mkdirAll⁵⁶</span>
+            </div>
+            <div class="comment">Creates the directory at p along with any missing parents. Does not
+raise if p already exists. Equivalent to mkdir -p.</div>
+            <div class="signature">def mkdirAll⁵⁶ (p⁵⁷: &#x27;Path⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-listDir⁵⁸">
+            <div class="item-header">
+                <span class="item-name">listDir⁵⁸</span>
+            </div>
+            <div class="comment">Lists immediate children of p as a list of names. Raises if p is not
+a directory.</div>
+            <div class="signature">def listDir⁵⁸ (p⁵⁹: &#x27;Path⁵) : Array? String </div>
+        </div>
+        <div class="item" id="func-glob⁶⁰">
+            <div class="item-header">
+                <span class="item-name">glob⁶⁰</span>
+            </div>
+            <div class="comment">Returns paths matching pattern relative to p (e.g. &quot;*.py&quot;).</div>
+            <div class="signature">def glob⁶⁰ (p⁶¹: &#x27;Path⁵), (pattern⁶²: {s⁶³ : String  | ((!= s⁶³) &quot;&quot;) }) : Array? &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-remove⁶⁴">
+            <div class="item-header">
+                <span class="item-name">remove⁶⁴</span>
+            </div>
+            <div class="comment">Deletes the file at p. Raises if p is a directory or does not exist.</div>
+            <div class="signature">def remove⁶⁴ (p⁶⁵: &#x27;Path⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-removeDir⁶⁶">
+            <div class="item-header">
+                <span class="item-name">removeDir⁶⁶</span>
+            </div>
+            <div class="comment">Deletes an empty directory at p. Raises if p is not empty.</div>
+            <div class="signature">def removeDir⁶⁶ (p⁶⁷: &#x27;Path⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-removeAll⁶⁸">
+            <div class="item-header">
+                <span class="item-name">removeAll⁶⁸</span>
+            </div>
+            <div class="comment">Recursively deletes a directory and its contents. Raises if p is
+not a directory.</div>
+            <div class="signature">def removeAll⁶⁸ (p⁶⁹: &#x27;Path⁵) : Unit </div>
+        </div>
+        <div class="item" id="func-rename⁷⁰">
+            <div class="item-header">
+                <span class="item-name">rename⁷⁰</span>
+            </div>
+            <div class="comment">Renames or moves p to dst. Returns the new Path.</div>
+            <div class="signature">def rename⁷⁰ (p⁷¹: &#x27;Path⁵), (dst⁷²: &#x27;Path⁵) : &#x27;Path⁵</div>
+        </div>
+        <div class="item" id="func-copy⁷³">
+            <div class="item-header">
+                <span class="item-name">copy⁷³</span>
+            </div>
+            <div class="comment">Copies a file from src to dst, preserving metadata.</div>
+            <div class="signature">def copy⁷³ (src⁷⁴: &#x27;Path⁵), (dst⁷⁵: &#x27;Path⁵) : Unit </div>
+        </div>
+    </div>
+</body>
+</html>
