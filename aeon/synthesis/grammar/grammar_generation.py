@@ -668,10 +668,20 @@ def gen_grammar_nodes(
         _collect_type_arg_types(vt, instantiation_types)
     _collect_type_arg_types(ty, instantiation_types)
 
-    # Monomorphize polymorphic variables
+    # Monomorphize polymorphic variables. Arithmetic operators (`+ - * / %`)
+    # are declared `forall a:B, a -> a -> a` in the prelude but only make
+    # sense for numeric sorts — z3 has no `*` over uninterpreted constructor
+    # sorts, so a candidate like `Chunk + Chunk` crashes verification.
+    # Restrict their instantiation set to numeric types.
+    numeric_arith_ops = {"+", "-", "*", "/", "%"}
+    numeric_only_types: set[TypeConstructor] = {t for t in instantiation_types if t in (t_int, t_float)} or {
+        t_int,
+        t_float,
+    }
     monomorphized: list[tuple[Name, Type, list[Type]]] = []
     for vn, vt in poly_ctx_vars:
-        for mono_body, type_apps in monomorphize_poly_type(vt, instantiation_types):
+        inst_types = numeric_only_types if vn.name in numeric_arith_ops else instantiation_types
+        for mono_body, type_apps in monomorphize_poly_type(vt, inst_types):
             mono_body_unrefined = strip_refinements_keep_arg_refinements(mono_body)
             monomorphized.append((vn, mono_body_unrefined, type_apps))
 

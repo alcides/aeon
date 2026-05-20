@@ -110,7 +110,10 @@ class TypingContext:
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:
-                case VariableBinder(iname, ty):
+                case VariableBinder(iname, ty) | UninterpretedBinder(iname, ty):
+                    if iname == name:
+                        return ty
+                case ReflectedBinder(iname, ty, _, _):
                     if iname == name:
                         return ty
         return None

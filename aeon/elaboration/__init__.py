@@ -139,11 +139,18 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
         case (_, SRefinedType(_, ty, _)):
             return unify(ctx, sub, ty)
         case (UnificationVar(_, _, _), _):
+            # Skip if this exact bound is already recorded — propagation is
+            # idempotent, and re-adding lets two-way ``?X <: ?Y`` / ``?Y <: ?X``
+            # cycles diverge through the cross-iteration below.
+            if any(u is sup for u in sub.upper):
+                return []
             sub.upper.append(sup)
             for l in sub.lower:
                 unify(ctx, l, sup)
             return []
         case (_, UnificationVar(_, _, _)):
+            if any(s is sub for s in sup.lower):
+                return []
             sup.lower.append(sub)
             for u in sup.upper:
                 unify(ctx, sub, u)
@@ -449,19 +456,25 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
     return (c, s)
 
 
-def extract_direction(ty: SType) -> list[SType]:
+def extract_direction(ty: SType, _seen: set[int] | None = None) -> list[SType]:
     """Collect resolved types reachable from ``ty`` (dropping ``UnificationVar`` shells).
 
     Returns a list, not a set: nested ``STypeConstructor`` instances may transitively
     contain unhashable ``UnificationVar``s, which makes them unhashable. Duplicates
-    are pruned by structural equality.
+    are pruned by structural equality. The ``_seen`` set tracks UVar identities to
+    break cycles like ``A.upper = [B]; B.upper = [A]``.
     """
     assert isinstance(ty, SType)
     match ty:
         case UnificationVar(_, lower, upper):
+            if _seen is None:
+                _seen = set()
+            if id(ty) in _seen:
+                return []
+            _seen = _seen | {id(ty)}
             r: list[SType] = []
             for t in lower + upper:
-                for sub in extract_direction(t):
+                for sub in extract_direction(t, _seen):
                     if sub not in r:
                         r.append(sub)
             return r
