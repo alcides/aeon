@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,167 +338,167 @@
     <div class="container">
         <h1>Args</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Parser⁵">Parser⁵</a></li>
-                        <li><a href="#type-ParsedArgs⁶">ParsedArgs⁶</a></li>
+                        <li><a href="#type-Parser-L3">Parser</a></li>
+                        <li><a href="#type-ParsedArgs-L4">ParsedArgs</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-argparse⁷">argparse⁷</a></li>
-                        <li><a href="#func-newParser⁸">newParser⁸</a></li>
-                        <li><a href="#func-addArg¹⁰">addArg¹⁰</a></li>
-                        <li><a href="#func-addIntArg¹⁵">addIntArg¹⁵</a></li>
-                        <li><a href="#func-addFloatArg²⁰">addFloatArg²⁰</a></li>
-                        <li><a href="#func-addFlag²⁵">addFlag²⁵</a></li>
-                        <li><a href="#func-addOption³⁰">addOption³⁰</a></li>
-                        <li><a href="#func-addIntOption³⁶">addIntOption³⁶</a></li>
-                        <li><a href="#func-addFloatOption⁴²">addFloatOption⁴²</a></li>
-                        <li><a href="#func-addChoice⁴⁸">addChoice⁴⁸</a></li>
-                        <li><a href="#func-parse⁵⁶">parse⁵⁶</a></li>
-                        <li><a href="#func-parseList⁵⁸">parseList⁵⁸</a></li>
-                        <li><a href="#func-getString⁶¹">getString⁶¹</a></li>
-                        <li><a href="#func-getInt⁶⁵">getInt⁶⁵</a></li>
-                        <li><a href="#func-getFloat⁶⁹">getFloat⁶⁹</a></li>
-                        <li><a href="#func-getBool⁷³">getBool⁷³</a></li>
+                        <li><a href="#func-argparse-L6">argparse</a></li>
+                        <li><a href="#func-newParser-L11">newParser</a></li>
+                        <li><a href="#func-addArg-L15">addArg</a></li>
+                        <li><a href="#func-addIntArg-L19">addIntArg</a></li>
+                        <li><a href="#func-addFloatArg-L23">addFloatArg</a></li>
+                        <li><a href="#func-addFlag-L27">addFlag</a></li>
+                        <li><a href="#func-addOption-L31">addOption</a></li>
+                        <li><a href="#func-addIntOption-L35">addIntOption</a></li>
+                        <li><a href="#func-addFloatOption-L39">addFloatOption</a></li>
+                        <li><a href="#func-addChoice-L43">addChoice</a></li>
+                        <li><a href="#func-parse-L50">parse</a></li>
+                        <li><a href="#func-parseList-L54">parseList</a></li>
+                        <li><a href="#func-getString-L63">getString</a></li>
+                        <li><a href="#func-getInt-L67">getInt</a></li>
+                        <li><a href="#func-getFloat-L71">getFloat</a></li>
+                        <li><a href="#func-getBool-L75">getBool</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Parser⁵">
+        <div class="item" id="type-Parser-L3">
             <div class="item-header">
-                <span class="item-name">Parser⁵</span>
+                <h3 class="item-name">Parser</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Parser⁵</div>
+            <div class="signature">type Parser</div>
         </div>
-        <div class="item" id="type-ParsedArgs⁶">
+        <div class="item" id="type-ParsedArgs-L4">
             <div class="item-header">
-                <span class="item-name">ParsedArgs⁶</span>
+                <h3 class="item-name">ParsedArgs</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type ParsedArgs⁶</div>
+            <div class="signature">type ParsedArgs</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-argparse⁷">
+        <div class="item" id="func-argparse-L6">
             <div class="item-header">
-                <span class="item-name">argparse⁷</span>
+                <h3 class="item-name">argparse</h3>
             </div>
-            <div class="signature">def argparse⁷ : Unit </div>
+            <div class="signature">def argparse : Unit</div>
         </div>
-        <div class="item" id="func-newParser⁸">
+        <div class="item" id="func-newParser-L11">
             <div class="item-header">
-                <span class="item-name">newParser⁸</span>
+                <h3 class="item-name">newParser</h3>
             </div>
             <div class="comment">Creates a new argument parser with a description shown in --help output.</div>
-            <div class="signature">def newParser⁸ (description⁹: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def newParser <span class="sig-arg sig-arg-0" data-tooltip="description : String">(description: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addArg¹⁰">
+        <div class="item" id="func-addArg-L15">
             <div class="item-header">
-                <span class="item-name">addArg¹⁰</span>
+                <h3 class="item-name">addArg</h3>
             </div>
             <div class="comment">Adds a required positional string argument.</div>
-            <div class="signature">def addArg¹⁰ (p¹¹: &#x27;Parser⁵), (name¹²: {s¹³ : String  | ((!= s¹³) &quot;&quot;) }), (help¹⁴: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addArg <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addIntArg¹⁵">
+        <div class="item" id="func-addIntArg-L19">
             <div class="item-header">
-                <span class="item-name">addIntArg¹⁵</span>
+                <h3 class="item-name">addIntArg</h3>
             </div>
             <div class="comment">Adds a required positional integer argument.</div>
-            <div class="signature">def addIntArg¹⁵ (p¹⁶: &#x27;Parser⁵), (name¹⁷: {s¹⁸ : String  | ((!= s¹⁸) &quot;&quot;) }), (help¹⁹: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addIntArg <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addFloatArg²⁰">
+        <div class="item" id="func-addFloatArg-L23">
             <div class="item-header">
-                <span class="item-name">addFloatArg²⁰</span>
+                <h3 class="item-name">addFloatArg</h3>
             </div>
             <div class="comment">Adds a required positional float argument.</div>
-            <div class="signature">def addFloatArg²⁰ (p²¹: &#x27;Parser⁵), (name²²: {s²³ : String  | ((!= s²³) &quot;&quot;) }), (help²⁴: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addFloatArg <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addFlag²⁵">
+        <div class="item" id="func-addFlag-L27">
             <div class="item-header">
-                <span class="item-name">addFlag²⁵</span>
+                <h3 class="item-name">addFlag</h3>
             </div>
             <div class="comment">Adds an optional boolean flag (e.g. --verbose). Defaults to false.</div>
-            <div class="signature">def addFlag²⁵ (p²⁶: &#x27;Parser⁵), (name²⁷: {s²⁸ : String  | ((!= s²⁸) &quot;&quot;) }), (help²⁹: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addFlag <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addOption³⁰">
+        <div class="item" id="func-addOption-L31">
             <div class="item-header">
-                <span class="item-name">addOption³⁰</span>
+                <h3 class="item-name">addOption</h3>
             </div>
             <div class="comment">Adds an optional string option, e.g. --output FILE.</div>
-            <div class="signature">def addOption³⁰ (p³¹: &#x27;Parser⁵), (name³²: {s³³ : String  | ((!= s³³) &quot;&quot;) }), (default³⁴: String ), (help³⁵: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addOption <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="default : String">(default: String)</span> <span class="sig-arg sig-arg-3" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addIntOption³⁶">
+        <div class="item" id="func-addIntOption-L35">
             <div class="item-header">
-                <span class="item-name">addIntOption³⁶</span>
+                <h3 class="item-name">addIntOption</h3>
             </div>
             <div class="comment">Adds an optional integer option.</div>
-            <div class="signature">def addIntOption³⁶ (p³⁷: &#x27;Parser⁵), (name³⁸: {s³⁹ : String  | ((!= s³⁹) &quot;&quot;) }), (default⁴⁰: Int ), (help⁴¹: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addIntOption <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="default : Int">(default: Int)</span> <span class="sig-arg sig-arg-3" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addFloatOption⁴²">
+        <div class="item" id="func-addFloatOption-L39">
             <div class="item-header">
-                <span class="item-name">addFloatOption⁴²</span>
+                <h3 class="item-name">addFloatOption</h3>
             </div>
             <div class="comment">Adds an optional float option.</div>
-            <div class="signature">def addFloatOption⁴² (p⁴³: &#x27;Parser⁵), (name⁴⁴: {s⁴⁵ : String  | ((!= s⁴⁵) &quot;&quot;) }), (default⁴⁶: Float ), (help⁴⁷: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addFloatOption <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="default : Float">(default: Float)</span> <span class="sig-arg sig-arg-3" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-addChoice⁴⁸">
+        <div class="item" id="func-addChoice-L43">
             <div class="item-header">
-                <span class="item-name">addChoice⁴⁸</span>
+                <h3 class="item-name">addChoice</h3>
             </div>
             <div class="comment">Adds an optional argument restricted to a non-empty list of choices.</div>
-            <div class="signature">def addChoice⁴⁸ (p⁴⁹: &#x27;Parser⁵), (name⁵⁰: {s⁵¹ : String  | ((!= s⁵¹) &quot;&quot;) }), (options⁵²: {l⁵³ : Array? String  | ((&gt; (Array.size? l⁵³)) 0) }), (default⁵⁴: String ), (help⁵⁵: String ) : &#x27;Parser⁵</div>
+            <div class="signature">def addChoice <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-2" data-tooltip="options : {l : Array String | Array.size l &gt; 0}">(options: {l : Array String | Array.size l &gt; 0})</span> <span class="sig-arg sig-arg-3" data-tooltip="default : String">(default: String)</span> <span class="sig-arg sig-arg-4" data-tooltip="help : String">(help: String)</span> : Parser</div>
         </div>
-        <div class="item" id="func-parse⁵⁶">
+        <div class="item" id="func-parse-L50">
             <div class="item-header">
-                <span class="item-name">parse⁵⁶</span>
+                <h3 class="item-name">parse</h3>
             </div>
             <div class="comment">Parses sys.argv[1:] using the configured parser. argparse will call
 sys.exit on parse error or when --help is passed.</div>
-            <div class="signature">def parse⁵⁶ (p⁵⁷: &#x27;Parser⁵) : &#x27;ParsedArgs⁶</div>
+            <div class="signature">def parse <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> : ParsedArgs</div>
         </div>
-        <div class="item" id="func-parseList⁵⁸">
+        <div class="item" id="func-parseList-L54">
             <div class="item-header">
-                <span class="item-name">parseList⁵⁸</span>
+                <h3 class="item-name">parseList</h3>
             </div>
             <div class="comment">Parses an explicit list of strings. Useful for tests and embedding.</div>
-            <div class="signature">def parseList⁵⁸ (p⁵⁹: &#x27;Parser⁵), (xs⁶⁰: Array? String ) : &#x27;ParsedArgs⁶</div>
+            <div class="signature">def parseList <span class="sig-arg sig-arg-0" data-tooltip="p : Parser">(p: Parser)</span> <span class="sig-arg sig-arg-1" data-tooltip="xs : Array String">(xs: Array String)</span> : ParsedArgs</div>
         </div>
-        <div class="item" id="func-getString⁶¹">
+        <div class="item" id="func-getString-L63">
             <div class="item-header">
-                <span class="item-name">getString⁶¹</span>
+                <h3 class="item-name">getString</h3>
             </div>
             <div class="comment">Reads a string value by name.</div>
-            <div class="signature">def getString⁶¹ (a⁶²: &#x27;ParsedArgs⁶), (name⁶³: {s⁶⁴ : String  | ((!= s⁶⁴) &quot;&quot;) }) : String </div>
+            <div class="signature">def getString <span class="sig-arg sig-arg-0" data-tooltip="a : ParsedArgs">(a: ParsedArgs)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> : String</div>
         </div>
-        <div class="item" id="func-getInt⁶⁵">
+        <div class="item" id="func-getInt-L67">
             <div class="item-header">
-                <span class="item-name">getInt⁶⁵</span>
+                <h3 class="item-name">getInt</h3>
             </div>
             <div class="comment">Reads an integer value by name.</div>
-            <div class="signature">def getInt⁶⁵ (a⁶⁶: &#x27;ParsedArgs⁶), (name⁶⁷: {s⁶⁸ : String  | ((!= s⁶⁸) &quot;&quot;) }) : Int </div>
+            <div class="signature">def getInt <span class="sig-arg sig-arg-0" data-tooltip="a : ParsedArgs">(a: ParsedArgs)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> : Int</div>
         </div>
-        <div class="item" id="func-getFloat⁶⁹">
+        <div class="item" id="func-getFloat-L71">
             <div class="item-header">
-                <span class="item-name">getFloat⁶⁹</span>
+                <h3 class="item-name">getFloat</h3>
             </div>
             <div class="comment">Reads a float value by name.</div>
-            <div class="signature">def getFloat⁶⁹ (a⁷⁰: &#x27;ParsedArgs⁶), (name⁷¹: {s⁷² : String  | ((!= s⁷²) &quot;&quot;) }) : Float </div>
+            <div class="signature">def getFloat <span class="sig-arg sig-arg-0" data-tooltip="a : ParsedArgs">(a: ParsedArgs)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> : Float</div>
         </div>
-        <div class="item" id="func-getBool⁷³">
+        <div class="item" id="func-getBool-L75">
             <div class="item-header">
-                <span class="item-name">getBool⁷³</span>
+                <h3 class="item-name">getBool</h3>
             </div>
             <div class="comment">Reads a boolean flag value by name.</div>
-            <div class="signature">def getBool⁷³ (a⁷⁴: &#x27;ParsedArgs⁶), (name⁷⁵: {s⁷⁶ : String  | ((!= s⁷⁶) &quot;&quot;) }) : Bool </div>
+            <div class="signature">def getBool <span class="sig-arg sig-arg-0" data-tooltip="a : ParsedArgs">(a: ParsedArgs)</span> <span class="sig-arg sig-arg-1" data-tooltip="name : {s : String | s != &quot;&quot;}">(name: {s : String | s != &quot;&quot;})</span> : Bool</div>
         </div>
     </div>
 </body>

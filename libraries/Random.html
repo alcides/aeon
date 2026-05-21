@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,81 +338,81 @@
     <div class="container">
         <h1>Random</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-random⁵">random⁵</a></li>
-                        <li><a href="#func-seed⁶">seed⁶</a></li>
-                        <li><a href="#func-randint⁸">randint⁸</a></li>
-                        <li><a href="#func-random¹²">random¹²</a></li>
-                        <li><a href="#func-uniform¹⁵">uniform¹⁵</a></li>
-                        <li><a href="#func-choice¹⁹">choice¹⁹</a></li>
-                        <li><a href="#func-shuffle²²">shuffle²²</a></li>
-                        <li><a href="#func-sample²⁴">sample²⁴</a></li>
+                        <li><a href="#func-random-L3">random</a></li>
+                        <li><a href="#func-seed-L6">seed</a></li>
+                        <li><a href="#func-randint-L9">randint</a></li>
+                        <li><a href="#func-random-L12">random</a></li>
+                        <li><a href="#func-uniform-L15">uniform</a></li>
+                        <li><a href="#func-choice-L18">choice</a></li>
+                        <li><a href="#func-shuffle-L21">shuffle</a></li>
+                        <li><a href="#func-sample-L24">sample</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-random⁵">
+        <div class="item" id="func-random-L3">
             <div class="item-header">
-                <span class="item-name">random⁵</span>
+                <h3 class="item-name">random</h3>
             </div>
-            <div class="signature">def random⁵ : Unit </div>
+            <div class="signature">def random : Unit</div>
         </div>
-        <div class="item" id="func-seed⁶">
+        <div class="item" id="func-seed-L6">
             <div class="item-header">
-                <span class="item-name">seed⁶</span>
+                <h3 class="item-name">seed</h3>
             </div>
             <div class="comment">Seeds the random number generator.</div>
-            <div class="signature">def seed⁶ (seed⁷: Int ) : Unit </div>
+            <div class="signature">def seed <span class="sig-arg sig-arg-0" data-tooltip="seed : Int">(seed: Int)</span> : Unit</div>
         </div>
-        <div class="item" id="func-randint⁸">
+        <div class="item" id="func-randint-L9">
             <div class="item-header">
-                <span class="item-name">randint⁸</span>
+                <h3 class="item-name">randint</h3>
             </div>
             <div class="comment">Returns a random integer N such that a &lt;= N &lt;= b.</div>
-            <div class="signature">def randint⁸ (a⁹: Int ), (b¹⁰: Int ) : {r¹¹ : Int  | ((&amp;&amp; ((&gt;= r¹¹) a⁹)) ((&lt;= r¹¹) b¹⁰)) }</div>
+            <div class="signature">def randint <span class="sig-arg sig-arg-0" data-tooltip="a : Int">(a: Int)</span> <span class="sig-arg sig-arg-1" data-tooltip="b : Int">(b: Int)</span> : {r : Int | r &gt;= a &amp;&amp; r &lt;= b}</div>
         </div>
-        <div class="item" id="func-random¹²">
+        <div class="item" id="func-random-L12">
             <div class="item-header">
-                <span class="item-name">random¹²</span>
+                <h3 class="item-name">random</h3>
             </div>
             <div class="comment">Returns a random float in the range [0.0, 1.0). Thunked to defer evaluation.</div>
-            <div class="signature">def random¹² (_¹³: Unit ) : {r¹⁴ : Float  | ((&amp;&amp; ((&gt;= r¹⁴) 0.0)) ((&lt; r¹⁴) 1.0)) }</div>
+            <div class="signature">def random <span class="sig-arg sig-arg-0" data-tooltip="_ : Unit">(_: Unit)</span> : {r : Float | r &gt;= 0.0 &amp;&amp; r &lt; 1.0}</div>
         </div>
-        <div class="item" id="func-uniform¹⁵">
+        <div class="item" id="func-uniform-L15">
             <div class="item-header">
-                <span class="item-name">uniform¹⁵</span>
+                <h3 class="item-name">uniform</h3>
             </div>
             <div class="comment">Returns a random float N such that a &lt;= N &lt; b.</div>
-            <div class="signature">def uniform¹⁵ (a¹⁶: Float ), (b¹⁷: Float ) : {r¹⁸ : Float  | ((&amp;&amp; ((&gt;= r¹⁸) a¹⁶)) ((&lt; r¹⁸) b¹⁷)) }</div>
+            <div class="signature">def uniform <span class="sig-arg sig-arg-0" data-tooltip="a : Float">(a: Float)</span> <span class="sig-arg sig-arg-1" data-tooltip="b : Float">(b: Float)</span> : {r : Float | r &gt;= a &amp;&amp; r &lt; b}</div>
         </div>
-        <div class="item" id="func-choice¹⁹">
+        <div class="item" id="func-choice-L18">
             <div class="item-header">
-                <span class="item-name">choice¹⁹</span>
+                <h3 class="item-name">choice</h3>
             </div>
             <div class="comment">Returns a random element from a non-empty list.</div>
-            <div class="signature">def choice¹⁹ (xs²⁰: {l²¹ : Array? &#x27;a¹⁶ | ((&gt; (Array.size? l²¹)) 0) }) : &#x27;a¹⁶</div>
+            <div class="signature">def choice <span class="sig-arg sig-arg-0" data-tooltip="xs : {l : Array a | Array.size l &gt; 0}">(xs: {l : Array a | Array.size l &gt; 0})</span> : a</div>
         </div>
-        <div class="item" id="func-shuffle²²">
+        <div class="item" id="func-shuffle-L21">
             <div class="item-header">
-                <span class="item-name">shuffle²²</span>
+                <h3 class="item-name">shuffle</h3>
             </div>
             <div class="comment">Shuffles a list in place.</div>
-            <div class="signature">def shuffle²² (xs²³: Array? &#x27;a¹⁶) : Unit </div>
+            <div class="signature">def shuffle <span class="sig-arg sig-arg-0" data-tooltip="xs : Array a">(xs: Array a)</span> : Unit</div>
         </div>
-        <div class="item" id="func-sample²⁴">
+        <div class="item" id="func-sample-L24">
             <div class="item-header">
-                <span class="item-name">sample²⁴</span>
+                <h3 class="item-name">sample</h3>
             </div>
             <div class="comment">Returns a k length list of unique elements chosen from the population sequence.</div>
-            <div class="signature">def sample²⁴ (k²⁵: Int ), (xs²⁶: {l²⁷ : Array? &#x27;a¹⁶ | ((&gt;= (Array.size? l²⁷)) k²⁵) }) : {l²⁸ : Array? &#x27;a¹⁶ | ((== (Array.size? l²⁸)) k²⁵) }</div>
+            <div class="signature">def sample <span class="sig-arg sig-arg-0" data-tooltip="k : Int">(k: Int)</span> <span class="sig-arg sig-arg-1" data-tooltip="xs : {l : Array a | Array.size l &gt;= k}">(xs: {l : Array a | Array.size l &gt;= k})</span> : {l : Array a | Array.size l == k}</div>
         </div>
     </div>
 </body>

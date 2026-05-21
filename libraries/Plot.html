@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -186,128 +339,141 @@
         <h1>Plot</h1>
         <div class="header-comment">Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.</div>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>import Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Plot⁵">Plot⁵</a></li>
+                        <li><a href="#type-Plot-L4">Plot</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-plt⁶">plt⁶</a></li>
-                        <li><a href="#func-new⁷">new⁷</a></li>
-                        <li><a href="#func-add_line⁸">add_line⁸</a></li>
-                        <li><a href="#func-add_scatter¹⁴">add_scatter¹⁴</a></li>
-                        <li><a href="#func-set_title²⁰">set_title²⁰</a></li>
-                        <li><a href="#func-set_xlabel²³">set_xlabel²³</a></li>
-                        <li><a href="#func-set_ylabel²⁶">set_ylabel²⁶</a></li>
-                        <li><a href="#func-show²⁹">show²⁹</a></li>
-                        <li><a href="#func-save³¹">save³¹</a></li>
+                        <li><a href="#func-plt-L6">plt</a></li>
+                        <li><a href="#func-new-L9">new</a></li>
+                        <li><a href="#func-add_line-L19">add_line</a></li>
+                        <li><a href="#func-add_scatter-L34">add_scatter</a></li>
+                        <li><a href="#func-set_title-L46">set_title</a></li>
+                        <li><a href="#func-set_xlabel-L54">set_xlabel</a></li>
+                        <li><a href="#func-set_ylabel-L62">set_ylabel</a></li>
+                        <li><a href="#func-show-L68">show</a></li>
+                        <li><a href="#func-save-L75">save</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Plot⁵">
+        <div class="item" id="type-Plot-L4">
             <div class="item-header">
-                <span class="item-name">Plot⁵</span>
+                <h3 class="item-name">Plot</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.</div>
-            <div class="signature">type Plot⁵</div>
+            <div class="signature">type Plot</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-plt⁶">
+        <div class="item" id="func-plt-L6">
             <div class="item-header">
-                <span class="item-name">plt⁶</span>
+                <h3 class="item-name">plt</h3>
             </div>
-            <div class="signature">def plt⁶ : Unit </div>
+            <div class="signature">def plt : Unit</div>
         </div>
-        <div class="item" id="func-new⁷">
+        <div class="item" id="func-new-L9">
             <div class="item-header">
-                <span class="item-name">new⁷</span>
+                <h3 class="item-name">new</h3>
             </div>
             <div class="comment">Creates a new, empty plot.</div>
-            <div class="signature">def new⁷ : &#x27;Plot⁵</div>
+            <div class="signature">def new : Plot</div>
         </div>
-        <div class="item" id="func-add_line⁸">
+        <div class="item" id="func-add_line-L19">
             <div class="item-header">
-                <span class="item-name">add_line⁸</span>
+                <h3 class="item-name">add_line</h3>
             </div>
-            <div class="comment">Adds a line plot to an existing plot object.
-p_old: The existing plot object (Matplotlib Figure instance).
-x_values: List of Floats for the x-coordinates.
-y_values: List of Floats for the y-coordinates.
-color: String representing the color (e.g., &quot;red&quot;, &quot;blue&quot;).
-linestyle: String representing the line style (e.g., &quot;-&quot;, &quot;--&quot;, &quot;:&quot;).
-returns: The plot object, now with the added line.
-(Matplotlib&#x27;s plot modifies in place; we return the same figure object).</div>
-            <div class="signature">def add_line⁸ (p_old⁹: &#x27;Plot⁵), (x_values¹⁰: Array? Float ), (y_values¹¹: Array? Float ), (color¹²: String ), (linestyle¹³: String ) : &#x27;Plot⁵</div>
+            <div class="comment">Adds a line plot to an existing plot object.</div>
+            <div class="signature">def add_line <span class="sig-arg sig-arg-0" data-tooltip="p_old : Plot
+
+The existing plot object (Matplotlib Figure instance).">(p_old: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="x_values : Array Float
+
+List of Floats for the x-coordinates.">(x_values: Array Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="y_values : Array Float
+
+List of Floats for the y-coordinates.">(y_values: Array Float)</span> <span class="sig-arg sig-arg-3" data-tooltip="color : String
+
+String representing the color (e.g., &quot;red&quot;, &quot;blue&quot;).">(color: String)</span> <span class="sig-arg sig-arg-4" data-tooltip="linestyle : String
+
+String representing the line style (e.g., &quot;-&quot;, &quot;--&quot;, &quot;:&quot;).">(linestyle: String)</span> : <span class="sig-return" data-tooltip="returns: The plot object, now with the added line. (Matplotlib&#x27;s plot modifies in place; we return the same figure object).">Plot</span></div>
         </div>
-        <div class="item" id="func-add_scatter¹⁴">
+        <div class="item" id="func-add_scatter-L34">
             <div class="item-header">
-                <span class="item-name">add_scatter¹⁴</span>
+                <h3 class="item-name">add_scatter</h3>
             </div>
-            <div class="comment">Adds a scatter plot to an existing plot object.
-p_old: The existing plot object.
-x_values: List of Floats for the x-coordinates.
-y_values: List of Floats for the y-coordinates.
-color: String representing the color.
-marker: String representing the marker style (e.g., &quot;o&quot;, &quot;x&quot;, &quot;+&quot;).
-returns: The plot object, now with the added scatter plot.</div>
-            <div class="signature">def add_scatter¹⁴ (p_old¹⁵: &#x27;Plot⁵), (x_values¹⁶: Array? Float ), (y_values¹⁷: Array? Float ), (color¹⁸: String ), (marker¹⁹: String ) : &#x27;Plot⁵</div>
+            <div class="comment">Adds a scatter plot to an existing plot object.</div>
+            <div class="signature">def add_scatter <span class="sig-arg sig-arg-0" data-tooltip="p_old : Plot
+
+The existing plot object.">(p_old: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="x_values : Array Float
+
+List of Floats for the x-coordinates.">(x_values: Array Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="y_values : Array Float
+
+List of Floats for the y-coordinates.">(y_values: Array Float)</span> <span class="sig-arg sig-arg-3" data-tooltip="color : String
+
+String representing the color.">(color: String)</span> <span class="sig-arg sig-arg-4" data-tooltip="marker : String
+
+String representing the marker style (e.g., &quot;o&quot;, &quot;x&quot;, &quot;+&quot;).">(marker: String)</span> : <span class="sig-return" data-tooltip="returns: The plot object, now with the added scatter plot.">Plot</span></div>
         </div>
-        <div class="item" id="func-set_title²⁰">
+        <div class="item" id="func-set_title-L46">
             <div class="item-header">
-                <span class="item-name">set_title²⁰</span>
+                <h3 class="item-name">set_title</h3>
             </div>
-            <div class="comment">Sets the title of the plot.
-p_old: The existing plot object.
-title_text: The string for the title.
-returns: The plot object with the title set.</div>
-            <div class="signature">def set_title²⁰ (p_old²¹: &#x27;Plot⁵), (title_text²²: String ) : &#x27;Plot⁵</div>
+            <div class="comment">Sets the title of the plot.</div>
+            <div class="signature">def set_title <span class="sig-arg sig-arg-0" data-tooltip="p_old : Plot
+
+The existing plot object.">(p_old: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="title_text : String
+
+The string for the title.">(title_text: String)</span> : <span class="sig-return" data-tooltip="returns: The plot object with the title set.">Plot</span></div>
         </div>
-        <div class="item" id="func-set_xlabel²³">
+        <div class="item" id="func-set_xlabel-L54">
             <div class="item-header">
-                <span class="item-name">set_xlabel²³</span>
+                <h3 class="item-name">set_xlabel</h3>
             </div>
-            <div class="comment">Sets the X-axis label of the plot.
-p_old: The existing plot object.
-label_text: The string for the X-axis label.
-returns: The plot object with the X-axis label set.</div>
-            <div class="signature">def set_xlabel²³ (p_old²⁴: &#x27;Plot⁵), (label_text²⁵: String ) : &#x27;Plot⁵</div>
+            <div class="comment">Sets the X-axis label of the plot.</div>
+            <div class="signature">def set_xlabel <span class="sig-arg sig-arg-0" data-tooltip="p_old : Plot
+
+The existing plot object.">(p_old: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="label_text : String
+
+The string for the X-axis label.">(label_text: String)</span> : <span class="sig-return" data-tooltip="returns: The plot object with the X-axis label set.">Plot</span></div>
         </div>
-        <div class="item" id="func-set_ylabel²⁶">
+        <div class="item" id="func-set_ylabel-L62">
             <div class="item-header">
-                <span class="item-name">set_ylabel²⁶</span>
+                <h3 class="item-name">set_ylabel</h3>
             </div>
-            <div class="comment">Sets the Y-axis label of the plot.
-p_old: The existing plot object.
-label_text: The string for the Y-axis label.
-returns: The plot object with the Y-axis label set.</div>
-            <div class="signature">def set_ylabel²⁶ (p_old²⁷: &#x27;Plot⁵), (label_text²⁸: String ) : &#x27;Plot⁵</div>
+            <div class="comment">Sets the Y-axis label of the plot.</div>
+            <div class="signature">def set_ylabel <span class="sig-arg sig-arg-0" data-tooltip="p_old : Plot
+
+The existing plot object.">(p_old: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="label_text : String
+
+The string for the Y-axis label.">(label_text: String)</span> : <span class="sig-return" data-tooltip="returns: The plot object with the Y-axis label set.">Plot</span></div>
         </div>
-        <div class="item" id="func-show²⁹">
+        <div class="item" id="func-show-L68">
             <div class="item-header">
-                <span class="item-name">show²⁹</span>
+                <h3 class="item-name">show</h3>
             </div>
-            <div class="comment">Displays the plot.
-p: The plot object to display.</div>
-            <div class="signature">def show²⁹ (p³⁰: &#x27;Plot⁵) : Unit </div>
+            <div class="comment">Displays the plot.</div>
+            <div class="signature">def show <span class="sig-arg sig-arg-0" data-tooltip="p : Plot
+
+The plot object to display.">(p: Plot)</span> : Unit</div>
         </div>
-        <div class="item" id="func-save³¹">
+        <div class="item" id="func-save-L75">
             <div class="item-header">
-                <span class="item-name">save³¹</span>
+                <h3 class="item-name">save</h3>
             </div>
-            <div class="comment">Saves the plot to a file.
-p: The plot object to save.
-filename: The name of the file (e.g., &quot;myplot.png&quot;).</div>
-            <div class="signature">def save³¹ (p³²: &#x27;Plot⁵), (filename³³: String ) : Unit </div>
+            <div class="comment">Saves the plot to a file.</div>
+            <div class="signature">def save <span class="sig-arg sig-arg-0" data-tooltip="p : Plot
+
+The plot object to save.">(p: Plot)</span> <span class="sig-arg sig-arg-1" data-tooltip="filename : String
+
+The name of the file (e.g., &quot;myplot.png&quot;).">(filename: String)</span> : Unit</div>
         </div>
     </div>
 </body>

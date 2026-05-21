@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,101 +338,101 @@
     <div class="container">
         <h1>PropTesting</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Random⁵">Random⁵</a></li>
+                        <li><a href="#type-Random-L3">Random</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-random⁶">random⁶</a></li>
-                        <li><a href="#func-generateInt⁷">generateInt⁷</a></li>
-                        <li><a href="#func-generateFloat⁹">generateFloat⁹</a></li>
-                        <li><a href="#func-generateList¹¹">generateList¹¹</a></li>
-                        <li><a href="#func-countTrues¹³">countTrues¹³</a></li>
-                        <li><a href="#func-repeat¹⁵">repeat¹⁵</a></li>
-                        <li><a href="#func-ratio¹⁸">ratio¹⁸</a></li>
-                        <li><a href="#func-forAllInts²¹">forAllInts²¹</a></li>
-                        <li><a href="#func-forAllFloats²⁹">forAllFloats²⁹</a></li>
-                        <li><a href="#func-forAllLists³⁷">forAllLists³⁷</a></li>
+                        <li><a href="#func-random-L5">random</a></li>
+                        <li><a href="#func-generateInt-L10">generateInt</a></li>
+                        <li><a href="#func-generateFloat-L12">generateFloat</a></li>
+                        <li><a href="#func-generateList-L14">generateList</a></li>
+                        <li><a href="#func-countTrues-L20">countTrues</a></li>
+                        <li><a href="#func-repeat-L24">repeat</a></li>
+                        <li><a href="#func-ratio-L26">ratio</a></li>
+                        <li><a href="#func-forAllInts-L28">forAllInts</a></li>
+                        <li><a href="#func-forAllFloats-L37">forAllFloats</a></li>
+                        <li><a href="#func-forAllLists-L46">forAllLists</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Random⁵">
+        <div class="item" id="type-Random-L3">
             <div class="item-header">
-                <span class="item-name">Random⁵</span>
+                <h3 class="item-name">Random</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Random⁵</div>
+            <div class="signature">type Random</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-random⁶">
+        <div class="item" id="func-random-L5">
             <div class="item-header">
-                <span class="item-name">random⁶</span>
+                <h3 class="item-name">random</h3>
             </div>
-            <div class="signature">def random⁶ : &#x27;Random⁵</div>
+            <div class="signature">def random : Random</div>
         </div>
-        <div class="item" id="func-generateInt⁷">
+        <div class="item" id="func-generateInt-L10">
             <div class="item-header">
-                <span class="item-name">generateInt⁷</span>
+                <h3 class="item-name">generateInt</h3>
             </div>
-            <div class="signature">def generateInt⁷ (r⁸: &#x27;Random⁵) : Int </div>
+            <div class="signature">def generateInt <span class="sig-arg sig-arg-0" data-tooltip="r : Random">(r: Random)</span> : Int</div>
         </div>
-        <div class="item" id="func-generateFloat⁹">
+        <div class="item" id="func-generateFloat-L12">
             <div class="item-header">
-                <span class="item-name">generateFloat⁹</span>
+                <h3 class="item-name">generateFloat</h3>
             </div>
-            <div class="signature">def generateFloat⁹ (r¹⁰: &#x27;Random⁵) : Float </div>
+            <div class="signature">def generateFloat <span class="sig-arg sig-arg-0" data-tooltip="r : Random">(r: Random)</span> : Float</div>
         </div>
-        <div class="item" id="func-generateList¹¹">
+        <div class="item" id="func-generateList-L14">
             <div class="item-header">
-                <span class="item-name">generateList¹¹</span>
+                <h3 class="item-name">generateList</h3>
             </div>
-            <div class="signature">def generateList¹¹ (r¹²: &#x27;Random⁵) : Array? Int </div>
+            <div class="signature">def generateList <span class="sig-arg sig-arg-0" data-tooltip="r : Random">(r: Random)</span> : Array Int</div>
         </div>
-        <div class="item" id="func-countTrues¹³">
+        <div class="item" id="func-countTrues-L20">
             <div class="item-header">
-                <span class="item-name">countTrues¹³</span>
+                <h3 class="item-name">countTrues</h3>
             </div>
-            <div class="signature">def countTrues¹³ (l¹⁴: Array? Bool ) : Int </div>
+            <div class="signature">def countTrues <span class="sig-arg sig-arg-0" data-tooltip="l : Array Bool">(l: Array Bool)</span> : Int</div>
         </div>
-        <div class="item" id="func-repeat¹⁵">
+        <div class="item" id="func-repeat-L24">
             <div class="item-header">
-                <span class="item-name">repeat¹⁵</span>
+                <h3 class="item-name">repeat</h3>
             </div>
-            <div class="signature">def repeat¹⁵ (v¹⁶: &#x27;a?), (n¹⁷: Int ) : Array? &#x27;a?</div>
+            <div class="signature">def repeat <span class="sig-arg sig-arg-0" data-tooltip="v : a">(v: a)</span> <span class="sig-arg sig-arg-1" data-tooltip="n : Int">(n: Int)</span> : Array a</div>
         </div>
-        <div class="item" id="func-ratio¹⁸">
+        <div class="item" id="func-ratio-L26">
             <div class="item-header">
-                <span class="item-name">ratio¹⁸</span>
+                <h3 class="item-name">ratio</h3>
             </div>
-            <div class="signature">def ratio¹⁸ (a¹⁹: Int ), (b²⁰: Int ) : Float </div>
+            <div class="signature">def ratio <span class="sig-arg sig-arg-0" data-tooltip="a : Int">(a: Int)</span> <span class="sig-arg sig-arg-1" data-tooltip="b : Int">(b: Int)</span> : Float</div>
         </div>
-        <div class="item" id="func-forAllInts²¹">
+        <div class="item" id="func-forAllInts-L28">
             <div class="item-header">
-                <span class="item-name">forAllInts²¹</span>
+                <h3 class="item-name">forAllInts</h3>
             </div>
-            <div class="signature">def forAllInts²¹ (fun²²: (a²³ : Int ) -&gt; Bool ) : Float </div>
+            <div class="signature">def forAllInts <span class="sig-arg sig-arg-0" data-tooltip="fun : (a : Int) -&gt; Bool">(fun: (a : Int) -&gt; Bool)</span> : Float</div>
         </div>
-        <div class="item" id="func-forAllFloats²⁹">
+        <div class="item" id="func-forAllFloats-L37">
             <div class="item-header">
-                <span class="item-name">forAllFloats²⁹</span>
+                <h3 class="item-name">forAllFloats</h3>
             </div>
-            <div class="signature">def forAllFloats²⁹ (fun³⁰: (a³¹ : Float ) -&gt; Bool ) : Float </div>
+            <div class="signature">def forAllFloats <span class="sig-arg sig-arg-0" data-tooltip="fun : (a : Float) -&gt; Bool">(fun: (a : Float) -&gt; Bool)</span> : Float</div>
         </div>
-        <div class="item" id="func-forAllLists³⁷">
+        <div class="item" id="func-forAllLists-L46">
             <div class="item-header">
-                <span class="item-name">forAllLists³⁷</span>
+                <h3 class="item-name">forAllLists</h3>
             </div>
-            <div class="signature">def forAllLists³⁷ (fun³⁸: (a³⁹ : &#x27;List?) -&gt; Bool ) : Float </div>
+            <div class="signature">def forAllLists <span class="sig-arg sig-arg-0" data-tooltip="fun : (a : List) -&gt; Bool">(fun: (a : List) -&gt; Bool)</span> : Float</div>
         </div>
     </div>
 </body>

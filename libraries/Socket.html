@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -200,281 +353,294 @@ connected socket; ``stream_bind`` / ``stream_connect`` advance the
 state; ``stream_recv`` / ``stream_send`` require connected.
 Opaque Python wrappers (see native bodies below).</div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-StreamSocket⁵">StreamSocket⁵</a></li>
-                        <li><a href="#type-DatagramSocket⁶">DatagramSocket⁶</a></li>
-                        <li><a href="#type-SocketPayload⁷">SocketPayload⁷</a></li>
-                        <li><a href="#type-SockAddr⁸">SockAddr⁸</a></li>
-                        <li><a href="#type-TcpAccept⁹">TcpAccept⁹</a></li>
-                        <li><a href="#type-UdpRecvFrom¹⁰">UdpRecvFrom¹⁰</a></li>
+                        <li><a href="#type-StreamSocket-L17">StreamSocket</a></li>
+                        <li><a href="#type-DatagramSocket-L18">DatagramSocket</a></li>
+                        <li><a href="#type-SocketPayload-L21">SocketPayload</a></li>
+                        <li><a href="#type-SockAddr-L24">SockAddr</a></li>
+                        <li><a href="#type-TcpAccept-L27">TcpAccept</a></li>
+                        <li><a href="#type-UdpRecvFrom-L30">UdpRecvFrom</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-socket¹¹">socket¹¹</a></li>
-                        <li><a href="#func-stream_bound¹²">stream_bound¹²</a></li>
-                        <li><a href="#func-stream_connected¹⁴">stream_connected¹⁴</a></li>
-                        <li><a href="#func-dgram_bound¹⁶">dgram_bound¹⁶</a></li>
-                        <li><a href="#func-dgram_connected¹⁸">dgram_connected¹⁸</a></li>
-                        <li><a href="#func-payload_len²⁰">payload_len²⁰</a></li>
-                        <li><a href="#func-udp_payload_len²²">udp_payload_len²²</a></li>
-                        <li><a href="#func-ipv4_sock_addr²⁴">ipv4_sock_addr²⁴</a></li>
-                        <li><a href="#func-ipv4_addr²⁶">ipv4_addr²⁶</a></li>
-                        <li><a href="#func-stream_socket³¹">stream_socket³¹</a></li>
-                        <li><a href="#func-dgram_socket³³">dgram_socket³³</a></li>
-                        <li><a href="#func-tcp_accept_socket³⁵">tcp_accept_socket³⁵</a></li>
-                        <li><a href="#func-tcp_accept_peer³⁸">tcp_accept_peer³⁸</a></li>
-                        <li><a href="#func-stream_bind⁴¹">stream_bind⁴¹</a></li>
-                        <li><a href="#func-stream_listen⁴⁷">stream_listen⁴⁷</a></li>
-                        <li><a href="#func-stream_connect⁵³">stream_connect⁵³</a></li>
-                        <li><a href="#func-stream_accept⁵⁹">stream_accept⁵⁹</a></li>
-                        <li><a href="#func-stream_send⁶²">stream_send⁶²</a></li>
-                        <li><a href="#func-stream_recv⁶⁷">stream_recv⁶⁷</a></li>
-                        <li><a href="#func-stream_close⁷³">stream_close⁷³</a></li>
-                        <li><a href="#func-dgram_bind⁷⁵">dgram_bind⁷⁵</a></li>
-                        <li><a href="#func-dgram_connect⁸¹">dgram_connect⁸¹</a></li>
-                        <li><a href="#func-dgram_sendto⁸⁶">dgram_sendto⁸⁶</a></li>
-                        <li><a href="#func-dgram_recvfrom⁹²">dgram_recvfrom⁹²</a></li>
-                        <li><a href="#func-udp_recv_payload⁹⁸">udp_recv_payload⁹⁸</a></li>
-                        <li><a href="#func-udp_recv_peer¹⁰¹">udp_recv_peer¹⁰¹</a></li>
-                        <li><a href="#func-dgram_send¹⁰⁴">dgram_send¹⁰⁴</a></li>
-                        <li><a href="#func-dgram_recv¹⁰⁹">dgram_recv¹⁰⁹</a></li>
-                        <li><a href="#func-dgram_close¹¹⁵">dgram_close¹¹⁵</a></li>
+                        <li><a href="#func-socket-L33">socket</a></li>
+                        <li><a href="#func-ipv4_addr-L54">ipv4_addr</a></li>
+                        <li><a href="#func-stream_socket-L61">stream_socket</a></li>
+                        <li><a href="#func-dgram_socket-L65">dgram_socket</a></li>
+                        <li><a href="#func-tcp_accept_socket-L71">tcp_accept_socket</a></li>
+                        <li><a href="#func-tcp_accept_peer-L75">tcp_accept_peer</a></li>
+                        <li><a href="#func-stream_bind-L84">stream_bind</a></li>
+                        <li><a href="#func-stream_listen-L89">stream_listen</a></li>
+                        <li><a href="#func-stream_connect-L94">stream_connect</a></li>
+                        <li><a href="#func-stream_accept-L99">stream_accept</a></li>
+                        <li><a href="#func-stream_send-L104">stream_send</a></li>
+                        <li><a href="#func-stream_recv-L109">stream_recv</a></li>
+                        <li><a href="#func-stream_close-L116">stream_close</a></li>
+                        <li><a href="#func-dgram_bind-L121">dgram_bind</a></li>
+                        <li><a href="#func-dgram_connect-L126">dgram_connect</a></li>
+                        <li><a href="#func-dgram_sendto-L131">dgram_sendto</a></li>
+                        <li><a href="#func-dgram_recvfrom-L137">dgram_recvfrom</a></li>
+                        <li><a href="#func-udp_recv_payload-L142">udp_recv_payload</a></li>
+                        <li><a href="#func-udp_recv_peer-L146">udp_recv_peer</a></li>
+                        <li><a href="#func-dgram_send-L150">dgram_send</a></li>
+                        <li><a href="#func-dgram_recv-L155">dgram_recv</a></li>
+                        <li><a href="#func-dgram_close-L160">dgram_close</a></li>
+                    </ul>
+                </li>
+                <li><a href="#uninterpreted">Uninterpreted</a>
+                    <ul>
+                        <li><a href="#func-stream_bound-L37" class="toc-uninterpreted">stream_bound</a></li>
+                        <li><a href="#func-stream_connected-L38" class="toc-uninterpreted">stream_connected</a></li>
+                        <li><a href="#func-dgram_bound-L40" class="toc-uninterpreted">dgram_bound</a></li>
+                        <li><a href="#func-dgram_connected-L41" class="toc-uninterpreted">dgram_connected</a></li>
+                        <li><a href="#func-payload_len-L44" class="toc-uninterpreted">payload_len</a></li>
+                        <li><a href="#func-udp_payload_len-L47" class="toc-uninterpreted">udp_payload_len</a></li>
+                        <li><a href="#func-ipv4_sock_addr-L50" class="toc-uninterpreted">ipv4_sock_addr</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-StreamSocket⁵">
+        <div class="item" id="type-StreamSocket-L17">
             <div class="item-header">
-                <span class="item-name">StreamSocket⁵</span>
+                <h3 class="item-name">StreamSocket</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Opaque Python wrappers (see native bodies below).</div>
-            <div class="signature">type StreamSocket⁵</div>
+            <div class="signature">type StreamSocket</div>
         </div>
-        <div class="item" id="type-DatagramSocket⁶">
+        <div class="item" id="type-DatagramSocket-L18">
             <div class="item-header">
-                <span class="item-name">DatagramSocket⁶</span>
+                <h3 class="item-name">DatagramSocket</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type DatagramSocket⁶</div>
+            <div class="signature">type DatagramSocket</div>
         </div>
-        <div class="item" id="type-SocketPayload⁷">
+        <div class="item" id="type-SocketPayload-L21">
             <div class="item-header">
-                <span class="item-name">SocketPayload⁷</span>
+                <h3 class="item-name">SocketPayload</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Raw payload (`bytes` at runtime).</div>
-            <div class="signature">type SocketPayload⁷</div>
+            <div class="signature">type SocketPayload</div>
         </div>
-        <div class="item" id="type-SockAddr⁸">
+        <div class="item" id="type-SockAddr-L24">
             <div class="item-header">
-                <span class="item-name">SockAddr⁸</span>
+                <h3 class="item-name">SockAddr</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Runtime: address tuple, e.g. `(host, port)` for `AF_INET`.</div>
-            <div class="signature">type SockAddr⁸</div>
+            <div class="signature">type SockAddr</div>
         </div>
-        <div class="item" id="type-TcpAccept⁹">
+        <div class="item" id="type-TcpAccept-L27">
             <div class="item-header">
-                <span class="item-name">TcpAccept⁹</span>
+                <h3 class="item-name">TcpAccept</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Runtime: `(socket, addr)` pair from `TCP accept`.</div>
-            <div class="signature">type TcpAccept⁹</div>
+            <div class="signature">type TcpAccept</div>
         </div>
-        <div class="item" id="type-UdpRecvFrom¹⁰">
+        <div class="item" id="type-UdpRecvFrom-L30">
             <div class="item-header">
-                <span class="item-name">UdpRecvFrom¹⁰</span>
+                <h3 class="item-name">UdpRecvFrom</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="comment">Runtime: `(data, addr)` pair from `UDP recvfrom`.</div>
-            <div class="signature">type UdpRecvFrom¹⁰</div>
+            <div class="signature">type UdpRecvFrom</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-socket¹¹">
+        <div class="item" id="func-socket-L33">
             <div class="item-header">
-                <span class="item-name">socket¹¹</span>
+                <h3 class="item-name">socket</h3>
             </div>
             <div class="comment">Python `socket` module (binds to the evaluator name `socket`).</div>
-            <div class="signature">def socket¹¹ : Unit </div>
+            <div class="signature">def socket : Unit</div>
         </div>
-        <div class="item" id="func-stream_bound¹²">
+        <div class="item" id="func-ipv4_addr-L54">
             <div class="item-header">
-                <span class="item-name">stream_bound¹²</span>
+                <h3 class="item-name">ipv4_addr</h3>
             </div>
-            <div class="signature">def stream_bound¹² : (s¹³ : &#x27;StreamSocket⁵) -&gt; Bool </div>
+            <div class="signature">def ipv4_addr <span class="sig-arg sig-arg-0" data-tooltip="host : String">(host: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="port : {p : Int | p &gt;= 0 &amp;&amp; p &lt;= 65535}">(port: {p : Int | p &gt;= 0 &amp;&amp; p &lt;= 65535})</span> : {a : SockAddr | ipv4_sock_addr a == True}</div>
         </div>
-        <div class="item" id="func-stream_connected¹⁴">
+        <div class="item" id="func-stream_socket-L61">
             <div class="item-header">
-                <span class="item-name">stream_connected¹⁴</span>
+                <h3 class="item-name">stream_socket</h3>
             </div>
-            <div class="signature">def stream_connected¹⁴ : (s¹⁵ : &#x27;StreamSocket⁵) -&gt; Bool </div>
+            <div class="signature">def stream_socket : {s : StreamSocket | stream_bound s == False &amp;&amp; stream_connected s == False}</div>
         </div>
-        <div class="item" id="func-dgram_bound¹⁶">
+        <div class="item" id="func-dgram_socket-L65">
             <div class="item-header">
-                <span class="item-name">dgram_bound¹⁶</span>
+                <h3 class="item-name">dgram_socket</h3>
             </div>
-            <div class="signature">def dgram_bound¹⁶ : (s¹⁷ : &#x27;DatagramSocket⁶) -&gt; Bool </div>
+            <div class="signature">def dgram_socket : {s : DatagramSocket | dgram_bound s == False &amp;&amp; dgram_connected s == False}</div>
         </div>
-        <div class="item" id="func-dgram_connected¹⁸">
+        <div class="item" id="func-tcp_accept_socket-L71">
             <div class="item-header">
-                <span class="item-name">dgram_connected¹⁸</span>
+                <h3 class="item-name">tcp_accept_socket</h3>
             </div>
-            <div class="signature">def dgram_connected¹⁸ : (s¹⁹ : &#x27;DatagramSocket⁶) -&gt; Bool </div>
+            <div class="signature">def tcp_accept_socket <span class="sig-arg sig-arg-0" data-tooltip="r : TcpAccept">(r: TcpAccept)</span> : {s : StreamSocket | stream_connected s == True}</div>
         </div>
-        <div class="item" id="func-payload_len²⁰">
+        <div class="item" id="func-tcp_accept_peer-L75">
             <div class="item-header">
-                <span class="item-name">payload_len²⁰</span>
+                <h3 class="item-name">tcp_accept_peer</h3>
             </div>
-            <div class="comment">Byte length of a payload (`len(data)` at runtime).</div>
-            <div class="signature">def payload_len²⁰ : (p²¹ : &#x27;SocketPayload⁷) -&gt; Int </div>
+            <div class="signature">def tcp_accept_peer <span class="sig-arg sig-arg-0" data-tooltip="r : TcpAccept">(r: TcpAccept)</span> : {a : SockAddr | ipv4_sock_addr a == True}</div>
         </div>
-        <div class="item" id="func-udp_payload_len²²">
+        <div class="item" id="func-stream_bind-L84">
             <div class="item-header">
-                <span class="item-name">udp_payload_len²²</span>
+                <h3 class="item-name">stream_bind</h3>
             </div>
-            <div class="comment">Length of the datagram payload in a `recvfrom` result.</div>
-            <div class="signature">def udp_payload_len²² : (r²³ : &#x27;UdpRecvFrom¹⁰) -&gt; Int </div>
+            <div class="signature">def stream_bind <span class="sig-arg sig-arg-0" data-tooltip="addr : {ad : SockAddr | ipv4_sock_addr ad == True}">(addr: {ad : SockAddr | ipv4_sock_addr ad == True})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : StreamSocket | stream_bound sock == False}">(s: {sock : StreamSocket | stream_bound sock == False})</span> : {out : StreamSocket | stream_bound out == True}</div>
         </div>
-        <div class="item" id="func-ipv4_sock_addr²⁴">
+        <div class="item" id="func-stream_listen-L89">
             <div class="item-header">
-                <span class="item-name">ipv4_sock_addr²⁴</span>
+                <h3 class="item-name">stream_listen</h3>
             </div>
-            <div class="comment">Constructed IPv4 text endpoint (`(host, port)`).</div>
-            <div class="signature">def ipv4_sock_addr²⁴ : (a²⁵ : &#x27;SockAddr⁸) -&gt; Bool </div>
+            <div class="signature">def stream_listen <span class="sig-arg sig-arg-0" data-tooltip="backlog : {n : Int | n &gt; 0}">(backlog: {n : Int | n &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : StreamSocket | stream_bound sock == True}">(s: {sock : StreamSocket | stream_bound sock == True})</span> : {out : StreamSocket | stream_bound out == True}</div>
         </div>
-        <div class="item" id="func-ipv4_addr²⁶">
+        <div class="item" id="func-stream_connect-L94">
             <div class="item-header">
-                <span class="item-name">ipv4_addr²⁶</span>
+                <h3 class="item-name">stream_connect</h3>
             </div>
-            <div class="signature">def ipv4_addr²⁶ (host²⁷: String ), (port²⁸: {p²⁹ : Int  | ((&amp;&amp; ((&gt;= p²⁹) 0)) ((&lt;= p²⁹) 65535)) }) : {a³⁰ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ a³⁰)) True) }</div>
+            <div class="signature">def stream_connect <span class="sig-arg sig-arg-0" data-tooltip="addr : {ad : SockAddr | ipv4_sock_addr ad == True}">(addr: {ad : SockAddr | ipv4_sock_addr ad == True})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : StreamSocket | stream_connected sock == False}">(s: {sock : StreamSocket | stream_connected sock == False})</span> : {out : StreamSocket | stream_connected out == True}</div>
         </div>
-        <div class="item" id="func-stream_socket³¹">
+        <div class="item" id="func-stream_accept-L99">
             <div class="item-header">
-                <span class="item-name">stream_socket³¹</span>
+                <h3 class="item-name">stream_accept</h3>
             </div>
-            <div class="signature">def stream_socket³¹ : {s³² : &#x27;StreamSocket⁵ | ((&amp;&amp; ((== (stream_bound¹² s³²)) False)) ((== (stream_connected¹⁴ s³²)) False)) }</div>
+            <div class="signature">def stream_accept <span class="sig-arg sig-arg-0" data-tooltip="s : {sock : StreamSocket | stream_bound sock == True &amp;&amp; stream_connected sock == False}">(s: {sock : StreamSocket | stream_bound sock == True &amp;&amp; stream_connected sock == False})</span> : TcpAccept</div>
         </div>
-        <div class="item" id="func-dgram_socket³³">
+        <div class="item" id="func-stream_send-L104">
             <div class="item-header">
-                <span class="item-name">dgram_socket³³</span>
+                <h3 class="item-name">stream_send</h3>
             </div>
-            <div class="signature">def dgram_socket³³ : {s³⁴ : &#x27;DatagramSocket⁶ | ((&amp;&amp; ((== (dgram_bound¹⁶ s³⁴)) False)) ((== (dgram_connected¹⁸ s³⁴)) False)) }</div>
+            <div class="signature">def stream_send <span class="sig-arg sig-arg-0" data-tooltip="data : SocketPayload">(data: SocketPayload)</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : StreamSocket | stream_connected sock == True}">(s: {sock : StreamSocket | stream_connected sock == True})</span> : {sent : Int | sent &gt;= 0 &amp;&amp; sent &lt;= payload_len data}</div>
         </div>
-        <div class="item" id="func-tcp_accept_socket³⁵">
+        <div class="item" id="func-stream_recv-L109">
             <div class="item-header">
-                <span class="item-name">tcp_accept_socket³⁵</span>
+                <h3 class="item-name">stream_recv</h3>
             </div>
-            <div class="signature">def tcp_accept_socket³⁵ (r³⁶: &#x27;TcpAccept⁹) : {s³⁷ : &#x27;StreamSocket⁵ | ((== (stream_connected¹⁴ s³⁷)) True) }</div>
+            <div class="signature">def stream_recv <span class="sig-arg sig-arg-0" data-tooltip="bufsize : {n : Int | n &gt; 0}">(bufsize: {n : Int | n &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : StreamSocket | stream_connected sock == True}">(s: {sock : StreamSocket | stream_connected sock == True})</span> : {p : SocketPayload | payload_len p &lt;= bufsize}</div>
         </div>
-        <div class="item" id="func-tcp_accept_peer³⁸">
+        <div class="item" id="func-stream_close-L116">
             <div class="item-header">
-                <span class="item-name">tcp_accept_peer³⁸</span>
-            </div>
-            <div class="signature">def tcp_accept_peer³⁸ (r³⁹: &#x27;TcpAccept⁹) : {a⁴⁰ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ a⁴⁰)) True) }</div>
-        </div>
-        <div class="item" id="func-stream_bind⁴¹">
-            <div class="item-header">
-                <span class="item-name">stream_bind⁴¹</span>
-            </div>
-            <div class="signature">def stream_bind⁴¹ (addr⁴²: {ad⁴³ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ ad⁴³)) True) }), (s⁴⁴: {sock⁴⁵ : &#x27;StreamSocket⁵ | ((== (stream_bound¹² sock⁴⁵)) False) }) : {out⁴⁶ : &#x27;StreamSocket⁵ | ((== (stream_bound¹² out⁴⁶)) True) }</div>
-        </div>
-        <div class="item" id="func-stream_listen⁴⁷">
-            <div class="item-header">
-                <span class="item-name">stream_listen⁴⁷</span>
-            </div>
-            <div class="signature">def stream_listen⁴⁷ (backlog⁴⁸: {n⁴⁹ : Int  | ((&gt; n⁴⁹) 0) }), (s⁵⁰: {sock⁵¹ : &#x27;StreamSocket⁵ | ((== (stream_bound¹² sock⁵¹)) True) }) : {out⁵² : &#x27;StreamSocket⁵ | ((== (stream_bound¹² out⁵²)) True) }</div>
-        </div>
-        <div class="item" id="func-stream_connect⁵³">
-            <div class="item-header">
-                <span class="item-name">stream_connect⁵³</span>
-            </div>
-            <div class="signature">def stream_connect⁵³ (addr⁵⁴: {ad⁵⁵ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ ad⁵⁵)) True) }), (s⁵⁶: {sock⁵⁷ : &#x27;StreamSocket⁵ | ((== (stream_connected¹⁴ sock⁵⁷)) False) }) : {out⁵⁸ : &#x27;StreamSocket⁵ | ((== (stream_connected¹⁴ out⁵⁸)) True) }</div>
-        </div>
-        <div class="item" id="func-stream_accept⁵⁹">
-            <div class="item-header">
-                <span class="item-name">stream_accept⁵⁹</span>
-            </div>
-            <div class="signature">def stream_accept⁵⁹ (s⁶⁰: {sock⁶¹ : &#x27;StreamSocket⁵ | ((&amp;&amp; ((== (stream_bound¹² sock⁶¹)) True)) ((== (stream_connected¹⁴ sock⁶¹)) False)) }) : &#x27;TcpAccept⁹</div>
-        </div>
-        <div class="item" id="func-stream_send⁶²">
-            <div class="item-header">
-                <span class="item-name">stream_send⁶²</span>
-            </div>
-            <div class="signature">def stream_send⁶² (data⁶³: &#x27;SocketPayload⁷), (s⁶⁴: {sock⁶⁵ : &#x27;StreamSocket⁵ | ((== (stream_connected¹⁴ sock⁶⁵)) True) }) : {sent⁶⁶ : Int  | ((&amp;&amp; ((&gt;= sent⁶⁶) 0)) ((&lt;= sent⁶⁶) (payload_len²⁰ data⁶³))) }</div>
-        </div>
-        <div class="item" id="func-stream_recv⁶⁷">
-            <div class="item-header">
-                <span class="item-name">stream_recv⁶⁷</span>
-            </div>
-            <div class="signature">def stream_recv⁶⁷ (bufsize⁶⁸: {n⁶⁹ : Int  | ((&gt; n⁶⁹) 0) }), (s⁷⁰: {sock⁷¹ : &#x27;StreamSocket⁵ | ((== (stream_connected¹⁴ sock⁷¹)) True) }) : {p⁷² : &#x27;SocketPayload⁷ | ((&lt;= (payload_len²⁰ p⁷²)) bufsize⁶⁸) }</div>
-        </div>
-        <div class="item" id="func-stream_close⁷³">
-            <div class="item-header">
-                <span class="item-name">stream_close⁷³</span>
+                <h3 class="item-name">stream_close</h3>
             </div>
             <div class="comment">``stream_close`` consumes the socket and returns ``Unit`` so the
 closed socket cannot be used again — it has nowhere to go.</div>
-            <div class="signature">def stream_close⁷³ (s⁷⁴: &#x27;StreamSocket⁵) : Unit </div>
+            <div class="signature">def stream_close <span class="sig-arg sig-arg-0" data-tooltip="s : StreamSocket">(s: StreamSocket)</span> : Unit</div>
         </div>
-        <div class="item" id="func-dgram_bind⁷⁵">
+        <div class="item" id="func-dgram_bind-L121">
             <div class="item-header">
-                <span class="item-name">dgram_bind⁷⁵</span>
+                <h3 class="item-name">dgram_bind</h3>
             </div>
-            <div class="signature">def dgram_bind⁷⁵ (addr⁷⁶: {ad⁷⁷ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ ad⁷⁷)) True) }), (s⁷⁸: {sock⁷⁹ : &#x27;DatagramSocket⁶ | ((== (dgram_bound¹⁶ sock⁷⁹)) False) }) : {out⁸⁰ : &#x27;DatagramSocket⁶ | ((== (dgram_bound¹⁶ out⁸⁰)) True) }</div>
+            <div class="signature">def dgram_bind <span class="sig-arg sig-arg-0" data-tooltip="addr : {ad : SockAddr | ipv4_sock_addr ad == True}">(addr: {ad : SockAddr | ipv4_sock_addr ad == True})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : DatagramSocket | dgram_bound sock == False}">(s: {sock : DatagramSocket | dgram_bound sock == False})</span> : {out : DatagramSocket | dgram_bound out == True}</div>
         </div>
-        <div class="item" id="func-dgram_connect⁸¹">
+        <div class="item" id="func-dgram_connect-L126">
             <div class="item-header">
-                <span class="item-name">dgram_connect⁸¹</span>
+                <h3 class="item-name">dgram_connect</h3>
             </div>
-            <div class="signature">def dgram_connect⁸¹ (addr⁸²: {ad⁸³ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ ad⁸³)) True) }), (s⁸⁴: &#x27;DatagramSocket⁶) : {out⁸⁵ : &#x27;DatagramSocket⁶ | ((== (dgram_connected¹⁸ out⁸⁵)) True) }</div>
+            <div class="signature">def dgram_connect <span class="sig-arg sig-arg-0" data-tooltip="addr : {ad : SockAddr | ipv4_sock_addr ad == True}">(addr: {ad : SockAddr | ipv4_sock_addr ad == True})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : DatagramSocket">(s: DatagramSocket)</span> : {out : DatagramSocket | dgram_connected out == True}</div>
         </div>
-        <div class="item" id="func-dgram_sendto⁸⁶">
+        <div class="item" id="func-dgram_sendto-L131">
             <div class="item-header">
-                <span class="item-name">dgram_sendto⁸⁶</span>
+                <h3 class="item-name">dgram_sendto</h3>
             </div>
-            <div class="signature">def dgram_sendto⁸⁶ (data⁸⁷: &#x27;SocketPayload⁷), (addr⁸⁸: {ad⁸⁹ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ ad⁸⁹)) True) }), (s⁹⁰: &#x27;DatagramSocket⁶) : {sent⁹¹ : Int  | ((&amp;&amp; ((&gt;= sent⁹¹) 0)) ((&lt;= sent⁹¹) (payload_len²⁰ data⁸⁷))) }</div>
+            <div class="signature">def dgram_sendto <span class="sig-arg sig-arg-0" data-tooltip="data : SocketPayload">(data: SocketPayload)</span> <span class="sig-arg sig-arg-1" data-tooltip="addr : {ad : SockAddr | ipv4_sock_addr ad == True}">(addr: {ad : SockAddr | ipv4_sock_addr ad == True})</span> <span class="sig-arg sig-arg-2" data-tooltip="s : DatagramSocket">(s: DatagramSocket)</span> : {sent : Int | sent &gt;= 0 &amp;&amp; sent &lt;= payload_len data}</div>
         </div>
-        <div class="item" id="func-dgram_recvfrom⁹²">
+        <div class="item" id="func-dgram_recvfrom-L137">
             <div class="item-header">
-                <span class="item-name">dgram_recvfrom⁹²</span>
+                <h3 class="item-name">dgram_recvfrom</h3>
             </div>
-            <div class="signature">def dgram_recvfrom⁹² (bufsize⁹³: {n⁹⁴ : Int  | ((&gt; n⁹⁴) 0) }), (s⁹⁵: {sock⁹⁶ : &#x27;DatagramSocket⁶ | ((== (dgram_bound¹⁶ sock⁹⁶)) True) }) : {r⁹⁷ : &#x27;UdpRecvFrom¹⁰ | ((&lt;= (udp_payload_len²² r⁹⁷)) bufsize⁹³) }</div>
+            <div class="signature">def dgram_recvfrom <span class="sig-arg sig-arg-0" data-tooltip="bufsize : {n : Int | n &gt; 0}">(bufsize: {n : Int | n &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : DatagramSocket | dgram_bound sock == True}">(s: {sock : DatagramSocket | dgram_bound sock == True})</span> : {r : UdpRecvFrom | udp_payload_len r &lt;= bufsize}</div>
         </div>
-        <div class="item" id="func-udp_recv_payload⁹⁸">
+        <div class="item" id="func-udp_recv_payload-L142">
             <div class="item-header">
-                <span class="item-name">udp_recv_payload⁹⁸</span>
+                <h3 class="item-name">udp_recv_payload</h3>
             </div>
-            <div class="signature">def udp_recv_payload⁹⁸ (r⁹⁹: &#x27;UdpRecvFrom¹⁰) : {p¹⁰⁰ : &#x27;SocketPayload⁷ | ((== (payload_len²⁰ p¹⁰⁰)) (udp_payload_len²² r⁹⁹)) }</div>
+            <div class="signature">def udp_recv_payload <span class="sig-arg sig-arg-0" data-tooltip="r : UdpRecvFrom">(r: UdpRecvFrom)</span> : {p : SocketPayload | payload_len p == udp_payload_len r}</div>
         </div>
-        <div class="item" id="func-udp_recv_peer¹⁰¹">
+        <div class="item" id="func-udp_recv_peer-L146">
             <div class="item-header">
-                <span class="item-name">udp_recv_peer¹⁰¹</span>
+                <h3 class="item-name">udp_recv_peer</h3>
             </div>
-            <div class="signature">def udp_recv_peer¹⁰¹ (r¹⁰²: &#x27;UdpRecvFrom¹⁰) : {a¹⁰³ : &#x27;SockAddr⁸ | ((== (ipv4_sock_addr²⁴ a¹⁰³)) True) }</div>
+            <div class="signature">def udp_recv_peer <span class="sig-arg sig-arg-0" data-tooltip="r : UdpRecvFrom">(r: UdpRecvFrom)</span> : {a : SockAddr | ipv4_sock_addr a == True}</div>
         </div>
-        <div class="item" id="func-dgram_send¹⁰⁴">
+        <div class="item" id="func-dgram_send-L150">
             <div class="item-header">
-                <span class="item-name">dgram_send¹⁰⁴</span>
+                <h3 class="item-name">dgram_send</h3>
             </div>
-            <div class="signature">def dgram_send¹⁰⁴ (data¹⁰⁵: &#x27;SocketPayload⁷), (s¹⁰⁶: {sock¹⁰⁷ : &#x27;DatagramSocket⁶ | ((== (dgram_connected¹⁸ sock¹⁰⁷)) True) }) : {sent¹⁰⁸ : Int  | ((&amp;&amp; ((&gt;= sent¹⁰⁸) 0)) ((&lt;= sent¹⁰⁸) (payload_len²⁰ data¹⁰⁵))) }</div>
+            <div class="signature">def dgram_send <span class="sig-arg sig-arg-0" data-tooltip="data : SocketPayload">(data: SocketPayload)</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : DatagramSocket | dgram_connected sock == True}">(s: {sock : DatagramSocket | dgram_connected sock == True})</span> : {sent : Int | sent &gt;= 0 &amp;&amp; sent &lt;= payload_len data}</div>
         </div>
-        <div class="item" id="func-dgram_recv¹⁰⁹">
+        <div class="item" id="func-dgram_recv-L155">
             <div class="item-header">
-                <span class="item-name">dgram_recv¹⁰⁹</span>
+                <h3 class="item-name">dgram_recv</h3>
             </div>
-            <div class="signature">def dgram_recv¹⁰⁹ (bufsize¹¹⁰: {n¹¹¹ : Int  | ((&gt; n¹¹¹) 0) }), (s¹¹²: {sock¹¹³ : &#x27;DatagramSocket⁶ | ((== (dgram_connected¹⁸ sock¹¹³)) True) }) : {p¹¹⁴ : &#x27;SocketPayload⁷ | ((&lt;= (payload_len²⁰ p¹¹⁴)) bufsize¹¹⁰) }</div>
+            <div class="signature">def dgram_recv <span class="sig-arg sig-arg-0" data-tooltip="bufsize : {n : Int | n &gt; 0}">(bufsize: {n : Int | n &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="s : {sock : DatagramSocket | dgram_connected sock == True}">(s: {sock : DatagramSocket | dgram_connected sock == True})</span> : {p : SocketPayload | payload_len p &lt;= bufsize}</div>
         </div>
-        <div class="item" id="func-dgram_close¹¹⁵">
+        <div class="item" id="func-dgram_close-L160">
             <div class="item-header">
-                <span class="item-name">dgram_close¹¹⁵</span>
+                <h3 class="item-name">dgram_close</h3>
             </div>
-            <div class="signature">def dgram_close¹¹⁵ (s¹¹⁶: &#x27;DatagramSocket⁶) : Unit </div>
+            <div class="signature">def dgram_close <span class="sig-arg sig-arg-0" data-tooltip="s : DatagramSocket">(s: DatagramSocket)</span> : Unit</div>
+        </div>
+        <h2 id="uninterpreted">Uninterpreted</h2>
+        <p class="section-note">Functions declared as <code>def f ... = uninterpreted</code>: only their signature is known to the verifier; they have no body.</p>
+        <div class="item uninterpreted" id="func-stream_bound-L37">
+            <div class="item-header">
+                <h3 class="item-name">stream_bound</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def stream_bound : (s : StreamSocket) -&gt; Bool</div>
+        </div>
+        <div class="item uninterpreted" id="func-stream_connected-L38">
+            <div class="item-header">
+                <h3 class="item-name">stream_connected</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def stream_connected : (s : StreamSocket) -&gt; Bool</div>
+        </div>
+        <div class="item uninterpreted" id="func-dgram_bound-L40">
+            <div class="item-header">
+                <h3 class="item-name">dgram_bound</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def dgram_bound : (s : DatagramSocket) -&gt; Bool</div>
+        </div>
+        <div class="item uninterpreted" id="func-dgram_connected-L41">
+            <div class="item-header">
+                <h3 class="item-name">dgram_connected</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def dgram_connected : (s : DatagramSocket) -&gt; Bool</div>
+        </div>
+        <div class="item uninterpreted" id="func-payload_len-L44">
+            <div class="item-header">
+                <h3 class="item-name">payload_len</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Byte length of a payload (`len(data)` at runtime).</div>
+            <div class="signature">def payload_len : (p : SocketPayload) -&gt; Int</div>
+        </div>
+        <div class="item uninterpreted" id="func-udp_payload_len-L47">
+            <div class="item-header">
+                <h3 class="item-name">udp_payload_len</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Length of the datagram payload in a `recvfrom` result.</div>
+            <div class="signature">def udp_payload_len : (r : UdpRecvFrom) -&gt; Int</div>
+        </div>
+        <div class="item uninterpreted" id="func-ipv4_sock_addr-L50">
+            <div class="item-header">
+                <h3 class="item-name">ipv4_sock_addr</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Constructed IPv4 text endpoint (`(host, port)`).</div>
+            <div class="signature">def ipv4_sock_addr : (a : SockAddr) -&gt; Bool</div>
         </div>
     </div>
 </body>

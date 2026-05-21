@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,244 +338,310 @@
     <div class="container">
         <h1>Json</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Json⁵">Json⁵</a></li>
+                        <li><a href="#type-Json-L3">Json</a></li>
+                    </ul>
+                </li>
+                <li><a href="#constructors">Constructors</a>
+                    <ul>
+                        <li><a href="#ctor-type-Json-L3">Json</a> <span class="toc-note">(opaque, mk*)</span>
+                            <ul>
+                                <li><a href="#ctor-Json-mkNull-L73">mkNull</a></li>
+                                <li><a href="#ctor-Json-mkBool-L75">mkBool</a></li>
+                                <li><a href="#ctor-Json-mkInt-L77">mkInt</a></li>
+                                <li><a href="#ctor-Json-mkFloat-L79">mkFloat</a></li>
+                                <li><a href="#ctor-Json-mkString-L81">mkString</a></li>
+                                <li><a href="#ctor-Json-mkArray-L83">mkArray</a></li>
+                                <li><a href="#ctor-Json-mkObject-L86">mkObject</a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-json⁶">json⁶</a></li>
-                        <li><a href="#func-parse⁷">parse⁷</a></li>
-                        <li><a href="#func-parseFile¹⁰">parseFile¹⁰</a></li>
-                        <li><a href="#func-stringify¹³">stringify¹³</a></li>
-                        <li><a href="#func-stringifyPretty¹⁶">stringifyPretty¹⁶</a></li>
-                        <li><a href="#func-writeFile¹⁹">writeFile¹⁹</a></li>
-                        <li><a href="#func-isNull²³">isNull²³</a></li>
-                        <li><a href="#func-isBool²⁵">isBool²⁵</a></li>
-                        <li><a href="#func-isNumber²⁷">isNumber²⁷</a></li>
-                        <li><a href="#func-isString²⁹">isString²⁹</a></li>
-                        <li><a href="#func-isArray³¹">isArray³¹</a></li>
-                        <li><a href="#func-isObject³³">isObject³³</a></li>
-                        <li><a href="#func-asBool³⁵">asBool³⁵</a></li>
-                        <li><a href="#func-asInt³⁷">asInt³⁷</a></li>
-                        <li><a href="#func-asFloat³⁹">asFloat³⁹</a></li>
-                        <li><a href="#func-asString⁴¹">asString⁴¹</a></li>
-                        <li><a href="#func-has⁴³">has⁴³</a></li>
-                        <li><a href="#func-get⁴⁶">get⁴⁶</a></li>
-                        <li><a href="#func-length⁴⁹">length⁴⁹</a></li>
-                        <li><a href="#func-at⁵²">at⁵²</a></li>
-                        <li><a href="#func-mkNull⁵⁶">mkNull⁵⁶</a></li>
-                        <li><a href="#func-mkBool⁵⁷">mkBool⁵⁷</a></li>
-                        <li><a href="#func-mkInt⁵⁹">mkInt⁵⁹</a></li>
-                        <li><a href="#func-mkFloat⁶¹">mkFloat⁶¹</a></li>
-                        <li><a href="#func-mkString⁶³">mkString⁶³</a></li>
-                        <li><a href="#func-mkArray⁶⁵">mkArray⁶⁵</a></li>
-                        <li><a href="#func-mkObject⁶⁷">mkObject⁶⁷</a></li>
-                        <li><a href="#func-setKey⁶⁸">setKey⁶⁸</a></li>
+                        <li><a href="#func-json-L5">json</a></li>
+                        <li><a href="#func-parse-L11">parse</a></li>
+                        <li><a href="#func-parseFile-L15">parseFile</a></li>
+                        <li><a href="#func-stringify-L20">stringify</a></li>
+                        <li><a href="#func-stringifyPretty-L23">stringifyPretty</a></li>
+                        <li><a href="#func-writeFile-L27">writeFile</a></li>
+                        <li><a href="#func-isNull-L32">isNull</a></li>
+                        <li><a href="#func-isBool-L33">isBool</a></li>
+                        <li><a href="#func-isNumber-L34">isNumber</a></li>
+                        <li><a href="#func-isString-L35">isString</a></li>
+                        <li><a href="#func-isArray-L36">isArray</a></li>
+                        <li><a href="#func-isObject-L37">isObject</a></li>
+                        <li><a href="#func-asBool-L42">asBool</a></li>
+                        <li><a href="#func-asInt-L45">asInt</a></li>
+                        <li><a href="#func-asFloat-L48">asFloat</a></li>
+                        <li><a href="#func-asString-L51">asString</a></li>
+                        <li><a href="#func-has-L57">has</a></li>
+                        <li><a href="#func-get-L61">get</a></li>
+                        <li><a href="#func-length-L66">length</a></li>
+                        <li><a href="#func-at-L69">at</a></li>
+                        <li><a href="#func-mkNull-L73">mkNull</a></li>
+                        <li><a href="#func-mkBool-L75">mkBool</a></li>
+                        <li><a href="#func-mkInt-L77">mkInt</a></li>
+                        <li><a href="#func-mkFloat-L79">mkFloat</a></li>
+                        <li><a href="#func-mkString-L81">mkString</a></li>
+                        <li><a href="#func-mkArray-L83">mkArray</a></li>
+                        <li><a href="#func-mkObject-L86">mkObject</a></li>
+                        <li><a href="#func-setKey-L90">setKey</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Json⁵">
+        <div class="item" id="type-Json-L3">
             <div class="item-header">
-                <span class="item-name">Json⁵</span>
+                <h3 class="item-name">Json</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Json⁵</div>
+            <div class="signature">type Json</div>
+        </div>
+        <h2 id="constructors">Constructors</h2>
+        <p class="section-note">For each type in this module: inductive types list their declared constructors; opaque types list any local function whose name starts with <code>mk</code> and which returns a value of that type.</p>
+        <div class="ctor-group" id="ctor-type-Json-L3">
+            <h3 class="ctor-group-header"><a href="#type-Json-L3" class="ctor-type-link">Json</a> <span class="item-type">(opaque · mk*)</span></h3>
+        <div class="item ctor-item" id="ctor-Json-mkNull-L73">
+            <div class="item-header">
+                <h4 class="item-name">mkNull</h4>
+            </div>
+            <div class="signature">def mkNull : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkBool-L75">
+            <div class="item-header">
+                <h4 class="item-name">mkBool</h4>
+            </div>
+            <div class="signature">def mkBool <span class="sig-arg sig-arg-0" data-tooltip="b : Bool">(b: Bool)</span> : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkInt-L77">
+            <div class="item-header">
+                <h4 class="item-name">mkInt</h4>
+            </div>
+            <div class="signature">def mkInt <span class="sig-arg sig-arg-0" data-tooltip="i : Int">(i: Int)</span> : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkFloat-L79">
+            <div class="item-header">
+                <h4 class="item-name">mkFloat</h4>
+            </div>
+            <div class="signature">def mkFloat <span class="sig-arg sig-arg-0" data-tooltip="f : Float">(f: Float)</span> : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkString-L81">
+            <div class="item-header">
+                <h4 class="item-name">mkString</h4>
+            </div>
+            <div class="signature">def mkString <span class="sig-arg sig-arg-0" data-tooltip="s : String">(s: String)</span> : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkArray-L83">
+            <div class="item-header">
+                <h4 class="item-name">mkArray</h4>
+            </div>
+            <div class="signature">def mkArray <span class="sig-arg sig-arg-0" data-tooltip="xs : Array Json">(xs: Array Json)</span> : Json</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Json-mkObject-L86">
+            <div class="item-header">
+                <h4 class="item-name">mkObject</h4>
+            </div>
+            <div class="comment">An empty JSON object. Use setKey to populate.</div>
+            <div class="signature">def mkObject : Json</div>
+        </div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-json⁶">
+        <div class="item" id="func-json-L5">
             <div class="item-header">
-                <span class="item-name">json⁶</span>
+                <h3 class="item-name">json</h3>
             </div>
-            <div class="signature">def json⁶ : Unit </div>
+            <div class="signature">def json : Unit</div>
         </div>
-        <div class="item" id="func-parse⁷">
+        <div class="item" id="func-parse-L11">
             <div class="item-header">
-                <span class="item-name">parse⁷</span>
+                <h3 class="item-name">parse</h3>
             </div>
-            <div class="comment">Parses a JSON string. Raises at runtime on malformed input.
-s: non-empty JSON source</div>
-            <div class="signature">def parse⁷ (s⁸: {x⁹ : String  | ((!= x⁹) &quot;&quot;) }) : &#x27;Json⁵</div>
+            <div class="comment">Parses a JSON string. Raises at runtime on malformed input.</div>
+            <div class="signature">def parse <span class="sig-arg sig-arg-0" data-tooltip="s : {x : String | x != &quot;&quot;}
+
+non-empty JSON source">(s: {x : String | x != &quot;&quot;})</span> : Json</div>
         </div>
-        <div class="item" id="func-parseFile¹⁰">
+        <div class="item" id="func-parseFile-L15">
             <div class="item-header">
-                <span class="item-name">parseFile¹⁰</span>
+                <h3 class="item-name">parseFile</h3>
             </div>
-            <div class="comment">Parses a JSON file at path.
-path: non-empty file path</div>
-            <div class="signature">def parseFile¹⁰ (path¹¹: {p¹² : String  | ((!= p¹²) &quot;&quot;) }) : &#x27;Json⁵</div>
+            <div class="comment">Parses a JSON file at path.</div>
+            <div class="signature">def parseFile <span class="sig-arg sig-arg-0" data-tooltip="path : {p : String | p != &quot;&quot;}
+
+non-empty file path">(path: {p : String | p != &quot;&quot;})</span> : Json</div>
         </div>
-        <div class="item" id="func-stringify¹³">
+        <div class="item" id="func-stringify-L20">
             <div class="item-header">
-                <span class="item-name">stringify¹³</span>
+                <h3 class="item-name">stringify</h3>
             </div>
             <div class="comment">Serializes a Json value to its string form. The result is always
 non-empty (json.dumps(None) yields &quot;null&quot;).</div>
-            <div class="signature">def stringify¹³ (j¹⁴: &#x27;Json⁵) : {s¹⁵ : String  | ((!= s¹⁵) &quot;&quot;) }</div>
+            <div class="signature">def stringify <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : {s : String | s != &quot;&quot;}</div>
         </div>
-        <div class="item" id="func-stringifyPretty¹⁶">
+        <div class="item" id="func-stringifyPretty-L23">
             <div class="item-header">
-                <span class="item-name">stringifyPretty¹⁶</span>
+                <h3 class="item-name">stringifyPretty</h3>
             </div>
             <div class="comment">Pretty-prints a Json value with 2-space indentation. Always non-empty.</div>
-            <div class="signature">def stringifyPretty¹⁶ (j¹⁷: &#x27;Json⁵) : {s¹⁸ : String  | ((!= s¹⁸) &quot;&quot;) }</div>
+            <div class="signature">def stringifyPretty <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : {s : String | s != &quot;&quot;}</div>
         </div>
-        <div class="item" id="func-writeFile¹⁹">
+        <div class="item" id="func-writeFile-L27">
             <div class="item-header">
-                <span class="item-name">writeFile¹⁹</span>
+                <h3 class="item-name">writeFile</h3>
             </div>
-            <div class="comment">Writes a Json value to a file.
-path: non-empty file path</div>
-            <div class="signature">def writeFile¹⁹ (path²⁰: {p²¹ : String  | ((!= p²¹) &quot;&quot;) }), (j²²: &#x27;Json⁵) : Unit </div>
+            <div class="comment">Writes a Json value to a file.</div>
+            <div class="signature">def writeFile <span class="sig-arg sig-arg-0" data-tooltip="path : {p : String | p != &quot;&quot;}
+
+non-empty file path">(path: {p : String | p != &quot;&quot;})</span> <span class="sig-arg sig-arg-1" data-tooltip="j : Json">(j: Json)</span> : Unit</div>
         </div>
-        <div class="item" id="func-isNull²³">
+        <div class="item" id="func-isNull-L32">
             <div class="item-header">
-                <span class="item-name">isNull²³</span>
+                <h3 class="item-name">isNull</h3>
             </div>
-            <div class="signature">def isNull²³ (j²⁴: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isNull <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isBool²⁵">
+        <div class="item" id="func-isBool-L33">
             <div class="item-header">
-                <span class="item-name">isBool²⁵</span>
+                <h3 class="item-name">isBool</h3>
             </div>
-            <div class="signature">def isBool²⁵ (j²⁶: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isBool <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isNumber²⁷">
+        <div class="item" id="func-isNumber-L34">
             <div class="item-header">
-                <span class="item-name">isNumber²⁷</span>
+                <h3 class="item-name">isNumber</h3>
             </div>
-            <div class="signature">def isNumber²⁷ (j²⁸: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isNumber <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isString²⁹">
+        <div class="item" id="func-isString-L35">
             <div class="item-header">
-                <span class="item-name">isString²⁹</span>
+                <h3 class="item-name">isString</h3>
             </div>
-            <div class="signature">def isString²⁹ (j³⁰: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isString <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isArray³¹">
+        <div class="item" id="func-isArray-L36">
             <div class="item-header">
-                <span class="item-name">isArray³¹</span>
+                <h3 class="item-name">isArray</h3>
             </div>
-            <div class="signature">def isArray³¹ (j³²: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isArray <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isObject³³">
+        <div class="item" id="func-isObject-L37">
             <div class="item-header">
-                <span class="item-name">isObject³³</span>
+                <h3 class="item-name">isObject</h3>
             </div>
-            <div class="signature">def isObject³³ (j³⁴: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def isObject <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-asBool³⁵">
+        <div class="item" id="func-asBool-L42">
             <div class="item-header">
-                <span class="item-name">asBool³⁵</span>
+                <h3 class="item-name">asBool</h3>
             </div>
-            <div class="signature">def asBool³⁵ (j³⁶: &#x27;Json⁵) : Bool </div>
+            <div class="signature">def asBool <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Bool</div>
         </div>
-        <div class="item" id="func-asInt³⁷">
+        <div class="item" id="func-asInt-L45">
             <div class="item-header">
-                <span class="item-name">asInt³⁷</span>
+                <h3 class="item-name">asInt</h3>
             </div>
-            <div class="signature">def asInt³⁷ (j³⁸: &#x27;Json⁵) : Int </div>
+            <div class="signature">def asInt <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Int</div>
         </div>
-        <div class="item" id="func-asFloat³⁹">
+        <div class="item" id="func-asFloat-L48">
             <div class="item-header">
-                <span class="item-name">asFloat³⁹</span>
+                <h3 class="item-name">asFloat</h3>
             </div>
-            <div class="signature">def asFloat³⁹ (j⁴⁰: &#x27;Json⁵) : Float </div>
+            <div class="signature">def asFloat <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : Float</div>
         </div>
-        <div class="item" id="func-asString⁴¹">
+        <div class="item" id="func-asString-L51">
             <div class="item-header">
-                <span class="item-name">asString⁴¹</span>
+                <h3 class="item-name">asString</h3>
             </div>
-            <div class="signature">def asString⁴¹ (j⁴²: &#x27;Json⁵) : String </div>
+            <div class="signature">def asString <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : String</div>
         </div>
-        <div class="item" id="func-has⁴³">
+        <div class="item" id="func-has-L57">
             <div class="item-header">
-                <span class="item-name">has⁴³</span>
+                <h3 class="item-name">has</h3>
             </div>
             <div class="comment">Returns true if j is an object containing key.</div>
-            <div class="signature">def has⁴³ (j⁴⁴: &#x27;Json⁵), (key⁴⁵: String ) : Bool </div>
+            <div class="signature">def has <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : String">(key: String)</span> : Bool</div>
         </div>
-        <div class="item" id="func-get⁴⁶">
+        <div class="item" id="func-get-L61">
             <div class="item-header">
-                <span class="item-name">get⁴⁶</span>
+                <h3 class="item-name">get</h3>
             </div>
             <div class="comment">Looks up a key in a JSON object. Raises at runtime if j is not an
 object or key is absent.</div>
-            <div class="signature">def get⁴⁶ (j⁴⁷: &#x27;Json⁵), (key⁴⁸: String ) : &#x27;Json⁵</div>
+            <div class="signature">def get <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : String">(key: String)</span> : Json</div>
         </div>
-        <div class="item" id="func-length⁴⁹">
+        <div class="item" id="func-length-L66">
             <div class="item-header">
-                <span class="item-name">length⁴⁹</span>
+                <h3 class="item-name">length</h3>
             </div>
             <div class="comment">Returns the length of an array (or string/object). Raises if j has no len.</div>
-            <div class="signature">def length⁴⁹ (j⁵⁰: &#x27;Json⁵) : {x⁵¹ : Int  | ((&gt;= x⁵¹) 0) }</div>
+            <div class="signature">def length <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> : {x : Int | x &gt;= 0}</div>
         </div>
-        <div class="item" id="func-at⁵²">
+        <div class="item" id="func-at-L69">
             <div class="item-header">
-                <span class="item-name">at⁵²</span>
+                <h3 class="item-name">at</h3>
             </div>
             <div class="comment">Indexes into a JSON array. Raises at runtime if i is out of range.</div>
-            <div class="signature">def at⁵² (j⁵³: &#x27;Json⁵), (i⁵⁴: {x⁵⁵ : Int  | ((&gt;= x⁵⁵) 0) }) : &#x27;Json⁵</div>
+            <div class="signature">def at <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> <span class="sig-arg sig-arg-1" data-tooltip="i : {x : Int | x &gt;= 0}">(i: {x : Int | x &gt;= 0})</span> : Json</div>
         </div>
-        <div class="item" id="func-mkNull⁵⁶">
+        <div class="item" id="func-mkNull-L73">
             <div class="item-header">
-                <span class="item-name">mkNull⁵⁶</span>
+                <h3 class="item-name">mkNull</h3>
             </div>
-            <div class="signature">def mkNull⁵⁶ : &#x27;Json⁵</div>
+            <div class="signature">def mkNull : Json</div>
         </div>
-        <div class="item" id="func-mkBool⁵⁷">
+        <div class="item" id="func-mkBool-L75">
             <div class="item-header">
-                <span class="item-name">mkBool⁵⁷</span>
+                <h3 class="item-name">mkBool</h3>
             </div>
-            <div class="signature">def mkBool⁵⁷ (b⁵⁸: Bool ) : &#x27;Json⁵</div>
+            <div class="signature">def mkBool <span class="sig-arg sig-arg-0" data-tooltip="b : Bool">(b: Bool)</span> : Json</div>
         </div>
-        <div class="item" id="func-mkInt⁵⁹">
+        <div class="item" id="func-mkInt-L77">
             <div class="item-header">
-                <span class="item-name">mkInt⁵⁹</span>
+                <h3 class="item-name">mkInt</h3>
             </div>
-            <div class="signature">def mkInt⁵⁹ (i⁶⁰: Int ) : &#x27;Json⁵</div>
+            <div class="signature">def mkInt <span class="sig-arg sig-arg-0" data-tooltip="i : Int">(i: Int)</span> : Json</div>
         </div>
-        <div class="item" id="func-mkFloat⁶¹">
+        <div class="item" id="func-mkFloat-L79">
             <div class="item-header">
-                <span class="item-name">mkFloat⁶¹</span>
+                <h3 class="item-name">mkFloat</h3>
             </div>
-            <div class="signature">def mkFloat⁶¹ (f⁶²: Float ) : &#x27;Json⁵</div>
+            <div class="signature">def mkFloat <span class="sig-arg sig-arg-0" data-tooltip="f : Float">(f: Float)</span> : Json</div>
         </div>
-        <div class="item" id="func-mkString⁶³">
+        <div class="item" id="func-mkString-L81">
             <div class="item-header">
-                <span class="item-name">mkString⁶³</span>
+                <h3 class="item-name">mkString</h3>
             </div>
-            <div class="signature">def mkString⁶³ (s⁶⁴: String ) : &#x27;Json⁵</div>
+            <div class="signature">def mkString <span class="sig-arg sig-arg-0" data-tooltip="s : String">(s: String)</span> : Json</div>
         </div>
-        <div class="item" id="func-mkArray⁶⁵">
+        <div class="item" id="func-mkArray-L83">
             <div class="item-header">
-                <span class="item-name">mkArray⁶⁵</span>
+                <h3 class="item-name">mkArray</h3>
             </div>
-            <div class="signature">def mkArray⁶⁵ (xs⁶⁶: Array? &#x27;Json⁵) : &#x27;Json⁵</div>
+            <div class="signature">def mkArray <span class="sig-arg sig-arg-0" data-tooltip="xs : Array Json">(xs: Array Json)</span> : Json</div>
         </div>
-        <div class="item" id="func-mkObject⁶⁷">
+        <div class="item" id="func-mkObject-L86">
             <div class="item-header">
-                <span class="item-name">mkObject⁶⁷</span>
+                <h3 class="item-name">mkObject</h3>
             </div>
             <div class="comment">An empty JSON object. Use setKey to populate.</div>
-            <div class="signature">def mkObject⁶⁷ : &#x27;Json⁵</div>
+            <div class="signature">def mkObject : Json</div>
         </div>
-        <div class="item" id="func-setKey⁶⁸">
+        <div class="item" id="func-setKey-L90">
             <div class="item-header">
-                <span class="item-name">setKey⁶⁸</span>
+                <h3 class="item-name">setKey</h3>
             </div>
             <div class="comment">Returns a new object with key set to value. Raises at runtime if j is
 not an object.</div>
-            <div class="signature">def setKey⁶⁸ (j⁶⁹: &#x27;Json⁵), (key⁷⁰: String ), (value⁷¹: &#x27;Json⁵) : &#x27;Json⁵</div>
+            <div class="signature">def setKey <span class="sig-arg sig-arg-0" data-tooltip="j : Json">(j: Json)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : String">(key: String)</span> <span class="sig-arg sig-arg-2" data-tooltip="value : Json">(value: Json)</span> : Json</div>
         </div>
     </div>
 </body>

@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,379 +338,379 @@
     <div class="container">
         <h1>PSB2</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>import Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Dataset⁵">Dataset⁵</a></li>
-                        <li><a href="#type-TrainData⁶">TrainData⁶</a></li>
-                        <li><a href="#type-TestData⁷">TestData⁷</a></li>
-                        <li><a href="#type-Tuple⁸">Tuple⁸</a></li>
+                        <li><a href="#type-Dataset-L3">Dataset</a></li>
+                        <li><a href="#type-TrainData-L4">TrainData</a></li>
+                        <li><a href="#type-TestData-L5">TestData</a></li>
+                        <li><a href="#type-Tuple-L6">Tuple</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-load_dataset⁹">load_dataset⁹</a></li>
-                        <li><a href="#func-extract_train_data¹³">extract_train_data¹³</a></li>
-                        <li><a href="#func-unpack_train_data¹⁶">unpack_train_data¹⁶</a></li>
-                        <li><a href="#func-get_input_list¹⁹">get_input_list¹⁹</a></li>
-                        <li><a href="#func-get_output_list²²">get_output_list²²</a></li>
-                        <li><a href="#func-get_output_list2²⁵">get_output_list2²⁵</a></li>
-                        <li><a href="#func-extract_test_data²⁸">extract_test_data²⁸</a></li>
-                        <li><a href="#func-mean_absolute_error³¹">mean_absolute_error³¹</a></li>
-                        <li><a href="#func-String_distance³⁶">String_distance³⁶</a></li>
-                        <li><a href="#func-calculate_list_errors⁴¹">calculate_list_errors⁴¹</a></li>
-                        <li><a href="#func-calculate_list_difference⁴⁶">calculate_list_difference⁴⁶</a></li>
-                        <li><a href="#func-calculate_str_list_errors⁵¹">calculate_str_list_errors⁵¹</a></li>
-                        <li><a href="#func-join_string_list⁵⁶">join_string_list⁵⁶</a></li>
-                        <li><a href="#func-get_b_synth_values⁵⁹">get_b_synth_values⁵⁹</a></li>
-                        <li><a href="#func-get_bb_synth_values⁶⁵">get_bb_synth_values⁶⁵</a></li>
-                        <li><a href="#func-get_bowling_synth_values⁷³">get_bowling_synth_values⁷³</a></li>
-                        <li><a href="#func-get_c_synth_values⁷⁹">get_c_synth_values⁷⁹</a></li>
-                        <li><a href="#func-get_cv_synth_values⁸⁵">get_cv_synth_values⁸⁵</a></li>
-                        <li><a href="#func-get_dg_synth_values⁹¹">get_dg_synth_values⁹¹</a></li>
-                        <li><a href="#func-get_fp_synth_values⁹⁸">get_fp_synth_values⁹⁸</a></li>
-                        <li><a href="#func-get_fb_synth_values¹⁰⁵">get_fb_synth_values¹⁰⁵</a></li>
-                        <li><a href="#func-get_fc_synth_values¹¹¹">get_fc_synth_values¹¹¹</a></li>
-                        <li><a href="#func-get_gcd_synth_values¹¹⁷">get_gcd_synth_values¹¹⁷</a></li>
-                        <li><a href="#func-get_is_synth_values¹²⁴">get_is_synth_values¹²⁴</a></li>
-                        <li><a href="#func-get_l_synth_values¹³¹">get_l_synth_values¹³¹</a></li>
-                        <li><a href="#func-get_luhn_synth_values¹³⁷">get_luhn_synth_values¹³⁷</a></li>
-                        <li><a href="#func-get_mm_synth_values¹⁴³">get_mm_synth_values¹⁴³</a></li>
-                        <li><a href="#func-get_mc_synth_values¹⁵⁰">get_mc_synth_values¹⁵⁰</a></li>
-                        <li><a href="#func-get_pd_synth_values¹⁵⁶">get_pd_synth_values¹⁵⁶</a></li>
-                        <li><a href="#func-get_shop_synth_values¹⁶²">get_shop_synth_values¹⁶²</a></li>
-                        <li><a href="#func-get_snowd_synth_values¹⁶⁹">get_snowd_synth_values¹⁶⁹</a></li>
-                        <li><a href="#func-get_sbool_synth_values¹⁷⁸">get_sbool_synth_values¹⁷⁸</a></li>
-                        <li><a href="#func-get_sw_synth_values¹⁸⁴">get_sw_synth_values¹⁸⁴</a></li>
-                        <li><a href="#func-get_sd_synth_values¹⁹⁰">get_sd_synth_values¹⁹⁰</a></li>
-                        <li><a href="#func-get_sc_synth_values¹⁹⁶">get_sc_synth_values¹⁹⁶</a></li>
-                        <li><a href="#func-get_tt_synth_values²⁰⁴">get_tt_synth_values²⁰⁴</a></li>
-                        <li><a href="#func-get_vd_synth_values²¹⁰">get_vd_synth_values²¹⁰</a></li>
-                        <li><a href="#func-calculate_basement_errors²¹⁷">calculate_basement_errors²¹⁷</a></li>
-                        <li><a href="#func-calculate_bouncing_balls_psb2_errors²²³">calculate_bouncing_balls_psb2_errors²²³</a></li>
-                        <li><a href="#func-calculate_bowling_errors²³¹">calculate_bowling_errors²³¹</a></li>
-                        <li><a href="#func-calculate_camel_case_errors²³⁷">calculate_camel_case_errors²³⁷</a></li>
-                        <li><a href="#func-calculate_coin_sum_errors²⁴³">calculate_coin_sum_errors²⁴³</a></li>
-                        <li><a href="#func-calculate_cut_vector_errors²⁴⁹">calculate_cut_vector_errors²⁴⁹</a></li>
-                        <li><a href="#func-calculate_dice_game_errors²⁵⁵">calculate_dice_game_errors²⁵⁵</a></li>
-                        <li><a href="#func-calculate_fizzbuzz_errors²⁶²">calculate_fizzbuzz_errors²⁶²</a></li>
-                        <li><a href="#func-calculate_fuel_cost_errors²⁶⁸">calculate_fuel_cost_errors²⁶⁸</a></li>
+                        <li><a href="#func-load_dataset-L9">load_dataset</a></li>
+                        <li><a href="#func-extract_train_data-L14">extract_train_data</a></li>
+                        <li><a href="#func-unpack_train_data-L17">unpack_train_data</a></li>
+                        <li><a href="#func-get_input_list-L20">get_input_list</a></li>
+                        <li><a href="#func-get_output_list-L23">get_output_list</a></li>
+                        <li><a href="#func-get_output_list2-L26">get_output_list2</a></li>
+                        <li><a href="#func-extract_test_data-L29">extract_test_data</a></li>
+                        <li><a href="#func-mean_absolute_error-L32">mean_absolute_error</a></li>
+                        <li><a href="#func-String_distance-L35">String_distance</a></li>
+                        <li><a href="#func-calculate_list_errors-L39">calculate_list_errors</a></li>
+                        <li><a href="#func-calculate_list_difference-L42">calculate_list_difference</a></li>
+                        <li><a href="#func-calculate_str_list_errors-L45">calculate_str_list_errors</a></li>
+                        <li><a href="#func-join_string_list-L48">join_string_list</a></li>
+                        <li><a href="#func-get_b_synth_values-L51">get_b_synth_values</a></li>
+                        <li><a href="#func-get_bb_synth_values-L54">get_bb_synth_values</a></li>
+                        <li><a href="#func-get_bowling_synth_values-L57">get_bowling_synth_values</a></li>
+                        <li><a href="#func-get_c_synth_values-L60">get_c_synth_values</a></li>
+                        <li><a href="#func-get_cv_synth_values-L63">get_cv_synth_values</a></li>
+                        <li><a href="#func-get_dg_synth_values-L66">get_dg_synth_values</a></li>
+                        <li><a href="#func-get_fp_synth_values-L69">get_fp_synth_values</a></li>
+                        <li><a href="#func-get_fb_synth_values-L72">get_fb_synth_values</a></li>
+                        <li><a href="#func-get_fc_synth_values-L75">get_fc_synth_values</a></li>
+                        <li><a href="#func-get_gcd_synth_values-L78">get_gcd_synth_values</a></li>
+                        <li><a href="#func-get_is_synth_values-L81">get_is_synth_values</a></li>
+                        <li><a href="#func-get_l_synth_values-L84">get_l_synth_values</a></li>
+                        <li><a href="#func-get_luhn_synth_values-L87">get_luhn_synth_values</a></li>
+                        <li><a href="#func-get_mm_synth_values-L90">get_mm_synth_values</a></li>
+                        <li><a href="#func-get_mc_synth_values-L93">get_mc_synth_values</a></li>
+                        <li><a href="#func-get_pd_synth_values-L96">get_pd_synth_values</a></li>
+                        <li><a href="#func-get_shop_synth_values-L99">get_shop_synth_values</a></li>
+                        <li><a href="#func-get_snowd_synth_values-L102">get_snowd_synth_values</a></li>
+                        <li><a href="#func-get_sbool_synth_values-L105">get_sbool_synth_values</a></li>
+                        <li><a href="#func-get_sw_synth_values-L108">get_sw_synth_values</a></li>
+                        <li><a href="#func-get_sd_synth_values-L111">get_sd_synth_values</a></li>
+                        <li><a href="#func-get_sc_synth_values-L114">get_sc_synth_values</a></li>
+                        <li><a href="#func-get_tt_synth_values-L117">get_tt_synth_values</a></li>
+                        <li><a href="#func-get_vd_synth_values-L120">get_vd_synth_values</a></li>
+                        <li><a href="#func-calculate_basement_errors-L123">calculate_basement_errors</a></li>
+                        <li><a href="#func-calculate_bouncing_balls_psb2_errors-L126">calculate_bouncing_balls_psb2_errors</a></li>
+                        <li><a href="#func-calculate_bowling_errors-L129">calculate_bowling_errors</a></li>
+                        <li><a href="#func-calculate_camel_case_errors-L132">calculate_camel_case_errors</a></li>
+                        <li><a href="#func-calculate_coin_sum_errors-L135">calculate_coin_sum_errors</a></li>
+                        <li><a href="#func-calculate_cut_vector_errors-L138">calculate_cut_vector_errors</a></li>
+                        <li><a href="#func-calculate_dice_game_errors-L141">calculate_dice_game_errors</a></li>
+                        <li><a href="#func-calculate_fizzbuzz_errors-L144">calculate_fizzbuzz_errors</a></li>
+                        <li><a href="#func-calculate_fuel_cost_errors-L147">calculate_fuel_cost_errors</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Dataset⁵">
+        <div class="item" id="type-Dataset-L3">
             <div class="item-header">
-                <span class="item-name">Dataset⁵</span>
+                <h3 class="item-name">Dataset</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Dataset⁵</div>
+            <div class="signature">type Dataset</div>
         </div>
-        <div class="item" id="type-TrainData⁶">
+        <div class="item" id="type-TrainData-L4">
             <div class="item-header">
-                <span class="item-name">TrainData⁶</span>
+                <h3 class="item-name">TrainData</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type TrainData⁶</div>
+            <div class="signature">type TrainData</div>
         </div>
-        <div class="item" id="type-TestData⁷">
+        <div class="item" id="type-TestData-L5">
             <div class="item-header">
-                <span class="item-name">TestData⁷</span>
+                <h3 class="item-name">TestData</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type TestData⁷</div>
+            <div class="signature">type TestData</div>
         </div>
-        <div class="item" id="type-Tuple⁸">
+        <div class="item" id="type-Tuple-L6">
             <div class="item-header">
-                <span class="item-name">Tuple⁸</span>
+                <h3 class="item-name">Tuple</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Tuple⁸</div>
+            <div class="signature">type Tuple</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-load_dataset⁹">
+        <div class="item" id="func-load_dataset-L9">
             <div class="item-header">
-                <span class="item-name">load_dataset⁹</span>
+                <h3 class="item-name">load_dataset</h3>
             </div>
-            <div class="signature">def load_dataset⁹ (name¹⁰: String ), (nTrain¹¹: Int ), (nTest¹²: Int ) : &#x27;Dataset⁵</div>
+            <div class="signature">def load_dataset <span class="sig-arg sig-arg-0" data-tooltip="name : String">(name: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="nTrain : Int">(nTrain: Int)</span> <span class="sig-arg sig-arg-2" data-tooltip="nTest : Int">(nTest: Int)</span> : Dataset</div>
         </div>
-        <div class="item" id="func-extract_train_data¹³">
+        <div class="item" id="func-extract_train_data-L14">
             <div class="item-header">
-                <span class="item-name">extract_train_data¹³</span>
+                <h3 class="item-name">extract_train_data</h3>
             </div>
-            <div class="signature">def extract_train_data¹³ : (ds¹⁴ : &#x27;Dataset⁵) -&gt; &#x27;TrainData⁶</div>
+            <div class="signature">def extract_train_data : (ds : Dataset) -&gt; TrainData</div>
         </div>
-        <div class="item" id="func-unpack_train_data¹⁶">
+        <div class="item" id="func-unpack_train_data-L17">
             <div class="item-header">
-                <span class="item-name">unpack_train_data¹⁶</span>
+                <h3 class="item-name">unpack_train_data</h3>
             </div>
-            <div class="signature">def unpack_train_data¹⁶ : (td¹⁷ : &#x27;TrainData⁶) -&gt; &#x27;Tuple⁸</div>
+            <div class="signature">def unpack_train_data : (td : TrainData) -&gt; Tuple</div>
         </div>
-        <div class="item" id="func-get_input_list¹⁹">
+        <div class="item" id="func-get_input_list-L20">
             <div class="item-header">
-                <span class="item-name">get_input_list¹⁹</span>
+                <h3 class="item-name">get_input_list</h3>
             </div>
-            <div class="signature">def get_input_list¹⁹ : (t²⁰ : &#x27;Tuple⁸) -&gt; Array? Int </div>
+            <div class="signature">def get_input_list : (t : Tuple) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_output_list²²">
+        <div class="item" id="func-get_output_list-L23">
             <div class="item-header">
-                <span class="item-name">get_output_list²²</span>
+                <h3 class="item-name">get_output_list</h3>
             </div>
-            <div class="signature">def get_output_list²² : (t²³ : &#x27;Tuple⁸) -&gt; Array? Int </div>
+            <div class="signature">def get_output_list : (t : Tuple) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_output_list2²⁵">
+        <div class="item" id="func-get_output_list2-L26">
             <div class="item-header">
-                <span class="item-name">get_output_list2²⁵</span>
+                <h3 class="item-name">get_output_list2</h3>
             </div>
-            <div class="signature">def get_output_list2²⁵ : (t²⁶ : &#x27;Tuple⁸) -&gt; Array? Int </div>
+            <div class="signature">def get_output_list2 : (t : Tuple) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-extract_test_data²⁸">
+        <div class="item" id="func-extract_test_data-L29">
             <div class="item-header">
-                <span class="item-name">extract_test_data²⁸</span>
+                <h3 class="item-name">extract_test_data</h3>
             </div>
-            <div class="signature">def extract_test_data²⁸ : (ds²⁹ : &#x27;Dataset⁵) -&gt; &#x27;TestData⁷</div>
+            <div class="signature">def extract_test_data : (ds : Dataset) -&gt; TestData</div>
         </div>
-        <div class="item" id="func-mean_absolute_error³¹">
+        <div class="item" id="func-mean_absolute_error-L32">
             <div class="item-header">
-                <span class="item-name">mean_absolute_error³¹</span>
+                <h3 class="item-name">mean_absolute_error</h3>
             </div>
-            <div class="signature">def mean_absolute_error³¹ : (true_values³² : Array? Int ) -&gt; (expected_values³³ : Array? Int ) -&gt; Float </div>
+            <div class="signature">def mean_absolute_error : (true_values : Array Int) -&gt; (expected_values : Array Int) -&gt; Float</div>
         </div>
-        <div class="item" id="func-String_distance³⁶">
+        <div class="item" id="func-String_distance-L35">
             <div class="item-header">
-                <span class="item-name">String_distance³⁶</span>
+                <h3 class="item-name">String_distance</h3>
             </div>
             <div class="comment">maybe move this method to string lib</div>
-            <div class="signature">def String_distance³⁶ : (str1³⁷ : String ) -&gt; (str2³⁸ : String ) -&gt; Float </div>
+            <div class="signature">def String_distance : (str1 : String) -&gt; (str2 : String) -&gt; Float</div>
         </div>
-        <div class="item" id="func-calculate_list_errors⁴¹">
+        <div class="item" id="func-calculate_list_errors-L39">
             <div class="item-header">
-                <span class="item-name">calculate_list_errors⁴¹</span>
+                <h3 class="item-name">calculate_list_errors</h3>
             </div>
             <div class="comment">add a refinement to make sure that the lists are all the same siz</div>
-            <div class="signature">def calculate_list_errors⁴¹ : (true_values⁴² : Array? Int ) -&gt; (expected_values⁴³ : Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_list_errors : (true_values : Array Int) -&gt; (expected_values : Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_list_difference⁴⁶">
+        <div class="item" id="func-calculate_list_difference-L42">
             <div class="item-header">
-                <span class="item-name">calculate_list_difference⁴⁶</span>
+                <h3 class="item-name">calculate_list_difference</h3>
             </div>
-            <div class="signature">def calculate_list_difference⁴⁶ : (true_values⁴⁷ : Array? Int ) -&gt; (expected_values⁴⁸ : Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_list_difference : (true_values : Array Int) -&gt; (expected_values : Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_str_list_errors⁵¹">
+        <div class="item" id="func-calculate_str_list_errors-L45">
             <div class="item-header">
-                <span class="item-name">calculate_str_list_errors⁵¹</span>
+                <h3 class="item-name">calculate_str_list_errors</h3>
             </div>
-            <div class="signature">def calculate_str_list_errors⁵¹ : (true_values⁵² : Array? Int ) -&gt; (expected_values⁵³ : Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_str_list_errors : (true_values : Array Int) -&gt; (expected_values : Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-join_string_list⁵⁶">
+        <div class="item" id="func-join_string_list-L48">
             <div class="item-header">
-                <span class="item-name">join_string_list⁵⁶</span>
+                <h3 class="item-name">join_string_list</h3>
             </div>
-            <div class="signature">def join_string_list⁵⁶ : (list⁵⁷ : Array? Int ) -&gt; String </div>
+            <div class="signature">def join_string_list : (list : Array Int) -&gt; String</div>
         </div>
-        <div class="item" id="func-get_b_synth_values⁵⁹">
+        <div class="item" id="func-get_b_synth_values-L51">
             <div class="item-header">
-                <span class="item-name">get_b_synth_values⁵⁹</span>
+                <h3 class="item-name">get_b_synth_values</h3>
             </div>
-            <div class="signature">def get_b_synth_values⁵⁹ : (input⁶⁰ : Array? Int ) -&gt; (f⁶¹ : (a⁶² : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_b_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_bb_synth_values⁶⁵">
+        <div class="item" id="func-get_bb_synth_values-L54">
             <div class="item-header">
-                <span class="item-name">get_bb_synth_values⁶⁵</span>
+                <h3 class="item-name">get_bb_synth_values</h3>
             </div>
-            <div class="signature">def get_bb_synth_values⁶⁵ : (input⁶⁶ : Array? Int ) -&gt; (f⁶⁷ : (a⁶⁸ : Float ) -&gt; (b⁶⁹ : Float ) -&gt; (c⁷⁰ : Int ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def get_bb_synth_values : (input : Array Int) -&gt; (f : (a : Float) -&gt; (b : Float) -&gt; (c : Int) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_bowling_synth_values⁷³">
+        <div class="item" id="func-get_bowling_synth_values-L57">
             <div class="item-header">
-                <span class="item-name">get_bowling_synth_values⁷³</span>
+                <h3 class="item-name">get_bowling_synth_values</h3>
             </div>
-            <div class="signature">def get_bowling_synth_values⁷³ : (input⁷⁴ : Array? Int ) -&gt; (f⁷⁵ : (a⁷⁶ : String ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_bowling_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_c_synth_values⁷⁹">
+        <div class="item" id="func-get_c_synth_values-L60">
             <div class="item-header">
-                <span class="item-name">get_c_synth_values⁷⁹</span>
+                <h3 class="item-name">get_c_synth_values</h3>
             </div>
-            <div class="signature">def get_c_synth_values⁷⁹ : (input⁸⁰ : Array? Int ) -&gt; (f⁸¹ : (a⁸² : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_c_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_cv_synth_values⁸⁵">
+        <div class="item" id="func-get_cv_synth_values-L63">
             <div class="item-header">
-                <span class="item-name">get_cv_synth_values⁸⁵</span>
+                <h3 class="item-name">get_cv_synth_values</h3>
             </div>
-            <div class="signature">def get_cv_synth_values⁸⁵ : (input⁸⁶ : Array? Int ) -&gt; (f⁸⁷ : (a⁸⁸ : Array? Int ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_cv_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_dg_synth_values⁹¹">
+        <div class="item" id="func-get_dg_synth_values-L66">
             <div class="item-header">
-                <span class="item-name">get_dg_synth_values⁹¹</span>
+                <h3 class="item-name">get_dg_synth_values</h3>
             </div>
-            <div class="signature">def get_dg_synth_values⁹¹ : (input⁹² : Array? Int ) -&gt; (f⁹³ : (a⁹⁴ : Int ) -&gt; (b⁹⁵ : Int ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def get_dg_synth_values : (input : Array Int) -&gt; (f : (a : Int) -&gt; (b : Int) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_fp_synth_values⁹⁸">
+        <div class="item" id="func-get_fp_synth_values-L69">
             <div class="item-header">
-                <span class="item-name">get_fp_synth_values⁹⁸</span>
+                <h3 class="item-name">get_fp_synth_values</h3>
             </div>
-            <div class="signature">def get_fp_synth_values⁹⁸ : (input⁹⁹ : Array? Int ) -&gt; (f¹⁰⁰ : (a¹⁰¹ : Array? Int ) -&gt; (b¹⁰² : Int ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_fp_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; (b : Int) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_fb_synth_values¹⁰⁵">
+        <div class="item" id="func-get_fb_synth_values-L72">
             <div class="item-header">
-                <span class="item-name">get_fb_synth_values¹⁰⁵</span>
+                <h3 class="item-name">get_fb_synth_values</h3>
             </div>
-            <div class="signature">def get_fb_synth_values¹⁰⁵ : (input¹⁰⁶ : Array? Int ) -&gt; (f¹⁰⁷ : (a¹⁰⁸ : Int ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_fb_synth_values : (input : Array Int) -&gt; (f : (a : Int) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_fc_synth_values¹¹¹">
+        <div class="item" id="func-get_fc_synth_values-L75">
             <div class="item-header">
-                <span class="item-name">get_fc_synth_values¹¹¹</span>
+                <h3 class="item-name">get_fc_synth_values</h3>
             </div>
-            <div class="signature">def get_fc_synth_values¹¹¹ : (input¹¹² : Array? Int ) -&gt; (f¹¹³ : (a¹¹⁴ : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_fc_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_gcd_synth_values¹¹⁷">
+        <div class="item" id="func-get_gcd_synth_values-L78">
             <div class="item-header">
-                <span class="item-name">get_gcd_synth_values¹¹⁷</span>
+                <h3 class="item-name">get_gcd_synth_values</h3>
             </div>
-            <div class="signature">def get_gcd_synth_values¹¹⁷ : (input¹¹⁸ : Array? Int ) -&gt; (f¹¹⁹ : (a¹²⁰ : Int ) -&gt; (b¹²¹ : Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_gcd_synth_values : (input : Array Int) -&gt; (f : (a : Int) -&gt; (b : Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_is_synth_values¹²⁴">
+        <div class="item" id="func-get_is_synth_values-L81">
             <div class="item-header">
-                <span class="item-name">get_is_synth_values¹²⁴</span>
+                <h3 class="item-name">get_is_synth_values</h3>
             </div>
-            <div class="signature">def get_is_synth_values¹²⁴ : (input¹²⁵ : Array? Int ) -&gt; (f¹²⁶ : (a¹²⁷ : String ) -&gt; (b¹²⁸ : String ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_is_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; (b : String) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_l_synth_values¹³¹">
+        <div class="item" id="func-get_l_synth_values-L84">
             <div class="item-header">
-                <span class="item-name">get_l_synth_values¹³¹</span>
+                <h3 class="item-name">get_l_synth_values</h3>
             </div>
-            <div class="signature">def get_l_synth_values¹³¹ : (input¹³² : Array? Int ) -&gt; (f¹³³ : (a¹³⁴ : Array? Int ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_l_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_luhn_synth_values¹³⁷">
+        <div class="item" id="func-get_luhn_synth_values-L87">
             <div class="item-header">
-                <span class="item-name">get_luhn_synth_values¹³⁷</span>
+                <h3 class="item-name">get_luhn_synth_values</h3>
             </div>
-            <div class="signature">def get_luhn_synth_values¹³⁷ : (input¹³⁸ : Array? Int ) -&gt; (f¹³⁹ : (a¹⁴⁰ : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_luhn_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_mm_synth_values¹⁴³">
+        <div class="item" id="func-get_mm_synth_values-L90">
             <div class="item-header">
-                <span class="item-name">get_mm_synth_values¹⁴³</span>
+                <h3 class="item-name">get_mm_synth_values</h3>
             </div>
-            <div class="signature">def get_mm_synth_values¹⁴³ : (input¹⁴⁴ : Array? Int ) -&gt; (f¹⁴⁵ : (a¹⁴⁶ : String ) -&gt; (b¹⁴⁷ : String ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_mm_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; (b : String) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_mc_synth_values¹⁵⁰">
+        <div class="item" id="func-get_mc_synth_values-L93">
             <div class="item-header">
-                <span class="item-name">get_mc_synth_values¹⁵⁰</span>
+                <h3 class="item-name">get_mc_synth_values</h3>
             </div>
-            <div class="signature">def get_mc_synth_values¹⁵⁰ : (input¹⁵¹ : Array? Int ) -&gt; (f¹⁵² : (a¹⁵³ : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_mc_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_pd_synth_values¹⁵⁶">
+        <div class="item" id="func-get_pd_synth_values-L96">
             <div class="item-header">
-                <span class="item-name">get_pd_synth_values¹⁵⁶</span>
+                <h3 class="item-name">get_pd_synth_values</h3>
             </div>
-            <div class="signature">def get_pd_synth_values¹⁵⁶ : (input¹⁵⁷ : Array? Int ) -&gt; (f¹⁵⁸ : (a¹⁵⁹ : String ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_pd_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_shop_synth_values¹⁶²">
+        <div class="item" id="func-get_shop_synth_values-L99">
             <div class="item-header">
-                <span class="item-name">get_shop_synth_values¹⁶²</span>
+                <h3 class="item-name">get_shop_synth_values</h3>
             </div>
-            <div class="signature">def get_shop_synth_values¹⁶² : (input¹⁶³ : Array? Int ) -&gt; (f¹⁶⁴ : (a¹⁶⁵ : Array? Int ) -&gt; (b¹⁶⁶ : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def get_shop_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; (b : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_snowd_synth_values¹⁶⁹">
+        <div class="item" id="func-get_snowd_synth_values-L102">
             <div class="item-header">
-                <span class="item-name">get_snowd_synth_values¹⁶⁹</span>
+                <h3 class="item-name">get_snowd_synth_values</h3>
             </div>
-            <div class="signature">def get_snowd_synth_values¹⁶⁹ : (input¹⁷⁰ : Array? Int ) -&gt; (f¹⁷¹ : (a¹⁷² : Int ) -&gt; (b¹⁷³ : Float ) -&gt; (c¹⁷⁴ : Float ) -&gt; (d¹⁷⁵ : Float ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def get_snowd_synth_values : (input : Array Int) -&gt; (f : (a : Int) -&gt; (b : Float) -&gt; (c : Float) -&gt; (d : Float) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_sbool_synth_values¹⁷⁸">
+        <div class="item" id="func-get_sbool_synth_values-L105">
             <div class="item-header">
-                <span class="item-name">get_sbool_synth_values¹⁷⁸</span>
+                <h3 class="item-name">get_sbool_synth_values</h3>
             </div>
-            <div class="signature">def get_sbool_synth_values¹⁷⁸ : (input¹⁷⁹ : Array? Int ) -&gt; (f¹⁸⁰ : (a¹⁸¹ : String ) -&gt; Bool ) -&gt; Array? Int </div>
+            <div class="signature">def get_sbool_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; Bool) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_sw_synth_values¹⁸⁴">
+        <div class="item" id="func-get_sw_synth_values-L108">
             <div class="item-header">
-                <span class="item-name">get_sw_synth_values¹⁸⁴</span>
+                <h3 class="item-name">get_sw_synth_values</h3>
             </div>
-            <div class="signature">def get_sw_synth_values¹⁸⁴ : (input¹⁸⁵ : Array? Int ) -&gt; (f¹⁸⁶ : (a¹⁸⁷ : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_sw_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_sd_synth_values¹⁹⁰">
+        <div class="item" id="func-get_sd_synth_values-L111">
             <div class="item-header">
-                <span class="item-name">get_sd_synth_values¹⁹⁰</span>
+                <h3 class="item-name">get_sd_synth_values</h3>
             </div>
-            <div class="signature">def get_sd_synth_values¹⁹⁰ : (input¹⁹¹ : Array? Int ) -&gt; (f¹⁹² : (a¹⁹³ : Int ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_sd_synth_values : (input : Array Int) -&gt; (f : (a : Int) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_sc_synth_values¹⁹⁶">
+        <div class="item" id="func-get_sc_synth_values-L114">
             <div class="item-header">
-                <span class="item-name">get_sc_synth_values¹⁹⁶</span>
+                <h3 class="item-name">get_sc_synth_values</h3>
             </div>
-            <div class="signature">def get_sc_synth_values¹⁹⁶ : (input¹⁹⁷ : Array? Int ) -&gt; (f¹⁹⁸ : (a¹⁹⁹ : String ) -&gt; (b²⁰⁰ : String ) -&gt; (c²⁰¹ : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_sc_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; (b : String) -&gt; (c : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_tt_synth_values²⁰⁴">
+        <div class="item" id="func-get_tt_synth_values-L117">
             <div class="item-header">
-                <span class="item-name">get_tt_synth_values²⁰⁴</span>
+                <h3 class="item-name">get_tt_synth_values</h3>
             </div>
-            <div class="signature">def get_tt_synth_values²⁰⁴ : (input²⁰⁵ : Array? Int ) -&gt; (f²⁰⁶ : (a²⁰⁷ : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def get_tt_synth_values : (input : Array Int) -&gt; (f : (a : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-get_vd_synth_values²¹⁰">
+        <div class="item" id="func-get_vd_synth_values-L120">
             <div class="item-header">
-                <span class="item-name">get_vd_synth_values²¹⁰</span>
+                <h3 class="item-name">get_vd_synth_values</h3>
             </div>
-            <div class="signature">def get_vd_synth_values²¹⁰ : (input²¹¹ : Array? Int ) -&gt; (f²¹² : (a²¹³ : Array? Int ) -&gt; (b²¹⁴ : Array? Int ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def get_vd_synth_values : (input : Array Int) -&gt; (f : (a : Array Int) -&gt; (b : Array Int) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_basement_errors²¹⁷">
+        <div class="item" id="func-calculate_basement_errors-L123">
             <div class="item-header">
-                <span class="item-name">calculate_basement_errors²¹⁷</span>
+                <h3 class="item-name">calculate_basement_errors</h3>
             </div>
-            <div class="signature">def calculate_basement_errors²¹⁷ : (train²¹⁸ : &#x27;TrainData⁶) -&gt; (f²¹⁹ : (a²²⁰ : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_basement_errors : (train : TrainData) -&gt; (f : (a : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_bouncing_balls_psb2_errors²²³">
+        <div class="item" id="func-calculate_bouncing_balls_psb2_errors-L126">
             <div class="item-header">
-                <span class="item-name">calculate_bouncing_balls_psb2_errors²²³</span>
+                <h3 class="item-name">calculate_bouncing_balls_psb2_errors</h3>
             </div>
-            <div class="signature">def calculate_bouncing_balls_psb2_errors²²³ : (train²²⁴ : &#x27;TrainData⁶) -&gt; (f²²⁵ : (a²²⁶ : Float ) -&gt; (b²²⁷ : Float ) -&gt; (c²²⁸ : Int ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_bouncing_balls_psb2_errors : (train : TrainData) -&gt; (f : (a : Float) -&gt; (b : Float) -&gt; (c : Int) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_bowling_errors²³¹">
+        <div class="item" id="func-calculate_bowling_errors-L129">
             <div class="item-header">
-                <span class="item-name">calculate_bowling_errors²³¹</span>
+                <h3 class="item-name">calculate_bowling_errors</h3>
             </div>
-            <div class="signature">def calculate_bowling_errors²³¹ : (train²³² : &#x27;TrainData⁶) -&gt; (f²³³ : (a²³⁴ : String ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_bowling_errors : (train : TrainData) -&gt; (f : (a : String) -&gt; Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_camel_case_errors²³⁷">
+        <div class="item" id="func-calculate_camel_case_errors-L132">
             <div class="item-header">
-                <span class="item-name">calculate_camel_case_errors²³⁷</span>
+                <h3 class="item-name">calculate_camel_case_errors</h3>
             </div>
-            <div class="signature">def calculate_camel_case_errors²³⁷ : (train²³⁸ : &#x27;TrainData⁶) -&gt; (f²³⁹ : (a²⁴⁰ : String ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_camel_case_errors : (train : TrainData) -&gt; (f : (a : String) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_coin_sum_errors²⁴³">
+        <div class="item" id="func-calculate_coin_sum_errors-L135">
             <div class="item-header">
-                <span class="item-name">calculate_coin_sum_errors²⁴³</span>
+                <h3 class="item-name">calculate_coin_sum_errors</h3>
             </div>
-            <div class="signature">def calculate_coin_sum_errors²⁴³ : (train²⁴⁴ : &#x27;TrainData⁶) -&gt; (f²⁴⁵ : (a²⁴⁶ : Int ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_coin_sum_errors : (train : TrainData) -&gt; (f : (a : Int) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_cut_vector_errors²⁴⁹">
+        <div class="item" id="func-calculate_cut_vector_errors-L138">
             <div class="item-header">
-                <span class="item-name">calculate_cut_vector_errors²⁴⁹</span>
+                <h3 class="item-name">calculate_cut_vector_errors</h3>
             </div>
-            <div class="signature">def calculate_cut_vector_errors²⁴⁹ : (train²⁵⁰ : &#x27;TrainData⁶) -&gt; (f²⁵¹ : (a²⁵² : Array? Int ) -&gt; Array? Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_cut_vector_errors : (train : TrainData) -&gt; (f : (a : Array Int) -&gt; Array Int) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_dice_game_errors²⁵⁵">
+        <div class="item" id="func-calculate_dice_game_errors-L141">
             <div class="item-header">
-                <span class="item-name">calculate_dice_game_errors²⁵⁵</span>
+                <h3 class="item-name">calculate_dice_game_errors</h3>
             </div>
-            <div class="signature">def calculate_dice_game_errors²⁵⁵ : (train²⁵⁶ : &#x27;TrainData⁶) -&gt; (f²⁵⁷ : (a²⁵⁸ : Int ) -&gt; (b²⁵⁹ : Int ) -&gt; Float ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_dice_game_errors : (train : TrainData) -&gt; (f : (a : Int) -&gt; (b : Int) -&gt; Float) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_fizzbuzz_errors²⁶²">
+        <div class="item" id="func-calculate_fizzbuzz_errors-L144">
             <div class="item-header">
-                <span class="item-name">calculate_fizzbuzz_errors²⁶²</span>
+                <h3 class="item-name">calculate_fizzbuzz_errors</h3>
             </div>
-            <div class="signature">def calculate_fizzbuzz_errors²⁶² : (train²⁶³ : &#x27;TrainData⁶) -&gt; (f²⁶⁴ : (a²⁶⁵ : Int ) -&gt; String ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_fizzbuzz_errors : (train : TrainData) -&gt; (f : (a : Int) -&gt; String) -&gt; Array Int</div>
         </div>
-        <div class="item" id="func-calculate_fuel_cost_errors²⁶⁸">
+        <div class="item" id="func-calculate_fuel_cost_errors-L147">
             <div class="item-header">
-                <span class="item-name">calculate_fuel_cost_errors²⁶⁸</span>
+                <h3 class="item-name">calculate_fuel_cost_errors</h3>
             </div>
-            <div class="signature">def calculate_fuel_cost_errors²⁶⁸ : (train²⁶⁹ : &#x27;TrainData⁶) -&gt; (f²⁷⁰ : (a²⁷¹ : Array? Int ) -&gt; Int ) -&gt; Array? Int </div>
+            <div class="signature">def calculate_fuel_cost_errors : (train : TrainData) -&gt; (f : (a : Array Int) -&gt; Int) -&gt; Array Int</div>
         </div>
     </div>
 </body>

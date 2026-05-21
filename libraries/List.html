@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -193,32 +346,42 @@ constructors and a length measure.
 that every element of the list satisfies. The refinement flows through
 every constructor: a value can only enter the list if it satisfies ``p``.</div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-List⁵">List⁵</a></li>
+                        <li><a href="#type-List-L9">List</a></li>
+                    </ul>
+                </li>
+                <li><a href="#constructors">Constructors</a>
+                    <ul>
+                        <li><a href="#ctor-type-List-L9">List</a> <span class="toc-note">(inductive)</span>
+                            <ul>
+                                <li><a href="#ctor-List-nil-L10">nil</a></li>
+                                <li><a href="#ctor-List-cons-L11">cons</a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-length¹⁷">length¹⁷</a></li>
-                        <li><a href="#func-empty²¹">empty²¹</a></li>
-                        <li><a href="#func-append²⁵">append²⁵</a></li>
-                        <li><a href="#func-map³⁰">map³⁰</a></li>
-                        <li><a href="#func-foldr³⁶">foldr³⁶</a></li>
-                        <li><a href="#func-reverse_acc⁴⁴">reverse_acc⁴⁴</a></li>
-                        <li><a href="#func-reversed⁴⁹">reversed⁴⁹</a></li>
-                        <li><a href="#func-snoc⁵¹">snoc⁵¹</a></li>
-                        <li><a href="#func-sum⁵⁴">sum⁵⁴</a></li>
+                        <li><a href="#func-length-L16">length</a></li>
+                        <li><a href="#func-empty-L23">empty</a></li>
+                        <li><a href="#func-append-L30">append</a></li>
+                        <li><a href="#func-map-L37">map</a></li>
+                        <li><a href="#func-foldr-L44">foldr</a></li>
+                        <li><a href="#func-reverse_acc-L51">reverse_acc</a></li>
+                        <li><a href="#func-reversed-L58">reversed</a></li>
+                        <li><a href="#func-snoc-L63">snoc</a></li>
+                        <li><a href="#func-sum-L68">sum</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-List⁵">
+        <div class="item" id="type-List-L9">
             <div class="item-header">
-                <span class="item-name">List⁵</span>
+                <h3 class="item-name">List</h3>
                 <span class="item-type">(inductive)</span>
             </div>
             <div class="comment">Linked list — an inductive datatype with the standard ``nil`` / ``cons``
@@ -229,82 +392,94 @@ constructors and a length measure.
 * an abstract refinement ``p`` (Liquid Haskell-style ``data List a &lt;p&gt;``)
 that every element of the list satisfies. The refinement flows through
 every constructor: a value can only enter the list if it satisfies ``p``.</div>
-            <div class="signature">inductive List⁵ a⁶ forall &lt;p⁷:&#x27;a⁶ -&gt; Bool&gt;</div>
-            <h3>Constructors</h3>
+            <div class="signature">inductive List a forall &lt;p:a -&gt; Bool&gt;</div>
+            <div class="subhead">Measures</div>
             <div class="constructor">
-                <span class="constructor-name">nil⁸</span> : <code>{l⁹ : List⁵ &#x27;a⁶ | ((== (size? l⁹)) 0) }</code>
+                <span class="constructor-name">size</span> : <code>Int</code>
             </div>
-            <div class="constructor">
-                <span class="constructor-name">cons¹⁰</span> : <code>{l¹⁴ : List⁵ &#x27;a⁶ | ((== (size? l¹⁴)) ((+ (size? tl¹³)) 1)) }</code>
+        </div>
+        <h2 id="constructors">Constructors</h2>
+        <p class="section-note">For each type in this module: inductive types list their declared constructors; opaque types list any local function whose name starts with <code>mk</code> and which returns a value of that type.</p>
+        <div class="ctor-group" id="ctor-type-List-L9">
+            <h3 class="ctor-group-header"><a href="#type-List-L9" class="ctor-type-link">List</a> <span class="item-type">(inductive)</span></h3>
+        <div class="item ctor-item" id="ctor-List-nil-L10">
+            <div class="item-header">
+                <h4 class="item-name">nil</h4>
+                <span class="badge badge-ctor" title="Data constructor of an inductive type.">constructor</span>
             </div>
-            <h3>Measures</h3>
-            <div class="constructor">
-                <span class="constructor-name">size¹⁵</span> : <code>Int </code>
+            <div class="signature">{l : List a | size l == 0}</div>
+        </div>
+        <div class="item ctor-item" id="ctor-List-cons-L11">
+            <div class="item-header">
+                <h4 class="item-name">cons</h4>
+                <span class="badge badge-ctor" title="Data constructor of an inductive type.">constructor</span>
             </div>
+            <div class="signature">{l : List a | size l == size tl + 1}</div>
+        </div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-length¹⁷">
+        <div class="item" id="func-length-L16">
             <div class="item-header">
-                <span class="item-name">length¹⁷</span>
+                <h3 class="item-name">length</h3>
             </div>
             <div class="comment">Length of the list (counted by recursion).</div>
-            <div class="signature">def length¹⁷ (l¹⁸: List⁵ &#x27;a⁶) : Int </div>
+            <div class="signature">def length <span class="sig-arg sig-arg-0" data-tooltip="l : List a">(l: List a)</span> : Int</div>
         </div>
-        <div class="item" id="func-empty²¹">
+        <div class="item" id="func-empty-L23">
             <div class="item-header">
-                <span class="item-name">empty²¹</span>
+                <h3 class="item-name">empty</h3>
             </div>
             <div class="comment">True when the list is empty.</div>
-            <div class="signature">def empty²¹ (l²²: List⁵ &#x27;a⁶) : Bool </div>
+            <div class="signature">def empty <span class="sig-arg sig-arg-0" data-tooltip="l : List a">(l: List a)</span> : Bool</div>
         </div>
-        <div class="item" id="func-append²⁵">
+        <div class="item" id="func-append-L30">
             <div class="item-header">
-                <span class="item-name">append²⁵</span>
+                <h3 class="item-name">append</h3>
             </div>
             <div class="comment">Append two lists.</div>
-            <div class="signature">def append²⁵ (xs²⁶: List⁵ &#x27;a⁶), (ys²⁷: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+            <div class="signature">def append <span class="sig-arg sig-arg-0" data-tooltip="xs : List a">(xs: List a)</span> <span class="sig-arg sig-arg-1" data-tooltip="ys : List a">(ys: List a)</span> : List a</div>
         </div>
-        <div class="item" id="func-map³⁰">
+        <div class="item" id="func-map-L37">
             <div class="item-header">
-                <span class="item-name">map³⁰</span>
+                <h3 class="item-name">map</h3>
             </div>
             <div class="comment">Map a function over the list.</div>
-            <div class="signature">def map³⁰ (f³¹: (x³² : &#x27;a⁶) -&gt; &#x27;b?), (l³³: List⁵ &#x27;a⁶) : List⁵ &#x27;b?</div>
+            <div class="signature">def map <span class="sig-arg sig-arg-0" data-tooltip="f : (x : a) -&gt; b">(f: (x : a) -&gt; b)</span> <span class="sig-arg sig-arg-1" data-tooltip="l : List a">(l: List a)</span> : List b</div>
         </div>
-        <div class="item" id="func-foldr³⁶">
+        <div class="item" id="func-foldr-L44">
             <div class="item-header">
-                <span class="item-name">foldr³⁶</span>
+                <h3 class="item-name">foldr</h3>
             </div>
             <div class="comment">Right fold: ``foldr f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.</div>
-            <div class="signature">def foldr³⁶ (f³⁷: (x³⁸ : &#x27;a⁶) -&gt; (acc³⁹ : &#x27;b?) -&gt; &#x27;b?), (z⁴⁰: &#x27;b?), (l⁴¹: List⁵ &#x27;a⁶) : &#x27;b?</div>
+            <div class="signature">def foldr <span class="sig-arg sig-arg-0" data-tooltip="f : (x : a) -&gt; (acc : b) -&gt; b">(f: (x : a) -&gt; (acc : b) -&gt; b)</span> <span class="sig-arg sig-arg-1" data-tooltip="z : b">(z: b)</span> <span class="sig-arg sig-arg-2" data-tooltip="l : List a">(l: List a)</span> : b</div>
         </div>
-        <div class="item" id="func-reverse_acc⁴⁴">
+        <div class="item" id="func-reverse_acc-L51">
             <div class="item-header">
-                <span class="item-name">reverse_acc⁴⁴</span>
+                <h3 class="item-name">reverse_acc</h3>
             </div>
             <div class="comment">Reverse helper: prepends elements of ``xs`` onto ``acc``.</div>
-            <div class="signature">def reverse_acc⁴⁴ (xs⁴⁵: List⁵ &#x27;a⁶), (acc⁴⁶: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+            <div class="signature">def reverse_acc <span class="sig-arg sig-arg-0" data-tooltip="xs : List a">(xs: List a)</span> <span class="sig-arg sig-arg-1" data-tooltip="acc : List a">(acc: List a)</span> : List a</div>
         </div>
-        <div class="item" id="func-reversed⁴⁹">
+        <div class="item" id="func-reversed-L58">
             <div class="item-header">
-                <span class="item-name">reversed⁴⁹</span>
+                <h3 class="item-name">reversed</h3>
             </div>
             <div class="comment">Reverse a list.</div>
-            <div class="signature">def reversed⁴⁹ (l⁵⁰: List⁵ &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+            <div class="signature">def reversed <span class="sig-arg sig-arg-0" data-tooltip="l : List a">(l: List a)</span> : List a</div>
         </div>
-        <div class="item" id="func-snoc⁵¹">
+        <div class="item" id="func-snoc-L63">
             <div class="item-header">
-                <span class="item-name">snoc⁵¹</span>
+                <h3 class="item-name">snoc</h3>
             </div>
             <div class="comment">Append a value at the back of the list (snoc).</div>
-            <div class="signature">def snoc⁵¹ (l⁵²: List⁵ &#x27;a⁶), (x⁵³: &#x27;a⁶) : List⁵ &#x27;a⁶</div>
+            <div class="signature">def snoc <span class="sig-arg sig-arg-0" data-tooltip="l : List a">(l: List a)</span> <span class="sig-arg sig-arg-1" data-tooltip="x : a">(x: a)</span> : List a</div>
         </div>
-        <div class="item" id="func-sum⁵⁴">
+        <div class="item" id="func-sum-L68">
             <div class="item-header">
-                <span class="item-name">sum⁵⁴</span>
+                <h3 class="item-name">sum</h3>
             </div>
             <div class="comment">Sum of a list of integers.</div>
-            <div class="signature">def sum⁵⁴ (l⁵⁵: List⁵ Int ) : Int </div>
+            <div class="signature">def sum <span class="sig-arg sig-arg-0" data-tooltip="l : List Int">(l: List Int)</span> : Int</div>
         </div>
     </div>
 </body>

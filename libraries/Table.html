@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -187,159 +340,175 @@
         <div class="header-comment">Table is a list of dicts, where each dict represents a row, with keys corresponding to column names
 and values to the respective entries in the table</div>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Table⁵">Table⁵</a></li>
-                        <li><a href="#type-Row⁶">Row⁶</a></li>
+                        <li><a href="#type-Table-L6">Table</a></li>
+                        <li><a href="#type-Row-L7">Row</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-from_csv⁷">from_csv⁷</a></li>
-                        <li><a href="#func-to_csv⁹">to_csv⁹</a></li>
-                        <li><a href="#func-columns¹²">columns¹²</a></li>
-                        <li><a href="#func-select¹⁴">select¹⁴</a></li>
-                        <li><a href="#func-filter¹⁷">filter¹⁷</a></li>
-                        <li><a href="#func-map_column²¹">map_column²¹</a></li>
-                        <li><a href="#func-summary²⁶">summary²⁶</a></li>
-                        <li><a href="#func-group_by³¹">group_by³¹</a></li>
-                        <li><a href="#func-pivot³⁴">pivot³⁴</a></li>
-                        <li><a href="#func-melt³⁹">melt³⁹</a></li>
+                        <li><a href="#func-from_csv-L12">from_csv</a></li>
+                        <li><a href="#func-to_csv-L19">to_csv</a></li>
+                        <li><a href="#func-columns-L26">columns</a></li>
+                        <li><a href="#func-select-L34">select</a></li>
+                        <li><a href="#func-filter-L42">filter</a></li>
+                        <li><a href="#func-map_column-L51">map_column</a></li>
+                        <li><a href="#func-summary-L60">summary</a></li>
+                        <li><a href="#func-group_by-L69">group_by</a></li>
+                        <li><a href="#func-pivot-L82">pivot</a></li>
+                        <li><a href="#func-melt-L95">melt</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Table⁵">
+        <div class="item" id="type-Table-L6">
             <div class="item-header">
-                <span class="item-name">Table⁵</span>
+                <h3 class="item-name">Table</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Table⁵</div>
+            <div class="signature">type Table</div>
         </div>
-        <div class="item" id="type-Row⁶">
+        <div class="item" id="type-Row-L7">
             <div class="item-header">
-                <span class="item-name">Row⁶</span>
+                <h3 class="item-name">Row</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Row⁶</div>
+            <div class="signature">type Row</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-from_csv⁷">
+        <div class="item" id="func-from_csv-L12">
             <div class="item-header">
-                <span class="item-name">from_csv⁷</span>
+                <h3 class="item-name">from_csv</h3>
             </div>
-            <div class="comment">Reads a CSV file and returns a Table.
-path: path to the CSV file
-returns: table loaded from the CSV file</div>
-            <div class="signature">def from_csv⁷ (path⁸: String ) : &#x27;Table⁵</div>
+            <div class="comment">Reads a CSV file and returns a Table.</div>
+            <div class="signature">def from_csv <span class="sig-arg sig-arg-0" data-tooltip="path : String
+
+path to the CSV file">(path: String)</span> : <span class="sig-return" data-tooltip="returns: table loaded from the CSV file">Table</span></div>
         </div>
-        <div class="item" id="func-to_csv⁹">
+        <div class="item" id="func-to_csv-L19">
             <div class="item-header">
-                <span class="item-name">to_csv⁹</span>
+                <h3 class="item-name">to_csv</h3>
             </div>
-            <div class="comment">Writes a Table to a CSV file.
-table: the table to write
-path: path to the output CSV file</div>
-            <div class="signature">def to_csv⁹ (table¹⁰: &#x27;Table⁵), (path¹¹: String ) : Unit </div>
+            <div class="comment">Writes a Table to a CSV file.</div>
+            <div class="signature">def to_csv <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to write">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="path : String
+
+path to the output CSV file">(path: String)</span> : Unit</div>
         </div>
-        <div class="item" id="func-columns¹²">
+        <div class="item" id="func-columns-L26">
             <div class="item-header">
-                <span class="item-name">columns¹²</span>
+                <h3 class="item-name">columns</h3>
             </div>
-            <div class="comment">Returns the list of column names in the table.
-table: the table to inspect
-returns: list of column names</div>
-            <div class="signature">def columns¹² (table¹³: &#x27;Table⁵) : Array? String </div>
+            <div class="comment">Returns the list of column names in the table.</div>
+            <div class="signature">def columns <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to inspect">(table: Table)</span> : <span class="sig-return" data-tooltip="returns: list of column names">Array String</span></div>
         </div>
-        <div class="item" id="func-select¹⁴">
+        <div class="item" id="func-select-L34">
             <div class="item-header">
-                <span class="item-name">select¹⁴</span>
+                <h3 class="item-name">select</h3>
             </div>
-            <div class="comment">Selects a subset of columns from the table.
-table: the table to select from
-columns: columns to select
-returns: new table with only the selected columns</div>
-            <div class="signature">def select¹⁴ (table¹⁵: &#x27;Table⁵), (columns¹⁶: Array? String ) : &#x27;Table⁵</div>
+            <div class="comment">Selects a subset of columns from the table.</div>
+            <div class="signature">def select <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to select from">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="columns : Array String
+
+columns to select">(columns: Array String)</span> : <span class="sig-return" data-tooltip="returns: new table with only the selected columns">Table</span></div>
         </div>
-        <div class="item" id="func-filter¹⁷">
+        <div class="item" id="func-filter-L42">
             <div class="item-header">
-                <span class="item-name">filter¹⁷</span>
+                <h3 class="item-name">filter</h3>
             </div>
-            <div class="comment">Filters rows in the table using a predicate function.
-table: the table to filter
-predicate: function to decide if a row is kept
-returns: filtered table</div>
-            <div class="signature">def filter¹⁷ (table¹⁸: &#x27;Table⁵), (predicate¹⁹: (row²⁰ : &#x27;Row⁶) -&gt; Bool ) : &#x27;Table⁵</div>
+            <div class="comment">Filters rows in the table using a predicate function.</div>
+            <div class="signature">def filter <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to filter">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="predicate : (row : Row) -&gt; Bool
+
+function to decide if a row is kept">(predicate: (row : Row) -&gt; Bool)</span> : <span class="sig-return" data-tooltip="returns: filtered table">Table</span></div>
         </div>
-        <div class="item" id="func-map_column²¹">
+        <div class="item" id="func-map_column-L51">
             <div class="item-header">
-                <span class="item-name">map_column²¹</span>
+                <h3 class="item-name">map_column</h3>
             </div>
-            <div class="comment">Applies a function to a column in all rows.
-table: the table to modify
-column: column to modify
-f: function to apply to each value in the column
-returns: table with updated column values</div>
-            <div class="signature">def map_column²¹ (table²²: &#x27;Table⁵), (column²³: String ), (f²⁴: (a²⁵ : &#x27;t?) -&gt; &#x27;b?) : &#x27;Table⁵</div>
+            <div class="comment">Applies a function to a column in all rows.</div>
+            <div class="signature">def map_column <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to modify">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="column : String
+
+column to modify">(column: String)</span> <span class="sig-arg sig-arg-2" data-tooltip="f : (a : t) -&gt; b
+
+function to apply to each value in the column">(f: (a : t) -&gt; b)</span> : <span class="sig-return" data-tooltip="returns: table with updated column values">Table</span></div>
         </div>
-        <div class="item" id="func-summary²⁶">
+        <div class="item" id="func-summary-L60">
             <div class="item-header">
-                <span class="item-name">summary²⁶</span>
+                <h3 class="item-name">summary</h3>
             </div>
-            <div class="comment">Applies a summary function to a column in the table.
-table: the table to summarize
-column: column to summarize
-f: summary function (e.g., sum, mean)
-returns: result of the summary function</div>
-            <div class="signature">def summary²⁶ (table²⁷: &#x27;Table⁵), (column²⁸: String ), (f²⁹: (a³⁰ : Array? Int ) -&gt; &#x27;b?) : &#x27;b?</div>
+            <div class="comment">Applies a summary function to a column in the table.</div>
+            <div class="signature">def summary <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to summarize">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="column : String
+
+column to summarize">(column: String)</span> <span class="sig-arg sig-arg-2" data-tooltip="f : (a : Array Int) -&gt; b
+
+summary function (e.g., sum, mean)">(f: (a : Array Int) -&gt; b)</span> : <span class="sig-return" data-tooltip="returns: result of the summary function">b</span></div>
         </div>
-        <div class="item" id="func-group_by³¹">
+        <div class="item" id="func-group_by-L69">
             <div class="item-header">
-                <span class="item-name">group_by³¹</span>
+                <h3 class="item-name">group_by</h3>
             </div>
             <div class="comment">Groups the table by a column, returning a list of tables (one per group).
-- For each unique value in the specified column, creates a group (table) of all rows with that value.
-table: the table to group
-column: column to group by
-returns: list of tables, each corresponding to a group</div>
-            <div class="signature">def group_by³¹ (table³²: &#x27;Table⁵), (column³³: String ) : Array? &#x27;Table⁵</div>
+- For each unique value in the specified column, creates a group (table) of all rows with that value.</div>
+            <div class="signature">def group_by <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to group">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="column : String
+
+column to group by">(column: String)</span> : <span class="sig-return" data-tooltip="returns: list of tables, each corresponding to a group">Array Table</span></div>
         </div>
-        <div class="item" id="func-pivot³⁴">
+        <div class="item" id="func-pivot-L82">
             <div class="item-header">
-                <span class="item-name">pivot³⁴</span>
+                <h3 class="item-name">pivot</h3>
             </div>
             <div class="comment">Pivots a table: turns unique values from one column into new columns.
 - For each unique value in the `index` column of the input table, create a row in the output table.
 - For each unique value in the `columns` column, create a new column in the output table.
-- For each original row, place its value from the `values` column at the intersection defined by its `index` and `columns` values.
-table: the table to pivot
-index: column to use as row index
-columns: column whose unique values become new columns
-values: column to fill values from
-returns: reshaped table (list of dicts)</div>
-            <div class="signature">def pivot³⁴ (table³⁵: &#x27;Table⁵), (index³⁶: String ), (columns³⁷: String ), (values³⁸: String ) : &#x27;Table⁵</div>
+- For each original row, place its value from the `values` column at the intersection defined by its `index` and `columns` values.</div>
+            <div class="signature">def pivot <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to pivot">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="index : String
+
+column to use as row index">(index: String)</span> <span class="sig-arg sig-arg-2" data-tooltip="columns : String
+
+column whose unique values become new columns">(columns: String)</span> <span class="sig-arg sig-arg-3" data-tooltip="values : String
+
+column to fill values from">(values: String)</span> : <span class="sig-return" data-tooltip="returns: reshaped table (list of dicts)">Table</span></div>
         </div>
-        <div class="item" id="func-melt³⁹">
+        <div class="item" id="func-melt-L95">
             <div class="item-header">
-                <span class="item-name">melt³⁹</span>
+                <h3 class="item-name">melt</h3>
             </div>
             <div class="comment">Melts a table: turns columns into rows (unpivot).
 - For each row in the input table, and for each column in value_vars, creates a new row.
-- The new row contains all id_vars, the name of the melted column, and its value.
-table: the table to melt
-id_vars: columns to keep as identifiers
-value_vars: columns to unpivot
-var_name: name for the new variable column
-value_name: name for the new value column
-returns: reshaped table (list of dicts)</div>
-            <div class="signature">def melt³⁹ (table⁴⁰: &#x27;Table⁵), (id_vars⁴¹: Array? String ), (value_vars⁴²: Array? String ), (var_name⁴³: String ), (value_name⁴⁴: String ) : &#x27;Table⁵</div>
+- The new row contains all id_vars, the name of the melted column, and its value.</div>
+            <div class="signature">def melt <span class="sig-arg sig-arg-0" data-tooltip="table : Table
+
+the table to melt">(table: Table)</span> <span class="sig-arg sig-arg-1" data-tooltip="id_vars : Array String
+
+columns to keep as identifiers">(id_vars: Array String)</span> <span class="sig-arg sig-arg-2" data-tooltip="value_vars : Array String
+
+columns to unpivot">(value_vars: Array String)</span> <span class="sig-arg sig-arg-3" data-tooltip="var_name : String
+
+name for the new variable column">(var_name: String)</span> <span class="sig-arg sig-arg-4" data-tooltip="value_name : String
+
+name for the new value column">(value_name: String)</span> : <span class="sig-return" data-tooltip="returns: reshaped table (list of dicts)">Table</span></div>
         </div>
     </div>
 </body>

@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -190,58 +343,80 @@ Models Python&#x27;s ``None`` sentinel, partial functions, and any operation
 that may not produce a result. ``Maybe a`` is a polymorphic inductive
 type so the same library serves ``Maybe Int``, ``Maybe String``, etc.</div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Maybe⁵">Maybe⁵</a></li>
+                        <li><a href="#type-Maybe-L7">Maybe</a></li>
+                    </ul>
+                </li>
+                <li><a href="#constructors">Constructors</a>
+                    <ul>
+                        <li><a href="#ctor-type-Maybe-L7">Maybe</a> <span class="toc-note">(inductive)</span>
+                            <ul>
+                                <li><a href="#ctor-Maybe-none-L8">none</a></li>
+                                <li><a href="#ctor-Maybe-just-L9">just</a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-isNone¹⁰">isNone¹⁰</a></li>
-                        <li><a href="#func-isJust¹³">isJust¹³</a></li>
-                        <li><a href="#func-withDefault¹⁶">withDefault¹⁶</a></li>
+                        <li><a href="#func-isNone-L12">isNone</a></li>
+                        <li><a href="#func-isJust-L15">isJust</a></li>
+                        <li><a href="#func-withDefault-L18">withDefault</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Maybe⁵">
+        <div class="item" id="type-Maybe-L7">
             <div class="item-header">
-                <span class="item-name">Maybe⁵</span>
+                <h3 class="item-name">Maybe</h3>
                 <span class="item-type">(inductive)</span>
             </div>
-            <div class="signature">inductive Maybe⁵ a⁶</div>
-            <h3>Constructors</h3>
-            <div class="constructor">
-                <span class="constructor-name">none⁷</span> : <code>Maybe⁵ &#x27;a⁶</code>
+            <div class="signature">inductive Maybe a</div>
+        </div>
+        <h2 id="constructors">Constructors</h2>
+        <p class="section-note">For each type in this module: inductive types list their declared constructors; opaque types list any local function whose name starts with <code>mk</code> and which returns a value of that type.</p>
+        <div class="ctor-group" id="ctor-type-Maybe-L7">
+            <h3 class="ctor-group-header"><a href="#type-Maybe-L7" class="ctor-type-link">Maybe</a> <span class="item-type">(inductive)</span></h3>
+        <div class="item ctor-item" id="ctor-Maybe-none-L8">
+            <div class="item-header">
+                <h4 class="item-name">none</h4>
+                <span class="badge badge-ctor" title="Data constructor of an inductive type.">constructor</span>
             </div>
-            <div class="constructor">
-                <span class="constructor-name">just⁸</span> : <code>Maybe⁵ &#x27;a⁶</code>
+            <div class="signature">Maybe a</div>
+        </div>
+        <div class="item ctor-item" id="ctor-Maybe-just-L9">
+            <div class="item-header">
+                <h4 class="item-name">just</h4>
+                <span class="badge badge-ctor" title="Data constructor of an inductive type.">constructor</span>
             </div>
+            <div class="signature">Maybe a</div>
+        </div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-isNone¹⁰">
+        <div class="item" id="func-isNone-L12">
             <div class="item-header">
-                <span class="item-name">isNone¹⁰</span>
+                <h3 class="item-name">isNone</h3>
             </div>
             <div class="comment">Returns ``true`` when the value is absent.</div>
-            <div class="signature">def isNone¹⁰ (m¹¹: Maybe⁵ &#x27;a⁶) : Bool </div>
+            <div class="signature">def isNone <span class="sig-arg sig-arg-0" data-tooltip="m : Maybe a">(m: Maybe a)</span> : Bool</div>
         </div>
-        <div class="item" id="func-isJust¹³">
+        <div class="item" id="func-isJust-L15">
             <div class="item-header">
-                <span class="item-name">isJust¹³</span>
+                <h3 class="item-name">isJust</h3>
             </div>
             <div class="comment">Returns ``true`` when the value is present.</div>
-            <div class="signature">def isJust¹³ (m¹⁴: Maybe⁵ &#x27;a⁶) : Bool </div>
+            <div class="signature">def isJust <span class="sig-arg sig-arg-0" data-tooltip="m : Maybe a">(m: Maybe a)</span> : Bool</div>
         </div>
-        <div class="item" id="func-withDefault¹⁶">
+        <div class="item" id="func-withDefault-L18">
             <div class="item-header">
-                <span class="item-name">withDefault¹⁶</span>
+                <h3 class="item-name">withDefault</h3>
             </div>
             <div class="comment">Returns the contained value, or ``d`` if the value is absent.</div>
-            <div class="signature">def withDefault¹⁶ (d¹⁷: &#x27;a⁶), (m¹⁸: Maybe⁵ &#x27;a⁶) : &#x27;a⁶</div>
+            <div class="signature">def withDefault <span class="sig-arg sig-arg-0" data-tooltip="d : a">(d: a)</span> <span class="sig-arg sig-arg-1" data-tooltip="m : Maybe a">(m: Maybe a)</span> : a</div>
         </div>
     </div>
 </body>

@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,168 +338,172 @@
     <div class="container">
         <h1>Sys</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
             <code>open Map;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-sys⁵">sys⁵</a></li>
-                        <li><a href="#func-os⁶">os⁶</a></li>
-                        <li><a href="#func-argv⁷">argv⁷</a></li>
-                        <li><a href="#func-args⁹">args⁹</a></li>
-                        <li><a href="#func-argc¹⁰">argc¹⁰</a></li>
-                        <li><a href="#func-progName¹²">progName¹²</a></li>
-                        <li><a href="#func-exit¹³">exit¹³</a></li>
-                        <li><a href="#func-readLine¹⁶">readLine¹⁶</a></li>
-                        <li><a href="#func-eprint¹⁸">eprint¹⁸</a></li>
-                        <li><a href="#func-flushStdout²⁰">flushStdout²⁰</a></li>
-                        <li><a href="#func-flushStderr²²">flushStderr²²</a></li>
-                        <li><a href="#func-environ²⁴">environ²⁴</a></li>
-                        <li><a href="#func-getenv²⁶">getenv²⁶</a></li>
-                        <li><a href="#func-hasenv³⁰">hasenv³⁰</a></li>
-                        <li><a href="#func-setenv³³">setenv³³</a></li>
-                        <li><a href="#func-platform³⁷">platform³⁷</a></li>
-                        <li><a href="#func-pythonVersion³⁸">pythonVersion³⁸</a></li>
-                        <li><a href="#func-executable³⁹">executable³⁹</a></li>
+                        <li><a href="#func-sys-L4">sys</a></li>
+                        <li><a href="#func-os-L5">os</a></li>
+                        <li><a href="#func-argv-L11">argv</a></li>
+                        <li><a href="#func-args-L14">args</a></li>
+                        <li><a href="#func-argc-L17">argc</a></li>
+                        <li><a href="#func-progName-L20">progName</a></li>
+                        <li><a href="#func-exit-L25">exit</a></li>
+                        <li><a href="#func-readLine-L30">readLine</a></li>
+                        <li><a href="#func-eprint-L33">eprint</a></li>
+                        <li><a href="#func-flushStdout-L36">flushStdout</a></li>
+                        <li><a href="#func-flushStderr-L39">flushStderr</a></li>
+                        <li><a href="#func-environ-L44">environ</a></li>
+                        <li><a href="#func-getenv-L49">getenv</a></li>
+                        <li><a href="#func-hasenv-L54">hasenv</a></li>
+                        <li><a href="#func-setenv-L61">setenv</a></li>
+                        <li><a href="#func-platform-L67">platform</a></li>
+                        <li><a href="#func-pythonVersion-L70">pythonVersion</a></li>
+                        <li><a href="#func-executable-L73">executable</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-sys⁵">
+        <div class="item" id="func-sys-L4">
             <div class="item-header">
-                <span class="item-name">sys⁵</span>
+                <h3 class="item-name">sys</h3>
             </div>
-            <div class="signature">def sys⁵ : Unit </div>
+            <div class="signature">def sys : Unit</div>
         </div>
-        <div class="item" id="func-os⁶">
+        <div class="item" id="func-os-L5">
             <div class="item-header">
-                <span class="item-name">os⁶</span>
+                <h3 class="item-name">os</h3>
             </div>
-            <div class="signature">def os⁶ : Unit </div>
+            <div class="signature">def os : Unit</div>
         </div>
-        <div class="item" id="func-argv⁷">
+        <div class="item" id="func-argv-L11">
             <div class="item-header">
-                <span class="item-name">argv⁷</span>
+                <h3 class="item-name">argv</h3>
             </div>
             <div class="comment">The list of command-line arguments. argv[0] is the program name, so
 the list is always non-empty.</div>
-            <div class="signature">def argv⁷ : {l⁸ : Array? String  | ((&gt;= (Array.size? l⁸)) 1) }</div>
+            <div class="signature">def argv : {l : Array String | Array.size l &gt;= 1}</div>
         </div>
-        <div class="item" id="func-args⁹">
+        <div class="item" id="func-args-L14">
             <div class="item-header">
-                <span class="item-name">args⁹</span>
+                <h3 class="item-name">args</h3>
             </div>
             <div class="comment">Command-line arguments without the program name. May be empty.</div>
-            <div class="signature">def args⁹ : Array? String </div>
+            <div class="signature">def args : Array String</div>
         </div>
-        <div class="item" id="func-argc¹⁰">
+        <div class="item" id="func-argc-L17">
             <div class="item-header">
-                <span class="item-name">argc¹⁰</span>
+                <h3 class="item-name">argc</h3>
             </div>
             <div class="comment">The number of command-line arguments. Always &gt;= 1 (argv[0] is the program).</div>
-            <div class="signature">def argc¹⁰ : {x¹¹ : Int  | ((&gt;= x¹¹) 1) }</div>
+            <div class="signature">def argc : {x : Int | x &gt;= 1}</div>
         </div>
-        <div class="item" id="func-progName¹²">
+        <div class="item" id="func-progName-L20">
             <div class="item-header">
-                <span class="item-name">progName¹²</span>
+                <h3 class="item-name">progName</h3>
             </div>
             <div class="comment">The program name (argv[0]).</div>
-            <div class="signature">def progName¹² : String </div>
+            <div class="signature">def progName : String</div>
         </div>
-        <div class="item" id="func-exit¹³">
+        <div class="item" id="func-exit-L25">
             <div class="item-header">
-                <span class="item-name">exit¹³</span>
+                <h3 class="item-name">exit</h3>
             </div>
             <div class="comment">Exits the process. Conventionally 0 = success, 1-255 = error.</div>
-            <div class="signature">def exit¹³ (code¹⁴: {x¹⁵ : Int  | ((&amp;&amp; ((&gt;= x¹⁵) 0)) ((&lt;= x¹⁵) 255)) }) : Unit </div>
+            <div class="signature">def exit <span class="sig-arg sig-arg-0" data-tooltip="code : {x : Int | x &gt;= 0 &amp;&amp; x &lt;= 255}">(code: {x : Int | x &gt;= 0 &amp;&amp; x &lt;= 255})</span> : Unit</div>
         </div>
-        <div class="item" id="func-readLine¹⁶">
+        <div class="item" id="func-readLine-L30">
             <div class="item-header">
-                <span class="item-name">readLine¹⁶</span>
+                <h3 class="item-name">readLine</h3>
             </div>
             <div class="comment">Reads a line from stdin (newline stripped). Thunked to defer the read.</div>
-            <div class="signature">def readLine¹⁶ (_¹⁷: Unit ) : String </div>
+            <div class="signature">def readLine <span class="sig-arg sig-arg-0" data-tooltip="_ : Unit">(_: Unit)</span> : String</div>
         </div>
-        <div class="item" id="func-eprint¹⁸">
+        <div class="item" id="func-eprint-L33">
             <div class="item-header">
-                <span class="item-name">eprint¹⁸</span>
+                <h3 class="item-name">eprint</h3>
             </div>
             <div class="comment">Prints a string to stderr followed by a newline.</div>
-            <div class="signature">def eprint¹⁸ (s¹⁹: String ) : Unit </div>
+            <div class="signature">def eprint <span class="sig-arg sig-arg-0" data-tooltip="s : String">(s: String)</span> : Unit</div>
         </div>
-        <div class="item" id="func-flushStdout²⁰">
+        <div class="item" id="func-flushStdout-L36">
             <div class="item-header">
-                <span class="item-name">flushStdout²⁰</span>
+                <h3 class="item-name">flushStdout</h3>
             </div>
             <div class="comment">Flushes the standard output buffer.</div>
-            <div class="signature">def flushStdout²⁰ (_²¹: Unit ) : Unit </div>
+            <div class="signature">def flushStdout <span class="sig-arg sig-arg-0" data-tooltip="_ : Unit">(_: Unit)</span> : Unit</div>
         </div>
-        <div class="item" id="func-flushStderr²²">
+        <div class="item" id="func-flushStderr-L39">
             <div class="item-header">
-                <span class="item-name">flushStderr²²</span>
+                <h3 class="item-name">flushStderr</h3>
             </div>
             <div class="comment">Flushes the standard error buffer.</div>
-            <div class="signature">def flushStderr²² (_²³: Unit ) : Unit </div>
+            <div class="signature">def flushStderr <span class="sig-arg sig-arg-0" data-tooltip="_ : Unit">(_: Unit)</span> : Unit</div>
         </div>
-        <div class="item" id="func-environ²⁴">
+        <div class="item" id="func-environ-L44">
             <div class="item-header">
-                <span class="item-name">environ²⁴</span>
+                <h3 class="item-name">environ</h3>
             </div>
             <div class="comment">Returns a snapshot of the current environment as a Map.</div>
-            <div class="signature">def environ²⁴ (_²⁵: Unit ) : Map? String , String </div>
+            <div class="signature">def environ <span class="sig-arg sig-arg-0" data-tooltip="_ : Unit">(_: Unit)</span> : Map String String</div>
         </div>
-        <div class="item" id="func-getenv²⁶">
+        <div class="item" id="func-getenv-L49">
             <div class="item-header">
-                <span class="item-name">getenv²⁶</span>
+                <h3 class="item-name">getenv</h3>
             </div>
-            <div class="comment">Looks up an environment variable, returning default if unset.
-name: non-empty environment variable name
-default: value to return if the variable is unset</div>
-            <div class="signature">def getenv²⁶ (name²⁷: {s²⁸ : String  | ((!= s²⁸) &quot;&quot;) }), (default²⁹: String ) : String </div>
+            <div class="comment">Looks up an environment variable, returning default if unset.</div>
+            <div class="signature">def getenv <span class="sig-arg sig-arg-0" data-tooltip="name : {s : String | s != &quot;&quot;}
+
+non-empty environment variable name">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-1" data-tooltip="default : String
+
+value to return if the variable is unset">(default: String)</span> : String</div>
         </div>
-        <div class="item" id="func-hasenv³⁰">
+        <div class="item" id="func-hasenv-L54">
             <div class="item-header">
-                <span class="item-name">hasenv³⁰</span>
+                <h3 class="item-name">hasenv</h3>
             </div>
-            <div class="comment">Returns true if the environment variable is set.
-name: non-empty environment variable name</div>
-            <div class="signature">def hasenv³⁰ (name³¹: {s³² : String  | ((!= s³²) &quot;&quot;) }) : Bool </div>
+            <div class="comment">Returns true if the environment variable is set.</div>
+            <div class="signature">def hasenv <span class="sig-arg sig-arg-0" data-tooltip="name : {s : String | s != &quot;&quot;}
+
+non-empty environment variable name">(name: {s : String | s != &quot;&quot;})</span> : Bool</div>
         </div>
-        <div class="item" id="func-setenv³³">
+        <div class="item" id="func-setenv-L61">
             <div class="item-header">
-                <span class="item-name">setenv³³</span>
+                <h3 class="item-name">setenv</h3>
             </div>
-            <div class="comment">Sets an environment variable and returns a snapshot of the new environment.
-name: non-empty environment variable name
-value: value to assign
-returns: a Map of the environment after the update</div>
-            <div class="signature">def setenv³³ (name³⁴: {s³⁵ : String  | ((!= s³⁵) &quot;&quot;) }), (value³⁶: String ) : Map? String , String </div>
+            <div class="comment">Sets an environment variable and returns a snapshot of the new environment.</div>
+            <div class="signature">def setenv <span class="sig-arg sig-arg-0" data-tooltip="name : {s : String | s != &quot;&quot;}
+
+non-empty environment variable name">(name: {s : String | s != &quot;&quot;})</span> <span class="sig-arg sig-arg-1" data-tooltip="value : String
+
+value to assign">(value: String)</span> : <span class="sig-return" data-tooltip="returns: a Map of the environment after the update">Map String String</span></div>
         </div>
-        <div class="item" id="func-platform³⁷">
+        <div class="item" id="func-platform-L67">
             <div class="item-header">
-                <span class="item-name">platform³⁷</span>
+                <h3 class="item-name">platform</h3>
             </div>
             <div class="comment">A string identifying the platform (e.g. &quot;linux&quot;, &quot;darwin&quot;, &quot;win32&quot;).</div>
-            <div class="signature">def platform³⁷ : String </div>
+            <div class="signature">def platform : String</div>
         </div>
-        <div class="item" id="func-pythonVersion³⁸">
+        <div class="item" id="func-pythonVersion-L70">
             <div class="item-header">
-                <span class="item-name">pythonVersion³⁸</span>
+                <h3 class="item-name">pythonVersion</h3>
             </div>
             <div class="comment">The Python version string of the underlying interpreter.</div>
-            <div class="signature">def pythonVersion³⁸ : String </div>
+            <div class="signature">def pythonVersion : String</div>
         </div>
-        <div class="item" id="func-executable³⁹">
+        <div class="item" id="func-executable-L73">
             <div class="item-header">
-                <span class="item-name">executable³⁹</span>
+                <h3 class="item-name">executable</h3>
             </div>
             <div class="comment">The path to the Python executable.</div>
-            <div class="signature">def executable³⁹ : String </div>
+            <div class="signature">def executable : String</div>
         </div>
     </div>
 </body>

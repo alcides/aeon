@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,103 +338,103 @@
     <div class="container">
         <h1>Tuple</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Tuple⁵">Tuple⁵</a></li>
+                        <li><a href="#type-Tuple-L3">Tuple</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-new⁶">new⁶</a></li>
-                        <li><a href="#func-fst⁹">fst⁹</a></li>
-                        <li><a href="#func-snd¹¹">snd¹¹</a></li>
-                        <li><a href="#func-swap¹³">swap¹³</a></li>
-                        <li><a href="#func-map_fst¹⁵">map_fst¹⁵</a></li>
-                        <li><a href="#func-map_snd¹⁹">map_snd¹⁹</a></li>
-                        <li><a href="#func-to_list²³">to_list²³</a></li>
-                        <li><a href="#func-eq²⁵">eq²⁵</a></li>
-                        <li><a href="#func-length²⁸">length²⁸</a></li>
+                        <li><a href="#func-new-L6">new</a></li>
+                        <li><a href="#func-fst-L9">fst</a></li>
+                        <li><a href="#func-snd-L12">snd</a></li>
+                        <li><a href="#func-swap-L15">swap</a></li>
+                        <li><a href="#func-map_fst-L18">map_fst</a></li>
+                        <li><a href="#func-map_snd-L21">map_snd</a></li>
+                        <li><a href="#func-to_list-L24">to_list</a></li>
+                        <li><a href="#func-eq-L27">eq</a></li>
+                        <li><a href="#func-length-L30">length</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Tuple⁵">
+        <div class="item" id="type-Tuple-L3">
             <div class="item-header">
-                <span class="item-name">Tuple⁵</span>
+                <h3 class="item-name">Tuple</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Tuple⁵</div>
+            <div class="signature">type Tuple</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-new⁶">
+        <div class="item" id="func-new-L6">
             <div class="item-header">
-                <span class="item-name">new⁶</span>
+                <h3 class="item-name">new</h3>
             </div>
             <div class="comment">Creates a new tuple from two values.</div>
-            <div class="signature">def new⁶ (x⁷: &#x27;a?), (y⁸: &#x27;b?) : &#x27;Tuple⁵</div>
+            <div class="signature">def new <span class="sig-arg sig-arg-0" data-tooltip="x : a">(x: a)</span> <span class="sig-arg sig-arg-1" data-tooltip="y : b">(y: b)</span> : Tuple</div>
         </div>
-        <div class="item" id="func-fst⁹">
+        <div class="item" id="func-fst-L9">
             <div class="item-header">
-                <span class="item-name">fst⁹</span>
+                <h3 class="item-name">fst</h3>
             </div>
             <div class="comment">Returns the first element of the tuple.</div>
-            <div class="signature">def fst⁹ (t¹⁰: &#x27;Tuple⁵) : &#x27;a?</div>
+            <div class="signature">def fst <span class="sig-arg sig-arg-0" data-tooltip="t : Tuple">(t: Tuple)</span> : a</div>
         </div>
-        <div class="item" id="func-snd¹¹">
+        <div class="item" id="func-snd-L12">
             <div class="item-header">
-                <span class="item-name">snd¹¹</span>
+                <h3 class="item-name">snd</h3>
             </div>
             <div class="comment">Returns the second element of the tuple.</div>
-            <div class="signature">def snd¹¹ (t¹²: &#x27;Tuple⁵) : &#x27;b?</div>
+            <div class="signature">def snd <span class="sig-arg sig-arg-0" data-tooltip="t : Tuple">(t: Tuple)</span> : b</div>
         </div>
-        <div class="item" id="func-swap¹³">
+        <div class="item" id="func-swap-L15">
             <div class="item-header">
-                <span class="item-name">swap¹³</span>
+                <h3 class="item-name">swap</h3>
             </div>
             <div class="comment">Swaps the elements of the tuple.</div>
-            <div class="signature">def swap¹³ (t¹⁴: &#x27;Tuple⁵) : &#x27;Tuple⁵</div>
+            <div class="signature">def swap <span class="sig-arg sig-arg-0" data-tooltip="t : Tuple">(t: Tuple)</span> : Tuple</div>
         </div>
-        <div class="item" id="func-map_fst¹⁵">
+        <div class="item" id="func-map_fst-L18">
             <div class="item-header">
-                <span class="item-name">map_fst¹⁵</span>
+                <h3 class="item-name">map_fst</h3>
             </div>
             <div class="comment">Maps a function over the first element of the tuple.</div>
-            <div class="signature">def map_fst¹⁵ (f¹⁶: (a¹⁷ : &#x27;t¹⁴) -&gt; &#x27;c?), (t¹⁸: &#x27;Tuple⁵) : &#x27;Tuple⁵</div>
+            <div class="signature">def map_fst <span class="sig-arg sig-arg-0" data-tooltip="f : (a : t) -&gt; c">(f: (a : t) -&gt; c)</span> <span class="sig-arg sig-arg-1" data-tooltip="t : Tuple">(t: Tuple)</span> : Tuple</div>
         </div>
-        <div class="item" id="func-map_snd¹⁹">
+        <div class="item" id="func-map_snd-L21">
             <div class="item-header">
-                <span class="item-name">map_snd¹⁹</span>
+                <h3 class="item-name">map_snd</h3>
             </div>
             <div class="comment">Maps a function over the second element of the tuple.</div>
-            <div class="signature">def map_snd¹⁹ (f²⁰: (b²¹ : &#x27;t¹⁸) -&gt; &#x27;c?), (t²²: &#x27;Tuple⁵) : &#x27;Tuple⁵</div>
+            <div class="signature">def map_snd <span class="sig-arg sig-arg-0" data-tooltip="f : (b : t) -&gt; c">(f: (b : t) -&gt; c)</span> <span class="sig-arg sig-arg-1" data-tooltip="t : Tuple">(t: Tuple)</span> : Tuple</div>
         </div>
-        <div class="item" id="func-to_list²³">
+        <div class="item" id="func-to_list-L24">
             <div class="item-header">
-                <span class="item-name">to_list²³</span>
+                <h3 class="item-name">to_list</h3>
             </div>
             <div class="comment">Converts a tuple to a list.</div>
-            <div class="signature">def to_list²³ (t²⁴: &#x27;Tuple⁵) : Array? &#x27;a?</div>
+            <div class="signature">def to_list <span class="sig-arg sig-arg-0" data-tooltip="t : Tuple">(t: Tuple)</span> : Array a</div>
         </div>
-        <div class="item" id="func-eq²⁵">
+        <div class="item" id="func-eq-L27">
             <div class="item-header">
-                <span class="item-name">eq²⁵</span>
+                <h3 class="item-name">eq</h3>
             </div>
             <div class="comment">Checks if two tuples are equal.</div>
-            <div class="signature">def eq²⁵ (t1²⁶: &#x27;Tuple⁵), (t2²⁷: &#x27;Tuple⁵) : Bool </div>
+            <div class="signature">def eq <span class="sig-arg sig-arg-0" data-tooltip="t1 : Tuple">(t1: Tuple)</span> <span class="sig-arg sig-arg-1" data-tooltip="t2 : Tuple">(t2: Tuple)</span> : Bool</div>
         </div>
-        <div class="item" id="func-length²⁸">
+        <div class="item" id="func-length-L30">
             <div class="item-header">
-                <span class="item-name">length²⁸</span>
+                <h3 class="item-name">length</h3>
             </div>
             <div class="comment">Returns the length of the tuple.</div>
-            <div class="signature">def length²⁸ (t²⁹: &#x27;Tuple⁵) : Int </div>
+            <div class="signature">def length <span class="sig-arg sig-arg-0" data-tooltip="t : Tuple">(t: Tuple)</span> : Int</div>
         </div>
     </div>
 </body>

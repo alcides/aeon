@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,88 +338,90 @@
     <div class="container">
         <h1>Map</h1>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-Map⁵">Map⁵</a></li>
+                        <li><a href="#type-Map-L1">Map</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-size⁸">size⁸</a></li>
-                        <li><a href="#func-new¹⁰">new¹⁰</a></li>
-                        <li><a href="#func-set¹²">set¹²</a></li>
-                        <li><a href="#func-get¹⁶">get¹⁶</a></li>
-                        <li><a href="#func-has¹⁹">has¹⁹</a></li>
-                        <li><a href="#func-delete²²">delete²²</a></li>
+                        <li><a href="#func-new-L7">new</a></li>
+                        <li><a href="#func-set-L14">set</a></li>
+                        <li><a href="#func-get-L20">get</a></li>
+                        <li><a href="#func-has-L26">has</a></li>
+                        <li><a href="#func-delete-L32">delete</a></li>
+                    </ul>
+                </li>
+                <li><a href="#uninterpreted">Uninterpreted</a>
+                    <ul>
+                        <li><a href="#func-size-L4" class="toc-uninterpreted">size</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-Map⁵">
+        <div class="item" id="type-Map-L1">
             <div class="item-header">
-                <span class="item-name">Map⁵</span>
+                <h3 class="item-name">Map</h3>
                 <span class="item-type">(type)</span>
             </div>
-            <div class="signature">type Map⁵ k⁶ v⁷</div>
+            <div class="signature">type Map k v</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-size⁸">
+        <div class="item" id="func-new-L7">
             <div class="item-header">
-                <span class="item-name">size⁸</span>
-            </div>
-            <div class="comment">Returns the size (number of entries) of the map.</div>
-            <div class="signature">def size⁸ : (m⁹ : Map⁵ &#x27;k⁶, &#x27;v⁷) -&gt; Int </div>
-        </div>
-        <div class="item" id="func-new¹⁰">
-            <div class="item-header">
-                <span class="item-name">new¹⁰</span>
+                <h3 class="item-name">new</h3>
             </div>
             <div class="comment">Creates a new empty map.</div>
-            <div class="signature">def new¹⁰ : {m¹¹ : Map⁵ &#x27;k⁶, &#x27;v⁷ | ((== (Map.size? m¹¹)) 0) }</div>
+            <div class="signature">def new : {m : Map k v | Map.size m == 0}</div>
         </div>
-        <div class="item" id="func-set¹²">
+        <div class="item" id="func-set-L14">
             <div class="item-header">
-                <span class="item-name">set¹²</span>
+                <h3 class="item-name">set</h3>
             </div>
-            <div class="comment">Sets the value for a key in the map.
-m: map
-k: key
-v: value
-returns: new map with key set to value</div>
-            <div class="signature">def set¹² (m¹³: Map⁵ &#x27;k⁶, &#x27;v⁷), (key¹⁴: &#x27;k⁶), (value¹⁵: &#x27;v⁷) : Map⁵ &#x27;k⁶, &#x27;v⁷</div>
+            <div class="comment">Sets the value for a key in the map.</div>
+            <div class="signature">def set <span class="sig-arg sig-arg-0" data-tooltip="m : Map k v
+
+map">(m: Map k v)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : k">(key: k)</span> <span class="sig-arg sig-arg-2" data-tooltip="value : v">(value: v)</span> : <span class="sig-return" data-tooltip="returns: new map with key set to value">Map k v</span></div>
         </div>
-        <div class="item" id="func-get¹⁶">
+        <div class="item" id="func-get-L20">
             <div class="item-header">
-                <span class="item-name">get¹⁶</span>
+                <h3 class="item-name">get</h3>
             </div>
-            <div class="comment">Gets the value for a key in the map.
-m: map
-k: key
-returns: value for key, or default if not found</div>
-            <div class="signature">def get¹⁶ (m¹⁷: Map⁵ &#x27;k⁶, &#x27;v⁷), (key¹⁸: &#x27;k⁶) : &#x27;v⁷</div>
+            <div class="comment">Gets the value for a key in the map.</div>
+            <div class="signature">def get <span class="sig-arg sig-arg-0" data-tooltip="m : Map k v
+
+map">(m: Map k v)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : k">(key: k)</span> : <span class="sig-return" data-tooltip="returns: value for key, or default if not found">v</span></div>
         </div>
-        <div class="item" id="func-has¹⁹">
+        <div class="item" id="func-has-L26">
             <div class="item-header">
-                <span class="item-name">has¹⁹</span>
+                <h3 class="item-name">has</h3>
             </div>
-            <div class="comment">Checks if the map contains a key.
-m: map
-k: key
-returns: true if key is in map</div>
-            <div class="signature">def has¹⁹ (m²⁰: Map⁵ &#x27;k⁶, &#x27;v⁷), (key²¹: &#x27;k⁶) : Bool </div>
+            <div class="comment">Checks if the map contains a key.</div>
+            <div class="signature">def has <span class="sig-arg sig-arg-0" data-tooltip="m : Map k v
+
+map">(m: Map k v)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : k">(key: k)</span> : <span class="sig-return" data-tooltip="returns: true if key is in map">Bool</span></div>
         </div>
-        <div class="item" id="func-delete²²">
+        <div class="item" id="func-delete-L32">
             <div class="item-header">
-                <span class="item-name">delete²²</span>
+                <h3 class="item-name">delete</h3>
             </div>
-            <div class="comment">Removes a key from the map.
-m: map
-k: key
-returns: new map with key removed</div>
-            <div class="signature">def delete²² (m²³: Map⁵ &#x27;k⁶, &#x27;v⁷), (key²⁴: &#x27;k⁶) : Map⁵ &#x27;k⁶, &#x27;v⁷</div>
+            <div class="comment">Removes a key from the map.</div>
+            <div class="signature">def delete <span class="sig-arg sig-arg-0" data-tooltip="m : Map k v
+
+map">(m: Map k v)</span> <span class="sig-arg sig-arg-1" data-tooltip="key : k">(key: k)</span> : <span class="sig-return" data-tooltip="returns: new map with key removed">Map k v</span></div>
+        </div>
+        <h2 id="uninterpreted">Uninterpreted</h2>
+        <p class="section-note">Functions declared as <code>def f ... = uninterpreted</code>: only their signature is known to the verifier; they have no body.</p>
+        <div class="item uninterpreted" id="func-size-L4">
+            <div class="item-header">
+                <h3 class="item-name">size</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Returns the size (number of entries) of the map.</div>
+            <div class="signature">def size : (m : Map k v) -&gt; Int</div>
         </div>
     </div>
 </body>

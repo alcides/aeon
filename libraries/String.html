@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -185,244 +338,243 @@
     <div class="container">
         <h1>String</h1>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#types">Types</a>
                     <ul>
-                        <li><a href="#type-String">String</a></li>
+                        <li><a href="#type-String-L3">String</a></li>
                     </ul>
                 </li>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-len⁵">len⁵</a></li>
-                        <li><a href="#func-intToString⁷">intToString⁷</a></li>
-                        <li><a href="#func-equal⁹">equal⁹</a></li>
-                        <li><a href="#func-slice¹⁴">slice¹⁴</a></li>
-                        <li><a href="#func-upper²³">upper²³</a></li>
-                        <li><a href="#func-lower²⁶">lower²⁶</a></li>
-                        <li><a href="#func-replace²⁹">replace²⁹</a></li>
-                        <li><a href="#func-split³⁴">split³⁴</a></li>
-                        <li><a href="#func-concat³⁸">concat³⁸</a></li>
-                        <li><a href="#func-startsWith⁴¹">startsWith⁴¹</a></li>
-                        <li><a href="#func-endsWith⁴⁴">endsWith⁴⁴</a></li>
-                        <li><a href="#func-indexOf⁴⁷">indexOf⁴⁷</a></li>
-                        <li><a href="#func-lastIndexOf⁵⁰">lastIndexOf⁵⁰</a></li>
-                        <li><a href="#func-contains⁵³">contains⁵³</a></li>
-                        <li><a href="#func-trim⁵⁶">trim⁵⁶</a></li>
-                        <li><a href="#func-trimLeft⁵⁸">trimLeft⁵⁸</a></li>
-                        <li><a href="#func-trimRight⁶⁰">trimRight⁶⁰</a></li>
-                        <li><a href="#func-repeat⁶²">repeat⁶²</a></li>
-                        <li><a href="#func-isEmpty⁶⁶">isEmpty⁶⁶</a></li>
-                        <li><a href="#func-toCharList⁶⁸">toCharList⁶⁸</a></li>
+                        <li><a href="#func-len-L8">len</a></li>
+                        <li><a href="#func-intToString-L13">intToString</a></li>
+                        <li><a href="#func-equal-L19">equal</a></li>
+                        <li><a href="#func-slice-L26">slice</a></li>
+                        <li><a href="#func-upper-L32">upper</a></li>
+                        <li><a href="#func-lower-L37">lower</a></li>
+                        <li><a href="#func-replace-L44">replace</a></li>
+                        <li><a href="#func-split-L50">split</a></li>
+                        <li><a href="#func-concat-L56">concat</a></li>
+                        <li><a href="#func-startsWith-L62">startsWith</a></li>
+                        <li><a href="#func-endsWith-L68">endsWith</a></li>
+                        <li><a href="#func-indexOf-L74">indexOf</a></li>
+                        <li><a href="#func-lastIndexOf-L80">lastIndexOf</a></li>
+                        <li><a href="#func-contains-L86">contains</a></li>
+                        <li><a href="#func-trim-L91">trim</a></li>
+                        <li><a href="#func-trimLeft-L96">trimLeft</a></li>
+                        <li><a href="#func-trimRight-L101">trimRight</a></li>
+                        <li><a href="#func-repeat-L107">repeat</a></li>
+                        <li><a href="#func-isEmpty-L112">isEmpty</a></li>
+                        <li><a href="#func-toCharList-L117">toCharList</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="types">Types</h2>
-        <div class="item" id="type-String">
+        <div class="item" id="type-String-L3">
             <div class="item-header">
-                <span class="item-name">String</span>
+                <h3 class="item-name">String</h3>
                 <span class="item-type">(type)</span>
             </div>
             <div class="signature">type String</div>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-len⁵">
+        <div class="item" id="func-len-L8">
             <div class="item-header">
-                <span class="item-name">len⁵</span>
+                <h3 class="item-name">len</h3>
             </div>
-            <div class="comment">Returns the length of the string.
-i: input string
-returns: number of characters in the string</div>
-            <div class="signature">def len⁵ (i⁶: String ) : Int </div>
+            <div class="comment">Returns the length of the string.</div>
+            <div class="signature">def len <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: number of characters in the string">Int</span></div>
         </div>
-        <div class="item" id="func-intToString⁷">
+        <div class="item" id="func-intToString-L13">
             <div class="item-header">
-                <span class="item-name">intToString⁷</span>
+                <h3 class="item-name">intToString</h3>
             </div>
-            <div class="comment">Converts an integer to a string.
-i: integer
-returns: string representation of the integer</div>
-            <div class="signature">def intToString⁷ (i⁸: Int ) : String </div>
+            <div class="comment">Converts an integer to a string.</div>
+            <div class="signature">def intToString <span class="sig-arg sig-arg-0" data-tooltip="i : Int
+
+integer">(i: Int)</span> : <span class="sig-return" data-tooltip="returns: string representation of the integer">String</span></div>
         </div>
-        <div class="item" id="func-equal⁹">
+        <div class="item" id="func-equal-L19">
             <div class="item-header">
-                <span class="item-name">equal⁹</span>
+                <h3 class="item-name">equal</h3>
             </div>
-            <div class="comment">Checks if two strings are equal.
-i: first string
-j: second string
-returns: true if strings are equal, false otherwise</div>
-            <div class="signature">def equal⁹ : (i¹⁰ : String ) -&gt; (j¹¹ : String ) -&gt; Bool </div>
+            <div class="comment">Checks if two strings are equal.</div>
+            <div class="signature">def equal : <span class="sig-return" data-tooltip="returns: true if strings are equal, false otherwise">(i : String) -&gt; (j : String) -&gt; Bool</span></div>
         </div>
-        <div class="item" id="func-slice¹⁴">
+        <div class="item" id="func-slice-L26">
             <div class="item-header">
-                <span class="item-name">slice¹⁴</span>
+                <h3 class="item-name">slice</h3>
             </div>
-            <div class="comment">Returns a substring (slice) of the string from index j to l (exclusive).
-i: input string
-j: start index (&gt;= 0, &lt; length of i)
-l: end index (&gt;= j, &lt;= length of i)
-returns: substring from j to l</div>
-            <div class="signature">def slice¹⁴ : (i¹⁵ : String ) -&gt; (j¹⁶ : {x¹⁷ : Int  | ((&amp;&amp; ((&gt;= x¹⁷) 0)) ((&lt; x¹⁷) (len⁵ i¹⁵))) }) -&gt; (l¹⁸ : {y¹⁹ : Int  | ((&amp;&amp; ((&gt;= y¹⁹) j¹⁶)) ((&lt;= y¹⁹) (len⁵ i¹⁵))) }) -&gt; String </div>
+            <div class="comment">Returns a substring (slice) of the string from index j to l (exclusive).</div>
+            <div class="signature">def slice : <span class="sig-return" data-tooltip="returns: substring from j to l">(i : String) -&gt; (j : {x : Int | x &gt;= 0 &amp;&amp; x &lt; len i}) -&gt; (l : {y : Int | y &gt;= j &amp;&amp; y &lt;= len i}) -&gt; String</span></div>
         </div>
-        <div class="item" id="func-upper²³">
+        <div class="item" id="func-upper-L32">
             <div class="item-header">
-                <span class="item-name">upper²³</span>
+                <h3 class="item-name">upper</h3>
             </div>
-            <div class="comment">Converts the string to uppercase.
-i: input string
-returns: uppercase version of the string</div>
-            <div class="signature">def upper²³ : (i²⁴ : String ) -&gt; String </div>
+            <div class="comment">Converts the string to uppercase.</div>
+            <div class="signature">def upper : <span class="sig-return" data-tooltip="returns: uppercase version of the string">(i : String) -&gt; String</span></div>
         </div>
-        <div class="item" id="func-lower²⁶">
+        <div class="item" id="func-lower-L37">
             <div class="item-header">
-                <span class="item-name">lower²⁶</span>
+                <h3 class="item-name">lower</h3>
             </div>
-            <div class="comment">Converts the string to lowercase.
-i: input string
-returns: lowercase version of the string</div>
-            <div class="signature">def lower²⁶ : (i²⁷ : String ) -&gt; String </div>
+            <div class="comment">Converts the string to lowercase.</div>
+            <div class="signature">def lower : <span class="sig-return" data-tooltip="returns: lowercase version of the string">(i : String) -&gt; String</span></div>
         </div>
-        <div class="item" id="func-replace²⁹">
+        <div class="item" id="func-replace-L44">
             <div class="item-header">
-                <span class="item-name">replace²⁹</span>
+                <h3 class="item-name">replace</h3>
             </div>
-            <div class="comment">Replaces all occurrences of substring j with l in string i.
-i: input string
-j: substring to replace (non-empty)
-l: replacement string
-returns: new string with replacements</div>
-            <div class="signature">def replace²⁹ (i³⁰: String ), (j³¹: {s³² : String  | ((&gt; (len⁵ s³²)) 0) }), (l³³: String ) : String </div>
+            <div class="comment">Replaces all occurrences of substring j with l in string i.</div>
+            <div class="signature">def replace <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="j : {s : String | len s &gt; 0}
+
+substring to replace (non-empty)">(j: {s : String | len s &gt; 0})</span> <span class="sig-arg sig-arg-2" data-tooltip="l : String
+
+replacement string">(l: String)</span> : <span class="sig-return" data-tooltip="returns: new string with replacements">String</span></div>
         </div>
-        <div class="item" id="func-split³⁴">
+        <div class="item" id="func-split-L50">
             <div class="item-header">
-                <span class="item-name">split³⁴</span>
+                <h3 class="item-name">split</h3>
             </div>
-            <div class="comment">Splits the string by the given separator.
-i: input string
-j: separator string (non-empty)
-returns: list of substrings</div>
-            <div class="signature">def split³⁴ (i³⁵: String ), (j³⁶: {s³⁷ : String  | ((&gt; (len⁵ s³⁷)) 0) }) : Array? String </div>
+            <div class="comment">Splits the string by the given separator.</div>
+            <div class="signature">def split <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="j : {s : String | len s &gt; 0}
+
+separator string (non-empty)">(j: {s : String | len s &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: list of substrings">Array String</span></div>
         </div>
-        <div class="item" id="func-concat³⁸">
+        <div class="item" id="func-concat-L56">
             <div class="item-header">
-                <span class="item-name">concat³⁸</span>
+                <h3 class="item-name">concat</h3>
             </div>
-            <div class="comment">Concatenates two strings.
-i: first string
-j: second string
-returns: concatenated string</div>
-            <div class="signature">def concat³⁸ (i³⁹: String ), (j⁴⁰: String ) : String </div>
+            <div class="comment">Concatenates two strings.</div>
+            <div class="signature">def concat <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+first string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="j : String
+
+second string">(j: String)</span> : <span class="sig-return" data-tooltip="returns: concatenated string">String</span></div>
         </div>
-        <div class="item" id="func-startsWith⁴¹">
+        <div class="item" id="func-startsWith-L62">
             <div class="item-header">
-                <span class="item-name">startsWith⁴¹</span>
+                <h3 class="item-name">startsWith</h3>
             </div>
-            <div class="comment">Checks if the string starts with the given prefix.
-i: input string
-prefix: prefix string
-returns: true if i starts with prefix</div>
-            <div class="signature">def startsWith⁴¹ (i⁴²: String ), (prefix⁴³: String ) : Bool </div>
+            <div class="comment">Checks if the string starts with the given prefix.</div>
+            <div class="signature">def startsWith <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="prefix : String
+
+prefix string">(prefix: String)</span> : <span class="sig-return" data-tooltip="returns: true if i starts with prefix">Bool</span></div>
         </div>
-        <div class="item" id="func-endsWith⁴⁴">
+        <div class="item" id="func-endsWith-L68">
             <div class="item-header">
-                <span class="item-name">endsWith⁴⁴</span>
+                <h3 class="item-name">endsWith</h3>
             </div>
-            <div class="comment">Checks if the string ends with the given suffix.
-i: input string
-suffix: suffix string
-returns: true if i ends with suffix</div>
-            <div class="signature">def endsWith⁴⁴ (i⁴⁵: String ), (suffix⁴⁶: String ) : Bool </div>
+            <div class="comment">Checks if the string ends with the given suffix.</div>
+            <div class="signature">def endsWith <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="suffix : String
+
+suffix string">(suffix: String)</span> : <span class="sig-return" data-tooltip="returns: true if i ends with suffix">Bool</span></div>
         </div>
-        <div class="item" id="func-indexOf⁴⁷">
+        <div class="item" id="func-indexOf-L74">
             <div class="item-header">
-                <span class="item-name">indexOf⁴⁷</span>
+                <h3 class="item-name">indexOf</h3>
             </div>
-            <div class="comment">Finds the first index of substring sub in i, or -1 if not found.
-i: input string
-sub: substring to find
-returns: index of first occurrence or -1</div>
-            <div class="signature">def indexOf⁴⁷ (i⁴⁸: String ), (sub⁴⁹: String ) : Int </div>
+            <div class="comment">Finds the first index of substring sub in i, or -1 if not found.</div>
+            <div class="signature">def indexOf <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="sub : String
+
+substring to find">(sub: String)</span> : <span class="sig-return" data-tooltip="returns: index of first occurrence or -1">Int</span></div>
         </div>
-        <div class="item" id="func-lastIndexOf⁵⁰">
+        <div class="item" id="func-lastIndexOf-L80">
             <div class="item-header">
-                <span class="item-name">lastIndexOf⁵⁰</span>
+                <h3 class="item-name">lastIndexOf</h3>
             </div>
-            <div class="comment">Finds the last index of substring sub in i, or -1 if not found.
-i: input string
-sub: substring to find
-returns: index of last occurrence or -1</div>
-            <div class="signature">def lastIndexOf⁵⁰ (i⁵¹: String ), (sub⁵²: String ) : Int </div>
+            <div class="comment">Finds the last index of substring sub in i, or -1 if not found.</div>
+            <div class="signature">def lastIndexOf <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="sub : String
+
+substring to find">(sub: String)</span> : <span class="sig-return" data-tooltip="returns: index of last occurrence or -1">Int</span></div>
         </div>
-        <div class="item" id="func-contains⁵³">
+        <div class="item" id="func-contains-L86">
             <div class="item-header">
-                <span class="item-name">contains⁵³</span>
+                <h3 class="item-name">contains</h3>
             </div>
-            <div class="comment">Checks if the string contains the given substring.
-i: input string
-sub: substring to check
-returns: true if sub is in i</div>
-            <div class="signature">def contains⁵³ (i⁵⁴: String ), (sub⁵⁵: String ) : Bool </div>
+            <div class="comment">Checks if the string contains the given substring.</div>
+            <div class="signature">def contains <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="sub : String
+
+substring to check">(sub: String)</span> : <span class="sig-return" data-tooltip="returns: true if sub is in i">Bool</span></div>
         </div>
-        <div class="item" id="func-trim⁵⁶">
+        <div class="item" id="func-trim-L91">
             <div class="item-header">
-                <span class="item-name">trim⁵⁶</span>
+                <h3 class="item-name">trim</h3>
             </div>
-            <div class="comment">Removes whitespace from both ends of the string.
-i: input string
-returns: trimmed string</div>
-            <div class="signature">def trim⁵⁶ (i⁵⁷: String ) : String </div>
+            <div class="comment">Removes whitespace from both ends of the string.</div>
+            <div class="signature">def trim <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: trimmed string">String</span></div>
         </div>
-        <div class="item" id="func-trimLeft⁵⁸">
+        <div class="item" id="func-trimLeft-L96">
             <div class="item-header">
-                <span class="item-name">trimLeft⁵⁸</span>
+                <h3 class="item-name">trimLeft</h3>
             </div>
-            <div class="comment">Removes whitespace from the left end of the string.
-i: input string
-returns: left-trimmed string</div>
-            <div class="signature">def trimLeft⁵⁸ (i⁵⁹: String ) : String </div>
+            <div class="comment">Removes whitespace from the left end of the string.</div>
+            <div class="signature">def trimLeft <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: left-trimmed string">String</span></div>
         </div>
-        <div class="item" id="func-trimRight⁶⁰">
+        <div class="item" id="func-trimRight-L101">
             <div class="item-header">
-                <span class="item-name">trimRight⁶⁰</span>
+                <h3 class="item-name">trimRight</h3>
             </div>
-            <div class="comment">Removes whitespace from the right end of the string.
-i: input string
-returns: right-trimmed string</div>
-            <div class="signature">def trimRight⁶⁰ (i⁶¹: String ) : String </div>
+            <div class="comment">Removes whitespace from the right end of the string.</div>
+            <div class="signature">def trimRight <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: right-trimmed string">String</span></div>
         </div>
-        <div class="item" id="func-repeat⁶²">
+        <div class="item" id="func-repeat-L107">
             <div class="item-header">
-                <span class="item-name">repeat⁶²</span>
+                <h3 class="item-name">repeat</h3>
             </div>
-            <div class="comment">Repeats the string n times.
-i: input string
-n: number of repetitions (&gt;= 0)
-returns: repeated string</div>
-            <div class="signature">def repeat⁶² (i⁶³: String ), (n⁶⁴: {x⁶⁵ : Int  | ((&gt;= x⁶⁵) 0) }) : String </div>
+            <div class="comment">Repeats the string n times.</div>
+            <div class="signature">def repeat <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> <span class="sig-arg sig-arg-1" data-tooltip="n : {x : Int | x &gt;= 0}
+
+number of repetitions (&gt;= 0)">(n: {x : Int | x &gt;= 0})</span> : <span class="sig-return" data-tooltip="returns: repeated string">String</span></div>
         </div>
-        <div class="item" id="func-isEmpty⁶⁶">
+        <div class="item" id="func-isEmpty-L112">
             <div class="item-header">
-                <span class="item-name">isEmpty⁶⁶</span>
+                <h3 class="item-name">isEmpty</h3>
             </div>
-            <div class="comment">Returns true if the string is empty.
-i: input string
-returns: true if i is empty</div>
-            <div class="signature">def isEmpty⁶⁶ (i⁶⁷: String ) : Bool </div>
+            <div class="comment">Returns true if the string is empty.</div>
+            <div class="signature">def isEmpty <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: true if i is empty">Bool</span></div>
         </div>
-        <div class="item" id="func-toCharList⁶⁸">
+        <div class="item" id="func-toCharList-L117">
             <div class="item-header">
-                <span class="item-name">toCharList⁶⁸</span>
+                <h3 class="item-name">toCharList</h3>
             </div>
-            <div class="comment">Splits the string into a list of characters.
-i: input string
-returns: list of single-character strings</div>
-            <div class="signature">def toCharList⁶⁸ (i⁶⁹: String ) : Array? String </div>
+            <div class="comment">Splits the string into a list of characters.</div>
+            <div class="signature">def toCharList <span class="sig-arg sig-arg-0" data-tooltip="i : String
+
+input string">(i: String)</span> : <span class="sig-return" data-tooltip="returns: list of single-character strings">Array String</span></div>
         </div>
     </div>
 </body>

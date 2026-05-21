@@ -22,8 +22,25 @@
             margin: 0 auto;
             background: white;
             padding: 40px;
+            /* Bottom buffer so the last anchored item can scroll up to the top
+               of the viewport when a TOC link is clicked. */
+            padding-bottom: max(40px, 70vh);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+        }
+        html {
+            /* Anchor-scroll lands the target a little below the viewport's top
+               edge, so the section header doesn't sit flush against it. */
+            scroll-padding-top: 20px;
+            scroll-behavior: smooth;
+        }
+        :target {
+            /* Brief highlight when an anchor is jumped to, to signal "you landed here". */
+            animation: anchor-flash 1.2s ease-out 1;
+        }
+        @keyframes anchor-flash {
+            0% { background-color: #fef9c3; }
+            100% { background-color: transparent; }
         }
         h1 {
             color: #2c3e50;
@@ -73,6 +90,83 @@
             border-radius: 6px;
             border: 1px solid #e1e4e8;
         }
+        .item.uninterpreted {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: help;
+        }
+        .badge-uninterpreted {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .badge-ctor {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .section-note {
+            color: #555;
+            font-size: 0.95em;
+            margin: 0 0 18px 0;
+        }
+        .ctor-group {
+            margin: 18px 0 28px 0;
+        }
+        .ctor-group-header {
+            margin: 14px 0 10px 0;
+        }
+        .ctor-type-link {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .ctor-type-link:hover {
+            text-decoration: underline;
+        }
+        .ctor-item {
+            margin-left: 18px;
+            border-left: 3px solid #6ee7b7;
+        }
+        .toc-note {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        .subhead {
+            /* Non-heading sub-label inside an item (e.g. "Measures" inside an
+               inductive type). Looks like a small heading but is not a heading
+               element, so the page heading hierarchy stays aligned with the TOC. */
+            margin: 14px 0 8px 0;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .toc .toc-uninterpreted::after {
+            content: "uninterpreted";
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            vertical-align: 1px;
+        }
         .item-header {
             display: flex;
             align-items: baseline;
@@ -95,8 +189,60 @@
             border-left: 3px solid #2980b9;
             margin: 10px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
+            overflow: visible;
             border-radius: 4px;
+        }
+        .sig-arg, .sig-return {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: help;
+            position: relative;
+            transition: filter 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sig-arg:hover, .sig-return:hover {
+            filter: brightness(0.94);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .sig-arg-0 { background-color: #fef3c7; }
+        .sig-arg-1 { background-color: #dbeafe; }
+        .sig-arg-2 { background-color: #dcfce7; }
+        .sig-arg-3 { background-color: #fce7f3; }
+        .sig-arg-4 { background-color: #e0e7ff; }
+        .sig-arg-5 { background-color: #fed7aa; }
+        .sig-arg-6 { background-color: #f3e8ff; }
+        .sig-arg-7 { background-color: #ccfbf1; }
+        .sig-return { background-color: #f1f5f9; border: 1px dashed #94a3b8; }
+        .sig-arg[data-tooltip]:hover::after,
+        .sig-return[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            width: max-content;
+            max-width: 420px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            pointer-events: none;
+        }
+        .sig-arg[data-tooltip]:hover::before,
+        .sig-return[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 14px;
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 20;
+            pointer-events: none;
         }
         .comment {
             color: #555;
@@ -139,9 +285,16 @@
             border-radius: 6px;
             margin-bottom: 30px;
         }
-        .toc h2 {
-            margin-top: 0;
+        .toc-title, .imports-title {
+            /* Non-heading labels — kept out of the document outline so the
+               page outline matches the TOC contents exactly. */
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
             font-size: 1.3em;
+        }
+        .imports-title {
+            color: #2980b9;
         }
         .toc ul {
             list-style: none;
@@ -190,318 +343,336 @@ abstract symbols. Runtime providers below tie concrete values back to
 them via refined return types.
 Fraction of xs strictly below threshold t.</div>
         <div class="imports">
-            <h3>Imports</h3>
+            <div class="imports-title">Imports</div>
             <code>open Array;</code>
         </div>
         <div class="toc">
-            <h2>Table of Contents</h2>
+            <div class="toc-title">Table of Contents</div>
             <ul>
                 <li><a href="#functions">Functions</a>
                     <ul>
-                        <li><a href="#func-fracBelow⁵">fracBelow⁵</a></li>
-                        <li><a href="#func-fracAbove⁸">fracAbove⁸</a></li>
-                        <li><a href="#func-fracBetween¹¹">fracBetween¹¹</a></li>
-                        <li><a href="#func-sampleMean¹⁵">sampleMean¹⁵</a></li>
-                        <li><a href="#func-sampleVar¹⁷">sampleVar¹⁷</a></li>
-                        <li><a href="#func-sampleStd¹⁹">sampleStd¹⁹</a></li>
-                        <li><a href="#func-sampleMin²¹">sampleMin²¹</a></li>
-                        <li><a href="#func-sampleMax²³">sampleMax²³</a></li>
-                        <li><a href="#func-widenBelow²⁵">widenBelow²⁵</a></li>
-                        <li><a href="#func-widenAbove³²">widenAbove³²</a></li>
-                        <li><a href="#func-belowComplement³⁹">belowComplement³⁹</a></li>
-                        <li><a href="#func-betweenFromBelow⁴⁴">betweenFromBelow⁴⁴</a></li>
-                        <li><a href="#func-mean⁵¹">mean⁵¹</a></li>
-                        <li><a href="#func-median⁵⁵">median⁵⁵</a></li>
-                        <li><a href="#func-std⁵⁸">std⁵⁸</a></li>
-                        <li><a href="#func-var⁶²">var⁶²</a></li>
-                        <li><a href="#func-min⁶⁶">min⁶⁶</a></li>
-                        <li><a href="#func-max⁷⁰">max⁷⁰</a></li>
-                        <li><a href="#func-sum⁷⁴">sum⁷⁴</a></li>
-                        <li><a href="#func-quantile⁷⁷">quantile⁷⁷</a></li>
-                        <li><a href="#func-prod⁸¹">prod⁸¹</a></li>
-                        <li><a href="#func-cumsum⁸⁴">cumsum⁸⁴</a></li>
-                        <li><a href="#func-cumprod⁸⁷">cumprod⁸⁷</a></li>
-                        <li><a href="#func-quartiles⁹⁰">quartiles⁹⁰</a></li>
-                        <li><a href="#func-unique⁹³">unique⁹³</a></li>
-                        <li><a href="#func-argmax⁹⁶">argmax⁹⁶</a></li>
-                        <li><a href="#func-argmin⁹⁹">argmin⁹⁹</a></li>
-                        <li><a href="#func-percentile¹⁰²">percentile¹⁰²</a></li>
-                        <li><a href="#func-corrcoef¹⁰⁶">corrcoef¹⁰⁶</a></li>
-                        <li><a href="#func-cov¹¹¹">cov¹¹¹</a></li>
-                        <li><a href="#func-proportionBelow¹¹⁶">proportionBelow¹¹⁶</a></li>
-                        <li><a href="#func-proportionAbove¹²¹">proportionAbove¹²¹</a></li>
-                        <li><a href="#func-proportionBetween¹²⁶">proportionBetween¹²⁶</a></li>
+                        <li><a href="#func-widenBelow-L29">widenBelow</a></li>
+                        <li><a href="#func-widenAbove-L37">widenAbove</a></li>
+                        <li><a href="#func-belowComplement-L45">belowComplement</a></li>
+                        <li><a href="#func-betweenFromBelow-L52">betweenFromBelow</a></li>
+                        <li><a href="#func-mean-L64">mean</a></li>
+                        <li><a href="#func-median-L69">median</a></li>
+                        <li><a href="#func-std-L74">std</a></li>
+                        <li><a href="#func-var-L79">var</a></li>
+                        <li><a href="#func-min-L84">min</a></li>
+                        <li><a href="#func-max-L89">max</a></li>
+                        <li><a href="#func-sum-L94">sum</a></li>
+                        <li><a href="#func-quantile-L100">quantile</a></li>
+                        <li><a href="#func-prod-L105">prod</a></li>
+                        <li><a href="#func-cumsum-L110">cumsum</a></li>
+                        <li><a href="#func-cumprod-L115">cumprod</a></li>
+                        <li><a href="#func-quartiles-L120">quartiles</a></li>
+                        <li><a href="#func-unique-L125">unique</a></li>
+                        <li><a href="#func-argmax-L130">argmax</a></li>
+                        <li><a href="#func-argmin-L135">argmin</a></li>
+                        <li><a href="#func-percentile-L141">percentile</a></li>
+                        <li><a href="#func-corrcoef-L147">corrcoef</a></li>
+                        <li><a href="#func-cov-L153">cov</a></li>
+                        <li><a href="#func-proportionBelow-L161">proportionBelow</a></li>
+                        <li><a href="#func-proportionAbove-L166">proportionAbove</a></li>
+                        <li><a href="#func-proportionBetween-L171">proportionBetween</a></li>
+                    </ul>
+                </li>
+                <li><a href="#uninterpreted">Uninterpreted</a>
+                    <ul>
+                        <li><a href="#func-fracBelow-L9" class="toc-uninterpreted">fracBelow</a></li>
+                        <li><a href="#func-fracAbove-L12" class="toc-uninterpreted">fracAbove</a></li>
+                        <li><a href="#func-fracBetween-L15" class="toc-uninterpreted">fracBetween</a></li>
+                        <li><a href="#func-sampleMean-L18" class="toc-uninterpreted">sampleMean</a></li>
+                        <li><a href="#func-sampleVar-L19" class="toc-uninterpreted">sampleVar</a></li>
+                        <li><a href="#func-sampleStd-L20" class="toc-uninterpreted">sampleStd</a></li>
+                        <li><a href="#func-sampleMin-L21" class="toc-uninterpreted">sampleMin</a></li>
+                        <li><a href="#func-sampleMax-L22" class="toc-uninterpreted">sampleMax</a></li>
                     </ul>
                 </li>
             </ul>
         </div>
         <h2 id="functions">Functions</h2>
-        <div class="item" id="func-fracBelow⁵">
+        <div class="item" id="func-widenBelow-L29">
             <div class="item-header">
-                <span class="item-name">fracBelow⁵</span>
-            </div>
-            <div class="comment">Fraction of xs strictly below threshold t.</div>
-            <div class="signature">def fracBelow⁵ : (xs⁶ : Array? Float ) -&gt; (t⁷ : Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-fracAbove⁸">
-            <div class="item-header">
-                <span class="item-name">fracAbove⁸</span>
-            </div>
-            <div class="comment">Fraction of xs strictly above threshold t.</div>
-            <div class="signature">def fracAbove⁸ : (xs⁹ : Array? Float ) -&gt; (t¹⁰ : Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-fracBetween¹¹">
-            <div class="item-header">
-                <span class="item-name">fracBetween¹¹</span>
-            </div>
-            <div class="comment">Fraction of xs in the open interval (lo, hi).</div>
-            <div class="signature">def fracBetween¹¹ : (xs¹² : Array? Float ) -&gt; (lo¹³ : Float ) -&gt; (hi¹⁴ : Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-sampleMean¹⁵">
-            <div class="item-header">
-                <span class="item-name">sampleMean¹⁵</span>
-            </div>
-            <div class="comment">Sample summary statistics as abstract symbols.</div>
-            <div class="signature">def sampleMean¹⁵ : (xs¹⁶ : Array? Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-sampleVar¹⁷">
-            <div class="item-header">
-                <span class="item-name">sampleVar¹⁷</span>
-            </div>
-            <div class="signature">def sampleVar¹⁷ : (xs¹⁸ : Array? Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-sampleStd¹⁹">
-            <div class="item-header">
-                <span class="item-name">sampleStd¹⁹</span>
-            </div>
-            <div class="signature">def sampleStd¹⁹ : (xs²⁰ : Array? Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-sampleMin²¹">
-            <div class="item-header">
-                <span class="item-name">sampleMin²¹</span>
-            </div>
-            <div class="signature">def sampleMin²¹ : (xs²² : Array? Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-sampleMax²³">
-            <div class="item-header">
-                <span class="item-name">sampleMax²³</span>
-            </div>
-            <div class="signature">def sampleMax²³ : (xs²⁴ : Array? Float ) -&gt; Float </div>
-        </div>
-        <div class="item" id="func-widenBelow²⁵">
-            <div class="item-header">
-                <span class="item-name">widenBelow²⁵</span>
+                <h3 class="item-name">widenBelow</h3>
             </div>
             <div class="comment">Monotonicity below:  t1 &lt;= t2  ⇒  fracBelow xs t1 &lt;= fracBelow xs t2.</div>
-            <div class="signature">def widenBelow²⁵ (xs²⁶: {x²⁷ : Array? Float  | ((&gt; (Array.size? x²⁷)) 0) }), (t1²⁸: Float ), (t2²⁹: {t³⁰ : Float  | ((&gt;= t³⁰) t1²⁸) }) : {r³¹ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r³¹)) 0)) ((&gt;= ((fracBelow⁵ r³¹) t2²⁹)) ((fracBelow⁵ xs²⁶) t1²⁸))) }</div>
+            <div class="signature">def widenBelow <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="t1 : Float">(t1: Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="t2 : {t : Float | t &gt;= t1}">(t2: {t : Float | t &gt;= t1})</span> : {r : Array Float | Array.size r &gt; 0 &amp;&amp; fracBelow r t2 &gt;= fracBelow xs t1}</div>
         </div>
-        <div class="item" id="func-widenAbove³²">
+        <div class="item" id="func-widenAbove-L37">
             <div class="item-header">
-                <span class="item-name">widenAbove³²</span>
+                <h3 class="item-name">widenAbove</h3>
             </div>
             <div class="comment">Monotonicity above:  t1 &lt;= t2  ⇒  fracAbove xs t1 &gt;= fracAbove xs t2.</div>
-            <div class="signature">def widenAbove³² (xs³³: {x³⁴ : Array? Float  | ((&gt; (Array.size? x³⁴)) 0) }), (t1³⁵: Float ), (t2³⁶: {t³⁷ : Float  | ((&lt;= t³⁷) t1³⁵) }) : {r³⁸ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r³⁸)) 0)) ((&gt;= ((fracAbove⁸ r³⁸) t2³⁶)) ((fracAbove⁸ xs³³) t1³⁵))) }</div>
+            <div class="signature">def widenAbove <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="t1 : Float">(t1: Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="t2 : {t : Float | t &lt;= t1}">(t2: {t : Float | t &lt;= t1})</span> : {r : Array Float | Array.size r &gt; 0 &amp;&amp; fracAbove r t2 &gt;= fracAbove xs t1}</div>
         </div>
-        <div class="item" id="func-belowComplement³⁹">
+        <div class="item" id="func-belowComplement-L45">
             <div class="item-header">
-                <span class="item-name">belowComplement³⁹</span>
+                <h3 class="item-name">belowComplement</h3>
             </div>
             <div class="comment">Complement at a non-atomic point:  fracBelow + fracAbove = 1.</div>
-            <div class="signature">def belowComplement³⁹ (xs⁴⁰: {x⁴¹ : Array? Float  | ((&gt; (Array.size? x⁴¹)) 0) }), (t⁴²: Float ) : {r⁴³ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r⁴³)) 0)) ((== ((fracBelow⁵ r⁴³) t⁴²)) ((- 1.0) ((fracAbove⁸ xs⁴⁰) t⁴²)))) }</div>
+            <div class="signature">def belowComplement <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="t : Float">(t: Float)</span> : {r : Array Float | Array.size r &gt; 0 &amp;&amp; fracBelow r t == 1.0 - fracAbove xs t}</div>
         </div>
-        <div class="item" id="func-betweenFromBelow⁴⁴">
+        <div class="item" id="func-betweenFromBelow-L52">
             <div class="item-header">
-                <span class="item-name">betweenFromBelow⁴⁴</span>
+                <h3 class="item-name">betweenFromBelow</h3>
             </div>
             <div class="comment">Between bound: fracBetween lo hi &gt;= fracBelow hi - fracBelow lo (slack covers atoms).</div>
-            <div class="signature">def betweenFromBelow⁴⁴ (xs⁴⁵: {x⁴⁶ : Array? Float  | ((&gt; (Array.size? x⁴⁶)) 0) }), (lo⁴⁷: Float ), (hi⁴⁸: {h⁴⁹ : Float  | ((&gt;= h⁴⁹) lo⁴⁷) }) : {r⁵⁰ : Array? Float  | ((&amp;&amp; ((&gt; (Array.size? r⁵⁰)) 0)) ((&gt;= (((fracBetween¹¹ r⁵⁰) lo⁴⁷) hi⁴⁸)) ((- ((fracBelow⁵ xs⁴⁵) hi⁴⁸)) ((fracBelow⁵ xs⁴⁵) lo⁴⁷)))) }</div>
+            <div class="signature">def betweenFromBelow <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="lo : Float">(lo: Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="hi : {h : Float | h &gt;= lo}">(hi: {h : Float | h &gt;= lo})</span> : {r : Array Float | Array.size r &gt; 0 &amp;&amp; fracBetween r lo hi &gt;= fracBelow xs hi - fracBelow xs lo}</div>
         </div>
-        <div class="item" id="func-mean⁵¹">
+        <div class="item" id="func-mean-L64">
             <div class="item-header">
-                <span class="item-name">mean⁵¹</span>
+                <h3 class="item-name">mean</h3>
             </div>
-            <div class="comment">Returns the mean (average) of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: mean of the numbers</div>
-            <div class="signature">def mean⁵¹ (xs⁵²: {x⁵³ : Array? Float  | ((&gt; (Array.size? x⁵³)) 0) }) : {m⁵⁴ : Float  | ((== m⁵⁴) (sampleMean¹⁵ xs⁵²)) }</div>
+            <div class="comment">Returns the mean (average) of a non-empty list of numbers.</div>
+            <div class="signature">def mean <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: mean of the numbers">{m : Float | m == sampleMean xs}</span></div>
         </div>
-        <div class="item" id="func-median⁵⁵">
+        <div class="item" id="func-median-L69">
             <div class="item-header">
-                <span class="item-name">median⁵⁵</span>
+                <h3 class="item-name">median</h3>
             </div>
-            <div class="comment">Returns the median (middle value) of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: median of the numbers</div>
-            <div class="signature">def median⁵⁵ (xs⁵⁶: {x⁵⁷ : Array? Float  | ((&gt; (Array.size? x⁵⁷)) 0) }) : Float </div>
+            <div class="comment">Returns the median (middle value) of a non-empty list of numbers.</div>
+            <div class="signature">def median <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: median of the numbers">Float</span></div>
         </div>
-        <div class="item" id="func-std⁵⁸">
+        <div class="item" id="func-std-L74">
             <div class="item-header">
-                <span class="item-name">std⁵⁸</span>
+                <h3 class="item-name">std</h3>
             </div>
-            <div class="comment">Returns the sample standard deviation of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: standard deviation</div>
-            <div class="signature">def std⁵⁸ (xs⁵⁹: {x⁶⁰ : Array? Float  | ((&gt; (Array.size? x⁶⁰)) 0) }) : {s⁶¹ : Float  | ((== s⁶¹) (sampleStd¹⁹ xs⁵⁹)) }</div>
+            <div class="comment">Returns the sample standard deviation of a non-empty list of numbers.</div>
+            <div class="signature">def std <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: standard deviation">{s : Float | s == sampleStd xs}</span></div>
         </div>
-        <div class="item" id="func-var⁶²">
+        <div class="item" id="func-var-L79">
             <div class="item-header">
-                <span class="item-name">var⁶²</span>
+                <h3 class="item-name">var</h3>
             </div>
-            <div class="comment">Returns the sample variance of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: variance</div>
-            <div class="signature">def var⁶² (xs⁶³: {x⁶⁴ : Array? Float  | ((&gt; (Array.size? x⁶⁴)) 0) }) : {v⁶⁵ : Float  | ((== v⁶⁵) (sampleVar¹⁷ xs⁶³)) }</div>
+            <div class="comment">Returns the sample variance of a non-empty list of numbers.</div>
+            <div class="signature">def var <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: variance">{v : Float | v == sampleVar xs}</span></div>
         </div>
-        <div class="item" id="func-min⁶⁶">
+        <div class="item" id="func-min-L84">
             <div class="item-header">
-                <span class="item-name">min⁶⁶</span>
+                <h3 class="item-name">min</h3>
             </div>
-            <div class="comment">Returns the minimum value in a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: minimum value</div>
-            <div class="signature">def min⁶⁶ (xs⁶⁷: {x⁶⁸ : Array? Float  | ((&gt; (Array.size? x⁶⁸)) 0) }) : {m⁶⁹ : Float  | ((== m⁶⁹) (sampleMin²¹ xs⁶⁷)) }</div>
+            <div class="comment">Returns the minimum value in a non-empty list of numbers.</div>
+            <div class="signature">def min <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: minimum value">{m : Float | m == sampleMin xs}</span></div>
         </div>
-        <div class="item" id="func-max⁷⁰">
+        <div class="item" id="func-max-L89">
             <div class="item-header">
-                <span class="item-name">max⁷⁰</span>
+                <h3 class="item-name">max</h3>
             </div>
-            <div class="comment">Returns the maximum value in a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: maximum value</div>
-            <div class="signature">def max⁷⁰ (xs⁷¹: {x⁷² : Array? Float  | ((&gt; (Array.size? x⁷²)) 0) }) : {m⁷³ : Float  | ((== m⁷³) (sampleMax²³ xs⁷¹)) }</div>
+            <div class="comment">Returns the maximum value in a non-empty list of numbers.</div>
+            <div class="signature">def max <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: maximum value">{m : Float | m == sampleMax xs}</span></div>
         </div>
-        <div class="item" id="func-sum⁷⁴">
+        <div class="item" id="func-sum-L94">
             <div class="item-header">
-                <span class="item-name">sum⁷⁴</span>
+                <h3 class="item-name">sum</h3>
             </div>
-            <div class="comment">Returns the sum of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: sum of the numbers</div>
-            <div class="signature">def sum⁷⁴ (xs⁷⁵: {x⁷⁶ : Array? Float  | ((&gt; (Array.size? x⁷⁶)) 0) }) : Float </div>
+            <div class="comment">Returns the sum of a non-empty list of numbers.</div>
+            <div class="signature">def sum <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: sum of the numbers">Float</span></div>
         </div>
-        <div class="item" id="func-quantile⁷⁷">
+        <div class="item" id="func-quantile-L100">
             <div class="item-header">
-                <span class="item-name">quantile⁷⁷</span>
+                <h3 class="item-name">quantile</h3>
             </div>
-            <div class="comment">Returns the quantile of a non-empty list of numbers.
-xs: non-empty list of numbers
-q: quantile to compute (between 0 and 1, e.g., 0.25 for Q1, 0.5 for median, 0.75 for Q3)
-returns: quantile value</div>
-            <div class="signature">def quantile⁷⁷ (xs⁷⁸: {x⁷⁹ : Array? Float  | ((&gt; (Array.size? x⁷⁹)) 0) }), (q⁸⁰: Float ) : Float </div>
+            <div class="comment">Returns the quantile of a non-empty list of numbers.</div>
+            <div class="signature">def quantile <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="q : Float
+
+quantile to compute (between 0 and 1, e.g., 0.25 for Q1, 0.5 for median, 0.75 for Q3)">(q: Float)</span> : <span class="sig-return" data-tooltip="returns: quantile value">Float</span></div>
         </div>
-        <div class="item" id="func-prod⁸¹">
+        <div class="item" id="func-prod-L105">
             <div class="item-header">
-                <span class="item-name">prod⁸¹</span>
+                <h3 class="item-name">prod</h3>
             </div>
-            <div class="comment">Returns the product of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: product of the numbers</div>
-            <div class="signature">def prod⁸¹ (xs⁸²: {x⁸³ : Array? Float  | ((&gt; (Array.size? x⁸³)) 0) }) : Float </div>
+            <div class="comment">Returns the product of a non-empty list of numbers.</div>
+            <div class="signature">def prod <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: product of the numbers">Float</span></div>
         </div>
-        <div class="item" id="func-cumsum⁸⁴">
+        <div class="item" id="func-cumsum-L110">
             <div class="item-header">
-                <span class="item-name">cumsum⁸⁴</span>
+                <h3 class="item-name">cumsum</h3>
             </div>
-            <div class="comment">Returns the cumulative sum of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: list of cumulative sums</div>
-            <div class="signature">def cumsum⁸⁴ (xs⁸⁵: {x⁸⁶ : Array? Float  | ((&gt; (Array.size? x⁸⁶)) 0) }) : Array? Float </div>
+            <div class="comment">Returns the cumulative sum of a non-empty list of numbers.</div>
+            <div class="signature">def cumsum <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: list of cumulative sums">Array Float</span></div>
         </div>
-        <div class="item" id="func-cumprod⁸⁷">
+        <div class="item" id="func-cumprod-L115">
             <div class="item-header">
-                <span class="item-name">cumprod⁸⁷</span>
+                <h3 class="item-name">cumprod</h3>
             </div>
-            <div class="comment">Returns the cumulative product of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: list of cumulative products</div>
-            <div class="signature">def cumprod⁸⁷ (xs⁸⁸: {x⁸⁹ : Array? Float  | ((&gt; (Array.size? x⁸⁹)) 0) }) : Array? Float </div>
+            <div class="comment">Returns the cumulative product of a non-empty list of numbers.</div>
+            <div class="signature">def cumprod <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: list of cumulative products">Array Float</span></div>
         </div>
-        <div class="item" id="func-quartiles⁹⁰">
+        <div class="item" id="func-quartiles-L120">
             <div class="item-header">
-                <span class="item-name">quartiles⁹⁰</span>
+                <h3 class="item-name">quartiles</h3>
             </div>
-            <div class="comment">Returns the 1st (Q1), 2nd (median), and 3rd (Q3) quartiles of a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: list [Q1, Q2, Q3]</div>
-            <div class="signature">def quartiles⁹⁰ (xs⁹¹: {x⁹² : Array? Float  | ((&gt; (Array.size? x⁹²)) 0) }) : Array? Float </div>
+            <div class="comment">Returns the 1st (Q1), 2nd (median), and 3rd (Q3) quartiles of a non-empty list of numbers.</div>
+            <div class="signature">def quartiles <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: list [Q1, Q2, Q3]">Array Float</span></div>
         </div>
-        <div class="item" id="func-unique⁹³">
+        <div class="item" id="func-unique-L125">
             <div class="item-header">
-                <span class="item-name">unique⁹³</span>
+                <h3 class="item-name">unique</h3>
             </div>
-            <div class="comment">Returns the unique values in a non-empty list.
-xs: non-empty list of numbers
-returns: list of unique values</div>
-            <div class="signature">def unique⁹³ (xs⁹⁴: {x⁹⁵ : Array? Float  | ((&gt; (Array.size? x⁹⁵)) 0) }) : Array? Float </div>
+            <div class="comment">Returns the unique values in a non-empty list.</div>
+            <div class="signature">def unique <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: list of unique values">Array Float</span></div>
         </div>
-        <div class="item" id="func-argmax⁹⁶">
+        <div class="item" id="func-argmax-L130">
             <div class="item-header">
-                <span class="item-name">argmax⁹⁶</span>
+                <h3 class="item-name">argmax</h3>
             </div>
-            <div class="comment">Returns the index of the maximum value in a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: index of the maximum value</div>
-            <div class="signature">def argmax⁹⁶ (xs⁹⁷: {x⁹⁸ : Array? Float  | ((&gt; (Array.size? x⁹⁸)) 0) }) : Float </div>
+            <div class="comment">Returns the index of the maximum value in a non-empty list of numbers.</div>
+            <div class="signature">def argmax <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: index of the maximum value">Float</span></div>
         </div>
-        <div class="item" id="func-argmin⁹⁹">
+        <div class="item" id="func-argmin-L135">
             <div class="item-header">
-                <span class="item-name">argmin⁹⁹</span>
+                <h3 class="item-name">argmin</h3>
             </div>
-            <div class="comment">Returns the index of the minimum value in a non-empty list of numbers.
-xs: non-empty list of numbers
-returns: index of the minimum value</div>
-            <div class="signature">def argmin⁹⁹ (xs¹⁰⁰: {x¹⁰¹ : Array? Float  | ((&gt; (Array.size? x¹⁰¹)) 0) }) : Float </div>
+            <div class="comment">Returns the index of the minimum value in a non-empty list of numbers.</div>
+            <div class="signature">def argmin <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> : <span class="sig-return" data-tooltip="returns: index of the minimum value">Float</span></div>
         </div>
-        <div class="item" id="func-percentile¹⁰²">
+        <div class="item" id="func-percentile-L141">
             <div class="item-header">
-                <span class="item-name">percentile¹⁰²</span>
+                <h3 class="item-name">percentile</h3>
             </div>
-            <div class="comment">Returns the percentile of a non-empty list of numbers.
-xs: non-empty list of numbers
-p: percentile to compute (between 0 and 100)
-returns: percentile value</div>
-            <div class="signature">def percentile¹⁰² (xs¹⁰³: {x¹⁰⁴ : Array? Float  | ((&gt; (Array.size? x¹⁰⁴)) 0) }), (p¹⁰⁵: Float ) : Float </div>
+            <div class="comment">Returns the percentile of a non-empty list of numbers.</div>
+            <div class="signature">def percentile <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="p : Float
+
+percentile to compute (between 0 and 100)">(p: Float)</span> : <span class="sig-return" data-tooltip="returns: percentile value">Float</span></div>
         </div>
-        <div class="item" id="func-corrcoef¹⁰⁶">
+        <div class="item" id="func-corrcoef-L147">
             <div class="item-header">
-                <span class="item-name">corrcoef¹⁰⁶</span>
+                <h3 class="item-name">corrcoef</h3>
             </div>
-            <div class="comment">Returns the correlation coefficient of two non-empty lists of equal length.
-xs: non-empty list of numbers
-ys: non-empty list of numbers, same length as xs
-returns: correlation coefficient</div>
-            <div class="signature">def corrcoef¹⁰⁶ (xs¹⁰⁷: {x¹⁰⁸ : Array? Float  | ((&gt; (Array.size? x¹⁰⁸)) 0) }), (ys¹⁰⁹: {y¹¹⁰ : Array? Float  | ((== (Array.size? y¹¹⁰)) (Array.size? xs¹⁰⁷)) }) : Float </div>
+            <div class="comment">Returns the correlation coefficient of two non-empty lists of equal length.</div>
+            <div class="signature">def corrcoef <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="ys : {y : Array Float | Array.size y == Array.size xs}
+
+non-empty list of numbers, same length as xs">(ys: {y : Array Float | Array.size y == Array.size xs})</span> : <span class="sig-return" data-tooltip="returns: correlation coefficient">Float</span></div>
         </div>
-        <div class="item" id="func-cov¹¹¹">
+        <div class="item" id="func-cov-L153">
             <div class="item-header">
-                <span class="item-name">cov¹¹¹</span>
+                <h3 class="item-name">cov</h3>
             </div>
-            <div class="comment">Returns the covariance of two non-empty lists of equal length.
-xs: non-empty list of numbers
-ys: non-empty list of numbers, same length as xs
-returns: covariance</div>
-            <div class="signature">def cov¹¹¹ (xs¹¹²: {x¹¹³ : Array? Float  | ((&gt; (Array.size? x¹¹³)) 0) }), (ys¹¹⁴: {y¹¹⁵ : Array? Float  | ((== (Array.size? y¹¹⁵)) (Array.size? xs¹¹²)) }) : Float </div>
+            <div class="comment">Returns the covariance of two non-empty lists of equal length.</div>
+            <div class="signature">def cov <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}
+
+non-empty list of numbers">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="ys : {y : Array Float | Array.size y == Array.size xs}
+
+non-empty list of numbers, same length as xs">(ys: {y : Array Float | Array.size y == Array.size xs})</span> : <span class="sig-return" data-tooltip="returns: covariance">Float</span></div>
         </div>
-        <div class="item" id="func-proportionBelow¹¹⁶">
+        <div class="item" id="func-proportionBelow-L161">
             <div class="item-header">
-                <span class="item-name">proportionBelow¹¹⁶</span>
+                <h3 class="item-name">proportionBelow</h3>
             </div>
             <div class="comment">Proportion of values strictly below a threshold.</div>
-            <div class="signature">def proportionBelow¹¹⁶ (xs¹¹⁷: {x¹¹⁸ : Array? Float  | ((&gt; (Array.size? x¹¹⁸)) 0) }), (t¹¹⁹: Float ) : {f¹²⁰ : Float  | ((&amp;&amp; ((== f¹²⁰) ((fracBelow⁵ xs¹¹⁷) t¹¹⁹))) ((&amp;&amp; ((&lt;= 0.0) f¹²⁰)) ((&lt;= f¹²⁰) 1.0))) }</div>
+            <div class="signature">def proportionBelow <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="t : Float">(t: Float)</span> : {f : Float | f == fracBelow xs t &amp;&amp; (0.0 &lt;= f &amp;&amp; f &lt;= 1.0)}</div>
         </div>
-        <div class="item" id="func-proportionAbove¹²¹">
+        <div class="item" id="func-proportionAbove-L166">
             <div class="item-header">
-                <span class="item-name">proportionAbove¹²¹</span>
+                <h3 class="item-name">proportionAbove</h3>
             </div>
             <div class="comment">Proportion of values strictly above a threshold.</div>
-            <div class="signature">def proportionAbove¹²¹ (xs¹²²: {x¹²³ : Array? Float  | ((&gt; (Array.size? x¹²³)) 0) }), (t¹²⁴: Float ) : {f¹²⁵ : Float  | ((&amp;&amp; ((== f¹²⁵) ((fracAbove⁸ xs¹²²) t¹²⁴))) ((&amp;&amp; ((&lt;= 0.0) f¹²⁵)) ((&lt;= f¹²⁵) 1.0))) }</div>
+            <div class="signature">def proportionAbove <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="t : Float">(t: Float)</span> : {f : Float | f == fracAbove xs t &amp;&amp; (0.0 &lt;= f &amp;&amp; f &lt;= 1.0)}</div>
         </div>
-        <div class="item" id="func-proportionBetween¹²⁶">
+        <div class="item" id="func-proportionBetween-L171">
             <div class="item-header">
-                <span class="item-name">proportionBetween¹²⁶</span>
+                <h3 class="item-name">proportionBetween</h3>
             </div>
             <div class="comment">Proportion of values strictly inside the open interval (lo, hi).</div>
-            <div class="signature">def proportionBetween¹²⁶ (xs¹²⁷: {x¹²⁸ : Array? Float  | ((&gt; (Array.size? x¹²⁸)) 0) }), (lo¹²⁹: Float ), (hi¹³⁰: {h¹³¹ : Float  | ((&gt;= h¹³¹) lo¹²⁹) }) : {f¹³² : Float  | ((&amp;&amp; ((== f¹³²) (((fracBetween¹¹ xs¹²⁷) lo¹²⁹) hi¹³⁰))) ((&amp;&amp; ((&lt;= 0.0) f¹³²)) ((&lt;= f¹³²) 1.0))) }</div>
+            <div class="signature">def proportionBetween <span class="sig-arg sig-arg-0" data-tooltip="xs : {x : Array Float | Array.size x &gt; 0}">(xs: {x : Array Float | Array.size x &gt; 0})</span> <span class="sig-arg sig-arg-1" data-tooltip="lo : Float">(lo: Float)</span> <span class="sig-arg sig-arg-2" data-tooltip="hi : {h : Float | h &gt;= lo}">(hi: {h : Float | h &gt;= lo})</span> : {f : Float | f == fracBetween xs lo hi &amp;&amp; (0.0 &lt;= f &amp;&amp; f &lt;= 1.0)}</div>
+        </div>
+        <h2 id="uninterpreted">Uninterpreted</h2>
+        <p class="section-note">Functions declared as <code>def f ... = uninterpreted</code>: only their signature is known to the verifier; they have no body.</p>
+        <div class="item uninterpreted" id="func-fracBelow-L9">
+            <div class="item-header">
+                <h3 class="item-name">fracBelow</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Fraction of xs strictly below threshold t.</div>
+            <div class="signature">def fracBelow : (xs : Array Float) -&gt; (t : Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-fracAbove-L12">
+            <div class="item-header">
+                <h3 class="item-name">fracAbove</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Fraction of xs strictly above threshold t.</div>
+            <div class="signature">def fracAbove : (xs : Array Float) -&gt; (t : Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-fracBetween-L15">
+            <div class="item-header">
+                <h3 class="item-name">fracBetween</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Fraction of xs in the open interval (lo, hi).</div>
+            <div class="signature">def fracBetween : (xs : Array Float) -&gt; (lo : Float) -&gt; (hi : Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-sampleMean-L18">
+            <div class="item-header">
+                <h3 class="item-name">sampleMean</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="comment">Sample summary statistics as abstract symbols.</div>
+            <div class="signature">def sampleMean : (xs : Array Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-sampleVar-L19">
+            <div class="item-header">
+                <h3 class="item-name">sampleVar</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def sampleVar : (xs : Array Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-sampleStd-L20">
+            <div class="item-header">
+                <h3 class="item-name">sampleStd</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def sampleStd : (xs : Array Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-sampleMin-L21">
+            <div class="item-header">
+                <h3 class="item-name">sampleMin</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def sampleMin : (xs : Array Float) -&gt; Float</div>
+        </div>
+        <div class="item uninterpreted" id="func-sampleMax-L22">
+            <div class="item-header">
+                <h3 class="item-name">sampleMax</h3>
+                <span class="badge badge-uninterpreted" title="Declared as `def ... = uninterpreted`: no body. The verifier treats it as an uninterpreted function — only its signature is known.">uninterpreted</span>
+            </div>
+            <div class="signature">def sampleMax : (xs : Array Float) -&gt; Float</div>
         </div>
     </div>
 </body>
