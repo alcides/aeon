@@ -91,19 +91,19 @@ def _get_package_libraries_dir() -> Path | None:
 
 def _resolve_import(imp: ImportAe) -> Program:
     path = imp.file_path
-    
+
     possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
-    
+
     # Add package libraries directory
     pkg_libs = _get_package_libraries_dir()
     if pkg_libs:
         possible_containers.append(pkg_libs)
-    
+
     # Add AEONPATH directories
     aeonpath = os.environ.get("AEONPATH", "")
     if aeonpath:
         possible_containers.extend([Path(s) for s in aeonpath.split(";") if s])
-    
+
     for container in possible_containers:
         file = container / path
         if file.exists():
