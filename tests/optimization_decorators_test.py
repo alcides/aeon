@@ -59,9 +59,9 @@ def test_minimize_cputime_registers_goal():
     assert goals[0].kind == "cputime"
 
 
-def test_minimize_cpu_time_alias_registers_goal():
+def test_minimize_cputime_alias_registers_goal():
     source = """
-        @minimize_cpu_time(synth 7)
+        @minimize_cputime(synth 7)
         def synth (i:Int) : Int = i * (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)

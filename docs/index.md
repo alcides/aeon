@@ -434,7 +434,6 @@ def approx (x:Int | x > 0) : Float =
 These add extra minimization objectives alongside numeric ones (for example `@minimize_int`). The synthesizer measures how expensive it is to **evaluate** the given expression for each candidate; the expression’s *value* is ignored, so its static type is unconstrained.
 
 - `@minimize_cputime(expr)` — fitness is CPU time in seconds for evaluating `expr` (`time.process_time()` around the evaluation).
-- `@minimize_cpu_time(expr)` — same as `@minimize_cputime` (alternate spelling).
 - `@minimize_energy(expr)` — fitness is energy in joules for evaluating `expr`. Uses Intel RAPL via the optional `pyRAPL` package when available; otherwise a CPU-time proxy (`cpu_time ×` a fixed watt estimate) so cheaper candidates still score better.
 
 See `examples/synthesis/cputime_energy.ae` for a program that combines correctness and resource objectives.
