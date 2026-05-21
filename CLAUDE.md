@@ -49,6 +49,24 @@ uv run mypy aeon
 - pytest-beartype enabled for `aeon.core` package
 - Python 3.10+ target
 
+## Import System
+
+Aeon supports importing modules from multiple locations with the following search order:
+
+1. **Current working directory** - for relative imports alongside your script
+2. **`cwd/libraries/`** - backward compatibility for projects with a local libraries folder
+3. **Package installation `libraries/`** - standard library modules (List, Math, Array, etc.)
+4. **`AEONPATH` environment variable** - semicolon-separated custom library paths
+
+This means you can run `python -m aeon /path/to/any/file.ae` from anywhere and it will find standard library imports.
+
+**Import syntax:**
+```aeon
+import Math;              // Qualified import: use Math.abs
+open Math                 // Unqualified: use abs directly
+import Math (abs, pow);   // Selective import: use abs, pow directly
+```
+
 ## Architecture
 
 The codebase follows a compiler pipeline:

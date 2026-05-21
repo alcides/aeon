@@ -19,6 +19,26 @@ aeon can be executed directly from pypy using [uvx](https://github.com/astral-sh
 uvx --from aeonlang aeon [file.ae]
 ```
 
+You can run aeon on any `.ae` file anywhere in your filesystem. Aeon will automatically find standard library modules (List, Math, Array, etc.) from its installation.
+
+### Import System
+
+Aeon searches for imported modules in the following order:
+
+1. Current working directory (for relative imports)
+2. `cwd/libraries/` subdirectory
+3. Package installation `libraries/` directory (standard library)
+4. `AEONPATH` environment variable (semicolon-separated custom paths)
+
+**Example:**
+```aeon
+import Math;              // Imports Math from standard library
+import MyModule;          // Imports MyModule.ae from current directory
+
+def main (args: Int): Unit =
+    print (Math.abs (0 - 5));
+```
+
 
 
 ## Examples
