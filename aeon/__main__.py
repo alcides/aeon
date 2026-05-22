@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from argparse import ArgumentParser
+from pathlib import Path
 
 from aeon.facade.api import AeonError
 from aeon.facade.driver import AeonConfig, AeonDriver
@@ -112,6 +114,18 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Generate HTML documentation from the source file",
     )
 
+    parser.add_argument(
+        "--doc-output",
+        type=str,
+        default=None,
+        help=(
+            "Output path for the generated HTML doc. "
+            "Either a file path (used as-is) or a directory path "
+            "(the file is written there with the source's stem). "
+            "Defaults to <source>.html next to the .ae file."
+        ),
+    )
+
 
 def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
@@ -160,7 +174,16 @@ def main() -> None:
         sys.exit(0)
 
     if hasattr(args, "doc") and args.doc:
-        output_path = args.filename.replace(".ae", ".html")
+        source_path = Path(args.filename)
+        if args.doc_output:
+            target = Path(args.doc_output)
+            if target.is_dir() or args.doc_output.endswith(("/", os.sep)):
+                output_path = str(target / f"{source_path.stem}.html")
+            else:
+                output_path = str(target)
+        else:
+            output_path = str(source_path.with_suffix(".html"))
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         generate_documentation(args.filename, output_path)
         print(f"Documentation generated: {output_path}")
         sys.exit(0)

@@ -1,0 +1,74 @@
+name: Docs
+
+# Build the documentation site:
+#   1. Generate AeonDoc HTML for every stdlib module into ``docs/stdlib/``.
+#   2. Build the Jekyll site under ``docs/``.
+#   3. On master, deploy the resulting site to GitHub Pages.
+#
+# Note: this workflow expects the repo's Pages source to be set to
+# "GitHub Actions" (Settings → Pages → Source). The previous setting that
+# served from the master branch's ``docs/`` directory would not pick up
+# the generated HTML, which now lives only in CI artifacts.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+
+      - name: Install Aeon
+        run: uv pip install --system -e .
+
+      - name: Generate stdlib AeonDoc HTML
+        run: python scripts/build_stdlib_docs.py docs/stdlib
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Build Jekyll site
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
