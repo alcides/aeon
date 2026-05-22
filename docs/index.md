@@ -383,6 +383,22 @@ There are a few libraries available, but unstable as they are under development:
 - Table.ae
 - Tuple.ae
 
+The full HTML reference for every standard-library module — generated from the
+`.ae` source by `python -m aeon --doc` — lives under [stdlib/](stdlib/). It
+documents each module's types, constructors, functions, and uninterpreted
+declarations, with refinement types rendered in surface syntax and hover
+tooltips on every argument.
+
+To regenerate the reference locally:
+
+```bash
+uv run python scripts/build_stdlib_docs.py
+# writes docs/stdlib/*.html and docs/stdlib/index.html
+```
+
+The generated files are gitignored; they are produced from source by the
+`Docs` GitHub Actions workflow and published alongside the rest of this site.
+
 ## Command-line options
 
 |   Flag | Description                                                                   |
