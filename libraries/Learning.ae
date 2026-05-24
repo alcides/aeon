@@ -1,68 +1,380 @@
+# Pleasant machine-learning library inspired by ``requests``.
+#
+# Design goals:
+#
+#   * The pandas / sklearn ``X``/``y`` split is hidden. Users work with
+#     two opaque types — ``DataFrame`` (all columns intact) and
+#     ``Dataset`` (features + a designated target column).
+#   * Classification and regression are distinguished at the type level
+#     (``Classifier`` vs ``Regressor``). Metrics are typed against the
+#     right kind of model — ``accuracy`` will not type-check against a
+#     regressor, ``mse`` will not type-check against a classifier.
+#   * A few dataset-consuming operations are linear (``(1 ds: Dataset)``)
+#     so callers who bind their source with ``let 1 df = ...`` get a
+#     type error if they keep using the pre-transformed dataset.
+#   * Refinements carry shape and class invariants. Common ML bugs are
+#     rejected at compile time:
+#
+#       - ``target`` and ``target_at`` link the resulting dataset's
+#         row/feature counts to the source ``DataFrame``.
+#       - Training functions stamp the resulting model with
+#         ``clf_features`` / ``clf_classes`` / ``reg_features``.
+#       - Scaling, imputation and oversampling preserve the feature
+#         count and class count; scaling/imputation preserve balance.
+#       - ``random_undersample`` only ever shrinks the row count;
+#         oversamplers only grow it.
+#       - ``smote`` / ``random_oversample`` / ``random_undersample``
+#         require ``ds_classes ds >= 2``; ``knn_classifier_k`` requires
+#         ``k <= ds_rows ds``; ``complement_nb`` requires an imbalanced
+#         dataset (its actual design intent).
+#       - Probabilities are refined to ``[0, 1]``; error metrics to
+#         ``>= 0.0``.
+#
+#     Runtime witnesses (``is_multiclass``, ``is_splittable``,
+#     ``is_nonempty``, ``balanced``) refine their Bool return type so
+#     they can discharge the corresponding precondition inside an
+#     ``if ... then ... else ...`` guard.
+
+open List
+open Tuple
+
+# ─── Opaque types ───────────────────────────────────────────────────────
+
+type DataFrame
 type Dataset
-type Model
+type Classifier
+type Regressor
+
+# ─── Library-level imports (side-effecting `import` calls) ─────────────
 
 def np : Unit = native_import "numpy"
+def pd : Unit = native_import "pandas"
 def skl : Unit = native_import "sklearn"
-def imblearn : Unit = native_import "imblearn"
 
-# Returns true if the dataset is balanced.
-def is_balanced: (ds: Dataset) -> Bool = uninterpreted
+# ─── Uninterpreted shape / class predicates ────────────────────────────
 
-# Loads a dataset from a file.
-def load_dataset (filename: String) : Dataset = native "learning.load_dataset(filename)"
+def df_rows : (df: DataFrame) -> Int = uninterpreted
+def df_cols : (df: DataFrame) -> Int = uninterpreted
 
-# Splits a dataset into two parts according to the given fraction.
-def split_dataset_training (original: Dataset) (fraction: {f: Float | 0.0 <= f && f <= 1.0}) :
-    {training:Dataset | is_balanced training == is_balanced original } =
-    native "learning.split_dataset(original, fraction)[0]"
+def ds_rows : (ds: Dataset) -> Int = uninterpreted
+def ds_features : (ds: Dataset) -> Int = uninterpreted
+def ds_classes : (ds: Dataset) -> Int = uninterpreted
 
+# Every class label appears the same number of times.
+def is_balanced : (ds: Dataset) -> Bool = uninterpreted
 
-# Splits a dataset into two parts according to the given fraction.
-def split_dataset_testing (original: Dataset) (fraction: {f: Float | 0.0 <= f && f <= 1.0}) :
-    {testing:Dataset | is_balanced testing == is_balanced original } =
-    native "learning.split_dataset(original, fraction)[1]"
+# Shape of a fitted model.
+def clf_features : (m: Classifier) -> Int = uninterpreted
+def clf_classes : (m: Classifier) -> Int = uninterpreted
+def reg_features : (m: Regressor) -> Int = uninterpreted
 
+# ─── Loading & target column selection ─────────────────────────────────
 
-# Trains a random forest model on a balanced dataset.
-def train_random_forest (dataset: {training_dataset: Dataset | is_balanced training_dataset}) : Model =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
+# Read a CSV file into a ``DataFrame`` (all columns kept).
+def read_csv (path: String) : {df: DataFrame | df_cols df >= 1 && df_rows df >= 0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_read_csv(path)"
 
+# Designate ``column`` as the target. Consumes the source DataFrame.
+# Row count is preserved; feature count is one less than the column
+# count of the source.
+def target (1 df: DataFrame) (column: String) :
+    {ds: Dataset | ds_rows ds == df_rows df && ds_features ds == (df_cols df) - 1} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_target(df, column)"
 
-# Trains a random forest model on a balanced dataset.
-def train_multinomial_nb (dataset: {training_dataset: Dataset | is_balanced training_dataset}) : Model =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
- # TODO fix binding
+# Designate the column at position ``index`` (0-based) as the target.
+def target_at (1 df: DataFrame) (index: {n: Int | n >= 0 && n < df_cols df}) :
+    {ds: Dataset | ds_rows ds == df_rows df && ds_features ds == (df_cols df) - 1} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_target_at(df, index)"
 
-# Trains a random forest model on a balanced dataset.
-def train_complement_nb (dataset: {training_dataset: Dataset | is_balanced training_dataset == false}) : Model =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_train_random_forest(training_dataset)"
- # TODO fix binding
+# Convenience: read a CSV and use the *last* column as the target.
+def load (path: String) : {ds: Dataset | ds_features ds >= 0 && ds_rows ds >= 0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_load(path)"
 
-# Applies SMOTE oversampling to balance the dataset.
-def smote_oversample (ds: Dataset) : {ds2: Dataset | is_balanced ds2 } =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_smote_oversample(ds)"
+# ─── DataFrame inspection ──────────────────────────────────────────────
 
+def columns (df: DataFrame) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_columns(df)"
 
-# Predicts labels for the given dataset using the trained model.
-def predict (model: Model) (ds: Dataset) : List =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_predict(model, ds)"
+def has_column (df: DataFrame) (column: String) : Bool =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_has_column(df, column)"
 
+def n_columns (df: DataFrame) : {n: Int | n == df_cols df && n >= 0} =
+    native "len(df.columns)"
 
-# Returns the accuracy score of the model on the given dataset.
-def score (model: Model) (ds: Dataset) : Float =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_score(model, ds)"
+# ─── Dataset inspection — runtime witnesses for the type-level predicates ─
 
+def n_rows (ds: Dataset) : {n: Int | n == ds_rows ds && n >= 0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_n_rows(ds)"
 
-# Returns the confusion matrix for predictions on the dataset.
-def confusion_matrix (model: Model) (ds: Dataset) : List =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_confusion_matrix(model, ds)"
+def n_features (ds: Dataset) : {n: Int | n == ds_features ds && n >= 0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_n_features(ds)"
 
+# Runtime witness for ``is_balanced``.
+def balanced (ds: Dataset) : {b: Bool | b == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_is_balanced(ds)"
 
-# Applies standard scaling (zero mean, unit variance) to the dataset features.
-def standard_scale (ds: Dataset) : Dataset =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_standard_scale(ds)"
+# Runtime witnesses that discharge precondition refinements inside an
+# ``if ... then ... else ...`` branch.
+def is_nonempty (ds: Dataset) : {b: Bool | b == (ds_rows ds > 0)} =
+    native "(__import__('aeon.bindings.learning').bindings.learning.Learning_n_rows(ds) > 0)"
 
+def is_splittable (ds: Dataset) : {b: Bool | b == (ds_rows ds >= 2)} =
+    native "(__import__('aeon.bindings.learning').bindings.learning.Learning_n_rows(ds) >= 2)"
 
-# Applies min-max scaling to the dataset features.
-def minmax_scale (ds: Dataset) : Dataset =
-    native "__import__('aeon.aeon.bindings.learning').aeon.aeon.bindings.learning.Learning_minmax_scale(ds)"
+def is_multiclass (ds: Dataset) : {b: Bool | b == (ds_classes ds >= 2)} =
+    native "(len(set(ds[1])) >= 2)"
+
+# List of ``[label, count]`` pairs sorted by label.
+def class_counts (ds: Dataset) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_class_counts(ds)"
+
+# ─── Splitting ─────────────────────────────────────────────────────────
+
+# Linear split into ``(training, testing)``. Project with ``Tuple.fst`` /
+# ``Tuple.snd``. Consumes the source so training on the un-split dataset
+# becomes a type error.
+def split
+    (1 ds: Dataset)
+    (fraction: {f: Float | 0.0 < f && f < 1.0}) : Tuple =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_split(ds, fraction)"
+
+# ─── Resampling / balancing ────────────────────────────────────────────
+
+# SMOTE oversampling; requires multi-class input (guard with
+# ``is_multiclass``). Output is balanced and preserves the feature
+# count; row count only ever grows.
+def smote (1 ds: {d: Dataset | ds_classes d >= 2}) :
+    {out: Dataset | is_balanced out == true
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && ds_rows out >= ds_rows ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_smote(ds)"
+
+def random_oversample (1 ds: {d: Dataset | ds_classes d >= 2}) :
+    {out: Dataset | is_balanced out == true
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && ds_rows out >= ds_rows ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_oversample(ds)"
+
+def random_undersample (1 ds: {d: Dataset | ds_classes d >= 2}) :
+    {out: Dataset | is_balanced out == true
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && ds_rows out <= ds_rows ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_undersample(ds)"
+
+# ─── Scaling ───────────────────────────────────────────────────────────
+
+def standard_scale (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_standard_scale(ds)"
+
+def minmax_scale (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_minmax_scale(ds)"
+
+def robust_scale (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_robust_scale(ds)"
+
+# ─── Missing-value imputation ──────────────────────────────────────────
+
+def fill_mean (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_fill_mean(ds)"
+
+def fill_median (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_fill_median(ds)"
+
+def fill_most_frequent (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_fill_most_frequent(ds)"
+
+def fill_constant (value: Float) (1 ds: Dataset) :
+    {out: Dataset | ds_rows out == ds_rows ds
+                  && ds_features out == ds_features ds
+                  && ds_classes out == ds_classes ds
+                  && is_balanced out == is_balanced ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_fill_constant(ds, value)"
+
+# ─── Classifier training ───────────────────────────────────────────────
+# Training stamps the model with the dataset's feature/class count.
+
+def random_forest_classifier (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier(ds)"
+
+def random_forest_classifier_n (n: {k: Int | k > 0}) (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier_n(n, ds)"
+
+def logistic_regression (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_logistic_regression(ds)"
+
+def decision_tree_classifier (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_decision_tree_classifier(ds)"
+
+def gradient_boosting_classifier (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_classifier(ds)"
+
+def knn_classifier (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_classifier(ds)"
+
+# ``k`` must be positive and not exceed the number of training rows.
+def knn_classifier_k
+    (k: {n: Int | n > 0})
+    (ds: {d: Dataset | ds_rows d >= k}) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_classifier_k(k, ds)"
+
+def svc (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_svc(ds)"
+
+def gaussian_nb (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gaussian_nb(ds)"
+
+def multinomial_nb (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_multinomial_nb(ds)"
+
+# ComplementNB targets imbalanced data — refining out the balanced case
+# guides callers toward the right tool. Discharge with
+# ``if Learning.balanced ds then ... else Learning.complement_nb ds``.
+def complement_nb (ds: {d: Dataset | is_balanced d == false}) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_complement_nb(ds)"
+
+def mlp_classifier (ds: Dataset) :
+    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_classifier(ds)"
+
+# ─── Regressor training ────────────────────────────────────────────────
+
+def linear_regression (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_linear_regression(ds)"
+
+def ridge (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge(ds)"
+
+def ridge_alpha (alpha: {a: Float | a >= 0.0}) (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge_alpha(alpha, ds)"
+
+def lasso (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso(ds)"
+
+def lasso_alpha (alpha: {a: Float | a >= 0.0}) (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso_alpha(alpha, ds)"
+
+def elastic_net (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_elastic_net(ds)"
+
+def random_forest_regressor (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor(ds)"
+
+def random_forest_regressor_n (n: {k: Int | k > 0}) (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor_n(n, ds)"
+
+def decision_tree_regressor (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_decision_tree_regressor(ds)"
+
+def gradient_boosting_regressor (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_regressor(ds)"
+
+def knn_regressor (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_regressor(ds)"
+
+def svr (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_svr(ds)"
+
+def mlp_regressor (ds: Dataset) :
+    {m: Regressor | reg_features m == ds_features ds} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_regressor(ds)"
+
+# ─── Prediction ────────────────────────────────────────────────────────
+
+def predict (model: Classifier) (ds: Dataset) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
+
+def predict_proba (model: Classifier) (ds: Dataset) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict_proba(model, ds)"
+
+def predict_value (model: Regressor) (ds: Dataset) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
+
+# ─── Classification metrics ────────────────────────────────────────────
+
+def accuracy (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_accuracy(model, ds)"
+
+def precision (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_precision(model, ds)"
+
+def recall (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_recall(model, ds)"
+
+def f1 (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_f1(model, ds)"
+
+def roc_auc (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_roc_auc(model, ds)"
+
+def confusion_matrix (model: Classifier) (ds: Dataset) : List =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_confusion_matrix(model, ds)"
+
+def classification_report (model: Classifier) (ds: Dataset) : String =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_classification_report(model, ds)"
+
+# ─── Regression metrics ────────────────────────────────────────────────
+
+def mse (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_mse(model, ds)"
+
+def rmse (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_rmse(model, ds)"
+
+def mae (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_mae(model, ds)"
+
+def r2 (model: Regressor) (ds: Dataset) : Float =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_r2(model, ds)"
+
+def explained_variance (model: Regressor) (ds: Dataset) : Float =
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_explained_variance(model, ds)"

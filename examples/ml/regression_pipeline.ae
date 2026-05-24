@@ -1,0 +1,29 @@
+# End-to-end regression pipeline.
+#
+# Showcases the separation between ``Classifier`` and ``Regressor`` at
+# the type level: only regression metrics (``mse``, ``r2``, ...) accept
+# the regressor produced by ``ridge`` / ``random_forest_regressor``.
+
+open Learning
+open Tuple
+
+
+def train_ridge (path: String) (target_col: String) : Regressor =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    let imputed = Learning.fill_median ds in
+    let scaled = Learning.standard_scale imputed in
+    let parts = Learning.split scaled 0.8 in
+    Learning.ridge_alpha 0.5 (Tuple.fst parts) ;
+
+
+def score_ridge (path: String) (target_col: String) : Float =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    let imputed = Learning.fill_median ds in
+    let scaled = Learning.standard_scale imputed in
+    let parts = Learning.split scaled 0.8 in
+    let train_set = Tuple.fst parts in
+    let test_set = Tuple.snd parts in
+    let model = Learning.ridge train_set in
+    Learning.r2 model test_set ;

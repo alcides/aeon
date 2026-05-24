@@ -1,0 +1,38 @@
+# End-to-end classification pipeline showcasing the Learning library.
+#
+# Runtime witnesses (``is_multiclass``, ``balanced``) can be used inline
+# inside ``if ... then ... else ...`` to discharge precondition
+# refinements — no let-binding workaround needed.
+
+open Learning
+open Tuple
+
+
+def evaluate (train_set: Dataset) (test_set: Dataset) : Float =
+    let model = Learning.random_forest_classifier train_set in
+    Learning.accuracy model test_set ;
+
+
+def pipeline (path: String) (target_col: String) : Classifier =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    if Learning.is_multiclass ds then
+        let bds = Learning.smote ds in
+        let scaled = Learning.standard_scale bds in
+        let parts = Learning.split scaled 0.8 in
+        Learning.random_forest_classifier (Tuple.fst parts)
+    else
+        let scaled = Learning.standard_scale ds in
+        let parts = Learning.split scaled 0.8 in
+        Learning.random_forest_classifier (Tuple.fst parts) ;
+
+
+# ComplementNB requires imbalanced data. Discharged via an inline
+# ``balanced`` runtime check.
+def cnb_pipeline (path: String) (target_col: String) : Classifier =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    if Learning.balanced ds then
+        Learning.multinomial_nb ds
+    else
+        Learning.complement_nb ds ;
