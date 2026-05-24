@@ -735,6 +735,23 @@ def expand_inductive_decls(p: Program) -> Program:
                             )
                             defs.append(de)
 
+                            # NOTE: auto-generated polymorphic projections were
+                            # explored here but blocked on a deeper limitation —
+                            # polymorphic uninterpreted binders are eagerly
+                            # monomorphised to ``Int`` by ``monomorphic_type``,
+                            # and polymorphic non-uninterpreted variable binders
+                            # are silently dropped by ``implication_constraint``
+                            # for ``TypePolymorphism`` (only reflected or
+                            # uninterpreted polymorphic functions reach SMT).
+                            # Until that pipeline lifts, libraries can declare
+                            # **monomorphic** uninterpreted projections per
+                            # concrete instantiation, e.g.::
+                            #
+                            #   def split_fst : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
+                            #
+                            # which the SMT layer treats as a plain uninterpreted
+                            # function on the mangled sort.
+
                 def curry(args: list[tuple[Name, SType]], rty: SType, mults: tuple[Multiplicity, ...] = ()) -> SType:
                     n = len(args)
                     for i, (aname, aty) in enumerate(args[::-1]):

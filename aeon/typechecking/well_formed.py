@@ -46,7 +46,11 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
                 cargs = ctx.get_type_constructor(name)
                 if not cargs or len(cargs) != len(args):
                     return False
-                return all(wf_inner(ctx, t) for t in args)
+                # Type-constructor arguments are base types (with optional
+                # refinement); use ``wellformed`` so refined type variables
+                # like ``{_r:a | p _r}`` (which need BaseKind) are accepted
+                # in positions like ``List a<p>`` or ``Pair a<p> b<q>``.
+                return all(wellformed(ctx, t) for t in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
             return wf_inner(ctx, ity) and typecheck_liquid(ctx.with_var(name, ity), refinement) == t_bool
         case ExistentialType(binders, body):

@@ -1,0 +1,12 @@
+# Polymorphic product type. Eliminate with ``match`` over the single
+# ``mk`` constructor (the generated recursor ``Pair_rec`` is also
+# available). For SMT-level reasoning about specific projections in
+# refinements, declare monomorphic uninterpreted helpers per concrete
+# instantiation, e.g.
+#
+#     def split_fst : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
+#
+# and link them to the runtime values via refined accessors.
+
+inductive Pair a b
+| mk (fst:a) (snd:b) : (Pair a b)

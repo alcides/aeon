@@ -202,15 +202,19 @@ def _bind_definition(
     for fname, kind in df.foralls:
         nname, nsubs = check_name(fname, nsubs)
         foralls.append((nname, kind))
+    # Bind refinement-polymorphic predicates *before* args so any
+    # ``a<p>`` reference inside an arg's type resolves to the same ``p``
+    # bound here, rather than picking up a placeholder ID that later
+    # diverges from the rforalls entry.
+    rforalls = []
+    for pname, psort in df.rforalls:
+        nname, nsubs = check_name(pname, nsubs)
+        rforalls.append((nname, bind_stype(psort, nsubs)))
     args = []
     for aname, ty in df.args:
         nname, nsubs = check_name(aname, nsubs)
         ty = bind_stype(ty, nsubs)
         args.append((nname, ty))
-    rforalls = []
-    for pname, psort in df.rforalls:
-        nname, nsubs = check_name(pname, nsubs)
-        rforalls.append((nname, bind_stype(psort, nsubs)))
     ntype = bind_stype(df.type, nsubs)
     decreasing = [bind_sterm(m, nsubs) for m in df.decreasing_by]
     body = bind_sterm(df.body, nsubs)

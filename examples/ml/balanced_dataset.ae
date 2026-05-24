@@ -1,12 +1,11 @@
 # Train a random-forest classifier on a balanced dataset.
 #
-# The source dataframe is bound linearly so the type checker rules out
-# accidental reuse after the (X, y) split is committed via ``target``.
-# SMOTE's ``ds_classes ds >= 2`` precondition is discharged by an
-# inline ``is_multiclass`` runtime guard.
+# The source dataframe is bound linearly, the split returns a refined
+# ``Pair Dataset Dataset`` whose halves preserve the source's feature /
+# class / balance invariants, and the ``train_of`` / ``test_of`` runtime
+# accessors propagate those invariants to the let-bound halves.
 
 open Learning
-open Tuple
 
 
 def generate_model_smote (path: String) (target_col: String) : Classifier =
@@ -15,15 +14,14 @@ def generate_model_smote (path: String) (target_col: String) : Classifier =
     if Learning.is_multiclass ds then
         let bds = Learning.smote ds in
         let parts = Learning.split bds 0.7 in
-        Learning.random_forest_classifier (Tuple.fst parts)
+        Learning.random_forest_classifier (Learning.train_of parts)
     else
-        # Single-class — SMOTE would crash, so skip balancing.
         let parts = Learning.split ds 0.7 in
-        Learning.random_forest_classifier (Tuple.fst parts) ;
+        Learning.random_forest_classifier (Learning.train_of parts) ;
 
 
 def generate_model_plain (path: String) (target_col: String) : Classifier =
     let 1 df = Learning.read_csv path in
     let ds = Learning.target df target_col in
     let parts = Learning.split ds 0.7 in
-    Learning.random_forest_classifier (Tuple.fst parts) ;
+    Learning.random_forest_classifier (Learning.train_of parts) ;

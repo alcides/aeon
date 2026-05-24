@@ -37,6 +37,7 @@
 
 open List
 open Tuple
+open Pair
 
 # ─── Opaque types ───────────────────────────────────────────────────────
 
@@ -67,6 +68,15 @@ def is_balanced : (ds: Dataset) -> Bool = uninterpreted
 def clf_features : (m: Classifier) -> Int = uninterpreted
 def clf_classes : (m: Classifier) -> Int = uninterpreted
 def reg_features : (m: Regressor) -> Int = uninterpreted
+
+# Uninterpreted projections of the split result. ``Learning.split`` returns
+# a ``Pair Dataset Dataset``; these helpers let the SMT solver reason about
+# the training/testing halves *symbolically* via the split's output refinement
+# without having to commit to a runtime projection in the refinement itself.
+# The runtime accessors ``train_of`` / ``test_of`` are tagged with the same
+# predicates so let-bound halves carry the relationship to the source.
+def split_fst_pred : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
+def split_snd_pred : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
 
 # ─── Loading & target column selection ─────────────────────────────────
 
@@ -130,13 +140,35 @@ def class_counts (ds: Dataset) : List =
 
 # ─── Splitting ─────────────────────────────────────────────────────────
 
-# Linear split into ``(training, testing)``. Project with ``Tuple.fst`` /
-# ``Tuple.snd``. Consumes the source so training on the un-split dataset
-# becomes a type error.
+# Linear split into ``(training, testing)``. Consumes the source so
+# training on the un-split dataset becomes a type error. The two halves
+# preserve the source's feature count, class count and balance flag —
+# expressed symbolically via the uninterpreted ``split_fst_pred`` and
+# ``split_snd_pred`` projections so the relationship survives through
+# downstream calls.
 def split
     (1 ds: Dataset)
-    (fraction: {f: Float | 0.0 < f && f < 1.0}) : Tuple =
-    native "__import__('aeon.bindings.learning').bindings.learning.Learning_split(ds, fraction)"
+    (fraction: {f: Float | 0.0 < f && f < 1.0}) :
+    {p: (Pair Dataset Dataset)
+        | ds_features (split_fst_pred p) == ds_features ds
+       && ds_features (split_snd_pred p) == ds_features ds
+       && ds_classes (split_fst_pred p) == ds_classes ds
+       && ds_classes (split_snd_pred p) == ds_classes ds
+       && is_balanced (split_fst_pred p) == is_balanced ds
+       && is_balanced (split_snd_pred p) == is_balanced ds} =
+    native "('Pair_mk',) + __import__('aeon.bindings.learning').bindings.learning.Learning_split(ds, fraction)"
+
+# Runtime accessors for the training / testing halves, refined so the
+# returned dataset is linked to the source ``Pair`` via the uninterpreted
+# projection. ``let train = train_of parts`` makes ``train ==
+# split_fst_pred parts`` visible to the SMT solver, so refinements about
+# ``split_fst_pred parts`` (from the split's output type) carry to
+# ``train`` directly.
+def train_of (p: (Pair Dataset Dataset)) : {d: Dataset | d == split_fst_pred p} =
+    native "p[1]"
+
+def test_of (p: (Pair Dataset Dataset)) : {d: Dataset | d == split_snd_pred p} =
+    native "p[2]"
 
 # ─── Resampling / balancing ────────────────────────────────────────────
 
@@ -329,52 +361,95 @@ def mlp_regressor (ds: Dataset) :
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_regressor(ds)"
 
 # ─── Prediction ────────────────────────────────────────────────────────
+# Each call now carries a feature-count precondition: the model's
+# ``clf_features`` (or ``reg_features``) must match the dataset's
+# ``ds_features``. This is discharged automatically by the typical
+# pipeline because ``split``'s output refinement links both halves'
+# ``ds_features`` to the source's.
 
-def predict (model: Classifier) (ds: Dataset) : List =
+def predict
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
-def predict_proba (model: Classifier) (ds: Dataset) : List =
+def predict_proba
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict_proba(model, ds)"
 
-def predict_value (model: Regressor) (ds: Dataset) : List =
+def predict_value
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
 # ─── Classification metrics ────────────────────────────────────────────
 
-def accuracy (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+def accuracy
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) :
+    {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_accuracy(model, ds)"
 
-def precision (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+def precision
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) :
+    {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_precision(model, ds)"
 
-def recall (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+def recall
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) :
+    {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_recall(model, ds)"
 
-def f1 (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+def f1
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) :
+    {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_f1(model, ds)"
 
-def roc_auc (model: Classifier) (ds: Dataset) : {f: Float | 0.0 <= f && f <= 1.0} =
+def roc_auc
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) :
+    {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_roc_auc(model, ds)"
 
-def confusion_matrix (model: Classifier) (ds: Dataset) : List =
+def confusion_matrix
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_confusion_matrix(model, ds)"
 
-def classification_report (model: Classifier) (ds: Dataset) : String =
+def classification_report
+    (model: Classifier)
+    (ds: {d: Dataset | clf_features model == ds_features d}) : String =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_classification_report(model, ds)"
 
 # ─── Regression metrics ────────────────────────────────────────────────
 
-def mse (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+def mse
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) :
+    {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mse(model, ds)"
 
-def rmse (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+def rmse
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) :
+    {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_rmse(model, ds)"
 
-def mae (model: Regressor) (ds: Dataset) : {f: Float | f >= 0.0} =
+def mae
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) :
+    {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mae(model, ds)"
 
-def r2 (model: Regressor) (ds: Dataset) : Float =
+def r2
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) : Float =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_r2(model, ds)"
 
-def explained_variance (model: Regressor) (ds: Dataset) : Float =
+def explained_variance
+    (model: Regressor)
+    (ds: {d: Dataset | reg_features model == ds_features d}) : Float =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_explained_variance(model, ds)"

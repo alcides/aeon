@@ -2,7 +2,6 @@
 # https://people.csail.mit.edu/jrennie/papers/icml03-nb.pdf
 
 open Learning
-open Tuple
 
 
 def train_multinomial (path: String) (target_col: String) : Classifier =
@@ -11,7 +10,7 @@ def train_multinomial (path: String) (target_col: String) : Classifier =
     if Learning.is_multiclass ds then
         let bds = Learning.smote ds in
         let parts = Learning.split bds 0.7 in
-        Learning.multinomial_nb (Tuple.fst parts)
+        Learning.multinomial_nb (Learning.train_of parts)
     else
         let parts = Learning.split ds 0.7 in
-        Learning.multinomial_nb (Tuple.fst parts) ;
+        Learning.multinomial_nb (Learning.train_of parts) ;

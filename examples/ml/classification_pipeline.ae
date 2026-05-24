@@ -1,33 +1,38 @@
 # End-to-end classification pipeline showcasing the Learning library.
 #
-# Runtime witnesses (``is_multiclass``, ``balanced``) can be used inline
-# inside ``if ... then ... else ...`` to discharge precondition
-# refinements — no let-binding workaround needed.
+# ``Learning.split`` returns a ``Pair Dataset Dataset`` with refinements
+# that link both halves' shape to the source dataset. The ``train_of`` /
+# ``test_of`` accessors propagate that link, so when we
+# ``Learning.accuracy model test_part`` the precondition
+# ``clf_features model == ds_features test_part`` is discharged
+# automatically (the model's ``clf_features`` matches ``ds_features
+# train_part``, which equals ``ds_features ds``, which equals
+# ``ds_features test_part``).
 
 open Learning
-open Tuple
 
 
-def evaluate (train_set: Dataset) (test_set: Dataset) : Float =
-    let model = Learning.random_forest_classifier train_set in
-    Learning.accuracy model test_set ;
-
-
-def pipeline (path: String) (target_col: String) : Classifier =
+def pipeline (path: String) (target_col: String) : Float =
     let 1 df = Learning.read_csv path in
     let ds = Learning.target df target_col in
     if Learning.is_multiclass ds then
         let bds = Learning.smote ds in
         let scaled = Learning.standard_scale bds in
         let parts = Learning.split scaled 0.8 in
-        Learning.random_forest_classifier (Tuple.fst parts)
+        let train_part = Learning.train_of parts in
+        let test_part = Learning.test_of parts in
+        let model = Learning.random_forest_classifier train_part in
+        Learning.accuracy model test_part
     else
         let scaled = Learning.standard_scale ds in
         let parts = Learning.split scaled 0.8 in
-        Learning.random_forest_classifier (Tuple.fst parts) ;
+        let train_part = Learning.train_of parts in
+        let test_part = Learning.test_of parts in
+        let model = Learning.random_forest_classifier train_part in
+        Learning.accuracy model test_part ;
 
 
-# ComplementNB requires imbalanced data. Discharged via an inline
+# ComplementNB requires imbalanced data — discharged via an inline
 # ``balanced`` runtime check.
 def cnb_pipeline (path: String) (target_col: String) : Classifier =
     let 1 df = Learning.read_csv path in
