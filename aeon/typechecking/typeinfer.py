@@ -57,7 +57,6 @@ from aeon.facade.api import (
     CoreSubtypingError,
     CoreTypeApplicationRequiresBareTypesError,
     CoreTypeCheckingError,
-    CoreTypingRelation,
     CoreVariableNotInContext,
     CoreWellformnessError,
     CoreWrongKindInTypeApplicationError,
@@ -88,6 +87,13 @@ from aeon.verification.helpers import (
 )
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
+
+
+def _and(a: LiquidTerm, b: "LiquidTerm | None") -> LiquidTerm:
+    """``a && b`` when ``b`` is present, otherwise just ``a``."""
+    if b is None:
+        return a
+    return LiquidApp(Name("&&", 0), [a, b])
 
 
 def _strip_type_level_wrappers(t: Term) -> Term:
@@ -530,23 +536,40 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # share an expected type — synth each under its guard and join refinements.
             liq_cond = liquefy(cond)
             assert liq_cond is not None, f"Could not liquefy if-condition {cond}"
-            c_cond = check(ctx, cond, t_bool)
+            # Synth the cond so its return refinement is propagated into
+            # the branches' hypotheses (see check-mode for details).
+            (c_synth_cond, t_cond) = synth(ctx, cond)
+            ex_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t_cond, ExistentialType):
+                ex_binders = t_cond.binders
+                t_cond = t_cond.body
+            c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
+            c_cond = Conjunction(c_synth_cond, c_sub_cond)
+            branch_ctx = ctx
+            for bn, bt in ex_binders:
+                branch_ctx = branch_ctx.with_var(bn, bt)
+            cond_ref: "LiquidTerm | None" = None
+            t_cond_r = ensure_refined(t_cond)
+            if isinstance(t_cond_r, RefinedType) and not (
+                isinstance(t_cond_r.refinement, LiquidLiteralBool) and t_cond_r.refinement.value is True
+            ):
+                cond_ref = substitution_in_liquid(t_cond_r.refinement, liq_cond, t_cond_r.name)
 
             y = Name("_cond", fresh_counter.fresh())
-            (c1_inner, t1) = synth(ctx, then)
+            (c1_inner, t1) = synth(branch_ctx, then)
             c1 = implication_constraint(
                 y,
-                RefinedType(Name("branch_pos", fresh_counter.fresh()), t_int, liq_cond),
+                RefinedType(Name("branch_pos", fresh_counter.fresh()), t_int, _and(liq_cond, cond_ref)),
                 c1_inner,
                 then.loc,
             )
-            (c2_inner, t2) = synth(ctx, otherwise)
+            (c2_inner, t2) = synth(branch_ctx, otherwise)
             c2 = implication_constraint(
                 y,
                 RefinedType(
                     Name("branch_neg", fresh_counter.fresh()),
                     t_int,
-                    LiquidApp(Name("!", 0), [liq_cond]),
+                    _and(LiquidApp(Name("!", 0), [liq_cond]), cond_ref),
                 ),
                 c2_inner,
                 otherwise.loc,
@@ -574,7 +597,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 joined = t1
             else:
                 raise CoreSubtypingError(ctx, t, t1, t2)
-            return (Conjunction(c_cond, Conjunction(c1, c2)), joined)
+            if_constraint: Constraint = Conjunction(c_cond, Conjunction(c1, c2))
+            for bn, bt in reversed(ex_binders):
+                if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
+            return (if_constraint, joined)
 
         case Hole(hole_name):
             name_a = Name(hole_name.name, fresh_counter.fresh())
@@ -633,24 +659,49 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
             assert liq_cond is not None
-            if not check_type(ctx, cond, t_bool):
-                raise CoreTypingRelation(ctx, cond, t_bool)
-            c0 = check(ctx, cond, t_bool)
+            # Synth the condition so its refinement can be carried into
+            # the branches: for ``cond : {b: Bool | r(b)}`` we add
+            # ``r(liq_cond)`` to both branches' hypotheses, alongside
+            # the truth/falsity fact. Existential binders are opened
+            # into the branch context (mirroring how ``Let`` does it).
+            (c_synth, t_cond) = synth(ctx, cond)
+            ex_binders: tuple[tuple[Name, Type], ...] = ()
+            if isinstance(t_cond, ExistentialType):
+                ex_binders = t_cond.binders
+                t_cond = t_cond.body
+            c_sub = sub(ctx, t_cond, t_bool, cond.loc)
+            c0 = Conjunction(c_synth, c_sub)
+            branch_ctx = ctx
+            for bn, bt in ex_binders:
+                branch_ctx = branch_ctx.with_var(bn, bt)
+            cond_ref: "LiquidTerm | None" = None
+            t_cond_r = ensure_refined(t_cond)
+            if isinstance(t_cond_r, RefinedType) and not (
+                isinstance(t_cond_r.refinement, LiquidLiteralBool) and t_cond_r.refinement.value is True
+            ):
+                cond_ref = substitution_in_liquid(t_cond_r.refinement, liq_cond, t_cond_r.name)
             name_pos = Name("branch_pos", fresh_counter.fresh())
             c1 = implication_constraint(
                 y,
-                RefinedType(name_pos, t_int, liq_cond),
-                check(ctx, then, ty),
+                RefinedType(name_pos, t_int, _and(liq_cond, cond_ref)),
+                check(branch_ctx, then, ty),
                 then.loc,
             )
             name_neg = Name("branch_neg", fresh_counter.fresh())
             c2 = implication_constraint(
                 y,
-                RefinedType(name_neg, t_int, LiquidApp(Name("!", 0), [liq_cond])),
-                check(ctx, otherwise, ty),
+                RefinedType(
+                    name_neg,
+                    t_int,
+                    _and(LiquidApp(Name("!", 0), [liq_cond]), cond_ref),
+                ),
+                check(branch_ctx, otherwise, ty),
                 otherwise.loc,
             )
-            return Conjunction(c0, Conjunction(c1, c2))
+            if_constraint: Constraint = Conjunction(c0, Conjunction(c1, c2))
+            for bn, bt in reversed(ex_binders):
+                if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
+            return if_constraint
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
             if var_kind == BaseKind() and kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(

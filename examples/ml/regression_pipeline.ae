@@ -1,0 +1,29 @@
+# End-to-end regression pipeline.
+#
+# The ``Pair``-based split combined with ``train_of`` / ``test_of`` lets
+# the regressor's ``reg_features`` flow from training through scoring,
+# so ``Learning.r2 model test_part`` discharges its
+# ``reg_features model == ds_features test_part`` precondition.
+
+open Learning
+
+
+def train_ridge (path: String) (target_col: String) : Regressor =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    let imputed = Learning.fill_median ds in
+    let scaled = Learning.standard_scale imputed in
+    let parts = Learning.split scaled 0.8 in
+    Learning.ridge_alpha 0.5 (Learning.train_of parts) ;
+
+
+def score_ridge (path: String) (target_col: String) : Float =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    let imputed = Learning.fill_median ds in
+    let scaled = Learning.standard_scale imputed in
+    let parts = Learning.split scaled 0.8 in
+    let train_part = Learning.train_of parts in
+    let test_part = Learning.test_of parts in
+    let model = Learning.ridge train_part in
+    Learning.r2 model test_part ;
