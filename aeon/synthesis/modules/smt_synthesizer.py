@@ -157,8 +157,17 @@ def _build_uninterp_ctx(ctx: TypingContext) -> dict[str, object]:
     result: dict[str, object] = {}
     for entry in ctx.entries:
         if isinstance(entry, UninterpretedBinder):
+            # ``UninterpretedBinder.type`` may now be a polymorphic
+            # wrapper (``TypePolymorphism`` / ``RefinementPolymorphism``);
+            # strip foralls down to the underlying ``AbstractionType``
+            # before handing to ``make_variable``.
+            ty: Type = entry.type
+            while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+                ty = ty.body
+            if not isinstance(ty, (AbstractionType, TypeConstructor)):
+                continue
             try:
-                z3_fun = make_variable(str(entry.name), entry.type)
+                z3_fun = make_variable(str(entry.name), ty)
                 result[str(entry.name)] = z3_fun
             except Exception:
                 pass

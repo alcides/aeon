@@ -98,7 +98,12 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
             case UninterpretedBinder(name, ty):
                 name, subs = check_name(name, subs)
                 nty = bind_type(ty, subs)
-                assert isinstance(nty, AbstractionType)
+                # Polymorphic projections (``forall a, forall b, (this:
+                # Pair a b) -> a``) are valid uninterpreted binders too;
+                # the SMT layer strips the foralls when emitting the UFD.
+                assert isinstance(nty, (AbstractionType, TypePolymorphism, RefinementPolymorphism)), (
+                    f"UninterpretedBinder type must be a function (possibly polymorphic), got {nty}"
+                )
                 e = UninterpretedBinder(name, nty)
             case TypeBinder(name, k):
                 name, subs = check_name(name, subs)

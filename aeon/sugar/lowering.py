@@ -8,8 +8,8 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.types import LiquidHornApplication, TypeConstructor, t_int
-from aeon.core.substitutions import substitution_in_liquid, substitute_vartype
+from aeon.core.types import LiquidHornApplication, TypeConstructor
+from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -282,18 +282,25 @@ def lower_to_core(t: STerm) -> Term:
             assert False, f"{t} ({type(t)}) not supported"
 
 
-def monomorphic_type(ty: Type) -> AbstractionType:
+def uninterpreted_binder_type(ty: Type) -> Type:
+    """Normalise an uninterpreted binder's type.
+
+    Refinement polymorphism is erased (the abstract predicate doesn't
+    affect the SMT shape). Type polymorphism is **preserved** so the
+    typechecker can instantiate at call sites — e.g. a polymorphic
+    projection ``forall a, forall b, (this: Pair a b) -> a`` keeps its
+    foralls here and is specialised per call by ``_specialize_liquid_term``
+    in the SMT layer. Plain ``AbstractionType`` passes through unchanged.
+    """
     match ty:
-        case TypePolymorphism(name, _, body):
-            return monomorphic_type(substitute_vartype(body, t_int, name))
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, uninterpreted_binder_type(body))
         case RefinementPolymorphism(_, _, body):
-            # Refinement polymorphism is erased for the purposes of monomorphic uninterpreted
-            # binders — the abstract predicate doesn't affect the SMT shape we hand out here.
-            return monomorphic_type(body)
+            return uninterpreted_binder_type(body)
         case AbstractionType(_, _, _):
             return ty
         case _:
-            assert False, f"Type {ty} is not a monomorphic type, cannot be used in uninterpreted binders."
+            assert False, f"Type {ty} cannot be used in an uninterpreted binder."
 
 
 def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
@@ -301,9 +308,8 @@ def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
         case ElabVariableBinder(name, ty):
             return VariableBinder(name, type_to_core(ty))
         case ElabUninterpretedBinder(name, ty):
-            absty = type_to_core(ty)
-            concrete_absty = monomorphic_type(absty)
-            return UninterpretedBinder(name, concrete_absty)
+            normalised = uninterpreted_binder_type(type_to_core(ty))
+            return UninterpretedBinder(name, normalised)
         case ElabTypeVarBinder(name, kind):
             return TypeBinder(name, kind)
         case ElabTypeDecl(name, args, rforalls):

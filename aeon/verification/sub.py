@@ -82,11 +82,13 @@ def lower_constraint_type(ttype: Type) -> Type:
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
-            if args:
-                # Polymorphic types are represented by top
-                return TypeConstructor(Name("Top", 0))
-            else:
-                return TypeConstructor(name)
+            # Preserve the args (lowering each in turn). The SMT layer
+            # mangles parametric type constructors into per-instantiation
+            # sort names via ``_mangled_tc_name`` so each ``Pair Int Int``,
+            # ``Pair Dataset Dataset`` etc. becomes a distinct sort, and
+            # ``_specialize_liquid_term`` can monomorphise polymorphic
+            # functions over them at each call site.
+            return TypeConstructor(name, [lower_constraint_type(a) for a in args])
 
         case _:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
@@ -119,19 +121,21 @@ def implication_constraint(
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
                 return c
-        case TypePolymorphism(_, _, _):
+        case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+            lowered = lower_constraint_type(ty)
+            if not isinstance(lowered, AbstractionType):
+                # Higher-order or otherwise non-first-order polymorphic
+                # types stay opaque — no constraint contribution.
+                return c
             if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
-            return c
-        case RefinementPolymorphism(_, _, _):
-            if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+                (params, body) = reflected_impl
+                return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+            # Polymorphic uninterpreted functions reach SMT as a UFD
+            # over the foralls-stripped abstraction type. Type variables
+            # remain as ``TypeVar`` in arg positions;
+            # ``_specialize_liquid_term`` monomorphises per call.
+            if is_first_order_function(lowered):
+                return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case _:
             assert False
