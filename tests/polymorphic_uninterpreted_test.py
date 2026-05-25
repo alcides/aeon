@@ -68,3 +68,51 @@ def go (t: T) : {n: Int | n == feats (my_id t)} =
     n ;
 """
     assert check_compile(source, st_top)
+
+
+def test_auto_generated_projection_in_refinement():
+    """``Pair_mk_fst`` (auto-generated from ``inductive Pair a b | mk``)
+    can be used inside a refinement and the SMT solver discharges
+    chained equalities through it.
+    """
+    source = """
+type Dataset
+
+inductive Pair a b
+| mk (fst:a) (snd:b) : (Pair a b)
+
+def feats : (ds: Dataset) -> Int = uninterpreted
+
+def split (ds: Dataset) :
+    {p: (Pair Dataset Dataset)
+        | feats (Pair_mk_fst p) == feats ds
+       && feats (Pair_mk_snd p) == feats ds} =
+    native "('Pair_mk', ds, ds)"
+
+def fst_of (p: (Pair Dataset Dataset)) : {d: Dataset | d == Pair_mk_fst p} =
+    native "p[1]"
+
+def good (ds: Dataset) : {n: Int | n == feats ds} =
+    let p = split ds in
+    let t = fst_of p in
+    let r : {x: Int | x == feats t} = native "0" in
+    r ;
+"""
+    assert check_compile(source, st_top)
+
+
+def test_parametric_inductive_two_instantiations():
+    """Different parametric ``Pair`` instantiations get distinct sorts."""
+    source = """
+type Dataset
+
+inductive Pair a b
+| mk (fst:a) (snd:b) : (Pair a b)
+
+def fst_dataset (p: (Pair Dataset Dataset)) : {d: Dataset | d == Pair_mk_fst p} =
+    native "p[1]"
+
+def fst_int (p: (Pair Int Int)) : {n: Int | n == Pair_mk_fst p} =
+    native "p[1]"
+"""
+    assert check_compile(source, st_top)

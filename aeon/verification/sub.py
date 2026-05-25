@@ -82,11 +82,13 @@ def lower_constraint_type(ttype: Type) -> Type:
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
-            if args:
-                # Polymorphic types are represented by top
-                return TypeConstructor(Name("Top", 0))
-            else:
-                return TypeConstructor(name)
+            # Preserve the args (lowering each in turn). The SMT layer
+            # mangles parametric type constructors into per-instantiation
+            # sort names via ``_mangled_tc_name`` so each ``Pair Int Int``,
+            # ``Pair Dataset Dataset`` etc. becomes a distinct sort, and
+            # ``_specialize_liquid_term`` can monomorphise polymorphic
+            # functions over them at each call site.
+            return TypeConstructor(name, [lower_constraint_type(a) for a in args])
 
         case _:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
