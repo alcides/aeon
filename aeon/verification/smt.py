@@ -245,22 +245,37 @@ def ple_unfold_fixpoint(
     return current
 
 
+def _name_token(name: Name) -> str:
+    """Mangling token for a ``Name``.
+
+    Includes the binder ID (separated by ``__`` so it can't be confused
+    with the single-``_`` separator between mangled args) when non-zero
+    — so two user types that share a string name but live in different
+    scopes (e.g. ``T`` imported from two modules) don't accidentally
+    collide on a single Z3 sort.
+    """
+    if name.id <= 0:
+        return name.name
+    return f"{name.name}__{name.id}"
+
+
 def _mangle_sort_name(t: Type) -> str:
     """Deterministic sort name for a parametric type constructor.
 
-    ``Pair Dataset Dataset`` → ``"Pair_Dataset_Dataset"``;
-    nested apps mangle recursively. Used by ``get_sort`` to give each
-    instantiation its own Z3 sort while still keeping the sort name
-    consistent across uses (so two variables of the same Aeon type
-    share a Z3 sort and can be compared).
+    ``Pair Dataset Dataset`` → ``"Pair_Dataset_Dataset"`` (with
+    per-``Name`` ID suffixes appended via ``__id`` when the binder ID
+    is non-zero); nested apps mangle recursively. Used by ``get_sort``
+    to give each instantiation its own Z3 sort while keeping the sort
+    name consistent across uses (so two variables of the same Aeon
+    type share a Z3 sort and can be compared).
     """
     match t:
         case TypeConstructor(name, []):
-            return name.name
+            return _name_token(name)
         case TypeConstructor(name, args):
-            return name.name + "_" + "_".join(_mangle_sort_name(a) for a in args)
+            return _name_token(name) + "_" + "_".join(_mangle_sort_name(a) for a in args)
         case TypeVar(name):
-            return name.name
+            return _name_token(name)
         case _:
             return str(t)
 
@@ -300,22 +315,25 @@ def _collect_specialisation(expected: Type, actual: Type, subst: dict[str, TypeC
     ``subst`` with ``a → Dataset`` and ``b → Dataset``. Only fires when
     the *expected* position is a TypeConstructor with a lowercase name
     (the convention for lowered TypeVars).
+
+    ``actual`` originates from ``_term_base_type``, which only ever
+    returns a ``TypeConstructor`` (or ``None``, which the caller
+    filters before invoking us). Inner recursive calls also stay within
+    the TypeConstructor world because we descend into ``actual.args``.
+    Nothing else makes sense as a Z3-typeable carrier of a substitution.
     """
-    if isinstance(expected, TypeConstructor) and not expected.args:
+    assert isinstance(actual, TypeConstructor), (
+        f"_collect_specialisation: actual must be a TypeConstructor (got {actual!r}); "
+        f"_term_base_type is the documented source and only returns TypeConstructor"
+    )
+    if not isinstance(expected, TypeConstructor):
+        return
+    if not expected.args:
         n = expected.name.name
-        if (
-            n[:1].islower()
-            and n not in {"Int", "Bool", "Float", "String", "Unit", "Top"}
-            and isinstance(actual, TypeConstructor)
-        ):
+        if n[:1].islower() and n not in {"Int", "Bool", "Float", "String", "Unit", "Top"}:
             subst[n] = actual
         return
-    if (
-        isinstance(expected, TypeConstructor)
-        and isinstance(actual, TypeConstructor)
-        and expected.name == actual.name
-        and len(expected.args) == len(actual.args)
-    ):
+    if expected.name == actual.name and len(expected.args) == len(actual.args):
         for ea, aa in zip(expected.args, actual.args):
             _collect_specialisation(ea, aa, subst)
 
@@ -632,6 +650,16 @@ def unrefine_type(base: Type):
             return base
 
 
+class UncurryError(Exception):
+    """A function type's shape couldn't be flattened into ``([sort], sort)``.
+
+    Raised by :func:`uncurry` when an argument or return position holds a
+    type the SMT layer doesn't know how to project onto a Z3 sort.
+    ``mk_funs`` catches this specifically so it can skip the polymorphic
+    template (the per-call-site monomorphised twin always succeeds).
+    """
+
+
 def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstructor]:
     current: Type = unrefine_type(base)
     inputs = []
@@ -657,7 +685,7 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
             case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
                 inputs.append(t_int)
             case _:
-                assert False, f"Unknown SMT type {current.var_type} in {base}."
+                raise UncurryError(f"Unknown SMT type {current.var_type} in {base}.")
         current = current.type
 
     if isinstance(current, Top):
@@ -666,7 +694,8 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
         # A polymorphic return that wasn't specialised — represent it as
         # an opaque sort named after the type variable.
         current = TypeConstructor(current.name)
-    assert isinstance(current, TypeConstructor), f"Unknown SMT type {current} in {base}."
+    if not isinstance(current, TypeConstructor):
+        raise UncurryError(f"Unknown SMT return type {current} in {base}.")
     return (inputs, current)
 
 
@@ -762,11 +791,11 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
     for name, ty in functions.items():
         try:
             input_types, output_type = uncurry(ty)
-        except AssertionError:
-            # Skip function templates with shapes ``uncurry`` can't
-            # handle (e.g. polymorphic returns). ``_specialize_liquid_term``
-            # will emit a monomorphised twin per call site that ``uncurry``
-            # *can* process.
+        except UncurryError:
+            # The polymorphic template can't be projected onto Z3 sorts.
+            # ``_specialize_liquid_term`` emits a monomorphised twin per
+            # call site that ``uncurry`` *can* process; that twin gets
+            # picked up the next time this loop runs.
             continue
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))

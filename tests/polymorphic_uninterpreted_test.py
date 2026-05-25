@@ -116,3 +116,51 @@ def fst_int (p: (Pair Int Int)) : {n: Int | n == Pair_mk_fst p} =
     native "p[1]"
 """
     assert check_compile(source, st_top)
+
+
+def test_same_pair_instantiation_variables_share_sort():
+    """Two variables of ``Pair Dataset Dataset`` share a Z3 sort, so a
+    premise ``q == p`` is usable by the SMT solver to discharge a goal
+    ``feats (Pair_mk_fst q) == feats (Pair_mk_fst p)`` (function
+    congruence). Pre-PR, the ``flatten`` Implication path stamped each
+    binding with a fresh ID, putting ``p`` and ``q`` in *distinct* Z3
+    sorts even when typed at the same Aeon type — this regression test
+    pins the corrected, deterministic mangling.
+    """
+    source = """
+type Dataset
+
+inductive Pair a b
+| mk (fst:a) (snd:b) : (Pair a b)
+
+def feats : (ds: Dataset) -> Int = uninterpreted
+
+def use (p: (Pair Dataset Dataset)) (q: {x: (Pair Dataset Dataset) | x == p})
+        : {n: Int | n == feats (Pair_mk_fst p)} =
+    let r : {y: Int | y == feats (Pair_mk_fst q)} = native "0" in
+    r ;
+"""
+    assert check_compile(source, st_top)
+
+
+def test_unrelated_pair_projections_not_equated():
+    """``Pair_mk_fst p == Pair_mk_fst q`` is *not* assumed for two
+    independent ``Pair Int Int`` arguments. Without a premise linking
+    ``p`` and ``q`` the SMT solver correctly refuses to discharge a
+    goal that claims this equality. Locks in the specialisation
+    soundness: distinct call sites of ``Pair_mk_fst`` produce distinct
+    abstract values; the solver only equates them under explicit
+    premises (as in ``test_same_pair_instantiation_variables_share_sort``).
+    """
+    source = """
+inductive Pair a b
+| mk (fst:a) (snd:b) : (Pair a b)
+
+def feats : (n: Int) -> Int = uninterpreted
+
+def consume (n: Int) (m: {x: Int | x == n}) : Int = 0
+
+def bad (p: (Pair Int Int)) (q: (Pair Int Int)) : Int =
+    consume (feats (Pair_mk_fst p)) (feats (Pair_mk_fst q)) ;
+"""
+    assert not check_compile(source, st_top)
