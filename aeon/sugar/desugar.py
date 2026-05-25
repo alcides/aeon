@@ -751,22 +751,38 @@ def expand_inductive_decls(p: Program) -> Program:
                             )
                             defs.append(de)
 
-                            # NOTE: auto-generated polymorphic projections were
-                            # explored here but blocked on a deeper limitation —
-                            # polymorphic uninterpreted binders are eagerly
-                            # monomorphised to ``Int`` by ``monomorphic_type``,
-                            # and polymorphic non-uninterpreted variable binders
-                            # are silently dropped by ``implication_constraint``
-                            # for ``TypePolymorphism`` (only reflected or
-                            # uninterpreted polymorphic functions reach SMT).
-                            # Until that pipeline lifts, libraries can declare
-                            # **monomorphic** uninterpreted projections per
-                            # concrete instantiation, e.g.::
+                            # ─── Auto-generated projections (one per named field) ──────
+                            # For each constructor field, emit an uninterpreted
+                            # polymorphic projection
+                            # ``<Type>_<Ctor>_<fname> : forall a:B, …, (this: Type a b …) -> fname's type``.
+                            # The SMT layer (``_specialize_liquid_term``)
+                            # monomorphises per call site, so references like
+                            # ``feats (Pair_mk_fst p)`` in a refinement become
+                            # an SMT-tracked equality the solver can chain
+                            # through ``Pair_mk_fst`` across consecutive uses.
                             #
-                            #   def split_fst : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
-                            #
-                            # which the SMT layer treats as a plain uninterpreted
-                            # function on the mangled sort.
+                            # Refinement parametricity (preserving refinements
+                            # on a constructed value's fields through the
+                            # projection) would need covariant subtyping on
+                            # TypeConstructor args and is a separate follow-up.
+                            this_arg_types: list[SType] = [STypeVar(tv) for tv in args]
+                            this_type: SType = STypeConstructor(name, this_arg_types)
+                            proj_foralls: list[tuple[Name, Kind]] = [(tv, BaseKind()) for tv in args]
+                            for field_idx, (fname, fty) in enumerate(cargs):
+                                proj_name = Name(f"{name.name}_{cname.name}_{fname.name}", fresh_counter.fresh())
+                                this_name = Name("this", fresh_counter.fresh())
+                                proj_de = Definition(
+                                    name=proj_name,
+                                    foralls=list(proj_foralls),
+                                    args=[(this_name, this_type)],
+                                    type=fty,
+                                    body=uninterpreted_lit,
+                                    decorators=[],
+                                    rforalls=[],
+                                    decreasing_by=[],
+                                    loc=cloc,
+                                )
+                                defs.append(proj_de)
 
                 def curry(args: list[tuple[Name, SType]], rty: SType, mults: tuple[Multiplicity, ...] = ()) -> SType:
                     n = len(args)

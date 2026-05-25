@@ -710,7 +710,14 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
         return hit[1]
     funs = {}
     for name, ty in functions.items():
-        input_types, output_type = uncurry(ty)
+        try:
+            input_types, output_type = uncurry(ty)
+        except AssertionError:
+            # Skip function templates with shapes ``uncurry`` can't
+            # handle (e.g. polymorphic returns). ``_specialize_liquid_term``
+            # will emit a monomorphised twin per call site that ``uncurry``
+            # *can* process.
+            continue
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))
         ]

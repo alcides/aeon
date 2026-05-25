@@ -37,7 +37,15 @@ class VariableBinder(TypingContextEntry):
 @dataclass(unsafe_hash=True)
 class UninterpretedBinder(TypingContextEntry):
     name: Name
-    type: AbstractionType
+    # ``type`` is an ``AbstractionType`` for plain uninterpreted predicates
+    # (``def feats : (ds:Dataset) -> Int = uninterpreted``) and a
+    # ``TypePolymorphism`` / ``RefinementPolymorphism`` wrapping one for
+    # polymorphic uninterpreted projections (``def Pair_mk_fst : forall
+    # a, forall b, (this:Pair a b) -> a = uninterpreted``). The
+    # polymorphic shape is preserved so the typechecker can instantiate
+    # at call sites; the SMT layer strips foralls and specialises per
+    # call via ``_specialize_liquid_term``.
+    type: Type
 
     def __repr__(self):
         return f"uninterpreted {self.name} : {self.type}"

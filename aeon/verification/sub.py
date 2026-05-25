@@ -119,19 +119,21 @@ def implication_constraint(
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
                 return c
-        case TypePolymorphism(_, _, _):
+        case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
+            lowered = lower_constraint_type(ty)
+            if not isinstance(lowered, AbstractionType):
+                # Higher-order or otherwise non-first-order polymorphic
+                # types stay opaque — no constraint contribution.
+                return c
             if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
-            return c
-        case RefinementPolymorphism(_, _, _):
-            if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+                (params, body) = reflected_impl
+                return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+            # Polymorphic uninterpreted functions reach SMT as a UFD
+            # over the foralls-stripped abstraction type. Type variables
+            # remain as ``TypeVar`` in arg positions;
+            # ``_specialize_liquid_term`` monomorphises per call.
+            if is_first_order_function(lowered):
+                return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case _:
             assert False

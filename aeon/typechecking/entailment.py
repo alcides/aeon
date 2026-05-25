@@ -17,7 +17,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.horn import solve
-from aeon.verification.sub import is_first_order_function
+from aeon.verification.sub import is_first_order_function, lower_constraint_type
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import ReflectedFunctionDeclaration
@@ -69,7 +69,15 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 # ill-scoped if misused.
                 pass
             case UninterpretedBinder(name, type):
-                c = UninterpretedFunctionDeclaration(name, type, c)
+                # Strip foralls before handing to SMT — type vars stay
+                # in arg/return positions as ``TypeVar`` and the SMT
+                # layer (``_specialize_liquid_term``) monomorphises per
+                # call site. ``lower_constraint_type`` already strips
+                # ``TypePolymorphism`` / ``RefinementPolymorphism`` while
+                # keeping ``TypeVar`` in nested positions.
+                lowered = lower_constraint_type(type)
+                if isinstance(lowered, AbstractionType):
+                    c = UninterpretedFunctionDeclaration(name, lowered, c)
             case ReflectedBinder(name, type, params, body):
                 c = ReflectedFunctionDeclaration(name, type, params, body, c)
             case TypeConstructorBinder(name, _):
