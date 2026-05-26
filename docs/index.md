@@ -311,6 +311,8 @@ Using `native` allows you to embed any Python expression as an Aeon value. Note 
 let numpy = native_import "numpy";
 ```
 
+For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
+
 ## Libraries
 
 There are a few libraries available, but unstable as they are under development:
