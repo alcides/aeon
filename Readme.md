@@ -1,74 +1,55 @@
-# Aeon 4
+# Aeon
 
-Aeon is a programming languages that features Liquid Types, developed at the University of Lisbon. Unlike [LiquidHaskell](https://ucsd-progsys.github.io/liquidhaskell/) or [LiquidJava](https://catarinagamboa.github.io/liquidjava.html), Aeon was designed from the ground up to have support for Liquid Types.
+Aeon is a statically-typed programming language with native support for **Liquid Types** (refinement types), developed at [LASIGE](https://www.lasige.pt), University of Lisbon.
 
-Aeon is in development, so assume all your programs to break. This 4th version is implemented as a Python interpreter, giving you access to any code written in Python.
+Unlike [LiquidHaskell](https://ucsd-progsys.github.io/liquidhaskell/) or [LiquidJava](https://catarinagamboa.github.io/liquidjava.html), where refinement types are bolted onto an existing language, Aeon was designed from the ground up around them. The type system lets you express precise properties of values directly in types — for example, "an integer greater than zero" — and the compiler proves these properties hold using the [Z3 SMT solver](https://github.com/Z3Prover/z3).
 
+Beyond refinement types, Aeon also offers:
+
+- **Python FFI** — call any Python function natively, giving you access to the full Python ecosystem.
+- **Program synthesis** — leave `?hole`s in your program and let Aeon fill them in using genetic programming, enumerative search, or LLM-backed synthesis.
+- **A growing standard library** — modules for `List`, `Math`, `Array`, `Image`, and more.
+
+Aeon is implemented as a Python interpreter and is under active development.
+
+📖 **Documentation:** [https://alcides.github.io/aeon](https://alcides.github.io/aeon)
 
 ## Installation
 
-### Requirements:
+Aeon is distributed on PyPI and can be run directly via [uvx](https://github.com/astral-sh/uv):
 
-- [Uv](https://github.com/astral-sh/uv)
-
-### Usage
-
-aeon can be executed directly from pypy using [uvx](https://github.com/astral-sh/uv):
-
-```
+```bash
 uvx --from aeonlang aeon [file.ae]
 ```
 
-You can run aeon on any `.ae` file anywhere in your filesystem. Aeon will automatically find standard library modules (List, Math, Array, etc.) from its installation.
-
-### Import System
-
-Aeon searches for imported modules in the following order:
-
-1. Current working directory (for relative imports)
-2. `cwd/libraries/` subdirectory
-3. Package installation `libraries/` directory (standard library)
-4. `AEONPATH` environment variable (semicolon-separated custom paths)
-
-**Example:**
-```aeon
-import Math;              // Imports Math from standard library
-import MyModule;          // Imports MyModule.ae from current directory
-
-def main (args: Int): Unit =
-    print (Math.abs (0 - 5));
-```
-
-
-
 ## Examples
 
+### Refinement Types
 
-### Hello World
+Refinement types let you attach predicates to base types. Here, `sqrt` is declared to accept only positive integers — passing a negative value is a *compile-time* error, not a runtime crash. The `native` keyword bridges to Python:
 
-```
-def main (args:Int) : Unit =
-    print "Hello World"
-```
-
-The documentation is available at [https://alcides.github.io/aeon](https://alcides.github.io/aeon).
-
-
-### Liquid Types
-
-In this example, you can see the refined type `{x:Int | x > 0}` that represents all integers that are greater than 0. You can also see an example of Python FFI, where a python valid expression can be written as string and passed as the argument to the `native` function.
-
-```
-def sqrt : (i: {x:Int | x > 0} ) -> Float = native "__import__('math').sqrt";
+```aeon
+def sqrt : (i: {x:Int | x > 0}) -> Float = native "__import__('math').sqrt";
 
 def main (i:Int) : Unit =
-    print (sqrt (-25)) # This is a type-checking error!
+    print (sqrt (-25))   # type-checking error: -25 does not satisfy x > 0
 ```
 
+### Program Synthesis
 
+Aeon can synthesize code to satisfy a refinement specification. Mark the body with `?hole` and Aeon will search for an implementation that meets the type:
 
-Authors
-----------
+```aeon
+@minimize_int(deposit)
+def deposit : {d:Int | d > 0 && d * 21900 >= 10000000} = ?hole;
+```
+
+Run with `uv run python -m aeon --budget 10 -s gp file.ae` to synthesize the minimum annual deposit that reaches a $10,000 goal in 20 years at 1% interest.
+
+More examples — including image processing, machine learning, and probabilistic programming — live in the [`examples/`](examples/) directory.
+
+## Authors
+
 Aeon has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbon](https://ciencias.ulisboa.pt) by:
 
 * [Alcides Fonseca](http://alcidesfonseca.com)
@@ -79,8 +60,35 @@ Aeon has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbo
 * [Paulo Silva](https://github.com/PauloHS-Silva)
 * [Diogo Sousa](https://github.com/SousaTrashBin)
 
-Acknowledgements
-----------------
+## Publications
+
+* [Comparing the expressive power of Strongly-Typed and Grammar-Guided Genetic Programming](https://www.researchgate.net/publication/370277603_Comparing_the_expressive_power_of_Strongly-Typed_and_Grammar-Guided_Genetic_Programming) at GECCO'23
+* [The Usability Argument for Refinement Typed Genetic Programming](https://link.springer.com/chapter/10.1007/978-3-030-58115-2_2) at PPSN'20
+
+Let us know if your paper uses Aeon, to list it here.
+
+### Citation
+
+Please cite as:
+
+```
+Fonseca, Alcides, Paulo Santos, and Sara Silva. "The usability argument for refinement typed genetic programming." International Conference on Parallel Problem Solving from Nature. Cham: Springer International Publishing, 2020.
+```
+
+BibTeX:
+
+```bibtex
+@inproceedings{fonseca2020usability,
+  title={The usability argument for refinement typed genetic programming},
+  author={Fonseca, Alcides and Santos, Paulo and Silva, Sara},
+  booktitle={International Conference on Parallel Problem Solving from Nature},
+  pages={18--32},
+  year={2020},
+  organization={Springer}
+}
+```
+
+## Acknowledgements
 
 This work was supported by Fundação para a Ciência e Tecnologia (FCT) through:
 
@@ -91,31 +99,3 @@ This work was supported by Fundação para a Ciência e Tecnologia (FCT) through
 And by Lisboa2020, Compete2020 and FEDER through:
 
 * [the CMU|Portugal CAMELOT project](http://wiki.alcidesfonseca.com/research/projects/camelot/) (LISBOA-01-0247-FEDER-045915)
-
-
-Publications
------------------
-
-* [Comparing the expressive power of Strongly-Typed and Grammar-Guided Genetic Programming](https://www.researchgate.net/publication/370277603_Comparing_the_expressive_power_of_Strongly-Typed_and_Grammar-Guided_Genetic_Programming) at GECCO'23
-* [The Usability Argument for Refinement Typed Genetic Programming](https://link.springer.com/chapter/10.1007/978-3-030-58115-2_2) at PPSN'20
-
-Let us know if your paper uses Aeon, to list it here.
-
-Please cite as:
-
-```
-Fonseca, Alcides, Paulo Santos, and Sara Silva. "The usability argument for refinement typed genetic programming." International Conference on Parallel Problem Solving from Nature. Cham: Springer International Publishing, 2020.
-```
-
-Bibtex:
-
-```
-@inproceedings{fonseca2020usability,
-  title={The usability argument for refinement typed genetic programming},
-  author={Fonseca, Alcides and Santos, Paulo and Silva, Sara},
-  booktitle={International Conference on Parallel Problem Solving from Nature},
-  pages={18--32},
-  year={2020},
-  organization={Springer}
-}
-```
