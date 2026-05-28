@@ -749,9 +749,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     try:
         assert wellformed(ctx, ty)
         constraint = check(ctx, t, ty)
-        # TODO: convert constraint to canonical form
-        # constraint = canonicalize_constraint(constraint, [name for (name, _) in ctx.vars()])
-        # assert wellformed_constraint(ctx, constraint), f"Constraint {constraint} not wellformed."
         v = entailment(ctx, constraint)
         return v
     except CoreTypeCheckingError:

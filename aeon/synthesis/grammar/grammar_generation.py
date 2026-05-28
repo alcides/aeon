@@ -456,7 +456,6 @@ def propagate_constants(ctx: TypingContext) -> tuple[TypingContext, dict[Name, L
                             substitutions[rname] = val
                 entries.append(VariableBinder(name, ty))
             case _:
-                # TODO: we might want to apply the substitions on other types of entries
                 entries.append(e)
 
     return TypingContext(entries), substitutions

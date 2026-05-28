@@ -11,7 +11,6 @@ from aeon.synthesis.uis.api import SynthesisUI
 from aeon.decorators.api import Metadata
 
 
-# TODO add timer to synthesis
 class SynthesisError(Exception):
     pass
 

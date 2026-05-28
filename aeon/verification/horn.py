@@ -487,8 +487,6 @@ def solve(
 ) -> bool:
     # Performance improvement
     if not contains_horn_constraint(c):
-        # TODO: Try to simplify the expression before sending to the SMT solver
-        # v = reduce_to_useful_constraint(c)
         return smt_valid(c)
     if qualifier_atoms is None:
         atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
