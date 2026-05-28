@@ -6,7 +6,7 @@ from typing import Callable
 from lark import Lark, Transformer, v_args
 
 from aeon.core.multiplicity import from_token, Multiplicity, MOmega
-from aeon.core.types import BaseKind, StarKind
+from aeon.core.types import Kind
 from aeon.sugar.program import (
     Decorator,
     SAbstraction,
@@ -382,10 +382,10 @@ class TreeToSugar(Transformer):
         return v
 
     def base_kind(self, args):
-        return BaseKind()
+        return Kind.BASE
 
     def star_kind(self, args):
-        return StarKind()
+        return Kind.STAR
 
     def list(self, args):
         return args

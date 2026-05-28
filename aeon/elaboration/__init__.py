@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from itertools import combinations
-from aeon.core.types import BaseKind
+from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
@@ -105,12 +105,12 @@ def elaborate_foralls(e: STerm) -> STerm:
                 for typevar in get_type_vars(e.var_type):
                     nt = STypePolymorphism(
                         name=typevar.name,
-                        kind=BaseKind(),
+                        kind=Kind.BASE,
                         body=nt,
                     )
                     nv = STypeAbstraction(
                         name=typevar.name,
-                        kind=BaseKind(),
+                        kind=Kind.BASE,
                         body=nv,
                     )
 
@@ -655,7 +655,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                     match body:
                         case SVar(name):
                             match ctx.type_of(name):
-                                case STypePolymorphism(_, BaseKind(), _):
+                                case STypePolymorphism(_, Kind.BASE, _):
                                     should_be_refined = False
                     match nt:
                         case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):

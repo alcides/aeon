@@ -7,7 +7,7 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTH_TYPE
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm, liquid_free_vars
-from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarKind
+from aeon.core.types import LiquidHornApplication, RefinementPolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
@@ -37,7 +37,6 @@ from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
-from aeon.core.types import BaseKind
 from aeon.core.types import ExistentialType, with_binders
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
@@ -174,7 +173,7 @@ def _reflected_impl_for(
 
 def is_compatible(a: Kind, b: Kind):
     """Returns whether kind a is a subkind of kind b"""
-    return (a == b) or b == StarKind()
+    return (a == b) or b == Kind.STAR
 
 
 def argument_is_typevar(ty: Type):
@@ -253,10 +252,10 @@ def prim_op(t: Name) -> Type:
             return make_binary_app_type(t, t_int, t_int)
         case "+" | "-" | "*" | "/":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, BaseKind(), make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
+            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
         case "==" | "!=" | ">" | ">=" | "<" | "<=":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, BaseKind(), make_binary_app_type(t, TypeVar(name_a), t_bool))
+            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), t_bool))
         case "&&" | "||":
             return make_binary_app_type(t, t_bool, t_bool)
         case "!":
@@ -606,7 +605,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             name_a = Name(hole_name.name, fresh_counter.fresh())
             # Conservative default: treat the hole as a *-kind type variable (surface
             # holes are usually value-level; polymorphic holes need richer kinding).
-            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))
+            return ctrue, TypePolymorphism(name_a, Kind.STAR, TypeVar(name_a))
         case _:
             logger.log("SYNTH_TYPE", ("Unhandled:", t))
             logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
@@ -703,7 +702,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
             return if_constraint
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
-            if var_kind == BaseKind() and kind != var_kind:
+            if var_kind == Kind.BASE and kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(
                     term=t,
                     type=ty,
