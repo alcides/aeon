@@ -15,6 +15,7 @@ from aeon.core.terms import (
     Application,
     Hole,
     If,
+    ImplicitRefinementHole,
     Let,
     Rec,
     RefinementAbstraction,
@@ -166,6 +167,9 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
         case Hole(name, loc):
             name, _ = check_name(name, subs)
             return Hole(name, loc=loc)
+        case ImplicitRefinementHole(name, loc):
+            name, _ = check_name(name, subs)
+            return ImplicitRefinementHole(name, loc=loc)
         case Annotation(e, ty, loc):
             return Annotation(bind_term(e, subs), bind_type(ty, subs), loc=loc)
         case Application(e1, e2, loc):

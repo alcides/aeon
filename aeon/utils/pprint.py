@@ -18,6 +18,7 @@ from aeon.sugar.program import (
     SLiteral,
     SVar,
     SHole,
+    SImplicitRefinementHole,
     SBy,
     STerm,
     Node,
@@ -166,7 +167,7 @@ def get_sterm_operation(sterm: STerm) -> Operation:
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
-        case SLiteral() | SVar() | SHole() | SBy():
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SBy():
             return Operation.LITERAL
         case _:
             return Operation.LITERAL
@@ -430,6 +431,9 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
         case SHole(name=name):
             return text("?" + name.pretty())
 
+        case SImplicitRefinementHole(name=name):
+            return text("?ρ" + name.pretty())
+
         case SBy(steps=steps):
             inner = text("; ".join(steps))
             return group(concat([text("by "), inner]))
@@ -622,6 +626,8 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             return normalize_term(simplified_term, context, new_seen)
         case SHole(name=name):
             return SHole(name=name)
+        case SImplicitRefinementHole(name=name):
+            return SImplicitRefinementHole(name=name)
         case SBy(steps=steps, loc=loc):
             return SBy(steps=steps, loc=loc)
         case SAnnotation(expr=expr, type=type):

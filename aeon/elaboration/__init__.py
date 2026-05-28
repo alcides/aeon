@@ -16,6 +16,7 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SImplicitRefinementHole,
     SLet,
     SLiteral,
     SRec,
@@ -363,7 +364,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 nfun = STypeApplication(nfun, u)
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
             while isinstance(nfun_type, SRefinementPolymorphism):
-                h = SHole(Name("_pred", fresh_counter.fresh()))
+                h = SImplicitRefinementHole(Name("_pred", fresh_counter.fresh()))
                 nfun = SRefinementApplication(nfun, h)
                 nfun_type = substitution_sterm_in_stype(nfun_type.body, h, nfun_type.name)
 
@@ -450,7 +451,7 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
     while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
-        h = SHole(Name("_pred", fresh_counter.fresh()))
+        h = SImplicitRefinementHole(Name("_pred", fresh_counter.fresh()))
         c = SRefinementApplication(c, h)
         s = substitution_sterm_in_stype(s.body, h, s.name)
     return (c, s)
@@ -592,7 +593,7 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
-        case SLiteral() | SVar() | SHole() | SAnonConstructor():
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SAnonConstructor():
             return t
         case SAnnotation(expr, ty, loc=loc):
             return SAnnotation(elaborate_remove_unification(ctx, expr), ty, loc=loc)

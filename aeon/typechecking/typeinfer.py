@@ -29,6 +29,7 @@ from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplic
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
+from aeon.core.terms import ImplicitRefinementHole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
@@ -525,7 +526,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c, rp) = synth(ctx, body)
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
-            if isinstance(refinement, Hole):
+            if isinstance(refinement, ImplicitRefinementHole):
                 horn_name = Name("kappa", fresh_counter.fresh())
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, nty)

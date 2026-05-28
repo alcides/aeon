@@ -5,6 +5,7 @@ from aeon.core.terms import (
     Application,
     Hole,
     If,
+    ImplicitRefinementHole,
     Let,
     Literal,
     Rec,
@@ -137,12 +138,20 @@ def get_holes_info(
 
 
 def get_holes(term: Term) -> list[Name]:
-    """Returns the names of holes in a particular term."""
+    """Returns the names of holes in a particular term.
+
+    ``ImplicitRefinementHole`` (inserted by elaboration when instantiating an
+    ``RefinementPolymorphism``) is *not* a synthesis hole: it is solved by
+    Horn inference, so this function returns ``[]`` for it. Since it is a
+    distinct ``Term`` subclass — not a subclass of ``Hole`` — the
+    ``case Hole(...)`` arm cannot match it, and the recursion through
+    ``RefinementApplication`` lands on the dedicated leaf case below.
+    """
     match term:
         case Hole(name=name):
             return [name]
-        case Hole(name=name):
-            return [name]
+        case ImplicitRefinementHole(_):
+            return []
         case Literal(_):
             return []
         case Var(_):
@@ -167,10 +176,6 @@ def get_holes(term: Term) -> list[Name]:
         case RefinementAbstraction(name=_, body=body):
             return get_holes(body)
         case RefinementApplication(body=body, refinement=refinement):
-            # TODO better solution
-            # Implicit refinement placeholders (elaboration) are solved by Horn inference, not GP synthesis.
-            if isinstance(refinement, Hole) and refinement.name.name.startswith("_pred"):
-                return get_holes(body)
             return get_holes(body) + get_holes(refinement)
         case _:
             assert False
