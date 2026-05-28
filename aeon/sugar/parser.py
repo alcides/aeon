@@ -559,9 +559,7 @@ class TreeToSugar(Transformer):
     def abstraction_et(self, args):
         return SAnnotation(
             SAbstraction(Name(args[0]), args[2]),
-            SAbstractionType(
-                Name(args[0]), args[1], STypeVar(Name("?t", fresh_counter.fresh()))
-            ),  # TODO NOW: understand this?
+            SAbstractionType(Name(args[0]), args[1], STypeVar(Name("?t", fresh_counter.fresh()))),
         )
 
 

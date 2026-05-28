@@ -45,7 +45,6 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
             return ty
 
 
-# TODO: NOW! what is the difference in these two functions?
 def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
     """t[alpha |-> beta], instantiation."""
 

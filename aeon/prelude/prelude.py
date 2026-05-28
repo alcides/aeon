@@ -92,7 +92,6 @@ def gpu_run(k):
     return with_config
 
 
-# TODO: polymorphic signatures
 prelude = [
     ("native", "forall a:B, (x:String) -> {x:a | false}", eval),
     ("native_import", "forall a:B, (x:String) -> {x:a | false}", native_import),

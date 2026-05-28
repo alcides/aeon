@@ -58,7 +58,6 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
     args: list[TypeConstructor | TypeVar] = []
     while True:
         match ty:
-            # TODO: Should these be removed?
             case Top() | RefinedType(_, Top(), _):
                 return args + [t_unit]
             case TypeVar(_):
