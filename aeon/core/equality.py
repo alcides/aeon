@@ -4,6 +4,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -49,6 +50,8 @@ def core_liquid_equality(lq1: LiquidTerm, lq2: LiquidTerm, rename_left: dict[Nam
             return a == b
         case LiquidLiteralString(a), LiquidLiteralString(b):
             return a == b
+        case LiquidLiteralUnit(), LiquidLiteralUnit():
+            return True
         case LiquidApp(a1, a2), LiquidApp(b1, b2):
             return a1 == b1 and all(core_liquid_equality(i2, j2, rename_left) for (i2, j2) in zip(a2, b2))
         case LiquidHornApplication(a1, _), LiquidHornApplication(b1, _):

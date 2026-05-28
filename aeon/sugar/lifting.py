@@ -4,6 +4,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -58,7 +59,7 @@ from aeon.sugar.stypes import (
     STypePolymorphism,
     STypeVar,
 )
-from aeon.sugar.ast_helpers import st_bool, st_int, st_float, st_string, st_top
+from aeon.sugar.ast_helpers import st_bool, st_int, st_float, st_string, st_top, st_unit
 
 
 def lift_liquid(ref: LiquidTerm) -> STerm:
@@ -71,6 +72,8 @@ def lift_liquid(ref: LiquidTerm) -> STerm:
             return SLiteral(value, st_float, loc)
         case LiquidLiteralString(value, loc):
             return SLiteral(value, st_string, loc)
+        case LiquidLiteralUnit(loc):
+            return SLiteral(None, st_unit, loc)
         case LiquidVar(name, loc):
             return SVar(name, loc)
         case LiquidApp(fun, args, loc):

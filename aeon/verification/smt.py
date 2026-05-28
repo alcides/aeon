@@ -27,6 +27,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
+from z3 import Datatype
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
@@ -35,6 +36,7 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
@@ -348,6 +350,8 @@ def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> Typ
             return t_bool
         case LiquidLiteralString():
             return t_string
+        case LiquidLiteralUnit():
+            return t_unit
         case LiquidVar(name):
             return variables.get(str(name), None)
         case _:
@@ -577,6 +581,24 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 
 sort_cache: dict[str, SortRef] = {}
 
+
+def _build_unit_sort() -> tuple[SortRef, Any]:
+    """Create the dedicated Unit sort and its single inhabitant.
+
+    Modelled as a z3 datatype with one nullary constructor so the SMT
+    solver knows the sort has exactly one value. This avoids the previous
+    encoding that aliased ``Unit`` to ``Bool``-true (see issue #296), under
+    which ``unit == True`` was accidentally satisfiable.
+    """
+    dt = Datatype("Unit")
+    dt.declare("unit")
+    sort = dt.create()
+    return sort, sort.unit
+
+
+_unit_sort_ref, _unit_value = _build_unit_sort()
+sort_cache["Unit"] = _unit_sort_ref
+
 # Caches for the SMT-context helpers. Within a single solve, `translate` is
 # called repeatedly with constraints that share the same underlying SMTContext,
 # so the `variables`, `functions`, and `sorts` collections are the same Python
@@ -611,6 +633,8 @@ def get_sort(base: Type) -> SortRef:
     match base:
         case Top() | TypeConstructor(Name("Top", _)):
             return IntSort()
+        case TypeConstructor(Name("Unit", _)):
+            return _unit_sort_ref
         case TypeConstructor(Name("Int", _)):
             return IntSort()
         case TypeConstructor(Name("Bool", _)):
@@ -703,6 +727,8 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
     match base:
         case Top():
             return Int(name)
+        case TypeConstructor(Name("Unit", _)):
+            return Const(name, _unit_sort_ref)
         case TypeConstructor(Name("Int", _)):
             return Int(name)
         case TypeConstructor(Name("Bool", _)):
@@ -749,6 +775,9 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
             # appears as an argument, but Python `str` does not auto-cast to
             # Z3's String sort, so convert explicitly.
             return StringVal(s)
+        case LiquidLiteralUnit():
+            # The single inhabitant of the dedicated Unit datatype.
+            return _unit_value
         case LiquidVar(name):
             sname = str(name)
             if sname in variables:

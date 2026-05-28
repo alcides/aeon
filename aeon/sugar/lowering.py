@@ -5,6 +5,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -134,6 +135,8 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
         case SLiteral(val, STypeConstructor(Name("String", _)), loc):
             assert isinstance(val, str)
             return LiquidLiteralString(val, loc=loc)
+        case SLiteral(_, STypeConstructor(Name("Unit", _)), loc):
+            return LiquidLiteralUnit(loc=loc)
         case SLiteral(_, _):
             assert False, f"{t} is not convertable to liquid term."
         case SVar(name, loc):

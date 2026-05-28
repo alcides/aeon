@@ -12,6 +12,7 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
@@ -48,6 +49,7 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import t_set
+from aeon.core.types import t_unit
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
 from aeon.facade.api import (
@@ -195,6 +197,22 @@ def prim_litbool(t: bool) -> RefinedType:
         return RefinedType(vname, t_bool, LiquidApp(Name("!", 0), [LiquidVar(vname)]))
 
 
+def prim_litunit() -> RefinedType:
+    """Type of the Unit literal ``()``.
+
+    Unit has a single inhabitant, so the refinement pins ``v`` to the
+    sole ``LiquidLiteralUnit`` value. The SMT layer maps ``Unit`` to a
+    dedicated sort (see ``aeon.verification.smt.get_sort``) rather than
+    re-using ``Bool``.
+    """
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        t_unit,
+        LiquidApp(Name("==", 0), [LiquidVar(vname), LiquidLiteralUnit()]),
+    )
+
+
 def prim_litint(t: int) -> RefinedType:
     vname = Name("v", fresh_counter.fresh())
     return RefinedType(
@@ -322,8 +340,7 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
-            # TODO: Unit is encoded as True, replace with custom Sort
-            return (ctrue, prim_litbool(True))
+            return (ctrue, prim_litunit())
         case Literal(vb, TypeConstructor(Name("Bool", _))):
             assert isinstance(vb, bool)
             return (ctrue, prim_litbool(vb))
