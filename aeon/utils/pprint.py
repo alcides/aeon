@@ -690,9 +690,96 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             return term
 
 
-def rename_unused_variables(term: STerm):
-    # TODO
-    return term
+_WILDCARD_NAME = Name("_", 0)
+
+
+def _free_value_vars(term: STerm) -> set[Name]:
+    """Names of value-level free variables (SVar references) in ``term``.
+
+    Type and refinement variables live in a separate namespace and are
+    not tracked here.
+    """
+    match term:
+        case SVar(name=name):
+            return {name}
+        case SAbstraction(var_name=name, body=body):
+            return _free_value_vars(body) - {name}
+        case SLet(var_name=name, var_value=val, body=body):
+            return _free_value_vars(val) | (_free_value_vars(body) - {name})
+        case SRec(var_name=name, var_value=val, body=body, decreasing_by=db):
+            inner: set[Name] = _free_value_vars(val) | _free_value_vars(body)
+            for m in db:
+                inner |= _free_value_vars(m)
+            return inner - {name}
+        case SApplication(fun=fun, arg=arg):
+            return _free_value_vars(fun) | _free_value_vars(arg)
+        case SIf(cond=cond, then=then, otherwise=otherwise):
+            return _free_value_vars(cond) | _free_value_vars(then) | _free_value_vars(otherwise)
+        case SAnnotation(expr=expr):
+            return _free_value_vars(expr)
+        case STypeAbstraction(body=body) | SRefinementAbstraction(body=body) | STypeApplication(body=body):
+            return _free_value_vars(body)
+        case _:
+            return set()
+
+
+def rename_unused_variables(term: STerm) -> STerm:
+    """Replace value-level binders that are never referenced with ``_``.
+
+    Example: ``\\x -> 3`` becomes ``\\_ -> 3``. Applies to ``SAbstraction``,
+    ``SLet`` and ``SRec``. Type and refinement abstractions are traversed
+    but not renamed (their binders live in a separate namespace).
+    """
+    rec = rename_unused_variables
+    match term:
+        case SAbstraction(var_name=name, body=body, loc=loc):
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            return SAbstraction(var_name=new_name, body=rec(body), loc=loc)
+        case SLet(var_name=name, var_value=val, body=body, loc=loc, multiplicity=mult):
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            return SLet(
+                var_name=new_name,
+                var_value=rec(val),
+                body=rec(body),
+                loc=loc,
+                multiplicity=mult,
+            )
+        case SRec(
+            var_name=name,
+            var_type=ty,
+            var_value=val,
+            body=body,
+            decreasing_by=db,
+            loc=loc,
+            multiplicity=mult,
+        ):
+            used = _free_value_vars(val) | _free_value_vars(body)
+            for m in db:
+                used |= _free_value_vars(m)
+            new_name = _WILDCARD_NAME if name not in used else name
+            return SRec(
+                var_name=new_name,
+                var_type=ty,
+                var_value=rec(val),
+                body=rec(body),
+                decreasing_by=tuple(rec(m) for m in db),
+                loc=loc,
+                multiplicity=mult,
+            )
+        case SApplication(fun=fun, arg=arg, loc=loc):
+            return SApplication(fun=rec(fun), arg=rec(arg), loc=loc)
+        case SIf(cond=cond, then=then, otherwise=otherwise, loc=loc):
+            return SIf(cond=rec(cond), then=rec(then), otherwise=rec(otherwise), loc=loc)
+        case SAnnotation(expr=expr, type=ty, loc=loc):
+            return SAnnotation(expr=rec(expr), type=ty, loc=loc)
+        case STypeAbstraction(name=name, kind=kind, body=body, loc=loc):
+            return STypeAbstraction(name=name, kind=kind, body=rec(body), loc=loc)
+        case SRefinementAbstraction(name=name, sort=sort, body=body, loc=loc):
+            return SRefinementAbstraction(name=name, sort=sort, body=rec(body), loc=loc)
+        case STypeApplication(body=body, type=ty, loc=loc):
+            return STypeApplication(body=rec(body), type=ty, loc=loc)
+        case _:
+            return term
 
 
 def pretty_print_sterm(term: STerm) -> str:
