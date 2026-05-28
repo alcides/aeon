@@ -28,7 +28,29 @@ def is_safe_for_application(x: LiquidTerm):
         or isinstance(x, LiquidLiteralFloat)
         or isinstance(x, LiquidLiteralInt)
         or isinstance(x, LiquidLiteralString)
+        or isinstance(x, LiquidLiteralUnit)
     )
+
+
+@dataclass
+class LiquidLiteralUnit(LiquidTerm):
+    """The single inhabitant of the Unit type.
+
+    Distinct from LiquidLiteralBool(True): Unit has its own SMT sort with
+    exactly one element, so ``unit == True`` is ill-typed and rejected at
+    the liquid layer rather than silently true at the SMT layer.
+    """
+
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __repr__(self):
+        return "()"
+
+    def __eq__(self, other):
+        return isinstance(other, LiquidLiteralUnit)
+
+    def __hash__(self) -> int:
+        return hash("()")
 
 
 @dataclass

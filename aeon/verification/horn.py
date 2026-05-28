@@ -7,6 +7,7 @@ from aeon.core.types import builtin_core_types
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
@@ -104,6 +105,7 @@ def obtain_holes(t: LiquidTerm) -> list[LiquidHornApplication]:
         or isinstance(t, LiquidLiteralInt)
         or isinstance(t, LiquidLiteralFloat)
         or isinstance(t, LiquidLiteralString)
+        or isinstance(t, LiquidLiteralUnit)
     ):
         return []
     elif isinstance(t, LiquidVar):
@@ -139,6 +141,7 @@ def contains_horn(t: LiquidTerm) -> bool:
         or isinstance(t, LiquidLiteralBool)
         or isinstance(t, LiquidLiteralString)
         or isinstance(t, LiquidLiteralFloat)
+        or isinstance(t, LiquidLiteralUnit)
     ):
         return False
     elif isinstance(t, LiquidVar):
@@ -194,7 +197,13 @@ def _liquid_var_names_in_term(t: LiquidTerm) -> set[Name]:
             return {v for a in args for v in _liquid_var_names_in_term(a)}
         case LiquidHornApplication():
             return set()
-        case LiquidLiteralBool() | LiquidLiteralInt() | LiquidLiteralFloat() | LiquidLiteralString():
+        case (
+            LiquidLiteralBool()
+            | LiquidLiteralInt()
+            | LiquidLiteralFloat()
+            | LiquidLiteralString()
+            | LiquidLiteralUnit()
+        ):
             return set()
         case _:
             return set()

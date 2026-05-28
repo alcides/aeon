@@ -3,6 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
@@ -146,6 +147,7 @@ def instantiate_refinement_in_liquid(
             | LiquidLiteralInt(_, loc)
             | LiquidLiteralFloat(_, loc)
             | LiquidLiteralString(_, loc)
+            | LiquidLiteralUnit(loc)
         ):
             return t
         case LiquidHornApplication(aname, argtypes, loc):
@@ -224,7 +226,13 @@ def instantiate_refinement_with_horn_in_liquid(
     match t:
         case LiquidVar(_):
             return t
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return t
         case LiquidApp(aname, args, loc):
             if aname == pred_name:
@@ -287,7 +295,13 @@ def substitution_in_liquid(
 ) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     match t:
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return t
         case LiquidVar(tname):
             if tname == name:

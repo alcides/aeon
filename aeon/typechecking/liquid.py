@@ -6,6 +6,7 @@ from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import (
@@ -162,6 +163,8 @@ def type_infer_liquid(
             return t_float
         case LiquidLiteralString(_):
             return t_string
+        case LiquidLiteralUnit():
+            return t_unit
         case LiquidVar(name):
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")

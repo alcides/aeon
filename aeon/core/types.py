@@ -7,6 +7,7 @@ from enum import Enum
 from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
 from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.utils.location import Location, SynthesizedLocation
@@ -236,6 +237,8 @@ class LiquidHornApplication(LiquidTerm):
                     assert ty == TypeConstructor(Name("Float", 0))
                 case LiquidLiteralString(_):
                     assert ty == TypeConstructor(Name("String", 0))
+                case LiquidLiteralUnit():
+                    assert ty == TypeConstructor(Name("Unit", 0))
 
     def __repr__(self):
         j = ", ".join([f"{n}:{t}" for (n, t) in self.argtypes])

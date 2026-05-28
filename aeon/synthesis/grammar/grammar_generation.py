@@ -17,6 +17,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -376,7 +377,14 @@ def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
     match lt:
         case LiquidHole():
             return lt
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_) | LiquidVar(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+            | LiquidVar(_)
+        ):
             return lt
         case LiquidApp(fun, args):
             if fun in ["&&", "||"]:

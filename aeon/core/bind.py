@@ -5,6 +5,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -73,7 +74,13 @@ def apply_subs_name(subs: RenamingSubstitions, name: Name) -> Name:
 
 def bind_lq(liq: LiquidTerm, subs: RenamingSubstitions) -> LiquidTerm:
     match liq:
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return liq
         case LiquidVar(name, loc):
             return LiquidVar(apply_subs_name(subs, name), loc=loc)

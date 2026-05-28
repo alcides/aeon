@@ -4,6 +4,7 @@ from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import AbstractionType
@@ -13,6 +14,7 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.types import t_int
 from aeon.core.types import t_bool
+from aeon.core.types import t_unit
 from aeon.core.terms import Abstraction, Application, RefinementAbstraction, Var
 from aeon.sugar.stypes import SRefinedType
 from aeon.verification.smt import smt_valid
@@ -68,6 +70,44 @@ example2 = Implication(
 
 def test_other_sorts():
     assert smt_valid(example2)
+
+
+# Regression for issue #296: Unit must have its own SMT sort, distinct
+# from Bool. Previously ``Literal((), Unit)`` was lowered to the boolean
+# literal True, so ``unit == True`` came out satisfiable.
+unit_eq_unit = LiquidConstraint(
+    LiquidApp(Name("==", 0), [LiquidLiteralUnit(), LiquidLiteralUnit()]),
+)
+
+
+def test_unit_literal_equals_itself():
+    assert smt_valid(unit_eq_unit)
+
+
+name_u = Name("u", 200)
+unit_var_eq_unit = Implication(
+    name_u,
+    t_unit,
+    LiquidLiteralBool(True),
+    LiquidConstraint(
+        LiquidApp(Name("==", 0), [LiquidVar(name_u), LiquidLiteralUnit()]),
+    ),
+)
+
+
+def test_unit_variable_equals_unit_literal():
+    # Unit has a single inhabitant, so any value of sort Unit equals ().
+    assert smt_valid(unit_var_eq_unit)
+
+
+def test_unit_sort_is_not_bool():
+    # Distinct z3 sorts: comparing the Unit constant against a Bool would
+    # be a sort mismatch, but more importantly the previous encoding made
+    # ``Unit`` and ``Bool``-true the same z3 term, which this prevents.
+    from aeon.verification.smt import _unit_sort_ref
+    from z3 import BoolSort
+
+    assert _unit_sort_ref != BoolSort()
 
 
 def test_uninterpreted() -> None:
