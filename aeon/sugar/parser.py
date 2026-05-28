@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import pathlib
 from typing import Callable
 
@@ -140,8 +141,7 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def minus(self, meta, args):
-        # TODO: check for length of args instead?
-        if isinstance(args[0], SLiteral) and type(args[0]) is int:
+        if isinstance(args[0], SLiteral) and type(args[0].value) is int:
             return SLiteral(-args[0].value, args[0].type, loc=self._loc(meta))
         return self.binop([i0, args[0]], "-", meta)
 
@@ -377,9 +377,7 @@ class TreeToSugar(Transformer):
         return SLiteral(args[0], type=st_string, loc=self._loc(meta))
 
     def ESCAPED_STRING(self, val):
-        # TODO: This is terrible and doesn't handle escapes
-        v = str(val)[1:-1]
-        return v
+        return ast.literal_eval(str(val))
 
     def base_kind(self, args):
         return Kind.BASE
