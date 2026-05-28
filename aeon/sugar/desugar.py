@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import aeon
 from aeon.core.multiplicity import MOmega, Multiplicity
-from aeon.core.types import BaseKind, Kind
+from aeon.core.types import Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
@@ -767,7 +767,7 @@ def expand_inductive_decls(p: Program) -> Program:
                             # TypeConstructor args and is a separate follow-up.
                             this_arg_types: list[SType] = [STypeVar(tv) for tv in args]
                             this_type: SType = STypeConstructor(name, this_arg_types)
-                            proj_foralls: list[tuple[Name, Kind]] = [(tv, BaseKind()) for tv in args]
+                            proj_foralls: list[tuple[Name, Kind]] = [(tv, Kind.BASE) for tv in args]
                             for field_idx, (fname, fty) in enumerate(cargs):
                                 proj_name = Name(f"{name.name}_{cname.name}_{fname.name}", fresh_counter.fresh())
                                 this_name = Name("this", fresh_counter.fresh())
@@ -808,13 +808,13 @@ def expand_inductive_decls(p: Program) -> Program:
                     rec_expr = f"({body} if {guard} else {rec_expr})"
                 rec_body: STerm = SApplication(SVar(Name("native", 0)), SLiteral(rec_expr, st_string))
 
-                foralls: list[tuple[Name, Kind]] = [(a, BaseKind()) for a in args]
+                foralls: list[tuple[Name, Kind]] = [(a, Kind.BASE) for a in args]
                 rec_args: list[tuple[Name, SType]] = []
 
                 # Return Type
                 return_generic_name = Name("ret", -1)
                 return_type = STypeVar(return_generic_name)
-                foralls.append((return_generic_name, BaseKind()))
+                foralls.append((return_generic_name, Kind.BASE))
 
                 # Target Type (First argument)
                 target_type = STypeConstructor(name, [STypeVar(a) for a in args])
@@ -1076,7 +1076,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                 for t in free_tvars:
                     tname = t.name
                     if tname not in types and tname not in bound_tvars:
-                        entry = (tname, BaseKind())
+                        entry = (tname, Kind.BASE)
                         if entry not in new_foralls:
                             new_foralls.append(entry)
                 ndefs.append(

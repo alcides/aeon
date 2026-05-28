@@ -7,7 +7,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import AbstractionType
-from aeon.core.types import BaseKind
+from aeon.core.types import Kind
 from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
@@ -147,7 +147,7 @@ def main (x:Int) : Unit = print(witness x)
 def test_rank2_reflected_unfolding() -> None:
     a = Name("a")
     x = Name("x")
-    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    poly_id = TypePolymorphism(a, Kind.BASE, AbstractionType(x, TypeVar(a), TypeVar(a)))
     reflected = implication_constraint(
         Name("id"),
         poly_id,
@@ -170,10 +170,10 @@ def test_rank3_reflected_unfolding() -> None:
     n = Name("n")
     rank3_ty = TypePolymorphism(
         f,
-        BaseKind(),
+        Kind.BASE,
         AbstractionType(
             g,
-            TypePolymorphism(t, BaseKind(), AbstractionType(Name("x"), TypeVar(t), TypeVar(t))),
+            TypePolymorphism(t, Kind.BASE, AbstractionType(Name("x"), TypeVar(t), TypeVar(t))),
             AbstractionType(n, TypeVar(f), TypeVar(f)),
         ),
     )
@@ -190,7 +190,7 @@ def test_polymorphic_reflection_specializes_multiple_instances() -> None:
     a = Name("a")
     x = Name("x")
     id_name = Name("id")
-    poly_id = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    poly_id = TypePolymorphism(a, Kind.BASE, AbstractionType(x, TypeVar(a), TypeVar(a)))
     base = implication_constraint(
         id_name,
         poly_id,

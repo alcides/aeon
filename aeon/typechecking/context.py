@@ -7,7 +7,6 @@ from typing import MutableSequence
 from aeon.core.liquid import LiquidTerm
 from aeon.core.types import (
     AbstractionType,
-    BaseKind,
     RefinedType,
     Top,
     TypeConstructor,
@@ -16,7 +15,6 @@ from aeon.core.types import (
     builtin_core_types,
 )
 from aeon.core.types import Kind
-from aeon.core.types import StarKind
 from aeon.core.types import Type
 from aeon.utils.name import Name
 
@@ -66,7 +64,7 @@ class ReflectedBinder(TypingContextEntry):
 @dataclass(unsafe_hash=True)
 class TypeBinder(TypingContextEntry):
     type_name: Name
-    type_kind: Kind = field(default_factory=StarKind)
+    type_kind: Kind = Kind.STAR
 
     def __repr__(self):
         return f"type {self.type_name} {self.type_kind}"
@@ -129,20 +127,20 @@ class TypingContext:
     def kind_of(self, ty: Type) -> Kind:
         match ty:
             case Top() | RefinedType(_, TypeConstructor(_), _) | RefinedType(_, TypeConstructor(_, _), _):
-                return BaseKind()
+                return Kind.BASE
             case TypeVar(name):
-                assert (name, BaseKind()) in self.typevars()
+                assert (name, Kind.BASE) in self.typevars()
                 # TODO Polytypes: What it * is in context?
-                return BaseKind()
+                return Kind.BASE
             case RefinedType(_, TypeVar(name), _):
-                assert (name, BaseKind()) in self.typevars(), f"{name} not in {self.typevars()}"
-                return BaseKind()
+                assert (name, Kind.BASE) in self.typevars(), f"{name} not in {self.typevars()}"
+                return Kind.BASE
             case AbstractionType(_, _, _):
-                return StarKind()
+                return Kind.STAR
             case TypePolymorphism(_, _, _):
-                return StarKind()
+                return Kind.STAR
             case TypeConstructor(_, _):
-                return BaseKind()
+                return Kind.BASE
             case _:
                 assert False, f"Unknown type in context: {ty}"
 

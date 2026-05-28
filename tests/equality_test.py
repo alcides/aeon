@@ -1,4 +1,4 @@
-from aeon.core.types import StarKind
+from aeon.core.types import Kind
 from aeon.utils.name import Name
 from aeon.sugar.equality import term_equality
 from aeon.sugar.program import SAbstraction, SLiteral, SVar, SApplication, SLet, SIf, SRec, STypeAbstraction
@@ -40,5 +40,5 @@ def test_term_equality():
         SRec(x, st_int, SLiteral(3, st_int), SVar(x)), SRec(x, st_int, SLiteral(4, st_int), SVar(x))
     )
 
-    assert term_equality(STypeAbstraction(x, StarKind(), SVar(x)), STypeAbstraction(y, StarKind(), SVar(y)))
-    assert not term_equality(STypeAbstraction(x, StarKind(), SVar(x)), STypeAbstraction(x, StarKind(), SVar(y)))
+    assert term_equality(STypeAbstraction(x, Kind.STAR, SVar(x)), STypeAbstraction(y, Kind.STAR, SVar(y)))
+    assert not term_equality(STypeAbstraction(x, Kind.STAR, SVar(x)), STypeAbstraction(x, Kind.STAR, SVar(y)))

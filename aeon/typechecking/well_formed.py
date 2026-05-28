@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.types import AbstractionType, BaseKind, RefinementPolymorphism, Top, TypeConstructor
+from aeon.core.types import AbstractionType, RefinementPolymorphism, Top, TypeConstructor
 from aeon.core.types import ExistentialType
 from aeon.core.types import Kind
 from aeon.core.types import RefinedType
-from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
@@ -15,7 +14,7 @@ from aeon.typechecking.liquid import typecheck_liquid
 from aeon.utils.name import Name
 
 
-def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
+def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
     match t:
         case Top():
             return True  # wf_no_refinement
@@ -28,17 +27,17 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
             return (tvname, k) in ctx.typevars()
         case RefinedType(name, TypeVar(tvname) as ty, refinement):
             return (
-                k == BaseKind()
-                and (tvname, BaseKind()) in ctx.typevars()
+                k == Kind.BASE
+                and (tvname, Kind.BASE) in ctx.typevars()
                 and typecheck_liquid(ctx.with_var(name, ty), refinement) == t_bool
             )
         case AbstractionType(aname, atype, rtype):
-            return k == StarKind() and wellformed(ctx, atype) and wellformed(ctx.with_var(aname, atype), rtype)
+            return k == Kind.STAR and wellformed(ctx, atype) and wellformed(ctx.with_var(aname, atype), rtype)
         case TypePolymorphism(name, kind, body):
-            return k == StarKind() and wellformed(ctx.with_typevar(name, kind), body)
+            return k == Kind.STAR and wellformed(ctx.with_typevar(name, kind), body)
         case RefinementPolymorphism(name, sort, body):
             pred_type = AbstractionType(Name("_", 0), sort, t_bool)
-            return k == StarKind() and wellformed(ctx, sort) and wellformed(ctx.with_var(name, pred_type), body)
+            return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_var(name, pred_type), body)
         case TypeConstructor(name, args):
             if not args:
                 return ctx.get_type_constructor(name) is not None
@@ -48,7 +47,7 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
                     return False
                 # Type-constructor arguments are base types (with optional
                 # refinement); use ``wellformed`` so refined type variables
-                # like ``{_r:a | p _r}`` (which need BaseKind) are accepted
+                # like ``{_r:a | p _r}`` (which need Kind.BASE) are accepted
                 # in positions like ``List a<p>`` or ``Pair a<p> b<q>``.
                 return all(wellformed(ctx, t) for t in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
@@ -64,9 +63,9 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
             return False
 
 
-def wellformed(ctx: TypingContext, t: Type, k: Kind = StarKind()) -> bool:
+def wellformed(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
     match k:
-        case StarKind():
-            return wf_inner(ctx, t, StarKind()) or wf_inner(ctx, t, BaseKind())
+        case Kind.STAR:
+            return wf_inner(ctx, t, Kind.STAR) or wf_inner(ctx, t, Kind.BASE)
         case _:
-            return wf_inner(ctx, t, BaseKind())
+            return wf_inner(ctx, t, Kind.BASE)

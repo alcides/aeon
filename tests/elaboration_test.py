@@ -3,7 +3,7 @@ from __future__ import annotations
 from aeon.sugar.equality import term_equality
 
 from aeon.sugar.bind import bind_ectx, bind_sterm
-from aeon.core.types import BaseKind
+from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext, build_typing_context
 from aeon.sugar.program import SRec
 from aeon.sugar.stypes import STypePolymorphism, STypeVar
@@ -23,7 +23,7 @@ def test_elaboration_foralls():
     elab_t = elaborate_foralls(t)
     assert isinstance(elab_t, SRec)
     match elab_t.var_type:
-        case STypePolymorphism(name=a_name, kind=BaseKind(), body=STypeVar(b_name)):
+        case STypePolymorphism(name=a_name, kind=Kind.BASE, body=STypeVar(b_name)):
             assert a_name == b_name
         case _:
             assert False

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
+from enum import Enum
 
 from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString, liquid_free_vars
 from aeon.core.liquid import LiquidHole
@@ -12,32 +13,15 @@ from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import fresh_counter, Name
 
 
-# TODO: convert to ENUM
-class Kind(ABC):
-    def __repr__(self):
-        return str(self)
+class Kind(Enum):
+    BASE = "Β"
+    STAR = "★"
 
+    def __str__(self) -> str:
+        return self.value
 
-class BaseKind(Kind):
-    def __eq__(self, o):
-        return self.__class__ == o.__class__
-
-    def __str__(self):
-        return "Β"
-
-    def __hash__(self):
-        return super().__hash__()
-
-
-class StarKind(Kind):
-    def __eq__(self, o):
-        return self.__class__ == o.__class__
-
-    def __str__(self):
-        return "★"
-
-    def __hash__(self):
-        return super().__hash__()
+    def __repr__(self) -> str:
+        return f"Kind.{self.name}"
 
 
 class Type(ABC):

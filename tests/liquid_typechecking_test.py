@@ -25,7 +25,7 @@ from aeon.core.types import (
     t_int,
     t_string,
     t_unit,
-    BaseKind,
+    Kind,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import (
@@ -249,7 +249,7 @@ def test_lower_refined_arrow():
 def test_lower_polymorphic_type():
     a = Name("a")
     # forall a. (x:a) -> a
-    ty = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    ty = TypePolymorphism(a, Kind.BASE, AbstractionType(x, TypeVar(a), TypeVar(a)))
     result = lower_abstraction_type(ty)
     assert len(result) >= 2
 
