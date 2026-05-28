@@ -13,6 +13,7 @@ from aeon.sugar.program import (
     SAnnotation,
     SApplication,
     SHole,
+    SImplicitRefinementHole,
     SBy,
     SIf,
     SLet,
@@ -62,6 +63,8 @@ def term_equality(a: STerm, b: STerm, rename_left: dict[Name, Name] | None = Non
         case SVar(an), SVar(bn):
             return rename_left.get(an, an) == bn
         case SHole(an), SHole(bn):
+            return rename_left.get(an, an) == bn
+        case SImplicitRefinementHole(an), SImplicitRefinementHole(bn):
             return rename_left.get(an, an) == bn
         case SBy(asteps), SBy(bsteps):
             return asteps == bsteps

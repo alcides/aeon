@@ -18,6 +18,7 @@ from aeon.core.terms import (
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
+from aeon.core.terms import ImplicitRefinementHole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
@@ -75,6 +76,8 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
         case Var():
             return t
         case Hole():
+            return t
+        case ImplicitRefinementHole():
             return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
@@ -367,6 +370,8 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             return t
         case Hole():
             return t
+        case ImplicitRefinementHole():
+            return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
         case Abstraction(var_name, body, loc):
@@ -454,6 +459,10 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
                 return rep
             else:
                 return t
+        case ImplicitRefinementHole():
+            # Implicit refinement placeholders are solved by Horn inference,
+            # never by term-level substitution. Treat as a leaf.
+            return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
         case Abstraction(vname, body, loc):

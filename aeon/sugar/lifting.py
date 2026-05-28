@@ -13,6 +13,7 @@ from aeon.core.terms import (
     Var,
     Annotation,
     Hole,
+    ImplicitRefinementHole,
     Application,
     Abstraction,
     Let,
@@ -39,6 +40,7 @@ from aeon.sugar.program import (
     SVar,
     SAnnotation,
     SHole,
+    SImplicitRefinementHole,
     SApplication,
     SAbstraction,
     SLet,
@@ -119,6 +121,8 @@ def lift(t: Term) -> STerm:
             return SAnnotation(lift(expr), lift_type(typ), loc=loc)
         case Hole(name, loc):
             return SHole(name, loc=loc)
+        case ImplicitRefinementHole(name, loc):
+            return SImplicitRefinementHole(name, loc=loc)
         case Application(fun, arg, loc):
             return SApplication(lift(fun), lift(arg), loc=loc)
         case Abstraction(var_name, body, loc):

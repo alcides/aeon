@@ -26,6 +26,7 @@ from aeon.sugar.program import (
     SApplication,
     SAnnotation,
     SHole,
+    SImplicitRefinementHole,
     SBy,
     SLiteral,
     SIf,
@@ -139,7 +140,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole() | SQualifiedVar() | SAnonConstructor():
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SQualifiedVar() | SAnonConstructor():
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)

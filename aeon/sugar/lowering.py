@@ -15,6 +15,7 @@ from aeon.core.terms import (
     Annotation,
     Application,
     If,
+    ImplicitRefinementHole,
     Let,
     Literal,
     Rec,
@@ -49,6 +50,7 @@ from aeon.sugar.program import (
     SAnnotation,
     SApplication,
     SIf,
+    SImplicitRefinementHole,
     SLet,
     SLiteral,
     SRec,
@@ -246,6 +248,8 @@ def lower_to_core(t: STerm) -> Term:
     match t:
         case SHole(name, loc):
             return Hole(name, loc=loc)
+        case SImplicitRefinementHole(name, loc):
+            return ImplicitRefinementHole(name, loc=loc)
         case SLiteral(val, ty, loc):
             return Literal(val, type_to_core(ty), loc=loc)
         case SVar(name, loc):
