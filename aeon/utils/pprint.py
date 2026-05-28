@@ -621,7 +621,7 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             new_seen.add(name)
             return normalize_term(simplified_term, context, new_seen)
         case SHole(name=name):
-            return SHole(name=name)
+            return SHole(name=name, is_implicit_refinement=term.is_implicit_refinement)
         case SBy(steps=steps, loc=loc):
             return SBy(steps=steps, loc=loc)
         case SAnnotation(expr=expr, type=type):

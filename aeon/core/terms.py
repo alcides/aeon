@@ -78,6 +78,11 @@ class Annotation(Term):
 class Hole(Term):
     name: Name
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    # Marks placeholders inserted by elaboration when instantiating an
+    # ``RefinementPolymorphism``: they stand in for an implicit refinement
+    # predicate and are solved by Horn inference, not by GP synthesis. User
+    # holes leave this ``False``.
+    is_implicit_refinement: bool = False
 
     def __str__(self):
         return f"?{self.name}"

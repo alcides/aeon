@@ -363,7 +363,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 nfun = STypeApplication(nfun, u)
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
             while isinstance(nfun_type, SRefinementPolymorphism):
-                h = SHole(Name("_pred", fresh_counter.fresh()))
+                h = SHole(Name("_pred", fresh_counter.fresh()), is_implicit_refinement=True)
                 nfun = SRefinementApplication(nfun, h)
                 nfun_type = substitution_sterm_in_stype(nfun_type.body, h, nfun_type.name)
 
@@ -450,7 +450,7 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
     while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
-        h = SHole(Name("_pred", fresh_counter.fresh()))
+        h = SHole(Name("_pred", fresh_counter.fresh()), is_implicit_refinement=True)
         c = SRefinementApplication(c, h)
         s = substitution_sterm_in_stype(s.body, h, s.name)
     return (c, s)

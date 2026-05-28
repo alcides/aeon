@@ -245,7 +245,7 @@ def lower_to_core(t: STerm) -> Term:
     """Converts Surface terms into Core terms."""
     match t:
         case SHole(name, loc):
-            return Hole(name, loc=loc)
+            return Hole(name, loc=loc, is_implicit_refinement=t.is_implicit_refinement)
         case SLiteral(val, ty, loc):
             return Literal(val, type_to_core(ty), loc=loc)
         case SVar(name, loc):

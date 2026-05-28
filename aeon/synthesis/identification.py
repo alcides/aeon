@@ -167,9 +167,11 @@ def get_holes(term: Term) -> list[Name]:
         case RefinementAbstraction(name=_, body=body):
             return get_holes(body)
         case RefinementApplication(body=body, refinement=refinement):
-            # TODO better solution
-            # Implicit refinement placeholders (elaboration) are solved by Horn inference, not GP synthesis.
-            if isinstance(refinement, Hole) and refinement.name.name.startswith("_pred"):
+            # Implicit refinement placeholders (inserted by elaboration when
+            # instantiating an ``RefinementPolymorphism``) are solved by Horn
+            # inference, not by GP synthesis. They carry the
+            # ``is_implicit_refinement`` flag set in ``aeon/elaboration``.
+            if isinstance(refinement, Hole) and refinement.is_implicit_refinement:
                 return get_holes(body)
             return get_holes(body) + get_holes(refinement)
         case _:

@@ -118,7 +118,7 @@ def lift(t: Term) -> STerm:
         case Annotation(expr, typ, loc):
             return SAnnotation(lift(expr), lift_type(typ), loc=loc)
         case Hole(name, loc):
-            return SHole(name, loc=loc)
+            return SHole(name, loc=loc, is_implicit_refinement=t.is_implicit_refinement)
         case Application(fun, arg, loc):
             return SApplication(lift(fun), lift(arg), loc=loc)
         case Abstraction(var_name, body, loc):

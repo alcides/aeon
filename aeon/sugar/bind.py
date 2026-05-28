@@ -147,7 +147,7 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SVar(apply_subs_name(subs, name), loc=loc)
         case SHole(name, loc=loc):
             name, _ = check_name(name, subs)
-            return SHole(name, loc=loc)
+            return SHole(name, loc=loc, is_implicit_refinement=t.is_implicit_refinement)
         case SBy(steps, loc=loc):
             return SBy(steps, loc=loc)
         case SAnnotation(e, ty, loc=loc):
