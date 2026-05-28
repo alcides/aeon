@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import pathlib
 from typing import Callable
 
@@ -160,9 +161,7 @@ class TreeToCore(Transformer):
         return Literal(args[0], type=t_string)
 
     def ESCAPED_STRING(self, val):
-        # TODO: This is terrible and doesn't handle escapes
-        v = str(val)[1:-1]
-        return v
+        return ast.literal_eval(str(val))
 
     def base_kind(self, args):
         return Kind.BASE
