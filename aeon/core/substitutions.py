@@ -117,23 +117,44 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             assert False
 
 
+def _peel_abstractions(term: Term, n: int) -> tuple[list[Name], Term] | None:
+    """Peel ``n`` nested ``Abstraction`` binders off a curried lambda.
+
+    Returns the bound parameter names (outermost first) and the remaining body,
+    or ``None`` if ``term`` has fewer than ``n`` leading abstractions.
+    """
+    params: list[Name] = []
+    body = term
+    for _ in range(n):
+        if not isinstance(body, Abstraction):
+            return None
+        params.append(body.var_name)
+        body = body.body
+    return params, body
+
+
 def instantiate_refinement_in_liquid(
     t: LiquidTerm,
     pred_name: Name,
     refinement: Abstraction,
 ) -> LiquidTerm:
-    """Replaces LiquidApp(pred_name, [arg]) with the inlined refinement body.
-    Implements tutorial fig 8.6: κ(x)[ρ := φ] = p[y := x] if ρ = κ:·, φ = λy.p"""
+    """Replaces LiquidApp(pred_name, [args...]) with the inlined refinement body.
+    Implements tutorial fig 8.6 generalized to multiple arguments:
+    κ(x1, ..., xn)[ρ := φ] = p[y1 := x1, ..., yn := xn] if ρ = κ:·, φ = λy1...yn. p"""
     match t:
         case LiquidApp(aname, args, loc):
-            # TODO: support multi-arg predicates
-            if aname == pred_name and len(args) == 1 and isinstance(args[0], LiquidVar):
-                arg = args[0]
-                body_subst = substitution(refinement.body, Var(arg.name, loc=arg.loc), refinement.var_name)
-                body_subst = inline_lets(body_subst)
-                liq = liquefy(body_subst)
-                if liq is not None:
-                    return liq
+            if aname == pred_name and len(args) >= 1 and all(isinstance(a, LiquidVar) for a in args):
+                peeled = _peel_abstractions(refinement, len(args))
+                if peeled is not None:
+                    params, body = peeled
+                    body_subst = body
+                    for param, arg in zip(params, args):
+                        assert isinstance(arg, LiquidVar)
+                        body_subst = substitution(body_subst, Var(arg.name, loc=arg.loc), param)
+                    body_subst = inline_lets(body_subst)
+                    liq = liquefy(body_subst)
+                    if liq is not None:
+                        return liq
             return LiquidApp(
                 aname,
                 [instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args],
