@@ -9,6 +9,7 @@ Tracked by issue #286 — fixed via alpha-renaming in `type_substitution`.
 """
 
 from aeon.core.types import Kind
+from aeon.elaboration import UnificationVar
 from aeon.elaboration.instantiation import type_substitution
 from aeon.sugar.stypes import (
     SAbstractionType,
@@ -68,3 +69,21 @@ def test_abstraction_type_capture():
         f"Variable capture in arrow type: outer binder {outer_name} now binds "
         f"the X that was supposed to remain free. Result: {result}"
     )
+
+
+def test_substituting_a_unification_var_does_not_crash():
+    """The capture check must tolerate elaboration-internal SType nodes.
+
+    During elaboration `type_substitution` is called with `beta` being a
+    `UnificationVar` (which is not part of the surface SType grammar). The
+    free-variable scan must not raise on it. Regression for the CI failure on
+    PR #307 (`get_type_vars` asserting on `UnificationVar`)."""
+    X = Name("X", 0)
+    a = Name("a", 0)
+    ty = STypePolymorphism(X, Kind.BASE, STypeVar(a))
+    beta = UnificationVar(Name("tv", 999))
+
+    result = type_substitution(ty, a, beta)
+
+    assert isinstance(result, STypePolymorphism)
+    assert result.body is beta
