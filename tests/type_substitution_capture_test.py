@@ -5,10 +5,8 @@ substitution would capture: the previously-free variable becomes bound by
 the shadowing binder. Proper substitution avoids this (typically by
 alpha-renaming the binder).
 
-Tracked by issue #286 — currently expected to fail.
+Tracked by issue #286 — fixed via alpha-renaming in `type_substitution`.
 """
-
-import pytest
 
 from aeon.core.types import Kind
 from aeon.elaboration.instantiation import type_substitution
@@ -20,7 +18,6 @@ from aeon.sugar.stypes import (
 from aeon.utils.name import Name
 
 
-@pytest.mark.xfail(reason="capture-avoidance not implemented; see issue #286", strict=True)
 def test_type_polymorphism_capture():
     """ty = forall X:B. a   ;  substitute a -> X.
     Naive result: forall X:B. X  (the previously-free X is captured).
@@ -43,7 +40,6 @@ def test_type_polymorphism_capture():
     )
 
 
-@pytest.mark.xfail(reason="capture-avoidance not implemented; see issue #286", strict=True)
 def test_abstraction_type_capture():
     """ty = (x:Int) -> a  with parameter named after the to-be-substituted target.
 

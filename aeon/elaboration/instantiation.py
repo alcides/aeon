@@ -8,9 +8,10 @@ from aeon.sugar.stypes import (
     STypeConstructor,
     STypePolymorphism,
     STypeVar,
+    get_type_vars,
 )
 from aeon.sugar.substitutions import normalize
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 
 
 def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
@@ -32,11 +33,16 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
         case SAbstractionType(name, vty, rty, loc):
             return SAbstractionType(name, rec(vty), rec(rty), loc=loc, multiplicity=ty.multiplicity)
         case STypePolymorphism(name, kind, body, loc):
-            # TODO: Double-check alpha_renaming in substitution
             if name == alpha:
+                # The binder shadows alpha: nothing free to substitute below.
                 return ty
-            else:
-                return STypePolymorphism(name, kind, rec(body), loc=loc)
+            if name in (tv.name for tv in get_type_vars(beta)):
+                # The binder would capture a free type variable of beta;
+                # alpha-rename it to a fresh name first.
+                fresh = Name(name.name, fresh_counter.fresh())
+                body = type_substitution(body, name, STypeVar(fresh))
+                name = fresh
+            return STypePolymorphism(name, kind, rec(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
@@ -45,7 +51,7 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
             return ty
 
 
-def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
+def type_variable_instantiation(ty: SType, alpha: Name, beta: SType) -> SType:
     """t[alpha |-> beta], instantiation."""
 
     ty = normalize(ty)
@@ -66,8 +72,11 @@ def type_variable_instantiation(ty: SType, alpha: str, beta: SType) -> SType:
         case STypePolymorphism(name, kind, body, loc):
             if name == alpha:
                 return ty
-            else:
-                return STypePolymorphism(name, kind, rec(body), loc=loc)
+            if name in (tv.name for tv in get_type_vars(beta)):
+                fresh = Name(name.name, fresh_counter.fresh())
+                body = type_variable_instantiation(body, name, STypeVar(fresh))
+                name = fresh
+            return STypePolymorphism(name, kind, rec(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
