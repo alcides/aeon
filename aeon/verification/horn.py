@@ -26,7 +26,15 @@ from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.liquid import LiquidTypeCheckingContext, check_liquid, lower_context
+from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.liquid import (
+    LiquidTypeCheckException,
+    LiquidTypeCheckingContext,
+    check_liquid,
+    lower_abstraction_type,
+    lower_context,
+    type_infer_liquid,
+)
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.helpers import constraint_builder
 from aeon.verification.helpers import end
@@ -265,32 +273,104 @@ def build_qualifier_candidates(
     return out
 
 
-def get_possible_args(vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar]], arity: int):
+def get_possible_args(
+    vars: list[tuple[LiquidTerm, TypeConstructor | TypeVar]],
+    arity: int,
+    extra_atoms: list[LiquidTerm] | None = None,
+):
+    extra = extra_atoms or []
     if arity == 0:
         yield []
     else:
-        for base in get_possible_args(vars, arity - 1):
+        for base in get_possible_args(vars, arity - 1, extra):
             for i, (_, _) in enumerate(vars):
                 yield [LiquidVar(mk_arg(i))] + base
                 yield [LiquidLiteralBool(True)] + base
                 yield [LiquidLiteralBool(False)] + base
                 yield [LiquidLiteralInt(0)] + base
                 yield [LiquidLiteralInt(1)] + base
+            for atom in extra:
+                yield [atom] + base
 
 
-def build_possible_assignment(hole: LiquidHornApplication) -> Generator[LiquidApp]:
-    ctx = LiquidTypeCheckingContext(
-        known_types=[TypeConstructor(Name(bn.name.name, 0)) for bn in builtin_core_types],
-        functions=liquid_prelude,
-        variables={mk_arg(i): t for i, (_, t) in enumerate(hole.argtypes)},
-    )
+def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeConstructor | TypeVar]]:
+    """Custom measures available for Horn predicate generation.
 
-    for fname in liquid_prelude:
-        ftype = liquid_prelude[fname]
+    These are the user-declared uninterpreted functions associated with
+    constructors (``def feats : (ds:Dataset) -> Int = uninterpreted``, the
+    auto-generated inductive projections ``Pair_mk_fst``, …). They are
+    lowered to the liquid signature shape so they can be applied to a hole's
+    argument slots. Only ``UninterpretedBinder`` entries are taken — plain
+    first-order program functions are deliberately excluded to keep the
+    candidate space bounded.
+    """
+    if typing_ctx is None:
+        return {}
+    measures: dict[Name, list[TypeConstructor | TypeVar]] = {}
+    for entry in typing_ctx.entries:
+        if isinstance(entry, UninterpretedBinder):
+            lowered = lower_abstraction_type(entry.type)
+            if len(lowered) >= 2:
+                measures[entry.name] = lowered
+    return measures
+
+
+def build_measure_atoms(
+    ctx: LiquidTypeCheckingContext,
+    hole: LiquidHornApplication,
+    measures: dict[Name, list[TypeConstructor | TypeVar]],
+) -> list[LiquidTerm]:
+    """Applications of custom measures to the hole's variable slots.
+
+    A measure such as ``feats : Dataset -> Int`` is not itself a boolean
+    predicate, so it can only appear in a refinement nested inside a prelude
+    operator (e.g. ``feats(arg_0) <= 0``). These applications become extra
+    atoms that ``get_possible_args`` can place in operator argument
+    positions. Only single applications over the hole variables are produced;
+    deeper nesting is intentionally out of scope.
+    """
+    atoms: list[LiquidTerm] = []
+    seen: set[LiquidTerm] = set()
+    for fname, ftype in measures.items():
         arity = len(ftype) - 1
+        if arity == 0:
+            continue
         for args in get_possible_args(hole.argtypes, arity):
-            # At least one LiquidVar must be used.
             if not any(isinstance(a, LiquidVar) for a in args):
+                continue
+            app = LiquidApp(fname, list(args))
+            if app in seen:
+                continue
+            try:
+                type_infer_liquid(ctx, app)
+            except LiquidTypeCheckException:
+                continue
+            seen.add(app)
+            atoms.append(app)
+    return atoms
+
+
+def build_possible_assignment(
+    hole: LiquidHornApplication,
+    typing_ctx: TypingContext | None = None,
+) -> Generator[LiquidApp]:
+    ctx = liquid_typechecking_ctx_for_hole(typing_ctx, hole)
+    measures = context_measures(typing_ctx)
+    measure_atoms = build_measure_atoms(ctx, hole, measures)
+    measure_atom_set = set(measure_atoms)
+
+    # Boolean-returning measures may serve as predicates directly; the prelude
+    # supplies the relational operators that consume the non-boolean ones.
+    gen_functions: dict[Name, list[TypeConstructor | TypeVar]] = dict(liquid_prelude)
+    for fname, ftype in measures.items():
+        gen_functions.setdefault(fname, ftype)
+
+    for fname in gen_functions:
+        ftype = gen_functions[fname]
+        arity = len(ftype) - 1
+        for args in get_possible_args(hole.argtypes, arity, measure_atoms):
+            # At least one hole variable (directly or via a measure application) must be used.
+            if not any(isinstance(a, LiquidVar) or a in measure_atom_set for a in args):
                 continue
             arg_list = list(args)
             app = LiquidApp(fname, arg_list)
@@ -308,7 +388,7 @@ def build_initial_assignment(
     assign: dict[Name, list[LiquidTerm]] = {}
     for h in holes:
         if h.name not in assign:
-            prelude = list(build_possible_assignment(h))
+            prelude = list(build_possible_assignment(h, typing_ctx))
             extra = build_qualifier_candidates(typing_ctx, h, atoms)
             prelude_set = set(prelude)
             assign[h.name] = prelude + [c for c in extra if c not in prelude_set]
@@ -484,9 +564,6 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
     else:
         weakened_assignment = weaken(assign, ncs[0])
         return fixpoint(cs, weakened_assignment)
-
-
-# TODO uninterpreted: We need to pass the context here, to use custom measures in the horn clause.
 
 
 def solve(
