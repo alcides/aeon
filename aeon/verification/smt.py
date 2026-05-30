@@ -576,7 +576,14 @@ def smt_valid(constraint: Constraint) -> bool:
         n += 1
         s.push()
 
-        # TODO now: Add monomorphic, uncurried functions here
+        # Monomorphic, uncurried function declarations need no separate
+        # emission step here: each CanonicConstraint carries its own
+        # `functions` (including the monomorphised twins minted by
+        # `_specialize_liquid_term`), and `translate` -> `mk_funs` uncurries
+        # them into Z3 `Function`s while building this constraint's formula.
+        # Z3 declares a function symbol implicitly wherever it appears in the
+        # asserted formula, and the push/pop here scopes each constraint, so
+        # the declarations are re-emitted per constraint by construction.
         try:
             smt_c = translate(c)
         except ZeroDivisionError:
