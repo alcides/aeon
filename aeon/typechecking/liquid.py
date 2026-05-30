@@ -178,6 +178,15 @@ def type_infer_liquid(
                     return ty
                 case _:
                     raise LiquidTypeCheckException("Could not find type for {liq} ({ctx.variables[name]})")
+        case LiquidApp(Name("ite", _), [cond, then, otherwise]):
+            kc = type_infer_liquid(ctx, cond)
+            if not (isinstance(kc, TypeConstructor) and kc.name.name == "Bool"):
+                raise LiquidTypeCheckException(f"Condition {cond} of {liq} must be Bool, but {kc} was found.")
+            kt = type_infer_liquid(ctx, then)
+            ke = type_infer_liquid(ctx, otherwise)
+            if kt != ke and not isinstance(kt, TypeVar) and not isinstance(ke, TypeVar):
+                raise LiquidTypeCheckException(f"Branches of {liq} have different types: {kt} and {ke}.")
+            return kt if not isinstance(kt, TypeVar) else ke
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")

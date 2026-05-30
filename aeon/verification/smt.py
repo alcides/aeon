@@ -19,6 +19,7 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
+from z3.z3 import If
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import RealSort
@@ -131,6 +132,7 @@ base_functions: dict[str, Any] = {
     "/": lambda x, y: x / y,
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
+    "ite": lambda c, t, e: If(c, t, e),
     # SMT Set operations
     "Set_empty": EmptySet(IntSort()),
     "Set_sng": lambda x: SetAdd(EmptySet(IntSort()), x),
