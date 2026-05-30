@@ -152,24 +152,38 @@ print $ int_to_string $ add 2 3    # equivalent to print (int_to_string (add 2 3
 
 When used with parametrically refined functions, `$` preserves refinements through the application chain.
 
-### Reflected functions and PLE
+### Reflecting function bodies into return types (`_`)
 
-Aeon automatically reflects non-native top-level functions into the logical environment used by refinement checking.
-This means the solver can unfold their definitions during verification (PLE-style) instead of treating them as fully uninterpreted symbols.
+By default a top-level function is opaque to the solver: at a call site only its
+declared return type is known, and the body is treated as an uninterpreted symbol.
+Write `_` as the refinement of a function's return type to *reflect* the body into
+the predicate, making the post-condition visible to the SMT solver everywhere the
+function is called.
 
 Example:
 
 ```
-def inc (x:Int) : Int = x + 1;
+def inc (x:Int) : {y:Int | _} = x + 1;
 def witness (x:Int) : {v:Int | v > x} = inc x;
 ```
 
-The proof for `witness` succeeds because `inc x` is unfolded to `x + 1` while discharging VCs.
+`_` expands to `y == x + 1`, so `inc`'s return type becomes `{y:Int | y == x + 1}`.
+The proof for `witness` then succeeds because the solver knows `v == x + 1` at the
+call site, hence `v > x`.
 
-`native` and explicitly `uninterpreted` definitions are not reflected.
-Functions with holes are not reflected.
+`if`-then-`else` bodies are reflected too, lowering to `ite` in the predicate, and
+`_` can be combined with manual conjuncts:
 
-Recursive functions are reflected only when termination evidence is present (for example with `decreasing_by`), so unfolding stays sound.
+```
+def abs (x:Int) : {y:Int | _} = if x < 0 then (0 - x) else x;
+def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} = x + x;
+```
+
+Reflection is rejected with a clear error when the body cannot be encoded as a
+predicate: `native` and `uninterpreted` definitions have no symbolic body,
+self-referential (recursive) reflection is not yet supported, and some constructs
+are not expressible in a refinement. See [`examples/syntax/reflect_underscore.ae`](https://github.com/alcides/aeon/blob/master/examples/syntax/reflect_underscore.ae)
+for a full walkthrough.
 
 Before SMT solving, Aeon also simplifies generated verification constraints (boolean identities, redundant equalities, and repeated trivial structure), which helps both solver performance and error-message readability.
 
