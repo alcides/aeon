@@ -118,7 +118,11 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
             nname, nsubs = check_name(aname, subs)
 
             return SAbstractionType(
-                nname, bind_stype(atype, subs), bind_stype(rtype, nsubs), multiplicity=ty.multiplicity
+                nname,
+                bind_stype(atype, subs),
+                bind_stype(rtype, nsubs),
+                multiplicity=ty.multiplicity,
+                is_instance=ty.is_instance,
             )
         case SRefinedType(name, ty, ref):
             nty = bind_stype(ty, subs)
@@ -251,10 +255,18 @@ def _bind_definition(
         decreasing_by=decreasing,
         loc=df.loc,
         arg_multiplicities=df.arg_multiplicities,
+        instance_flags=df.instance_flags,
     ), nsubs
 
 
 def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
+    # Lower class/instance declarations to inductives + plain definitions up
+    # front so they are renamed by the normal binding machinery (and so method
+    # projection / dictionary references share ids with their definitions).
+    from aeon.sugar.desugar import expand_typeclasses
+
+    p = expand_typeclasses(p)
+
     type_decls = []
     inductive_decls = []
     definitions = []

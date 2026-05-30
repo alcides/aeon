@@ -343,7 +343,11 @@ def _collect_specialisation(expected: Type, actual: Type, subst: dict[str, TypeC
             _collect_specialisation(ea, aa, subst)
 
 
-def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> TypeConstructor | None:
+def _term_base_type(
+    t: LiquidTerm,
+    variables: dict[str, TypeConstructor],
+    functions: dict[str, AbstractionType] | None = None,
+) -> TypeConstructor | None:
     match t:
         case LiquidLiteralInt():
             return t_int
@@ -357,6 +361,26 @@ def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> Typ
             return t_unit
         case LiquidVar(name):
             return variables.get(str(name), None)
+        case LiquidApp(fun_name, args) if functions is not None:
+            # A fully-applied function/constructor argument (e.g. a
+            # ``.box 3`` constructor or a recursively-resolved instance
+            # dictionary). Its base type is the function's result type
+            # after peeling one abstraction per supplied argument. By the
+            # time we get here ``_specialize_liquid_term`` has already
+            # processed the argument subterm, so a monomorphised twin with
+            # a concrete result type is in ``functions``.
+            fty = functions.get(str(fun_name))
+            if fty is None:
+                return None
+            cur: Type = fty
+            while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+                cur = cur.body
+            for _ in args:
+                if not isinstance(cur, AbstractionType):
+                    return None
+                cur = cur.type
+            lowered = lower_constraint_type(cur)
+            return lowered if isinstance(lowered, TypeConstructor) else None
         case _:
             return None
 
@@ -392,7 +416,7 @@ def _specialize_liquid_term(
     for arg in nargs:
         if not isinstance(cur, AbstractionType):
             break
-        actual = _term_base_type(arg, variables)
+        actual = _term_base_type(arg, variables, nfuncs)
         if actual is not None:
             _collect_specialisation(cur.var_type, actual, subst)
         cur = cur.type

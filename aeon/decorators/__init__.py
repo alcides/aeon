@@ -118,6 +118,7 @@ def collect_core_decorator_queue(
                         decreasing_by,
                         loc,
                         arg_multiplicities=d.arg_multiplicities,
+                        instance_flags=d.instance_flags,
                     )
                 )
             case _:

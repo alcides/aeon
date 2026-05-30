@@ -42,6 +42,11 @@ class ElaborationTypingContext:
     entries: MutableSequence[ElabTypingContextEntry] = field(default_factory=list)
     constructor_to_type: dict[str, Name] = field(default_factory=dict)
     constructor_defs: dict[str, Name] = field(default_factory=dict)
+    # Instance-implicit ("given") constraints in lexical scope, as
+    # ``(dict_variable_name, class_type)`` pairs — e.g. the ``[_c : Eq a]``
+    # parameter of a constrained instance dictionary. Method calls on the
+    # constrained type variable resolve to these before the global registry.
+    instances: list[tuple[Name, SType]] = field(default_factory=list)
 
     def type_of(self, name: Name):
         """Returns the type of the variable name. Looks up regular bindings
@@ -57,12 +62,17 @@ class ElaborationTypingContext:
     def with_var(self, name: Name, ty: SType):
         """Creates a new context, with an extra variable."""
         nentries = [x for x in self.entries] + [ElabVariableBinder(name, ty)]
-        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs)
+        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs, self.instances)
 
     def with_typevar(self, name: Name, kind: Kind):
         """Creates a new context, with an extra type variable"""
         nentries = [x for x in self.entries] + [ElabTypeVarBinder(name, kind)]
-        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs)
+        return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs, self.instances)
+
+    def with_instance(self, name: Name, class_type: SType):
+        """Creates a new context with an extra in-scope given constraint."""
+        ninstances = [x for x in self.instances] + [(name, class_type)]
+        return ElaborationTypingContext(self.entries, self.constructor_to_type, self.constructor_defs, ninstances)
 
     def fresh_typevar(self) -> Name:
         """Returns a type variable that does not exist in context."""
