@@ -278,7 +278,7 @@ Good candidates:
 
 Bad candidates:
 
-- Anything you could compute symbolically with regular Aeon code — write the function and let it be *reflected* into the logic instead of declaring it uninterpreted (see [Reflected functions and PLE](index.md) in the main reference).
+- Anything you could compute symbolically with regular Aeon code — write the function and reflect its body into the return type with `_` instead of declaring it uninterpreted (see [Reflecting function bodies into return types (`_`)](index.md) in the main reference).
 - Things that should never appear in a refinement. Keep the uninterpreted surface small.
 
 For inspiration, look at how the standard library declares them:
