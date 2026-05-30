@@ -5,8 +5,9 @@ import io
 from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Decorator, Definition, SApplication, STerm, SVar
-from aeon.sugar.stypes import STypeConstructor
+from aeon.sugar.stypes import SType
 from aeon.sugar.ast_helpers import st_int, st_float, st_top
+from aeon.sugar.parser import parse_type
 from aeon.utils.name import Name, fresh_counter
 
 from aeon.sugar.program import SLiteral
@@ -29,11 +30,30 @@ class Goal(NamedTuple):
     kind: str = "expression"
 
 
+def multi_objective_type(element: str, number_of_objectives: int) -> SType:
+    """Return type for a multi-objective fitness function: the native ``Array``
+    refined to hold exactly one element per objective.
+
+    The per-objective errors are returned as the language's native array type
+    (consistent across every multi-objective decorator), refined so its length
+    equals the number of objectives ``N`` derived from the decorator's argument
+    list. See issue #294.
+
+    The refinement uses ``Array_size`` — the abstract ``size`` measure exposed
+    by ``libraries/Array.ae`` under its module-qualified internal name. This is
+    the name the measure carries in the typing context regardless of whether the
+    program imports ``Array`` qualified or ``open``; it is resolved by
+    ``bind_ids`` rather than the surface qualified-name pass (which runs before
+    decorators expand).
+    """
+    return parse_type(f"{{v:(Array {element}) | Array_size v == {number_of_objectives}}}")
+
+
 def make_optimizer(
     args: list[STerm],
     fun: Definition,
     metadata: Metadata,
-    typ: STypeConstructor,
+    typ: SType,
     minimize: bool,
     length: int = 1,
     kind: str = "expression",
@@ -107,7 +127,7 @@ def multi_minimize_float(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Minimize a fitness function that returns ``(List Float)`` of per-objective errors."""
+    """Minimize a fitness function that returns an ``(Array Float)`` of per-objective errors."""
     assert len(decorator.macro_args) == 2, "multi_minimize_float decorator expects two arguments"
     assert isinstance(decorator.macro_args[1], SLiteral)
     assert isinstance(decorator.macro_args[1].value, int), "multi_minimize_float decorator expects an integer argument"
@@ -116,7 +136,7 @@ def multi_minimize_float(
         [decorator.macro_args[0]],
         fun,
         metadata,
-        STypeConstructor(Name("List", 0), [st_float]),
+        multi_objective_type("Float", number_of_objectives),
         minimize=True,
         length=number_of_objectives,
     )
@@ -127,7 +147,7 @@ def multi_minimize_int(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Minimize a fitness function that returns ``(List Int)`` of per-objective errors."""
+    """Minimize a fitness function that returns an ``(Array Int)`` of per-objective errors."""
     assert len(decorator.macro_args) == 2, "multi_minimize_int decorator expects two arguments"
     assert isinstance(decorator.macro_args[1], SLiteral)
     assert isinstance(decorator.macro_args[1].value, int), "multi_minimize_int decorator expects an integer argument"
@@ -136,7 +156,7 @@ def multi_minimize_int(
         [decorator.macro_args[0]],
         fun,
         metadata,
-        STypeConstructor(Name("List", 0), [st_int]),
+        multi_objective_type("Int", number_of_objectives),
         minimize=True,
         length=number_of_objectives,
     )

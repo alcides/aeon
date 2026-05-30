@@ -90,6 +90,31 @@ class Hole(Term):
 
 
 @dataclass(frozen=True)
+class ImplicitRefinementHole(Term):
+    """Placeholder inserted by elaboration when instantiating an
+    ``RefinementPolymorphism``.
+
+    Always appears as the ``refinement`` field of ``RefinementApplication``.
+    Solved by Horn inference, never by GP synthesis — ``get_holes`` skips it
+    by virtue of being a distinct ``Term`` subclass (not a subclass of
+    ``Hole``), so ``case Hole(...)`` patterns at synthesis sites do not
+    match it.
+    """
+
+    name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"?ρ{self.name}"
+
+    def __repr__(self):
+        return f"ImplicitRefinementHole({self.name})"
+
+    def __eq__(self, other):
+        return isinstance(other, ImplicitRefinementHole) and self.name == other.name
+
+
+@dataclass(frozen=True)
 class Application(Term):
     fun: Term
     arg: Term

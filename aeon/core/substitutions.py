@@ -3,6 +3,7 @@ from __future__ import annotations
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
@@ -18,6 +19,7 @@ from aeon.core.terms import (
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
+from aeon.core.terms import ImplicitRefinementHole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
@@ -76,6 +78,8 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             return t
         case Hole():
             return t
+        case ImplicitRefinementHole():
+            return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
         case Abstraction(var_name, body, loc):
@@ -117,23 +121,44 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             assert False
 
 
+def _peel_abstractions(term: Term, n: int) -> tuple[list[Name], Term] | None:
+    """Peel ``n`` nested ``Abstraction`` binders off a curried lambda.
+
+    Returns the bound parameter names (outermost first) and the remaining body,
+    or ``None`` if ``term`` has fewer than ``n`` leading abstractions.
+    """
+    params: list[Name] = []
+    body = term
+    for _ in range(n):
+        if not isinstance(body, Abstraction):
+            return None
+        params.append(body.var_name)
+        body = body.body
+    return params, body
+
+
 def instantiate_refinement_in_liquid(
     t: LiquidTerm,
     pred_name: Name,
     refinement: Abstraction,
 ) -> LiquidTerm:
-    """Replaces LiquidApp(pred_name, [arg]) with the inlined refinement body.
-    Implements tutorial fig 8.6: κ(x)[ρ := φ] = p[y := x] if ρ = κ:·, φ = λy.p"""
+    """Replaces LiquidApp(pred_name, [args...]) with the inlined refinement body.
+    Implements tutorial fig 8.6 generalized to multiple arguments:
+    κ(x1, ..., xn)[ρ := φ] = p[y1 := x1, ..., yn := xn] if ρ = κ:·, φ = λy1...yn. p"""
     match t:
         case LiquidApp(aname, args, loc):
-            # TODO: support multi-arg predicates
-            if aname == pred_name and len(args) == 1 and isinstance(args[0], LiquidVar):
-                arg = args[0]
-                body_subst = substitution(refinement.body, Var(arg.name, loc=arg.loc), refinement.var_name)
-                body_subst = inline_lets(body_subst)
-                liq = liquefy(body_subst)
-                if liq is not None:
-                    return liq
+            if aname == pred_name and len(args) >= 1 and all(isinstance(a, LiquidVar) for a in args):
+                peeled = _peel_abstractions(refinement, len(args))
+                if peeled is not None:
+                    params, body = peeled
+                    body_subst = body
+                    for param, arg in zip(params, args):
+                        assert isinstance(arg, LiquidVar)
+                        body_subst = substitution(body_subst, Var(arg.name, loc=arg.loc), param)
+                    body_subst = inline_lets(body_subst)
+                    liq = liquefy(body_subst)
+                    if liq is not None:
+                        return liq
             return LiquidApp(
                 aname,
                 [instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args],
@@ -146,6 +171,7 @@ def instantiate_refinement_in_liquid(
             | LiquidLiteralInt(_, loc)
             | LiquidLiteralFloat(_, loc)
             | LiquidLiteralString(_, loc)
+            | LiquidLiteralUnit(loc)
         ):
             return t
         case LiquidHornApplication(aname, argtypes, loc):
@@ -224,7 +250,13 @@ def instantiate_refinement_with_horn_in_liquid(
     match t:
         case LiquidVar(_):
             return t
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return t
         case LiquidApp(aname, args, loc):
             if aname == pred_name:
@@ -287,7 +319,13 @@ def substitution_in_liquid(
 ) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
     match t:
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return t
         case LiquidVar(tname):
             if tname == name:
@@ -366,6 +404,8 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
         case Var():
             return t
         case Hole():
+            return t
+        case ImplicitRefinementHole():
             return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
@@ -454,6 +494,10 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
                 return rep
             else:
                 return t
+        case ImplicitRefinementHole():
+            # Implicit refinement placeholders are solved by Horn inference,
+            # never by term-level substitution. Treat as a leaf.
+            return t
         case Application(fun, arg, loc):
             return Application(fun=rec(fun), arg=rec(arg), loc=loc)
         case Abstraction(vname, body, loc):

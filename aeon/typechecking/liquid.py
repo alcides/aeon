@@ -6,6 +6,7 @@ from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.types import (
@@ -58,7 +59,6 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
     args: list[TypeConstructor | TypeVar] = []
     while True:
         match ty:
-            # TODO: Should these be removed?
             case Top() | RefinedType(_, Top(), _):
                 return args + [t_unit]
             case TypeVar(_):
@@ -134,9 +134,13 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 add_variable(name, ty)
             case TypeBinder(name, _):
                 known_types.append(name)
-            case UninterpretedBinder(name, AbstractionType(_, _, _) as ty):
-                functions[name] = lower_abstraction_type(ty)
-            case UninterpretedBinder(name, TypePolymorphism(_, _, AbstractionType(_, _, _)) as ty):
+            case UninterpretedBinder(
+                name,
+                AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _) as ty,
+            ):
+                # ``lower_abstraction_type`` already recurses through
+                # ``TypePolymorphism`` / ``RefinementPolymorphism`` to the
+                # underlying ``AbstractionType``.
                 functions[name] = lower_abstraction_type(ty)
             case TypeConstructorBinder(_, _):
                 pass
@@ -159,6 +163,8 @@ def type_infer_liquid(
             return t_float
         case LiquidLiteralString(_):
             return t_string
+        case LiquidLiteralUnit():
+            return t_unit
         case LiquidVar(name):
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")
@@ -172,6 +178,15 @@ def type_infer_liquid(
                     return ty
                 case _:
                     raise LiquidTypeCheckException("Could not find type for {liq} ({ctx.variables[name]})")
+        case LiquidApp(Name("ite", _), [cond, then, otherwise]):
+            kc = type_infer_liquid(ctx, cond)
+            if not (isinstance(kc, TypeConstructor) and kc.name.name == "Bool"):
+                raise LiquidTypeCheckException(f"Condition {cond} of {liq} must be Bool, but {kc} was found.")
+            kt = type_infer_liquid(ctx, then)
+            ke = type_infer_liquid(ctx, otherwise)
+            if kt != ke and not isinstance(kt, TypeVar) and not isinstance(ke, TypeVar):
+                raise LiquidTypeCheckException(f"Branches of {liq} have different types: {kt} and {ke}.")
+            return kt if not isinstance(kt, TypeVar) else ke
         case LiquidApp(fun, args):
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
@@ -196,33 +211,46 @@ def type_infer_liquid(
                 )
             type_of_args = []
 
+            def _unify(actual: Type, expected: Type) -> None:
+                """Walk ``actual`` against ``expected``, populating ``equalities``.
+
+                Polymorphic uninterpreted functions (e.g. auto-generated
+                inductive projections like ``Pair_mk_fst : forall a b,
+                (Pair a b) -> a``) reach the liquid layer with TypeVars
+                in argument positions. Without descending into the args
+                of a TypeConstructor, the return type ``a`` would never
+                be bound to the concrete type at the call site.
+                """
+                match (actual, expected):
+                    case (_, TypeVar(name)):
+                        resolved = resolve_type(actual) if isinstance(actual, (TypeConstructor, TypeVar)) else actual
+                        if name in equalities:
+                            if resolve_type(TypeVar(name)) != resolved:
+                                raise LiquidTypeCheckException(
+                                    f"Argument {arg} in {liq} is expected to be of type "
+                                    f"{exp_t} ({equalities[name]}), but {k} was found instead."
+                                )
+                        else:
+                            assert isinstance(resolved, (TypeConstructor, TypeVar))
+                            equalities[name] = resolved
+                    case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if t == e and len(a_args) == len(
+                        e_args
+                    ):
+                        for a_in, e_in in zip(a_args, e_args):
+                            _unify(a_in, e_in)
+                    case (TypeConstructor(t), TypeConstructor(e)):
+                        raise LiquidTypeCheckException(
+                            f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
+                        )
+                    case _:
+                        raise LiquidTypeCheckException(
+                            f"Could not unify {actual} ({type(actual)}) and {expected} ({type(expected)}) in {liq}."
+                        )
+
             for arg, exp_t in zip(args, ftype):
                 k = type_infer_liquid(ctx, arg)
                 type_of_args.append(k)
-                match (k, exp_t):
-                    case (TypeConstructor(t), TypeConstructor(e)):
-                        if t != e:
-                            raise LiquidTypeCheckException(
-                                f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
-                            )
-                    case (TypeConstructor(t), TypeVar(name)):
-                        if name not in equalities:
-                            equalities[name] = resolve_type(k)
-                        elif resolve_type(TypeVar(name)) != k:
-                            raise LiquidTypeCheckException(
-                                f"Argument {arg} in {liq} is expected to be of type {exp_t} ({equalities[name]}), but {k} was found instead."
-                            )
-                    case (TypeVar(t), TypeVar(name)):
-                        if name not in equalities:
-                            equalities[name] = resolve_type(k)
-                        elif resolve_type(TypeVar(name)) != k:
-                            raise LiquidTypeCheckException(
-                                f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
-                            )
-                    case _:
-                        raise LiquidTypeCheckException(
-                            f"Could not unify {k} ({type(k)}) and {exp_t} ({type(exp_t)}) in {liq}."
-                        )
+                _unify(k, exp_t)
 
             def is_base_type_in(t: Type, names: list[str]) -> bool:
                 match t:

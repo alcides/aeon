@@ -9,6 +9,7 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
@@ -268,6 +269,8 @@ def liquid_terms_alpha_equal(t1: LiquidTerm, t2: LiquidTerm) -> bool:
             return f1 == f2
         case (LiquidLiteralString(s1), LiquidLiteralString(s2)):
             return s1 == s2
+        case (LiquidLiteralUnit(), LiquidLiteralUnit()):
+            return True
         case (LiquidVar(n1), LiquidVar(n2)):
             return n1.name == n2.name and n1.id == n2.id
         case (LiquidApp(fun1, args1), LiquidApp(fun2, args2)):

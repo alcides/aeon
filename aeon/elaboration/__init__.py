@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from itertools import combinations
-from aeon.core.types import BaseKind
+from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
@@ -17,6 +17,7 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SImplicitRefinementHole,
     SInstanceHole,
     SLet,
     SLiteral,
@@ -108,12 +109,12 @@ def elaborate_foralls(e: STerm) -> STerm:
                 for typevar in get_type_vars(e.var_type):
                     nt = STypePolymorphism(
                         name=typevar.name,
-                        kind=BaseKind(),
+                        kind=Kind.BASE,
                         body=nt,
                     )
                     nv = STypeAbstraction(
                         name=typevar.name,
-                        kind=BaseKind(),
+                        kind=Kind.BASE,
                         body=nv,
                     )
 
@@ -366,7 +367,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 nfun = STypeApplication(nfun, u)
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
             while isinstance(nfun_type, SRefinementPolymorphism):
-                h = SHole(Name("_pred", fresh_counter.fresh()))
+                h = SImplicitRefinementHole(Name("_pred", fresh_counter.fresh()))
                 nfun = SRefinementApplication(nfun, h)
                 nfun_type = substitution_sterm_in_stype(nfun_type.body, h, nfun_type.name)
 
@@ -458,7 +459,7 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
     while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
-        h = SHole(Name("_pred", fresh_counter.fresh()))
+        h = SImplicitRefinementHole(Name("_pred", fresh_counter.fresh()))
         c = SRefinementApplication(c, h)
         s = substitution_sterm_in_stype(s.body, h, s.name)
     while (
@@ -606,7 +607,7 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
-        case SLiteral() | SVar() | SHole() | SAnonConstructor():
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SAnonConstructor():
             return t
         case SAnnotation(expr, ty, loc=loc):
             return SAnnotation(elaborate_remove_unification(ctx, expr), ty, loc=loc)
@@ -676,7 +677,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                     match body:
                         case SVar(name):
                             match ctx.type_of(name):
-                                case STypePolymorphism(_, BaseKind(), _):
+                                case STypePolymorphism(_, Kind.BASE, _):
                                     should_be_refined = False
                     match nt:
                         case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):

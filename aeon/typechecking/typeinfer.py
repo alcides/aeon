@@ -7,11 +7,12 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTH_TYPE
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm, liquid_free_vars
-from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, StarKind
+from aeon.core.types import LiquidHornApplication, RefinementPolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import (
@@ -28,6 +29,7 @@ from aeon.core.terms import Abstraction, RefinementAbstraction, RefinementApplic
 from aeon.core.terms import Annotation
 from aeon.core.terms import Application
 from aeon.core.terms import Hole
+from aeon.core.terms import ImplicitRefinementHole
 from aeon.core.terms import If
 from aeon.core.terms import Let
 from aeon.core.terms import Literal
@@ -37,7 +39,6 @@ from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
-from aeon.core.types import BaseKind
 from aeon.core.types import ExistentialType, with_binders
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
@@ -49,6 +50,7 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.core.types import t_set
+from aeon.core.types import t_unit
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
 from aeon.facade.api import (
@@ -174,7 +176,7 @@ def _reflected_impl_for(
 
 def is_compatible(a: Kind, b: Kind):
     """Returns whether kind a is a subkind of kind b"""
-    return (a == b) or b == StarKind()
+    return (a == b) or b == Kind.STAR
 
 
 def argument_is_typevar(ty: Type):
@@ -194,6 +196,22 @@ def prim_litbool(t: bool) -> RefinedType:
         return RefinedType(vname, t_bool, LiquidVar(vname))
     else:
         return RefinedType(vname, t_bool, LiquidApp(Name("!", 0), [LiquidVar(vname)]))
+
+
+def prim_litunit() -> RefinedType:
+    """Type of the Unit literal ``()``.
+
+    Unit has a single inhabitant, so the refinement pins ``v`` to the
+    sole ``LiquidLiteralUnit`` value. The SMT layer maps ``Unit`` to a
+    dedicated sort (see ``aeon.verification.smt.get_sort``) rather than
+    re-using ``Bool``.
+    """
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        t_unit,
+        LiquidApp(Name("==", 0), [LiquidVar(vname), LiquidLiteralUnit()]),
+    )
 
 
 def prim_litint(t: int) -> RefinedType:
@@ -253,10 +271,10 @@ def prim_op(t: Name) -> Type:
             return make_binary_app_type(t, t_int, t_int)
         case "+" | "-" | "*" | "/":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, BaseKind(), make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
+            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
         case "==" | "!=" | ">" | ">=" | "<" | "<=":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, BaseKind(), make_binary_app_type(t, TypeVar(name_a), t_bool))
+            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), t_bool))
         case "&&" | "||":
             return make_binary_app_type(t, t_bool, t_bool)
         case "!":
@@ -323,8 +341,7 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
-            # TODO: Unit is encoded as True, replace with custom Sort
-            return (ctrue, prim_litbool(True))
+            return (ctrue, prim_litunit())
         case Literal(vb, TypeConstructor(Name("Bool", _))):
             assert isinstance(vb, bool)
             return (ctrue, prim_litbool(vb))
@@ -509,7 +526,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c, rp) = synth(ctx, body)
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
-            if isinstance(refinement, Hole):
+            if isinstance(refinement, ImplicitRefinementHole):
                 horn_name = Name("kappa", fresh_counter.fresh())
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, nty)
@@ -606,7 +623,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             name_a = Name(hole_name.name, fresh_counter.fresh())
             # Conservative default: treat the hole as a *-kind type variable (surface
             # holes are usually value-level; polymorphic holes need richer kinding).
-            return ctrue, TypePolymorphism(name_a, StarKind(), TypeVar(name_a))
+            return ctrue, TypePolymorphism(name_a, Kind.STAR, TypeVar(name_a))
         case _:
             logger.log("SYNTH_TYPE", ("Unhandled:", t))
             logger.log("SYNTH_TYPE", ("Unhandled:", type(t)))
@@ -703,7 +720,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
             return if_constraint
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
-            if var_kind == BaseKind() and kind != var_kind:
+            if var_kind == Kind.BASE and kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(
                     term=t,
                     type=ty,
@@ -750,9 +767,6 @@ def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:
     try:
         assert wellformed(ctx, ty)
         constraint = check(ctx, t, ty)
-        # TODO: convert constraint to canonical form
-        # constraint = canonicalize_constraint(constraint, [name for (name, _) in ctx.vars()])
-        # assert wellformed_constraint(ctx, constraint), f"Constraint {constraint} not wellformed."
         v = entailment(ctx, constraint)
         return v
     except CoreTypeCheckingError:

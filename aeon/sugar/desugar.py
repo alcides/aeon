@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import aeon
 from aeon.core.multiplicity import MOmega, Multiplicity
-from aeon.core.types import BaseKind, Kind
+from aeon.core.types import Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
@@ -26,6 +26,7 @@ from aeon.sugar.program import (
     SApplication,
     SAnnotation,
     SHole,
+    SImplicitRefinementHole,
     SBy,
     SLiteral,
     SIf,
@@ -106,6 +107,128 @@ def _sugar_contains_recursive_call(t: STerm, fname: Name) -> bool:
     return walk(t)
 
 
+def _is_reflection_marker(t: STerm) -> bool:
+    return isinstance(t, SVar) and t.name.name == "_"
+
+
+def _expand_reflection_marker(t: STerm, binder: Name, body: STerm) -> tuple[STerm, int]:
+    """Replace each ``_`` marker inside a refinement with ``binder == body``.
+
+    Returns the rewritten term and the number of markers expanded.
+    """
+    if _is_reflection_marker(t):
+        loc = t.loc
+        eq = SApplication(
+            SApplication(SVar(Name("==", 0), loc=loc), SVar(binder, loc=loc), loc=loc),
+            body,
+            loc=loc,
+        )
+        return eq, 1
+    match t:
+        case SApplication(fun, arg, loc):
+            nf, c1 = _expand_reflection_marker(fun, binder, body)
+            na, c2 = _expand_reflection_marker(arg, binder, body)
+            return SApplication(nf, na, loc=loc), c1 + c2
+        case SIf(cond, then, otherwise, loc):
+            nc, c1 = _expand_reflection_marker(cond, binder, body)
+            nt, c2 = _expand_reflection_marker(then, binder, body)
+            no, c3 = _expand_reflection_marker(otherwise, binder, body)
+            return SIf(nc, nt, no, loc=loc), c1 + c2 + c3
+        case SAnnotation(expr, ty, loc):
+            ne, c1 = _expand_reflection_marker(expr, binder, body)
+            return SAnnotation(ne, ty, loc=loc), c1
+        case _:
+            return t, 0
+
+
+def _mentions_function(body: STerm, fname: Name) -> bool:
+    match body:
+        case SVar(name, _):
+            return name.name == fname.name
+        case SApplication(fun, arg, _):
+            return _mentions_function(fun, fname) or _mentions_function(arg, fname)
+        case SAnnotation(expr, _, _):
+            return _mentions_function(expr, fname)
+        case _:
+            return False
+
+
+def _is_native_or_uninterpreted_body(body: STerm) -> bool:
+    match body:
+        case SVar(Name("uninterpreted", _)):
+            return True
+        case SApplication(SVar(Name("native", _)), _):
+            return True
+        case SApplication(SVar(Name("native_import", _)), _):
+            return True
+    return False
+
+
+def _unreflectable_construct(body: STerm) -> str | None:
+    """Name the first body construct that cannot appear in a liquid refinement, or None.
+
+    Reflection via `_` strengthens the return type with ``binder == body``, so the
+    body has to be a liquid term (variables, literals, applications, and
+    ``if``/``then``/``else`` which lowers to ``ite``). ``match`` and binders
+    (``let``/``\\``) are not yet supported.
+    """
+    match body:
+        case SVar() | SLiteral() | SQualifiedVar() | SHole():
+            return None
+        case SAnnotation(expr, _, _):
+            return _unreflectable_construct(expr)
+        case SApplication(fun, arg, _):
+            return _unreflectable_construct(fun) or _unreflectable_construct(arg)
+        case SIf(cond, then, otherwise, _):
+            return (
+                _unreflectable_construct(cond) or _unreflectable_construct(then) or _unreflectable_construct(otherwise)
+            )
+        case SMatch():
+            return "match"
+        case SLet() | SRec():
+            return "let"
+        case SAbstraction():
+            return "lambda"
+        case _:
+            return type(body).__name__
+
+
+def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition]:
+    """Expand the ``_`` reflection marker in each definition's return-type refinement.
+
+    ``def f (x:Int) : {y:Int | _} = x + x`` strengthens the return type to
+    ``{y:Int | y == x + x}``, reflecting the body into the predicate.
+    """
+    out: list[Definition] = []
+    for d in defs:
+        rtype = d.type
+        if not isinstance(rtype, SRefinedType) or any(n.name == "_" for n, _ in d.args):
+            out.append(d)
+            continue
+        new_ref, count = _expand_reflection_marker(rtype.refinement, rtype.name, d.body)
+        if count == 0:
+            out.append(d)
+            continue
+        if _is_native_import_def(d) or _is_native_or_uninterpreted_body(d.body):
+            raise TypeError(
+                f"Cannot reflect the body of '{d.name.name}' with `_`: native and uninterpreted "
+                "functions have no encodable implementation."
+            )
+        if _mentions_function(d.body, d.name):
+            raise TypeError(
+                f"Cannot reflect the recursive body of '{d.name.name}' with `_` yet: "
+                "self-referential reflection is not supported."
+            )
+        bad = _unreflectable_construct(d.body)
+        if bad is not None:
+            raise TypeError(
+                f"Cannot reflect the body of '{d.name.name}' with `_`: "
+                f"'{bad}' is not expressible in a refinement predicate."
+            )
+        out.append(replace(d, type=SRefinedType(rtype.name, rtype.type, new_ref, loc=rtype.loc)))
+    return out
+
+
 def definition_with_inferred_decreasing(d: Definition) -> Definition:
     """If omitted, use the sole ``Int`` parameter as the metric for unary self-recursion."""
     if d.decreasing_by or len(d.args) != 1:
@@ -141,7 +264,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole() | SQualifiedVar() | SAnonConstructor():
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SQualifiedVar() | SAnonConstructor():
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)
@@ -449,6 +572,8 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     ]
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
+    # Expand the `_` reflection marker in return-type refinements into `binder == body`.
+    defs = reflect_underscore_in_definitions(defs)
     defs, metadata = apply_decorators_in_definitions(defs)
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
 
@@ -819,7 +944,7 @@ def expand_typeclasses(p: Program) -> Program:
         for c in inst.constraints:
             tyvars |= get_type_vars(c)
         inst_foralls: list[tuple[Name, Kind]] = [
-            (tv.name, BaseKind()) for tv in sorted(tyvars, key=lambda t: t.name.name)
+            (tv.name, Kind.BASE) for tv in sorted(tyvars, key=lambda t: t.name.name)
         ]
 
         constraint_args: list[tuple[Name, SType]] = [(Name(f"_c{fresh_counter.fresh()}"), c) for c in inst.constraints]
@@ -960,22 +1085,38 @@ def expand_inductive_decls(p: Program) -> Program:
                             )
                             defs.append(de)
 
-                            # NOTE: auto-generated polymorphic projections were
-                            # explored here but blocked on a deeper limitation —
-                            # polymorphic uninterpreted binders are eagerly
-                            # monomorphised to ``Int`` by ``monomorphic_type``,
-                            # and polymorphic non-uninterpreted variable binders
-                            # are silently dropped by ``implication_constraint``
-                            # for ``TypePolymorphism`` (only reflected or
-                            # uninterpreted polymorphic functions reach SMT).
-                            # Until that pipeline lifts, libraries can declare
-                            # **monomorphic** uninterpreted projections per
-                            # concrete instantiation, e.g.::
+                            # ─── Auto-generated projections (one per named field) ──────
+                            # For each constructor field, emit an uninterpreted
+                            # polymorphic projection
+                            # ``<Type>_<Ctor>_<fname> : forall a:B, …, (this: Type a b …) -> fname's type``.
+                            # The SMT layer (``_specialize_liquid_term``)
+                            # monomorphises per call site, so references like
+                            # ``feats (Pair_mk_fst p)`` in a refinement become
+                            # an SMT-tracked equality the solver can chain
+                            # through ``Pair_mk_fst`` across consecutive uses.
                             #
-                            #   def split_fst : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
-                            #
-                            # which the SMT layer treats as a plain uninterpreted
-                            # function on the mangled sort.
+                            # Refinement parametricity (preserving refinements
+                            # on a constructed value's fields through the
+                            # projection) would need covariant subtyping on
+                            # TypeConstructor args and is a separate follow-up.
+                            this_arg_types: list[SType] = [STypeVar(tv) for tv in args]
+                            this_type: SType = STypeConstructor(name, this_arg_types)
+                            proj_foralls: list[tuple[Name, Kind]] = [(tv, Kind.BASE) for tv in args]
+                            for field_idx, (fname, fty) in enumerate(cargs):
+                                proj_name = Name(f"{name.name}_{cname.name}_{fname.name}", fresh_counter.fresh())
+                                this_name = Name("this", fresh_counter.fresh())
+                                proj_de = Definition(
+                                    name=proj_name,
+                                    foralls=list(proj_foralls),
+                                    args=[(this_name, this_type)],
+                                    type=fty,
+                                    body=uninterpreted_lit,
+                                    decorators=[],
+                                    rforalls=[],
+                                    decreasing_by=[],
+                                    loc=cloc,
+                                )
+                                defs.append(proj_de)
 
                 def curry(args: list[tuple[Name, SType]], rty: SType, mults: tuple[Multiplicity, ...] = ()) -> SType:
                     n = len(args)
@@ -1001,13 +1142,13 @@ def expand_inductive_decls(p: Program) -> Program:
                     rec_expr = f"({body} if {guard} else {rec_expr})"
                 rec_body: STerm = SApplication(SVar(Name("native", 0)), SLiteral(rec_expr, st_string))
 
-                foralls: list[tuple[Name, Kind]] = [(a, BaseKind()) for a in args]
+                foralls: list[tuple[Name, Kind]] = [(a, Kind.BASE) for a in args]
                 rec_args: list[tuple[Name, SType]] = []
 
                 # Return Type
                 return_generic_name = Name("ret", -1)
                 return_type = STypeVar(return_generic_name)
-                foralls.append((return_generic_name, BaseKind()))
+                foralls.append((return_generic_name, Kind.BASE))
 
                 # Target Type (First argument)
                 target_type = STypeConstructor(name, [STypeVar(a) for a in args])
@@ -1270,7 +1411,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                 for t in free_tvars:
                     tname = t.name
                     if tname not in types and tname not in bound_tvars:
-                        entry = (tname, BaseKind())
+                        entry = (tname, Kind.BASE)
                         if entry not in new_foralls:
                             new_foralls.append(entry)
                 ndefs.append(

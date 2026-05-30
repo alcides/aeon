@@ -5,6 +5,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -14,6 +15,7 @@ from aeon.core.terms import (
     Application,
     Hole,
     If,
+    ImplicitRefinementHole,
     Let,
     Rec,
     RefinementAbstraction,
@@ -73,7 +75,13 @@ def apply_subs_name(subs: RenamingSubstitions, name: Name) -> Name:
 
 def bind_lq(liq: LiquidTerm, subs: RenamingSubstitions) -> LiquidTerm:
     match liq:
-        case LiquidLiteralBool(_) | LiquidLiteralInt(_) | LiquidLiteralFloat(_) | LiquidLiteralString(_):
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
             return liq
         case LiquidVar(name, loc):
             return LiquidVar(apply_subs_name(subs, name), loc=loc)
@@ -98,7 +106,12 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
             case UninterpretedBinder(name, ty):
                 name, subs = check_name(name, subs)
                 nty = bind_type(ty, subs)
-                assert isinstance(nty, AbstractionType)
+                # Polymorphic projections (``forall a, forall b, (this:
+                # Pair a b) -> a``) are valid uninterpreted binders too;
+                # the SMT layer strips the foralls when emitting the UFD.
+                assert isinstance(nty, (AbstractionType, TypePolymorphism, RefinementPolymorphism)), (
+                    f"UninterpretedBinder type must be a function (possibly polymorphic), got {nty}"
+                )
                 e = UninterpretedBinder(name, nty)
             case TypeBinder(name, k):
                 name, subs = check_name(name, subs)
@@ -154,6 +167,9 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
         case Hole(name, loc):
             name, _ = check_name(name, subs)
             return Hole(name, loc=loc)
+        case ImplicitRefinementHole(name, loc):
+            name, _ = check_name(name, subs)
+            return ImplicitRefinementHole(name, loc=loc)
         case Annotation(e, ty, loc):
             return Annotation(bind_term(e, subs), bind_type(ty, subs), loc=loc)
         case Application(e1, e2, loc):

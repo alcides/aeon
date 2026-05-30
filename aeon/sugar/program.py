@@ -98,6 +98,32 @@ class SHole(STerm):
 
 
 @dataclass(frozen=True)
+class SImplicitRefinementHole(STerm):
+    """Placeholder inserted by elaboration when instantiating an
+    ``SRefinementPolymorphism``.
+
+    Always appears as the ``refinement`` field of ``SRefinementApplication``
+    (and its core counterpart, ``RefinementApplication``). Solved by Horn
+    inference downstream of elaboration, never by GP synthesis. Kept as a
+    distinct ``STerm`` subclass — rather than a flag on ``SHole`` — so the
+    two roles can't be confused at pattern-match sites: ``case SHole(...)``
+    only fires for user-written or tactic-introduced holes.
+    """
+
+    name: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"?ρ{self.name}"
+
+    def __repr__(self):
+        return f"ImplicitRefinementHole({self.name})"
+
+    def __eq__(self, other):
+        return isinstance(other, SImplicitRefinementHole) and self.name == other.name
+
+
+@dataclass(frozen=True)
 class SInstanceHole(STerm):
     """Placeholder for an instance-implicit dictionary argument.
 

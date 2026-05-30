@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import pathlib
 from typing import Callable
 
@@ -20,9 +21,8 @@ from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, TypeConstructor
-from aeon.core.types import BaseKind
+from aeon.core.types import Kind
 from aeon.core.types import RefinedType
-from aeon.core.types import StarKind
 from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
@@ -161,15 +161,13 @@ class TreeToCore(Transformer):
         return Literal(args[0], type=t_string)
 
     def ESCAPED_STRING(self, val):
-        # TODO: This is terrible and doesn't handle escapes
-        v = str(val)[1:-1]
-        return v
+        return ast.literal_eval(str(val))
 
     def base_kind(self, args):
-        return BaseKind()
+        return Kind.BASE
 
     def star_kind(self, args):
-        return StarKind()
+        return Kind.STAR
 
 
 _parser_cache: dict[str, Lark] = {}

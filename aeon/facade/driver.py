@@ -85,7 +85,6 @@ class AeonDriver:
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast, top)
-            # TODO
             if type_errors:
                 return type_errors
 

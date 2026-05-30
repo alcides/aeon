@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from aeon.core.bind import bind_ctx, bind_type
 
-from aeon.core.types import BaseKind, Kind, Type
-from aeon.core.types import StarKind
+from aeon.core.types import Kind, Type
 from aeon.core.types import t_bool
 from aeon.core.types import t_int
 from aeon.core.types import TypePolymorphism
@@ -17,7 +16,7 @@ from aeon.utils.name import Name
 empty = TypingContext()
 
 
-def wf_check(ctx: TypingContext, type: Type, k: Kind = StarKind()) -> bool:
+def wf_check(ctx: TypingContext, type: Type, k: Kind = Kind.STAR) -> bool:
     ctx, subs = bind_ctx(ctx, [])
     type = bind_type(type, subs)
     return wellformed(ctx, type, k=k)
@@ -27,8 +26,8 @@ def test_wf1():
     assert wf_check(empty, t_int)
     assert wf_check(empty, t_bool)
     assert not wf_check(empty, TypeVar(Name("a", 0)))
-    assert wf_check(empty.with_typevar(Name("a", 0), BaseKind()), TypeVar(Name("a", 0)))
-    assert wf_check(empty.with_typevar(Name("a", 0), StarKind()), TypeVar(Name("a", 0)))
+    assert wf_check(empty.with_typevar(Name("a", 0), Kind.BASE), TypeVar(Name("a", 0)))
+    assert wf_check(empty.with_typevar(Name("a", 0), Kind.STAR), TypeVar(Name("a", 0)))
 
 
 def test_wf2():
@@ -57,17 +56,17 @@ def test_dependent():
 
 def test_poly():
     a = Name("a", 0)
-    assert wf_check(empty, TypePolymorphism(a, BaseKind(), TypeVar(a)))
-    assert wf_check(empty, TypePolymorphism(a, StarKind(), TypeVar(a)))
+    assert wf_check(empty, TypePolymorphism(a, Kind.BASE, TypeVar(a)))
+    assert wf_check(empty, TypePolymorphism(a, Kind.STAR, TypeVar(a)))
     assert not wf_check(
         empty,
-        TypePolymorphism(a, StarKind(), TypeVar(a)),
-        BaseKind(),
+        TypePolymorphism(a, Kind.STAR, TypeVar(a)),
+        Kind.BASE,
     )
 
 
 def test_refinement_poly_binder():
     assert wf_check(
-        built_std_context().with_typevar(Name("a"), BaseKind()),
+        built_std_context().with_typevar(Name("a"), Kind.BASE),
         parse_type("(x:a) -> {z:a | x == z}"),
     )

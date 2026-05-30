@@ -8,6 +8,7 @@ from loguru import logger
 
 from z3 import Function
 from z3 import Int
+from z3 import Real
 from z3 import Solver
 from z3 import StringVal
 from z3 import sat
@@ -18,6 +19,7 @@ from z3.z3 import BoolRef
 from z3.z3 import BoolSort
 from z3.z3 import Const
 from z3.z3 import DeclareSort
+from z3.z3 import If
 from z3.z3 import Implies
 from z3.z3 import IntSort
 from z3.z3 import RealSort
@@ -27,6 +29,7 @@ from z3.z3 import String
 from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
+from z3 import Datatype
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
@@ -35,6 +38,7 @@ from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
+from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
@@ -128,6 +132,7 @@ base_functions: dict[str, Any] = {
     "/": lambda x, y: x / y,
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
+    "ite": lambda c, t, e: If(c, t, e),
     # SMT Set operations
     "Set_empty": EmptySet(IntSort()),
     "Set_sng": lambda x: SetAdd(EmptySet(IntSort()), x),
@@ -245,10 +250,51 @@ def ple_unfold_fixpoint(
     return current
 
 
+def _name_token(name: Name) -> str:
+    """Mangling token for a ``Name``.
+
+    Includes the binder ID (separated by ``__`` so it can't be confused
+    with the single-``_`` separator between mangled args) when non-zero
+    — so two user types that share a string name but live in different
+    scopes (e.g. ``T`` imported from two modules) don't accidentally
+    collide on a single Z3 sort.
+    """
+    if name.id <= 0:
+        return name.name
+    return f"{name.name}__{name.id}"
+
+
+def _mangle_sort_name(t: Type) -> str:
+    """Deterministic sort name for a parametric type constructor.
+
+    ``Pair Dataset Dataset`` → ``"Pair_Dataset_Dataset"`` (with
+    per-``Name`` ID suffixes appended via ``__id`` when the binder ID
+    is non-zero); nested apps mangle recursively. Used by ``get_sort``
+    to give each instantiation its own Z3 sort while keeping the sort
+    name consistent across uses (so two variables of the same Aeon
+    type share a Z3 sort and can be compared).
+    """
+    match t:
+        case TypeConstructor(name, []):
+            return _name_token(name)
+        case TypeConstructor(name, args):
+            return _name_token(name) + "_" + "_".join(_mangle_sort_name(a) for a in args)
+        case TypeVar(name):
+            return _name_token(name)
+        case _:
+            return str(t)
+
+
 def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
     match ty:
-        case TypeConstructor(name, _, _):
+        case TypeConstructor(name, args) if not args:
             return mapping.get(name.name, ty)
+        case TypeConstructor(name, args):
+            # Recurse into args: ``Pair a b`` with mapping ``{a → Dataset,
+            # b → Dataset}`` becomes ``Pair Dataset Dataset``.
+            sargs = [_specialize_type(a, mapping) for a in args]
+            assert all(isinstance(s, (TypeConstructor, TypeVar, RefinedType)) for s in sargs)
+            return TypeConstructor(name, sargs, loc=ty.loc)
         case AbstractionType(vname, vty, body, loc):
             svty = _specialize_type(vty, mapping)
             sbody = _specialize_type(body, mapping)
@@ -266,7 +312,42 @@ def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
             return ty
 
 
-def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> TypeConstructor | None:
+def _collect_specialisation(expected: Type, actual: Type, subst: dict[str, TypeConstructor]) -> None:
+    """Walk an expected/actual type pair to harvest TypeVar bindings.
+
+    For a polymorphic projection whose param type is ``Pair a b`` and a
+    call-site whose argument has type ``Pair Dataset Dataset``, populate
+    ``subst`` with ``a → Dataset`` and ``b → Dataset``. Only fires when
+    the *expected* position is a TypeConstructor with a lowercase name
+    (the convention for lowered TypeVars).
+
+    ``actual`` originates from ``_term_base_type``, which only ever
+    returns a ``TypeConstructor`` (or ``None``, which the caller
+    filters before invoking us). Inner recursive calls also stay within
+    the TypeConstructor world because we descend into ``actual.args``.
+    Nothing else makes sense as a Z3-typeable carrier of a substitution.
+    """
+    assert isinstance(actual, TypeConstructor), (
+        f"_collect_specialisation: actual must be a TypeConstructor (got {actual!r}); "
+        f"_term_base_type is the documented source and only returns TypeConstructor"
+    )
+    if not isinstance(expected, TypeConstructor):
+        return
+    if not expected.args:
+        n = expected.name.name
+        if n[:1].islower() and n not in {"Int", "Bool", "Float", "String", "Unit", "Top"}:
+            subst[n] = actual
+        return
+    if expected.name == actual.name and len(expected.args) == len(actual.args):
+        for ea, aa in zip(expected.args, actual.args):
+            _collect_specialisation(ea, aa, subst)
+
+
+def _term_base_type(
+    t: LiquidTerm,
+    variables: dict[str, TypeConstructor],
+    functions: dict[str, AbstractionType] | None = None,
+) -> TypeConstructor | None:
     match t:
         case LiquidLiteralInt():
             return t_int
@@ -276,8 +357,30 @@ def _term_base_type(t: LiquidTerm, variables: dict[str, TypeConstructor]) -> Typ
             return t_bool
         case LiquidLiteralString():
             return t_string
+        case LiquidLiteralUnit():
+            return t_unit
         case LiquidVar(name):
             return variables.get(str(name), None)
+        case LiquidApp(fun_name, args) if functions is not None:
+            # A fully-applied function/constructor argument (e.g. a
+            # ``.box 3`` constructor or a recursively-resolved instance
+            # dictionary). Its base type is the function's result type
+            # after peeling one abstraction per supplied argument. By the
+            # time we get here ``_specialize_liquid_term`` has already
+            # processed the argument subterm, so a monomorphised twin with
+            # a concrete result type is in ``functions``.
+            fty = functions.get(str(fun_name))
+            if fty is None:
+                return None
+            cur: Type = fty
+            while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+                cur = cur.body
+            for _ in args:
+                if not isinstance(cur, AbstractionType):
+                    return None
+                cur = cur.type
+            lowered = lower_constraint_type(cur)
+            return lowered if isinstance(lowered, TypeConstructor) else None
         case _:
             return None
 
@@ -313,21 +416,15 @@ def _specialize_liquid_term(
     for arg in nargs:
         if not isinstance(cur, AbstractionType):
             break
-        actual = _term_base_type(arg, variables)
-        expected = cur.var_type
-        if (
-            isinstance(expected, TypeConstructor)
-            and expected.name.name[:1].islower()
-            and expected.name.name not in {"Int", "Bool", "Float", "String", "Unit", "Top"}
-            and actual is not None
-        ):
-            subst[expected.name.name] = actual
+        actual = _term_base_type(arg, variables, nfuncs)
+        if actual is not None:
+            _collect_specialisation(cur.var_type, actual, subst)
         cur = cur.type
 
     if not subst:
         return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
 
-    concrete_sig = tuple(sorted(str(v.name) for v in subst.values()))
+    concrete_sig = tuple(sorted(_mangle_sort_name(v) for v in subst.values()))
     skey = (fname, concrete_sig)
     if skey in specializations:
         sname = specializations[skey]
@@ -348,17 +445,16 @@ def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTCo
     cur: Type = fun_ty
     while isinstance(cur, AbstractionType):
         base = lower_constraint_type(cur.var_type)
+        base_tc: TypeConstructor
         match base:
             case TypeVar(iname):
                 base_tc = TypeConstructor(iname)
-            case TypeConstructor(iname, []):
+            case TypeConstructor(_, _):
+                # Keep args; ``get_sort`` mangles to a per-instantiation
+                # Z3 sort so distinct instantiations stay separable while
+                # still being shared across uses of the same Aeon type.
                 base_tc = base
-            case TypeConstructor(iname, args):
-                mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
-                nname = Name(mangle_name, fresh_counter.fresh())
-                base_tc = TypeConstructor(nname)
             case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
-                # Higher-rank arguments are represented as opaque scalar tokens in SMT.
                 base_tc = t_int
             case _:
                 assert False, f"{base} ({type(base)}) is not a base type for curried formal."
@@ -439,12 +535,11 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             match base:
                 case TypeVar(iname):
                     base = TypeConstructor(iname)
-                case TypeConstructor(iname, []):
+                case TypeConstructor(_, _):
+                    # Keep args; ``get_sort`` mangles to a per-instantiation
+                    # Z3 sort while leaving the Aeon-level type intact so
+                    # ``_specialize_liquid_term`` can read its shape.
                     pass
-                case TypeConstructor(iname, args):
-                    mangle_name = str(iname) + "_" + "_".join(str(a) for a in args)
-                    nname = Name(mangle_name, fresh_counter.fresh())
-                    base = TypeConstructor(nname)
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
             yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
@@ -513,6 +608,24 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 
 sort_cache: dict[str, SortRef] = {}
 
+
+def _build_unit_sort() -> tuple[SortRef, Any]:
+    """Create the dedicated Unit sort and its single inhabitant.
+
+    Modelled as a z3 datatype with one nullary constructor so the SMT
+    solver knows the sort has exactly one value. This avoids the previous
+    encoding that aliased ``Unit`` to ``Bool``-true (see issue #296), under
+    which ``unit == True`` was accidentally satisfiable.
+    """
+    dt = Datatype("Unit")
+    dt.declare("unit")
+    sort = dt.create()
+    return sort, sort.unit
+
+
+_unit_sort_ref, _unit_value = _build_unit_sort()
+sort_cache["Unit"] = _unit_sort_ref
+
 # Caches for the SMT-context helpers. Within a single solve, `translate` is
 # called repeatedly with constraints that share the same underlying SMTContext,
 # so the `variables`, `functions`, and `sorts` collections are the same Python
@@ -547,6 +660,8 @@ def get_sort(base: Type) -> SortRef:
     match base:
         case Top() | TypeConstructor(Name("Top", _)):
             return IntSort()
+        case TypeConstructor(Name("Unit", _)):
+            return _unit_sort_ref
         case TypeConstructor(Name("Int", _)):
             return IntSort()
         case TypeConstructor(Name("Bool", _)):
@@ -557,8 +672,8 @@ def get_sort(base: Type) -> SortRef:
             return StringSort()
         case TypeConstructor(Name("Set", _)):
             return SetSort(IntSort())
-        case TypeConstructor(name, _):
-            sname = str(name)
+        case TypeConstructor(name, args):
+            sname = _mangle_sort_name(base) if args else str(name)
             if sname[:1].isupper():
                 if sname not in sort_cache:
                     sort_cache[sname] = DeclareSort(sname)
@@ -586,6 +701,16 @@ def unrefine_type(base: Type):
             return base
 
 
+class UncurryError(Exception):
+    """A function type's shape couldn't be flattened into ``([sort], sort)``.
+
+    Raised by :func:`uncurry` when an argument or return position holds a
+    type the SMT layer doesn't know how to project onto a Z3 sort.
+    ``mk_funs`` catches this specifically so it can skip the polymorphic
+    template (the per-call-site monomorphised twin always succeeds).
+    """
+
+
 def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstructor]:
     current: Type = unrefine_type(base)
     inputs = []
@@ -597,10 +722,10 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
 
     while isinstance(current, AbstractionType):
         match current.var_type:
-            case TypeConstructor(_, []):
-                inputs.append(current.var_type)
             case TypeConstructor(_, _):
-                inputs.append(t_int)
+                # Preserve parametric type-constructor args; ``get_sort``
+                # mangles them into a per-instantiation Z3 sort.
+                inputs.append(current.var_type)
             case Top():
                 inputs.append(t_unit)
             case TypeVar(name):
@@ -611,12 +736,17 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
             case AbstractionType(_, _, _) | TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
                 inputs.append(t_int)
             case _:
-                assert False, f"Unknown SMT type {current.var_type} in {base}."
+                raise UncurryError(f"Unknown SMT type {current.var_type} in {base}.")
         current = current.type
 
     if isinstance(current, Top):
         current = t_unit
-    assert isinstance(current, TypeConstructor), f"Unknown SMT type {current} in {base}."
+    if isinstance(current, TypeVar):
+        # A polymorphic return that wasn't specialised — represent it as
+        # an opaque sort named after the type variable.
+        current = TypeConstructor(current.name)
+    if not isinstance(current, TypeConstructor):
+        raise UncurryError(f"Unknown SMT return type {current} in {base}.")
     return (inputs, current)
 
 
@@ -624,18 +754,14 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
     match base:
         case Top():
             return Int(name)
+        case TypeConstructor(Name("Unit", _)):
+            return Const(name, _unit_sort_ref)
         case TypeConstructor(Name("Int", _)):
             return Int(name)
         case TypeConstructor(Name("Bool", _)):
             return Bool(name)
         case TypeConstructor(Name("Float", _), _):
-            import z3
-
-            v = z3.Real(name)
-            return v
-            # TODO: see problem with version below
-            # fpsort = FPSort(8, 24)
-            # return FP(name, fpsort)
+            return Real(name)
         case TypeConstructor(Name("String", _)):
             return String(name)
         case TypeConstructor(Name("Set", _)):
@@ -670,6 +796,9 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
             # appears as an argument, but Python `str` does not auto-cast to
             # Z3's String sort, so convert explicitly.
             return StringVal(s)
+        case LiquidLiteralUnit():
+            # The single inhabitant of the dedicated Unit datatype.
+            return _unit_value
         case LiquidVar(name):
             sname = str(name)
             if sname in variables:
@@ -710,7 +839,14 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
         return hit[1]
     funs = {}
     for name, ty in functions.items():
-        input_types, output_type = uncurry(ty)
+        try:
+            input_types, output_type = uncurry(ty)
+        except UncurryError:
+            # The polymorphic template can't be projected onto Z3 sorts.
+            # ``_specialize_liquid_term`` emits a monomorphised twin per
+            # call site that ``uncurry`` *can* process; that twin gets
+            # picked up the next time this loop runs.
+            continue
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))
         ]

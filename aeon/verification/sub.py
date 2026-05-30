@@ -82,11 +82,13 @@ def lower_constraint_type(ttype: Type) -> Type:
         case RefinedType(_, t, _):
             return lower_constraint_type(t)
         case TypeConstructor(name, args):
-            if args:
-                # Polymorphic types are represented by top
-                return TypeConstructor(Name("Top", 0))
-            else:
-                return TypeConstructor(name)
+            # Preserve the args (lowering each in turn). The SMT layer
+            # mangles parametric type constructors into per-instantiation
+            # sort names via ``_mangled_tc_name`` so each ``Pair Int Int``,
+            # ``Pair Dataset Dataset`` etc. becomes a distinct sort, and
+            # ``_specialize_liquid_term`` can monomorphise polymorphic
+            # functions over them at each call site.
+            return TypeConstructor(name, [lower_constraint_type(a) for a in args])
 
         case _:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
@@ -135,32 +137,63 @@ def implication_constraint(
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
                 return c
-        case TypePolymorphism(_, _, _):
+        case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
             lowered = lower_constraint_type(ty)
-            if reflected_impl is not None:
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+            if not isinstance(lowered, AbstractionType):
+                # Higher-order or otherwise non-first-order polymorphic
+                # types stay opaque — no constraint contribution.
                 return c
+            if reflected_impl is not None:
+                (params, body) = reflected_impl
+                return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             # Declare first-order polymorphic functions (e.g. typeclass method
             # projections) as uninterpreted so their applications can appear in
-            # refinements. Type variables become the ``Int`` sort in SMT.
-            if (
-                isinstance(lowered, AbstractionType)
-                and is_first_order_function(lowered)
-                and _has_concrete_base_result(ty)
-            ):
+            # refinements. Type variables remain as ``TypeVar`` in arg positions;
+            # ``_specialize_liquid_term`` monomorphises per call. Skip functions
+            # whose result is a bare type variable (native/uninterpreted
+            # builtins) — they have no SMT sort.
+            if is_first_order_function(lowered) and _has_concrete_base_result(ty):
                 return UninterpretedFunctionDeclaration(name, lowered, c)
-            return c
-        case RefinementPolymorphism(_, _, _):
-            if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
-                if isinstance(lowered, AbstractionType):
-                    (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, lowered, params, body, c)
             return c
         case _:
             assert False
+
+
+def base_subtype_constraint(
+    ctx: TypingContext,
+    ty1: Type,
+    ty2: Type,
+    loc: Location | None = None,
+) -> Constraint | None:
+    """Subtyping between the *unrefined cores* of two types (``TypeConstructor``
+    or ``TypeVar``), accounting for the variance of constructor arguments.
+
+    Returns the constraint witnessing ``ty1 <: ty2`` ignoring any surrounding
+    refinement, or ``None`` when the heads are incompatible (different
+    constructor name, arity, or type variable).
+
+    Type constructors in aeon are immutable inductive datatypes (``List``,
+    ``Maybe``, ``Pair``, ``Tree`` …), so their arguments are **covariant**:
+    ``C a`` <: ``C b`` whenever ``a`` <: ``b``. This mirrors Liquid Haskell,
+    where element refinements flow covariantly through containers
+    (``List {v:Int | v > 0}`` is a subtype of ``List Int``).
+
+    Covariance is sound here because every parameter of an inductive type occurs
+    only in positive (constructor-result / field) positions. A parameter used in
+    a negative position (e.g. a function-typed field ``k : a -> Int``) would be
+    contravariant/invariant and needs declared-or-inferred per-parameter
+    variance — see issue #298.
+    """
+    match ty1, ty2:
+        case TypeConstructor(name1, args1), TypeConstructor(name2, args2):
+            if name1 != name2 or len(args1) != len(args2):
+                return None
+            c: Constraint = ctrue
+            for a1, a2 in zip(args1, args2):
+                c = Conjunction(c, sub(ctx, a1, a2, loc))
+            return c
+        case _:
+            return ctrue if ty1 == ty2 else None
 
 
 def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> Constraint:
@@ -183,7 +216,15 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
         case RefinedType(n1, ty1, r1), RefinedType(n2, ty2, r2):
             if ty2 == Top():
                 return ctrue
-            if ty1 != ty2:
+            # Subtype the unrefined cores first. This is where constructor-arg
+            # variance lives: ``ensure_refined`` wraps every bare
+            # ``TypeConstructor``/``TypeVar`` into a ``RefinedType``, so two
+            # ``List …`` always reach this arm rather than the TypeConstructor
+            # arm below — comparing args with ``!=`` here used to force
+            # invariance. ``base_subtype_constraint`` instead recurses
+            # covariantly into the arguments (see issue #298).
+            args_c = base_subtype_constraint(ctx, ty1, ty2, loc)
+            if args_c is None:
                 return cfalse
 
             new_name: Name = Name(n1.name + n2.name, fresh_counter.fresh())
@@ -195,7 +236,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             assert isinstance(lowert, TypeConstructor)
             rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_, loc=loc), loc=loc)
 
-            return rconstraint
+            return Conjunction(args_c, rconstraint) if args_c is not ctrue else rconstraint
         case TypePolymorphism(_, _, _), _:
             return ctrue
         case RefinementPolymorphism(_, _, _), _:
@@ -208,15 +249,13 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
             c1 = sub(ctx, rt1_, rt2_, loc)
             return Conjunction(c0, implication_constraint(new_name_a, t2, c1, loc))
-        case TypeConstructor(name1, args1), TypeConstructor(name2, args2):
-            if name1 != name2:
-                return cfalse
-            if len(args1) != len(args2):
-                return cfalse
-            for it1, it2 in zip(args1, args2):
-                if it1 != it2:  # TODO polytypes: subtyping here?
-                    return cfalse
-            return ctrue
+        case TypeConstructor(_, _) as tc1, TypeConstructor(_, _) as tc2:
+            # Defensive: ``ensure_refined`` normally wraps bare type
+            # constructors into ``RefinedType`` (handled above), so this arm is
+            # only reached if a non-refined constructor ever flows in. Use the
+            # same covariant rule as the refined path.
+            args_c = base_subtype_constraint(ctx, tc1, tc2, loc)
+            return cfalse if args_c is None else args_c
         case _:
             logger.error(f"Failed subtyping by exhaustion: {t1} <: {t2}")
             return cfalse

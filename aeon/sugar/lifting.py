@@ -4,6 +4,7 @@ from aeon.core.liquid import (
     LiquidLiteralFloat,
     LiquidLiteralInt,
     LiquidLiteralString,
+    LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
 )
@@ -13,6 +14,7 @@ from aeon.core.terms import (
     Var,
     Annotation,
     Hole,
+    ImplicitRefinementHole,
     Application,
     Abstraction,
     Let,
@@ -39,6 +41,7 @@ from aeon.sugar.program import (
     SVar,
     SAnnotation,
     SHole,
+    SImplicitRefinementHole,
     SApplication,
     SAbstraction,
     SLet,
@@ -58,7 +61,7 @@ from aeon.sugar.stypes import (
     STypePolymorphism,
     STypeVar,
 )
-from aeon.sugar.ast_helpers import st_bool, st_int, st_float, st_string, st_top
+from aeon.sugar.ast_helpers import st_bool, st_int, st_float, st_string, st_top, st_unit
 
 
 def lift_liquid(ref: LiquidTerm) -> STerm:
@@ -71,6 +74,8 @@ def lift_liquid(ref: LiquidTerm) -> STerm:
             return SLiteral(value, st_float, loc)
         case LiquidLiteralString(value, loc):
             return SLiteral(value, st_string, loc)
+        case LiquidLiteralUnit(loc):
+            return SLiteral(None, st_unit, loc)
         case LiquidVar(name, loc):
             return SVar(name, loc)
         case LiquidApp(fun, args, loc):
@@ -119,6 +124,8 @@ def lift(t: Term) -> STerm:
             return SAnnotation(lift(expr), lift_type(typ), loc=loc)
         case Hole(name, loc):
             return SHole(name, loc=loc)
+        case ImplicitRefinementHole(name, loc):
+            return SImplicitRefinementHole(name, loc=loc)
         case Application(fun, arg, loc):
             return SApplication(lift(fun), lift(arg), loc=loc)
         case Abstraction(var_name, body, loc):
