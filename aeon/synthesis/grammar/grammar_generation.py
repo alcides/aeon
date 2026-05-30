@@ -127,14 +127,18 @@ def _has(type_info: dict[Type, TypingType], ty: Type) -> bool:
     return _key(ty) in type_info
 
 
-def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
+def extract_all_types(
+    types: list[Type], instantiation_types: Optional[set[TypeConstructor]] = None
+) -> dict[Type, TypingType]:
+    if instantiation_types is None:
+        instantiation_types = set()
     data: dict[Type, TypingType] = {_key(Top()): ae_top}
     for ty in {_key(t) for t in types}:
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
                     if args:
-                        data.update(extract_all_types(list(args)))
+                        data.update(extract_all_types(list(args), instantiation_types))
                     class_name = mangle_type(ty)
                     ty_abstract_class = type(
                         class_name,
@@ -145,7 +149,7 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                     data[ty] = ty_abstract_class
                 case RefinedType(_, itype, _):
                     class_name = mangle_type(ty)
-                    data.update(extract_all_types([itype]))
+                    data.update(extract_all_types([itype], instantiation_types))
                     parent = _get(data, itype)
                     ty_abstract_class = type(class_name, (parent, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
@@ -155,7 +159,8 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                     class_name = mangle_type(ty)
                     data.update(
                         extract_all_types(
-                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)]
+                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)],
+                            instantiation_types,
                         )
                     )
                     ty_abstract_class = type(class_name, (ae_top, ABC), {})
@@ -164,7 +169,17 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 case Top():
                     data[ty] = ae_top
                 case TypePolymorphism(_, _, _):
-                    # TODO: Polytypes in Synthesis
+                    # Monomorphize the forall over the program-derived instantiation
+                    # types and register a grammar class for each concrete body.
+                    # We deliberately do NOT register a class for the forall node
+                    # itself (`mangle_type` asserts on TypePolymorphism).
+                    # RefinementPolymorphism bodies are intentionally skipped:
+                    # `monomorphize_poly_type` returns [] for them (and for an
+                    # empty instantiation set), making this a graceful no-op.
+                    for mono_body, _ in monomorphize_poly_type(ty, instantiation_types):
+                        data.update(extract_all_types([mono_body], instantiation_types))
+                case TypeVar():
+                    # Free/unbound type variable: nothing concrete to register.
                     continue
                 case _:
                     assert False, f"Unsupported {ty}"
@@ -723,7 +738,7 @@ def gen_grammar_nodes(
         set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
-    type_info = extract_all_types(list(types_to_consider))
+    type_info = extract_all_types(list(types_to_consider), instantiation_types)
     type_nodes = list(set(type_info.values()))
 
     literals = create_literals_nodes(type_info)
@@ -740,7 +755,16 @@ def gen_grammar_nodes(
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.
-    return ret, _get(type_info, refined_to_unrefined_type(ty))
+    # `refined_to_unrefined_type` does not peel TypePolymorphism, and we never
+    # register the forall node itself, so for a polymorphic synthesis target we
+    # derive the starting node from its first monomorphized body.
+    # TODO: synthesize across all instantiations of a polymorphic target.
+    if isinstance(ty, TypePolymorphism):
+        mono = monomorphize_poly_type(ty, instantiation_types)
+        start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
+    else:
+        start_ty = refined_to_unrefined_type(ty)
+    return ret, _get(type_info, start_ty)
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
