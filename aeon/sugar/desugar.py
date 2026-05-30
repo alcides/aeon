@@ -104,6 +104,128 @@ def _sugar_contains_recursive_call(t: STerm, fname: Name) -> bool:
     return walk(t)
 
 
+def _is_reflection_marker(t: STerm) -> bool:
+    return isinstance(t, SVar) and t.name.name == "_"
+
+
+def _expand_reflection_marker(t: STerm, binder: Name, body: STerm) -> tuple[STerm, int]:
+    """Replace each ``_`` marker inside a refinement with ``binder == body``.
+
+    Returns the rewritten term and the number of markers expanded.
+    """
+    if _is_reflection_marker(t):
+        loc = t.loc
+        eq = SApplication(
+            SApplication(SVar(Name("==", 0), loc=loc), SVar(binder, loc=loc), loc=loc),
+            body,
+            loc=loc,
+        )
+        return eq, 1
+    match t:
+        case SApplication(fun, arg, loc):
+            nf, c1 = _expand_reflection_marker(fun, binder, body)
+            na, c2 = _expand_reflection_marker(arg, binder, body)
+            return SApplication(nf, na, loc=loc), c1 + c2
+        case SIf(cond, then, otherwise, loc):
+            nc, c1 = _expand_reflection_marker(cond, binder, body)
+            nt, c2 = _expand_reflection_marker(then, binder, body)
+            no, c3 = _expand_reflection_marker(otherwise, binder, body)
+            return SIf(nc, nt, no, loc=loc), c1 + c2 + c3
+        case SAnnotation(expr, ty, loc):
+            ne, c1 = _expand_reflection_marker(expr, binder, body)
+            return SAnnotation(ne, ty, loc=loc), c1
+        case _:
+            return t, 0
+
+
+def _mentions_function(body: STerm, fname: Name) -> bool:
+    match body:
+        case SVar(name, _):
+            return name.name == fname.name
+        case SApplication(fun, arg, _):
+            return _mentions_function(fun, fname) or _mentions_function(arg, fname)
+        case SAnnotation(expr, _, _):
+            return _mentions_function(expr, fname)
+        case _:
+            return False
+
+
+def _is_native_or_uninterpreted_body(body: STerm) -> bool:
+    match body:
+        case SVar(Name("uninterpreted", _)):
+            return True
+        case SApplication(SVar(Name("native", _)), _):
+            return True
+        case SApplication(SVar(Name("native_import", _)), _):
+            return True
+    return False
+
+
+def _unreflectable_construct(body: STerm) -> str | None:
+    """Name the first body construct that cannot appear in a liquid refinement, or None.
+
+    Reflection via `_` strengthens the return type with ``binder == body``, so the
+    body has to be a liquid term (variables, literals, applications, and
+    ``if``/``then``/``else`` which lowers to ``ite``). ``match`` and binders
+    (``let``/``\\``) are not yet supported.
+    """
+    match body:
+        case SVar() | SLiteral() | SQualifiedVar() | SHole():
+            return None
+        case SAnnotation(expr, _, _):
+            return _unreflectable_construct(expr)
+        case SApplication(fun, arg, _):
+            return _unreflectable_construct(fun) or _unreflectable_construct(arg)
+        case SIf(cond, then, otherwise, _):
+            return (
+                _unreflectable_construct(cond) or _unreflectable_construct(then) or _unreflectable_construct(otherwise)
+            )
+        case SMatch():
+            return "match"
+        case SLet() | SRec():
+            return "let"
+        case SAbstraction():
+            return "lambda"
+        case _:
+            return type(body).__name__
+
+
+def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition]:
+    """Expand the ``_`` reflection marker in each definition's return-type refinement.
+
+    ``def f (x:Int) : {y:Int | _} = x + x`` strengthens the return type to
+    ``{y:Int | y == x + x}``, reflecting the body into the predicate.
+    """
+    out: list[Definition] = []
+    for d in defs:
+        rtype = d.type
+        if not isinstance(rtype, SRefinedType) or any(n.name == "_" for n, _ in d.args):
+            out.append(d)
+            continue
+        new_ref, count = _expand_reflection_marker(rtype.refinement, rtype.name, d.body)
+        if count == 0:
+            out.append(d)
+            continue
+        if _is_native_import_def(d) or _is_native_or_uninterpreted_body(d.body):
+            raise TypeError(
+                f"Cannot reflect the body of '{d.name.name}' with `_`: native and uninterpreted "
+                "functions have no encodable implementation."
+            )
+        if _mentions_function(d.body, d.name):
+            raise TypeError(
+                f"Cannot reflect the recursive body of '{d.name.name}' with `_` yet: "
+                "self-referential reflection is not supported."
+            )
+        bad = _unreflectable_construct(d.body)
+        if bad is not None:
+            raise TypeError(
+                f"Cannot reflect the body of '{d.name.name}' with `_`: "
+                f"'{bad}' is not expressible in a refinement predicate."
+            )
+        out.append(replace(d, type=SRefinedType(rtype.name, rtype.type, new_ref, loc=rtype.loc)))
+    return out
+
+
 def definition_with_inferred_decreasing(d: Definition) -> Definition:
     """If omitted, use the sole ``Int`` parameter as the metric for unary self-recursion."""
     if d.decreasing_by or len(d.args) != 1:
@@ -440,6 +562,8 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     ]
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
+    # Expand the `_` reflection marker in return-type refinements into `binder == body`.
+    defs = reflect_underscore_in_definitions(defs)
     defs, metadata = apply_decorators_in_definitions(defs)
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
 
