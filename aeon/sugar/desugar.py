@@ -46,6 +46,7 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl, InductiveDecl
 from aeon.sugar.program import ClassMethod, InstanceMethod
+from aeon.sugar.program import ClassDecl, InstanceDecl
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
@@ -510,6 +511,24 @@ def resolve_qualified_names_in_definition(
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
+
+    # Pull class/instance declarations from imported modules into the main
+    # program so they are expanded by the single ``expand_typeclasses`` pass
+    # below. Typeclass methods resolve by type through the global instance
+    # registry rather than by qualified name, so — unlike ordinary library
+    # definitions, which ``handle_imports`` module-prefixes — they live
+    # directly in the main namespace.
+    inductive_names_top = {d.name.name for d in p.inductive_decls}
+    imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top)
+    if imported_classes or imported_instances:
+        p = Program(
+            p.imports,
+            p.type_decls,
+            p.inductive_decls,
+            p.definitions,
+            imported_classes + p.class_decls,
+            imported_instances + p.instance_decls,
+        )
 
     # Lower class/instance declarations into inductives + plain definitions
     # before any inductive processing so the generated dictionary types flow
@@ -1550,6 +1569,47 @@ def _bare_name(module_name: str, def_name: str) -> str:
 ModuleScope = dict[str, Name]  # bare_name -> original Name
 QualifiedScope = dict[tuple[str, str], Name]  # (qualifier, bare_name) -> original Name
 UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
+
+
+def collect_imported_typeclasses(
+    imports: list[ImportAe],
+    inductive_names: set[str],
+    _seen: set[str] | None = None,
+) -> tuple[list[ClassDecl], list[InstanceDecl]]:
+    """Gather ``class``/``instance`` declarations from (transitively) imported
+    modules.
+
+    Typeclass declarations are resolved by type via the global instance
+    registry rather than by qualified name, so they must be expanded in the
+    *main* program's namespace alongside its own typeclasses — they cannot be
+    module-prefixed like ordinary library definitions. This walks the import
+    graph (deduplicating by module path, mirroring ``handle_imports``) and
+    returns the collected declarations for the caller to merge before
+    ``expand_typeclasses`` runs."""
+    seen: set[str] = set() if _seen is None else _seen
+    classes: list[ClassDecl] = []
+    instances: list[InstanceDecl] = []
+    for imp in imports:
+        # ``open SomeLocalInductive`` is not a file import — skip it (there is
+        # no ``SomeLocalInductive.ae`` to resolve).
+        if imp.is_open and imp.module_path in inductive_names:
+            continue
+        if imp.module_path in seen:
+            continue
+        seen.add(imp.module_path)
+        try:
+            import_p = _resolve_import(imp)
+        except Exception:
+            # A genuinely missing/erroneous import is reported authoritatively
+            # by ``handle_imports`` later; don't double-report here.
+            continue
+        sub_inductive_names = {d.name.name for d in import_p.inductive_decls}
+        sub_classes, sub_instances = collect_imported_typeclasses(import_p.imports, sub_inductive_names, seen)
+        classes.extend(sub_classes)
+        instances.extend(sub_instances)
+        classes.extend(import_p.class_decls)
+        instances.extend(import_p.instance_decls)
+    return classes, instances
 
 
 def handle_imports(
