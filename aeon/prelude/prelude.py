@@ -114,6 +114,7 @@ prelude = [
     ("%", "(n x:Int) -> (n y:Int) -> Int", lambda x: lambda y: x % y),
     ("&&", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: x and y),
     ("||", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: x or y),
+    ("-->", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: (not x) or y),
     ("!", "(n x:Bool) -> Bool", lambda x: not x),
     # SMT Set operations (logical only, used in refinements)
     ("Set_empty", "Set", set()),

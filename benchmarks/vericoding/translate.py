@@ -11,7 +11,7 @@ V1 subset (intentionally narrow):
 Tasks outside this subset are returned with a rejection reason; nothing is
 emitted for them in v1.
 
-Implication `a ==> b` is rewritten as `(!(a)) || (b)`.
+Implication `a ==> b` is rewritten as aeon's `(a) --> (b)`.
 Iff `a <==> b` is rewritten as `a == b` (valid for Bool operands).
 Chained comparisons `a <= b <= c` are split into `(a <= b) && (b <= c)`.
 """
@@ -235,7 +235,7 @@ def _validate_references(spec: TaskSpec) -> None:
 # Steps, in order, on a string:
 #   1. Strip trailing `;` and surrounding whitespace.
 #   2. Rewrite `<==>` -> `==` (Bool iff).
-#   3. Rewrite `==>` -> a special marker, then later expand to `(!(a)) || (b)`.
+#   3. Rewrite `==>` -> aeon's `-->` (right-associative).
 #   4. Expand chained comparisons `a OP b OP c` -> `(a OP b) && (b OP c)`.
 #   5. Pass through everything else.
 #
@@ -303,9 +303,11 @@ def _recurse_into_parens(s: str, fn) -> str:
 
 
 def _expand_implication(s: str) -> str:
-    """Rewrite `==>` (right-associative) into `(!(a)) || (b)`, at every depth.
+    """Rewrite Dafny `==>` into aeon's `-->`, at every depth.
 
-    Implication is right-assoc in Dafny: `a ==> b ==> c` == `a ==> (b ==> c)`.
+    Implication is right-assoc in Dafny: `a ==> b ==> c` == `a ==> (b ==> c)`,
+    and aeon's `-->` is right-assoc too, so we keep that grouping. `-->` is now
+    registered in aeon's prelude, so no desugaring to `(!(a)) || (b)` is needed.
     """
     # First recurse into parens.
     s = _recurse_into_parens(s, _expand_implication)
@@ -313,9 +315,9 @@ def _expand_implication(s: str) -> str:
     if len(parts) == 1:
         return s
     parts = [p.strip() for p in parts]
-    out = parts[-1]
+    out = f"({parts[-1]})"
     for p in reversed(parts[:-1]):
-        out = f"((!({p})) || ({out}))"
+        out = f"(({p}) --> {out})"
     return out
 
 
@@ -355,6 +357,9 @@ def _find_top_ops(text: str, ops: tuple[str, ...]) -> list[tuple[int, str]]:
                     if op == "<" and text[i : i + 2] == "<=":
                         continue
                     if op == ">" and text[i : i + 2] == ">=":
+                        continue
+                    # The `>` tail of an implication `-->` is not a comparison.
+                    if op == ">" and i >= 2 and text[i - 2 : i + 1] == "-->":
                         continue
                     spans.append((i, op))
                     i += len(op)
