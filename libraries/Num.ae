@@ -1,0 +1,50 @@
+# Numeric and ordering typeclasses (Lean-style, dictionary-passing).
+#
+# These classes give *named, type-directed* access to arithmetic and
+# comparison for the primitive numeric types. Method calls such as
+# ``add x y`` resolve automatically to the instance selected by the
+# argument types — ``Num Int`` for integers, ``Num Float`` for floats.
+#
+# The instance bodies delegate to the built-in operators (``+``, ``-``,
+# ``*``, ``<``, ``<=``). Those builtins remain the primitive, SMT-
+# interpreted operations; ``Num``/``Ord`` only add a typeclass surface on
+# top of them. Because the methods are dictionary projections (opaque to
+# the SMT backend) the classes are best used in ordinary computation
+# rather than inside refinements that must reason about exact arithmetic —
+# for that, keep using ``+``/``-`` directly.
+
+# ── Classes ────────────────────────────────────────────────────────────
+
+# Num: addition, subtraction, multiplication.
+class Num (a : B) where
+    add : (x : a) -> (y : a) -> a;
+    sub : (x : a) -> (y : a) -> a;
+    mul : (x : a) -> (y : a) -> a;
+
+# Ord: ordering comparisons. ``gt``/``geq`` have default bodies derived
+# from ``lt``/``leq``, so instances only need to provide the latter two.
+class Ord (a : B) where
+    lt : (x : a) -> (y : a) -> Bool;
+    leq : (x : a) -> (y : a) -> Bool;
+    gt : (x : a) -> (y : a) -> Bool := \x -> \y -> lt y x;
+    geq : (x : a) -> (y : a) -> Bool := \x -> \y -> leq y x;
+
+# ── Instances ──────────────────────────────────────────────────────────
+
+instance : Num Int where
+    add x y := x + y;
+    sub x y := x - y;
+    mul x y := x * y;
+
+instance : Num Float where
+    add x y := x + y;
+    sub x y := x - y;
+    mul x y := x * y;
+
+instance : Ord Int where
+    lt x y := x < y;
+    leq x y := x <= y;
+
+instance : Ord Float where
+    lt x y := x < y;
+    leq x y := x <= y;
