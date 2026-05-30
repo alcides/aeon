@@ -34,6 +34,7 @@ from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl
 from aeon.sugar.program import InductiveDecl
+from aeon.sugar.program import ClassDecl, ClassMethod, InstanceDecl, InstanceMethod
 from aeon.sugar.stypes import (
     SAbstractionType,
     SType,
@@ -60,20 +61,30 @@ def ensure_list(a):
 
 
 def _split_arg_multiplicities(fn_args):
-    """Each entry in ``fn_args`` is either a ``(name, type)`` 2-tuple from
-    the plain-arg productions or a ``(name, type, multiplicity)`` 3-tuple
-    from the ``mult_arg`` productions. Return a list of 2-tuples and a
-    parallel tuple of multiplicities (defaulting to ``MOmega``)."""
+    """Each entry in ``fn_args`` is one of:
+      * a ``(name, type)`` 2-tuple from the plain-arg productions,
+      * a ``(name, type, multiplicity)`` 3-tuple from ``mult_arg``, or
+      * a ``(name, type, multiplicity, is_instance)`` 4-tuple from
+        ``instance_arg``.
+    Return a list of 2-tuples plus parallel tuples of multiplicities
+    (defaulting to ``MOmega``) and instance flags (defaulting to ``False``)."""
     plain: list = []
     mults: list[Multiplicity] = []
+    flags: list[bool] = []
     for a in fn_args:
-        if isinstance(a, tuple) and len(a) == 3:
+        if isinstance(a, tuple) and len(a) == 4:
             plain.append((a[0], a[1]))
             mults.append(a[2])
+            flags.append(a[3])
+        elif isinstance(a, tuple) and len(a) == 3:
+            plain.append((a[0], a[1]))
+            mults.append(a[2])
+            flags.append(False)
         else:
             plain.append(a)
             mults.append(MOmega)
-    return plain, tuple(mults)
+            flags.append(False)
+    return plain, tuple(mults), tuple(flags)
 
 
 class AnnotatedStr(str):
@@ -391,9 +402,70 @@ class TreeToSugar(Transformer):
         return args
 
     def program(self, args):
-        non_inductive = [el for el in args[1] if not isinstance(el, InductiveDecl)]
-        inductive = [el for el in args[1] if isinstance(el, InductiveDecl)]
-        return Program(args[0], non_inductive, inductive, args[2])
+        type_section, def_section = args[1], args[2]
+        inductive = [el for el in type_section if isinstance(el, InductiveDecl)]
+        classes = [el for el in type_section if isinstance(el, ClassDecl)]
+        type_decls = [el for el in type_section if isinstance(el, TypeDecl)]
+        definitions = [el for el in def_section if isinstance(el, Definition)]
+        instances = [el for el in def_section if isinstance(el, InstanceDecl)]
+        return Program(args[0], type_decls, inductive, definitions, classes, instances)
+
+    # ------- Typeclasses -------
+
+    def class_param(self, args):
+        return (Name(args[0]), args[1])
+
+    def class_supers(self, args):
+        return list(args)
+
+    @v_args(meta=True)
+    def class_method(self, meta, args):
+        return ClassMethod(Name(args[0]), [], args[1], default=None, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def class_method_default(self, meta, args):
+        return ClassMethod(Name(args[0]), [], args[1], default=args[2], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def class_decl(self, meta, args):
+        name, params, supers, members = args
+        return ClassDecl(
+            Name(name),
+            type_params=list(params),
+            supers=list(supers),
+            methods=list(members),
+            loc=self._loc(meta),
+        )
+
+    def inst_name_none(self, args):
+        return None
+
+    def inst_name_given(self, args):
+        return Name(args[0])
+
+    def constraint_type(self, args):
+        return STypeConstructor(Name(str(args[0])), list(args[1]))
+
+    def inst_constraint(self, args):
+        return args[0]
+
+    @v_args(meta=True)
+    def instance_method(self, meta, args):
+        name, binders, body = args[0], args[1], args[2]
+        method_args = [(Name(b), None) for b in binders]
+        return InstanceMethod(Name(name), method_args, body, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def instance_decl(self, meta, args):
+        inst_name, constraints, class_tok, type_atoms, members = args
+        return InstanceDecl(
+            class_name=Name(str(class_tok)),
+            type_args=list(type_atoms),
+            constraints=list(constraints),
+            methods=list(members),
+            name=inst_name,
+            loc=self._loc(meta),
+        )
 
     def module_path(self, args):
         return ".".join(str(a) for a in args)
@@ -438,7 +510,7 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_ind_cons(self, meta, args):
-        plain_args, mults = _split_arg_multiplicities(args[1])
+        plain_args, mults, flags = _split_arg_multiplicities(args[1])
         return Definition(
             Name(args[0]),
             [],
@@ -447,6 +519,7 @@ class TreeToSugar(Transformer):
             SLiteral(None, st_unit),
             loc=self._loc(meta),
             arg_multiplicities=mults,
+            instance_flags=flags,
         )
 
     def decreasing_by_none(self, args):
@@ -463,7 +536,7 @@ class TreeToSugar(Transformer):
     def def_fun(self, meta, args):
         if len(args) == 5:
             name, fn_args, rtype, decr, body = args
-            plain_args, mults = _split_arg_multiplicities(fn_args)
+            plain_args, mults, flags = _split_arg_multiplicities(fn_args)
             return Definition(
                 Name(name),
                 [],
@@ -473,10 +546,11 @@ class TreeToSugar(Transformer):
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
                 arg_multiplicities=mults,
+                instance_flags=flags,
             )
         if len(args) == 6:
             decorators, name, fn_args, rtype, decr, body = args
-            plain_args, mults = _split_arg_multiplicities(fn_args)
+            plain_args, mults, flags = _split_arg_multiplicities(fn_args)
             return Definition(
                 Name(name),
                 [],
@@ -488,6 +562,7 @@ class TreeToSugar(Transformer):
                 decreasing_by=ensure_list(decr),
                 loc=self._loc(meta),
                 arg_multiplicities=mults,
+                instance_flags=flags,
             )
         raise AssertionError(f"def_fun: unexpected args {args!r}")
 
@@ -544,6 +619,13 @@ class TreeToSugar(Transformer):
         # (MULT ID : type | refinement)
         ty = SRefinedType(Name(args[1]), args[2], args[3])
         return (Name(args[1]), ty, from_token(str(args[0])))
+
+    def instance_arg(self, args):
+        # [type] — instance-implicit dictionary parameter. The binder name is
+        # synthesized; callers never write it (elaboration resolves it).
+        ty = args[0]
+        name = Name(f"_inst{fresh_counter.fresh()}")
+        return (name, ty, MOmega, True)
 
     def abstraction_refined_t(self, args):
         type = SRefinedType(Name(args[0]), args[1], args[2])

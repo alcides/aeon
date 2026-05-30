@@ -1,0 +1,33 @@
+# Typeclasses (Lean-style) with dictionary-passing.
+#
+#  * `class`   declares a class with method signatures and optional defaults.
+#  * `instance` provides implementations; method bodies use `:=`.
+#  * Method calls (`eq ...`) are resolved automatically to the right instance.
+#  * `neq` has a default body, reused by instances that don't override it.
+#  * `instance [Eq a] : Eq (Box a)` is a constrained instance: resolving
+#    `Eq (Box Int)` recurses to `Eq Int` and threads it as a dictionary.
+#
+# Refined method types also act as laws verified per-instance by the SMT
+# backend — e.g. `eq : (x:a) -> (y:a) -> {b : Bool | b == (x == y)}` — see
+# tests/typeclass_test.py for examples.
+
+inductive Box a
+| box (v:a) : (Box a)
+
+class Eq (a : B) where
+    eq : (x : a) -> (y : a) -> Bool;
+    neq : (x : a) -> (y : a) -> Bool := \x -> \y -> if eq x y then false else true;
+
+instance : Eq Int where
+    eq x y := x == y;
+
+# Constrained instance: equality on boxes delegates to the element's equality
+# via the `[Eq a]` given constraint.
+instance [Eq a] : Eq (Box a) where
+    eq x y := eq (Box_rec x (\v -> v)) (Box_rec y (\v -> v));
+
+def main (args : Int) : Int =
+    let a : Bool = eq 3 3 in            # Eq Int
+    let b : Bool = neq 3 4 in           # default method
+    let c : Bool = eq (.box 3) (.box 3) in  # Eq (Box Int), recurses to Eq Int
+    if a then (if b then (if c then 0 else 1) else 2) else 3;

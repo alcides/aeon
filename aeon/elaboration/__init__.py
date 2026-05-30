@@ -4,6 +4,7 @@ from aeon.core.types import BaseKind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
+    InstanceResolutionError,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
@@ -16,6 +17,7 @@ from aeon.sugar.program import (
     SApplication,
     SHole,
     SIf,
+    SInstanceHole,
     SLet,
     SLiteral,
     SRec,
@@ -36,6 +38,7 @@ from aeon.sugar.stypes import (
     SRefinementPolymorphism,
     get_type_vars,
 )
+from aeon.sugar.instance_registry import lookup_instance
 from aeon.sugar.substitutions import substitute_refinement_param_in_stype, substitution_sterm_in_stype
 from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
@@ -367,6 +370,11 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                 nfun = SRefinementApplication(nfun, h)
                 nfun_type = substitution_sterm_in_stype(nfun_type.body, h, nfun_type.name)
 
+            while isinstance(nfun_type, SAbstractionType) and nfun_type.is_instance:
+                hole = SInstanceHole(nfun_type.var_type)
+                nfun = SApplication(nfun, hole)
+                nfun_type = substitution_sterm_in_stype(nfun_type.type, hole, nfun_type.var_name)
+
             match nfun_type:
                 case SAbstractionType(_, arg_type, return_type, loc):
                     narg = elaborate_check(ctx, arg, arg_type)
@@ -453,6 +461,12 @@ def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, t
         h = SHole(Name("_pred", fresh_counter.fresh()))
         c = SRefinementApplication(c, h)
         s = substitution_sterm_in_stype(s.body, h, s.name)
+    while (
+        isinstance(s, SAbstractionType) and s.is_instance and not (isinstance(ty, SAbstractionType) and ty.is_instance)
+    ):
+        hole = SInstanceHole(s.var_type)
+        c = SApplication(c, hole)
+        s = substitution_sterm_in_stype(s.type, hole, s.var_name)
     return (c, s)
 
 
@@ -612,10 +626,17 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             nty = handle_unification_in_type(ctx, ty)
             nt = remove_unions_and_intersections(ctx, ty)
             nctx = ctx.with_var(t.var_name, t.var_type)
+            # Bring any instance-implicit (given) constraints declared by this
+            # binding's type into scope for its body, so method calls on the
+            # constrained type variable resolve to the local dictionary
+            # parameter (e.g. ``[_c : Eq a]`` of a constrained instance dict).
+            val_ctx = nctx
+            for inst_name, inst_class in _collect_given_instances(t.var_type, val):
+                val_ctx = val_ctx.with_instance(inst_name, inst_class)
             return SRec(
                 name,
                 nty,
-                elaborate_remove_unification(nctx, val),
+                elaborate_remove_unification(val_ctx, val),
                 elaborate_remove_unification(nctx, body),
                 decreasing_by=decreasing_by,
                 loc=loc,
@@ -690,8 +711,135 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                 elaborate_remove_unification(ctx, refinement),
                 loc=loc,
             )
+        case SInstanceHole(class_type, loc=loc):
+            return _resolve_instance_hole(ctx, handle_unification_in_type(ctx, class_type), loc)
         case _:
             assert False, f"{t} ({type(t)}) not an STerm."
+
+
+def _match_instance_type(pattern: SType, actual: SType, foralls: set[Name], subst: dict[Name, SType]) -> bool:
+    """Structurally match an instance's declared type-argument ``pattern``
+    (e.g. ``Box a``) against a concrete ``actual`` (e.g. ``Box Int``), binding
+    each ``forall`` variable of the pattern in ``subst``. Refinements on either
+    side are transparent for matching purposes — the dictionary is selected by
+    the underlying type shape, not its refinement."""
+    if isinstance(pattern, SRefinedType):
+        return _match_instance_type(pattern.type, actual, foralls, subst)
+    if isinstance(actual, SRefinedType):
+        return _match_instance_type(pattern, actual.type, foralls, subst)
+    match pattern:
+        case STypeVar(name) if name in foralls:
+            prev = subst.get(name)
+            if prev is not None:
+                return _extract_base_type_name(prev) == _extract_base_type_name(actual)
+            subst[name] = actual
+            return True
+        case STypeVar(name):
+            return isinstance(actual, STypeVar) and actual.name == name
+        case STypeConstructor(pname, pargs):
+            if not isinstance(actual, STypeConstructor):
+                return False
+            if pname.name != actual.name.name or len(pargs) != len(actual.args):
+                return False
+            return all(_match_instance_type(p, a, foralls, subst) for p, a in zip(pargs, actual.args))
+        case _:
+            return False
+
+
+def _collect_given_instances(var_type: SType, var_value: STerm) -> list[tuple[Name, SType]]:
+    """Peel a binding's type and value in tandem, collecting the
+    ``(param_name, class_type)`` of every instance-implicit abstraction
+    parameter. These are the lexically-available given constraints inside the
+    binding's body (e.g. the ``[_c : Eq a]`` of a constrained instance dict)."""
+    out: list[tuple[Name, SType]] = []
+    ty: SType = var_type
+    val: STerm = var_value
+    while True:
+        if isinstance(val, STypeAbstraction) and isinstance(ty, STypePolymorphism):
+            ty, val = ty.body, val.body
+        elif isinstance(val, SRefinementAbstraction) and isinstance(ty, SRefinementPolymorphism):
+            ty, val = ty.body, val.body
+        elif isinstance(val, SAbstraction) and isinstance(ty, SAbstractionType):
+            if ty.is_instance:
+                out.append((val.var_name, ty.var_type))
+            ty, val = ty.type, val.body
+        else:
+            break
+    return out
+
+
+def _class_types_match(requested: SType, given: SType) -> bool:
+    """Two class-constraint types refer to the same instance when their class
+    constructor and (head-level) type arguments coincide. Refinements are
+    transparent."""
+    if isinstance(requested, SRefinedType):
+        return _class_types_match(requested.type, given)
+    if isinstance(given, SRefinedType):
+        return _class_types_match(requested, given.type)
+    match (requested, given):
+        case (STypeConstructor(rn, ra), STypeConstructor(gn, ga)):
+            if rn.name != gn.name or len(ra) != len(ga):
+                return False
+            return all(_class_types_match(r, g) for r, g in zip(ra, ga))
+        case (STypeVar(rn), STypeVar(gn)):
+            return rn == gn
+        case _:
+            return requested == given
+
+
+def _resolve_instance_hole(ctx: ElaborationTypingContext, class_type: SType, loc) -> STerm:
+    """Replace a resolved instance-class type (e.g. ``Eq Int``) with a reference
+    to the generated instance dictionary. ``class_type`` must have its unification
+    variables already resolved to concrete head constructors.
+
+    Constrained / polymorphic instances (e.g. ``instance [Eq a] : Eq (Box a)``)
+    are resolved by unifying the requested type against the instance's declared
+    pattern, applying the recovered type arguments, and recursively resolving
+    each constraint to a nested dictionary."""
+    # A lexically-available given constraint (e.g. the ``[Eq a]`` parameter of a
+    # constrained instance) takes priority over the global registry.
+    for inst_name, inst_class in ctx.instances:
+        if _class_types_match(class_type, inst_class):
+            return SVar(inst_name, loc=loc)
+    match class_type:
+        case STypeConstructor(class_name, args) if args:
+            head = _extract_base_type_name(args[0])
+            if head is None:
+                raise InstanceResolutionError(class_name.name, None, loc)
+            info = lookup_instance(class_name.name, head)
+            if info is None:
+                raise InstanceResolutionError(class_name.name, head, loc)
+            # Monomorphic instances resolve directly to their dictionary variable.
+            if not info.foralls and not info.num_constraints:
+                return SVar(info.dict_name, loc=loc)
+            # Polymorphic / constrained: unify the requested type arguments
+            # against the instance's declared pattern to recover the ``forall``
+            # bindings.
+            foralls = set(info.foralls)
+            subst: dict[Name, SType] = {}
+            if len(info.type_args) != len(args):
+                raise InstanceResolutionError(class_name.name, head, loc)
+            for pat, actual in zip(info.type_args, args):
+                if not _match_instance_type(pat, actual, foralls, subst):
+                    raise InstanceResolutionError(class_name.name, head, loc)
+            term: STerm = SVar(info.dict_name, loc=loc)
+            # One type application per ``forall`` binder, in declaration order.
+            for fa in info.foralls:
+                ty_arg = subst.get(fa)
+                if ty_arg is None:
+                    raise InstanceResolutionError(class_name.name, head, loc)
+                term = STypeApplication(term, ty_arg, loc=loc)
+            # Resolve each constraint (after substitution) to a nested dictionary
+            # and supply it as an instance-implicit argument.
+            for c in info.constraints:
+                c_inst = c
+                for name, ty in subst.items():
+                    c_inst = type_substitution(c_inst, name, ty)
+                c_dict = _resolve_instance_hole(ctx, c_inst, loc)
+                term = SApplication(term, c_dict, loc=loc)
+            return term
+        case _:
+            raise InstanceResolutionError(str(class_type), None, loc)
 
 
 def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = st_top) -> STerm:

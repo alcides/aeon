@@ -98,6 +98,30 @@ class SHole(STerm):
 
 
 @dataclass(frozen=True)
+class SInstanceHole(STerm):
+    """Placeholder for an instance-implicit dictionary argument.
+
+    Inserted by elaboration at a method-call site when the function expects an
+    instance argument (``[C a] -> ...``). Carries the class type (e.g. ``Eq a``)
+    with ``a`` possibly an unsolved unification variable. Resolved away in
+    ``elaborate_remove_unification`` to a concrete ``SVar`` referencing the
+    generated instance dictionary, so ``lower_to_core`` never sees it.
+    """
+
+    class_type: SType
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f"?inst[{self.class_type}]"
+
+    def __repr__(self):
+        return f"SInstanceHole({self.class_type!r})"
+
+    def __eq__(self, other):
+        return isinstance(other, SInstanceHole) and self.class_type == other.class_type
+
+
+@dataclass(frozen=True)
 class SBy(STerm):
     """Lean-style ``by`` tactic script (no ``end``).
 
@@ -420,11 +444,19 @@ class Definition(Node):
     # Empty tuple ⇔ all parameters default to ``MOmega`` (the value used by
     # callers that don't track multiplicities yet).
     arg_multiplicities: tuple[Multiplicity, ...] = field(default_factory=tuple)
+    # Parallel to ``args``: True marks an instance-implicit parameter (typeclass
+    # dictionary / Lean ``[C a]``). Empty tuple ⇔ no instance-implicit params.
+    instance_flags: tuple[bool, ...] = field(default_factory=tuple)
 
     def multiplicity_of(self, i: int) -> Multiplicity:
         if i < len(self.arg_multiplicities):
             return self.arg_multiplicities[i]
         return MOmega
+
+    def is_instance_arg(self, i: int) -> bool:
+        if i < len(self.instance_flags):
+            return self.instance_flags[i]
+        return False
 
     def __post_init__(self):
         assert isinstance(self.type, SType)
@@ -446,11 +478,86 @@ class Definition(Node):
 
 
 @dataclass
+class ClassMethod(Node):
+    """A method declared inside a ``class`` body.
+
+    ``args`` are the explicit value parameters (Lean/``def`` style); ``type`` is the
+    return type. ``default`` is the optional default body used when an instance omits
+    the method. A method's ``type`` (and any refinement in it) may reference sibling
+    methods by their bare name — these become refinement *laws* verified per instance.
+    """
+
+    name: Name
+    args: list[tuple[Name, SType]]
+    type: SType
+    default: STerm | None = None
+    arg_multiplicities: tuple[Multiplicity, ...] = field(default_factory=tuple)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def multiplicity_of(self, i: int) -> Multiplicity:
+        if i < len(self.arg_multiplicities):
+            return self.arg_multiplicities[i]
+        return MOmega
+
+
+@dataclass
+class ClassDecl(Node):
+    """A Lean-style typeclass declaration.
+
+    ``type_params`` are the class type parameters (e.g. ``a`` in ``class Eq (a : B)``).
+    ``supers`` are superclass constraints from ``extends`` (each an ``SType`` like
+    ``Eq a``). ``methods`` are the class members.
+    """
+
+    name: Name
+    type_params: list[tuple[Name, Kind]] = field(default_factory=list)
+    supers: list[SType] = field(default_factory=list)
+    methods: list[ClassMethod] = field(default_factory=list)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+
+@dataclass
+class InstanceMethod(Node):
+    """A method definition inside an ``instance`` body: ``name args := body``."""
+
+    name: Name
+    args: list[tuple[Name, SType]]
+    body: STerm
+    arg_multiplicities: tuple[Multiplicity, ...] = field(default_factory=tuple)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def multiplicity_of(self, i: int) -> Multiplicity:
+        if i < len(self.arg_multiplicities):
+            return self.arg_multiplicities[i]
+        return MOmega
+
+
+@dataclass
+class InstanceDecl(Node):
+    """A Lean-style instance declaration.
+
+    ``class_name`` is the class being instantiated; ``type_args`` are the type
+    arguments (e.g. ``Int`` in ``instance Eq Int``). ``constraints`` are instance-implicit
+    requirements from ``[Eq a]`` style binders (each an ``SType`` like ``Eq a``).
+    ``name`` is the optional user-supplied dictionary name.
+    """
+
+    class_name: Name
+    type_args: list[SType] = field(default_factory=list)
+    constraints: list[SType] = field(default_factory=list)
+    methods: list[InstanceMethod] = field(default_factory=list)
+    name: Name | None = None
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+
+@dataclass
 class Program(Node):
     imports: list[ImportAe]
     type_decls: list[TypeDecl]
     inductive_decls: list[InductiveDecl]
     definitions: list[Definition]
+    class_decls: list[ClassDecl] = field(default_factory=list)
+    instance_decls: list[InstanceDecl] = field(default_factory=list)
 
     def __str__(self):
         imps = "\n".join([str(td) for td in self.imports])

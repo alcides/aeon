@@ -48,9 +48,16 @@ class SAbstractionType(SType):
     type: SType
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
     multiplicity: Multiplicity = MOmega
+    # When True this binder is an *instance-implicit* parameter (Lean ``[C a]``
+    # / typeclass-method dictionary). Such arguments are not written at call
+    # sites; elaboration inserts an instance hole and resolves it from the
+    # instance database. Plain binders keep the default ``False``.
+    is_instance: bool = False
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
+        if self.is_instance:
+            return f"[{self.var_name} : {self.var_type}] -> {self.type}"
         return f"({prefix}{self.var_name} : {self.var_type}) -> {self.type}"
 
 

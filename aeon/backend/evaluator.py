@@ -133,7 +133,17 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                     )
 
             else:
-                v = eval(var_value, ctx)
+                # General recursion for non-lambda values (e.g. instance
+                # dictionaries whose default methods reference sibling
+                # methods, making the dict refer to itself). Bind
+                # ``var_name`` to a placeholder cell, evaluate the value in
+                # that context, then patch the cell in place. Closures built
+                # while evaluating ``var_value`` capture this context object
+                # and resolve ``var_name`` lazily at call time, so the patch
+                # ties the recursive knot.
+                rec_ctx = ctx.with_var(var_name, None)
+                v = eval(var_value, rec_ctx)
+                rec_ctx.variables[var_name] = v
             return eval(body, ctx.with_var(var_name, v))
         case If(cond, then, otherwise):
             c = eval(cond, ctx)

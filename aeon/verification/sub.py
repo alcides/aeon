@@ -92,6 +92,22 @@ def lower_constraint_type(ttype: Type) -> Type:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
 
+def _has_concrete_base_result(ty: Type) -> bool:
+    """True when peeling all ``forall`` binders and value arrows lands on a
+    concrete base type (a ``TypeConstructor``, possibly refined). Polymorphic
+    functions whose result is a bare type variable — notably the ``native`` and
+    ``uninterpreted`` builtins, typed ``forall a, … -> {x:a | false}`` — have no
+    SMT sort and must not be declared as uninterpreted functions."""
+    v: Type = ty
+    while isinstance(v, (TypePolymorphism, RefinementPolymorphism)):
+        v = v.body
+    while isinstance(v, AbstractionType):
+        v = v.type
+    if isinstance(v, RefinedType):
+        v = v.type
+    return isinstance(v, TypeConstructor)
+
+
 def implication_constraint(
     name: Name,
     ty: Type,
@@ -120,11 +136,21 @@ def implication_constraint(
             else:
                 return c
         case TypePolymorphism(_, _, _):
+            lowered = lower_constraint_type(ty)
             if reflected_impl is not None:
-                lowered = lower_constraint_type(ty)
                 if isinstance(lowered, AbstractionType):
                     (params, body) = reflected_impl
                     return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+                return c
+            # Declare first-order polymorphic functions (e.g. typeclass method
+            # projections) as uninterpreted so their applications can appear in
+            # refinements. Type variables become the ``Int`` sort in SMT.
+            if (
+                isinstance(lowered, AbstractionType)
+                and is_first_order_function(lowered)
+                and _has_concrete_base_result(ty)
+            ):
+                return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case RefinementPolymorphism(_, _, _):
             if reflected_impl is not None:
