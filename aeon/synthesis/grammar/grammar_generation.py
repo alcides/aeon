@@ -23,6 +23,7 @@ from aeon.core.liquid import (
 )
 from itertools import product
 
+from aeon.core.equality import canonicalize_type
 from aeon.core.substitutions import substitute_vartype, substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication
 from aeon.core.terms import Var
@@ -114,9 +115,22 @@ def is_valid_class_name(class_name: str) -> bool:
 ae_top = type("ae_top", (ABC,), {})
 
 
+def _key(ty: Type) -> Type:
+    """Canonical (alpha-equivalence) key used for all ``type_info`` lookups."""
+    return canonicalize_type(ty)
+
+
+def _get(type_info: dict[Type, TypingType], ty: Type) -> TypingType:
+    return type_info[_key(ty)]
+
+
+def _has(type_info: dict[Type, TypingType], ty: Type) -> bool:
+    return _key(ty) in type_info
+
+
 def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
-    data: dict[Type, TypingType] = {Top(): ae_top}
-    for ty in set(types):
+    data: dict[Type, TypingType] = {_key(Top()): ae_top}
+    for ty in {_key(t) for t in types}:
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
@@ -133,11 +147,10 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                 case RefinedType(_, itype, _):
                     class_name = mangle_type(ty)
                     data.update(extract_all_types([itype]))
-                    parent = data[itype]
+                    parent = _get(data, itype)
                     ty_abstract_class = type(class_name, (parent, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
-                    # TODO: alpha-equivalence
                     # TODO: subtyping
                 case AbstractionType(var_name, var_type, return_type):
                     class_name = mangle_type(ty)
@@ -149,7 +162,6 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                     ty_abstract_class = type(class_name, (ae_top, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
-                    # TODO: alpha-equivalence
                 case Top():
                     data[ty] = ae_top
                 case TypePolymorphism(_, _, _):
@@ -199,13 +211,15 @@ def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[lis
     lt256 = LiquidApp(Name("<=", 0), [LiquidVar(xname), LiquidLiteralInt(256)])
     base_int = create_literal_class(
         t_int,
-        type_info[t_int],
+        _get(type_info, t_int),
         refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
     )
 
     # Exclude t_int from the unlimited-range list; use the metahandler-based base_int instead.
     types_without_unlimited_int = [ty for ty in types if ty != t_int]
-    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types_without_unlimited_int] + [base_int]
+    return [create_literal_class(aeon_ty, _get(type_info, aeon_ty)) for aeon_ty in types_without_unlimited_int] + [
+        base_int
+    ]
 
 
 def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
@@ -231,7 +245,7 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
         # function params with refinements). The refined abstract class in
         # turn inherits from the base, so this also remains an alternative
         # for plain base-typed slots.
-        parent_class = type_info[aeon_ty]
+        parent_class = _get(type_info, aeon_ty)
         metahandler = refined_type_to_metahandler(aeon_ty)
         if metahandler is None:
             continue
@@ -269,11 +283,15 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
         args.append((current.var_name, current.var_type))
         current = current.type
     rtype = current
-    python_ty = type_info[rtype]
+    # Normalize binder-dependent occurrences in the return type to `__self__`,
+    # matching the storage convention used by `extract_all_types`.
+    for aname, _ in args:
+        rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
+    python_ty = _get(type_info, rtype)
 
     vname = mangle_var(name)
     dc = make_dataclass(
-        f"var_app_{vname}", [(mangle_name(aname), type_info[ty]) for (aname, ty) in args], bases=(python_ty,)
+        f"var_app_{vname}", [(mangle_name(aname), _get(type_info, ty)) for (aname, ty) in args], bases=(python_ty,)
     )
 
     def get_core(_self):
@@ -290,17 +308,18 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
 
 def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    return [create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars if ty in type_info] + [
+    return [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)] + [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
-        if ty in type_info and isinstance(ty, AbstractionType)
+        if _has(type_info, ty) and isinstance(ty, AbstractionType)
     ]
 
 
 def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
+    return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    dc = make_dataclass(vname, [("body", _get(type_info, return_type))], bases=(_get(type_info, ty),))
 
     def get_core(_self):
         return Annotation(Abstraction(Name("_0", fresh_counter.fresh()), _self.body.get_core()), ty)
@@ -337,7 +356,12 @@ def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingTy
 def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("fun", type_info[ty]), ("arg", type_info[ty.var_type])], bases=(type_info[ty.type],))
+    return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    dc = make_dataclass(
+        vname,
+        [("fun", _get(type_info, ty)), ("arg", _get(type_info, ty.var_type))],
+        bases=(_get(type_info, return_type),),
+    )
 
     # Note: this would require dependent type dynamic processing on the return type (parent class)
 
@@ -357,7 +381,7 @@ def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
     v_name = f"if_{mangle_type(ty)}"
     dc = make_dataclass(
         v_name,
-        [("cond", type_info[t_bool]), ("then", type_info[ty]), ("otherwise", type_info[ty])],
+        [("cond", _get(type_info, t_bool)), ("then", type_info[ty]), ("otherwise", type_info[ty])],
         bases=(type_info[ty],),
     )
 
@@ -555,9 +579,9 @@ def create_monomorphized_var_nodes(
     nodes: list[TypingType] = []
     for name, mono_ty, type_apps in monomorphized:
         # Simple var node (produces the type-applied function/value)
-        if mono_ty in type_info:
+        if _has(type_info, mono_ty):
             vname = mangle_var(name) + "_mono_" + "_".join(mangle_type(t) for t in type_apps)
-            dc = make_dataclass(f"var_{vname}", [], bases=(type_info[mono_ty],))
+            dc = make_dataclass(f"var_{vname}", [], bases=(_get(type_info, mono_ty),))
 
             def get_core(_, _name=name, _ta=type_apps):
                 term = Var(_name)
@@ -577,15 +601,19 @@ def create_monomorphized_var_nodes(
                 args.append((current.var_name, current.var_type))
                 current = current.type
             rtype = current
+            # Normalize binder-dependent occurrences to `__self__`, matching the
+            # storage convention used by `extract_all_types`.
+            for aname, _ in args:
+                rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
 
-            if rtype not in type_info or any(aty not in type_info for _, aty in args):
+            if not _has(type_info, rtype) or any(not _has(type_info, aty) for _, aty in args):
                 continue
 
             vname = mangle_var(name) + "_mono_" + "_".join(mangle_type(t) for t in type_apps)
             dc = make_dataclass(
                 f"var_app_{vname}",
-                [(mangle_name(aname), type_info[aty]) for (aname, aty) in args],
-                bases=(type_info[rtype],),
+                [(mangle_name(aname), _get(type_info, aty)) for (aname, aty) in args],
+                bases=(_get(type_info, rtype),),
             )
 
             args_names = [aname for aname, _ in args]
@@ -719,7 +747,7 @@ def gen_grammar_nodes(
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.
-    return ret, type_info[refined_to_unrefined_type(ty)]
+    return ret, _get(type_info, refined_to_unrefined_type(ty))
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
