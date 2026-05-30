@@ -55,6 +55,37 @@ class LiquidTypeCheckingContext:
         return f"(LiquidGamma {kt} | {vars} | {fns} )"
 
 
+def liquid_admissible(ty: Type) -> TypeConstructor | TypeVar | None:
+    """Project a variable's type onto the base sort it may contribute as a
+    qualifier atom for liquid (Horn) inference, or ``None`` if it cannot.
+
+    Admissible base sorts are the ones the SMT layer can carry:
+
+    - ``TypeConstructor`` (``Int``, ``Bool``, ``Float``, user datatypes, …).
+    - ``TypeVar`` — lowered to an opaque/``Int`` sort, so an equality between
+      two values of the *same* type variable is a sound over-approximation.
+      This is what lets refinements be inferred in polymorphic contexts
+      (e.g. the identity hole ``(x:a) -> {v:a | ?}`` can learn ``v == x``).
+    - ``RefinedType`` over a ``TypeVar`` — the refinement is transparent, so we
+      project onto the carried type variable.
+
+    Bare refinements over a ``TypeConstructor`` (e.g. ``{y:Int | 0 < y}``) are
+    deliberately *not* admitted: the unrefined ``TypeConstructor`` is already a
+    qualifier atom wherever it matters, and admitting every refined variable in
+    scope (the prelude declares many) explodes the candidate space and slows
+    inference for monomorphic code with no expressivity gain. Function types,
+    polymorphic wrappers (``TypePolymorphism`` / ``RefinementPolymorphism``),
+    ``Top`` and existentials carry no comparable scalar and are excluded too.
+    """
+    match ty:
+        case TypeConstructor(_, _) | TypeVar(_):
+            return ty
+        case RefinedType(_, TypeVar(_) as base, _):
+            return base
+        case _:
+            return None
+
+
 def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
     args: list[TypeConstructor | TypeVar] = []
     while True:
