@@ -23,6 +23,7 @@ from aeon.core.liquid import (
 )
 from itertools import product
 
+from aeon.core.equality import canonicalize_type
 from aeon.core.substitutions import substitute_vartype, substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication
 from aeon.core.terms import Var
@@ -114,14 +115,33 @@ def is_valid_class_name(class_name: str) -> bool:
 ae_top = type("ae_top", (ABC,), {})
 
 
-def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
-    data: dict[Type, TypingType] = {Top(): ae_top}
-    for ty in set(types):
+def _key(ty: Type) -> Type:
+    """Canonical (alpha-equivalence) key used for all ``type_info`` lookups."""
+    return canonicalize_type(ty)
+
+
+def _get(type_info: dict[Type, TypingType], ty: Type) -> TypingType:
+    return type_info[_key(ty)]
+
+
+def _has(type_info: dict[Type, TypingType], ty: Type) -> bool:
+    return _key(ty) in type_info
+
+
+def extract_all_types(
+    types: list[Type],
+    ctx: Optional[TypingContext] = None,
+    instantiation_types: Optional[set[TypeConstructor]] = None,
+) -> dict[Type, TypingType]:
+    if instantiation_types is None:
+        instantiation_types = set()
+    data: dict[Type, TypingType] = {_key(Top()): ae_top}
+    for ty in {_key(t) for t in types}:
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
                     if args:
-                        data.update(extract_all_types(list(args)))
+                        data.update(extract_all_types(list(args), ctx, instantiation_types))
                     class_name = mangle_type(ty)
                     ty_abstract_class = type(
                         class_name,
@@ -132,32 +152,298 @@ def extract_all_types(types: list[Type]) -> dict[Type, TypingType]:
                     data[ty] = ty_abstract_class
                 case RefinedType(_, itype, _):
                     class_name = mangle_type(ty)
-                    data.update(extract_all_types([itype]))
-                    parent = data[itype]
+                    data.update(extract_all_types([itype], ctx, instantiation_types))
+                    parent = _get(data, itype)
                     ty_abstract_class = type(class_name, (parent, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
-                    # TODO: alpha-equivalence
-                    # TODO: subtyping
+                    # Refined-type subtyping is wired by wire_refined_subtyping
+                    # in a post-pass once all refined classes exist (#312).
                 case AbstractionType(var_name, var_type, return_type):
                     class_name = mangle_type(ty)
                     data.update(
                         extract_all_types(
-                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)]
+                            [var_type, substitution_in_type(return_type, Var(Name("__self__", 0)), var_name)],
+                            ctx,
+                            instantiation_types,
                         )
                     )
                     ty_abstract_class = type(class_name, (ae_top, ABC), {})
                     ty_abstract_class = abstract(ty_abstract_class)
                     data[ty] = ty_abstract_class
-                    # TODO: alpha-equivalence
                 case Top():
                     data[ty] = ae_top
                 case TypePolymorphism(_, _, _):
-                    # TODO: Polytypes in Synthesis
+                    # Monomorphize the forall over the program-derived instantiation
+                    # types and register a grammar class for each concrete body.
+                    # We deliberately do NOT register a class for the forall node
+                    # itself (`mangle_type` asserts on TypePolymorphism).
+                    # RefinementPolymorphism bodies are intentionally skipped:
+                    # `monomorphize_poly_type` returns [] for them (and for an
+                    # empty instantiation set), making this a graceful no-op.
+                    for mono_body, _ in monomorphize_poly_type(ty, instantiation_types):
+                        data.update(extract_all_types([mono_body], ctx, instantiation_types))
+                case TypeVar():
+                    # Free/unbound type variable: nothing concrete to register.
                     continue
                 case _:
                     assert False, f"Unsupported {ty}"
+    # When a TypingContext is available, model subtyping among refined types by
+    # rewiring the refined classes that share a base into a single linear
+    # inheritance chain (a linear extension of the subtype partial order).
+    # When ctx is None this pass is skipped entirely (preserves legacy behaviour
+    # and keeps tests that call extract_all_types without a context green).
+    if ctx is not None:
+        wire_refined_subtyping(data, ctx)
     return data
+
+
+# --- Refined-type subtyping (issue #312, Stage 1: syntactic intervals) -------
+#
+# geneticengine registers a node as an alternative of its ``mro()[1]`` only (its
+# single first base). Refined classes sharing a base must therefore form a
+# single linear inheritance chain: each refined class's first base is the
+# next-wider class, bottoming out at the base type's class. Listing a base
+# before its descendant raises "Cannot create a consistent method resolution
+# order"; bases must be most-derived-first, then ABC. We never add the base type
+# explicitly alongside a refined parent.
+
+# An interval over a single refinement variable, represented as
+# (low, low_inclusive, high, high_inclusive) with None meaning unbounded.
+RefInterval = Tuple[Optional[float], bool, Optional[float], bool]
+
+_FULL_INTERVAL: RefInterval = (None, False, None, False)
+
+
+def _literal_value(lt: LiquidTerm) -> Optional[float]:
+    match lt:
+        case LiquidLiteralInt(v) | LiquidLiteralFloat(v):
+            return v
+        case _:
+            return None
+
+
+def _atom_to_interval(lt: LiquidTerm, var: Name) -> Optional[RefInterval]:
+    """Parse a single comparison atom over ``var`` against a numeric literal
+    into an interval. Returns None if the atom is not a recognised one-sided
+    comparison of the form ``var OP const`` or ``const OP var`` (Int/Float)."""
+    match lt:
+        case LiquidApp(Name(op, _), [left, right]) if op in ("<", "<=", ">", ">="):
+            lv = _literal_value(left)
+            rv = _literal_value(right)
+            # var OP const
+            if isinstance(left, LiquidVar) and left.name == var and rv is not None:
+                if op == "<":
+                    return (None, False, rv, False)
+                if op == "<=":
+                    return (None, False, rv, True)
+                if op == ">":
+                    return (rv, False, None, False)
+                if op == ">=":
+                    return (rv, True, None, False)
+            # const OP var  (flip the operator)
+            if isinstance(right, LiquidVar) and right.name == var and lv is not None:
+                if op == "<":
+                    return (lv, False, None, False)
+                if op == "<=":
+                    return (lv, True, None, False)
+                if op == ">":
+                    return (None, False, lv, False)
+                if op == ">=":
+                    return (None, False, lv, True)
+            return None
+        case _:
+            return None
+
+
+def _intersect_low(a: Tuple[Optional[float], bool], b: Tuple[Optional[float], bool]) -> Tuple[Optional[float], bool]:
+    (la, ia), (lb, ib) = a, b
+    if la is None:
+        return (lb, ib)
+    if lb is None:
+        return (la, ia)
+    if la > lb:
+        return (la, ia)
+    if lb > la:
+        return (lb, ib)
+    return (la, ia and ib)  # equal bound: tighter is the exclusive one
+
+
+def _intersect_high(a: Tuple[Optional[float], bool], b: Tuple[Optional[float], bool]) -> Tuple[Optional[float], bool]:
+    (ha, ia), (hb, ib) = a, b
+    if ha is None:
+        return (hb, ib)
+    if hb is None:
+        return (ha, ia)
+    if ha < hb:
+        return (ha, ia)
+    if hb < ha:
+        return (hb, ib)
+    return (ha, ia and ib)
+
+
+def refinement_to_interval(ty: RefinedType) -> Optional[RefInterval]:
+    """Best-effort parse of a refinement into a single interval over the bound
+    variable, handling conjunctions of one-sided literal comparisons (e.g.
+    ``c1 <= x && x <= c2`` and one-sided ``<,<=,>,>=``).
+
+    Returns None when the refinement contains anything not recognised (e.g.
+    disjunctions, non-literal bounds, user functions), so the caller can fall
+    back to the conservative behaviour of adding no extra subtyping edge.
+    """
+    var = ty.name
+
+    def go(lt: LiquidTerm) -> Optional[RefInterval]:
+        match lt:
+            case LiquidApp(Name("&&", _), [a, b]):
+                ia = go(a)
+                ib = go(b)
+                if ia is None or ib is None:
+                    return None
+                low = _intersect_low((ia[0], ia[1]), (ib[0], ib[1]))
+                high = _intersect_high((ia[2], ia[3]), (ib[2], ib[3]))
+                return (low[0], low[1], high[0], high[1])
+            case _:
+                return _atom_to_interval(lt, var)
+
+    return go(ty.refinement)
+
+
+def _ge_low(a: Tuple[Optional[float], bool], b: Tuple[Optional[float], bool]) -> bool:
+    """Is low-bound ``a`` at least as tight (>=) as low-bound ``b``?"""
+    (la, ia), (lb, ib) = a, b
+    if lb is None:
+        return True  # b imposes no lower bound
+    if la is None:
+        return False  # a imposes none but b does
+    if la > lb:
+        return True
+    if la < lb:
+        return False
+    # equal numeric bound: a is tighter iff it is exclusive while b is inclusive,
+    # or they share inclusivity.
+    return (not ia) or ib
+
+
+def _le_high(a: Tuple[Optional[float], bool], b: Tuple[Optional[float], bool]) -> bool:
+    """Is high-bound ``a`` at least as tight (<=) as high-bound ``b``?"""
+    (ha, ia), (hb, ib) = a, b
+    if hb is None:
+        return True
+    if ha is None:
+        return False
+    if ha < hb:
+        return True
+    if ha > hb:
+        return False
+    return (not ia) or ib
+
+
+def interval_subset(a: RefInterval, b: RefInterval) -> bool:
+    """Is interval ``a`` contained in interval ``b`` (a's values all satisfy b)?"""
+    return _ge_low((a[0], a[1]), (b[0], b[1])) and _le_high((a[2], a[3]), (b[2], b[3]))
+
+
+def wire_refined_subtyping(data: dict[Type, TypingType], ctx: TypingContext) -> None:
+    """Rewire refined classes sharing a base into linear inheritance chains so
+    that geneticengine can reach narrower refinements from wider ones.
+
+    Stage 1 (issue #312) decides subtyping with a purely syntactic
+    literal-interval-containment rule over Int/Float refinements. Refinements it
+    cannot analyse simply get no extra edge (they keep inheriting directly from
+    the base class, as built in ``extract_all_types``).
+    """
+    # Group refined keys by their (unrefined) base type.
+    groups: dict[Type, list[RefinedType]] = {}
+    for ty in data:
+        if isinstance(ty, RefinedType):
+            groups.setdefault(ty.type, []).append(ty)
+
+    for base_type, refined in groups.items():
+        if base_type not in data:
+            continue
+        # Only handle refinements we can turn into intervals; others are left
+        # attached directly to the base class.
+        analysable: dict[RefinedType, RefInterval] = {}
+        for rt in refined:
+            iv = refinement_to_interval(rt)
+            # TODO(#312 stage 2): SMT entailment fallback for refinements the
+            # interval analyzer cannot decide (iv is None). For now, leave them
+            # attached to the base class (current behaviour, no extra edge).
+            if iv is not None:
+                analysable[rt] = iv
+        if len(analysable) < 2:
+            continue
+
+        # Collapse mutual-containment equivalence classes (e.g. x>0 vs x>=1 over
+        # Int are structurally different but here treated as distinct intervals;
+        # truly equal intervals collapse to one canonical representative chosen
+        # deterministically by mangle_type sort order).
+        items = list(analysable.items())
+        canonical: dict[RefinedType, RefinedType] = {}
+        reps: list[RefinedType] = []
+        for rt, iv in items:
+            found = None
+            for rep in reps:
+                riv = analysable[rep]
+                if interval_subset(iv, riv) and interval_subset(riv, iv):
+                    found = rep
+                    break
+            if found is None:
+                reps.append(rt)
+                canonical[rt] = rt
+            else:
+                canonical[rt] = found
+
+        # Deterministic ordering for representatives.
+        reps.sort(key=mangle_type)
+
+        # Build a forest over the containment partial order. Because
+        # geneticengine only registers a node under its single ``mro()[1]``
+        # base, each refined class gets exactly one parent: its *tightest
+        # strictly-wider* representative (its immediate predecessor in the
+        # subtype order), falling back to the base class when none exists.
+        # Incomparable refinements become independent children of the base, so
+        # we never force unrelated refinements into one artificial line.
+
+        def strictly_contains(outer: RefinedType, inner: RefinedType) -> bool:
+            """outer ⊋ inner: inner's values all satisfy outer, but not vice
+            versa (so outer is strictly wider)."""
+            return interval_subset(analysable[inner], analysable[outer]) and not interval_subset(
+                analysable[outer], analysable[inner]
+            )
+
+        # Rank by how many reps strictly contain a node: widest first, so a
+        # parent is always created before its children (no __bases__ mutation).
+        def width_rank(rt: RefinedType) -> int:
+            return sum(1 for other in reps if other is not rt and strictly_contains(other, rt))
+
+        ordered = sorted(reps, key=lambda rt: (width_rank(rt), mangle_type(rt)))
+
+        base_class: TypingType = data[base_type]
+        new_classes: dict[RefinedType, TypingType] = {}
+        for rt in ordered:
+            # Immediate parent = tightest strictly-wider rep already created.
+            parents = [p for p in ordered if p in new_classes and strictly_contains(p, rt)]
+            if parents:
+                # Tightest = the one whose interval is contained in all the
+                # others (most-derived). Deterministic via the width_rank /
+                # mangle_type ordering already applied to ``ordered``.
+                parent_rt = max(
+                    parents,
+                    key=lambda p: (width_rank(p), mangle_type(p)),
+                )
+                parent_class = new_classes[parent_rt]
+            else:
+                parent_class = base_class
+            cls = type(mangle_type(rt), (parent_class, ABC), {})
+            cls = abstract(cls)
+            new_classes[rt] = cls
+
+        # Point every refined key (including collapsed equivalents) at its
+        # canonical forest class.
+        for rt in analysable:
+            data[rt] = new_classes[canonical[rt]]
 
 
 def create_literal_class(
@@ -199,13 +485,15 @@ def create_literals_nodes(type_info: dict[Type, TypingType], types: Optional[lis
     lt256 = LiquidApp(Name("<=", 0), [LiquidVar(xname), LiquidLiteralInt(256)])
     base_int = create_literal_class(
         t_int,
-        type_info[t_int],
+        _get(type_info, t_int),
         refined_type_to_metahandler(RefinedType(xname, t_int, LiquidApp(Name("&&", 0), [gtm1, lt256]))),
     )
 
     # Exclude t_int from the unlimited-range list; use the metahandler-based base_int instead.
     types_without_unlimited_int = [ty for ty in types if ty != t_int]
-    return [create_literal_class(aeon_ty, type_info[aeon_ty]) for aeon_ty in types_without_unlimited_int] + [base_int]
+    return [create_literal_class(aeon_ty, _get(type_info, aeon_ty)) for aeon_ty in types_without_unlimited_int] + [
+        base_int
+    ]
 
 
 def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[TypingType]:
@@ -214,11 +502,11 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
     Each node:
     - Uses a metahandler (e.g. IntRange(1, 99)) so the enumerative search only
       iterates values that satisfy the refinement.
-    - Inherits from the refined type's grammar class, which itself inherits
-      from the base type's class. The literal thus fills both refined-typed
-      slots (e.g. ``Chunk_hill_chunk``'s ``{x:Int|5..95}`` arg) AND base-typed
-      slots (plain ``Int`` holes) — geneticengine considers any transitive
-      subclass a valid alternative.
+    - Inherits from the refined type's grammar class, which itself chains down to
+      the BASE type's class (e.g. æInt). This keeps it a (transitive) alternative
+      of the base class while also letting wider refined classes reach narrower
+      refined literals through the subtyping chain (issue #312).
+
     - Returns a Literal with the base (unrefined) type from get_core() so the
       type checker can handle it correctly.
     """
@@ -226,12 +514,9 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
     result = []
     for aeon_ty in ref_types:
         base_type = aeon_ty.type
-        # Parent is the refined type's own abstract class so this literal can
-        # fill positions typed exactly as the refined type (constructor args,
-        # function params with refinements). The refined abstract class in
-        # turn inherits from the base, so this also remains an alternative
-        # for plain base-typed slots.
-        parent_class = type_info[aeon_ty]
+        # Parent is the refined type's class, which (after wire_refined_subtyping)
+        # chains down through any wider refinements to the base class.
+        parent_class = _get(type_info, aeon_ty)
         metahandler = refined_type_to_metahandler(aeon_ty)
         if metahandler is None:
             continue
@@ -269,11 +554,15 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
         args.append((current.var_name, current.var_type))
         current = current.type
     rtype = current
-    python_ty = type_info[rtype]
+    # Normalize binder-dependent occurrences in the return type to `__self__`,
+    # matching the storage convention used by `extract_all_types`.
+    for aname, _ in args:
+        rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
+    python_ty = _get(type_info, rtype)
 
     vname = mangle_var(name)
     dc = make_dataclass(
-        f"var_app_{vname}", [(mangle_name(aname), type_info[ty]) for (aname, ty) in args], bases=(python_ty,)
+        f"var_app_{vname}", [(mangle_name(aname), _get(type_info, ty)) for (aname, ty) in args], bases=(python_ty,)
     )
 
     def get_core(_self):
@@ -290,17 +579,18 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
 
 def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    return [create_var_node(var_name, ty, type_info[ty]) for (var_name, ty) in vars if ty in type_info] + [
+    return [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)] + [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
-        if ty in type_info and isinstance(ty, AbstractionType)
+        if _has(type_info, ty) and isinstance(ty, AbstractionType)
     ]
 
 
 def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("body", type_info[ty.type])], bases=(type_info[ty],))
+    return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    dc = make_dataclass(vname, [("body", _get(type_info, return_type))], bases=(_get(type_info, ty),))
 
     def get_core(_self):
         return Annotation(Abstraction(Name("_0", fresh_counter.fresh()), _self.body.get_core()), ty)
@@ -337,7 +627,12 @@ def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingTy
 def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
-    dc = make_dataclass(vname, [("fun", type_info[ty]), ("arg", type_info[ty.var_type])], bases=(type_info[ty.type],))
+    return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    dc = make_dataclass(
+        vname,
+        [("fun", _get(type_info, ty)), ("arg", _get(type_info, ty.var_type))],
+        bases=(_get(type_info, return_type),),
+    )
 
     # Note: this would require dependent type dynamic processing on the return type (parent class)
 
@@ -357,7 +652,7 @@ def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
     v_name = f"if_{mangle_type(ty)}"
     dc = make_dataclass(
         v_name,
-        [("cond", type_info[t_bool]), ("then", type_info[ty]), ("otherwise", type_info[ty])],
+        [("cond", _get(type_info, t_bool)), ("then", type_info[ty]), ("otherwise", type_info[ty])],
         bases=(type_info[ty],),
     )
 
@@ -555,9 +850,9 @@ def create_monomorphized_var_nodes(
     nodes: list[TypingType] = []
     for name, mono_ty, type_apps in monomorphized:
         # Simple var node (produces the type-applied function/value)
-        if mono_ty in type_info:
+        if _has(type_info, mono_ty):
             vname = mangle_var(name) + "_mono_" + "_".join(mangle_type(t) for t in type_apps)
-            dc = make_dataclass(f"var_{vname}", [], bases=(type_info[mono_ty],))
+            dc = make_dataclass(f"var_{vname}", [], bases=(_get(type_info, mono_ty),))
 
             def get_core(_, _name=name, _ta=type_apps):
                 term = Var(_name)
@@ -577,15 +872,19 @@ def create_monomorphized_var_nodes(
                 args.append((current.var_name, current.var_type))
                 current = current.type
             rtype = current
+            # Normalize binder-dependent occurrences to `__self__`, matching the
+            # storage convention used by `extract_all_types`.
+            for aname, _ in args:
+                rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
 
-            if rtype not in type_info or any(aty not in type_info for _, aty in args):
+            if not _has(type_info, rtype) or any(not _has(type_info, aty) for _, aty in args):
                 continue
 
             vname = mangle_var(name) + "_mono_" + "_".join(mangle_type(t) for t in type_apps)
             dc = make_dataclass(
                 f"var_app_{vname}",
-                [(mangle_name(aname), type_info[aty]) for (aname, aty) in args],
-                bases=(type_info[rtype],),
+                [(mangle_name(aname), _get(type_info, aty)) for (aname, aty) in args],
+                bases=(_get(type_info, rtype),),
             )
 
             args_names = [aname for aname, _ in args]
@@ -702,7 +1001,7 @@ def gen_grammar_nodes(
         set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
-    type_info = extract_all_types(list(types_to_consider))
+    type_info = extract_all_types(list(types_to_consider), ctx, instantiation_types)
     type_nodes = list(set(type_info.values()))
 
     literals = create_literals_nodes(type_info)
@@ -719,7 +1018,16 @@ def gen_grammar_nodes(
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.
-    return ret, type_info[refined_to_unrefined_type(ty)]
+    # `refined_to_unrefined_type` does not peel TypePolymorphism, and we never
+    # register the forall node itself, so for a polymorphic synthesis target we
+    # derive the starting node from its first monomorphized body.
+    # TODO: synthesize across all instantiations of a polymorphic target.
+    if isinstance(ty, TypePolymorphism):
+        mono = monomorphize_poly_type(ty, instantiation_types)
+        start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
+    else:
+        start_ty = refined_to_unrefined_type(ty)
+    return ret, _get(type_info, start_ty)
 
 
 def print_grammar_nodes_names(grammar_nodes: list[type]) -> None:
