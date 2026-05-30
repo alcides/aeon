@@ -8,7 +8,7 @@ from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context
-from aeon.sugar.parser import parse_main_program, parse_type
+from aeon.sugar.parser import parse_expression, parse_main_program, parse_type
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.location import FileLocation
 from tests.driver import check_compile_expr
@@ -114,3 +114,24 @@ def k : Int = g (2 + 40);
     _check_refinement_error_location(
         source, "test_refinement.ae", expected_line=3, expected_col_min=14, expected_col_max=24
     )
+
+
+def test_implication_in_refinement_typechecks():
+    """`-->` is registered in the prelude, so refinements may use logical
+    implication directly instead of desugaring to `(!a) || b`."""
+    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = \x -> (if x > 0 then x else 0) in f 5"""
+    assert check_compile_expr(source, parse_type("Int"), 5)
+
+
+def test_implication_in_refinement_rejects_violation():
+    """The implication is genuinely enforced by the verifier: an implementation
+    that breaks `(x > 0) --> (r > 0)` must be rejected."""
+    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = \x -> (0 - x) in f 5"""
+    assert not check_compile_expr(source, parse_type("Int"))
+
+
+def test_negation_binds_tighter_than_or():
+    """`!a || b` parses as `(!a) || b`, not `!(a || b)` — the `!` operator is no
+    longer right-greedy."""
+    parsed = str(parse_expression("!a || b"))
+    assert parsed == "((|| (! a?)) b?)"

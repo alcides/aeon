@@ -28,7 +28,8 @@ from translate import (  # noqa: E402
 
 
 def test_implication_at_top_level():
-    assert _expand_implication("a ==> b") == "((!(a)) || (b))"
+    # `==>` maps to aeon's `-->`, now registered in the prelude.
+    assert _expand_implication("a ==> b") == "((a) --> (b))"
 
 
 def test_implication_inside_parens():
@@ -36,7 +37,7 @@ def test_implication_inside_parens():
     # implications survive into the aeon output where `==>` is a parse error.
     out = _expand_implication("(x ==> y)")
     assert "==>" not in out
-    assert "||" in out
+    assert "-->" in out
 
 
 def test_iff_becomes_equality():
@@ -56,10 +57,11 @@ def test_chained_comparison_with_and_split():
 
 
 def test_chained_comparison_does_not_split_implication():
-    # The `>` in `==>` must not be treated as a comparison operator.
+    # The `>` in `==>` (and in the emitted `-->`) must not be treated as a
+    # comparison operator.
     out = translate_expression("k == 1 ==> b >= a")
     assert "==>" not in out
-    assert "(!(k == 1)) || (b >= a)" in out
+    assert "(k == 1) --> (b >= a)" in out
 
 
 def test_var_bindings_become_let_with_scope_parens():
