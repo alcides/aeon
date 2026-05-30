@@ -42,20 +42,25 @@ def test_fresh():
     assert wellformed_horn(r.refinement)
 
 
-def test_fresh_admits_type_var_and_refined_context_vars():
-    """Polymorphism (#288): a ``TypeVar``-typed context variable and a refined
-    one both become qualifier-atom slots, projected onto their base sort."""
+def test_fresh_admits_type_var_context_vars():
+    """Polymorphism (#288): ``TypeVar``-typed context variables (bare or refined)
+    become qualifier-atom slots, projected onto their base type variable, while
+    the monomorphic atom set is left unchanged (refined-over-``TypeConstructor``
+    and function-typed vars stay excluded)."""
     a_name = Name("a")
     x_name = Name("x")  # x : a            (bare TypeVar)
+    w_name = Name("w")  # w : {_:a | _}    (refined over a TypeVar)
     y_name = Name("y")  # y : {_:Int | _}  (refined over a TypeConstructor)
+    z_name = Name("z")  # z : Int          (bare TypeConstructor)
     f_name = Name("f")  # f : Int -> Int   (function, excluded)
     v_name = Name("v")
     q_name = Name("?")
 
     tv = TypeVar(a_name)
+    refined_tv = RefinedType(Name("_"), tv, LiquidLiteralBool(True))
     refined_int = RefinedType(Name("_"), t_int, LiquidLiteralBool(True))
     fun_ty = AbstractionType(Name("n"), t_int, t_int)
-    ctx = build_context({x_name: tv, y_name: refined_int, f_name: fun_ty})
+    ctx = build_context({x_name: tv, w_name: refined_tv, y_name: refined_int, z_name: t_int, f_name: fun_ty})
 
     t = RefinedType(v_name, tv, LiquidHornApplication(q_name, argtypes=[]))
     r = fresh(ctx, t)
@@ -64,12 +69,16 @@ def test_fresh_admits_type_var_and_refined_context_vars():
     assert isinstance(r.refinement, LiquidHornApplication)
 
     slots = dict(r.refinement.argtypes)
-    # The TypeVar var survives with its TypeVar sort.
+    # Bare TypeVar var survives with its TypeVar sort.
     assert slots[LiquidVar(x_name)] == tv
-    # The refined var is projected onto its base TypeConstructor.
-    assert slots[LiquidVar(y_name)] == t_int
+    # Refined-over-TypeVar var projects onto its base type variable.
+    assert slots[LiquidVar(w_name)] == tv
+    # Bare TypeConstructor var survives (unchanged behavior).
+    assert slots[LiquidVar(z_name)] == t_int
     # The self-variable (also of TypeVar sort) survives too.
     assert slots[LiquidVar(r.name)] == tv
+    # Refined-over-TypeConstructor var stays excluded (unchanged behavior).
+    assert LiquidVar(y_name) not in slots
     # The function-typed var is not admissible and is dropped.
     assert LiquidVar(f_name) not in slots
 
