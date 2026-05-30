@@ -8,6 +8,7 @@ from loguru import logger
 
 from z3 import Function
 from z3 import Int
+from z3 import Real
 from z3 import Solver
 from z3 import StringVal
 from z3 import sat
@@ -629,13 +630,7 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
         case TypeConstructor(Name("Bool", _)):
             return Bool(name)
         case TypeConstructor(Name("Float", _), _):
-            import z3
-
-            v = z3.Real(name)
-            return v
-            # TODO: see problem with version below
-            # fpsort = FPSort(8, 24)
-            # return FP(name, fpsort)
+            return Real(name)
         case TypeConstructor(Name("String", _)):
             return String(name)
         case TypeConstructor(Name("Set", _)):
