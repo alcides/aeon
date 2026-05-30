@@ -55,6 +55,35 @@ class LiquidTypeCheckingContext:
         return f"(LiquidGamma {kt} | {vars} | {fns} )"
 
 
+def liquid_admissible(ty: Type) -> TypeConstructor | TypeVar | None:
+    """Project a variable's type onto the base sort it may contribute as a
+    qualifier atom for liquid (Horn) inference, or ``None`` if it cannot.
+
+    Admissible base sorts are exactly the ones the SMT layer can carry:
+
+    - ``TypeConstructor`` (``Int``, ``Bool``, ``Float``, user datatypes, …).
+    - ``TypeVar`` — lowered to an opaque/``Int`` sort, so an equality between
+      two values of the *same* type variable is a sound over-approximation.
+      This is what lets refinements be inferred in polymorphic contexts
+      (e.g. the identity hole ``(x:a) -> {v:a | ?}`` can learn ``v == x``).
+
+    Refinements are transparent: we recurse to the carried base. Function
+    types, polymorphic wrappers (``TypePolymorphism`` / ``RefinementPolymorphism``),
+    ``Top`` and existentials carry no comparable scalar and are excluded.
+
+    This is the single source of truth for "which context variables become
+    liquid sorts", mirroring the variable-admission logic in
+    :func:`lower_context`.
+    """
+    match ty:
+        case TypeConstructor(_, _) | TypeVar(_):
+            return ty
+        case RefinedType(_, base, _):
+            return liquid_admissible(base)
+        case _:
+            return None
+
+
 def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
     args: list[TypeConstructor | TypeVar] = []
     while True:

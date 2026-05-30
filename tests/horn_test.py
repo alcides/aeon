@@ -5,6 +5,7 @@ from aeon.core.types import AbstractionType
 from aeon.core.types import LiquidHornApplication
 from aeon.core.types import RefinedType
 from aeon.core.types import TypeConstructor
+from aeon.core.types import TypeVar
 from aeon.core.types import t_int
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.typechecking.entailment import entailment
@@ -37,6 +38,40 @@ def test_fresh():
     assert isinstance(r.refinement, LiquidHornApplication)
 
     assert r.refinement.argtypes == [(LiquidVar(x_name), t_int), (LiquidVar(r.name), t_int)]
+
+    assert wellformed_horn(r.refinement)
+
+
+def test_fresh_admits_type_var_and_refined_context_vars():
+    """Polymorphism (#288): a ``TypeVar``-typed context variable and a refined
+    one both become qualifier-atom slots, projected onto their base sort."""
+    a_name = Name("a")
+    x_name = Name("x")  # x : a            (bare TypeVar)
+    y_name = Name("y")  # y : {_:Int | _}  (refined over a TypeConstructor)
+    f_name = Name("f")  # f : Int -> Int   (function, excluded)
+    v_name = Name("v")
+    q_name = Name("?")
+
+    tv = TypeVar(a_name)
+    refined_int = RefinedType(Name("_"), t_int, LiquidLiteralBool(True))
+    fun_ty = AbstractionType(Name("n"), t_int, t_int)
+    ctx = build_context({x_name: tv, y_name: refined_int, f_name: fun_ty})
+
+    t = RefinedType(v_name, tv, LiquidHornApplication(q_name, argtypes=[]))
+    r = fresh(ctx, t)
+
+    assert isinstance(r, RefinedType)
+    assert isinstance(r.refinement, LiquidHornApplication)
+
+    slots = dict(r.refinement.argtypes)
+    # The TypeVar var survives with its TypeVar sort.
+    assert slots[LiquidVar(x_name)] == tv
+    # The refined var is projected onto its base TypeConstructor.
+    assert slots[LiquidVar(y_name)] == t_int
+    # The self-variable (also of TypeVar sort) survives too.
+    assert slots[LiquidVar(r.name)] == tv
+    # The function-typed var is not admissible and is dropped.
+    assert LiquidVar(f_name) not in slots
 
     assert wellformed_horn(r.refinement)
 
