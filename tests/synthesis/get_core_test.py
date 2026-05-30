@@ -63,7 +63,7 @@ def test_extract_all_types_poly_target():
         TypeConstructor(Name("List", 0), [TypeVar(Name("a", 0))]),
     )
     inst = {t_int, t_string}
-    data = extract_all_types([poly], inst)
+    data = extract_all_types([poly], instantiation_types=inst)
 
     assert TypeConstructor(Name("List", 0), [t_int]) in data
     assert TypeConstructor(Name("List", 0), [t_string]) in data
@@ -85,7 +85,7 @@ def test_extract_all_types_poly_nested_in_abstraction():
         ),
     )
     inst = {t_int}
-    data = extract_all_types([poly], inst)
+    data = extract_all_types([poly], instantiation_types=inst)
 
     # The concrete instantiation classes are registered. `data` is keyed on the
     # alpha-equivalence canonical form (#311), so canonicalize before membership.
@@ -101,7 +101,7 @@ def test_extract_all_types_poly_empty_instantiation():
         BaseKind(),
         TypeConstructor(Name("List", 0), [TypeVar(Name("a", 0))]),
     )
-    data = extract_all_types([poly], set())
+    data = extract_all_types([poly], instantiation_types=set())
     assert poly not in data
     assert TypeConstructor(Name("List", 0), [t_int]) not in data
 
@@ -123,7 +123,7 @@ def test_mono_var_get_core_type_application():
     monomorphized = [(fname, body, type_apps) for body, type_apps in mono]
 
     # Register the mono body itself so the simple (no-field) var node is created.
-    type_info = extract_all_types([t_int, mono[0][0]], inst)
+    type_info = extract_all_types([t_int, mono[0][0]], instantiation_types=inst)
     nodes = create_monomorphized_var_nodes(monomorphized, type_info)
 
     # The simple var node (no constructor args) produces Var f applied to type Int.
