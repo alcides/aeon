@@ -4,6 +4,7 @@ from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
+    AeonError,
     InstanceResolutionError,
     NonOrderableComparisonError,
     UnificationFailedError,
@@ -878,3 +879,81 @@ def elaborate(ctx: ElaborationTypingContext, e: STerm, expected_type: SType = st
     e3 = elaborate_check(ctx, e2, expected_type)
     e4 = elaborate_remove_unification(ctx, e3)
     return e4
+
+
+def _elaborate_check_spine(ctx: ElaborationTypingContext, t: STerm, ty: SType, errors: list[AeonError]) -> STerm:
+    """Walk the chain of top-level ``SRec`` definitions, elaborating each
+    definition's value in isolation so that a failure in one is recorded and the
+    remaining definitions are still elaborated.
+
+    Mirrors the ``SRec`` arm of ``elaborate_check``: the body is checked under a
+    context that binds the definition's name to its declared type, so it stays
+    in scope even when the value failed to elaborate.
+    """
+    match t:
+        case SRec(name, vty, val, body, decreasing_by, loc=loc):
+            nctx = ctx.with_var(name, vty)
+            try:
+                nval = elaborate_check(nctx, val, vty)
+            except AeonError as e:
+                errors.append(e)
+                nval = val
+            nbody = _elaborate_check_spine(nctx, body, ty, errors)
+            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
+        case _:
+            try:
+                return elaborate_check(ctx, t, ty)
+            except AeonError as e:
+                errors.append(e)
+                return t
+
+
+def _remove_unification_spine(ctx: ElaborationTypingContext, t: STerm, errors: list[AeonError]) -> STerm:
+    """Walk the top-level ``SRec`` spine running ``elaborate_remove_unification``
+    per definition, so errors raised in this phase (e.g. instance resolution and
+    non-orderable comparison checks) are collected per definition rather than
+    aborting the whole program.
+
+    Mirrors the ``SRec`` arm of ``elaborate_remove_unification``.
+    """
+    match t:
+        case SRec(name, ty, val, body, decreasing_by, loc=loc):
+            nctx = ctx.with_var(t.var_name, t.var_type)
+            try:
+                nty = handle_unification_in_type(ctx, ty)
+                val_ctx = nctx
+                for inst_name, inst_class in _collect_given_instances(t.var_type, val):
+                    val_ctx = val_ctx.with_instance(inst_name, inst_class)
+                nval = elaborate_remove_unification(val_ctx, val)
+            except AeonError as e:
+                errors.append(e)
+                nty = ty
+                nval = val
+            nbody = _remove_unification_spine(nctx, body, errors)
+            return SRec(name, nty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
+        case _:
+            try:
+                return elaborate_remove_unification(ctx, t)
+            except AeonError as e:
+                errors.append(e)
+                return t
+
+
+def elaborate_collecting_errors(
+    ctx: ElaborationTypingContext, e: STerm, expected_type: SType = st_top
+) -> tuple[STerm | None, list[AeonError]]:
+    """Like :func:`elaborate`, but accumulates one error per top-level
+    definition that fails instead of bailing on the first.
+
+    Returns ``(term, [])`` on success, or ``(None, errors)`` when at least one
+    definition failed to elaborate.
+    """
+    e2 = elaborate_foralls(e)
+    errors: list[AeonError] = []
+    e3 = _elaborate_check_spine(ctx, e2, expected_type, errors)
+    if errors:
+        return None, errors
+    e4 = _remove_unification_spine(ctx, e3, errors)
+    if errors:
+        return None, errors
+    return e4, []
