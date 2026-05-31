@@ -1,14 +1,23 @@
-"""Decorator API types and helpers — re-exports the Rust core for
-``metadata_update`` / ``metadata_update_by_name`` /
-``CORE_DECORATOR_QUEUE_META_KEY``. The ``Metadata`` / ``DecoratorType`` /
-``CoreDecoratorType`` aliases stay in Python (they're purely structural)."""
+"""Decorator API types and helpers — re-export of the Rust core
+(``aeon-rs/src/decorators.rs``).
+
+The two type aliases ``Metadata`` and ``DecoratorType`` /
+``CoreDecoratorType`` stay in Python because they're purely structural
+type annotations.
+"""
 
 from __future__ import annotations
 
 from typing import Any, Callable, TYPE_CHECKING
 
 from aeon.utils.name import Name
-from aeon.sugar.program import Definition, Decorator
+from aeon.sugar.program import Decorator, Definition
+
+from aeon_rs import (
+    CORE_DECORATOR_QUEUE_META_KEY as CORE_DECORATOR_QUEUE_META_KEY,
+)
+from aeon_rs import metadata_update as metadata_update
+from aeon_rs import metadata_update_by_name as metadata_update_by_name
 
 from aeon_rs import (
     CORE_DECORATOR_QUEUE_META_KEY,

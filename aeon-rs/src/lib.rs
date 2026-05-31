@@ -12,6 +12,7 @@ mod bind;
 mod builders;
 mod constructor_registry;
 mod core_bind;
+mod core_equality;
 mod core_types_helpers;
 mod core_pprint;
 mod decorators;
@@ -100,6 +101,12 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(core_types_helpers::type_free_term_vars, m)?)?;
     m.add_function(wrap_pyfunction!(core_types_helpers::get_type_vars, m)?)?;
     m.add_function(wrap_pyfunction!(core_types_helpers::with_binders, m)?)?;
+
+    // Alpha-equivalence and canonicalization (aeon.core.equality).
+    m.add_function(wrap_pyfunction!(core_equality::core_liquid_equality, m)?)?;
+    m.add_function(wrap_pyfunction!(core_equality::core_type_equality, m)?)?;
+    m.add_function(wrap_pyfunction!(core_equality::core_term_equality, m)?)?;
+    m.add_function(wrap_pyfunction!(core_equality::canonicalize_type, m)?)?;
     // Built-in TypeConstructors and helpers.
     m.add("t_unit", core_types_helpers::get_t_unit(m.py())?)?;
     m.add("t_bool", core_types_helpers::get_t_bool(m.py())?)?;
